@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { T } from './timeouts.mjs';
 import { retryWhile } from './poll.mjs';
-import { withRetry } from './simretry.mjs';
+import { withRetry, classify } from './simretry.mjs';
 
 export const DEVICE_NAME = process.env.FW_SIM_NAME || 'fw-iphone-27';
 export const SAFARI = 'com.apple.mobilesafari';
@@ -54,11 +54,48 @@ export const simctlRetry = (args, opts, { max = 3, log = () => {} } = {}) => wit
 });
 const tail = (r) => (r.error ? r.error.code || r.error.message : (r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | '));
 
+/** Per-call limits of the recover path in ms and the tries per call (Lean: Fw.Device.SimRelaunch, golden sim-relaunch.jsonl). Not scaled. */
+export const CALL = Object.freeze({ tries: 2, stateMs: 30000, listMs: 90000, shutdownMs: 40000, bootMs: 60000, bootstatusMs: 120000 });
+
+const parseDevices = (r) => Object.entries(JSON.parse(r.stdout).devices).flatMap(([runtime, ds]) =>
+  ds.filter((d) => d.isAvailable !== false).map((d) => ({ udid: d.udid, name: d.name, state: d.state, runtime })));
+
 export function listDevices() {
-  const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: 60000 }, { max: 3, log: (l) => process.stderr.write(`${l}\n`) });
-  if (r.status !== 0) throw new Error(`simctl list devices failed: ${tail(r)}`);
-  return Object.entries(JSON.parse(r.stdout).devices).flatMap(([runtime, ds]) =>
-    ds.filter((d) => d.isAvailable !== false).map((d) => ({ udid: d.udid, name: d.name, state: d.state, runtime })));
+  const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: CALL.listMs }, { max: CALL.tries, log: (l) => process.stderr.write(`${l}\n`) });
+  if (r.status !== 0) {
+    const stuck = classify(tail(r)) === 'transient' ? ' (CoreSimulatorService does not answer: outside this process)' : '';
+    throw new Error(`simctl list devices failed: ${tail(r)}${stuck}`);
+  }
+  return parseDevices(r);
+}
+
+const known = { udid: null };
+
+/** Lean `deadUp` or `deadDown`: is the device still Booted? One list call of 30 s, asked once more; no answer counts as down. */
+export function deviceBooted(udid = known.udid, { log = () => {} } = {}) {
+  if (!udid) return true; // no device was booted by this process: nothing says it is down
+  const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: CALL.stateMs }, { max: CALL.tries, log });
+  if (r.status !== 0) return false;
+  try { return parseDevices(r).some((d) => d.udid === udid && d.state === 'Booted'); } catch { return false; }
+}
+
+/**
+ * The one reboot of a session (Lean: `rebooting`): shutdown, boot and wait until booted, each call within its limit and asked
+ * once more. Safari and the proxy are started again by the caller. Throws when a call fails for good.
+ */
+export async function rebootDevice({ udid = known.udid, log = () => {} } = {}) {
+  if (!udid) throw new Error('no Simulator device known to reboot');
+  const calls = [
+    ['shutdown', ['shutdown', udid], CALL.shutdownMs, /current state: Shutdown/i],
+    ['boot', ['boot', udid], CALL.bootMs, /current state: (Booted|Booting)/i],
+    ['bootstatus', ['bootstatus', udid, '-b'], CALL.bootstatusMs, null],
+  ];
+  for (const [name, args, timeoutMs, already] of calls) {
+    const t0 = Date.now();
+    const r = simctlRetry(args, { timeoutMs }, { max: CALL.tries, log });
+    if (r.status !== 0 && !already?.test(`${r.stderr}${r.stdout}`)) throw new Error(`simctl ${name} failed: ${tail(r)}`);
+    log(`  reboot: ${name} done in ${Math.round((Date.now() - t0) / 1000)} s (limit ${Math.round(timeoutMs / 1000)} s, ${CALL.tries} tries)`);
+  }
 }
 
 /** The one device named DEVICE_NAME. Refuses zero or several. */
@@ -83,6 +120,7 @@ export function findSockets({ timeoutMs = 30000 } = {}) {
  */
 export async function bootDevice({ log = () => {} } = {}) {
   const d = findDevice();
+  known.udid = d.udid;
   const others = bootedDevices().filter((x) => x.udid !== d.udid);
   if (others.length) throw new Error(`another Simulator is booted (${others.map((o) => o.name).join(', ')}); shut it down first`);
   const wasBooted = d.state === 'Booted';
