@@ -4071,8 +4071,8 @@
    "candidate": "morph.mount:open-once: one touch gesture opens the morph at most once (the first idle-to-taken move opens it; after a close inside the same gesture no move reopens it)",
    "status": "partly-proved",
    "flag": "morph.mount:open-once",
-   "chromium": "trajectory probe run: see the task note (pending at write time)",
-   "webkit": "trajectory probe: see the task note",
+   "chromium": "trajectory probe run 40214808662 (fw=morph.mount:open-once widths 390,1280): 0 new fails, 44 undecided open@1 (as every mount flag); the trajectory drives wheel and pointer scroll, not touch gestures",
+   "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40214808662); felt effect not measured",
    "visual": "E for the first open of every gesture (orig_plain); a reopen inside one finger drag is dropped, so the same gesture cannot reopen the panel after it closed",
    "mechanism": "The original reopens on every forward move of an idle armed page (orig_reopens: n moves, n opens). PROVED: once_at_most_one, once_no_open. Whether the 8-41 reopens per pass come from one gesture is not traced (INFERRED)",
    "leanFor": [
@@ -4093,7 +4093,7 @@
    "v1Evidence": "none",
    "lesson": "A bound proved on the decision says nothing about the cause; trace the events before counting a win.",
    "next": "Count fade onsets per pass with and without the flag in the Simulator lane.",
-   "evidence": "Lean Fw.Parts.MorphMountToolbar.once_at_most_one; golden morph-mount-toolbar.jsonl"
+   "evidence": "Lean Fw.Parts.MorphMountToolbar.once_at_most_one; golden morph-mount-toolbar.jsonl; trajectory probe 40214808662"
   },
   {
    "id": "mount.overscroll-lock",
