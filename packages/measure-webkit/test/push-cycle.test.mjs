@@ -172,3 +172,9 @@ test('the extra recorder keys its events on the base recorder frame index', () =
   assert.match(EXTRA_START_JS, /__fwFin/);
   assert.match(EXTRA_START_JS, /st\.t\.length/);
 });
+
+test('upload names: a colon (off-hero.countdown:strip) is replaced, plain names stay', () => {
+  assert.equal(P.uploadName('1-driver-off-hero.countdown:strip-r1.log'), '1-driver-off-hero.countdown_strip-r1.log');
+  assert.equal(P.uploadName('1-throttle.json'), '1-throttle.json');
+  for (const a of ['user', 'off-hero.countdown:strip', 'off-morph.countdown:strip', 'off-engine.scroll:unthrottle']) assert.ok(!/[:<>|*?"\\]/.test(P.uploadName(`1-driver-${a}-r1.log`)));
+});

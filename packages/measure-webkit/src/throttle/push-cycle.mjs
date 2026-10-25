@@ -215,5 +215,8 @@ export function searchOf(arm) {
   throw new Error(`unknown arm ${arm}`);
 }
 
+/** A file name the artifact upload accepts: it refuses `: < > | * ? " \` (push 3 lost all three sims on `off-hero.countdown:strip` log names). */
+export const uploadName = (name) => name.replace(/[:<>|*?"\\]/g, '_');
+
 /** The pages the site build must prerender for these arms (the rewrite default page is always built). */
 export const searchesOf = (arms) => [...new Set(arms.filter((a) => a !== 'original' && a !== 'rewrite').map(searchOf))];

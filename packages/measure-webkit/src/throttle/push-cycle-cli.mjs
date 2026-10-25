@@ -5,8 +5,8 @@
 //   --rotate. original = the read-only snapshot; rewrite = the default prerendered build; user = the user's composition; off-<flag> = it minus one flag.
 // node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file]   the per-cycle table, the trend and the H1/H2 verdicts
 import { parseArgs } from 'node:util';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync } from 'node:fs';
+import { resolve, dirname, join } from 'node:path';
 import { loadavg } from 'node:os';
 import { watch } from '../watchdog.mjs';
 import { findDevice } from '../sim.mjs';
@@ -14,7 +14,7 @@ import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
 import { makePassRunner } from './pass-run.mjs';
 import { excludeReason } from './finish-report.mjs';
 import { pushCyclePass } from './push-cycle-pass.mjs';
-import { searchOf } from './push-cycle.mjs';
+import { searchOf, uploadName } from './push-cycle.mjs';
 import { reportMd } from './push-cycle-report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -61,7 +61,10 @@ async function main() {
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round + Number(v.rotate))) await runArm(arm, round);
         }
-      } finally { stop(); if (!v.driver) cleanup(driver); }
+      } finally {
+        stop(); if (!v.driver) cleanup(driver);
+        for (const f of readdirSync(outDir)) if (f !== uploadName(f)) renameSync(join(outDir, f), join(outDir, uploadName(f))); // arm names carry a colon
+      }
       save();
       log(`wrote ${file} (${passes.length} passes${failed.length ? `, ${failed.length} failed` : ''})`);
       if (!passes.length) throw new Error('no pass completed');
