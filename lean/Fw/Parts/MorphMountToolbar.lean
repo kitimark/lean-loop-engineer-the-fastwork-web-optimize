@@ -190,7 +190,7 @@ def liftsThrottle : Timeline → Bool
   | .mainThreadProgress => true
   | _ => false
 
-/-- Compositor-run properties (`KeyframeEffect.cpp:1740-1769@862f17d`). -/
+/-- Compositor-run properties (`Style::Interpolation::isAccelerated`, StyleInterpolation.cpp:256-266 via `CSSProperty::animationIsAccelerated`@862f17d). -/
 def accelerated : List String := ["opacity", "transform", "translate", "scale", "rotate", "filter", "backdrop-filter"]
 
 def morphProps : List String := ["width", "height", "bottom", "border-radius", "background", "box-shadow"]
