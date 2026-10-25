@@ -192,18 +192,18 @@ theorem lockOp_reaches (cur want : Bool) : (match lockOp cur want with | .set =>
 
 theorem lockOp_idem (b : Bool) : lockOp b b = .none := by cases b <;> rfl
 
-/-! WKTR inset hooks: `ui-helper.js:2018-2050`, `UIScriptControllerIOS.mm:1486-1494@862f17d`. -/
-
-open Fw.Parts.EngineScrollUnthrottle (Page throttled lifted_when_supported compositable_does_not_lift)
+open Fw.Parts.EngineScrollUnthrottle (Anim Page throttled lifted_when_supported compositable_does_not_lift)
 
 inductive Flag where
-  | plain | touchFirst | openOnce | unthrottle
+  | plain | touchFirst | openOnce | unthrottle | compositable
   deriving DecidableEq, Repr
 
 def Flag.id : Flag → String
-  | .plain => "default" | .touchFirst => firstId | .openOnce => onceId | .unthrottle => "unthrottle"
+  | .plain => "default" | .touchFirst => firstId | .openOnce => onceId | .unthrottle => "unthrottle" | .compositable => "compositable"
 
 def Flag.all : List Flag := [.plain, .touchFirst, .openOnce, .unthrottle]
+
+def Flag.arms : List Flag := Flag.all ++ [.compositable]
 
 def Flag.opt : Flag → Opt
   | .touchFirst => firstOnly
@@ -212,8 +212,13 @@ def Flag.opt : Flag → Opt
 
 def gatePage : Page := ⟨true, []⟩
 
+def controlAnim : Anim := ⟨false, [.accelerated]⟩
+
+def controlPage : Page := { gatePage with anims := [controlAnim] }
+
 def Flag.page : Flag → Page
   | .unthrottle => gatePage.withLift
+  | .compositable => controlPage
   | _ => gatePage
 
 def Flag.exempt (f : Flag) : Bool := !throttled true f.page
@@ -227,11 +232,16 @@ theorem openOnce_throttled : Flag.exempt .openOnce = false := by decide
 theorem unthrottle_exempt : Flag.exempt .unthrottle = true := by
   simp [Flag.exempt, Flag.page, lifted_when_supported gatePage rfl]
 
+theorem compositable_throttled : Flag.exempt .compositable = false := by decide
+
 theorem exempt_only_unthrottle (f : Flag) : f.exempt = true ↔ f = .unthrottle := by
-  cases f <;> simp [plain_throttled, touchFirst_throttled, openOnce_throttled, unthrottle_exempt]
+  cases f <;> simp [plain_throttled, touchFirst_throttled, openOnce_throttled, unthrottle_exempt, compositable_throttled]
 
 theorem gate_page_not_lifted : throttled true gatePage = true :=
   compositable_does_not_lift gatePage (by simp [gatePage])
+
+theorem control_page_not_lifted : throttled true controlPage = true :=
+  compositable_does_not_lift controlPage (by simp [controlPage, controlAnim])
 
 def gateRect (vh0 : Rat) : Rect := ⟨vh0 * 3 / 5, vh0 - 15⟩
 
@@ -273,6 +283,11 @@ theorem plain_up : gateRun .plain [false, true, true, true] = [false, true, true
 theorem touchFirst_up : gateRun .touchFirst [false, true, true, true] = [false, false, false, false] := by decide +kernel
 theorem openOnce_up : gateRun .openOnce [false, true, true, true] = [false, true, false, false] := by decide +kernel
 theorem unthrottle_up : gateRun .unthrottle [false, true, true, true] = [false, true, true, true] := by decide +kernel
+
+theorem compositable_down : gateRun .compositable [true, true, true, false, false] = [true, true, true, false, false] := by decide +kernel
+theorem compositable_up : gateRun .compositable [false, true, true, true] = [false, true, true, true] := by decide +kernel
+
+theorem compositable_same_takes (geoms : List Bool) : gateRun .compositable geoms = gateRun .plain geoms := rfl
 
 theorem unthrottle_same_takes (geoms : List Bool) : gateRun .unthrottle geoms = gateRun .plain geoms := rfl
 

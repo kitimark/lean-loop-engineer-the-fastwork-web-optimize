@@ -21763,7 +21763,9 @@
     "packages/measure-webkit/test/**",
     "lean/Fw/Ci/Telemetry.lean",
     "research/notes/2026/10-25-macos-vm-loss.md",
-    "docs/team/handoffs/macos-vm-evidence.md"
+    "docs/team/handoffs/macos-vm-evidence.md",
+    "packages/measure-webkit/src/cli.mjs",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -21896,7 +21898,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-toolbar-wktr-gate.md",
     "docs/team/handoffs/toolbar-wktr-control.md"
-   ]
+   ],
+   "evidence": "8564490"
   },
   {
    "devices": [
