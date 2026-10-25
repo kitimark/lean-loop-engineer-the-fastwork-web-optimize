@@ -21,7 +21,7 @@
 ## Negative control: the gap comes from the scroll-driven exemption (MEASURED, run 40231779387)
 
 The `compositable` arm is the same page as `default` plus one time-based `transform` animation (`translateX`, 400 ms,
-linear, infinite; `CONTROL_CSS` in `toolbar-page.mjs`), which runs on the compositor and has no scroll timeline. Lean
+linear, infinite; `CONTROL_CSS` in `toolbar-page.mjs`), which WebKit can run on the compositor (INFERRED; not observed in WKTR; the Lean not-lifted verdict follows from progressBased = false alone) and has no scroll timeline. Lean
 decides it is not exempt: `controlPage` holds one non-progress-based accelerated animation, so `control_page_not_lifted`
 (`compositable_does_not_lift`) gives `throttled true controlPage`, and the golden row is `gateExempt compositable false`
 (`Fw.Parts.MorphMountToolbar` `compositable_throttled`; `exempt_only_unthrottle` now covers all five arms).
@@ -55,7 +55,7 @@ Viewport height 810, 800, 790, 780, 790, 800, 810, 820 (vh0 820; `setObscuredIns
 | touch-first | 11100 / 0111 | 11100 / 0000 | 81-83 ms |
 | open-once | 11100 / 0111 | 10000 / 0100 | 82-83 ms |
 | unthrottle | 11100 / 0111 | 11100 / 0111 | 32-33 ms |
-| compositable (control) | 11100 / 0111 | 11100 / 0111 | 82-83 ms |
+| compositable (control, run 40231779387) | 11100 / 0111 | 11100 / 0111 | 82-83 ms |
 
 The exemption is a throttle effect, not a look effect. While an interactive obscured-insets change runs and no main-thread
 progress-based scroll-driven animation exists, WebKit holds the visible-rect update 100 ms (`WKWebViewIOS.mm:3256-3268@862f17d`).
@@ -65,7 +65,7 @@ the verdict at `liftedBelowMs = throttleMs / 2` (50 ms); the observed values sit
 slow runner would have to add 17 ms to the lifted wait to flip it. No run came near that.
 
 Lean statements (`lean/Fw/Parts/MorphMountToolbar.lean`): `plain_throttled`, `touchFirst_throttled`, `openOnce_throttled`,
-`unthrottle_exempt`, `compositable_throttled`, `control_page_not_lifted`, `exempt_only_unthrottle`, `gateGeom_iff`, `down_geoms`, `up_geoms`, and eight take theorems (one per
+`unthrottle_exempt`, `compositable_throttled`, `control_page_not_lifted`, `exempt_only_unthrottle`, `gateGeom_iff`, `down_geoms`, `up_geoms`, and ten take theorems (one per
 flag and phase), `unthrottle_same_takes`, `compositable_same_takes`.
 
 ## Limits (accepted)
