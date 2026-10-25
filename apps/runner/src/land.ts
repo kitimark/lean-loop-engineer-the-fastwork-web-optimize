@@ -6,7 +6,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin as rawBegin, builtModules, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
+import { begin as rawBegin, builtModules, lakeMember, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
 
 let stepPrefix = "";
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
@@ -730,7 +730,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     let d1: Digest = d0;
     phase1Built = false;
     if (phase1Build(changed)) {
-      const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
+      const endBuild = begin("fw land", "fwcore build (phase 1)");
+      const r = await runCheck(dir, ["sh", "scripts/fwcore-build.sh"]);
+      endBuild(r.status, r.status === 0 ? lakeMember(`${r.stdout}${r.stderr}`) : {});
       phase1Built = r.status === 0;
       d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
@@ -792,7 +794,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           if (started.has(i) || !deps[i]!.every((d) => results[d])) continue;
           started.add(i); running++;
           const argv = list[i]!;
-          void span("fw land", argv.join(" "), () => runCheck(cwd, argv, limit), (r) => r.status).then((p) => {
+          const end = begin("fw land", argv.join(" "));
+          void runCheck(cwd, argv, limit).then((p) => {
+            end(p.status, p.status === 0 ? lakeMember(`${p.stdout}${p.stderr}`) : {});
             results[i] = { status: p.status, out: `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
             running--; pump();
           });
