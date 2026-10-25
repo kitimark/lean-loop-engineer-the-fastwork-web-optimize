@@ -21382,7 +21382,8 @@
     "apps/runner/src/land-reads.gen.ts",
     "packages/contracts/golden/console/land-speed.jsonl"
    ],
-   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.panel:const-bounds (ledger: WebKit and Chromium unknown; E under P1-P4). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. The flag conflicts with the nav flags (part.json conflicts), so it runs alone. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/ConstBoundsCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.panel:const-bounds (ledger: WebKit and Chromium unknown; E under P1-P4). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. The flag conflicts with the nav flags (part.json conflicts), so it runs alone. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/ConstBoundsCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note.",
+   "evidence": "6ce93cd"
   },
   {
    "devices": [
@@ -21772,7 +21773,8 @@
     "packages/measure-webkit/src/cli.mjs",
     "apps/runner/src/land.ts",
     "scripts/wallclock-allow.json"
-   ]
+   ],
+   "evidence": "10661e0"
   },
   {
    "devices": [
