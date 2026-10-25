@@ -762,7 +762,7 @@ look-decisions-1024). Lean records this in `Fw.Preset.Gen.lookDecisions`:
 | `hero.accent:draw-nolayout` | rejected 2026-10-24 | same clip-path wipe as `draw-nolayout-full` (INFERRED; never shown alone) |
 
 `Gen.run --check` throws unless every decision agrees with the ledger row's `userDecision`, so `ledgerDisagreements` is
-empty at this commit. The same run throws on a stale decision or on a refused flag inside the preset.
+empty. The same run throws on a stale decision or on a refused flag inside the preset.
 `decisionKept_of_accepted` keeps an acceptance of a registered flag that is not class L.
 `engine.scroll:throttle-lift` gets no decision row, because it is a diagnostic flag and never enters a preset.
 
@@ -773,7 +773,7 @@ Phone numbers (real iPhone, one person, one session, viewport h 775, faithful re
 | `hero.exit:threaded` | 12 → 0 | no data (the variant clears the inline value the recorder reads) | MEASURED, `results/phone/2026-10-24-hero-exit-threaded/summary.md` |
 | `engine.scroll:throttle-lift` | 12 → 0 | 90 → 2 | MEASURED, `results/phone/2026-10-24-throttle-lift/summary.md` |
 
-Lean decides whether `hero.exit:threaded` may enter v2-proved (`Gen.entry`, `entryReqs`). The answer is not yet. Each requirement and its evidence is in the `entry` field of the flag's row in
+`Gen.entry` (`entryReqs`) decides whether `hero.exit:threaded` may enter v2-proved. The answer is not yet. Each requirement and its evidence is in the `entry` field of the flag's row in
 `packages/contracts/golden/preset/v2-proved.decisions.jsonl`:
 
 | Requirement | Met | Evidence |

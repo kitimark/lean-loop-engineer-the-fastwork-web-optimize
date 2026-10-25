@@ -1,9 +1,9 @@
 branch: worktree-wf_c1542959-5ca-1
 worktree: .claude/worktrees/wf_c1542959-5ca-1
-last commit: see `git log -1` on the branch (round 3: merge of main b38d582 with the review fixes)
+last commit: `git log -1` (round 3: merge of main b38d582 with the review fixes)
 CI runs: 40156078840 trajectory dispatch by the lead (complete, success; `?fw=hero.exit:threaded` at main fbca417)
 
-State: delivered inside the graph writes.
+State: delivered.
 - `lean/Fw/Preset/Gen.lean` `lookDecisions`: `hero.exit:threaded` accepted 2026-10-24, `hero.accent:draw-nolayout`
   rejected 2026-10-24; the `draw-nolayout-full` row of accent-look-refused is reused.
 - Run 40156078840 recorded with `Fw.Preset.Gen.record` on top of main's file (main's 6 `hero:scene-pause` rows stay at
