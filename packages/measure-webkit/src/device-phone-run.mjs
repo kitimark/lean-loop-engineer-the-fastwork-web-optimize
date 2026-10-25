@@ -5,7 +5,7 @@ import { withPhone } from './device.mjs';
 import { loadFresh } from './page.mjs';
 import { phoneCounts, phoneFrames } from './device-runs.mjs';
 import * as P from './device-phone-arms.mjs';
-import { appendOnly, faultOf, handReset, mayAttempt, recordFault } from './device-faults.mjs';
+import { faultOf, handReset, keepOk, mayAttempt, recordFault, resetPlan, writeOk } from './device-faults.mjs';
 
 const slug = (id) => id.replace(/[^A-Za-z0-9.-]+/g, '_');
 const pad = (i) => String(i).padStart(2, '0');
@@ -19,9 +19,12 @@ export const saveState = (dir, st) => {
   mkdirSync(dir, { recursive: true });
   const f = join(dir, 'state.json');
   if (existsSync(f)) {
-    for (const v of loadState(dir).visits) {
-      const n = st.visits.find((x) => x.index === v.index);
-      if (n && !appendOnly(v.faults ?? [], n.faults ?? [])) throw new Error(`visit ${v.index}: faults [${(n.faults ?? []).join(',')}] do not extend [${(v.faults ?? []).join(',')}]`);
+    const recs = (vs) => vs.map((v) => ({ index: v.index, faults: faultsOfVisit(v) }));
+    const old = recs(loadState(dir).visits), next = recs(st.visits);
+    if (!writeOk(old, next)) {
+      const bad = old.find((v) => !keepOk(next, v));
+      const n = next.find((x) => x.index === bad.index);
+      throw new Error(n ? `visit ${bad.index}: faults [${n.faults.join(',')}] do not extend [${bad.faults.join(',')}]` : `visit ${bad.index}: removed with faults [${bad.faults.join(',')}]`);
     }
   }
   writeFileSync(f, JSON.stringify(st, null, 1) + '\n');
@@ -32,6 +35,12 @@ export function markHandReset(dir, index, reason) {
   st.visits = st.visits.map((v) => (v.index === index ? { ...v, faults: handReset(v.faults ?? []) } : v));
   saveState(dir, st);
   return st;
+}
+export function handResetCommand(dir, idx, reason) {
+  const recs = loadState(dir).visits.map((v) => ({ index: v.index, faults: faultsOfVisit(v) }));
+  const plan = resetPlan(recs, String(idx), String(reason ?? ''), P.SESSION.length);
+  if (plan.plan !== 'note') throw new Error(`hand reset refused: ${plan.plan} (index "${idx}", visits in the plan ${P.SESSION.length}, reason ${reason ? 'given' : 'missing'})`);
+  return markHandReset(dir, plan.index, plan.reason);
 }
 export const faultsOfVisit = (v) => {
   if (!v) return [];

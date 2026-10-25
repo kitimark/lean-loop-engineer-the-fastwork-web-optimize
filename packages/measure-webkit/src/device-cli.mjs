@@ -22,17 +22,17 @@ import { phoneRecord, stepOf } from './device-record.mjs';
 import { CONST, reducePass, compareZones, normalize } from './device-session.mjs';
 import { sessionPlan, armSearch } from './device-arms.mjs';
 import { readRecord, writeProfile, writePackage } from './device-profile.mjs';
-import { planText, runBlock, reduceDir } from './device-phone-run.mjs';
+import { planText, runBlock, reduceDir, handResetCommand } from './device-phone-run.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
-const { values: v } = parseArgs({
-  args: rest, allowNegative: true,
+const { values: v, positionals } = parseArgs({
+  args: rest, allowNegative: true, allowPositionals: true,
   options: {
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
@@ -74,6 +74,12 @@ async function main() {
       break;
     }
     case 'arms-run': {
+      if (v['hand-reset'] !== undefined) {
+        if (!v.dir) throw new Error('arms-run --hand-reset <index> <reason> needs --dir <raw dir>');
+        const st = handResetCommand(resolve(v.dir), v['hand-reset'], v.reason ?? positionals[0]);
+        console.log(JSON.stringify({ handReset: v['hand-reset'], notes: st.leadReset.length }));
+        break;
+      }
       if (!v.site || !v.dir) throw new Error('arms-run needs --site <dist/aot> and --dir <raw dir>');
       for (;;) {
         const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), blocked: v.blocked ? resolve(v.blocked) : null, ...(v['max-visits'] ? { maxVisits: Number(v['max-visits']) } : {}) });
@@ -148,7 +154,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | arms-run | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
+      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | arms-run [--hand-reset <index> <reason>] | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
       process.exitCode = 2;
   }
 }

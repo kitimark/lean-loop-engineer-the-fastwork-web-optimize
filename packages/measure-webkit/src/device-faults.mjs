@@ -26,3 +26,17 @@ export function tabPlan(host, urls) {
   if (blank === 0 && own === 1) return { plan: 'reset', i: urls.findIndex((u) => ownTab(host, u)) };
   return { plan: 'refuse' };
 }
+
+export const keepOk = (next, v) => {
+  const n = next.find((x) => x.index === v.index);
+  return n ? appendOnly(v.faults, n.faults) : v.faults.length === 0;
+};
+
+export const writeOk = (old, next) => old.every((v) => keepOk(next, v));
+
+export function resetPlan(recs, idx, reason, nVisits) {
+  if (!/^[0-9]+$/.test(idx) || nVisits <= Number(idx)) return { plan: 'badIndex' };
+  if (/^[ \t\r\n]*$/.test(reason)) return { plan: 'noReason' };
+  const index = Number(idx);
+  return recs.some((r) => r.index === index) ? { plan: 'note', index, reason } : { plan: 'noVisit' };
+}

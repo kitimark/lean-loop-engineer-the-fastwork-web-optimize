@@ -350,6 +350,123 @@ theorem appendOnly_record (faults : List Fault) (f : Fault) : appendOnly faults 
 
 theorem strip_visit_lost : mayAttempt [.usbReset, .staleTab, .other] = false := by decide
 
+/-- One visit of the state file: its index in the session and the faults of its failed attempts. -/
+structure VisitRec where
+  index : Nat
+  faults : List Fault
+  deriving DecidableEq
+
+/-- A visit of the old state stays valid in a write: gone only with no faults, else its faults only grow. -/
+def keepOk (new : List VisitRec) (v : VisitRec) : Bool :=
+  match new.find? (·.index == v.index) with
+  | none => v.faults.isEmpty
+  | some n => appendOnly v.faults n.faults
+
+/-- The state write is accepted when every visit of the old state stays valid. -/
+def writeOk (old new : List VisitRec) : Bool := old.all (keepOk new)
+
+theorem keepOk_removed_clean {new : List VisitRec} {v : VisitRec} (hn : new.find? (·.index == v.index) = none)
+    (hf : v.faults = []) : keepOk new v = true := by
+  simp [keepOk, hn, hf]
+
+theorem keepOk_removed_faulty {new : List VisitRec} {v : VisitRec} (hn : new.find? (·.index == v.index) = none)
+    (hf : v.faults ≠ []) : keepOk new v = false := by
+  simp [keepOk, hn, hf]
+
+theorem keepOk_kept_extends {new : List VisitRec} {v n : VisitRec} (hn : new.find? (·.index == v.index) = some n)
+    (h : v.faults <+: n.faults) : keepOk new v = true := by
+  simp [keepOk, hn, appendOnly_iff, h]
+
+theorem keepOk_kept_shortens {new : List VisitRec} {v n : VisitRec} (hn : new.find? (·.index == v.index) = some n)
+    (h : ¬ v.faults <+: n.faults) : keepOk new v = false := by
+  have h' : appendOnly v.faults n.faults = false := by
+    cases hb : appendOnly v.faults n.faults
+    · rfl
+    · exact absurd ((appendOnly_iff _ _).1 hb) h
+  simp [keepOk, hn, h']
+
+theorem writeOk_nil (new : List VisitRec) : writeOk [] new = true := rfl
+
+theorem writeOk_refuses {old new : List VisitRec} {v : VisitRec} (hv : v ∈ old) (h : keepOk new v = false) :
+    writeOk old new = false := by
+  unfold writeOk
+  exact List.all_eq_false.2 ⟨v, hv, by simp [h]⟩
+
+theorem writeOk_refuses_removal {old new : List VisitRec} {v : VisitRec} (hv : v ∈ old) (hf : v.faults ≠ [])
+    (hn : ∀ n ∈ new, n.index ≠ v.index) : writeOk old new = false := by
+  have h : new.find? (·.index == v.index) = none := by
+    rw [List.find?_eq_none]
+    intro n hm
+    simpa using hn n hm
+  exact writeOk_refuses hv (keepOk_removed_faulty h hf)
+
+theorem writeOk_accepts {old new : List VisitRec} (h : ∀ v ∈ old, keepOk new v = true) : writeOk old new = true := by
+  unfold writeOk
+  exact List.all_eq_true.2 h
+
+/-- The state after a hand reset of visit `i`: every record keeps its faults, as `handReset` leaves them. -/
+def handResetRecs (vs : List VisitRec) (i : Nat) : List VisitRec :=
+  vs.map fun v => if v.index == i then { v with faults := handReset v.faults } else v
+
+theorem handResetRecs_faults (vs : List VisitRec) (i : Nat) :
+    (handResetRecs vs i).map (·.faults) = vs.map (·.faults) := by
+  unfold handResetRecs
+  induction vs with
+  | nil => rfl
+  | cons v rest ih =>
+    by_cases h : (v.index == i) = true <;> simp_all [handReset]
+
+theorem handResetRecs_index (vs : List VisitRec) (i : Nat) :
+    (handResetRecs vs i).map (·.index) = vs.map (·.index) := by
+  unfold handResetRecs
+  induction vs with
+  | nil => rfl
+  | cons v rest ih =>
+    by_cases h : (v.index == i) = true <;> simp_all
+
+/-- What `arms-run --hand-reset <index> <reason>` does with its arguments and the state. -/
+inductive ResetPlan where
+  | badIndex
+  | noReason
+  | noVisit
+  | note (index : Nat) (reason : String)
+  deriving DecidableEq, Repr
+
+def blank (s : String) : Bool := s.all Char.isWhitespace
+
+def numeral (s : String) : Bool := !s.isEmpty && s.all fun c => '0' ≤ c && c ≤ '9'
+
+def resetPlan (vs : List VisitRec) (idx reason : String) : ResetPlan :=
+  if !numeral idx || sessionVisits.length ≤ idx.toNat! then .badIndex
+  else if blank reason then .noReason
+  else if vs.any (·.index == idx.toNat!) then .note idx.toNat! reason
+  else .noVisit
+
+theorem resetPlan_badIndex_text {vs : List VisitRec} {idx : String} (reason : String) (h : numeral idx = false) :
+    resetPlan vs idx reason = .badIndex := by
+  simp [resetPlan, h]
+
+theorem resetPlan_badIndex_range {vs : List VisitRec} {idx : String} (reason : String) (h : sessionVisits.length ≤ idx.toNat!) :
+    resetPlan vs idx reason = .badIndex := by
+  simp [resetPlan, h]
+
+theorem resetPlan_noReason {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < sessionVisits.length) (h : blank reason = true) : resetPlan vs idx reason = .noReason := by
+  have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
+  simp [resetPlan, hd, this, h]
+
+theorem resetPlan_noVisit {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < sessionVisits.length) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = false) :
+    resetPlan vs idx reason = .noVisit := by
+  have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
+  simp [resetPlan, hd, this, h, hv]
+
+theorem resetPlan_note {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < sessionVisits.length) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = true) :
+    resetPlan vs idx reason = .note idx.toNat! reason := by
+  have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
+  simp [resetPlan, hd, this, h, hv]
+
 inductive TabPlan where
   | drive (i : Nat)
   | reset (i : Nat)
@@ -565,6 +682,29 @@ private def tabCases : List (List String) :=
    ["http://harness.test:3999/"], ["http://harness.test:3999/", "http://harness.test:4100/"],
    ["http://harness.test.evil:4100/"], ["http://harness.test:3999/", "about:blank"], ["https://harness.test:4100/"]]
 
+private def recJ (v : VisitRec) : Json := Json.mkObj [("index", v.index), ("faults", strsJ (v.faults.map Fault.name))]
+
+private def recsJ (vs : List VisitRec) : Json := Json.arr (vs.map recJ).toArray
+
+private def writeCases : List (List VisitRec × List VisitRec) :=
+  let a : VisitRec := ⟨6, [.usbReset, .staleTab]⟩
+  let c : VisitRec := ⟨2, []⟩
+  [([], []), ([a], [a]), ([a], []), ([a], [c]), ([a, c], [c]), ([c], []), ([c], [a]), ([a], [⟨6, [.usbReset, .staleTab, .other]⟩]),
+   ([a], [⟨6, [.other]⟩]), ([a], [⟨6, [.usbReset]⟩]), ([a], [⟨6, []⟩]), ([a, c], [⟨2, [.other]⟩, ⟨6, [.usbReset, .staleTab, .other]⟩]),
+   ([a, c], handResetRecs [a, c] 6), ([a], [⟨7, []⟩, a]), ([⟨3, [.other]⟩], [⟨4, [.other]⟩])]
+
+private def resetCases : List (List VisitRec × String × String) :=
+  let st : List VisitRec := [⟨6, [.usbReset, .staleTab]⟩, ⟨2, []⟩]
+  [(st, "6", "tab returned to about:blank by hand"), (st, "2", "x"), (st, "7", "no record"), (st, "16", "past the plan"),
+   (st, "15", "in the plan, no record"), (st, "", "empty index"), (st, "6a", "digits and a letter"), (st, "-1", "sign"),
+   (st, "6", ""), (st, "6", "   "), (st, "06", "leading zero"), (st, "1.5", "fraction"), ([], "0", "empty state")]
+
+private def resetJ : ResetPlan → Json
+  | .badIndex => Json.mkObj [("plan", "badIndex")]
+  | .noReason => Json.mkObj [("plan", "noReason")]
+  | .noVisit => Json.mkObj [("plan", "noVisit")]
+  | .note i r => Json.mkObj [("plan", "note"), ("index", i), ("reason", r)]
+
 private def planJ : TabPlan → Json
   | .drive i => Json.mkObj [("plan", "drive"), ("i", i)]
   | .reset i => Json.mkObj [("plan", "reset"), ("i", i)]
@@ -609,6 +749,10 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "append"), ("old", strsJ (o.map Fault.name)), ("new", strsJ (n.map Fault.name)), ("ok", appendOnly o n)]).compress) ++
   (tabCases.map fun (us : List String) =>
     (Json.mkObj [("kind", "tabs"), ("host", tabHost), ("urls", strsJ us), ("plan", planJ (tabPlan tabHost us))]).compress) ++
+  (writeCases.map fun (o, n) =>
+    (Json.mkObj [("kind", "write"), ("old", recsJ o), ("new", recsJ n), ("ok", writeOk o n)]).compress) ++
+  (resetCases.map fun (vs, i, r) =>
+    (Json.mkObj [("kind", "handreset"), ("state", recsJ vs), ("index", i), ("reason", r), ("plan", resetJ (resetPlan vs i r))]).compress) ++
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]

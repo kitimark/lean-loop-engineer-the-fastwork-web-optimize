@@ -122,4 +122,32 @@
 {"host":"http://harness.test","kind":"tabs","plan":{"plan":"refuse"},"urls":["http://harness.test.evil:4100/"]}
 {"host":"http://harness.test","kind":"tabs","plan":{"i":1,"plan":"drive"},"urls":["http://harness.test:3999/","about:blank"]}
 {"host":"http://harness.test","kind":"tabs","plan":{"plan":"refuse"},"urls":["https://harness.test:4100/"]}
+{"kind":"write","new":[],"ok":true,"old":[]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":[],"index":2}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":[],"index":2}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"kind":"write","new":[],"ok":true,"old":[{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab"],"index":6}],"ok":true,"old":[{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab","other"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["other"],"index":6}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["usbReset"],"index":6}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":[],"index":6}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["other"],"index":2},{"faults":["usbReset","staleTab","other"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":[],"index":7},{"faults":["usbReset","staleTab"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["other"],"index":4}],"ok":false,"old":[{"faults":["other"],"index":3}]}
+{"index":"6","kind":"handreset","plan":{"index":6,"plan":"note","reason":"tab returned to about:blank by hand"},"reason":"tab returned to about:blank by hand","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"2","kind":"handreset","plan":{"index":2,"plan":"note","reason":"x"},"reason":"x","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"7","kind":"handreset","plan":{"plan":"noVisit"},"reason":"no record","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"16","kind":"handreset","plan":{"plan":"badIndex"},"reason":"past the plan","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"15","kind":"handreset","plan":{"plan":"noVisit"},"reason":"in the plan, no record","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"","kind":"handreset","plan":{"plan":"badIndex"},"reason":"empty index","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6a","kind":"handreset","plan":{"plan":"badIndex"},"reason":"digits and a letter","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"-1","kind":"handreset","plan":{"plan":"badIndex"},"reason":"sign","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6","kind":"handreset","plan":{"plan":"noReason"},"reason":"","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6","kind":"handreset","plan":{"plan":"noReason"},"reason":"   ","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"06","kind":"handreset","plan":{"index":6,"plan":"note","reason":"leading zero"},"reason":"leading zero","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"1.5","kind":"handreset","plan":{"plan":"badIndex"},"reason":"fraction","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"0","kind":"handreset","plan":{"plan":"noVisit"},"reason":"empty state","state":[]}
 {"arms":[[[4,4,4],[20,21,22],[7,7,7]],[[10,10,10],[40,41,42],[7,7,7]],[[4,4,4],[40,41,42],[7,7,7]],[[10,10,10],[20,21,22],[7,7,7]],[[9,9,9],[1],[]]],"base":[[10,10,10,11],[20,22,24,21],[7,7,7,7]],"cells":[["beats","same","same"],["same","worse","same"],["beats","worse","same"],["same","same","same"],["same","beats","unresolved"]],"kind":"table","labels":["better","worse","mixed","same","better"]}

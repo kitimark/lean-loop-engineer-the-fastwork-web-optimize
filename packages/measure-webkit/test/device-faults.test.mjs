@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { appendOnly, faultOf, handReset, isHarness, mayAttempt, recordFault, tabPlan } from '../src/device-faults.mjs';
+import { appendOnly, faultOf, handReset, isHarness, mayAttempt, recordFault, resetPlan, tabPlan, writeOk } from '../src/device-faults.mjs';
 
 const lines = readFileSync(new URL('../../contracts/golden/device/phone-arms.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
 
 test('the golden has fault, attempt and tab lines', () => {
-  for (const k of ['fault', 'attempt', 'tabs', 'reset', 'append']) assert.ok(of(k).length > 5, k);
+  for (const k of ['fault', 'attempt', 'tabs', 'reset', 'append', 'write', 'handreset']) assert.ok(of(k).length > 5, k);
 });
 
 test('faultOf and harness match Lean', () => {
@@ -72,4 +72,42 @@ test('the state refuses a write that drops earlier faults, and a hand reset keep
   assert.throws(() => saveState(dir, { visits: [{ index: 6, arm: 'a', status: 'failed', attempts: 3, faults: ['other'] }] }), /do not extend/);
   saveState(dir, { visits: [{ index: 6, arm: 'a', status: 'lost', attempts: 3, faults: ['usbReset', 'staleTab', 'other'] }] });
   assert.deepEqual(loadState(dir).visits[0].faults, ['usbReset', 'staleTab', 'other']);
+});
+
+test('writeOk matches Lean: a visit with faults is never removed, its faults only grow', () => {
+  for (const c of of('write')) assert.equal(writeOk(c.old, c.new), c.ok, JSON.stringify([c.old, c.new]));
+});
+
+test('resetPlan matches Lean: bad index, no reason, no visit, or a note', () => {
+  for (const c of of('handreset')) assert.deepEqual(resetPlan(c.state, c.index, c.reason, 16), c.plan, `${c.index} ${c.reason}`);
+});
+
+test('the state refuses a write that removes a visit with faults, and allows removing one without', async () => {
+  const { saveState, loadState } = await import('../src/device-phone-run.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'pec-state-'));
+  saveState(dir, { visits: [{ index: 6, arm: 'a', status: 'failed', attempts: 2, faults: ['usbReset', 'staleTab'] }, { index: 2, arm: 'b', status: 'done', attempts: 0 }] });
+  assert.throws(() => saveState(dir, { visits: [{ index: 2, arm: 'b', status: 'done', attempts: 0 }] }), /visit 6: removed with faults/);
+  assert.throws(() => saveState(dir, { visits: [] }), /removed with faults/);
+  saveState(dir, { visits: [{ index: 6, arm: 'a', status: 'lost', attempts: 3, faults: ['usbReset', 'staleTab', 'other'] }] });
+  assert.equal(loadState(dir).visits.length, 1);
+});
+
+test('a legacy entry without fault names is protected by its attempts', async () => {
+  const { saveState } = await import('../src/device-phone-run.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'pec-state-'));
+  saveState(dir, { visits: [{ index: 4, arm: 'a', status: 'failed', attempts: 2 }] });
+  assert.throws(() => saveState(dir, { visits: [] }), /visit 4: removed with faults \[other,other\]/);
+});
+
+test('arms-run --hand-reset notes the reset and keeps the faults; bad arguments are refused with the Lean plan name', async () => {
+  const { saveState, loadState, handResetCommand } = await import('../src/device-phone-run.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'pec-state-'));
+  saveState(dir, { visits: [{ index: 6, arm: 'a', status: 'failed', attempts: 2, faults: ['usbReset', 'staleTab'] }] });
+  assert.throws(() => handResetCommand(dir, '6', '  '), /noReason/);
+  assert.throws(() => handResetCommand(dir, 'x', 'why'), /badIndex/);
+  assert.throws(() => handResetCommand(dir, '9', 'why'), /noVisit/);
+  assert.equal(loadState(dir).leadReset, undefined);
+  const st = handResetCommand(dir, '6', 'tab returned to about:blank by hand');
+  assert.deepEqual(st.leadReset, [{ index: 6, reason: 'tab returned to about:blank by hand' }]);
+  assert.deepEqual(loadState(dir).visits[0].faults, ['usbReset', 'staleTab']);
 });
