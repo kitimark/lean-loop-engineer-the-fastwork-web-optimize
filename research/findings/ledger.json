@@ -227,6 +227,7 @@
    "part": "hero.exit",
    "candidate": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
    "status": "partly-proved",
+   "flag": "hero.exit:threaded",
    "flags": [
     "hero.exit:threaded"
    ],
@@ -292,7 +293,12 @@
    ],
    "v1Evidence": "KD#2 (../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 2): median slow frames 31 → 18 → 7 (original, v4, v6), and the user preferred v6 in both blind swipes. ../fastwork-com-web-optimize/fixes/hero-exit-threaded/README.md: shipped WebKit-only (GestureEvent gate) because Blink compositing changed pixels (≤ 6 levels on 15-42k px, 1 device-px copy shift). WebKit: a transform animation on .hero-copy made the accent repaint about 1.4× as often; none → blur(0.009px) costs one Layout; the 30 px top band was 78 levels off, so the writer was kept there; P-081: go-live-from-rest frames cost more than C's.",
    "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so only script and the quarantined elementCount drop. Compositing also changes rasterization, so value-level E-s is not pixel E.",
-   "next": "Record as a trade in both engines. Refine Visual.raster_path for fractional translate and opacity, and decide whether the Chromium arm is Q or gated to WebKit (as v1 did). On CI, run rewrite+hero-exit-threaded and check FireAnimationFrame <o (det) and compositeFailedBits bit 12 only on the blur animations. Add R2 units and Resident layers to HeroExitOpt."
+   "next": "Record as a trade in both engines. Refine Visual.raster_path for fractional translate and opacity, and decide whether the Chromium arm is Q or gated to WebKit (as v1 did). On CI, run rewrite+hero-exit-threaded and check FireAnimationFrame <o (det) and compositeFailedBits bit 12 only on the blur animations. Add R2 units and Resident layers to HeroExitOpt.",
+   "userDecision": {
+    "date": "2026-10-24",
+    "decision": "accepted 2026-10-24: the user saw ?fw=hero.exit:threaded on the real iPhone and said it looks the same as the original (source: phone session, user words)",
+    "review": "real-iPhone session results/phone/2026-10-24-hero-exit-threaded/summary.md, look arm = rewrite + ?fw=hero.exit:threaded"
+   }
   },
   {
    "n": 7,
@@ -4342,6 +4348,18 @@
    "task": "combo-held-identity",
    "field": "mechanism",
    "text": "combo-held-identity: CONFIRMED the hold bit of combo-scroll-fight read cancelable, which stays true in a passive listener (the band hub's watch mode, morph.mount:arm-late outside its band) while preventDefault is ignored (DOM set-the-canceled-flag; WebKit Event.h:218-224@862f17d; Chromium event.cc:243-260@f842f52). PROVED in Lean (Fw.Parts.ComboScroll: holds_passive, holds_uncancelable, holds_blocking, passive_quiet, arm_passive_quiet, holds_arm, arm_late_holds, old_rule_differs; native_quiet and the brick theorems kept): held iff the move was actually prevented (defaultPrevented after the handler); golden regenerated (48 rows incl. passive-reopen, other-prevented), replayed through the TS reducer and the real driver in registry/combo-scroll.test.ts. waapi and waapi-scoped cannot be picked with morph.end.release:on (registry conflict; Lean ComboScroll.decided_no_release_waapi). MEASURED on CI Chromium (run 40142598495, build of this commit): the user's 8 flags and the same flags with all touchmove and wheel listeners passive (arm user+passive): 11 of 11 replays each, 0 script writes against a native scroll, 0 no-finger reversals, 0 script jumps of 20 px or more; the other 17 arms 0 writes. Limit: the replay does not discriminate the rules (the build before also had 0 writes in the passive arms: the reopen touch starts while the close fling scrolls, so its moves are not cancelable); the Lean theorems and the driver test do. Note research/notes/2026/10-2x-combo-held-identity.md. Next: phone re-check by the user. Follow-ups: toolbar-resize fight at y about 1859."
+  },
+  {
+   "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "task": "look-decisions-1024",
+   "field": "visual",
+   "text": "look-decisions-1024: the user saw ?fw=hero.exit:threaded on the real iPhone on 2026-10-24 and said it looks the same as the original (CONFIRMED, user words); recorded as accepted in Fw.Preset.Gen.lookDecisions. MEASURED in that session (results/phone/2026-10-24-hero-exit-threaded/summary.md): hero felt marks 12 (rewrite) to 0 (threaded), hero frames over 50 ms 0.00 per 100 in both. Entry to v2-proved: not yet (Fw.Preset.Gen.entry, theorem threaded_not_yet): proofs unmet (no Gen.linkTable link, this row partly-proved), trajectory gate unmet on Chromium and WebKit: run 40156078840 (?fw=hero.exit:threaded at main fbca417, widths 390, 640, 641, 1280, recorded with Fw.Preset.Gen.record) fails the hero path on every engine (new content units: Chromium 25, Linux WebKit 40, macOS WebKit 40; hero.orbit.card opacity and translate at 390, hero.deck.card opacity at 640, 641 and 1280) and passes morph on Chromium and macOS WebKit (MEASURED, run 40156078840; theorem gate_blocked_of_own_fail), so the trajectory verdict is falsified; q6 same scroll offset open; the look requirement is met."
+  },
+  {
+   "entry": "engine.scroll:throttle-lift (diagnostic, never in a preset): remove the cause of Safari's 100 ms scroll-event throttle at the hero exit to test whether the throttle produces the still runs felt as lag",
+   "task": "look-decisions-1024",
+   "field": "visual",
+   "text": "look-decisions-1024: the user saw ?fw=engine.scroll:throttle-lift on the real iPhone on 2026-10-24 and said it looks the same as the original (CONFIRMED, user words). MEASURED (results/phone/2026-10-24-throttle-lift/summary.md): hero band runs 90 to 2 and hero felt marks 12 to 0 at viewport h 775 (rewrite against the throttle-lift repeat). No Gen.lookDecisions row: the flag is diagnostic and never in a preset; the shipped text is engine.scroll:unthrottle, the v2-proved member (same element, INFERRED same look)."
   }
  ]
 }

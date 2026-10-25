@@ -253,7 +253,9 @@ def lookDecisions : List LookDecision :=
        { chromium := { state := .pending }
          webkit := { state := .ready, run := some "40030735082, 40035116432",
                      artifact := some "webkit-sim-r1, webkit-sim-r2, webkit-sim-r3", expires := some "2026-11-22",
-                     task := some "accent-nolayout-measure" } } }]
+                     task := some "accent-nolayout-measure" } } },
+   { flag := ⟨"hero.exit", "threaded"⟩, date := "2026-10-24", decision := .accepted, review := .done },
+   { flag := ⟨"hero.accent", "draw-nolayout"⟩, date := "2026-10-24", decision := .rejected, review := .done }]
 
 def EngineMat.json (m : EngineMat) : Json :=
   Json.mkObj ([("state", .str m.state.word)] ++
@@ -304,23 +306,32 @@ theorem lookCandidates_not_mem {reg : List Reg} {ledger : List Row} {st : List S
   look_not_mem (isLook_of_mem_lookCandidates h)
 
 def decisionKept (reg : List Reg) (d : LookDecision) : Bool :=
-  (lookCandidates reg).contains d.flag || (d.decision == .rejected && reg.any (·.flag == d.flag))
+  (lookCandidates reg).contains d.flag || (d.decision != .kept && reg.any (·.flag == d.flag))
 
 theorem decisionKept_of_candidate {reg : List Reg} {d : LookDecision} (h : d.flag ∈ lookCandidates reg) :
     decisionKept reg d = true := by
   simp [decisionKept, h]
 
-theorem decisionKept_of_rejected {reg : List Reg} {d : LookDecision} (hd : d.decision = .rejected)
+theorem decisionKept_of_settled {reg : List Reg} {d : LookDecision} (hd : d.decision ≠ .kept)
     (hr : ∃ r ∈ reg, r.flag = d.flag) : decisionKept reg d = true := by
   obtain ⟨r, hm, he⟩ := hr
-  simp only [decisionKept, hd, Bool.or_eq_true, Bool.and_eq_true, beq_self_eq_true, true_and, List.any_eq_true,
-    beq_iff_eq]
+  have hk : (d.decision != .kept) = true := by simpa using hd
+  simp only [decisionKept, hk, Bool.or_eq_true, Bool.and_eq_true, true_and, List.any_eq_true, beq_iff_eq]
   exact .inr ⟨r, hm, he⟩
 
-theorem rejected_of_decisionKept {reg : List Reg} {d : LookDecision} (h : decisionKept reg d = true)
-    (hc : d.flag ∉ lookCandidates reg) : d.decision = .rejected := by
-  simp only [decisionKept, Bool.or_eq_true, Bool.and_eq_true, beq_iff_eq, List.contains_iff_mem] at h
-  exact (h.resolve_left hc).1
+theorem decisionKept_of_rejected {reg : List Reg} {d : LookDecision} (hd : d.decision = .rejected)
+    (hr : ∃ r ∈ reg, r.flag = d.flag) : decisionKept reg d = true :=
+  decisionKept_of_settled (by simp [hd]) hr
+
+theorem decisionKept_of_accepted {reg : List Reg} {d : LookDecision} (hd : d.decision = .accepted)
+    (hr : ∃ r ∈ reg, r.flag = d.flag) : decisionKept reg d = true :=
+  decisionKept_of_settled (by simp [hd]) hr
+
+theorem settled_of_decisionKept {reg : List Reg} {d : LookDecision} (h : decisionKept reg d = true)
+    (hc : d.flag ∉ lookCandidates reg) : d.decision = .rejected ∨ d.decision = .accepted := by
+  simp only [decisionKept, Bool.or_eq_true, Bool.and_eq_true, List.contains_iff_mem] at h
+  have hk := (h.resolve_left hc).1
+  cases e : d.decision <;> simp_all
 
 theorem not_decisionKept_of_unregistered {reg : List Reg} {d : LookDecision} (h : ∀ r ∈ reg, r.flag ≠ d.flag) :
     decisionKept reg d = false := by
@@ -428,6 +439,132 @@ def trajJson (st : List Stored) (f : Flag) : Json :=
   Json.mkObj [("verdict", .str (twhyWord (trajWhy st f))),
     ("cells", .arr (families.flatMap fun fam => walks.map (cell fam)).toArray)]
 
+inductive EntryReq | proofs | gate (fam : Family) | look | q6
+deriving DecidableEq, Repr
+
+def EntryReq.word : EntryReq → String
+  | .proofs => "proofs"
+  | .gate fam => "gate " ++ familyWord fam
+  | .look => "look"
+  | .q6 => "q6 same scroll offset"
+
+def entryReqs : List EntryReq := [.proofs, .gate .chromium, .gate .webkit, .look, .q6]
+
+def q6Answer : Option String := none
+
+def acceptedLook (f : Flag) : Bool := lookDecisions.any fun d => d.flag == f && d.decision == .accepted
+
+def reqMet (ledger : List Row) (st : List Stored) (f : Flag) : EntryReq → Bool
+  | .proofs => why links ledger f == .proved
+  | .gate fam => walks.all fun w => tcell st f fam w == .pass
+  | .look => acceptedLook f
+  | .q6 => q6Answer.isSome
+
+def blockers (ledger : List Row) (st : List Stored) (f : Flag) : List EntryReq :=
+  entryReqs.filter fun r => !reqMet ledger st f r
+
+inductive Entry | enter | notYet (blockers : List EntryReq)
+deriving DecidableEq, Repr
+
+def entry (ledger : List Row) (st : List Stored) (f : Flag) : Entry :=
+  if (blockers ledger st f).isEmpty then .enter else .notYet (blockers ledger st f)
+
+theorem entry_enter_iff {ledger : List Row} {st : List Stored} {f : Flag} :
+    entry ledger st f = .enter ↔ ∀ r ∈ entryReqs, reqMet ledger st f r = true := by
+  have e : (blockers ledger st f).isEmpty = true ↔ ∀ r ∈ entryReqs, reqMet ledger st f r = true := by
+    simp [blockers, List.filter_eq_nil_iff]
+  unfold entry
+  by_cases h : (blockers ledger st f).isEmpty = true
+  · simp only [h, ↓reduceIte, true_iff]
+    exact e.1 h
+  · simp only [h, Bool.false_eq_true, ↓reduceIte, reduceCtorEq, false_iff]
+    exact fun h' => h (e.2 h')
+
+theorem entry_notYet_of_unmet {ledger : List Row} {st : List Stored} {f : Flag} {r : EntryReq}
+    (hr : r ∈ entryReqs) (hu : reqMet ledger st f r = false) :
+    entry ledger st f = .notYet (blockers ledger st f) ∧ r ∈ blockers ledger st f := by
+  have hb : r ∈ blockers ledger st f := List.mem_filter.2 ⟨hr, by simp [hu]⟩
+  have hne : (blockers ledger st f).isEmpty = false := by
+    cases e : blockers ledger st f with
+    | nil => simp [e] at hb
+    | cons _ _ => rfl
+  exact ⟨by simp [entry, hne], hb⟩
+
+theorem ok_of_enter {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (he : entry ledger st f = .enter) (ho : isOpt reg f = true) (hl : isLook reg f = false) :
+    ok reg links ledger st f = true := by
+  have h := entry_enter_iff.1 he
+  have hp : why links ledger f = .proved := by simpa [reqMet] using h .proofs (by simp [entryReqs])
+  have hg : ∀ fam ∈ families, ∀ w ∈ walks, tcell st f fam w = .pass := by
+    intro fam hf w hw
+    have hfam : fam = .chromium ∨ fam = .webkit := by simpa [families] using hf
+    have hm := h (.gate fam) (by rcases hfam with rfl | rfl <;> simp [entryReqs])
+    simp only [reqMet, List.all_eq_true, beq_iff_eq] at hm
+    exact hm w hw
+  simp [ok, ho, hl, hp, trajWhy_pass_iff.2 hg]
+
+def heroExitThreaded : Flag := ⟨"hero.exit", "threaded"⟩
+
+theorem q6_open {ledger : List Row} {st : List Stored} {f : Flag} :
+    entry ledger st f = .notYet (blockers ledger st f) ∧ .q6 ∈ blockers ledger st f :=
+  entry_notYet_of_unmet (by simp [entryReqs]) rfl
+
+theorem threaded_look_met {ledger : List Row} {st : List Stored} : reqMet ledger st heroExitThreaded .look = true := by
+  simp only [reqMet]
+  decide
+
+theorem threaded_unlinked : linkOf links heroExitThreaded = none := by
+  decide
+
+theorem threaded_proofs_unmet {ledger : List Row} {st : List Stored} :
+    reqMet ledger st heroExitThreaded .proofs = false := by
+  simp only [reqMet, why, threaded_unlinked, beq_eq_false_iff_ne, ne_eq]
+  split <;> simp
+
+theorem threaded_not_yet {ledger : List Row} {st : List Stored} :
+    entry ledger st heroExitThreaded = .notYet (blockers ledger st heroExitThreaded) ∧
+      .q6 ∈ blockers ledger st heroExitThreaded ∧ .proofs ∈ blockers ledger st heroExitThreaded ∧
+      .look ∉ blockers ledger st heroExitThreaded :=
+  ⟨q6_open.1, q6_open.2, (entry_notYet_of_unmet (by simp [entryReqs]) threaded_proofs_unmet).2,
+    fun h => by simp [blockers, threaded_look_met] at h⟩
+
+theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
+    {s : Stored} (hw : w ∈ walks) (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key])
+    (hf : outcome s = .fail) :
+    reqMet ledger st f (.gate fam) = false ∧ .gate fam ∈ blockers ledger st f := by
+  have hu : reqMet ledger st f (.gate fam) = false := by
+    simp only [reqMet, List.all_eq_false, beq_iff_eq]
+    exact ⟨w, hw, by simp [tcell_own_fail hs ho hf]⟩
+  have hr : EntryReq.gate fam ∈ entryReqs := by cases fam <;> simp [entryReqs]
+  exact ⟨hu, (entry_notYet_of_unmet hr hu).2⟩
+
+def threadedEvidence (st : List Stored) : EntryReq → String
+  | .proofs => "Fw.Parts.HeroExitOpt.consumer_eq_s (E-s under the hypothesis RG11), cr_real_tradeE and wk_tradeE (a \
+      trade); ledger row hero-exit-threaded (v6, KD#2) is partly-proved and Gen.linkTable has no link"
+  | .gate fam =>
+    let cell (w : Walk) : String :=
+      let runs := (runsFor st heroExitThreaded fam w).map fun s =>
+        "run " ++ s.run ++ " " ++ engineWord s.engine ++ " " ++ outcomeWord (outcome s)
+      walkWord w ++ " " ++ tcellWord (tcell st heroExitThreaded fam w) ++
+        (if runs.isEmpty then " (no stored run)" else " (" ++ ", ".intercalate runs ++ ")")
+    "trajectory " ++ "; ".intercalate (walks.map cell) ++ "; PathPix runs 39924527942 and 39929556147 grade every \
+      valid P cell L (research/notes/2026/10-2x-hero-exit-threaded-pix.md)"
+  | .look => "accepted 2026-10-24 on the real iPhone (results/phone/2026-10-24-hero-exit-threaded/summary.md)"
+  | .q6 => q6Answer.getD "open: no answer recorded; Fw.Engine.PathPremises.c3o and c3v (lean/Fw/Engine/Visual.lean) (each arm shows its own \
+      value at its own frame time) are hypotheses, and Fw.Parts.HeroExitOpt does not model which scroll offset the \
+      compositor shows"
+
+def entryWord : Entry → String
+  | .enter => "enter"
+  | .notYet _ => "not yet"
+
+def entryJson (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
+  if f != heroExitThreaded then .null else
+  Json.mkObj [("decision", .str (entryWord (entry ledger st f))),
+    ("blockers", .arr ((blockers ledger st f).map (.str ·.word)).toArray),
+    ("requirements", .arr (entryReqs.map fun r => Json.mkObj [("req", .str r.word),
+      ("met", .bool (reqMet ledger st f r)), ("evidence", .str (threadedEvidence st r))]).toArray)]
+
 def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
   let p := preset reg links ledger st
   let fs := links.map (·.1)
@@ -441,7 +578,7 @@ def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) 
   Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", verdictJson ledger f),
     ("trajectory", trajJson st f), ("member", .bool (p.contains f)), ("shadowedBy", shadow),
     ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray),
-    ("userDecision", decisionOf f)]
+    ("userDecision", decisionOf f), ("entry", entryJson ledger st f)]
 
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
@@ -621,13 +758,25 @@ private def earnLogicalReg : Reg :=
 private def accentFullReg : Reg :=
   { flag := ⟨"hero.accent", "draw-nolayout-full"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
 
-#guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩, ⟨"nav", "earn-logical"⟩, ⟨"hero.accent", "draw-nolayout-full"⟩]
-#guard staleDecisions [earnReg] == [⟨"nav", "earn-logical"⟩, ⟨"hero.accent", "draw-nolayout-full"⟩]
-#guard staleDecisions [earnReg, earnLogicalReg] == [⟨"hero.accent", "draw-nolayout-full"⟩]
-#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg] == []
+private def threadedReg : Reg :=
+  { flag := ⟨"hero.exit", "threaded"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
+
+private def accentReg : Reg :=
+  { flag := ⟨"hero.accent", "draw-nolayout"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
+
+#guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩, ⟨"nav", "earn-logical"⟩, ⟨"hero.accent", "draw-nolayout-full"⟩,
+  ⟨"hero.exit", "threaded"⟩, ⟨"hero.accent", "draw-nolayout"⟩]
+#guard staleDecisions [earnReg, earnLogicalReg] == [⟨"hero.accent", "draw-nolayout-full"⟩, ⟨"hero.exit", "threaded"⟩,
+  ⟨"hero.accent", "draw-nolayout"⟩]
+#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg, accentReg] == [⟨"hero.exit", "threaded"⟩]
+#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg, threadedReg, accentReg] == []
 #guard staleIn [{ earnReg with visClass := none }] (lookDecisions.take 1) == [⟨"nav", "earn-no-transition"⟩]
-#guard staleIn [accentFullReg] (lookDecisions.drop 2) == []
-#guard staleIn [accentFullReg] ((lookDecisions.drop 2).map fun d => { d with decision := .kept }) == [⟨"hero.accent", "draw-nolayout-full"⟩]
+#guard staleIn [accentFullReg] ((lookDecisions.drop 2).take 1) == []
+#guard staleIn [accentFullReg] (((lookDecisions.drop 2).take 1).map fun d => { d with decision := .kept }) ==
+  [⟨"hero.accent", "draw-nolayout-full"⟩]
+#guard staleIn [threadedReg] ((lookDecisions.drop 3).take 1) == []
+#guard staleIn [threadedReg] (((lookDecisions.drop 3).take 1).map fun d => { d with decision := .kept }) ==
+  [⟨"hero.exit", "threaded"⟩]
 #guard refusedMembers lookDecisions [] == []
 #guard refusedMembers lookDecisions [⟨"hero.accent", "draw-nolayout-full"⟩, ⟨"nav", "earn-logical"⟩] ==
   [⟨"hero.accent", "draw-nolayout-full"⟩]
@@ -642,17 +791,17 @@ private def accentFullReg : Reg :=
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "accepted"),
     ("review", .str "x")])]])]) (lookDecisions.take 1)).length == 5
-#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 3
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 5
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-logical"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-25"), ("decision", .str "accepted 2026-10-25"),
     ("review", .str "runs 40100783726, 40102193302 artifacts transitions-apple-390, transitions-apple-1280 (expire 2026-11-23)")])]])])
     ((lookDecisions.drop 1).take 1)).isEmpty
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "hero.accent:draw-nolayout-full"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-25"), ("decision", .str "rejected 2026-10-25: refused in chat"),
-    ("review", .str "runs 40030735082, 40035116432")])]])]) (lookDecisions.drop 2)).isEmpty
+    ("review", .str "runs 40030735082, 40035116432")])]])]) ((lookDecisions.drop 2).take 1)).isEmpty
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "hero.accent:draw-nolayout-full"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-24"), ("decision", .str "rejected; review deferred"),
-    ("review", .str "")])]])]) (lookDecisions.drop 2)).length == 2
+    ("review", .str "")])]])]) ((lookDecisions.drop 2).take 1)).length == 2
 #guard ((lookJson [] [] ⟨"x", "y"⟩).getObjVal? "userDecision").toOption == some .null
 
 private def stEx : Stored :=
@@ -689,5 +838,39 @@ private def unitsJ (refused : Bool) (search : String) : Json :=
 #guard (merge [stEx, { stEx with walk := .hero }] [{ stEx with groups := [] }]).map (·.groups.length) == [1, 0]
 #guard ((trajJson [stEx] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "pending: trajectory"
 #guard ((trajJson [stBad] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "falsified: trajectory"
+
+private def stPass (e : Engine) (w : Walk) : Stored :=
+  ⟨"9", "s", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, w, Fw.Gate.Trajectory.allowedWidths, []⟩
+
+private def stFail (e : Engine) : Stored :=
+  ⟨"9", "s", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, .hero, Fw.Gate.Trajectory.allowedWidths,
+    [{ node := "hero.deck.card", prop := "opacity", content := [640, 641, 1280], coverage := [] }]⟩
+
+#guard outcome (stFail .chromium) == .fail
+#guard entry [] [] heroExitThreaded == .notYet [.proofs, .gate .chromium, .gate .webkit, .q6]
+#guard outcome (stPass .chromium .hero) == .pass
+#guard blockers [] ([Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e)) heroExitThreaded == [.proofs, .q6]
+#guard blockers [] [stPass .chromium .hero, stPass .chromium .morph] heroExitThreaded == [.proofs, .gate .webkit, .q6]
+#guard blockers [] [] ⟨"nav", "earn-logical"⟩ == [.proofs, .gate .chromium, .gate .webkit, .q6]
+#guard blockers [] [] ⟨"hero.accent", "draw-nolayout"⟩ == [.proofs, .gate .chromium, .gate .webkit, .look, .q6]
+#guard entryJson [] [] ⟨"hero.accent", "draw-nolayout"⟩ == .null
+#guard ((entryJson [] [] heroExitThreaded).getObjValAs? String "decision").toOption == some "not yet"
+#guard ((entryJson [] [] heroExitThreaded).getObjValAs? (List String) "blockers").toOption ==
+  some ["proofs", "gate chromium", "gate webkit", "q6 same scroll offset"]
+#guard threadedEvidence [] (.gate .webkit) |>.startsWith "trajectory hero pending (no stored run); morph pending (no stored run)"
+#guard threadedEvidence [stPass .macWebkit .hero] (.gate .webkit) |>.startsWith
+  "trajectory hero pass (run 9 mac-webkit pass); morph pending"
+#guard threadedEvidence [stFail .linuxWebkit, stFail .macWebkit] (.gate .webkit) |>.startsWith
+  "trajectory hero fail (run 9 linux-webkit fail, run 9 mac-webkit fail); morph pending"
+#guard blockers [] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e))
+  heroExitThreaded == [.proofs, .gate .chromium, .q6]
+#guard refusedMembers lookDecisions [⟨"hero.accent", "draw-nolayout"⟩, ⟨"hero.exit", "threaded"⟩] ==
+  [⟨"hero.accent", "draw-nolayout"⟩]
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "hero.exit:threaded"),
+  ("userDecision", Json.mkObj [("date", .str "2026-10-24"), ("decision", .str "accepted 2026-10-24: same look"),
+    ("review", .str "results/phone/2026-10-24-hero-exit-threaded/summary.md")])]])]) ((lookDecisions.drop 3).take 1)).isEmpty
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "hero.exit:threaded"),
+  ("userDecision", Json.mkObj [("date", .str "2026-10-24"), ("decision", .str "kept; review deferred"),
+    ("review", .str "")])]])]) ((lookDecisions.drop 3).take 1)).length == 2
 
 end Fw.Preset.Gen
