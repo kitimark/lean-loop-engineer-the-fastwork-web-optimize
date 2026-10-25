@@ -23,7 +23,7 @@ Golden: `packages/contracts/golden/engine/resource.jsonl` (180 predict rows, 83 
 - The trade row that becomes a win (`becomesWin`): morph.countdown:strip on WebKit.
 - Wins that become open (`leavesWin`): morph.columns:idle-none on both engines (event dispatch, paint and script
   unknown) and morph.panel:rest on WebKit (repaint unknown). The panel-rest-n11 task measures that flag on CI.
-- Preset decisions are unchanged. This note only reports these rows.
+- Preset decisions are unchanged.
 
 ## Verdict rule (`verdict`, proved in `ResourceVerdict.lean`)
 

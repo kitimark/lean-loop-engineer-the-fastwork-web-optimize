@@ -1,4 +1,3 @@
-// Replays packages/contracts/golden/engine/resource.jsonl (lean/Fw/Engine/ResourceFlags.lean) through src/resource-check.mjs.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

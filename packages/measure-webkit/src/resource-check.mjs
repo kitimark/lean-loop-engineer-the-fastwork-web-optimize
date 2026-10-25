@@ -1,6 +1,3 @@
-// Mirror of lean/Fw/Engine/Resource.lean and ResourceVerdict.lean, checked against
-// packages/contracts/golden/engine/resource.jsonl by test/resource-check.test.mjs.
-
 export const GATED = ['style', 'layout', 'paintRecords', 'script', 'eventDispatch', 'repaintArea', 'framesRequested'];
 const CENSUS = new Set(['layers', 'gpuMemory']);
 

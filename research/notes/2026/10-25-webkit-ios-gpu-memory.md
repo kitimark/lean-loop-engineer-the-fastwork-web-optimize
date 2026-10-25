@@ -39,7 +39,7 @@ layer backing to, and how does WebKit size that backing? Source: WebKit 862f17dc
 
 The phone's real jetsam limit is not readable from the page, so B starts from the fallback WebKit itself uses. Past
 the conservative threshold WebKit switches the compositor to its conservative policy and cuts tile coverage to the
-visible rect. Both change what the page looks like mid-scroll. Keeping layer backing to at most half that threshold
+visible rect. Keeping layer backing to at most half that threshold
 leaves the other half for the heap, decoded images, fonts and the freed-buffer pools. B is one Lean constant: change
 `budgetB` and the golden and every verdict follow, and `win_mono_budget` shows that raising B never turns a win into a
 non-win.

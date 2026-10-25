@@ -13,8 +13,6 @@ import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PeopleDeckOpt
 import Fw.Engine.ResourceFlags
 
-/-- The Lean generator of each file in `packages/contracts/golden/engine/`, by file name.
-One row per committed engine golden; a file without a row, or a row without a file, fails the check. -/
 def generators : List (String × String) :=
   [("chromium.jsonl", Fw.Engine.Chromium.goldenText),
    ("countdown-strip.jsonl", Fw.Parts.HeroCountdownOpt.goldenJsonl),

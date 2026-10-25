@@ -1,50 +1,37 @@
 import Fw.Engine.Resource
 
-/-! The resource verdict: win, trade, neutral, over budget or open, from one footprint and the GPU memory budget. -/
-
 namespace Fw.Engine.Resource
 
-/-- A predicted effect on one resource: its sign, a bound on the change with the bound's unit, and its source. -/
 structure Effect where
   sign : Sign
   bound : Option (Nat × String)
   src : String
 deriving Repr, Inhabited
 
-/-- One flag's predicted resource vector on one engine, with a peak GPU memory in bytes. -/
 structure Footprint where
   flag : String
   eng : Eng
   effects : List (Res × Effect)
-  /-- The peak GPU memory in bytes: a MEASURED phone maximum of the arm, or the MEASURED base peak plus a modelled
-  rise. -/
   peak : Option Nat
 deriving Repr, Inhabited
 
-/-- The predicted sign of a resource; a resource the footprint omits is unknown. -/
 def Footprint.sign (fp : Footprint) (r : Res) : Sign := ((fp.effects.find? (·.1 == r)).map (·.2.sign)).getD .unknown
 
-/-- The verdict of a footprint. -/
 inductive Verdict where
   | win | trade | neutral | overBudget | open
 deriving Repr, DecidableEq, Inhabited
 
-/-- The golden name of a verdict. -/
 def Verdict.name : Verdict → String
   | .win => "win" | .trade => "trade" | .neutral => "neutral" | .overBudget => "overBudget" | .open => "open"
 
-/-- The gated resources: main-thread work and repaint. -/
 def gated : List Res := Res.all.filter Res.gated
 
-/-- Does GPU memory stay within `B`? A memory sign that does not rise fits; a rise fits when the peak is at most `B`. -/
 def memFit (B : Nat) (s : Sign) (peak : Option Nat) : Option Bool :=
   match s with
   | .down | .same => some true
   | .up => peak.map (memFits B)
   | .unknown => none
 
-/-- The verdict at budget `B`: any gated rise is a trade; otherwise a gated unknown is open, no gated fall is neutral,
-and a gated fall is a win exactly when GPU memory fits `B`. -/
 def verdict (B : Nat) (fp : Footprint) : Verdict :=
   if gated.any (fp.sign · == .up) then .trade
   else if gated.any (fp.sign · == .unknown) then .open
@@ -100,25 +87,20 @@ theorem win_iff (B : Nat) (fp : Footprint) :
         simp only [h3, Bool.not_false, ite_true, reduceCtorEq, false_iff]
         intro ⟨_, h, _⟩; exact hd h
 
-/-- **A memory-only cost is not a trade**: whatever the layer, composite and GPU memory signs, no gated rise means
-no trade. -/
 theorem memory_only_not_trade (B : Nat) (fp : Footprint) (h : ∀ r ∈ gated, fp.sign r ≠ .up) : verdict B fp ≠ .trade :=
   fun ht => by obtain ⟨r, hr, he⟩ := (trade_iff B fp).mp ht; exact h r hr he
 
-/-- More GPU memory within `B`, with main-thread work or repaint falling and nothing gated rising, is a win. -/
 theorem memory_cost_win (B : Nat) (fp : Footprint) (hg : ∀ r ∈ gated, fp.sign r = .down ∨ fp.sign r = .same)
     (hd : ∃ r ∈ gated, fp.sign r = .down) (hm : fp.sign .gpuMem = .up) (peak : Nat) (hp : fp.peak = some peak)
     (hB : peak ≤ B) : verdict B fp = .win :=
   (win_iff B fp).mpr ⟨hg, hd, by simp [memFit, hm, hp, memFits, hB]⟩
 
-/-- A GPU memory rise past `B` is never a win. -/
 theorem over_budget_not_win (B : Nat) (fp : Footprint) (hm : fp.sign .gpuMem = .up) (peak : Nat)
     (hp : fp.peak = some peak) (hB : B < peak) : verdict B fp ≠ .win := by
   intro hw
   have := ((win_iff B fp).mp hw).2.2
   simp [memFit, hm, hp, memFits] at this; omega
 
-/-- A win stays a win under a larger budget. -/
 theorem win_mono_budget {B B' : Nat} (hB : B ≤ B') (fp : Footprint) (h : verdict B fp = .win) : verdict B' fp = .win := by
   obtain ⟨hg, hd, hm⟩ := (win_iff B fp).mp h
   refine (win_iff B' fp).mpr ⟨hg, hd, ?_⟩
@@ -131,7 +113,6 @@ theorem win_mono_budget {B B' : Nat} (hB : B ≤ B') (fp : Footprint) (h : verdi
     | some p => simp [hp, memFits] at hm ⊢; omega
   · simp at hm
 
-/-- A footprint with a gated unknown and no gated rise is open. -/
 theorem open_of_unknown (B : Nat) (fp : Footprint) (h : ∀ r ∈ gated, fp.sign r ≠ .up) (r : Res) (hr : r ∈ gated)
     (hu : fp.sign r = .unknown) : verdict B fp = .open := by
   have h1 : gated.any (fp.sign · == .up) = false := by
@@ -139,11 +120,9 @@ theorem open_of_unknown (B : Nat) (fp : Footprint) (h : ∀ r ∈ gated, fp.sign
   have h2 : gated.any (fp.sign · == .unknown) = true := List.any_eq_true.mpr ⟨r, hr, by simp [hu]⟩
   simp [verdict, h1, h2]
 
-/-- The footprint with the given signs and no bounds (for examples). -/
 def ofSigns (flag : String) (e : Eng) (ss : List (Res × Sign)) (peak : Option Nat) : Footprint :=
   ⟨flag, e, ss.map fun (r, s) => (r, ⟨s, none, ""⟩), peak⟩
 
-/-- All gated resources at sign `s`. -/
 def gatedAt (s : Sign) : List (Res × Sign) := gated.map (·, s)
 
 #guard gated.length == 7
