@@ -47,6 +47,8 @@ Date: 2026-10-25. Task `webkit-sim-relaunch`. Branch `worktree-wf_5e997045-0e6-1
 
 ## Limits and open items
 
+Accepted limits (pinned unit: the Lean decision, its golden, the guard/sim wiring against the golden, runs 40162251194 3 of 3 MEASURED and 40174232514 2 of 3 MEASURED at the step bound): the `perSessionMin` +13 min `recoverMin` edit is a follow-up outside the writes; there is no fault injection; `sim-step-watchdog` is its own task.
+
 - A healthy session already takes up to 31.1 min of the 35 min step bound (`SimBound.perSessionMin`, MEASURED over 56 green jobs). A late reboot (766 s) does not fit; the step ends it as a timeout. `reboot_exceeds_spare` and `step_with_recovery_fits` state this: the step bound needs `recoverMin` = 13 more minutes. That edit is in `Fw.Measure.SimBound` and `simplan.mjs`, outside this task's writes.
 - The reboot path blocks the event loop in `spawnSync` for up to 446 s; the stall watchdog (720 s of silence) stays quiet because each call logs.
 - A device that shuts down and a CoreSimulatorService that never answers are outside our process; the run ends with the named failure (`rebootFailed`), not with a lost VM.
