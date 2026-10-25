@@ -169,15 +169,19 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
 - Setup: `brew install pipx`, then `pipx install pymobiledevice3==11.44.0`. Every call carries `--userspace`; `--native` is never used. The
   profile ids come from `pymobiledevice3 developer dvt condition list --userspace` (group ThermalCondition: ThermalFair, ThermalSerious,
   ThermalCritical; CONFIRMED on the test phone). Only Fair and Serious are induced.
-- `arms-run --pin Serious ...`: one owner process runs `condition set ThermalSerious --userspace` and holds the DTX connection (the
-  condition lives only as long as that connection, CONFIRMED in pymobiledevice3 source; `condition clear` from another connection is a
-  no-op). The block runs a lane only after a reading `go`: owner alive, phone unlocked, reported state = target. The state is read before
+- `arms-run --pin Serious ...`: one owner process (`OWNER_PY`, our program on the pinned library's `ConditionInducer`, run with the
+  pymobiledevice3 venv python from `pipx environment --value PIPX_LOCAL_VENVS` or `FW_PYMD3_PYTHON`) sets the condition and holds the
+  connection. MEASURED: the induced state outlives the owner (a SIGTERM without a clear left Serious reported for 34 min) and a clear
+  from another connection does nothing; only a clear on the setting connection ends it, and the reported state then falls after about 2
+  minutes (Nominal start) or stays while real heat remains. So on SIGTERM the owner clears, waits for a reply, prints
+  `fw-pin cleared pid=N` and exits. A block runs a lane only after a reading `go`: owner alive, phone unlocked, reported state = target. The state is read before
   the block, between the frames lane and the counts lane, and after the visit; a visit counts only when all three read `go`. A reading
   of Critical, or below or above the target, refuses the visit (`status: refused`, no raw files) and stops the block. The 5-minute cool
   between blocks is skipped. The induced state is a floor, not a clamp: real heat can lift the reported state to Critical.
 - The owner is stopped with `kill -TERM` (a backgrounded job ignores SIGINT), KILL after 15 s, and only after its recorded pid and start
-  time match the live process. The finally path stops it after success and after every failure, then reads the state back; `state.json`
-  `pin` records target, profile, owner pid and start, the readings (`thermal`), the read-backs and the end verdict (`cleared`,
-  `heatRemains`, `unread`, `stuck`). `stuck` fails the session.
+  time match the live process. The finally path stops it after success and after every failure, then reads the state back for up to 300 s;
+  `state.json` `pin` records target, profile, owner pid and start, the readings (`thermal`), `acked`, the read-backs and the end verdict
+  (`cleared`, `heatRemains` after real load, `unread`, `unconfirmed` for an owner that died or needed KILL, `stuck`). `unconfirmed` and
+  `stuck` fail the session; the next run (or `pin-stop`) runs one set-and-clear cycle for an unconfirmed owner (Lean `recoverAct`).
 - `pin-probe --pin Serious --dir d [--hold s]`: induce, read back until the target, hold, clear, read back; no visit.
   `pin-stop --dir d`: stop an owner a crashed run left behind.
