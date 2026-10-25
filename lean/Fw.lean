@@ -101,6 +101,7 @@ import Fw.Parts.PlatformSweepPauseGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork
+import Fw.Parts.NavFixedCounts
 import Fw.Parts.PeopleCarouselCrop
 import Fw.Parts.PainDarkScroll
 import Fw.Parts.HeroAccentOpt
