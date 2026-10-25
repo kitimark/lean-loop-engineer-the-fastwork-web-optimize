@@ -1,0 +1,24 @@
+branch: worktree-wf_8b04760d-e7c-1 (CI branch ci/macos-vm-evidence = same commit)
+worktree: .claude/worktrees/wf_8b04760d-e7c-1
+last commit: 921a36f9e (code); handoff and note commit follow
+CI runs: webkit-sim 40232220883 in_progress (1 VM, 1 session, original arm, determinism); lean 40232220782, lean-math 40232220761, mutants 40232220780 in_progress
+paired run for counts: none yet named; counts are not changed by construction (the async layer only changes how simctl is called), golden replay covers the new decisions
+
+Phase 1 of macos-vm-evidence (harness and telemetry code only; workflows untouched).
+
+Verified (local tests, not results):
+- Lean: lean/Fw/Ci/Telemetry.lean (call bound, host stall, tick lag, 7 pressure fields; op ci.hostCall; golden packages/contracts/golden/ci/telemetry.jsonl regenerated).
+- scripts/ci-telemetry: swap, compressor, memory_pressure readings with tests (18 pass).
+- packages/measure-webkit: simctl async via sim.mjs runAsync (bound = Lean callBoundMs, settle = bound + 5 s), watchdog reports blocked loop and running host calls, per-pass files out/<x>.pass-N.part, tests in test/host-call.test.mjs (17 pass).
+
+Trace of the four Determinism-session stalls: research/notes/2026/10-25-macos-vm-loss.md.
+
+Open:
+- Phase 2 workflow edits (wait for cross-pool-pooling and push-cycle-lag): upload out/$VM-session-$s.pass-*.part per pass; periodic upload of the telemetry probes.jsonl during the run (webkit-sim.yml, toolbar-throttle.yml).
+- Out-of-scope writes: packages/measure-webkit/src/cli.mjs (one call to writePassFile), packages/contracts/golden/ci/telemetry.jsonl (generated).
+- Lost-VM cause UNKNOWN until a lost job leaves telemetry; job-length cap and Lean load guard only after lost-VM data.
+- Inspector command timeouts are not in the pending registry (inspector.mjs, poll.mjs out of scope).
+- docs/team/tools/ci-telemetry.md may need a line about the new probe fields.
+- TS stand-ins checked by golden replay: callBoundMs, callSettleMs (sim.mjs), lagMs, tickBlocked (watchdog.mjs); retryAsync checked against the Lean call golden.
+
+Read first: the research note, then packages/measure-webkit/src/sim.mjs (runAsync, pendingCalls).
