@@ -30,7 +30,6 @@ structure Dlv where
   other : Bool
 deriving Repr, BEq, DecidableEq
 
-/-- `Event.defaultPrevented` after the handler: DOM "set the canceled flag" needs cancelable and no passive listener running. -/
 def Dlv.prevented (d : Dlv) (o : Out) : Bool := d.other || (o.prevent && d.cancelable && !d.passive)
 
 def Dlv.std : Dlv := ⟨true, false, false⟩

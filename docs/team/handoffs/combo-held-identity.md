@@ -8,5 +8,5 @@ open: phone re-check by the user; toolbar-resize fight y~1859 (out of scope); a 
 conventions: held := Event.defaultPrevented after the handler (Lean Dlv/holds, TS end.logic hold + driver move); golden only from lean/scripts/ComboScrollGolden.lean; waapi and waapi-scoped cannot be picked with morph.end.release:on (registry conflict; Lean Fw.Parts.ComboScroll.decided_no_release_waapi); +allpassive arms (all-passive harness, were +passive in the run) = PASSIVE_JS in combo-replay.mjs
 read first: research/notes/2026/10-2x-combo-held-identity.md, lean/Fw/Parts/ComboScroll.lean, apps/site/src/parts/morph.tween/end.logic.ts
 
-round 2: morph.end.release part.json conflicts waapi/waapi-scoped; Lean lean/Fw/Parts/ComboScroll.lean (decided_no_release_waapi); waapi_* theorems removed from ComboScroll.lean; arms renamed +allpassive; check.sh, site 7721, console-api 782, measure-webkit 698, runner 3471, ci-paths 56 green
+round 2: waapi_* theorems removed from ComboScroll.lean; arms renamed +allpassive; check.sh, site 7721, console-api 782, measure-webkit 698, runner 3471, ci-paths 56 green
 writes outside the graph row: lean/Fw/Parts/ComboScroll.lean, lean/Fw.lean (import)

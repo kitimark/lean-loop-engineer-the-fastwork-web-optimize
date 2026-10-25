@@ -89,7 +89,7 @@ twice in the inner reducer; `otherTrace` holds when an earlier listener prevente
 ## Look class
 
 Unchanged from the scroll-fight note: with release on, a reopen the browser does not let the page cancel leaves the page to the
-finger. The new part: a passive listener is now treated the same way (it used to pin against the scroll). The user's check decides.
+finger. The new part: a passive listener is now treated the same way (it used to pin against the scroll).
 
 ## Accepted limits and follow-ups
 
