@@ -35,7 +35,7 @@ export function ports(env = process.env) {
   return p;
 }
 
-/** TS stand-ins of Fw.Ci.Telemetry.callCapMs / callGraceMs / callBoundMs / callSettleMs; test/host-call.test.mjs replays the Lean golden (ci.hostCall). */
+/** TS stand-ins of Fw.Ci.Telemetry.callCapMs / callGraceMs / callBoundMs / callSettleMs; test/host-call.test.mjs replays the Lean golden (ci.telemetry with what). */
 export const CALL_CAP_MS = 200000;
 export const CALL_GRACE_MS = 5000;
 export const callBoundMs = (limitMs) => Math.min(limitMs, CALL_CAP_MS);

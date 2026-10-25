@@ -13,7 +13,7 @@ import { passFile, writePassFile, askOnce } from '../src/session.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const goldenPath = join(HERE, '../../contracts/golden/ci/telemetry.jsonl');
 const fwcore = join(HERE, '../../../lean/.lake/build/bin/fwcore');
-const host = readFileSync(goldenPath, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((g) => g.request.op === 'ci.hostCall');
+const host = readFileSync(goldenPath, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((g) => g.request.what !== undefined);
 
 const standIn = (rq) => {
   if (rq.what === 'bound') return { boundMs: callBoundMs(rq.limitMs), settleMs: callSettleMs(rq.limitMs) };

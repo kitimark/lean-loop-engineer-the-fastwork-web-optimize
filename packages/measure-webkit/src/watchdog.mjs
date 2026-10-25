@@ -17,7 +17,7 @@ export const defaultStallMs = (env = process.env) => {
 /** True when `now - lastAt` exceeds the limit (the one rule of the stall guard). */
 export const stalled = (now, lastAt, limitMs) => now - lastAt > limitMs;
 
-/** TS stand-ins of Fw.Ci.Telemetry.lagMs / tickBlocked; test/host-call.test.mjs replays the Lean golden (ci.hostCall). */
+/** TS stand-ins of Fw.Ci.Telemetry.lagMs / tickBlocked; test/host-call.test.mjs replays the Lean golden (ci.telemetry with what). */
 export const lagMs = (tickMs, sinceMs) => Math.max(0, sinceMs - tickMs);
 export const tickBlocked = (tickMs, sinceMs) => tickMs > 0 && tickMs <= lagMs(tickMs, sinceMs);
 

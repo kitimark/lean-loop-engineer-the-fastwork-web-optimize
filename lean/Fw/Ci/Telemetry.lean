@@ -568,7 +568,7 @@ def opTelemetry (req : Json) : Except String Reply := do
   let ts := spansOf rs
   pure [("spans", Json.arr ((judged p ts).toArray.map spanJson)), ("slow", Json.arr ((slowItems p ts).toArray.map slowJson))]
 
-/-- `ci.hostCall`: `what` is `bound` (`limitMs`), `stall` (`nowMs`, `lastMs`, `limitMs`) or `lag` (`tickMs`, `sinceMs`). -/
+/-- A `ci.telemetry` request with `what`: it is `bound` (`limitMs`), `stall` (`nowMs`, `lastMs`, `limitMs`) or `lag` (`tickMs`, `sinceMs`). -/
 def opHostCall (req : Json) : Except String Reply := do
   match ← str req "what" with
   | "bound" =>
@@ -583,13 +583,12 @@ def opHostCall (req : Json) : Except String Reply := do
   | w => throw s!"unknown what {w}"
 
 /-- The ops of this module. -/
-def ops : List String := ["ci.telemetry", "ci.hostCall"]
+def ops : List String := ["ci.telemetry"]
 
-/-- Dispatch a `ci.telemetry` or `ci.hostCall` op (`none` when the op is not one of them). -/
+/-- Dispatch `ci.telemetry`: a request with a `what` field asks a host-call question, any other carries records. -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
-  | "ci.telemetry" => some (opTelemetry req)
-  | "ci.hostCall" => some (opHostCall req)
+  | "ci.telemetry" => some (match opt req "what" with | some _ => opHostCall req | none => opTelemetry req)
   | _ => none
 
 
@@ -675,9 +674,9 @@ def cases (_ : Unit := ()) : List (String × Json) :=
    ("a record with schema 2 is refused",
       reqJson [Json.mkObj [("schema", toJson 2)]])]
 
-/-- A `ci.hostCall` request. -/
+/-- A host-call request: op `ci.telemetry` with a `what`. -/
 def hostReq (what : String) (fs : List (String × Nat)) : Json :=
-  Json.mkObj ([("op", Json.str "ci.hostCall"), ("what", Json.str what)] ++ fs.map fun (k, v) => (k, toJson v))
+  Json.mkObj ([("op", Json.str "ci.telemetry"), ("what", Json.str what)] ++ fs.map fun (k, v) => (k, toJson v))
 
 /-- The host-call cases: the bound at, below and above the cap, the stall rule at its edge, the lost tick time. -/
 def hostCases (_ : Unit := ()) : List (String × Json) :=
@@ -694,11 +693,11 @@ def hostCases (_ : Unit := ()) : List (String × Json) :=
    ("lag: 60 s since the last tick is one whole period lost: blocked", hostReq "lag" [("tickMs", 30000), ("sinceMs", 60000)]),
    ("lag: a 174 s gap on a 30 s tick (a blocked bootstatus) is blocked with 144 s lost", hostReq "lag" [("tickMs", 30000), ("sinceMs", 174000)]),
    ("lag: no tick period is never blocked", hostReq "lag" [("tickMs", 0), ("sinceMs", 100)]),
-   ("an unknown what is refused", Json.mkObj [("op", Json.str "ci.hostCall"), ("what", Json.str "nope")])]
+   ("an unknown what is refused", Json.mkObj [("op", Json.str "ci.telemetry"), ("what", Json.str "nope")])]
 
 /-- The reply line of a case: the op reply, or its error. -/
 def replyJson (req : Json) : Json :=
-  match (match opt req "op" with | some (.str "ci.hostCall") => opHostCall req | _ => opTelemetry req) with
+  match (match opt req "what" with | some _ => opHostCall req | none => opTelemetry req) with
   | .ok f => Json.mkObj f
   | .error e => Json.mkObj [("error", .str e)]
 
