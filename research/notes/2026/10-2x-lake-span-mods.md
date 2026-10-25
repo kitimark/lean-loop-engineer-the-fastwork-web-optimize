@@ -1,7 +1,6 @@
 # Lake spans carry the rebuilt-module class, so a rebuild is not judged against no-op builds
 
-Status: CONFIRMED (code, spans, Lean proofs), the 51 s and 37 s samples MEASURED. Unit of decision: both lake build
-spans record `lake.built`.
+Status: CONFIRMED (code, spans, Lean proofs), the 51 s and 37 s samples MEASURED.
 
 ## Answer
 
@@ -30,15 +29,14 @@ module counts when its line has exactly one `] Built `, a `[i/n]` counter right 
 `Fw.Obs.Timing.builtLine`/`lakeBuilt?`; the member is written when the output has a Built line or the closing line, so a
 no-op build records class 0 and quiet or failed output records none. MEASURED on this repo (2026-10-25): an edit of
 `Fw.Obs.Timing` gave a build with 34 Built lines; the golden row `real output of lake build on this repo` is a verbatim
-excerpt of it with 8 modules, warnings, a facet object and the exe. Three implementations are checked against `golden/obs/timing-lake.jsonl`: Lean, `lakeMember` in
-`timing.ts`, and the awk in `lake-slot-lib.sh` (`timing-work.test.ts`).
+excerpt of it with 8 modules, warnings, a facet object and the exe. The three twins are checked against `golden/obs/timing-lake.jsonl` (`timing-work.test.ts`).
 
 ## Accepted limits
 
 - Old samples without a mods dimension stay unkeyed; `unkeyedLate` already withholds a verdict from an unkeyed sample
   once keyed history exists (INFERRED effect: the old alerts stop with the first keyed samples).
 - A land check that is not a lake build but prints lake output (for example `sh lean/scripts/check.sh`, which runs
-  `fwcore-build.sh`) gets a `lake` member; its steps are judged per class.
+  `fwcore-build.sh`) gets a `lake` member.
 - The CI lake spans (`host ci`) follow because CI runs the same `check.sh`; no CI dispatch was run for this task.
 - The retry-alone check span (`land.ts:802`, "retry alone: timed out under load") ends without a member and stays unkeyed; its step name is separate, so it does not mix with keyed samples.
 - A build with zero jobs prints `Nothing to build.` (Lake/Build/Run.lean:312), no Built line and no closing line: no member, unkeyed.

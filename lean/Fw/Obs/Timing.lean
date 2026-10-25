@@ -597,7 +597,6 @@ def builtModules (out : String) : Nat := (out.splitOn "\n").countP builtLine
 
 def lakeDone (out : String) : Bool := 1 < (out.splitOn "Build completed successfully").length
 
-/-- The `lake.built` span member for the output of a `lake build` that exited 0; none when no build finished. -/
 def lakeBuilt? (out : String) : Option Nat :=
   if 0 < builtModules out || lakeDone out then some (builtModules out) else none
 
@@ -1535,11 +1534,9 @@ theorem judgeQ_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s
 def noopHist (tool step : String) (n d : Nat) : List Sample :=
   List.replicate n { tool, step, durMs := d, host := .«local», work := modsWork 0 }
 
-/-- The 51053 ms sample of d5babdb; its module count was not recorded, 24 is an assumed value and the theorem covers every count. -/
 def incidentCheck : Sample :=
   { tool := "lean/check", step := "lake build", durMs := 51053, host := .«local», load := 6, work := modsWork 24 }
 
-/-- The 37430 ms sample of 8517344; the count 24 is assumed as for `incidentCheck`. -/
 def incidentLand : Sample :=
   { tool := "fw land", step := "dry sh -c cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh",
     durMs := 37430, host := .«local», load := 5, work := modsWork 24 }
