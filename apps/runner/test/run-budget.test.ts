@@ -71,7 +71,7 @@ describe.skipIf(!hasCore)("fw run through the request budget", { timeout: 120_00
     expect(b.list).toBe(a.list);
     expect(b.created).toBe(a.created);
     expect(b.head).toBe(10);
-    expect(b.download).toBe(10);
+    expect(b.download).toBe(50); // 5 pieces per fw run (3 counts shards, classes, telemetry)
     console.log(`# gh calls: 1 fw run ${one.calls.length} ${JSON.stringify(a)}, 10 fw runs ${ten.calls.length} ${JSON.stringify(b)}`);
   });
 
