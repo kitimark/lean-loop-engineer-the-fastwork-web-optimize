@@ -446,7 +446,7 @@ def Anim.afterSplash (a : Anim) : Bool := a.uses.any (·.2.isNone)
 def threadedFile : String := "hero.exit/threaded.module.css"
 
 /-- Every `@keyframes` rule of the hero subtree's CSS modules, read from the CSS. -/
-def heroAnims : List Anim :=
+def heroAnims (_ : Unit := ()) : List Anim :=
   let copyDone := some "[data-splash='done'] .copy"
   let cueDone := some "[data-splash='done'] .cue"
   let cardDone := some "[data-orbit][data-done] .card"
@@ -477,10 +477,10 @@ def heroAnims : List Anim :=
    ⟨"hero.orbit/card.module.css", "ringAppear", .card, [(".card", cardDone)]⟩]
 
 /-- The hero's animations without `hero.exit:threaded`, whose scroll-driven exit is a variant of its own. -/
-def baseAnims : List Anim := heroAnims.filter (·.file != threadedFile)
+def baseAnims (_ : Unit := ()) : List Anim := (heroAnims ()).filter (·.file != threadedFile)
 
-#guard baseAnims.length == 13
-#guard (baseAnims.filter (·.afterSplash)).map (·.name) ==
+#guard (baseAnims ()).length == 13
+#guard ((baseAnims ()).filter (·.afterSplash)).map (·.name) ==
   ["strokeIn", "strokeOut", "clipIn", "clipOut", "idle0", "idle1", "idle2", "copyIn", "scrollFloat"]
 
 theorem after_splash_copy : ∀ a ∈ baseAnims, a.afterSplash = true → a.fam = .copy := by decide +kernel
@@ -605,7 +605,7 @@ def lines (_ : Unit := ()) : List String :=
   [line "const" [] (Json.mkObj
     [("attr", .str "data-fw-hero-scene"), ("active", .str (attr true)), ("paused", .str (attr false)),
      ("rootMargin", .str "100% 0px"), ("playState", .str "paused"), ("willChange", .str "auto")])] ++
-  heroAnims.map fun an => line "anim" [("file", .str an.file), ("name", .str an.name)] (Json.mkObj
+  (heroAnims ()).map fun an => line "anim" [("file", .str an.file), ("name", .str an.name)] (Json.mkObj
     [("fam", .str (match an.fam with | .copy => "copy" | .card => "card")),
      ("uses", .arr (an.uses.map fun (s, o) => Json.mkObj [("sel", .str s), ("off", (o.map Json.str).getD .null)]).toArray),
      ("afterSplash", .bool an.afterSplash)])
