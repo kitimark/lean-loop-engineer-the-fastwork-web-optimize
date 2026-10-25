@@ -42,3 +42,10 @@ Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882
 GitHub twin: webkit-sim dispatch run 40211928946 (rewrite, r1+r2, --no-route) queued at checkpoint time. Lean/CI push run on f438f8623: not read yet.
 Codemagic (prose): build 6ade2733 timed out at 41 min (determinism step hung, no artifacts; harness stall like the GitHub attempt-1 stall); retry build 6ade316d finished in 21 min, key macOS 26A434 / Xcode 27A9275 / runtime 24A434, equal to GitHub r1 tools.txt (round 2). Month used 166 of the 400 line.
 Open: twin finish, place/compare (node scripts/codemagic.mjs compare), CI run, dry land, review ready.
+
+## Round 3 checkpoint 3
+Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882-1`, code commit e1b97e186 (pushed to ci/pool-dispatch-poller), then main merged.
+CI: lean 40219737473 success at e1b97e186. GitHub twin dispatch 40211928946: cell r1 success (used as reference); cell r2 still queued, not needed.
+Paired run outcome (a): keys equal, Lean merges; 20 of 104 rows differ in class (full list in docs/team/tools/ci-pool.md). Codemagic minutes this round: 41 (build 6ade2733, timeout) + 21 (build 6ade316d) = 62; month 166 of the 400 line.
+Verified: runner 3575 tests, ci-paths + codemagic 89, check.sh green at f438f8623.
+Open: dry land, review ready.
