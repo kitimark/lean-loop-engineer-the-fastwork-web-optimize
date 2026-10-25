@@ -1,10 +1,10 @@
 workflows:
   webkit-sim:
-    name: webkit-sim (pilot, one cell)
+    name: webkit-sim (one count cell, original or rewrite arm)
     instance_type: mac_mini_m2
     max_build_duration: 40
     environment:
-      xcode: 27.0
+      xcode: 27.1
       node: 24.22.0
       vars:
         HOMEBREW_NO_AUTO_UPDATE: "1"
@@ -14,6 +14,14 @@ workflows:
         FW_SIM_NAME: fw-iphone-27
         FW_WK_TIMEOUT_SCALE: "8"
         FW_WK_ATTEMPTS: "3"
+        FW_TARGET: original
+        FW_PRESET: original
+        FW_FW: none
+        FW_VM: v1
+        FW_SESSIONS: "1"
+        FW_SEARCH: none
+        ELAN_VERSION: v4.2.4
+        ELAN_SHA256: 7ad829861392c718dfebde3a83b5c8508df47be02af68894b094b0b3952616e5
     scripts:
       - name: Node 24.22.0 first on PATH
         script: |
@@ -44,6 +52,27 @@ workflows:
         script: |
           set -eu
           node .github/scripts/verify-snapshot.mjs
+      - name: rewrite cell, the site build of the GitHub site job (elan pinned and sha256 checked, pnpm install, pnpm --filter @fw/site build)
+        script: |
+          set -eu
+          export RUNNER_TEMP=/tmp/fw
+          if [ "$FW_TARGET" != rewrite ]; then echo "original cell: the read-only snapshot is served, no site build"; exit 0; fi
+          FW_SEARCH=$([ "$FW_SEARCH" = none ] && echo "" || echo "$FW_SEARCH")
+          t=$(date +%s)
+          dl="$RUNNER_TEMP/elan-dl"; mkdir -p "$dl"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/elan.tgz" "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-aarch64-apple-darwin.tar.gz"
+          echo "${ELAN_SHA256}  $dl/elan.tgz" | shasum -a 256 -c -
+          tar -xzf "$dl/elan.tgz" -C "$dl"
+          "$dl/elan-init" -y --no-modify-path --default-toolchain none
+          export PATH="$HOME/.elan/bin:$PATH"
+          mkdir -p "$HOME/fw-bin"; corepack enable --install-directory "$HOME/fw-bin"
+          export PATH="$HOME/fw-bin:$PATH"
+          pnpm --version
+          pnpm install --frozen-lockfile --filter '@fw/site...'
+          (cd lean && elan toolchain install "$(cat lean-toolchain)" && lake build breakgen)
+          if [ -n "$FW_SEARCH" ]; then pnpm --filter @fw/site build --config "$FW_SEARCH"; else pnpm --filter @fw/site build; fi
+          node scripts/codemagic.mjs site-digest apps/site/dist/aot | tee "$RUNNER_TEMP/result/site-digest.txt"
+          echo "site build: $(( $(date +%s) - t )) s"
       - name: ios_webkit_debug_proxy (preinstalled, else the cached kegs, else brew)
         script: |
           set -eu
@@ -78,28 +107,42 @@ workflows:
           udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-      - name: determinism sessions (original arm, 1 session, 2 passes)
+      - name: determinism sessions (the cell's sessions, 2 passes each)
         script: |
           set -u
           export RUNNER_TEMP=/tmp/fw
           export FW_SNAPSHOT_SITE="$PWD/snapshot/site"
+          [ "$FW_FW" = none ] && FW_FW=""
+          [ "$FW_SEARCH" = none ] && FW_SEARCH=""
+          echo "cell: target=$FW_TARGET preset=$FW_PRESET fw=$FW_FW vm=$FW_VM sessions=$FW_SESSIONS"
           cd packages/measure-webkit
           mkdir -p out
-          node src/cli.mjs determinism --runs 2 --keep --out out/v1-session-1.json > out/v1-session-1.md 2> out/v1-session-1.log
-          rc=$?
+          rc=0
+          for s in $(seq 1 "$FW_SESSIONS"); do
+            if [ "$FW_TARGET" = rewrite ]; then
+              node src/cli.mjs determinism --runs 2 --keep --site "$PWD/../../apps/site/dist/aot" --search "$FW_SEARCH" --out "out/$FW_VM-session-$s.json" > "out/$FW_VM-session-$s.md" 2> "out/$FW_VM-session-$s.log"
+            else
+              node src/cli.mjs determinism --runs 2 --keep --out "out/$FW_VM-session-$s.json" > "out/$FW_VM-session-$s.md" 2> "out/$FW_VM-session-$s.log"
+            fi
+            r=$?
+            cat "out/$FW_VM-session-$s.md"
+            tail -n 40 "out/$FW_VM-session-$s.log"
+            [ "$rc" -eq 0 ] && rc=$r
+          done
           echo "$rc" > "$RUNNER_TEMP/determinism.rc"
-          cat out/v1-session-1.md
-          tail -n 40 out/v1-session-1.log
           exit 0
-      - name: keep logs and host state, delete the Simulator
+      - name: keep logs and host state (same file names as the GitHub webkit-sim-r<n> artifact)
         script: |
           set -u
           export RUNNER_TEMP=/tmp/fw
-          mkdir -p "$CM_BUILD_DIR/fw-result"
-          cp packages/measure-webkit/out/v1-* "$RUNNER_TEMP/result/" 2>/dev/null || true
-          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$RUNNER_TEMP/result/host.txt" 2>&1 || true
-          echo "tool-start $(cat "$RUNNER_TEMP/t0") end $(date +%s)" > "$RUNNER_TEMP/result/wall.txt"
-          cp "$RUNNER_TEMP"/result/* "$CM_BUILD_DIR/fw-result/" 2>/dev/null || true
+          mkdir -p "$CM_BUILD_DIR/fw-result" "$CM_BUILD_DIR/fw-extra"
+          cp packages/measure-webkit/out/"$FW_VM"-* "$CM_BUILD_DIR/fw-result/" 2>/dev/null || true
+          sh .github/scripts/runner-info.sh "$CM_BUILD_DIR/fw-result/runner.json" || true
+          cp "$RUNNER_TEMP/result/tools.txt" "$CM_BUILD_DIR/fw-result/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/result/site-digest.txt" "$CM_BUILD_DIR/fw-extra/" 2>/dev/null || true
+          { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$CM_BUILD_DIR/fw-extra/host.txt" 2>&1 || true
+          echo "tool-start $(cat "$RUNNER_TEMP/t0") end $(date +%s)" > "$CM_BUILD_DIR/fw-extra/wall.txt"
+          cp "$RUNNER_TEMP/result/check-simulator.txt" "$CM_BUILD_DIR/fw-extra/" 2>/dev/null || true
           xcrun simctl shutdown all || true
           xcrun simctl delete "$FW_SIM_NAME" || true
           rc=$(cat "$RUNNER_TEMP/determinism.rc" 2>/dev/null || echo 99)
@@ -110,3 +153,4 @@ workflows:
         - $HOME/fw-iwdp
     artifacts:
       - fw-result/*
+      - fw-extra/*
