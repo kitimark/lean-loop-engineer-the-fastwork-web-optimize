@@ -2,7 +2,7 @@ branch: worktree-wf_ff267e33-928-1 (CI branch ci/sim-touch-timeout, 4 pushes use
 worktree: .claude/worktrees/wf_ff267e33-928-1
 last commit: see git log (head of this branch)
 CI runs: 40145882715 toolbar-throttle finish on the merged code (pass-run.mjs): success, 3 jobs 74-83 min, 23 of 24 passes (sim 3 unthrottle-r1 lost to a start-up stall twice), no lift loss; 40134212357 failed (pre-fix, parts-cli bypassed the machine); 40121254572 finish (15 of 18); 40128742749 hero drags (18 of 18)
-verified: Lean SimTouch + golden (59 lines) + 712 package tests + runner 3471 + ci-paths 56 + check.sh green after merging main (c2f3928e9); fw land dry VERDICT; local debug run walked the restart path through parts-cli
+verified: after merging main (f0aafefc7) Lean check.sh green, 712 package tests, runner 3514, ci-paths 56; fw land dry VERDICT dry sim-touch-timeout; SimTouch Nat constants take a Unit default so the init-cost lint (main 1632 constants, limit near 1640) stays green; run 40145882715 read per job in the note
 cause of 40134212357: parts-cli.mjs bypassed the machine; fixed in pass-run.mjs, shown by 40145882715
 open: start-up stall on every arm (0 marks at 300 s, 6 of 29 touch runs; task sim-lift-stall: a launched mark in setUp before safari.activate); persistent push server
 read first: research/notes/2026/10-2x-sim-touch-timeout.md, lean/Fw/Device/SimTouch.lean, packages/measure-webkit/src/throttle/pass-run.mjs, driver.mjs (twin, dragPass)
