@@ -1,4 +1,4 @@
-# hero.countdown `one-chain`: the frame-499 forced recalc, its fix, and the WebKit counts
+# hero.countdown `one-chain`: the frame-499 forced recalc, the reverted fix, and the WebKit counts
 
 Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-one-chain.md`.
 
@@ -12,10 +12,10 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
 - **Lean why, both frame kinds** (`Fw.Parts.HeroCountdownOneChain`, `frameCost` with `f` faces, `o` other elements,
   `m` subtree). Frame 499 (`kind499`, the original's digits after the shared loop): faithful (1, m)
   (`frame499_faithful`), digits at their subscriber (2, f + m) (`frame499_atSubscriber`), digits last (1, m)
-  (`frame499_last`). Early frames 13-34 (`kindEarly`, other style dirty before the callbacks, one shared reader, the
+  (`frame499_last`) (frame 499 of the 531-frame profile only). Early frames 13-34 (`kindEarly`, other style dirty before the callbacks, one shared reader, the
   original's digits before the shared loop, INFERRED from the counts): faithful (1, f + o) (`early_faithful`), digits
-  at their subscriber (1, f + o) (`early_atSubscriber`), digits last (2, f + o) (`early_last`): +1 update, equal
-  elements, which is the Chromium delta of the last build. **`no_fixed_order`: each fixed position adds an update on
+  at their subscriber (1, f + o) (`early_atSubscriber`) (falsified on the 771-frame profile: Chromium shows +1 in 233-238 frames), digits last (2, f + o) (`early_last`): +1 update, equal
+  elements, which is the Chromium delta of the last build. **`no_fixed_order` (a model result): in the model each fixed position adds an update on
   one kind** (`extra_updates`). The two kinds differ in the original's rAF registration order (a shared loop that
   stopped re-registers behind the own chains, `engine/clock.ts` `createRafClock`), a per-frame fact no fixed
   position reproduces.
@@ -47,7 +47,7 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
   layout 663 from a degraded session. That is not a comparison. Re-dispatch the base:
   `pnpm -s fw run --target rewrite --engines webkit --runs 3 --ref ci/one-chain-webkit`.
 - Breakpoint gate, both engines, flag on: run 40139523821 success (chromium j0-j2, playwright-webkit j0-j3, merge).
-- Round 2 went back to the subscribe position (net recalc +1, not +157).
+- Round 2 went back to the subscribe position (lead decision); it measured +1 update in 233-238 of 771 frames, more than digits last (see Round-2 runs).
 
 ## Source (CONFIRMED)
 
