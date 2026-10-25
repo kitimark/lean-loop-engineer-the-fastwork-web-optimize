@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COMPOSITIONS, EXTRA_SEARCHES, events, byDirection, stretches, lockCounts, passCounts, armRow, verdicts, medianGap, opens, springBack, totalCounts, rates, verdictOf, brickVerdict } from '../src/throttle/morph-end.mjs';
+import { COMPOSITIONS, EXTRA_SEARCHES, events, byDirection, stretches, lockCounts, passCounts, armRow, verdicts, medianGap, opens, springBack, totalCounts, rates, verdictOf, brickVerdict, stillWorseOf, perStretch, firstStretch } from '../src/throttle/morph-end.mjs';
 import { cmp } from '../src/touchlock.mjs';
 import { reportMd, reasonOf, brickRow } from '../src/throttle/morph-end-report.mjs';
 
@@ -154,8 +154,9 @@ test('golden: the verdict of a brick', () => {
   for (const g of of('verdict')) {
     assert.equal(cmp(rates(g.faithRev), rates(g.candRev)), g.rev, g.name);
     assert.equal(cmp(rates(g.faithFight), rates(g.candFight)), g.fight, g.name);
-    assert.equal(verdictOf(g.faithRev, g.candRev, g.faithFight, g.candFight, g.stillLifted), g.verdict, g.name);
-    assert.equal(brickVerdict(g.rev, g.fight, g.stillLifted), g.verdict, g.name);
+    assert.equal(stillWorseOf(g.stillJobs), g.stillWorse, g.name);
+    assert.equal(verdictOf(g.faithRev, g.candRev, g.faithFight, g.candFight, g.stillJobs, g.stillLifted), g.verdict, g.name);
+    assert.equal(brickVerdict(g.rev, g.fight, g.stillLifted, g.stillWorse), g.verdict, g.name);
   }
 });
 
@@ -165,4 +166,15 @@ test('the verdict of a composition is made against the faithful passes of the jo
   const row = brickRow('clamp', [mk('rewrite', 'job 1', pin), mk('rewrite', 'job 2', pin), mk('clamp', 'job 1', pin)]);
   assert.deepEqual([row.n, row.jobs, row.baseN], [1, 1, 1]);
   assert.equal(brickRow('release', [mk('rewrite', 'job 1', [])]).verdict, 'no-data');
+});
+
+test('the first stretch of a pass: its reversals and fights, or null without an open stretch', () => {
+  const f = firstStretch({ ...record(), ca: [[5223, 1, 105], [5223, 1, 300]] });
+  assert.ok(f && Number.isInteger(f.reversals) && Number.isInteger(f.fights));
+  assert.equal(firstStretch({ ...record(), o: record().o.map(() => 0) }), null);
+  assert.equal(firstStretch({ ...record(), r: undefined }), null);
+});
+
+test('first stretches count one open start per pass on both sides', () => {
+  assert.deepEqual(perStretch([0, 3]), [[0, 1], [3, 1]]);
 });

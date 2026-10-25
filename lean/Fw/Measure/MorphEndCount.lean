@@ -440,15 +440,34 @@ def Brick.name : Brick → String
 
 /-- A brick wins when something improves and nothing gets worse, trades when something improves and something gets worse, and has no win
 when nothing improves. Better: reversals or fights per open start lower in every pass of the brick than in any faithful pass, or the
-still runs lifted. Worse: reversals or fights higher in every pass of the brick than in any faithful pass. -/
-def brickVerdict (rev fight : Cmp) (stillLifted : Bool) : Brick :=
+still runs lifted. Worse: reversals or fights per open start higher in every pass of the brick than in any faithful pass, or the still
+runs per 1000 finish-zone frames higher in every pass of the brick than in any faithful pass of the same job. -/
+def brickVerdict (rev fight : Cmp) (stillLifted stillWorse : Bool) : Brick :=
   let better := (if rev = .lower then 1 else 0) + (if fight = .lower then 1 else 0) + (if stillLifted then 1 else 0)
-  let worse := (if rev = .higher then 1 else 0) + (if fight = .higher then 1 else 0)
+  let worse := (if rev = .higher then 1 else 0) + (if fight = .higher then 1 else 0) + (if stillWorse then 1 else 0)
   if better = 0 then .noWin else if worse = 0 then .win else .trade
 
-/-- The verdict from the passes: reversals and spring-back fights as (count, open starts) per pass, faithful against brick. -/
-def verdictOf (faithRev candRev faithFight candFight : List (Nat × Nat)) (stillLifted : Bool) : Brick :=
-  brickVerdict (cmp (rates faithRev) (rates candRev)) (cmp (rates faithFight) (rates candFight)) stillLifted
+/-- The counts of passes, one stretch each, as (count, open starts) pairs with one open start per pass: the like-for-like exposure of
+first stretches, whatever the number of stretches a pass has. -/
+def perStretch (counts : List Nat) : List (Nat × Nat) := counts.map fun c => (c, 1)
+
+/-- The still runs of one job: the faithful passes and the brick passes of that job, each as (still runs, finish-zone frames). -/
+abbrev JobStill := List (Nat × Nat) × List (Nat × Nat)
+
+/-- A job can be compared when it has a rate on both sides. -/
+def JobStill.both (j : JobStill) : Bool := !(rates j.1).isEmpty && !(rates j.2).isEmpty
+
+/-- The still runs are worse when, in every job that has both a faithful and a brick pass, the rate per 1000 finish-zone frames is higher in
+every brick pass than in any faithful pass of that job, and at least one job can be compared. A job decides on its own: a slower runner
+cannot lift one side of the comparison. -/
+def stillWorseOf (jobs : List JobStill) : Bool :=
+  let ok := jobs.filter JobStill.both
+  !ok.isEmpty && ok.all fun j => cmp (rates j.1) (rates j.2) == .higher
+
+/-- The verdict from the passes: reversals and spring-back fights as (count, open starts) per pass, and still runs as (runs, frames) per
+pass in each job, faithful against brick. Whether the still runs lifted is given; whether they got worse is decided from the passes. -/
+def verdictOf (faithRev candRev faithFight candFight : List (Nat × Nat)) (stillJobs : List JobStill) (stillLifted : Bool) : Brick :=
+  brickVerdict (cmp (rates faithRev) (rates candRev)) (cmp (rates faithFight) (rates candFight)) stillLifted (stillWorseOf stillJobs)
 
 theorem perThousand_zero (count : Nat) : perThousand count 0 = Option.none := rfl
 
@@ -458,21 +477,90 @@ theorem perThousand_pos (count opens : Nat) (h : opens ≠ 0) : perThousand coun
 theorem rates_length_le (ps : List (Nat × Nat)) : (rates ps).length ≤ ps.length := List.length_filterMap_le _ _
 
 /-- Nothing improves: no win, whatever got worse. -/
-theorem brickVerdict_noWin (rev fight : Cmp) (stillLifted : Bool) (h1 : rev ≠ .lower) (h2 : fight ≠ .lower) (h3 : stillLifted = false) :
-    brickVerdict rev fight stillLifted = .noWin := by
+theorem brickVerdict_noWin (rev fight : Cmp) (stillLifted stillWorse : Bool) (h1 : rev ≠ .lower) (h2 : fight ≠ .lower)
+    (h3 : stillLifted = false) : brickVerdict rev fight stillLifted stillWorse = .noWin := by
   simp [brickVerdict, h1, h2, h3]
 
 /-- Something improves and nothing is worse: a win. -/
-theorem brickVerdict_win (rev fight : Cmp) (stillLifted : Bool) (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true)
-    (h1 : rev ≠ .higher) (h2 : fight ≠ .higher) : brickVerdict rev fight stillLifted = .win := by
+theorem brickVerdict_win (rev fight : Cmp) (stillLifted stillWorse : Bool) (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true)
+    (h1 : rev ≠ .higher) (h2 : fight ≠ .higher) (h3 : stillWorse = false) : brickVerdict rev fight stillLifted stillWorse = .win := by
   unfold brickVerdict
-  rcases hb with h | h | h <;> cases rev <;> cases fight <;> cases stillLifted <;> simp_all <;> contradiction
+  rcases hb with h | h | h <;> cases rev <;> cases fight <;> cases stillLifted <;> cases stillWorse <;> simp_all <;> contradiction
+
+/-- Something improves and the reversals are higher: a trade. -/
+theorem brickVerdict_trade_rev (rev fight : Cmp) (stillLifted stillWorse : Bool)
+    (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true) (hw : rev = .higher) :
+    brickVerdict rev fight stillLifted stillWorse = .trade := by
+  unfold brickVerdict
+  rcases hb with h | h | h <;> cases rev <;> cases fight <;> cases stillLifted <;> cases stillWorse <;> simp_all <;> contradiction
+
+/-- Something improves and the fights are higher: a trade. -/
+theorem brickVerdict_trade_fight (rev fight : Cmp) (stillLifted stillWorse : Bool)
+    (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true) (hw : fight = .higher) :
+    brickVerdict rev fight stillLifted stillWorse = .trade := by
+  unfold brickVerdict
+  rcases hb with h | h | h <;> cases rev <;> cases fight <;> cases stillLifted <;> cases stillWorse <;> simp_all <;> contradiction
+
+/-- Something improves and the still runs are worse: a trade. This is the case of a brick that stops the re-open fights and leaves more
+still runs. -/
+theorem brickVerdict_trade_still (rev fight : Cmp) (stillLifted stillWorse : Bool)
+    (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true) (hw : stillWorse = true) :
+    brickVerdict rev fight stillLifted stillWorse = .trade := by
+  unfold brickVerdict
+  rcases hb with h | h | h <;> cases rev <;> cases fight <;> cases stillLifted <;> cases stillWorse <;> simp_all <;> contradiction
 
 /-- Something improves and something is worse: a trade. -/
-theorem brickVerdict_trade (rev fight : Cmp) (stillLifted : Bool) (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true)
-    (hw : rev = .higher ∨ fight = .higher) : brickVerdict rev fight stillLifted = .trade := by
+theorem brickVerdict_trade (rev fight : Cmp) (stillLifted stillWorse : Bool)
+    (hb : rev = .lower ∨ fight = .lower ∨ stillLifted = true) (hw : rev = .higher ∨ fight = .higher ∨ stillWorse = true) :
+    brickVerdict rev fight stillLifted stillWorse = .trade := by
+  rcases hw with h | h | h
+  · exact brickVerdict_trade_rev _ _ _ _ hb h
+  · exact brickVerdict_trade_fight _ _ _ _ hb h
+  · exact brickVerdict_trade_still _ _ _ _ hb h
+
+/-- A win needs every count unworse: the verdict is a win exactly when something improves and neither count nor the still runs are worse. -/
+theorem brickVerdict_win_iff (rev fight : Cmp) (stillLifted stillWorse : Bool) :
+    brickVerdict rev fight stillLifted stillWorse = .win ↔
+      (rev = .lower ∨ fight = .lower ∨ stillLifted = true) ∧ rev ≠ .higher ∧ fight ≠ .higher ∧ stillWorse = false := by
   unfold brickVerdict
-  rcases hb with h | h | h <;> rcases hw with h' | h' <;> cases rev <;> cases fight <;> cases stillLifted <;> simp_all <;> contradiction
+  cases rev <;> cases fight <;> cases stillLifted <;> cases stillWorse <;> simp
+
+/-- The still runs are worse exactly when some job can be compared and every comparable job has its brick passes above its faithful ones. -/
+theorem stillWorseOf_iff (jobs : List JobStill) : stillWorseOf jobs = true ↔
+    (∃ j ∈ jobs, j.both = true) ∧ ∀ j ∈ jobs, j.both = true → cmp (rates j.1) (rates j.2) = .higher := by
+  unfold stillWorseOf
+  have key : ∀ c : Cmp, (c == .higher) = true ↔ c = .higher := by intro c; cases c <;> decide
+  simp only [Bool.and_eq_true, Bool.not_eq_true', List.all_eq_true, List.mem_filter, key]
+  constructor
+  · rintro ⟨h1, h2⟩
+    refine ⟨?_, fun j hj hb => h2 j ⟨hj, hb⟩⟩
+    cases hl : jobs.filter JobStill.both with
+    | nil => simp [hl] at h1
+    | cons x t => exact ⟨x, (List.mem_filter.mp (hl ▸ List.mem_cons_self)).1, (List.mem_filter.mp (hl ▸ List.mem_cons_self)).2⟩
+  · rintro ⟨⟨j, hj, hb⟩, h⟩
+    refine ⟨?_, fun k hk => h k hk.1 hk.2⟩
+    have : j ∈ jobs.filter JobStill.both := List.mem_filter.mpr ⟨hj, hb⟩
+    cases hl : jobs.filter JobStill.both with
+    | nil => rw [hl] at this; simp at this
+    | cons x t => rfl
+
+/-- A brick whose still runs are worse in every pass trades when something else improves. -/
+theorem verdictOf_still_worse (fr cr ff cf : List (Nat × Nat)) (jobs : List JobStill) (stillLifted : Bool)
+    (h : stillWorseOf jobs = true)
+    (hb : cmp (rates fr) (rates cr) = .lower ∨ cmp (rates ff) (rates cf) = .lower ∨ stillLifted = true) :
+    verdictOf fr cr ff cf jobs stillLifted = .trade := by
+  unfold verdictOf
+  exact brickVerdict_trade_still _ _ _ _ hb h
+
+/-- Each first stretch counted once per pass has one open start, so its rate is the count per 1000. -/
+theorem rates_perStretch (counts : List Nat) : rates (perStretch counts) = counts.map (· * 1000) := by
+  unfold rates perStretch
+  induction counts with
+  | nil => rfl
+  | cons c t ih =>
+    simp only [List.map_cons, List.filterMap_cons]
+    simp [perThousand] at *
+    exact ih
 
 theorem foldl_min_le (l : List Nat) : ∀ m : Nat, l.foldl min m ≤ m := by
   induction l with
@@ -480,7 +568,7 @@ theorem foldl_min_le (l : List Nat) : ∀ m : Nat, l.foldl min m ≤ m := by
   | cons a t ih => intro m; exact Nat.le_trans (ih (min m a)) (Nat.min_le_left m a)
 
 /-- A faithful page against itself is a no-win. -/
-theorem verdictOf_self (rev fight : List (Nat × Nat)) : verdictOf rev rev fight fight false = .noWin := by
+theorem verdictOf_self (rev fight : List (Nat × Nat)) (jobs : List JobStill) : verdictOf rev rev fight fight jobs false = .noWin := by
   unfold verdictOf
   have h : ∀ l : List Nat, cmp l l ≠ .lower := by
     intro l
@@ -488,7 +576,15 @@ theorem verdictOf_self (rev fight : List (Nat × Nat)) : verdictOf rev rev fight
     have hn : ¬ Fw.Measure.TouchLock.maxOf l < Fw.Measure.TouchLock.minOf l := by omega
     unfold cmp
     simp [hn]
-  exact brickVerdict_noWin _ _ _ (h _) (h _) rfl
+  exact brickVerdict_noWin _ _ _ _ (h _) (h _) rfl
+
+#guard verdictOf (perStretch [0, 0, 0, 1, 1, 1, 3, 3, 4, 4, 5, 5, 5]) (perStretch [1, 1, 1, 1, 1, 1, 1])
+  (perStretch [0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3]) (perStretch [0, 0, 0, 0, 0, 0, 0]) [] false == Brick.noWin
+#guard verdictOf [(12, 4), (10, 4)] [(2, 4), (3, 4)] [(8, 4), (9, 4)] [(1, 4), (2, 4)] [([(25, 1000)], [(34, 1000)]), ([(28, 1000)], [(41, 1000)])] false
+  == Brick.trade
+-- pooled the passes overlap, job by job the brick is above:
+#guard cmp (rates [(20, 1000), (40, 1000)]) (rates [(30, 1000), (50, 1000)]) == Cmp.overlap
+  && stillWorseOf [([(20, 1000)], [(30, 1000)]), ([(40, 1000)], [(50, 1000)])]
 
 /-! ## The golden -/
 
@@ -552,17 +648,42 @@ private def passCases (_ : Unit) : List (String × List Int × List Int × List 
 
 private def pairsJ (l : List (Nat × Nat)) : Json := Json.arr (l.map fun p => toJson [p.1, p.2]).toArray
 
-private def verdictCases (_ : Unit) : List (String × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × Bool) :=
-  [("fewer reversals, fights equal", [(12, 4), (10, 4), (14, 4)], [(2, 4), (3, 4), (4, 4)], [(6, 4), (7, 4)], [(6, 4), (7, 4)], false),
-   ("fewer fights", [(12, 4), (10, 4)], [(11, 4), (10, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)], false),
-   ("lower reversals, higher fights", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], false),
-   ("still lifted only", [(12, 4), (10, 4)], [(11, 4), (12, 4)], [(8, 4), (9, 4)], [(8, 4), (9, 4)], true),
-   ("still lifted, fights higher", [(12, 4), (10, 4)], [(11, 4), (12, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], true),
-   ("everything higher", [(2, 4), (3, 4)], [(12, 4), (10, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], false),
-   ("overlap", [(12, 4), (3, 4)], [(8, 4), (9, 4)], [(8, 4), (9, 4)], [(8, 4), (3, 4)], false),
-   ("no faithful pass", [], [(2, 4)], [], [(1, 4)], false),
-   ("no open starts", [(12, 0)], [(2, 0)], [(1, 0)], [(2, 0)], false),
-   ("different open starts per pass", [(10, 2), (30, 6)], [(2, 4), (1, 3)], [(4, 2), (12, 6)], [(1, 4), (1, 3)], false)]
+private def sameStill : List JobStill := [([(5, 100), (6, 100)], [(5, 100), (6, 100)])]
+
+private def liftedStill : List JobStill := [([(5, 100), (6, 100)], [(1, 100), (2, 100)])]
+
+private def worseStill : List JobStill := [([(25, 1000)], [(34, 1000)]), ([(28, 1000)], [(41, 1000)])]
+
+private def verdictCases (_ : Unit) :
+    List (String × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × List JobStill × Bool) :=
+  [("fewer reversals, fights equal", [(12, 4), (10, 4), (14, 4)], [(2, 4), (3, 4), (4, 4)], [(6, 4), (7, 4)], [(6, 4), (7, 4)], sameStill, false),
+   ("fewer fights", [(12, 4), (10, 4)], [(11, 4), (10, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)], sameStill, false),
+   ("lower reversals, higher fights", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], sameStill, false),
+   ("still lifted only", [(12, 4), (10, 4)], [(11, 4), (12, 4)], [(8, 4), (9, 4)], [(8, 4), (9, 4)], liftedStill, true),
+   ("still lifted, fights higher", [(12, 4), (10, 4)], [(11, 4), (12, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], liftedStill, true),
+   ("everything higher", [(2, 4), (3, 4)], [(12, 4), (10, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], sameStill, false),
+   ("overlap", [(12, 4), (3, 4)], [(8, 4), (9, 4)], [(8, 4), (9, 4)], [(8, 4), (3, 4)], sameStill, false),
+   ("no faithful pass", [], [(2, 4)], [], [(1, 4)], [([], [(1, 100)])], false),
+   ("no open starts", [(12, 0)], [(2, 0)], [(1, 0)], [(2, 0)], [([(5, 0)], [(2, 0)])], false),
+   ("different open starts per pass", [(10, 2), (30, 6)], [(2, 4), (1, 3)], [(4, 2), (12, 6)], [(1, 4), (1, 3)], sameStill, false),
+   ("fewer reversals and fights, still runs worse in every job", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)],
+    worseStill, false),
+   ("still runs worse only", [(12, 4), (10, 4)], [(11, 4), (12, 4)], [(8, 4), (9, 4)], [(8, 4), (9, 4)], worseStill, false),
+   ("still runs worse in one job, better in the other", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)],
+    [([(25, 1000)], [(34, 1000)]), ([(28, 1000)], [(24, 1000)])], false),
+   ("still runs overlap inside a job", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)],
+    [([(25, 1000), (35, 1000)], [(30, 1000)])], false),
+   ("still runs worse job by job, overlapping pooled", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)],
+    [([(20, 1000)], [(30, 1000)]), ([(40, 1000)], [(50, 1000)])], false),
+   ("a job with no faithful pass is left out of the still runs", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)],
+    [([], [(60, 1000)]), ([(25, 1000)], [(34, 1000)])], false),
+   ("no job to compare the still runs in", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)], [([], [(60, 1000)])], false),
+   ("still runs counted per frame of each pass", [(12, 4)], [(2, 4)], [(8, 4)], [(1, 4)], [([(30, 1000)], [(20, 300)])], false),
+   ("first stretches, one open start each, release against faithful",
+    perStretch [0, 0, 0, 1, 1, 1, 3, 3, 4, 4, 5, 5, 5], perStretch [1, 1, 1, 1, 1, 1, 1],
+    perStretch [0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3], perStretch [0, 0, 0, 0, 0, 0, 0], sameStill, false),
+   ("first stretches, release against a faithful page that reverses more", perStretch [3, 4, 5, 3], perStretch [1, 1, 1],
+    perStretch [2, 2, 3, 2], perStretch [0, 0, 0], worseStill, false)]
 
 private def goldenLines (_ : Unit) : List String :=
   ((eventCases ()).map fun (name, r, d) =>
@@ -578,10 +699,11 @@ private def goldenLines (_ : Unit) : List String :=
   ((passCases ()).map fun (name, r, d, y, ws) =>
     (Json.mkObj [("kind", "pass"), ("name", name), ("r", intsJ r), ("d", intsJ d), ("y", intsJ y), ("writes", Json.arr (ws.map writeJ).toArray),
       ("counts", countsJ (ofRecord r d y ws))]).compress) ++
-  ((verdictCases ()).map fun (name, fr, cr, ff, cf, still) =>
+  ((verdictCases ()).map fun (name, fr, cr, ff, cf, js, still) =>
     (Json.mkObj [("kind", "verdict"), ("name", name), ("faithRev", pairsJ fr), ("candRev", pairsJ cr), ("faithFight", pairsJ ff),
-      ("candFight", pairsJ cf), ("stillLifted", still), ("rev", (cmp (rates fr) (rates cr)).name), ("fight", (cmp (rates ff) (rates cf)).name),
-      ("verdict", (verdictOf fr cr ff cf still).name)]).compress) ++
+      ("candFight", pairsJ cf), ("stillJobs", Json.arr (js.map fun j => Json.arr #[pairsJ j.1, pairsJ j.2]).toArray), ("stillLifted", still),
+      ("rev", (cmp (rates fr) (rates cr)).name), ("fight", (cmp (rates ff) (rates cf)).name), ("stillWorse", stillWorseOf js),
+      ("verdict", (verdictOf fr cr ff cf js still).name)]).compress) ++
   (let cs := (passCases ()).map fun (_, r, d, y, ws) => ofRecord r d y ws
    let cs3 := cs ++ cs.reverse ++ cs
    [cs, cs.reverse, cs3, []].map fun l =>

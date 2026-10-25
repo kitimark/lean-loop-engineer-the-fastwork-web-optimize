@@ -165,13 +165,41 @@ export const perThousand = (count, opens) => (opens === 0 ? null : Math.floor((c
 /** The rates of passes given as [count, open starts]. Lean `rates`. */
 export const rates = (ps) => ps.map(([c, o]) => perThousand(c, o)).filter((x) => x !== null);
 
-/** win, trade or no-win from the comparison of reversals and fights and whether the still runs lifted. Lean `brickVerdict`. */
-export function brickVerdict(rev, fight, stillLifted) {
+/** win, trade or no-win from the comparison of reversals and fights and whether the still runs lifted or got worse. Lean `brickVerdict`. */
+export function brickVerdict(rev, fight, stillLifted, stillWorse) {
   const better = (rev === 'lower' ? 1 : 0) + (fight === 'lower' ? 1 : 0) + (stillLifted ? 1 : 0);
-  const worse = (rev === 'higher' ? 1 : 0) + (fight === 'higher' ? 1 : 0);
+  const worse = (rev === 'higher' ? 1 : 0) + (fight === 'higher' ? 1 : 0) + (stillWorse ? 1 : 0);
   return better === 0 ? 'no-win' : worse === 0 ? 'win' : 'trade';
 }
 
-/** Lean `verdictOf`: reversals and fights as [count, open starts] per pass, faithful against brick. */
-export const verdictOf = (faithRev, candRev, faithFight, candFight, stillLifted) =>
-  brickVerdict(cmp(rates(faithRev), rates(candRev)), cmp(rates(faithFight), rates(candFight)), stillLifted);
+/** One stretch per pass, as [count, open starts] pairs with one open start each. Lean `perStretch`. */
+export const perStretch = (counts) => counts.map((c) => [c, 1]);
+
+/**
+ * The still runs are worse when, in every job with a rate on both sides, every brick pass is above every faithful pass of that job, and
+ * at least one job can be compared. Jobs are [faithful passes, brick passes], each pass [still runs, finish-zone frames]. Lean `stillWorseOf`.
+ */
+export function stillWorseOf(jobs) {
+  const ok = jobs.filter(([f, c]) => rates(f).length > 0 && rates(c).length > 0);
+  return ok.length > 0 && ok.every(([f, c]) => cmp(rates(f), rates(c)) === 'higher');
+}
+
+/** Lean `verdictOf`: reversals and fights as [count, open starts] per pass, still runs as jobs of [runs, frames] passes, faithful against brick. */
+export const verdictOf = (faithRev, candRev, faithFight, candFight, stillJobs, stillLifted) =>
+  brickVerdict(cmp(rates(faithRev), rates(candRev)), cmp(rates(faithFight), rates(candFight)), stillLifted, stillWorseOf(stillJobs));
+
+/**
+ * The reversals and spring-back fights of the first open stretch of a pass, or null when the pass has none or the pin-turn reducer
+ * refuses it. TS glue over the Lean-checked reducers: the stretch comes from `stretches`, its reversals from the TouchLock twin, its
+ * fights from `springBack` over the writes that fall in the stretch.
+ */
+export function firstStretch(rec) {
+  const st = stretches(rec.o)[0];
+  if (!st || !hasMorphReads(rec)) return null;
+  const [a, b] = st;
+  const o = rec.o.map((_, i) => (i >= a && i <= b ? 1 : 0));
+  const k = lockCounts({ ...rec, o });
+  if (!k.stretches) return null;
+  const writes = (rec.ca ?? []).filter((c) => c[2] >= a && c[2] <= b + 1);
+  return { reversals: k.reversals, fights: dirTotal(springBack(rec.y, rec.d, writes)) };
+}
