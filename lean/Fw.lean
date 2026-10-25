@@ -214,6 +214,7 @@ import Fw.Ci.State
 import Fw.Obs.MacTelemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Gate.Exit
+import Fw.Gate.FlagDelta
 import Fw.Gate.WebkitScreen
 import Fw.Spec.AxReach
 import Fw.Spec.ConeMiss

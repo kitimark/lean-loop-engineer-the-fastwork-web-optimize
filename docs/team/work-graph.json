@@ -21432,7 +21432,9 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/measure-webkit/src/device.mjs"
    ],
    "title": "User 2026-10-25: 'you can try to measure on the iphone device. it already connected.' Measure the end-of-page and hero-exit variants on the real measurement iPhone with the automated lanes that need no swiping (packages/measure-webkit/src/device-cli.mjs counts: Timeline on, scripted 50 px steps, pinned clock; frames: scripted scroll at 800 px/s, frame intervals), session rules of docs/team/tools/device-lag-recorder.md and results/phone/2026-10-17-s1/README.md (blocks <= 15 min, cool >= 5 min, battery readouts; ping first). Arms, each 3 counts passes plus 1 warm-up and 5 frames reps, in an A/B/A order with the rewrite base repeated at the start, middle and end: original, rewrite, and rewrite with each flag alone: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, nav.hitTest:hit-skip, engine.events:quiet, morph.panel:const-bounds, nav:clip-box, nav:bar-fixed, nav:logo-3d, morph.mount:shift-dormant (drop an arm that loads the same page as another, with the reason). Reduce per zone (hero, finish, rest; 500 px zones) Layout, RecalculateStyles, Paint, Composite, FireAnimationFrame, FunctionCall, EventDispatch, and frame intervals (moving frames over 34 and 50 ms per 100); per arm verdict against the base, each arm decided on its own beyond the spread of the repeated base passes. Lean first: the arm plan and the per-arm verdict rule (lean/Fw/Device/PhoneArms.lean, golden replayed by a test); reuse Fw.Device.Session and the Classes policy where they fit. Commit only summaries (no timestamps, device ids, addresses); raw passes stay in .local/phone/2026-10-25/. Scripted scrolling does not move the Safari toolbar, so the toolbar throttle and touch-path flags (engine.scroll:unthrottle, morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope here (named). Compare each phone verdict with the CI Simulator verdict where one exists (run ids)."
   },
@@ -21462,7 +21464,8 @@
     "docs/team/handoffs/gate-flag-deltas.md",
     "docs/team/tools/gate.md"
    ],
-   "title": "The breakpoint gate compares computed styles, so a flag whose intended change is a computed value proved invisible fails every cell it touches: morph.panel:rest at run 40174477871 (both engines; the only failing items are platform/section and engine.scene/scene filter 'blur(0px)' vs 'none', 196 Chromium and 188 WebKit probes; Lean MorphPanelOpt.rest_visSame_E under RG10, which panel-rest-n11 measured on the rewrite DOM), and morph.columns:final-scale at run 40156380619 (flex: none at desk-319 to desk-1000, class L). Today's exemptions (Fw.Gate.Exit.exemptions) excuse whole readings, which would hide any other difference in the same cell. Design (closed, Lean first): a reading is ok when every differing item is in the run's flag-delta allowlist: exact tuples (flag, part, role, property, original value, rewrite value), each with a premise naming a Lean theorem (for class E or Q flags the visSame theorem; class L flags list their changed properties and stay look-change), enumerated in Lean (no patterns), applied only when that flag is in the run's ?fw config (read from the page, header.flags); a reading with any other differing item still fails; every excused item is printed in the verdict. Theorems: excused only when the flag is on, a reading with one non-allowlisted item fails, the allowlist is enumerated, the flags-off gate is unchanged. Golden replayed by a gate-breakpoints test; fill the two tuples above (rest: filter blur(0px)->none for platform/section and engine.scene/scene; final-scale: its flex rows from run 40156380619) and re-judge the two runs offline from their artifacts (gh run download into scratchpad, summaries only): give each engine's verdict."
+   "title": "The breakpoint gate compares computed styles, so a flag whose intended change is a computed value proved invisible fails every cell it touches: morph.panel:rest at run 40174477871 (both engines; the only failing items are platform/section and engine.scene/scene filter 'blur(0px)' vs 'none', 196 Chromium and 188 WebKit probes; Lean MorphPanelOpt.rest_visSame_E under RG10, which panel-rest-n11 measured on the rewrite DOM), and morph.columns:final-scale at run 40156380619 (flex: none at desk-319 to desk-1000, class L). Today's exemptions (Fw.Gate.Exit.exemptions) excuse whole readings, which would hide any other difference in the same cell. Design (closed, Lean first): a reading is ok when every differing item is in the run's flag-delta allowlist: exact tuples (flag, part, role, property, original value, rewrite value), each with a premise naming a Lean theorem (for class E or Q flags the visSame theorem; class L flags list their changed properties and stay look-change), enumerated in Lean (no patterns), applied only when that flag is in the run's ?fw config (read from the page, header.flags); a reading with any other differing item still fails; every excused item is printed in the verdict. Theorems: excused only when the flag is on, a reading with one non-allowlisted item fails, the allowlist is enumerated, the flags-off gate is unchanged. Golden replayed by a gate-breakpoints test; fill the two tuples above (rest: filter blur(0px)->none for platform/section and engine.scene/scene; final-scale: its flex rows from run 40156380619) and re-judge the two runs offline from their artifacts (gh run download into scratchpad, summaries only): give each engine's verdict.",
+   "evidence": "529079b"
   },
   {
    "devices": [
@@ -21489,9 +21492,69 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/tools/device-lag-recorder.md",
     "research/notes/2026/10-25-phone-thermal-check.md",
-    "docs/team/handoffs/phone-thermal-check.md"
+    "docs/team/handoffs/phone-thermal-check.md",
+    "packages/measure-webkit/src/wip.mjs",
+    "packages/measure-webkit/src/device-phone-*.mjs",
+    "packages/measure-webkit/test/device-phone-*.test.mjs",
+    "packages/measure-webkit/test/wip*.test.mjs",
+    ".local/phone/**"
    ],
-   "title": "User 2026-10-25: add the iPhone thermal state check after the phone-end-counts session. The harness records thermalState as 'not exposed over USB lockdown or the inspector (no API)' (packages/measure-webkit/src/device.mjs:61) and uses battery temperature as the only heat proxy, but xctrace on this Mac lists a 'Thermal State' instrument, and devicectl has 'device info lockState'. Do: (1) one short probe on the phone in a cool gap (no page pass running): xcrun xctrace record --instrument 'Thermal State' on the measurement phone for a few seconds, export the table, and say whether it gives the state (nominal, fair, serious, critical) over USB on iOS 27.0.1; cite Apple docs for the instrument and for ProcessInfo.ThermalState; (2) if it does, read the thermal state at each block start and end and in every readout (replacing the 'not exposed' text), and read devicectl lockState so a locked phone is a named failure distinct from a harness fault; (3) Lean first: the stop rule as a decision (pause a block when the thermal state is fair or worse, or the battery temperature is 2 C or more above the session's first readout; resume only after a cool gap at nominal), with theorems (never starts a pass at serious or critical; at most one pass runs after the trigger) and a golden replayed by a test; (4) if xctrace cannot read it on the device, keep the battery rule alone and record the probe as a finding with the exact error. Never print or store device ids; kill only processes the run started."
+   "title": "User 2026-10-25: add the iPhone thermal state check after the phone-end-counts session. The harness records thermalState as 'not exposed over USB lockdown or the inspector (no API)' (packages/measure-webkit/src/device.mjs:61) and uses battery temperature as the only heat proxy, but xctrace on this Mac lists a 'Thermal State' instrument, and devicectl has 'device info lockState'. Do: (1) one short probe on the phone in a cool gap (no page pass running): xcrun xctrace record --instrument 'Thermal State' on the measurement phone for a few seconds, export the table, and say whether it gives the state (nominal, fair, serious, critical) over USB on iOS 27.0.1; cite Apple docs for the instrument and for ProcessInfo.ThermalState; (2) if it does, read the thermal state at each block start and end and in every readout (replacing the 'not exposed' text), and read devicectl lockState so a locked phone is a named failure distinct from a harness fault; (3) Lean first: the stop rule as a decision (pause a block when the thermal state is fair or worse, or the battery temperature is 2 C or more above the session's first readout; resume only after a cool gap at nominal), with theorems (never starts a pass at serious or critical; at most one pass runs after the trigger) and a golden replayed by a test; (4) if xctrace cannot read it on the device, keep the battery rule alone and record the probe as a finding with the exact error. Never print or store device ids; kill only processes the run started. Added 2026-10-25 (lead, after the session's faults): (5) detect a USB re-enumeration (macOS usbpowerd terminated/discovered, idevice_id -l empty while the phone is on the bus) as the named failure usbReset with the log evidence, wait for USB, then resume the visit; (6) refuse to start while another ios_webkit_debug_proxy holds ports 9221/9222 or is attached to the phone (an orphan from 2026-10-17 was found and stopped); (7) follow Target.didCommitProvisionalTarget in wip.mjs so a reload's target swap does not leave evaluate unanswered (likely cause of the 15 s Runtime.evaluate timeout on visit 6); (8) retry the lost morph.countdown:strip visit once with (5)-(7) in place and report whether it stalls again (if it does, a Playwright WebKit CI check strip vs base with a 100 ms heartbeat, pinned clock, 6 x loadFresh + FRAMES_JS)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "resource-footprint",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/Resource.lean",
+    "lean/Fw/Engine/ResourceFlags.lean",
+    "lean/Fw/Engine/ResourceVerdict.lean",
+    "lean/scripts/ResourceGolden.lean",
+    "packages/contracts/golden/engine/resource*.jsonl",
+    "packages/measure-webkit/src/resource-check.mjs",
+    "packages/measure-webkit/test/resource-*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-25-resource-footprint.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/resource-footprint.md",
+    "research/notes/2026/10-25-webkit-ios-gpu-memory.md"
+   ],
+   "title": "User 2026-10-25: the proof should predict how a flag affects other resources and their trade-offs, and add the repaint area to the Lean resource model; more GPU memory is acceptable when work moves off the main thread. Build one Lean resource footprint per flag, predicted from the DOM/CSS change and the engine stage rules already in lean/Fw/Engine (WebKit.lean, Chromium.lean, Restyle.lean, PaintVisible.lean) and the per-part work modules (NavBarFixedWork area_trade, wk_allocs_push; MorphPanelOpt wk_rest_layers, cr_toggle_not_le), each resource with a sign and, where the source allows, a bound, per engine: (1) main-thread work per frame (style recalc, layout, paint records, script/FunctionCall, EventDispatch); (2) repaint area per frame = changed region area x DPR^2 x frames it changes in (WebKit Timeline Paint quad area; Chromium invalidation px), including repaint pushed back onto a shared layer when a flag removes a layer; (3) compositor: layer count and composite per frame (layer promotion reasons cited from source); (4) GPU memory = sum over layers of w x h x DPR^2 x 4 bytes plus tiles, with B (the memory budget) a named parameter the lead fills from the WebKit/iOS memory research; (5) frames requested (rAF loops, timers, scroll-driven updates) as a CPU/power proxy. Verdict rule (Lean, theorems): win when main-thread work and repaint area do not rise and at least one falls, and GPU memory stays within B (a memory-only cost is not a trade); trade when main-thread work or repaint rises anywhere; the predicted vector is checked against measurements per resource (agree / disagree, a disagreement is a finding with mechanism). Fill footprints for the measured flags: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, morph.panel:rest, nav:logo-3d, morph.mount:shift-dormant, engine.events:quiet; check them against today's phone data (results/phone/2026-10-25-end-counts, paintArea per zone, layers, backing MB) and the CI Simulator and Chromium runs cited in their ledger rows. Golden replayed by a test; TS checker against the golden."
+  },
+  {
+   "devices": [
+    "phone"
+   ],
+   "id": "phone-compose-counts",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-end-counts",
+    "phone-thermal-check"
+   ],
+   "writes": [
+    "results/phone/2026-10-2x-compose/**",
+    "research/notes/2026/10-2x-phone-compose.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/phone-compose-counts.md",
+    "lean/Fw/Device/PhoneCompose.lean",
+    "lean/scripts/PhoneComposeGolden.lean",
+    "packages/contracts/golden/device/phone-compose.jsonl",
+    "packages/measure-webkit/src/device-phone-*.mjs",
+    "packages/measure-webkit/test/device-phone-*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "title": "User 2026-10-25: measure variant compositions on the real iPhone to learn how flags combine. Same automated lanes and rules as phone-end-counts (counts with Timeline and paintArea and the layer census, frames at 800 px/s; blocks <= 15 min, cool >= 5 min; thermal and USB checks from phone-thermal-check). Lean first (lean/Fw/Device/PhoneCompose.lean, reusing Fw.Engine.Compose frameWork_append_units, passes_not_compositional, lego_swap_units and the coupled groups G1-G5 of report 4.5): (1) the arm plan: the combination of every flag that phone-end-counts judged a win or a memory-only cost, minus registry conflicts (apps/site/src/parts/*/part.json conflicts), then leave-one-out arms (the combination without each member), one coupled pair inside G2 (morph) and one inside G1 (hero threshold), and the base repeated at the start, middle and end; at most 12 visits; (2) the prediction per resource and zone: units add (sum of the single-flag deltas from phone-end-counts, and from resource-footprint when it has landed), pass-type counts and layers are not predicted to add; (3) the interaction verdict per resource: additive within the base spread, sub-additive or super-additive, each pair or leave-one-out decided on its own; a non-additive result is a finding with a mechanism and a Lean why. Commit only summaries; raw passes stay in .local/phone/."
   }
  ],
  "deadline": {
