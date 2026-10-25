@@ -60,7 +60,75 @@ def startConsts (env : Environment) (mods : Array (Nat × Name)) (dirs : List Sy
         | none => unmapped := unmapped.push s
   return (names, unmapped, noC, nmods)
 
-/-- Adds `initCostGet{i} := fun n => (c, n)` and returns the probe `allocs initCostGet{i}`, which evaluates `c`. -/
+def chunks {α : Type} (f : Nat) (xs : List α) : List (List α) :=
+  if _h : 0 < f ∧ xs ≠ [] then xs.take f :: chunks f (xs.drop f) else []
+termination_by xs.length
+decreasing_by
+  have := List.length_pos_iff.mpr _h.2
+  simp only [List.length_drop]
+  omega
+
+#guard chunks 2 [1, 2, 3, 4, 5] == [[1, 2], [3, 4], [5]]
+#guard chunks 2 [1, 2, 3, 4] == [[1, 2], [3, 4]]
+#guard chunks 3 ([] : List Nat) == []
+#guard chunks 0 [1, 2] == []
+
+theorem chunks_zero {α : Type} (xs : List α) : chunks 0 xs = [] := by
+  rw [chunks]; simp
+
+theorem chunks_nil {α : Type} (f : Nat) : chunks f ([] : List α) = [] := by
+  rw [chunks]; simp
+
+theorem flatten_chunks {α : Type} {f : Nat} (hf : 0 < f) (xs : List α) : (chunks f xs).flatten = xs := by
+  fun_induction chunks f xs with
+  | case1 xs h ih => simp [ih, List.take_append_drop]
+  | case2 xs h => cases xs <;> simp_all
+
+theorem length_le_of_mem_chunks {α : Type} {f : Nat} {xs : List α} {c : List α} (h : c ∈ chunks f xs) :
+    c.length ≤ f := by
+  fun_induction chunks f xs with
+  | case1 xs _ ih =>
+    rcases List.mem_cons.mp h with rfl | h
+    · exact List.length_take_le _ _
+    · exact ih h
+  | case2 => simp at h
+
+theorem two_mul_length_chunks_le {α : Type} {f : Nat} (hf : 1 < f) (xs : List α) :
+    2 * (chunks f xs).length ≤ xs.length + 1 := by
+  fun_induction chunks f xs with
+  | case1 xs h ih =>
+    have := List.length_pos_iff.mpr h.2
+    by_cases hl : xs.length ≤ f
+    · simp only [List.length_cons, List.drop_eq_nil_of_le hl, chunks_nil, List.length_nil]
+      omega
+    · simp only [List.length_cons, List.length_drop] at ih ⊢
+      omega
+  | case2 => simp
+
+theorem length_chunks_lt {α : Type} {f : Nat} (hf : 1 < f) {xs : List α} (hx : 1 < xs.length) :
+    (chunks f xs).length < xs.length := by
+  have := two_mul_length_chunks_le hf xs
+  omega
+
+-- The compiler's `simp` pass recurses once per `let` of a definition (src/Lean/Compiler/LCNF/Simp/Main.lean:218,258
+-- @eb6cafb) up to a depth of at least 8192 (src/Lean/Compiler/LCNF/Main.lean:122@eb6cafb), and a list literal of `n`
+-- rows takes about 5 lets per row (measured boundary 1637/1638).
+def fanOut : Nat := 256
+
+def addListTree (base : Name) (ty : Expr) (xs : List Expr) : TermElabM Unit := do
+  let listTy := mkApp (mkConst ``List [.zero]) ty
+  let add (n : Name) (v : Expr) : TermElabM Expr := do
+    addAndCompile (.defnDecl (mkDefinitionValEx n [] listTy v .opaque .safe [n]))
+    return mkConst n
+  let mut level ← (chunks fanOut xs).mapIdxM fun k c => do
+    add (base ++ .mkSimple s!"leaf{k}") (← mkListLit ty c)
+  let mut depth := 0
+  while 1 < level.length do
+    depth := depth + 1
+    level ← (chunks fanOut level).mapIdxM fun k c => do
+      add (base ++ .mkSimple s!"node{depth}_{k}") (mkApp2 (mkConst ``List.flatten [.zero]) ty (← mkListLit listTy c))
+  discard <| add base (level.head?.getD (mkApp (mkConst ``List.nil [.zero]) ty))
+
 def addProbe (i : Nat) (c : Name) : TermElabM Expr := do
   let get := Name.mkSimple s!"initCostGet{i}"
   let some ci := (← getEnv).find? c | throwError "init-cost: no constant {c}"
@@ -88,12 +156,9 @@ def scan (roots : List Name) (irDirs : List System.FilePath) : CommandElabM Unit
       let p ← addProbe i names[i]
       rows := rows.push (mkApp4 (mkConst ``Prod.mk [.zero, .zero]) strTy (mkApp (mkConst ``BaseIO) (mkConst ``Nat))
         (mkStrLit names[i].toString) p)
-    addAndCompile (.defnDecl (mkDefinitionValEx `initCostRows [] (mkApp (mkConst ``List [.zero]) rowTy)
-      (← mkListLit rowTy rows.toList) .opaque .safe [`initCostRows]))
-    addAndCompile (.defnDecl (mkDefinitionValEx `initCostUnmapped [] (mkApp (mkConst ``List [.zero]) strTy)
-      (← mkListLit strTy (unmapped.toList.map mkStrLit)) .opaque .safe [`initCostUnmapped]))
-    addAndCompile (.defnDecl (mkDefinitionValEx `initCostNoC [] (mkApp (mkConst ``List [.zero]) strTy)
-      (← mkListLit strTy (noC.toList.map mkStrLit)) .opaque .safe [`initCostNoC]))
+    addListTree `initCostRows rowTy rows.toList
+    addListTree `initCostUnmapped strTy (unmapped.toList.map mkStrLit)
+    addListTree `initCostNoC strTy (noC.toList.map mkStrLit)
   logInfo m!"init-cost: {names.size} constants in {nmods} modules with C files"
   elabCommand (← `(#eval Fw.Lint.InitCost.report $(mkIdent `initCostNoC) $(mkIdent `initCostUnmapped)
     $(mkIdent `initCostRows)))

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { goldenConformance } from '../../engine/golden.testutil';
@@ -17,7 +17,81 @@ const capture = (re: RegExp, text: string): string => {
 
 const rule = /:global\(\[data-fw-hero-scene='paused'\]\),\s*:global\(\[data-fw-hero-scene='paused'\]\) :where\(\*\) \{([^}]*)\}/;
 
+const partsDir = resolve(__dirname, '..');
+const norm = (s: string): string => s.replace(/\s+/g, ' ').trim();
+
+const splitTop = (s: string): string[] => {
+  const out: string[] = [];
+  let depth = 0;
+  let cur = '';
+  for (const c of s) {
+    if (c === '(') depth++;
+    if (c === ')') depth--;
+    if (c === ',' && depth === 0) {
+      out.push(cur);
+      cur = '';
+    } else cur += c;
+  }
+  out.push(cur);
+  return out.map(norm).filter(Boolean);
+};
+
+interface CssRule {
+  sels: string[];
+  body: string;
+  media: string[];
+}
+
+const cssRules = (css: string): CssRule[] => {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules: CssRule[] = [];
+  const stack: { prelude: string; body: string; inner: boolean }[] = [];
+  let buf = '';
+  for (const c of text) {
+    if (c === '{') {
+      stack.push({ prelude: norm(buf), body: '', inner: false });
+      buf = '';
+    } else if (c === '}') {
+      const b = stack.pop()!;
+      if (stack.length) stack[stack.length - 1]!.inner = true;
+      if (!b.inner && !stack.some((s) => s.prelude.startsWith('@keyframes')))
+        rules.push({ sels: splitTop(b.prelude), body: buf, media: stack.map((s) => s.prelude).filter((p) => p.startsWith('@media')) });
+      buf = '';
+    } else buf += c;
+  }
+  return rules;
+};
+
+const decls = (body: string, prop: string): string[] =>
+  [...body.matchAll(new RegExp(`(?:^|;)\\s*${prop}\\s*:([^;]*)`, 'g'))].map((m) => norm(m[1]!));
+
+const cardSel = /(\.card|\[data-orbit-id\]|> article)$/;
+
+const animOf = (file: string, name: string) => {
+  const rules = cssRules(readFileSync(resolve(partsDir, file), 'utf8'));
+  const word = new RegExp(`\\b${name}\\b`);
+  const offOf = (sel: string, media: string[]): string | null =>
+    rules
+      .filter((r) => decls(r.body, 'animation').includes('none') && r.media.every((m) => media.includes(m)))
+      .flatMap((r) => r.sels)
+      .find((s) => s === `[data-splash='done'] ${sel}` || s === `[data-orbit][data-done] ${sel}`) ?? null;
+  const uses: { sel: string; off: string | null }[] = [];
+  for (const r of rules.filter((x) => [...decls(x.body, 'animation'), ...decls(x.body, 'animation-name')].some((v) => word.test(v))))
+    for (const sel of r.sels) {
+      const off = offOf(sel, r.media);
+      if (!uses.some((u) => u.sel === sel && u.off === off)) uses.push({ sel, off });
+    }
+  const cards = uses.filter((u) => cardSel.test(u.sel)).length;
+  const fam = cards === uses.length ? 'card' : cards === 0 ? 'copy' : 'mixed';
+  return { fam, uses, afterSplash: uses.some((u) => u.off === null) };
+};
+
+const heroCss = readdirSync(partsDir)
+  .filter((d) => d === 'hero' || d.startsWith('hero.'))
+  .flatMap((d) => readdirSync(resolve(partsDir, d)).filter((f) => f.endsWith('.css')).map((f) => `${d}/${f}`));
+
 goldenConformance('hero-scene-pause', {
+  anim: (i) => animOf(i.file as string, i.name as string),
   scene: (i) => heroSceneOf({ top: i.top as number, bottom: i.bottom as number, vh: i.vh as number }),
   const: () => ({
     attr: HERO_SCENE_ATTR,
@@ -27,6 +101,22 @@ goldenConformance('hero-scene-pause', {
     playState: capture(/animation-play-state: (\w+) !important/, capture(rule, css)),
     willChange: capture(/will-change: (\w+) !important/, capture(rule, css)),
   }),
+});
+
+describe('hero animations (Lean HeroScenePause.heroAnims)', () => {
+  it('the golden names every @keyframes rule of the hero subtree CSS, and only those', () => {
+    const golden = readFileSync(resolve(__dirname, '../../../../../packages/contracts/golden/parts/hero-scene-pause.jsonl'), 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((l) => JSON.parse(l) as { fn: string; in: { file?: string; name?: string } })
+      .filter((l) => l.fn === 'anim')
+      .map((l) => `${l.in.file} ${l.in.name}`)
+      .sort();
+    const css = heroCss
+      .flatMap((f) => [...readFileSync(resolve(partsDir, f), 'utf8').matchAll(/@keyframes\s+([\w-]+)/g)].map((m) => `${f} ${m[1]}`))
+      .sort();
+    expect(golden).toEqual(css);
+  });
 });
 
 describe('hero scene-pause wiring (source level: the site tests have no DOM)', () => {

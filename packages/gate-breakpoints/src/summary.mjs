@@ -6,9 +6,9 @@ import { join } from 'node:path';
 import { loadAnchors, loadGen, expectFor, partJson, selectParts } from './spec.mjs';
 import { context, evaluate, tallies } from './verdict.mjs';
 import { cell as settleCell, report as settleReport, staleComparable } from './settle.mjs';
+import { flagsOfSearch, readingVerdict, excusedItems, wireItem } from './flag-delta.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
-/** The matchMedia rows of the table, as Lean names them (Fw.Gate.truthRows); the part rows follow. */
 const TRUTH_ROWS = ['matchMedia orig=rewrite', 'matchMedia =Lean', 'matchMedia legacy text'];
 
 /** The failing items of one state (Lean marks them), grouped by (part, kind, role, key) for the report. */
@@ -117,7 +117,24 @@ export function maskNotRendered(state) {
   return { state: { ...state, orig: withRaw(state.orig, outO), rewrite: withRaw(state.rewrite, outR) }, masked };
 }
 
-/** A part row that would pass while an item of the part was masked is not-comparable (never a silent pass). */
+export function applyFlagDeltas(flags, ev, partIds) {
+  const out = [];
+  for (const pid of partIds) {
+    if (ev.rows[pid] !== 'fail') continue;
+    const items = ev.fails[pid] ?? [];
+    const wires = items.map(wireItem);
+    const v = readingVerdict(flags, pid, 'fail', wires);
+    if (v === 'fail') continue;
+    const ex = excusedItems(flags, pid, 'fail', wires);
+    ev.rows[pid] = v;
+    ev.fails[pid] = [];
+    ex.forEach(([w, d], n) => out.push({ part: pid, role: w.role, idx: items[n].idx ?? null, key: w.key, orig: w.a, rewrite: w.b, delta: d.id, look: d.look, premise: d.premise }));
+  }
+  return out;
+}
+
+const keptExcused = (label, ex, ev) => ex.filter((x) => ev.rows[x.part] === 'pass').map((x) => ({ at: label, ...x }));
+
 const notRenderedRows = (rows, masked) => {
   const parts = new Set(masked.map((m) => m.part));
   return Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, parts.has(k) && v === 'pass' ? 'not-comparable' : v]));
@@ -174,6 +191,11 @@ export function summarize(outDir, { parts: requested = null } = {}) {
     let staleNext = 0;
     const stale = staleAll.map((_, k) => (staleOk[k] ? staleDone[staleNext++] : { compared: 0, differ: 0, skipped: 'unsettled' }));
     const ROWS = [...TRUTH_ROWS, ...PARTS];
+    const search = flagsOf(run.header).search ?? '';
+    const runFlags = flagsOfSearch(search);
+    const flagSet = runFlags ?? [];
+    const excusedList = [];
+    const reroll = [];
     if (evs.length > 0 && Object.keys(evs[0].rows).join('\n') !== ROWS.join('\n')) throw new Error(`fwcore rows ${Object.keys(evs[0].rows)} are not ${ROWS}`);
 
     const probeRows = [];
@@ -199,8 +221,11 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       const ev = evs[k];
       countWait(rec);
       const st = settleOf(rec.id, rec);
+      const ex = applyFlagDeltas(flagSet, ev, PARTS);
       noteMasked(rec.id, k, ev);
       if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
+        excusedList.push(...keptExcused(rec.id, ex, ev));
+        if (ex.length > 0) reroll.push(k);
         failures(fails, rec.id, ev, PARTS);
         infoDiffs(infos, rec.id, ev, PARTS);
         rectDecided(rectByRun, rec.id, ev, PARTS, maskedOf[k]);
@@ -214,14 +239,21 @@ export function summarize(outDir, { parts: requested = null } = {}) {
       });
     });
 
+    if (reroll.length > 0) {
+      const t = tallies(reroll.map((k) => ({ verdicts: Object.values(evs[k].rows), block: true })));
+      reroll.forEach((k, n) => { probeRows[k].verdict = t[n].verdict; });
+    }
+
     let next = run.probes.length;
     const sweepStops = run.sweeps.map((sw, j) => sw.stops.map((env, i) => {
+      const exStop = applyFlagDeltas(flagSet, evs[next], PARTS);
       noteMasked(`${sw.id}#${i}@${env.width}x${env.height}`, next, evs[next]);
       const ev = evs[next++];
       const label = `${sw.id}#${i}@${env.width}x${env.height}`;
       countWait({ orig: sw.orig[i], rewrite: sw.rewrite[i] });
       const st = settleOf(label, { orig: sw.orig[i], rewrite: sw.rewrite[i] });
       if (st.unsettled) { unsettledList.push(st.entry); ev.rows = unsettledRows(ev.rows); } else {
+        excusedList.push(...keptExcused(`${sw.id}#${i}`, exStop, ev));
         failures(fails, label, ev, PARTS);
         infoDiffs(infos, `${sw.id}#${i}`, ev, PARTS);
         rectDecided(rectByRun, label, ev, PARTS, maskedOf[next - 1]);
@@ -264,8 +296,9 @@ export function summarize(outDir, { parts: requested = null } = {}) {
 
     const failList = [...fails.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
     const infoList = [...infos.values()].sort((a, b) => b.count - a.count || (a.part + a.role + a.key < b.part + b.role + b.key ? -1 : 1));
-    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, marginByRect: rectByRun, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
-    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, rectByRun));
+    const flagDelta = { search, flags: runFlags, excused: excusedList };
+    result.engines[engine] = { browser: run.header.browser, flags: flagsOf(run.header), flagDelta, ...(sel.narrowed ? { parts: { covered: sel.covered, skipped: sel.skipped } } : {}), table, envAchieved: envRow, settleWait: waitStats, unsettled: unsettledList, notRendered: notRenderedList, marginByRect: rectByRun, probes: probeRows, sweeps: sweepRows, failures: failList, originOnlyDifferences: infoList };
+    md.push(...render(engine, run.header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, rectByRun, flagDelta));
   }
 
   writeFileSync(join(outDir, 'summary.json'), JSON.stringify(result, null, 1) + '\n');
@@ -293,7 +326,21 @@ const cell = (c) => {
 };
 
 const staleText = (x) => (x.skipped ? `not compared (${x.skipped})` : `${x.differ}/${x.compared}`);
-function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, rectByRun) {
+function renderFlagDelta(fd) {
+  const readings = new Map();
+  for (const x of fd.excused) { const k = `${x.at} ${x.part}`; readings.set(k, [...(readings.get(k) ?? []), x]); }
+  const out = ['', `Flag deltas (Lean Fw.Gate.FlagDelta; flags from header.flags.search ${JSON.stringify(fd.search)}: ${fd.flags === null ? 'unreadable, none applied' : fd.flags.length === 0 ? 'none' : fd.flags.join(', ')}): ${readings.size} part readings excused, ${fd.excused.length} items. A reading is excused only when every failing item is an allowlisted tuple of a flag of the run; class L tuples stay look changes for the user's visual review.`];
+  if (fd.excused.length === 0) return out;
+  const byDelta = new Map();
+  for (const x of fd.excused) { const e = byDelta.get(x.delta) ?? { x, items: 0, readings: new Set() }; e.items++; e.readings.add(`${x.at} ${x.part}`); byDelta.set(x.delta, e); }
+  out.push('', '| delta | look | part | role | property | orig | rewrite | items | readings | premise |', '|---|---|---|---|---|---|---|---|---|---|');
+  for (const [id, e] of byDelta) out.push(`| ${id} | ${e.x.look} | ${e.x.part} | ${e.x.role} | ${e.x.key} | ${JSON.stringify(e.x.orig)} | ${JSON.stringify(e.x.rewrite)} | ${e.items} | ${e.readings.size} | ${e.x.premise} |`);
+  out.push('');
+  for (const [k, xs] of readings) out.push(`- excused ${k}: ${xs.map((x) => `${x.role}[${x.idx}].${x.key} (${x.delta})`).join(', ')}`);
+  return out;
+}
+
+function render(engine, header, table, envRow, sweepRows, failList, infoList, blocks, anchors, sel, waitStats, unsettledList, notRenderedList, rectByRun, flagDelta) {
   const cols = [...blocks, ...sweepRows.map((s) => `sweep:${s.id}`)];
   const out = [`## ${engine} (${header.browser})`, '', flagsLine(header), '', `Rows: matchMedia of the 30 conditions + 4 neutral queries, original vs rewrite; against Lean's expected value (compared only where the env was achieved on both arms and a vector exists, else NC); the legacy max-/min- text against the range text; then the anchors of each part. Cells: pass / FAIL probes-failing/probes-comparable / NC = not comparable / UNREACHABLE n (reason) = every probe of the cell is a cell this engine port cannot build (Lean-proved reach rule), \`+n unreachable\` = n such probes left out of the count / - = block not run.`, ''];
   // No silent narrowing: a narrowed verdict says which parts it covers and which it does not. matchMedia rows are
@@ -312,6 +359,7 @@ function render(engine, header, table, envRow, sweepRows, failList, infoList, bl
   if (rectByRun.styleDiffer.length > 20) out.push(`- ... ${rectByRun.styleDiffer.length - 20} more in summary.json`);
   out.push('', 'Sweep hysteresis (state after the sequence vs a fresh load at the same final env, per arm; items differing / compared):', '');
   for (const s of sweepRows) out.push(`- ${s.id}: orig ${staleText(s.stale.orig)}, rewrite ${staleText(s.stale.rewrite)}`);
+  out.push(...renderFlagDelta(flagDelta));
   out.push('', 'Failing items (count = probes or stops where the item differed; first example):', '', '| part | kind | role | key | count | first at | orig | rewrite | lean |', '|---|---|---|---|---|---|---|---|---|');
   for (const f of failList.slice(0, 60)) out.push(`| ${f.part} | ${f.cls} | ${f.role ?? ''} | ${f.key} | ${f.count} | ${f.first.at} | ${JSON.stringify(f.first.a)} | ${JSON.stringify(f.first.b)} | ${f.first.expect === null ? '' : JSON.stringify(f.first.expect)} |`);
   if (failList.length > 60) out.push(`| ... | | | | ${failList.length - 60} more distinct items in summary.json | | | | |`);

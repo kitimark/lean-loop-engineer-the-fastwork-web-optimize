@@ -6,11 +6,12 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin as rawBegin, builtModules, lakeMember, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
+import { begin as rawBegin, builtModules, lakeMember, noteSpan, outerBuilt, record as rawRecord, span as rawSpan, writeLakeHandoff } from "./timing.ts";
 
 let stepPrefix = "";
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
 let dryStep: string | null = null;
+let dryLake: { built: number } | null = null;
 export const lastDryStep = (): string | null => dryStep;
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
 const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);
@@ -160,7 +161,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
-  "packages/measure-webkit": ["packages/contracts/src/flag-key.mjs", "results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
+  "packages/measure-webkit": ["packages/contracts/src/flag-key.mjs", "packages/contracts/golden/engine/resource.jsonl", "results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
     "packages/contracts/golden/device/**", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/src/census.mjs", "packages/measure-chromium/profiles/**",
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**",
     "research/notes/2026/10-21-webkit-lag-probe.md",
@@ -606,8 +607,8 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   const before = stepPrefix;
   if (!via) stepPrefix = o.dry ? "dry " : "";
   const end = via ? () => {} : begin("fw land", "total");
-  if (!via) dryStep = null;
-  const named = (code: number) => end(code, dryStep === null ? {} : { step: dryStep });
+  if (!via) { dryStep = null; dryLake = null; }
+  const named = (code: number) => end(code, dryStep === null ? {} : { step: dryStep, ...(dryLake === null ? {} : { lake: dryLake }) });
   try { const r = await landRun(branch, o, via); named(r.ok ? 0 : 1); return r; } catch (e) { named(1); throw e; } finally { stepPrefix = before; }
 }
 
@@ -778,7 +779,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     process.stderr.write(`${l}\n`);
   };
   let badKind: Kind = "checks";
-  let built = 0;
+  const builds: number[] = [];
   const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
     badKind = "checks";
     mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
@@ -815,7 +816,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     const bad: string[] = [], failedChecks: { reads: boolean; stages: string[] }[] = [];
     list.forEach((argv, i) => {
       const r = results[i]!;
-      built += builtModules(r.out);
+      builds.push(builtModules(r.out));
       appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
       if (r.status !== 0) {
         failedChecks.push({ reads: READS_FAIL_RE.test(r.out), stages: failedStages(r.out) });
@@ -897,7 +898,11 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       return { ok: true, lines, kind: "dry", outcome: oc };
     } finally {
       slot.free();
-      if (dryStep?.endsWith("lake")) noteSpan("fw", "land dry", { lake: { built } });
+      if (dryStep?.endsWith("lake")) {
+        dryLake = { built: outerBuilt(builds) };
+        noteSpan("fw", "land dry", { lake: dryLake });
+        writeLakeHandoff(dryLake);
+      }
     }
   }
   const checks = o.checks ?? checksFor(mainDir, changed);

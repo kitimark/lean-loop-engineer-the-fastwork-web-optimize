@@ -1,0 +1,6 @@
+{"builds":[0,0],"built":0,"name":"no check built a module","work":{"mods":"0"}}
+{"builds":[],"built":0,"name":"no check ran","work":{"mods":"0"}}
+{"builds":[0,24],"built":24,"name":"one check rebuilt 24 modules","work":{"mods":"16"}}
+{"builds":[30,11],"built":41,"name":"two builds of 30 and 11 modules: the sum is 41, class 16","work":{"mods":"16"}}
+{"builds":[3,3],"built":6,"name":"two builds of 3 modules are class 4, not class 1","work":{"mods":"4"}}
+{"builds":[1],"built":1,"name":"one build of 1 module","work":{"mods":"1"}}

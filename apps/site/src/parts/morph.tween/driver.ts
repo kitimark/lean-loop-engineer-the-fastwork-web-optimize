@@ -1,11 +1,14 @@
 import { EASING_CSS as PANEL_EASING_CSS, effects as panelEffects } from '../morph.panel/threaded.logic';
 import { active, armed, DURATION_MS, fade, frame, pointerNone, REST, type St } from './logic';
 import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
+import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
   style: { pointerEvents: string; setProperty(name: string, value: string): void };
+  hasAttribute?(name: string): boolean;
+  toggleAttribute?(name: string, force: boolean): boolean;
 }
 export interface WheelLike {
   deltaY: number;
@@ -33,13 +36,11 @@ export interface TweenEnv {
   scrollToInstant(top: number): void;
   addListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void, passive: boolean): void;
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
-  /** The morph value, once per frame and per jump: the nav publishes it as `--morph`. */
   publish(value: number): void;
-  /** The panel may mount: first intersection or first push (N2:13040 and 13076 `z(b, !0)`). */
   onActivate?(): void;
-  /** The `scroll-lock` arm's root lock (Lean `MorphTweenOpt.stepR`); absent in the original and unless `lockAllowed`. */
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
+  rest?: boolean;
   panel?: EffectSink;
   hooks?: Hooks;
 }
@@ -113,6 +114,7 @@ export function createTweenDriver(env: TweenEnv) {
     if (!p) return;
     if (!env.fade) p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
     p.style.pointerEvents = pointerNone({ m: st.value }) ? 'none' : '';
+    if (env.rest && p.hasAttribute && p.toggleAttribute) setRest(p as RestEl, st.value);
   };
   const isArmed = () => {
     const p = env.platform();

@@ -42,6 +42,49 @@ Each provider's stop rule refuses on its own: GitHub never runs a 6th macOS job 
 
 Live run, 2026-10-22, branch `ci/macos-pool-7` (MEASURED: `gh run view` job times, Codemagic `build.json`). Both dispatches had GitHub at 5 of 5 macOS slots, Codemagic 46 and 66 minutes used, CircleCI 3575 credits and storage 1297 thousandths of a GB-month. Each time the route gave Codemagic one request and made the next wait: the CircleCI storage line is 1000 (`cc_storage_line`), so no CircleCI pipeline was started (that line is gone; the same ledger gives 650, `storage_20261021`). At 07:01:15Z six macOS jobs ran at once: five on GitHub (three of them ours: webkit-sim run 39734101098, wktr 39734101164, wktr-fixtures 39734101121); both of these runs end failure because their later jobs stopped stale at the tip re-check after the second push, while the jobs running at 07:01:15Z (wktr j1, fixtures j2) passed and Codemagic build 6ad9b3b25a4232c65cf47752. Under the 30-day count of that day the seventh slot stayed closed.
 
+## Dispatch-time route in `fw run` (task pool-dispatch-poller)
+
+On 2026-10-25 `fw run` sent every macOS job to GitHub, so count runs queued behind the 5 slots while the Codemagic slot idled (`codemagic.yaml` was a one-cell pilot). A `webkit-sim` count job of a routable target (Lean `ci.poolCell`: `original`, `rewrite`; not `both`), on a pushed `ci/*` ref with at least 2 VMs, goes through the Lean route first (`apps/runner/src/ci-pool-tier.ts`, `realRoute`):
+
+1. Facts: `gh run list --status in_progress` plus `gh run view --json jobs` for the in-progress macOS workflows (`ghMacBusy` = macOS jobs in progress or queued, `obs.macIs`), and `node scripts/codemagic.mjs facts` (`cmUsed`, `cmBusy`). `ghRemainingS` stays unknown, so a full GitHub never counts as a short wait.
+2. Route: fwcore `ci.poolTier` with CircleCI closed (`circleMacAllow: []`). GitHub first, Codemagic only when GitHub is full, stop at 400 of 500 minutes (Lean: `github_first`, `cm_refuses_over`, `cm_cells_budget`, `rewrite_routable`, `both_not_routable`).
+3. Cells the route sends to Codemagic run as `codemagic.yaml` variables (`FW_VM=v<k>` or `r<k>` as Lean's `measure.simPlan` names the cells, `FW_SESSIONS`, `FW_TARGET`, `FW_SEARCH` for the rewrite query, via `trigger --vars`; an empty value travels as `none` because Codemagic refuses an empty variable, build 6addffe5); at most `vms - 1` cells leave GitHub, the GitHub run keeps v1.. and the telemetry pieces. The GitHub run is dispatched with the remaining count, then GitHub and Codemagic are awaited together. The artifacts land in `webkit-sim-v<k>/` as `gh run download` would put them, `webkit-classes` is merged locally over every VM (`mergeClasses`), and the Codemagic build `sha` must equal the target sha.
+3a. The rewrite cell builds the site itself from the same commit: `codemagic.yaml` installs the pinned elan (sha256 checked), `pnpm install --frozen-lockfile --filter '@fw/site...'`, `pnpm --filter @fw/site build [--config <query>]`, verifies the snapshot, prints `node scripts/codemagic.mjs site-digest apps/site/dist/aot` (artifact `site-digest.txt`) and serves that build. After the GitHub run, `place` downloads its `site-dist` artifact, digests it the same way and asks Lean `ci.poolCell` whether the cell is filed: only with two equal, non-empty digests (`rewrite_filed_needs_digest`, `rewrite_mismatch_refused`, `rewrite_no_cm_digest_refused`, `rewrite_no_gh_digest_refused`; the original arm needs none, `original_filed`). A refused cell fails the run (the target is not routable for that commit); rerun with `--no-route`.
+4. Events: `<console dir>/ci-route.jsonl` (runner log, not console `events.jsonl`): `ci.route` (cells, codemagic, github, per-cell rows, busy, facts), `ci.route.skip` (why), `ci.codemagic.build` (build, vm, status, startedAt, finishedAt, createdAt, minutes), `ci.codemagic.refused`, `ci.site.digest` (vm, both digests, filed). No author, email or token fields. The ledger row of `fetch` carries the same times.
+
+`fw run ... --no-route` keeps every cell on GitHub. A refused trigger (exit 5) or a failed Codemagic build fails the run.
+
+### Toolchain identity of a Codemagic cell (final design round)
+- `codemagic.yaml` pins `xcode: 27.1`, the Xcode of the GitHub `xcode-27` image; `FW_IOS_BUILD` and the `check-simulator` refusal pin the runtime.
+- Key = `{macosBuild, xcodeBuild, runtimeBuild}` read from each cell's `tools.txt`. Lean `ci.cellMerged` (PoolTier.lean `cellMerged`) merges a cell only when its key equals the key of the GitHub cell v1 (r1 for the rewrite arm) and every component is non-empty. TypeScript parses and passes keys, never compares them.
+- A refused cell is filed aside: `refused/webkit-sim-<vm>/` and, in `webkit-classes/refused/`, `<vm>-classes.md` and `<vm>-key.json`. Event `ci.cell.platform {vm, ref, key, merged, hw}` in `ci-route.jsonl`.
+- A Codemagic build whose record carries no commit sha is refused.
+- Limits: hardware (cpus, memsize) is recorded, not keyed; merged cells can only demote rows (worst wins); no claim of equal counts across pools; GitHub VMs' keys are not cross-checked; no auto-pin when the GitHub image moves. TS stand-in: `mergeClasses` (the webkit-sim.yml merge job), the site-digest walk, the `tools.txt`/facts readers.
+
+#### Paired rewrite run, outcome (a) (MEASURED, n=1 per side, commit f438f8623)
+GitHub webkit-sim run 40211928946 cell r1 against the Codemagic cell r1 (Codemagic build 6ade316d, pinned image xcode 27.1). Keys equal and complete (macOS 26A434, Xcode 27A9275, runtime 24A434), so Lean `ci.cellMerged` merges the cell; site digests equal (GitHub run 40211928946 site-dist against the Codemagic site-digest.txt; ca7745e4f918...). Hardware (recorded, not keyed): GitHub 3 cpus, Codemagic 8 cpus / 12 GiB (mac_mini_m2).
+Class diff, row by row (GitHub class -> Codemagic class): 20 of 104 rows differ, none only on one side. GitHub 39 quarantined / 52 deterministic / 13 stable; Codemagic 27 / 59 / 18. The cause is not attributed (n=1 per side). Count equality across pools is not claimed; a merged cell can only demote rows (worst wins). By the final-design-round rule this goes to a re-plan (hardware key, k pairs), not into this branch.
+- census|layerCount|per state: quarantined -> stable
+- census|layerCount|y=0: quarantined -> stable
+- census|backing memory bytes (sum)|y=0: quarantined -> stable
+- census|layerCount|y=1500: deterministic -> stable
+- census|layerCount|y=5267: stable -> deterministic
+- census|backing memory bytes (sum)|per state: quarantined -> stable
+- census|layers with reason (gone)|per state: quarantined -> stable
+- census|layers with reason overlap|per state: deterministic -> stable
+- census|layers with reason transformWithCompositedDescendants|per state: stable -> quarantined
+- scroll|RecalculateStyles|total: quarantined -> stable
+- scroll|Layout|total: quarantined -> stable
+- scroll|Paint|total: quarantined -> stable
+- scroll|Composite|total: stable -> deterministic
+- scroll|ObserverCallback|total: stable -> deterministic
+- scroll|InvalidateLayout|total: quarantined -> deterministic
+- scroll|Composite|per 500 px zone: stable -> deterministic
+- scroll|ObserverCallback|per 500 px zone: quarantined -> deterministic
+- scroll|Composite|per step: quarantined -> deterministic
+- scroll|RenderingFrame|per step: quarantined -> deterministic
+- scroll|ObserverCallback|per step: quarantined -> deterministic
+
 ## Not wired yet
 
-No workflow or poller calls either route. The poller tick (ci-route), live slot reading (`ghRemainingS` from running jobs), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups.
+Jobs already queued on GitHub are not re-routed (the Lean route has no re-route step: a GitHub dispatch is final); a poller that cancels and re-dispatches them needs its own proof. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.

@@ -3,6 +3,7 @@ import { registerScroll } from '../../engine/scroll';
 import { isBand } from './listen.logic';
 import { touchHub } from './listen';
 import { armStats, createArm, inBand, isArmLate } from './armLate';
+import { gestureOpt, isOverscrollLock, lockOp, lockWanted, step, type Gesture } from './gesture';
 import { action, armed, IO_ROOT_MARGIN, isShift, mountNext, mountNextWarm, warmStill, WARM_QUIET_MS, MOUNT_PIN_ORDER, repin, takes, touchDelta, viewportHeight, wanted } from './logic';
 
 export interface MorphMountHandle {
@@ -50,10 +51,18 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       const r = el.getBoundingClientRect();
       return armed({ height: r.height, bottom: r.bottom }, viewportHeight(window.visualViewport?.height ?? null, window.innerHeight));
     };
-    const take = (e: Event, delta: number) => {
+    const gopt = gestureOpt(variant);
+    let gesture: Gesture = gopt?.first ? 'native' : 'fresh';
+    const take = (e: Event, delta: number, touch = false) => {
       lastMotion = performance.now();
       const act = isActive();
-      if (!takes(act, delta, act ? false : geom())) return;
+      let go: boolean;
+      if (gopt && touch) {
+        const r = step(gopt, gesture, act, delta, !act && (gesture === 'fresh' || gesture === 'pushing') ? geom() : false, e.cancelable);
+        gesture = r.next;
+        go = r.take;
+      } else go = takes(act, delta, act ? false : geom());
+      if (!go) return;
       if (!act) pin = window.scrollY;
       e.preventDefault();
       mount(false, true);
@@ -62,12 +71,13 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
     const onWheel = (e: WheelEvent) => take(e, e.deltaY);
     const onTouchStart = (e: TouchEvent) => {
       lastY = e.touches[0]?.clientY ?? 0;
+      if (gopt) gesture = 'fresh';
     };
     const onTouchMove = (e: TouchEvent) => {
       const y = e.touches[0]?.clientY ?? lastY;
       const d = touchDelta(lastY, y);
       lastY = y;
-      take(e, d);
+      take(e, d, true);
     };
     const hub = isBand(variant) ? touchHub() : undefined;
     const late = isArmLate(variant)
@@ -130,6 +140,18 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       if (!repin(isActive(), window.scrollY, pin)) return;
       return () => window.scrollTo({ top: pin, behavior: 'instant' });
     });
+    let locked = false;
+    const offLock = isOverscrollLock(variant)
+      ? registerScroll('morph.mount.lock', MOUNT_PIN_ORDER - 0.25, () => {
+          const act = isActive();
+          const want = lockWanted(near, near && !act ? geom() : false, act);
+          if (lockOp(locked, want) === 'none') return;
+          locked = want;
+          return () => {
+            document.documentElement.style.overscrollBehaviorY = want ? 'none' : '';
+          };
+        })
+      : undefined;
     const stats = late ? armStats() : undefined;
     const offLate = late
       ? registerScroll('morph.mount.arm', MOUNT_PIN_ORDER - 0.5, () => {
@@ -164,6 +186,8 @@ export function MorphMount({ variant, targetSelector = '[data-fw="morph-mount"]'
       refresh();
       unband?.();
       offLate?.();
+      offLock?.();
+      if (locked) document.documentElement.style.overscrollBehaviorY = '';
       off();
       onReady?.(null);
     };
