@@ -66,5 +66,5 @@ flag and phase), `unthrottle_same_takes`.
 
 The gate rows live in a separate golden, `morph-mount-toolbar.gate.jsonl`, not in `morph-mount-toolbar.jsonl`:
 `apps/site` `goldenConformance('morph-mount-toolbar', ...)` fails on any `fn` row without a TS implementation, and the gate
-functions have none by design. The original golden is unchanged. `Fw.Parts.MorphMountToolbarGolden` guards both files with
+functions have none by design. `Fw.Parts.MorphMountToolbarGolden` guards both files with
 `include_str`, so no `check.sh` job was added.

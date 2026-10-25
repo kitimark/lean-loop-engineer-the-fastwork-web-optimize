@@ -1,32 +1,12 @@
-// The forced-inset fixture page of the toolbar gate (task toolbar-wktr-gate). One page per flag; the page drives WebKit's
-// interactive obscured-insets change through WKTR's UI-script hooks, the same calls as LayoutTests/resources/ui-helper.js:2018-2050
-// (UIHelper.beginInteractiveObscuredInsetsChange / setObscuredInsets / endInteractiveObscuredInsetsChange @862f17d):
+// WKTR UI-script hooks, as LayoutTests/resources/ui-helper.js:2018-2050@862f17d:
 //   uiController.beginInteractiveObscuredInsetsChange()      Tools/WebKitTestRunner/ios/UIScriptControllerIOS.mm:1486-1489
 //   uiController.setObscuredInsets(top, right, bottom, left) Tools/WebKitTestRunner/cocoa/UIScriptControllerCocoa.mm:683-692
 //   uiController.endInteractiveObscuredInsetsChange()        Tools/WebKitTestRunner/ios/UIScriptControllerIOS.mm:1491-1494
-// A UI script that starts no async task completes at once and calls its callback with the script's value
-// (Tools/TestRunnerShared/UIScriptContext/UIScriptContext.cpp:60-65@862f17d), so `typeof uiController.<hook>` answers whether the
-// hook is bound in the running WKTR: the page reports it (hooks.*) as the in-process proof the hooks exist.
-//
-// The page does not use UIHelper.setObscuredInsets: that helper waits for a visible-content-rect update and a presentation
-// update after every set, which hides the 100 ms wait it would have to observe (WKWebViewIOS.mm:3256-3268@862f17d). Each set here
-// waits only for the UI script to return; then native requestAnimationFrame samples visualViewport.height every frame until it
-// changes. `latencyMs` is the time from the set's return to the first frame that sees the new height. Sets follow each other
-// without a pause, so every set after the first falls inside the 100 ms window of the update before it.
-//
-// Flags (the page decides nothing about them; Lean Fw.Parts.MorphMountToolbar.Flag does):
-//   default, touch-first, open-once   the page runs no scroll-driven animation
-//   unthrottle                        the page runs the production engine.scroll:unthrottle style and flag element
-//                                     (apps/site/src/parts/engine.scroll/unthrottle.ts, imported, not copied)
-// The platform stand-in is a fixed element of height 3/5 vh0 whose bottom edge is vh0 - 15 (vh0 = visualViewport.height before the
-// first set); `gate.mjs` turns the rects the page reports into arm and take decisions.
 import { unthrottleCss } from '../../../apps/site/src/parts/engine.scroll/unthrottle.ts';
 
 export const FLAGS = ['default', 'touch-first', 'open-once', 'unthrottle'];
-/** Insets in CSS px, applied to the top edge in this order (down), then back (up). */
 export const INSETS_DOWN = [10, 20, 30, 40];
 export const INSETS_UP = [30, 20, 10, 0];
-/** Scroll offset requested before each set (one per step, down then up), so every set is interleaved with a scrollTo. */
 export const SCROLLS = [120, 240, 360, 480, 360, 240, 120, 0];
 
 const PAGE_SRC = `(() => {
@@ -104,17 +84,14 @@ const PAGE_SRC = `(() => {
   });
 })();`;
 
-/** The platform stand-in: height heightNum/heightDen of the viewport height before any inset, bottom edge `gap` px above it (Lean `gateRect`). */
 export const PLATFORM = { heightNum: 3, heightDen: 5, gap: 15 };
 
 const HOOKS = ['beginInteractiveObscuredInsetsChange', 'setObscuredInsets', 'endInteractiveObscuredInsetsChange'];
 
-/** The steps the page walks: down (0 to 40) then up (40 to 0), each preceded by its scrollTo. */
 export function stepList() {
   return [...INSETS_DOWN.map((inset, i) => ({ dir: 'down', inset, scroll: SCROLLS[i] })), ...INSETS_UP.map((inset, i) => ({ dir: 'up', inset, scroll: SCROLLS[INSETS_DOWN.length + i] }))];
 }
 
-/** The page of one flag as an HTML string. */
 export function toolbarHtml({ flag, settleMs = 800, timeoutMs = 600 } = {}) {
   if (!FLAGS.includes(flag)) throw new Error(`unknown flag ${flag}; known: ${FLAGS.join(', ')}`);
   const params = { flag, settleMs, timeoutMs, platform: PLATFORM, hooks: HOOKS, steps: stepList(), unthrottleCss: unthrottleCss(), unthrottleAttr: 'data-fw-unthrottle' };

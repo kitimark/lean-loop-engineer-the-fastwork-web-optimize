@@ -1,17 +1,3 @@
-// The toolbar gate's verdict (task toolbar-wktr-gate): the page reports of toolbar-cli.mjs judged against the Lean golden
-// packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl (Fw.Parts.MorphMountToolbar, gate rows).
-//   node src/gate.mjs <dir with toolbar-*.json> [--golden <jsonl>] [--hooks <hooks.json>] [--out <gate.json>]
-// Per report (flag, pass) the checks are:
-//   hooks     the three UI-script hooks are bound in the running WKTR (typeof === 'function'), and the archive symbols exist
-//   walk      the page walked the golden inset sequence and platform (gateWalk)
-//   geoms     the production `armed` (apps/site morph.mount logic.ts) on the observed rect and viewport height gives the golden
-//             arm sequence of each phase (gateExpect; Lean down_geoms, up_geoms)
-//   takes     the production gesture machine (gesture.ts `step`) of the flag over the observed arm sequence gives the golden
-//             take sequence (gateRun), and the golden one of the expected sequence
-//   exempt    the flag's measured visible-rect wait ends the golden verdict's way: median set-to-height latency of every set after
-//             the first below `liftedBelowMs` iff the flag is exempt (gateExempt)
-// The golden decides; this file only reads observations, calls the production functions and looks rows up. TS stand-in: `liftedBy`
-// (one comparison, checked against the gateLifted rows in test/gate.test.mjs).
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { register } from 'node:module';
 import { join, resolve, dirname } from 'node:path';
@@ -28,7 +14,6 @@ export const HOOK_SYMBOLS = [
 ];
 export const HOOK_NAMES = ['beginInteractiveObscuredInsetsChange', 'setObscuredInsets', 'endInteractiveObscuredInsetsChange'];
 
-/** The golden rows of the gate, indexed. */
 export function parseGolden(text) {
   const rows = text.split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const g = { walk: null, exempt: new Map(), expect: new Map(), run: new Map(), geom: [], lifted: [] };
@@ -46,7 +31,6 @@ export function parseGolden(text) {
 
 export const runKey = (flag, phase, geoms) => `${flag}|${phase}|${geoms.map((b) => (b ? 1 : 0)).join('')}`;
 
-/** The production functions the page's decision uses (types stripped by Node; extensionless imports resolved by a hook). */
 export async function loadProduction() {
   register('./ts-ext-hooks.mjs', import.meta.url);
   const logic = await import(pathToFileURL(join(PARTS, 'logic.ts')).href);
@@ -54,12 +38,10 @@ export async function loadProduction() {
   return { armed: logic.armed, viewportHeight: logic.viewportHeight, step: gesture.step, gestureOpt: gesture.gestureOpt };
 }
 
-/** The gesture rule of a flag as production selects it: the variant's option, else the original machine. */
 export function optOf(prod, flag) {
   return prod.gestureOpt(flag) ?? { first: false, once: false };
 }
 
-/** One forward, idle, cancelable move per observation through the production machine. */
 export function replay(prod, flag, geoms) {
   const o = optOf(prod, flag);
   let g = 'fresh';
@@ -76,10 +58,8 @@ const median = (xs) => {
   return n === 0 ? NaN : n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
 };
 
-/** Lean `liftedBy`: the median wait is below the bound. */
 export const liftedBy = (medianMs, boundMs) => medianMs < boundMs;
 
-/** The observed arm of one step: production `armed` on the rect read after the step and the viewport height then. */
 export function observedGeom(prod, rect, view) {
   return prod.armed({ height: rect.height, bottom: rect.bottom }, prod.viewportHeight(view.vvh, view.ih));
 }
@@ -87,7 +67,6 @@ export function observedGeom(prod, rect, view) {
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const bits = (l) => l.map((b) => (b ? 1 : 0)).join('');
 
-/** Judge one report; returns {flag, pass, ok, checks:[{id, ok, detail}]}. */
 export function judgeReport(golden, prod, report, archive = null) {
   const checks = [];
   const add = (id, ok, detail) => checks.push({ id, ok: !!ok, detail });
@@ -124,7 +103,6 @@ export function judgeReport(golden, prod, report, archive = null) {
   return { flag, pass: report.meta?.pass ?? null, ok: checks.every((c) => c.ok), medianWaitMs: med, waitsMs: waits, checks };
 }
 
-/** Judge every report; the gate holds when each flag of the golden has at least `minPasses` reports and every report passes. */
 export function judgeAll(golden, prod, reports, archive = null, minPasses = 2) {
   const results = reports.map((r) => judgeReport(golden, prod, r, archive));
   const flags = [...golden.exempt.keys()];

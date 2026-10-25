@@ -69,7 +69,6 @@ def gateVhs : List Rat := [400, 667, 844]
 
 def gateLatencies : List Rat := [0, 16, 33, 49, 50, 99, 100]
 
-/-- The forced-inset gate (file `morph-mount-toolbar.gate.jsonl`, read by `packages/measure-wktr/src/gate.mjs`): the walk, the flag exemptions, the platform arm per inset, the take run per flag and phase for every arm sequence, and the lift verdicts. -/
 def gateRows (_ : Unit) : List String :=
   [line "gateWalk" []
     (Lean.Json.mkObj [("heightNum", natJ 3), ("heightDen", natJ 5), ("gap", natJ 15), ("down", ratsJ downInsets), ("up", ratsJ upInsets),

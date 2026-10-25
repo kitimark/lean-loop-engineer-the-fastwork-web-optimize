@@ -8,7 +8,6 @@ import { GOLDEN_PATH, HOOK_NAMES, HOOK_SYMBOLS, judgeAll, judgeReport, liftedBy,
 const golden = parseGolden(readFileSync(GOLDEN_PATH, 'utf8'));
 const prod = await loadProduction();
 
-/** A report as the page writes it for a viewport of height vh0, with the model's arms and waits (throttled 80 ms after the first set, lifted 32 ms). */
 function fakeReport(flag, { vh0 = 820, wait, hooks, tweak } = {}) {
   const exempt = flag === 'unthrottle';
   const walk = stepList();

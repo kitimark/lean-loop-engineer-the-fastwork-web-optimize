@@ -1,8 +1,3 @@
-// Toolbar forced-inset gate driver (task toolbar-wktr-gate).
-//   node src/toolbar-cli.mjs run --root <extracted archive dir> --out <dir> [--flags default,touch-first,open-once,unthrottle] [--passes 2]
-// Per flag and pass (a fresh WebKitTestRunnerApp process each) it loads the flag's fixture page (toolbar-page.mjs), which walks
-// the interactive obscured-insets change, and writes <out>/toolbar-<flag>-<pass>.json (the page's report) and raw-<flag>-<pass>.txt.
-// Judging is gate.mjs. Counts and latencies only; nothing here is phone time.
 import http from 'node:http';
 import { parseArgs } from 'node:util';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -15,7 +10,6 @@ import { FLAGS, toolbarHtml } from './toolbar-page.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
 
-/** The page report (`FWWKTR toolbar {...}`) and any `error` line of a WKTR output. */
 export function parseToolbar(text) {
   const got = { report: null, error: null, done: false };
   for (const line of text.split('\n')) {
@@ -29,7 +23,6 @@ export function parseToolbar(text) {
   return got;
 }
 
-/** Serve `/<flag>` as that flag's page, no-store, on 127.0.0.1. */
 export function serveFlags(flags) {
   const pages = Object.fromEntries(flags.map((f) => [`/${f}`, toolbarHtml({ flag: f })]));
   const server = http.createServer((req, res) => {
