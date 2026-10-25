@@ -2,11 +2,17 @@
 
 - Branch `worktree-wf_d90774ee-051-1`, worktree `.claude/worktrees/wf_d90774ee-051-1`. The last commit sha is in
   `git log -1` (this handoff ships in it). No CI runs were dispatched.
-- Verified: `lake build`, Lean check suite, measure-webkit tests, engine goldens `--check`; dry land and review ready are in the lead report.
+- Verified:
+  - `lake build` and the Lean check suite (all gates green);
+  - measure-webkit tests 718/718, runner land-inputs 73/73, ci-paths 56/56;
+  - engine goldens `--check`;
+  - `VERDICT dry resource-footprint`, then review ready returned `review`.
 - Open items:
   - results/phone/2026-10-25-end-counts has not landed. The golden's phone rows cite it by name.
-  - Two writes fall outside the task list: `lean/scripts/EngineGoldens.lean` (generator row) and
-    `lean/Fw/Ops/Premise.lean` (`engineFiles` entry for the cite lint).
+  - Three writes fall outside the task list, so the dry land needs `--allow` for each:
+    - `lean/scripts/EngineGoldens.lean` (generator row);
+    - `lean/Fw/Ops/Premise.lean` (`engineFiles` entry for the cite lint);
+    - `apps/runner/src/land.ts` (the measure-webkit test reads the golden).
   - Three gaps are unresolved:
     - the extra WebKit layer at y=4500 under engine.events:quiet;
     - the Chromium GPU peak for nav:logo-3d and morph.countdown:strip (both stay open);
