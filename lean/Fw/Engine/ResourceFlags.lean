@@ -177,10 +177,6 @@ end HiddenPause
 section Repaint
 open Fw.Engine.WebKit Fw.Parts.NavBarFixedWork Fw.Parts.NavBarFixed
 
-/-- **Strip repaint at DPR 3 (WebKit).** A face of area `a` that leaves the coverage rect and comes back re-attaches
-and repaints `9a` device px (`face_reattach`); a strip stays attached and repaints none (`strip_no_reattach`).
-
-The strip arm repaints less than the face arm. -/
 theorem strip_repaint_down (a n : Nat) (ha : 0 < a) (pre mid q : List Bool) (d p : Bool) :
     signOf (repaintPx 3 (reattachPaint a ((pre ++ false :: (mid ++ true :: q)).map fun x => coverageAttached x true false)) 1)
       (repaintPx 3 (reattachPaint a (List.replicate n (coverageAttached true d p))) 1) = .down := by
@@ -190,18 +186,9 @@ theorem strip_repaint_down (a n : Nat) (ha : 0 < a) (pre mid q : List Bool) (d p
   simp only [signOf]
   split <;> (try split) <;> first | rfl | omega
 
-/-- **Per-frame repaint of an own layer.** A moved element that owns its layer repaints no host pixels
-(`changePx`), so faces and strips, both on own layers, repaint the same per frame at any DPR.
-
-An own layer moves without a repaint. -/
 theorem own_frame_repaint (dpr hostPx a n : Nat) (v : Bool) : repaintPx dpr (changePx true hostPx a v) n = 0 := by
   simp [changePx, repaintPx]
 
-/-- **Logo-3d repaint at DPR 3 (WebKit).** The original bar resizes `r` times per morph and repaints its area each
-time (`bar_orig_resizes`); the fixed bar never resizes (`bar_resizePaint_zero`) and the morph pays one attach paint of
-bar and logo (`layer_budget`, `attachPaint`). With the logo no larger than the bar, three resizes cost more.
-
-Three or more bar resizes per morph repaint more than one promotion of bar and logo. -/
 theorem logo_repaint_down (v : Fw.Parts.Nav.Vp) (ms sizes : List Rat) (bar logo : Nat) (hb : 0 < bar)
     (hl : logo ≤ bar) (hr : 3 ≤ resizeCount sizes) :
     signOf (repaintPx 3 (pushResizePaint true false bar sizes) 1)
@@ -215,10 +202,6 @@ theorem logo_repaint_down (v : Fw.Parts.Nav.Vp) (ms sizes : List Rat) (bar logo 
   simp only [signOf]
   split <;> (try split) <;> first | rfl | omega
 
-/-- **Logo-3d repaint per frame (Chromium).** The logo moved by `left` inside its host repaints at least its own area
-(`pushed_repaint`); on its own layer it repaints none.
-
-Per frame the own-layer logo repaints less. -/
 theorem logo_frame_repaint_down (hostPx a n : Nat) (v : Bool) (ha : 0 < a) (h : a ≤ hostPx) (hn : 0 < n) :
     signOf (repaintPx 3 (changePx false hostPx a v) n) (repaintPx 3 (changePx true hostPx a v) n) = .down := by
   have hp := (pushed_repaint hostPx a v h).2.1
@@ -227,11 +210,6 @@ theorem logo_frame_repaint_down (hostPx a n : Nat) (v : Bool) (ha : 0 < a) (h : 
   simp only [signOf]
   split <;> first | rfl | omega
 
-/-- **Panel-rest repaint at DPR 3 (WebKit).** The original keeps the group layer attached through the walk and pays
-no attach paint; the rest arm drops the layer at rest and each `none` to blur toggle attaches it again and paints its
-whole area (`tween_repaint`). Per-frame display paint is the same in both arms.
-
-The rest arm repaints more by one full layer paint per toggle. -/
 theorem panel_repaint_up (a n : Nat) (ha : 0 < a) (l : List Bool) :
     signOf (repaintPx 3 (reattachPaint a (List.replicate n true)) 1)
       (repaintPx 3 (reattachPaint a (false :: true :: l)) 1) = .up := by
@@ -301,15 +279,11 @@ def stripWk : Footprint :=
      (.frames, ef .same stripDriverSrc)],
     some (basePeak + stripBytes)⟩
 
-/-- The strip peak sums sources from two devices: the phone end-counts base peak and the Simulator's hero clock
-backing. -/
 def stripPeakSrc : String :=
   "mixed: phone end-counts base peak (basePeak, 2026-10-25) plus the Simulator's hero clock backing (stripBytes, run 40081936555)"
 
 def stripPhonePeak : Nat := 191681597
 
-/-- Both strip peaks fit the budget: the mixed phone plus Simulator sum and the phone thermal session's own strip peak,
-which is the lower of the two. -/
 theorem strip_peaks_fit :
     stripWk.peak = some (basePeak + stripBytes) ∧ basePeak + stripBytes ≤ budgetB ∧ stripPhonePeak ≤ budgetB ∧
       stripPhonePeak ≤ basePeak + stripBytes := ⟨rfl, by decide, by decide, by decide⟩
@@ -650,14 +624,10 @@ structure CensusRow where
   arm : Range
 deriving Repr
 
-/-- Layers per census state of the phone thermal session, base against strip. They stay outside `observations`
-because they break the strip's per-state bound of 72, the clock's own layers: by range at y 0, 1500 and 4500, and at
-y 1500 for every pair of passes (a drop of at least 74). -/
 def thermalStripLayers : List CensusRow :=
   [⟨0, ⟨110, 112⟩, ⟨38, 40⟩⟩, ⟨1500, ⟨116, 118⟩, ⟨40, 42⟩⟩, ⟨3000, ⟨136, 136⟩, ⟨64, 64⟩⟩, ⟨4500, ⟨139, 142⟩, ⟨69, 69⟩⟩,
    ⟨5267, ⟨124, 124⟩, ⟨52, 52⟩⟩]
 
-/-- Backing bytes per census state of the same session. -/
 def thermalStripBytes : List CensusRow :=
   [⟨0, ⟨39510317, 39510317⟩, ⟨41630605, 41630605⟩⟩, ⟨1500, ⟨99667292, 99723526⟩, ⟨99667292, 99730800⟩⟩,
    ⟨3000, ⟨108952364, 108952364⟩, ⟨108952364, 116385244⟩⟩, ⟨4500, ⟨168397197, 168397197⟩, ⟨168397197, 191681597⟩⟩,
@@ -670,27 +640,22 @@ def minDrop (b a : Range) : Nat := b.lo - a.hi
 #guard thermalStripBytes.map (fun c => (c.y, c.arm.hi - c.base.lo)) ==
   [(0, 2120288), (1500, 63508), (3000, 7432880), (4500, 23284400), (5267, 0)]
 
-/-- **A measured move.** An observation moves when its walk is not slow (census resources ignore the walk) and its
-measured sign is up or down; a measured `same` is never evidence. -/
 def moved (o : Obs) : Option Sign :=
   if o.slow && !o.res.census then none
   else match measuredSign o.base o.arm o.tol with
     | .same => none
     | s => some s
 
-/-- **Evidence sign** of a list of measured moves: none without a move, the common sign when all agree, `unknown`
-when they conflict. -/
 def evidenceSign : List Sign → Option Sign
   | [] => none
   | s :: ss => some (if ss.all (· == s) then s else .unknown)
 
-/-- **Resolved sign**: the measured moves of a footprint's resource override its predicted sign. -/
 def resolvedSign (fp : Footprint) (r : Res) : Sign := (evidenceSign ((obsOf fp r).filterMap moved)).getD (fp.sign r)
 
 def resolved (fp : Footprint) : Footprint :=
   { fp with effects := fp.effects.map fun (r, e) => (r, { e with sign := resolvedSign fp r }) }
 
-/-- **Decided verdict**: the resource verdict of the footprint with every sign resolved by its own observations. -/
+/-- The resource verdict of a footprint whose signs are replaced by its own non-slow measured moves. -/
 def decided (B : Nat) (fp : Footprint) : Verdict := verdict B (resolved fp)
 
 theorem moved_slow (o : Obs) (hs : o.slow = true) (hc : o.res.census = false) : moved o = none := by

@@ -65,12 +65,11 @@ def linkTable : List (Flag × List Key) :=
 section Resource
 open Fw.Engine.Resource
 
-/-- Predicted and decided resource verdicts of a flag per engine, from `Fw.Engine.Resource.Flags`. -/
+/-- Predicted and decided resource verdicts of a flag per engine. -/
 def resourceOf (f : Flag) : List (Eng × Verdict × Verdict) :=
   [Eng.chromium, .webkit].filterMap fun e =>
     (Flags.footprint? f.key e).map fun fp => (e, verdict budgetB fp, Flags.decided budgetB fp)
 
-/-- A flag whose decided resource verdict is a trade on every engine with a footprint. -/
 def resourceTrade (f : Flag) : Bool := let rs := resourceOf f; !rs.isEmpty && rs.all (·.2.2 == .trade)
 
 def resourceJson (f : Flag) : Json :=
