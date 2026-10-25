@@ -1,23 +1,24 @@
 # phone-thermal-pin handoff
 branch: worktree-wf_781356ec-209-1 (CI branch ci/phone-thermal-pin)
 worktree: .claude/worktrees/wf_781356ec-209-1 (under the main checkout)
-last commit: 1d11d53c3 (update below after later commits)
-CI runs: 40204768832 in_progress (first push; no measurement needed, only the lean/premise checks)
+last commit: decd3209c (merge of main; later commit only edits this handoff)
+CI runs: 40204768832 lean pass (early commits); 40212266200 lean pass (merge commit). No measurement run needed.
 
 ## Verified
-- Lean pinned-thermal rules in lean/Fw/Device/Thermal.lean compile; golden device/thermal.jsonl regenerated (404 lines, --check ok).
-- TS twins (src/device-thermal-pin.mjs) pass the golden; owner/session/block tests pass (pnpm --filter measure-webkit test: 830 pass).
-- pin-probe on the phone: ThermalSerious reads back Serious within ~11 s of the spawn; owner stopped with SIGTERM only.
+- Lean pinned-thermal rules (lean/Fw/Device/Thermal.lean) compile; golden device/thermal.jsonl 432 lines, --check ok; check.sh green.
+- TS twins pass the golden; measure-webkit 833 pass, contracts 11 pass, apps/runner 3533 pass, ci-paths 56 pass.
+- Phone check done (MEASURED): Serious held at all 5 readings of a 2-visit block; induced Serious matches real Serious within spread; no throttle shown.
+- Premise "owner exit clears the condition" REFUTED (stuck Serious 34 min after a TERM without clear). Owner is now OWNER_PY: clears on its own connection, acks, then exits.
 
 ## Open
-- Does clear (TERM of the owner) end the induced state? After the probe the phone stayed Serious for 12+ min (cool.log in .local/phone/2026-10-25-pin, not committed); real heat vs a sticky condition is being separated.
-- The phone check (arms-run --only morph.countdown:strip --max-visits 2 --pin Serious) and the induced-vs-real comparison against .local/phone/2026-10-25-thermal/raw in the main checkout.
-- Note research/notes/2026/10-25-phone-thermal-pin.md, findings ledger entry, fw land --dry, fw review ready.
+- Reported state falls to Nominal ~2 min after a clear on an unheated phone; after real load it stays Serious (heatRemains).
+- Owner killed by KILL or dead alone ends `unconfirmed`; next run (or pin-stop --dir) runs one set-and-clear cycle.
+- Findings-ledger entry skipped (not an optimization candidate).
 
 ## Conventions
-- test/pin-world.mjs is a shared test helper (not a *.test.mjs file; listed in the report as outside the writes patterns).
-- pymobiledevice3 via pipx ==11.44.0, always --userspace, stop with kill -TERM; raw data in .local/phone/<date>-pin/ (gitignored).
-- Worktree needed `pnpm install --offline --frozen-lockfile` before git push (the pre-push hook runs apps/runner).
+- test/pin-world.mjs is a shared test helper (not *.test.mjs; outside the writes patterns).
+- pymobiledevice3 via pipx ==11.44.0, always --userspace, never --native; stop with kill -TERM; raw data in .local/phone/<date>-pin/ (gitignored).
+- Worktree needs `pnpm install --offline --frozen-lockfile` before git push.
 
 ## Read first
-docs/team/tools/device-lag-recorder.md ("Pinned thermal state"), lean/Fw/Device/Thermal.lean (section Pinned thermal state), src/device-phone-pin.mjs, src/device-thermal-pin.mjs.
+research/notes/2026/10-25-phone-thermal-pin.md, docs/team/tools/device-lag-recorder.md ("Pinned thermal state"), src/device-phone-pin.mjs, src/device-thermal-pin.mjs.
