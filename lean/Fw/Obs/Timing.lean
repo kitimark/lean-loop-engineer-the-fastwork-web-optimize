@@ -1566,6 +1566,67 @@ theorem incident_not_slow (hist : List Sample) (i b : Nat) (hb : 0 < b) (hc : �
   exact ⟨judgeQ_rebuild_noBaseline {} hist i _ b rfl hl hc m1 q1 c1 (by decide),
     judgeQ_rebuild_noBaseline {} hist i _ b rfl hl hc m2 q2 c2 (by decide)⟩
 
+/-- The lake work of an outer dry-land span: the sum of the modules each check it ran built. A rebuild is work done
+once per build, and builds add up; the max would call two builds of 30 modules one of 30. `maxBuilt_le_outerBuilt`
+keeps the sum above the max, so the sum's class never undercounts the largest build. -/
+def outerBuilt (xs : List Nat) : Nat := xs.sum
+
+def outerWork (xs : List Nat) : List (String × String) := modsWork (outerBuilt xs)
+
+theorem outerBuilt_eq_zero (xs : List Nat) : outerBuilt xs = 0 ↔ ∀ x ∈ xs, x = 0 := by
+  unfold outerBuilt
+  induction xs with
+  | nil => simp
+  | cons a t ih => simp [List.sum_cons, ih]
+
+theorem maxBuilt_le_outerBuilt (xs : List Nat) (x : Nat) (hx : x ∈ xs) : x ≤ outerBuilt xs := by
+  unfold outerBuilt
+  induction xs with
+  | nil => simp at hx
+  | cons a t ih =>
+    simp only [List.mem_cons] at hx
+    rw [List.sum_cons]
+    rcases hx with rfl | h
+    · omega
+    · have := ih h; omega
+
+/-- An outer span whose checks rebuilt a module has a mods class above 0, so against a class-0 history it has no
+baseline and is never `slow`. -/
+theorem outer_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (xs : List Nat)
+    (hs : s.work = outerWork xs) (hx : ∃ x ∈ xs, 0 < x) (h : ∀ y ∈ hist, y.work = modsWork 0)
+    (hm : s.mixed = false) (hq : queuedWithin s = false) (hc : ceilingBreach p s = false) (hn : 0 < p.nMin) :
+    (judgeQ p hist i s).code = .noBaseline := by
+  have hb : 0 < outerBuilt xs := by
+    rcases Nat.eq_zero_or_pos (outerBuilt xs) with e | e
+    · obtain ⟨x, hxm, hxp⟩ := hx
+      have := (outerBuilt_eq_zero xs).1 e x hxm
+      omega
+    · exact e
+  have hl : 0 < modsLow (outerBuilt xs) := by
+    have : modsLow (outerBuilt xs) = 4 ^ ((outerBuilt xs).log2 / 2) := by simp [modsLow, Nat.pos_iff_ne_zero.mp hb]
+    rw [this]; exact Nat.pow_pos (by decide)
+  exact judgeQ_rebuild_noBaseline p hist i s _ hs hl h hm hq hc hn
+
+/-- The outer spans of a dry land: `fw land` `dry total lake` and `fw` `slot run land <command key> dry`. -/
+def outerSteps : List (String × String) :=
+  [("fw land", "dry total lake"), ("fw", "slot run land pnpm fw land dry")]
+
+/-- The durations of the three `timing.slow` alerts of 2026-10-25 (46323 ms at 29bdbda, 35755 ms at 6df9009, 67391 ms
+at 231d867), each against a history near 23.3 s of dry lands that built nothing. -/
+def incidentOuterDurs : List Nat := [46323, 35755, 67391]
+
+def incidentOuter (ts : String × String) (d : Nat) (xs : List Nat) : Sample :=
+  { tool := ts.1, step := ts.2, durMs := d, host := .«local», load := 5, exit := some 0, work := outerWork xs }
+
+theorem incident_outer_not_slow (hist : List Sample) (i : Nat) (xs : List Nat) (hx : ∃ x ∈ xs, 0 < x)
+    (h : ∀ y ∈ hist, y.work = modsWork 0) :
+    ∀ ts ∈ outerSteps, ∀ d ∈ incidentOuterDurs, (judgeQ {} hist i (incidentOuter ts d xs)).code = .noBaseline := by
+  intro ts hts d hd
+  have key : ∀ ts ∈ outerSteps, ∀ d ∈ incidentOuterDurs, (incidentOuter ts d []).mixed = false ∧
+      queuedWithin (incidentOuter ts d []) = false ∧ ceilingBreach {} (incidentOuter ts d []) = false := by decide
+  obtain ⟨m, q, c⟩ := key ts hts d hd
+  exact outer_rebuild_noBaseline {} hist i _ xs rfl hx h m q c (by decide)
+
 def runSteps : List String :=
   ["run plan", "run dispatch lock", "run dispatch reserve", "run dispatch backoff", "run dispatch call", "run wait", "run file"]
 
@@ -2925,6 +2986,23 @@ def incidentLandRun (keyed : Bool) : List Sample :=
        work := if keyed then modsWork 0 else [] } : Sample)) ++
   [{ incidentLand with exit := some 0, work := if keyed then modsWork 24 else [] }]
 
+def incidentOuterRun (keyed : Bool) : List Sample :=
+  ([23232, 23100, 23500, 23410, 23180, 23300, 23250, 23360].map fun d =>
+    ({ tool := "fw land", step := "dry total lake", durMs := d, host := .«local», load := 5, exit := some 0,
+       work := if keyed then modsWork 0 else [] } : Sample)) ++
+  [{ incidentOuter ("fw land", "dry total lake") 46323 [30, 11] with work := if keyed then outerWork [30, 11] else [] }]
+
+def incidentSlotRun (keyed : Bool) : List Sample :=
+  ([23400, 23100, 23500, 23610, 23180, 23300, 23250, 23360].map fun d =>
+    ({ tool := "fw", step := "slot run land pnpm fw land dry", durMs := d, host := .«local», load := 5, exit := some 0,
+       work := if keyed then modsWork 0 else [] } : Sample)) ++
+  [{ incidentOuter ("fw", "slot run land pnpm fw land dry") 67391 [30, 11] with work := if keyed then outerWork [30, 11] else [] }]
+
+#guard (outerBuilt [30, 11], outerBuilt [], outerWork [0, 0]) == (41, 0, modsWork 0)
+#guard ((sampleVerdicts {} (incidentOuterRun true)).getLast?.map (·.code)) == some .noBaseline
+#guard ((sampleVerdicts {} (incidentOuterRun false)).getLast?.map (·.code)) == some .slow
+#guard ((sampleVerdicts {} (incidentSlotRun true)).getLast?.map (·.code)) == some .noBaseline
+
 def ciWaitData : List (Nat × Nat × Nat) :=
   [(316141, 20570, 2), (440814, 16696, 3), (179419, 26169, 4), (335984, 25290, 5), (387370, 27352, 5),
    (293198, 12245, 4), (1377258, 27294, 5)]
@@ -3110,6 +3188,12 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, incidentLandRun true),
    ("fw land dry lake build and axiom-check, the same samples recorded without a mods class: 37.4 s against the 3.2 s p50 is slow",
       {}, incidentLandRun false),
+   ("fw land dry total lake: the 46.3 s span of 2026-10-25 (the checks built 30 + 11 modules, class 16) against eight dry lands that built nothing (p50 near 23.3 s, class 0): noBaseline",
+      {}, incidentOuterRun true),
+   ("fw land dry total lake: the same spans recorded without a mods class: the 46.3 s span is slow against the 23.3 s p50 (the false alarm)",
+      {}, incidentOuterRun false),
+   ("slot run land dry: the 67.4 s span carrying the checks' module count (class 16) against eight class-0 spans: noBaseline",
+      {}, incidentSlotRun true),
    ("fw ci wait: the 23 min wait is judged by its own 27.3 s against the six waits before it (own p50 20.6 s): ok, though 23 min is far over 1.5 times its raw p50",
       {}, ciWaitRun),
    ("fw land remote queue: the 36.0 s runner queue wait is judged as 0 ms of our time: ok",
@@ -3137,7 +3221,8 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .slow, some .noBaseline, some .slow, some .ok, some .slow,
    some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
    some .mixed, some .mixed, some .slow,
-   some .unkeyed, some .ok, some .noBaseline, some .slow, some .noBaseline, some .slow, some .ok, some .ok, some .ok]
+   some .unkeyed, some .ok, some .noBaseline, some .slow, some .noBaseline, some .slow,
+   some .noBaseline, some .slow, some .noBaseline, some .ok, some .ok, some .ok]
 #guard ((landKeyedRun 14)[13]?).map (fun s => (judgeW {} ((landKeyedRun 14).take 13) 13 s).code) == some .slow
 #guard ((sampleVerdicts {} (landKeyedRun 14))[13]?).map (·.code) == some .unkeyed
 #guard ((landKeyedRun 14)[13]?).map (unkeyedLate ((landKeyedRun 14).take 13)) == some true
@@ -3262,6 +3347,20 @@ def lakeGoldenText (_ : Unit := ()) : String :=
 #guard lakeCases.map (lakeBuilt? ·.2) == [some 0, some 2, none, none, some 3, none, some 0, some 8]
 
 def lakeGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-lake.jsonl"
+
+def outerCases : List (String × List Nat) :=
+  [("no check built a module", [0, 0]), ("no check ran", []), ("one check rebuilt 24 modules", [0, 24]),
+   ("two builds of 30 and 11 modules: the sum is 41, class 16", [30, 11]),
+   ("two builds of 3 modules are class 4, not class 1", [3, 3]), ("one build of 1 module", [1])]
+
+def outerGoldenText (_ : Unit := ()) : String :=
+  String.join (outerCases.map fun (n, xs) =>
+    (Json.mkObj [("name", .str n), ("builds", toJson xs), ("built", toJson (outerBuilt xs)),
+      ("work", workJson (outerWork xs))]).compress ++ "\n")
+
+#guard outerCases.map (outerBuilt ·.2) == [0, 0, 24, 41, 6, 1]
+
+def outerGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-outer.jsonl"
 
 def boundsText (_ : Unit := ()) : String :=
   "// Generated from lean/Fw/Obs/Timing.lean by lean/scripts/TimingGolden.lean; do not edit.\n" ++
@@ -3411,12 +3510,13 @@ def ownGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-
 def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
   IO.FS.writeFile lakeGoldenPath lakeGoldenText; IO.FS.writeFile ownGoldenPath ownGoldenText
-  IO.FS.writeFile capNetsGoldenPath capNetsGoldenText
+  IO.FS.writeFile capNetsGoldenPath capNetsGoldenText; IO.FS.writeFile outerGoldenPath outerGoldenText
 
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
     (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText &&
-    (← IO.FS.readFile ownGoldenPath) == ownGoldenText && (← IO.FS.readFile capNetsGoldenPath) == capNetsGoldenText
+    (← IO.FS.readFile ownGoldenPath) == ownGoldenText && (← IO.FS.readFile capNetsGoldenPath) == capNetsGoldenText &&
+    (← IO.FS.readFile outerGoldenPath) == outerGoldenText
 
 end Fw.Wire.Obs.Timing
 

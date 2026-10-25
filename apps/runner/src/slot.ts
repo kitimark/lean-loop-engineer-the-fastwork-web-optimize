@@ -4,7 +4,7 @@ import { appendFileSync, closeSync, existsSync, fstatSync, mkdirSync, openSync, 
 import os from "node:os";
 import { SLOT_SUBS, WAIT_TOOL, runLabel, waitStep } from "./slot-span.ts";
 import { type Queue, type WaitMs, addWait, noteQueue, queueOf } from "./slot-queue.ts";
-import { begin, timingsFile } from "./timing.ts";
+import { LAKE_HANDOFF_ENV, begin, readLakeHandoff, timingsFile } from "./timing.ts";
 import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type PassVerdict, type Row,
@@ -575,12 +575,17 @@ export function nestedHeld(d: Deps, kind: Kind): boolean {
   return nestedSkips(nowS(), kind, token ? { owner: d.owner, token } : null, readState(d).holders);
 }
 
+/** A fresh path for the `lake` member a child `fw land --dry` hands up to this run's span (`LAKE_HANDOFF_ENV`). */
+const lakeHandoffFile = (): string => join(os.tmpdir(), `fw-slot-lake-${randomUUID()}.json`);
+const dropFile = (f: string | null): void => { if (f !== null) rmSync(f, { force: true }); };
+
 export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): Promise<number> {
   const label = runLabel(kind, argv, argv.includes("--dry"));
   if (nestedHeld(d, kind)) {
     const end = begin("fw", label);
+    const lakeFile = kind === "land" ? lakeHandoffFile() : null;
     let r = EXIT_ERROR;
-    try { r = (await exec(d, argv, d.env, false)).exit; } finally { end(r); }
+    try { r = (await exec(d, argv, lakeFile === null ? d.env : { ...d.env, [LAKE_HANDOFF_ENV]: lakeFile }, false)).exit; } finally { end(r, lakeFile === null ? {} : readLakeHandoff(lakeFile)); dropFile(lakeFile); }
     return r;
   }
   const g0 = cache ? d.git() : null;
@@ -602,14 +607,15 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED, g.queue ? { queue: g.queue } : {});
   if (g.verdict.verdict !== "admit") return EXIT_REFUSED;
   const threads = String(g.verdict.threads);
-  const env = { ...d.env, FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
+  const lakeFile = kind === "land" ? lakeHandoffFile() : null;
+  const env = { ...d.env, ...(lakeFile === null ? {} : { [LAKE_HANDOFF_ENV]: lakeFile }), FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
   const timer = setInterval(() => { renewToken(d, g.token, null); }, Math.max(1, Math.floor(d.params.leaseS / 3)) * 1000);
   const endRun = begin("fw", label);
   let exit = EXIT_ERROR;
   try {
     const r = await exec(d, argv, env, key !== null);
     exit = r.exit;
-    endRun(exit);
+    endRun(exit, lakeFile === null ? {} : readLakeHandoff(lakeFile));
     if (key !== null && r.whole && cacheable(r.exit)) {
       const g1 = d.git();
       if (g1.tree === key.tree && g1.clean && g1.mainSha === g0?.mainSha) {
@@ -620,6 +626,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
     return r.exit;
   } finally {
     endRun(exit);
+    dropFile(lakeFile);
     clearInterval(timer);
     releaseToken(d, g.token);
   }
