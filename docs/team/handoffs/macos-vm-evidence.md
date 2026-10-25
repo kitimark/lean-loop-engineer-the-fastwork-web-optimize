@@ -1,7 +1,7 @@
 branch: worktree-wf_8b04760d-e7c-1 (CI branch ci/macos-vm-evidence = same commit)
 worktree: .claude/worktrees/wf_8b04760d-e7c-1
 last commit: 921a36f9e (code); handoff and note commit follow
-CI runs: webkit-sim 40232220883 in_progress (1 VM, 1 session, original arm, determinism); lean 40232220782, lean-math 40232220761, mutants 40232220780 in_progress
+CI runs: push 1 webkit-sim 40232220883 skipped (guard needs "[ci:webkit-sim]" in the head commit message); push 2 (marker in message) webkit-sim: id in the next update, 1 VM, 1 session, original arm, determinism
 paired run for counts: none yet named; counts are not changed by construction (the async layer only changes how simctl is called), golden replay covers the new decisions
 
 Phase 1 of macos-vm-evidence (harness and telemetry code only; workflows untouched).
