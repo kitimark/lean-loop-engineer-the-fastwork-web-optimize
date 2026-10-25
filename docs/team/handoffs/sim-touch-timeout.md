@@ -2,7 +2,7 @@ branch: worktree-wf_ff267e33-928-1 (CI branch ci/sim-touch-timeout, pushes used 
 worktree: .claude/worktrees/wf_ff267e33-928-1
 last commit: see git log (head of this branch)
 CI runs: 40134212357 toolbar-throttle finish on the merged code: failed (sim 2 ended with 6 of 8 passes, sim 1 died exit 130 with 1 of 8, sim 3 cancelled at 110 min); 40134212384 lean; earlier 40121254572 finish (cli.mjs, 15 of 18), 40128742749 hero drags (cli.mjs, 18 of 18)
-verified: Lean SimTouch + golden (59 lines) + 689 package tests + runner 3463 + ci-paths 56 + check.sh green; local debug run walked the restart path through parts-cli
+verified: Lean SimTouch + golden (59 lines) + 712 package tests + runner 3471 + ci-paths 56 + check.sh green after merging main (c2f3928e9); fw land dry VERDICT; local debug run walked the restart path through parts-cli
 cause of 40134212357: after merging main the workflow runs parts-cli.mjs, whose own pass loop bypassed the machine; fixed by moving the loop to src/throttle/pass-run.mjs (used by cli.mjs and parts-cli.mjs); NOT run in CI
 open: one more push (ci/sim-touch-timeout, [ci:toolbar-throttle] [throttle:finish] in the head message) to show the merged lane; lift-arm start-up stall (sim-lift-stall); persistent push server
 read first: research/notes/2026/10-2x-sim-touch-timeout.md, lean/Fw/Device/SimTouch.lean, packages/measure-webkit/src/throttle/pass-run.mjs, driver.mjs (twin, dragPass)
