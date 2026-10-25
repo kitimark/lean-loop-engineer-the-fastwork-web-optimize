@@ -349,19 +349,11 @@ theorem rewrite_no_gh_digest_refused (cm : Option String) : cellFiled rewriteLan
 theorem original_filed (gh cm : Option String) : cellFiled "webkit-sim" gh cm = true := by
   simp [cellFiled, rewriteLane]
 
-/-- The hardware of one machine: logical CPUs and memory in bytes; 0 means not read.
-
-What `sysctl -n hw.ncpu hw.memsize` prints in the tools step of each side.
--/
 structure Hw where
   cpus : Nat
   memsize : Nat
 deriving DecidableEq, Repr
 
-/-- The identity of a measurement platform: toolchain builds and hardware.
-
-Read from the `tools.txt` of a cell. Two cells share counts only when every component is equal and present.
--/
 structure PlatformKey where
   macosBuild : String
   xcodeBuild : String
@@ -369,18 +361,10 @@ structure PlatformKey where
   hw : Hw
 deriving DecidableEq, Repr
 
-/-- Is every component of the key present?
-
-An unread build or hardware value (empty string, 0) makes the key incomplete.
--/
 def PlatformKey.complete (k : PlatformKey) : Bool :=
   !k.macosBuild.isEmpty && !k.xcodeBuild.isEmpty && !k.runtimeBuild.isEmpty && decide (0 < k.hw.cpus) &&
     decide (0 < k.hw.memsize)
 
-/-- May the cell's counts merge with the reference cell's directly?
-
-Only when the keys are equal and the cell's key is complete.
--/
 def cellMerged (ref cell : PlatformKey) : Bool :=
   cell.complete && ref == cell
 
@@ -424,10 +408,8 @@ theorem cellMerged_no_cpus (ref cell : PlatformKey) (h : cell.hw.cpus = 0) : cel
 theorem cellMerged_no_memsize (ref cell : PlatformKey) (h : cell.hw.memsize = 0) : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-/-- A GitHub `xcode-27` macOS runner as measured (tools.txt of run 40225058193): 3 CPUs, 7516192768 bytes. -/
 def ghHw : Hw := ⟨3, 7516192768⟩
 
-/-- A Codemagic `mac_mini_m2` as measured: 8 CPUs, 12 GiB. -/
 def cmHw : Hw := ⟨8, 12884901888⟩
 
 theorem round2_pair_refused :
@@ -442,35 +424,25 @@ theorem missing_runtime_refused :
 theorem measured_pair_not_merged :
     cellMerged ⟨"26A434", "27A9275", "24A434", ghHw⟩ ⟨"26A434", "27A9275", "24A434", cmHw⟩ = false := by decide
 
-/-! ## Cross-pool pooling: which rows may count across hardware (task cross-pool-pooling)
+/-! ## Cross-pool pooling: a row on other hardware pairs only when `kReq` pinned pairs agree on its class -/
 
-Equal toolchain keys still gave different row classes between GitHub and Codemagic (20 of 104 rows, n=1 per side). With
-the hardware in the key those cells never merge directly. A row of a cell on other hardware is *paired* only when
-`kReq` pairs, each a GitHub cell and a Codemagic cell of one commit, measured exactly these two keys and agree on the
-row's class in every pair. Each row is decided on its own.
--/
-
-/-- The class of one row in one cell: `deterministic` (exact counts), `stable` (within a margin) or `quarantined`. -/
 inductive RowClass where
   | deterministic
   | stable
   | quarantined
 deriving DecidableEq, Repr
 
-/-- The rank of a class: higher is weaker. -/
 def RowClass.rank : RowClass → Nat
   | .deterministic => 0
   | .stable => 1
   | .quarantined => 2
 
-/-- The class a class word names, if any. -/
 def RowClass.ofString : String → Option RowClass
   | "deterministic" => some .deterministic
   | "stable" => some .stable
   | "quarantined" => some .quarantined
   | _ => none
 
-/-- The weaker of two classes (worst wins). -/
 def RowClass.worse (a b : RowClass) : RowClass := if a.rank ≤ b.rank then b else a
 
 theorem worse_ge_left (a b : RowClass) : a.rank ≤ (a.worse b).rank := by
@@ -479,10 +451,6 @@ theorem worse_ge_left (a b : RowClass) : a.rank ≤ (a.worse b).rank := by
 theorem worse_ge_right (a b : RowClass) : b.rank ≤ (a.worse b).rank := by
   unfold RowClass.worse; split <;> omega
 
-/-- One row seen in one pair: the class and platform key of each side, and the identity of the pair.
-
-`ghRun` and `cmBuild` name the two cells; `ghSha` and `cmSha` are the commits they measured.
--/
 structure Obs where
   gh : RowClass
   cm : RowClass
@@ -494,23 +462,11 @@ structure Obs where
   cmSha : String
 deriving DecidableEq, Repr
 
-/-- The number of pinned pairs a row needs before it may pool.
-
-3: the most pairs three CI pushes give, and 166 + 3 * 40 minutes stays under the Codemagic line (`k3_fits_166`).
--/
 def kReq : Nat := 3
 
-/-- Does one observation support pooling for the pair of keys now compared?
-
-Both sides in the same class, the sides measured exactly `ref` and `cell`, and both measured one non-empty commit.
--/
 def Obs.holds (ref cell : PlatformKey) (o : Obs) : Bool :=
   o.gh == o.cm && o.ghKey == ref && o.cmKey == cell && o.ghSha == o.cmSha && !o.ghSha.isEmpty
 
-/-- May a row pool across the two platforms?
-
-At least `kReq` observations, each one supporting, from distinct GitHub runs and distinct Codemagic builds.
--/
 def rowPooled (ref cell : PlatformKey) (obs : List Obs) : Bool :=
   decide (kReq ≤ obs.length) && obs.all (·.holds ref cell) && decide (obs.map (·.ghRun)).Nodup &&
     decide (obs.map (·.cmBuild)).Nodup
@@ -575,22 +531,15 @@ theorem pooled_empty_sha_refused (ref cell : PlatformKey) (obs : List Obs) (o : 
   · have := ((rowPooled_iff ref cell obs).1 hp).2.1 o ho
     simp [Obs.holds, h] at this
 
-/-- Do the keys name one toolchain: equal macOS, Xcode and runtime builds? -/
 def sameToolchain (ref cell : PlatformKey) : Bool :=
   ref.macosBuild == cell.macosBuild && ref.xcodeBuild == cell.xcodeBuild && ref.runtimeBuild == cell.runtimeBuild
 
-/-- How the counts of a row of the cell under test are used. -/
 inductive Use where
   | direct
   | paired
   | refused
 deriving DecidableEq, Repr
 
-/-- The use of one row of the cell.
-
-`direct` when the keys merge (hardware included); `paired` when they differ, the three toolchain builds are equal, and
-`kReq` pinned pairs of exactly these keys agree on the row; else `refused`.
--/
 def rowUse (ref cell : PlatformKey) (obs : List Obs) : Use :=
   if cellMerged ref cell then .direct
   else if ref.complete && cell.complete && sameToolchain ref cell && rowPooled ref cell obs then .paired
@@ -664,7 +613,6 @@ theorem rowUse_disagree_refused (ref cell : PlatformKey) (obs : List Obs) (o : O
     (ho : o ∈ obs) (hd : o.gh ≠ o.cm) : rowUse ref cell obs = .refused :=
   rowUse_unpaired_refused ref cell obs h (pooled_disagree ref cell obs o ho hd)
 
-/-- The class a paired row counts under: the weakest class either side showed in any pair. -/
 def pairedClass : List Obs → RowClass
   | [] => .deterministic
   | o :: os => (pairedClass os).worse (o.gh.worse o.cm)
@@ -684,10 +632,6 @@ theorem pairedClass_ge (obs : List Obs) (o : Obs) (ho : o ∈ obs) :
       have h3 := worse_ge_left (pairedClass xs) (x.gh.worse x.cm)
       omega
 
-/-- Each row of a table with the use of its counts.
-
-Rows are named by their `family|metric|level` text; every row is decided from its own observations only.
--/
 def rowsUse (ref cell : PlatformKey) (rows : List (String × List Obs)) : List (String × Use) :=
   rows.map fun r => (r.1, rowUse ref cell r.2)
 
@@ -701,10 +645,8 @@ theorem rowsUse_mem (ref cell : PlatformKey) (rows : List (String × List Obs)) 
 theorem rowsUse_length (ref cell : PlatformKey) (rows : List (String × List Obs)) :
     (rowsUse ref cell rows).length = rows.length := by simp [rowsUse]
 
-/-- Can `k` more pairs be paid for under the Codemagic line, each at the cap? -/
 def pairsAffordable (used k : Nat) : Bool := decide (used + k * Codemagic.maxCapMin ≤ Codemagic.stopAt)
 
-/-- The most pairs the month still pays for, at most `kReq`: the `k` reached when the budget is short. -/
 def pairsReachable (used : Nat) : Nat := min kReq ((Codemagic.stopAt - used) / Codemagic.maxCapMin)
 
 theorem k3_fits_166 : pairsAffordable 166 kReq = true := by decide
@@ -735,37 +677,20 @@ theorem pairsReachable_full (used : Nat) (h : pairsAffordable used kReq = true) 
   have : 3 ≤ (400 - used) / 40 := (Nat.le_div_iff_mul_le (show 0 < 40 by omega)).2 (by omega)
   exact Nat.min_eq_left this
 
-/-! ## Re-route of a job still queued on GitHub -/
-
-/-- How long a GitHub macOS job waits in the queue before the poller offers it to Codemagic. -/
 def rerouteAfterS : Nat := 300
 
-/-- A request whose GitHub job is still queued: the seconds it has waited and the unfinished cells of its run.
-
-The run is cancelled once its cell is on Codemagic, so a run with other unfinished cells (`runCells` ≠ 1) stays.
--/
 structure Queued where
   req : Req
   queuedS : Nat
   runCells : Nat
 deriving DecidableEq, Repr
 
-/-- May the job be offered to Codemagic?
-
-It has waited `rerouteAfterS` seconds and is the only unfinished cell of its run.
--/
 def Queued.movable (q : Queued) : Bool := decide (rerouteAfterS ≤ q.queuedS) && q.runCells == 1
 
-/-- The requests the re-route considers, in order: the movable queued ones. -/
 def rerouteReqs (qs : List Queued) : List Req := (qs.filter Queued.movable).map (·.req)
 
-/-- The re-route plan: the ordinary route over the movable queued requests.
-
-A job goes to Codemagic exactly when the route sends its request there; every other answer leaves the job on GitHub.
--/
 def reroutePlan (c : Cfg) (qs : List Queued) (s : State) : List (Req × Decision) × State := step c (rerouteReqs qs) s
 
-/-- The decisions of the plan that move a job to Codemagic. -/
 def rerouteMoved (c : Cfg) (qs : List Queued) (s : State) : List (Req × Decision) :=
   (reroutePlan c qs s).1.filter fun x => x.2.isCm
 

@@ -1,4 +1,3 @@
-// A Codemagic build id as review evidence: Lean `Fw.Plan.ReviewReady.runIdOf` takes `cm:` and 24 lowercase hex digits.
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

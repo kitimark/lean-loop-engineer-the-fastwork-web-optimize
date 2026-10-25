@@ -164,7 +164,6 @@ export function parsePlatformKey(tools: string | null, iosVersion = "27.0"): Pla
   };
 }
 
-/** `sysctl -n hw.ncpu hw.memsize` prints two bare numbers; anything else reads as 0, which Lean refuses. */
 function hwOf(t: string): { cpus: number; memsize: number } {
   const m = /^(\d{1,3})\n(\d{9,})$/m.exec(t);
   return { cpus: m ? Number(m[1]) : 0, memsize: m ? Number(m[2]) : 0 };
@@ -272,7 +271,6 @@ export function mergeClasses(root: string, dir: string, refused: { vm: string; k
   return files.length;
 }
 
-/** A cell that differs from the reference only in hardware is a pinned pair, not a merge: record it and decide each row. */
 function pairRefused(a: { consoleDir: string; call: FwCall; read: CmDeps["read"] }, dir: string, refVm: string, ref: PlatformKey, refused: { vm: string; key: PlatformKey }[], cells: CmCellDone[], runId: string, ghSha: string | null): void {
   const out = join(dir, "webkit-classes");
   const ghMd = readOr(join(out, `${refVm}-classes.md`));
@@ -364,7 +362,6 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
   };
 }
 
-/** TS stand-in for `classRows` in scripts/codemagic.mjs: `family|metric|level` -> class word of one class table. */
 export function classRowsOf(md: string): Record<string, string> {
   const rows: Record<string, string> = {};
   for (const line of md.split("\n")) {
@@ -375,7 +372,6 @@ export function classRowsOf(md: string): Record<string, string> {
   return rows;
 }
 
-/** The commit a GitHub run measured (`gh run view --json headSha`); null when unreadable. */
 async function headShaOf(gh: Gh, runId: string): Promise<string | null> {
   try {
     const v = JSON.parse(await gh(["run", "view", runId, "--json", "headSha"])) as { headSha?: unknown };
@@ -385,7 +381,6 @@ async function headShaOf(gh: Gh, runId: string): Promise<string | null> {
 
 export type PairRecord = { target: string; vm: string; ghRun: string; cmBuild: string; ghSha: string; cmSha: string; ghKey: PlatformKey; cmKey: PlatformKey; gh: Record<string, string>; cm: Record<string, string> };
 
-/** One pinned pair: a GitHub cell and a Codemagic cell of one commit, with the key each was measured under. */
 export function recordPair(pairsDir: string, p: PairRecord): string {
   mkdirSync(pairsDir, { recursive: true });
   const f = join(pairsDir, `${p.ghSha.slice(0, 7)}-${p.target}-${p.vm}-${p.cmBuild.replace(/^cm:/, "")}.json`);
@@ -400,7 +395,6 @@ export function readPairs(pairsDir: string): PairRecord[] {
 
 export type PooledRows = { kReq: number; reachable: number; merged: boolean; rows: { row: string; use: string; class?: string }[]; counts: { direct: number; paired: number; refused: number } };
 
-/** The pooling decision per row (Lean `ci.poolRows`): the pairs become observations of every row both sides know. */
 export function poolRows(call: FwCall, ref: PlatformKey, cell: PlatformKey, pairs: PairRecord[], used = 0): PooledRows {
   const names = new Set<string>();
   for (const p of pairs) for (const k of Object.keys(p.gh)) if (k in p.cm) names.add(k);
@@ -411,8 +405,6 @@ export function poolRows(call: FwCall, ref: PlatformKey, cell: PlatformKey, pair
 export type QueuedJob = { req: Record<string, unknown>; queuedS: number; runCells: number; runId: string };
 export type RerouteDeps = { trigger: (req: Record<string, unknown>) => Promise<{ build: string | null; code: number }>; cancel: (runId: string) => Promise<void>; log: (l: string) => void };
 
-/** Re-route still-queued GitHub jobs (Lean `ci.reroute`). Codemagic is triggered first; the GitHub run is cancelled only after
- * the trigger succeeded, and only when the job is the lone unfinished cell of its run. Returns the Codemagic builds started. */
 export async function rerouteQueued(call: FwCall, state: Record<string, unknown>, jobs: QueuedJob[], d: RerouteDeps): Promise<string[]> {
   const reply = call({ op: "ci.reroute", state, queued: jobs.map((j) => ({ ...j.req, queuedS: j.queuedS, runCells: j.runCells })) }) as unknown as { log: { reroute: boolean; i: number }[] };
   const started: string[] = [];

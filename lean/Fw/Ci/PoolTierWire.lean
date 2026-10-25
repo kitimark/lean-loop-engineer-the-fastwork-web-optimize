@@ -94,7 +94,6 @@ def opCell (req : Json) : Except String Reply := do
   pure [("lane", match lane with | some l => Json.str l | none => .null), ("routable", routableTarget pool7 t),
     ("needsDigest", lane == some rewriteLane), ("filed", match lane with | some l => toJson (cellFiled l gh cm) | none => toJson false)]
 
-/-- A platform key from JSON: the three builds and `cpus`, `memsize` (absent or 0: not read). -/
 def keyOf (o : Json) : Except String PlatformKey := do
   pure ⟨← strD o "macosBuild" "", ← strD o "xcodeBuild" "", ← strD o "runtimeBuild" "", ⟨← natD o "cpus" 0, ← natD o "memsize" 0⟩⟩
 

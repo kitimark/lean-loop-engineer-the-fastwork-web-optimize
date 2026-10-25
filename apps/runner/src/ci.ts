@@ -86,10 +86,8 @@ export function stateStep(narrowed: boolean, limit: number, id: number, ids: num
   return next === undefined ? { step: "exhausted" } : { step: "grow", next };
 }
 
-/** A Codemagic build id as `fw review ready` evidence names it: `cm:` and 24 lowercase hex digits (Lean `Fw.Plan.ReviewReady.runIdOf`). */
 export const CM_RUN = /^cm:[0-9a-f]{24}$/;
 
-/** Reads the state word of one Codemagic build (`node scripts/codemagic.mjs state --build <id>`); I/O glue, no decision. */
 export type CmState = (buildId: string) => Promise<"running" | "complete" | "failed" | null>;
 
 export function realCmState(root: string): CmState {

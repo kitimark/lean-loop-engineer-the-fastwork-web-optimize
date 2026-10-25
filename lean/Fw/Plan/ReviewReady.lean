@@ -80,17 +80,9 @@ Its non-empty runs between separators.
 -/
 def tokens (s : String) : List (List Char) := (s.toList.splitOnP isSep).filter (!·.isEmpty)
 
-/-- Is the character a lowercase hex digit?
-
-The alphabet of a Codemagic build id.
--/
 def isHex (c : Char) : Bool := c.isDigit || ('a' ≤ c && c ≤ 'f')
 
-/-- The run id a token names, if it is `run:` and digits, or `cm:` and 24 hex digits.
-
-A GitHub run id written `run:<digits>` (the id is the digits), or a Codemagic build id written `cm:<24 hex>` (the id keeps
-the `cm:` prefix, which `fw ci state` reads).
--/
+/-- The run id a token names: `run:<digits>` gives the digits, `cm:<24 hex>` keeps its `cm:` prefix. -/
 def runIdOf : List Char → Option String
   | 'r' :: 'u' :: 'n' :: ':' :: d => if !d.isEmpty && d.all Char.isDigit then some (String.ofList d) else none
   | 'c' :: 'm' :: ':' :: d => if d.length == 24 && d.all isHex then some (String.ofList ('c' :: 'm' :: ':' :: d)) else none

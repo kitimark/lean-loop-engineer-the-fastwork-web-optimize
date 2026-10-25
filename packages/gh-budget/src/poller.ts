@@ -14,8 +14,6 @@ const PAGE = 100;
 
 export type QueuedRun = { runId: number; workflow: string; sha: string; branch: string; queuedS: number };
 
-/** The env of a poller that may re-route: `reroute` gets the runs the list shows as still queued, each with its age in
- *  seconds. The decision to move one to Codemagic is Lean's (`ci.reroute`); the poller only hands the facts over. */
 export type RerouteEnv = Env & { reroute?: (queued: QueuedRun[], now: number) => Promise<void> };
 
 export type TickStatus = Status & { interval?: number; retryUntil?: number };
@@ -126,8 +124,6 @@ async function pollTick(env: RerouteEnv, lockWaitMs: number): Promise<Poll> {
   return { wakeAt: now, ticked: true };
 }
 
-/** Hand the still-queued runs of the list to `env.reroute` (the Lean decision `ci.reroute` lives behind it). No hook, no
- *  queued run, or a failing hook: nothing happens and the tick goes on (a failed move leaves the run on GitHub). */
 export async function rerouteTick(env: RerouteEnv, rows: Row[], now: number): Promise<number> {
   if (!env.reroute) return 0;
   const queued: QueuedRun[] = rows

@@ -1,5 +1,3 @@
-// The poller's re-route call site: queued runs of the list go to env.reroute with their age; no decision is made here
-// (Lean `ci.reroute` sits behind the hook, tested in apps/runner).
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync } from "node:fs";
 import test from "node:test";

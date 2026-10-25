@@ -47,7 +47,6 @@ export function poolRefusals(c, used, cap) {
 }
 export const poolOk = (c, used, cap) => poolRefusals(c, used, cap).length === 0;
 
-/** The state word `fw ci state cm:<id>` prints: `running` until the Lean exit map (`exitOf`) answers, then `complete` for a finished build and `failed` for any other end. I/O glue, no decision. */
 export function stateWord(status) {
   const code = exitOf(status);
   return code === null ? 'running' : code === 0 ? 'complete' : 'failed';

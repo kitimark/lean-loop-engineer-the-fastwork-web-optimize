@@ -1,4 +1,4 @@
-branch worktree-wf_d91e3108-16e-1; worktree .claude/worktrees/wf_d91e3108-16e-1; round 2 (no new CI push; no new Codemagic or GitHub dispatch)
+branch worktree-wf_d91e3108-16e-1; worktree .claude/worktrees/wf_d91e3108-16e-1; round 2 (no new CI push or dispatch)
 CI runs (round 1): lean 40224630846; k=3 pairs GitHub 40225058193, 40226715252, 40229095163 (success) with cm:6ade550f28f7ff171ac1a5a9, cm:6ade59e62261fc70401bb883, cm:6ade60fa118a2ae26ddd9238 (219 of 500 minutes, stop line 400)
 Result (MEASURED): hardware differs (3 vs 8 cpu), merged=false; ci.poolRows over 104 rows: 65 paired, 39 refused (36 differ in class, 3 in fewer than 3 pairs).
 
