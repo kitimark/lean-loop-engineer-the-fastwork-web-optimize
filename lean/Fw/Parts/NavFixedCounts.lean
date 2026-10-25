@@ -594,14 +594,14 @@ theorem shift_not_above (b : List Int) (d lo hi : Int) (hlo : lo ∈ b) (hhi : h
   omega
 
 /-- The base's end-state layer census of the finish zone. -/
-def baseEndLayers : List Int :=
+def baseEndLayers (_ : Unit) : List Int :=
   match armData "base" with
   | some b => (cellOf b ⟨.finish, .layers, some endState⟩).vals
   | none => []
 
 /-- The spread of the base's end-state layer census, 4 in the filed passes, is at least the 3 layers the largest arm adds, so no arm's
 end-state layer cell can be certified from the filed passes whatever the arm adds. -/
-def endSpread : Int := (stats baseEndLayers).2.1 - (stats baseEndLayers).1
+def endSpread (_ : Unit) : Int := (stats (baseEndLayers ())).2.1 - (stats (baseEndLayers ())).1
 
 /-! ## Golden -/
 
@@ -691,7 +691,7 @@ hold; changing a file means changing them here, and so the module's source. -/
 #guard (cdata ()).map (fun a => (a.arm, a.run, a.passes.length)) ==
   [("base", 40171939293, 3), ("clip-box", 40171943772, 3), ("bar-fixed", 40171960215, 3), ("logo-3d", 40171946109, 3)]
 #guard (data ()).all fun a => a.passes.all fun p => p.vh == 775 && p.ys.length == p.steps.length
-#guard 3 ≤ endSpread
+#guard 3 ≤ endSpread ()
 
 /-! The golden is this module's own output (written from `jsonl`, never by hand). -/
 #guard jsonl () == include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.jsonl"
