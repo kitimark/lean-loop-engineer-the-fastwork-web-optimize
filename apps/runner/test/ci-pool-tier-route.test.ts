@@ -4,7 +4,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { lanePool, placeCmArtifacts, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
-import { fwcoreCall, type PlanJob } from "../src/run.ts";
+import type { PlanJob } from "@fw/contracts";
+import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const call = fwcoreCall(root);
