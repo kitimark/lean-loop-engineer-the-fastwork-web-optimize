@@ -7,6 +7,8 @@ CI runs (all dispatched with `pnpm -s fw run --target rewrite --engines webkit -
 - 40162251194 success, 3 of 3 sim jobs green (r1 21m, r2 32m, r3 38m), commit 17527314e
 - 40162538610 cancelled, 2 of 3: r1 hit the 35 min step bound then `Host state on failure` hung 16 min; r2 never ended the sessions step; r3 passed (commit 17527314e)
 - 40170046006 failure, 1 of 3 (commit 0de529106, bounded Host state): r2 green (889 s); r1 named failure (reboot of the Simulator failed: `simctl shutdown` ETIMEDOUT, `lsof` ETIMEDOUT, load 900; logs uploaded); r3 REAL RECOVERY (log: "the device is not booted", shutdown 0 s, boot 9 s, bootstatus 75 s, Safari relaunched, "recovered; the inspector answers") then the 35 min step bound ended it (sessions 2170 s) = the open SimBound item
+- 40174232514 failure, 2 of 3 (same commit): r1 887 s and r3 1124 s green; r2 slow Simulator (120 s evaluate timeouts), step bound at 2153 s, no device death
+- No more dispatches: 3 of 3 happened once (40162251194); the second is undelivered; the dominant loss is the 35 min step bound (SimBound), not the guard
 
 ## State
 - Lean: `lean/Fw/Device/SimRelaunch.lean` (call machine, pass machine, rank, seconds bound, golden `run`); golden `packages/contracts/golden/device/sim-relaunch.jsonl`; wired in `lean/Fw.lean`, `lean/scripts/check.sh`, `lean/Fw/Ci/Trigger.lean` (lean.yml row), `triggers.jsonl` regenerated.
