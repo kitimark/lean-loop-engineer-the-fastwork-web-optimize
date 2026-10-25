@@ -15909,7 +15909,8 @@
     "lean/Fw/Ci/PoolTierWire.lean",
     "lean/scripts/PoolGolden.lean"
    ],
-   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event. Added 2026-10-25 (r484, after round 2): the paired rewrite cell had equal site digests but count classes differed in 18 of 104 rows; the GitHub and Codemagic images differ (Xcode 27.1 vs 27.0, extra iOS 26.5 runtime). Lean must refuse to merge or route a cell unless the toolchain identity (macOS, Xcode, Simulator runtime) matches; pin Codemagic to the GitHub Xcode where possible."
+   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event. Added 2026-10-25 (r484, after round 2): the paired rewrite cell had equal site digests but count classes differed in 18 of 104 rows; the GitHub and Codemagic images differ (Xcode 27.1 vs 27.0, extra iOS 26.5 runtime). Lean must refuse to merge or route a cell unless the toolchain identity (macOS, Xcode, Simulator runtime) matches; pin Codemagic to the GitHub Xcode where possible.",
+   "evidence": "5dac62e"
   },
   {
    "devices": [
@@ -21833,6 +21834,37 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-ledger-class-lint.md",
     "docs/team/handoffs/ledger-class-lint.md"
+   ],
+   "evidence": "c1b7fdb"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cross-pool-pooling",
+   "owner": "console-builder",
+   "stream": "infra",
+   "deps": [
+    "pool-dispatch-poller"
+   ],
+   "title": "Follow-up of pool-dispatch-poller (landed 4abbb49ed): with equal toolchain keys (macOS 26A434, Xcode 27A9275, runtime 24A434) a Codemagic cell still differed from GitHub in 20 of 104 count classes (MEASURED, n=1; hardware 3 vCPU M1 vs 8 cpu / 12 GiB). Decide in Lean whether cross-pool pooling is ever sound: run k pinned pairs (budget-named Codemagic minutes, stop line 400 of 500/month), add hardware to the key once the GitHub tools step prints memsize (webkit-sim.yml), and decide per row class. Also: fw ci state accepts cm: ids (apps/runner/src/ci.ts), ReviewReady evidence accepts cm: build ids, and the poller re-routes jobs still queued on GitHub when Codemagic is free. Until this lands, Codemagic cells file under their own key and never merge with GitHub classes unless keys match.",
+   "writes": [
+    "lean/Fw/Ci/PoolTier.lean",
+    "lean/Fw/Ci/PoolTierWire.lean",
+    "lean/scripts/PoolGolden.lean",
+    "packages/contracts/golden/ci/pool*.jsonl",
+    "apps/runner/src/ci-pool-tier.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci-pool-tier*.test.ts",
+    "apps/runner/test/ci*.test.ts",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "packages/gh-budget/src/poller.ts",
+    ".github/workflows/webkit-sim.yml",
+    "codemagic.yaml",
+    "scripts/codemagic.mjs",
+    "scripts/codemagic.test.mjs",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/cross-pool-pooling.md"
    ]
   }
  ],

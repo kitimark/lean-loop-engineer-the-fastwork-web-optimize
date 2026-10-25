@@ -1,5 +1,5 @@
 {
- "about": "Every optimization candidate tried or considered (research/notes/2026/10-18-optimization-inventory.md section 2), wins and no-wins alike: verdict per engine, mechanism (why it helps or not), Lean decls for and against, missing why-theorems, premises, v1 evidence, general lesson, next action. Produced by workflow findings-r1 (4 read-only analysts) at main 6d5bf87; claims carry CONFIRMED/INFERRED/OPEN in their text. notes: append-only per-task additions to a finding field, one row per (entry, task) where entry is the finding's candidate text; a finding's full mechanism is its mechanism string followed by its notes with field mechanism, in array order (convention: docs/team/tools/ledger-merge.md, Lean Fw.Ops.LedgerMerge.distinct_notes_merge). Optional row fields: flag (the part:variant key the row decides), fResult (pass, unusable or model-bug; a model-bug row keeps its flag out of v2-proved, Lean Fw.Preset.falsified_not_mem) and evidence (the source of the observation).",
+ "about": "Every optimization candidate tried or considered (research/notes/2026/10-18-optimization-inventory.md section 2), wins and no-wins alike: verdict per engine, mechanism (why it helps or not), Lean decls for and against, missing why-theorems, premises, v1 evidence, general lesson, next action. Produced by workflow findings-r1 (4 read-only analysts) at main 6d5bf87; claims carry CONFIRMED/INFERRED/OPEN in their text. notes: append-only per-task additions to a finding field, one row per (entry, task) where entry is the finding's candidate text; a finding's full mechanism is its mechanism string followed by its notes with field mechanism, in array order (convention: docs/team/tools/ledger-merge.md, Lean Fw.Ops.LedgerMerge.distinct_notes_merge). Optional row fields: flag (the part:variant key the row decides), fResult (pass, unusable or model-bug; a model-bug row keeps its flag out of v2-proved, Lean Fw.Preset.falsified_not_mem), visClass (E, E-s, Q or L; required on the one row of every flag with a part.json visClass and equal to it, Lean Fw.Preset.Gen.classDisagreements_eq_nil_iff) and evidence (the source of the observation).",
  "findings": [
   {
    "n": 1,
@@ -1355,6 +1355,7 @@
    "lesson": "A split of a mixed keyframe set keeps layout as long as one layout property stays animated; removing layout means changing the look, and WebKit accelerates transform, translate and opacity but not clip-path, so a crop must be made of those.",
    "next": "User visual review of the frame strips and the felt-lag check on the phone (CI has no real GPU); a time-aligned swap lane (sampling inside the 220 ms windows) would resolve the WebKit cost.",
    "flag": "people.carousel:crop",
+   "visClass": "L",
    "evidence": "trajectory-probe 39896845339 (inputs read back: fw=people.carousel:crop, engines both, commit-line); breakpoint-gate 39898995879; webkit-sim 39899015125 (base) and 39906731945 (flag); results/people-carousel-crop/; note research/notes/2026/10-2x-people-carousel-crop.md"
   },
   {
@@ -2474,6 +2475,7 @@
    "lesson": "A CSS transition on a property that script drives every frame restarts each frame from the current value, so it lags the drive by about its own duration; the original turned it off for the nav width and actions gap but not for the earn button.",
    "next": "User visual review of the frame strips (Chromium: CI run 39473950464, artifacts frames-*; WebKit: CI run 39530106935, the 4 screenshot strips). It stays out of v2-proved while it is a look change. Follow-ups: hold the class to the tween's end for the close push; WebKit region B counters.",
    "flag": "nav:earn-no-transition",
+   "visClass": "L",
    "evidence": "trajectory-probe runs 39463486725 and 39464309993 (flag), 39464294630 (A/A) and 39464322751 (A/A), ci/earn-transition-retarget at c414428, both engines; note research/notes/2026/10-20-earn-transition-retarget.md",
    "userDecision": {
     "date": "2026-10-21",
@@ -2590,6 +2592,7 @@
    "candidate": "morph.tween:scroll-lock (C4): hold the root at overflow: hidden while the morph is active, only where the primary input hovers and the scrollbar is an overlay one, instead of relying on the scrollTo pin alone",
    "status": "look-change",
    "flag": "morph.tween:scroll-lock",
+   "visClass": "L",
    "chromium": "premise-holds",
    "webkit": "premise-holds on Mac (trackpad gesture in flight); premise-false on iPhone (pan in flight not stopped), where the arm is not installed",
    "visual": "look change (L) during a gated gesture in flight: the page no longer jumps one delta before the pin returns it, and the overlay scrollbar hides while the morph runs; the main-thread position and the layout width are the original's (lock_vis, gutter_same)",
@@ -2644,6 +2647,7 @@
    "candidate": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
    "status": "partly-proved",
    "flag": "hero:scene-pause",
+   "visClass": "E",
    "flags": [
     "hero:scene-pause"
    ],
@@ -2921,6 +2925,7 @@
    "candidate": "pain:dark-scroll: at most 860 px, replace the is-pain-dark class flip (section restyle and background repaint) with two empty solid layers whose opacity runs on the root scroll timeline with steps(1, jump-start), range start 256 px before the flip written once per layout; people.card stops toggling the class where the engine runs it (continues n=21)",
    "status": "partly-proved",
    "flag": "pain:dark-scroll",
+   "visClass": "E-s",
    "flags": [
     "pain:dark-scroll"
    ],
@@ -3021,6 +3026,7 @@
    "candidate": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius on the nav; the bar and the panel are still placed by the insets, so they lay out per frame",
    "status": "partly-proved",
    "flag": "nav:clip-box",
+   "visClass": "L",
    "flags": [
     "nav:clip-box"
    ],
@@ -3052,6 +3058,7 @@
    "candidate": "nav:bar-fixed (includes clip-box): the bar keeps its union width and moves by translate, the logo and actions by closed-form translations, so the morph writes no layout property on the bar",
    "status": "partly-proved",
    "flag": "nav:bar-fixed",
+   "visClass": "L",
    "flags": [
     "nav:bar-fixed"
    ],
@@ -3085,6 +3092,7 @@
    "candidate": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
    "status": "partly-proved",
    "flag": "nav:logo-3d",
+   "visClass": "L",
    "flags": [
     "nav:logo-3d"
    ],
@@ -3679,6 +3687,7 @@
    "lesson": "A shorthand in transition-property is expanded differently by the two engines: WebKit lists its logical longhands as they are, so they need a physical wrapper that does not exist; listing the longhands, which both engines resolve to physical, gives one behaviour.",
    "next": "none: accepted 2026-10-25 and proved; it stays out of v2-proved while it is a look change (class L).",
    "flag": "nav:earn-logical",
+   "visClass": "L",
    "evidence": "research/notes/2026/10-2x-earn-webkit-smooth.md; research/notes/2026/10-2x-earn-logical-proof.md; results/earn-logical-proof/summary.json; macOS per-frame runs 40100783726 and 40102193302 (trajectory-probe, ci/earn-webkit-smooth), breakpoint-gate push run 40100783656 (default page); breakpoint gate with the variant on both engines, head 27020e909: run 40114684690 (success, every job)",
    "userDecision": {
     "date": "2026-10-25",
@@ -3693,6 +3702,7 @@
    "candidate": "morph.end.clamp:on (brick A of morph-end-bricks): the pin is restored to min(pin, real maxY) each frame, so the page stops writing the overscroll position back against the rubber band at the end of the page",
    "status": "look-change",
    "flag": "morph.end.clamp:on",
+   "visClass": "L",
    "flags": [
     "morph.end.clamp:on"
    ],
@@ -3728,6 +3738,7 @@
    "candidate": "morph.end.flip:on (brick B of morph-end-bricks): an active morph flips (open to close or back) only on a new touch or after 16 px of net travel against the goal",
    "status": "look-change",
    "flag": "morph.end.flip:on",
+   "visClass": "L",
    "flags": [
     "morph.end.flip:on"
    ],
@@ -3761,6 +3772,7 @@
    "candidate": "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops preventDefault until the next open",
    "status": "look-change",
    "flag": "morph.end.release:on",
+   "visClass": "L",
    "flags": [
     "morph.end.release:on"
    ],
@@ -3863,7 +3875,8 @@
    "lesson": "Read what the faithful arm already unmounts before pausing it: the glint's play flag removes the animations whenever the stage is under 35 percent visible, so a pause adds a clock seek (setElapsed resets every scheduled animation) for a saving limited to one commit window. Prove the baseline's offscreen work is zero first (faithful_no_ticks_away) and the candidate is a no-op by construction.",
    "evidence": "40092155958 (platform.glint:offscreen-pause) trajectory probe, flag, engines both, all widths",
    "next": "Not offered: no gain beyond the commit window (window_gain), so the gate with the flag is not run. Offscreen counts move to task offscreen-count-lane. Drop the flag if it stays unused.",
-   "flag": "platform.glint:offscreen-pause"
+   "flag": "platform.glint:offscreen-pause",
+   "visClass": "E"
   },
   {
    "id": "mount.arm-late",
@@ -3990,6 +4003,7 @@
    "candidate": "morph.columns:final-scale: lay the marquee columns out once at the final width and draw each by a horizontal scale and a translate computed in CSS from --morph, so the 21 pictures are not re-laid out each morph frame; applies up to 1000 px",
    "status": "look-change",
    "flag": "morph.columns:final-scale",
+   "visClass": "L",
    "flags": [
     "morph.columns:final-scale"
    ],
@@ -4036,6 +4050,7 @@
    "candidate": "morph.mount:touch-first: take the push decision on the first touchmove of a gesture (the native pan waits for it) and never start pinning once the native pan began; a gesture that starts unarmed hands over to the morph at the next gesture, not mid-gesture",
    "status": "partly-proved",
    "flag": "morph.mount:touch-first",
+   "visClass": "L",
    "chromium": "trajectory probe run 40213443051 (fw=morph.mount:touch-first widths 390,1280): 0 new fails, 0 baseline-red, 44 undecided open@1 (same as the other mount flags); the trajectory drives wheel and pointer scroll, not touch gestures, so the touch rule itself is not exercised",
    "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40213443051); felt effect not measured: the Simulator lane arm for the flag is not delivered",
    "visual": "L (look-change proposal): equal on a cancelable first move (first_same_first_move, active_taken); differs when a drag enters the armed zone after its first move (handover moves to the next gesture); same look under touch unproven until toolbar-sim-lane runs",
@@ -4071,6 +4086,7 @@
    "candidate": "morph.mount:open-once: one touch gesture opens the morph at most once (the first idle-to-taken move opens it; after a close inside the same gesture no move reopens it)",
    "status": "partly-proved",
    "flag": "morph.mount:open-once",
+   "visClass": "L",
    "chromium": "trajectory probe run 40214808662 (fw=morph.mount:open-once widths 390,1280): 0 new fails, 44 undecided open@1 (as every mount flag); the trajectory drives wheel and pointer scroll, not touch gestures",
    "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40214808662); felt effect not measured",
    "visual": "L (look-change proposal): a reopen inside one finger drag is dropped; same look under touch unproven until toolbar-sim-lane runs",
@@ -4105,6 +4121,7 @@
    "candidate": "morph.mount:overscroll-lock: root overscroll-behavior-y none while the platform is near and armed or the morph is active, so the native rubber band cannot fight the pinned scroll at the page end",
    "status": "look-change",
    "flag": "morph.mount:overscroll-lock",
+   "visClass": "L",
    "chromium": "no effect expected (no touch overscroll in Chromium desktop)",
    "webkit": "not measured",
    "visual": "L (look change): no rubber band at the page end while locked; user visual review pending; never into a preset",
@@ -4126,6 +4143,42 @@
    "lesson": "A native stop (bounces off) replaces a JS fight but changes the feel at the page end.",
    "next": "The user looks at the page end on the phone with the flag.",
    "evidence": "Lean Fw.Parts.MorphMountToolbar.lock_*; golden morph-mount-toolbar.jsonl"
+  },
+  {
+   "id": "pain.dark-static",
+   "n": 80,
+   "part": "pain",
+   "candidate": "pain:dark-static: at most 860 px, the two pain:dark-scroll pseudo-element layers are #131922 from the start and nothing is animated; people.card never writes is-pain-dark (continues n=47)",
+   "status": "look-change",
+   "flag": "pain:dark-static",
+   "visClass": "L",
+   "flags": [
+    "pain:dark-static"
+   ],
+   "chromium": "MEASURED partial win (counts run 39852245766, swipe-v1 x3, base 39818749535): the toggle frame keeps the pain:dark-scroll saving (invalidated area 3,413,963 to 3,013,203 px, raster tasks 26 to 20, style recalcs 4 to 3, layers +0); over the whole swipe area -0.4 percent, tiles unchanged",
+   "webkit": "MEASURED no-win (same-ref webkit-sim runs 39852256714 static, 39856782689 base, 39856789295 pain:dark-scroll): backing 87.0 / 101.3 MB at scroll 1500 / 3000, equal to the base; pinned-band paint 26.5 / 25.2 M px squared against 26.9 / 24.8 for the base and 10.1 / 9.9 for pain:dark-scroll; full-stage repaints 53 / 50 against 54 / 49",
+   "visual": "L (look change): where the original still shows the white Pain top before the flip, the static layers are dark; the premise Hidden (the white state is never in view) fails at 390 and 640 (MEASURED, trajectory probe run 39852164349: Pain top 370 and 843 px below the flip offset 873, 891.5 needed; Lean hidden_fails_390, hidden_fails_640, hidden_needed). Breakpoint gate on pain:dark-static, both engines: run 39852250962 pass (the gate reads the pre-flip cells at scroll 0 and cannot see this). part.json kind proposal, visClass L, so Fw.Preset.Gen keeps it out of v2-proved and lists it in golden/preset/look-change.candidates.jsonl.",
+   "mechanism": "PROVED (Fw.Parts.PainDarkScroll): no animated layer, so no overlap promotion and no extra backing (static_eq_base); under Hidden the static pixel equals the original (static_pixel_eq); an animated layer below the content meets and promotes it (animated_meets_costs, cover_meets, below_promotes) and a layer above hides the coloured notes (above_hides); the variant owns the flip (owns_static). Arrangement and measurements: research/notes/2026/10-2x-pain-dark-scroll.md, task pain-dark-followups.",
+   "leanFor": [
+    "Fw.Parts.PainDarkScroll.static_eq_base",
+    "Fw.Parts.PainDarkScroll.static_pixel_eq",
+    "Fw.Parts.PainDarkScroll.owns_static"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.PainDarkScroll.hidden_needed",
+    "Fw.Parts.PainDarkScroll.hidden_fails_390",
+    "Fw.Parts.PainDarkScroll.hidden_fails_640"
+   ],
+   "missingWhy": [
+    "Why the base repaints the whole 430x775 stage on every 50 px step in the pinned band and pain:dark-static does too, while pain:dark-scroll does not, is not identified (INFERRED: the split-off content layers are not dirtied by what dirties the sticky backing)"
+   ],
+   "premises": [
+    "Hidden: the white Pain state is never in view before the flip; MEASURED false at 390 and 640 (probe run 39852164349)"
+   ],
+   "v1Evidence": "none",
+   "lesson": "Removing the animated layer removes both the WebKit backing cost and the WebKit paint saving, and it shows dark where the original is still white; the backing-free arrangement is a look change, not a free win.",
+   "next": "user look review (look-change candidate); not a v2-proved candidate",
+   "evidence": "research/notes/2026/10-2x-pain-dark-scroll.md (arrangement tried: pain:dark-static); apps/site/src/parts/pain/part.json variants.dark-static"
   }
  ],
  "notes": [
