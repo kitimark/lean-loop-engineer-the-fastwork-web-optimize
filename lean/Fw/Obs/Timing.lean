@@ -2988,7 +2988,7 @@ def incidentSlotRun (keyed : Bool) : List Sample :=
   ([23400, 23100, 23500, 23610, 23180, 23300, 23250, 23360].map fun d =>
     ({ tool := "fw", step := "slot run land pnpm fw land dry", durMs := d, host := .«local», load := 5, exit := some 0,
        work := if keyed then modsWork 0 else [] } : Sample)) ++
-  [{ incidentOuter ("fw", "slot run land pnpm fw land dry") 67391 [30, 11] with work := if keyed then outerWork [30, 11] else [] }]
+  [{ incidentOuter ("fw", "slot run land pnpm fw land dry") 67391 [41] with work := if keyed then outerWork [41] else [] }]
 
 #guard (outerBuilt [30, 11], outerBuilt [], outerWork [0, 0]) == (41, 0, modsWork 0)
 #guard ((sampleVerdicts {} (incidentOuterRun true)).getLast?.map (·.code)) == some .noBaseline
@@ -3184,7 +3184,7 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, incidentOuterRun true),
    ("fw land dry total lake: the same spans recorded without a mods class: the 46.3 s span is slow against the 23.3 s p50 (the false alarm)",
       {}, incidentOuterRun false),
-   ("slot run land dry: the 67.4 s span carrying the checks' 30 + 11 = 41 modules (class 16) against eight class-0 spans: noBaseline",
+   ("slot run land dry: the 67.4 s span carrying the checks' 41 modules (MEASURED total, class 16) against eight class-0 spans: noBaseline",
       {}, incidentSlotRun true),
    ("fw ci wait: the 23 min wait is judged by its own 27.3 s against the six waits before it (own p50 20.6 s): ok, though 23 min is far over 1.5 times its raw p50",
       {}, ciWaitRun),

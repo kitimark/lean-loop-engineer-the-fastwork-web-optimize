@@ -35,7 +35,7 @@ Builds add: two checks that each built 3 modules did 6 modules of work, class 4 
 
 ## Accepted limits
 
-- `apps/runner/src/slot.ts` is outside the graph writes. `fw slot` runs `slot-main` from the main
+- `fw slot` runs `slot-main` from the main
   checkout (`apps/runner/src/fw.ts`, `slotMainPath`), so the slot span member appears only after this branch lands; the
   real line shown above is the total span.
 - Old samples without the member stay unkeyed; `unkeyedLate` withholds a verdict from an unkeyed sample once keyed history
