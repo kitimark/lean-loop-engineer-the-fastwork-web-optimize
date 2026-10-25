@@ -270,20 +270,24 @@ theorem coolOk_iff (g : Nat) : coolOk g = true ↔ 300 ≤ g := by
   unfold coolOk coolMin
   rw [decide_eq_true_iff]
 
+/-- Why one attempt of a visit failed; all but `other` are not the arm's doing. -/
 inductive Fault where
   | usbReset
   | staleTab
+  | foreignProxy
   | other
   deriving DecidableEq
 
 def Fault.name : Fault → String
   | .usbReset => "usbReset"
   | .staleTab => "staleTab"
+  | .foreignProxy => "foreignProxy"
   | .other => "other"
 
 def Fault.harness : Fault → Bool
   | .usbReset => true
   | .staleTab => true
+  | .foreignProxy => true
   | .other => false
 
 def hasText (msg pat : String) : Bool := decide (1 < (msg.splitOn pat).length)
@@ -291,6 +295,7 @@ def hasText (msg pat : String) : Bool := decide (1 < (msg.splitOn pat).length)
 def faultOf (msg : String) : Fault :=
   if ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) then .usbReset
   else if hasText msg "stale own tab" then .staleTab
+  else if hasText msg "another ios_webkit_debug_proxy" then .foreignProxy
   else .other
 
 def mayAttempt (faults : List Fault) : Bool :=
@@ -316,7 +321,7 @@ theorem mayAttempt_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayA
   have h2 : ¬ faults.length < 3 := by omega
   simp [h1, h2]
 
-theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab := by
+theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab ∨ f = .foreignProxy := by
   cases f <;> simp [Fault.harness]
 
 def recordFault (faults : List Fault) (f : Fault) : List Fault := faults ++ [f]
@@ -466,6 +471,167 @@ theorem resetPlan_note {vs : List VisitRec} {idx : String} {reason : String} (hd
     resetPlan vs idx reason = .note idx.toNat! reason := by
   have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
   simp [resetPlan, hd, this, h, hv]
+
+
+theorem faultOf_usb {msg : String} (h : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = true) :
+    faultOf msg = .usbReset := by
+  simp [faultOf, h]
+
+theorem faultOf_stale {msg : String} (h1 : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = false)
+    (h2 : hasText msg "stale own tab" = true) : faultOf msg = .staleTab := by
+  simp [faultOf, h1, h2]
+
+theorem faultOf_foreign {msg : String} (h1 : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = false)
+    (h2 : hasText msg "stale own tab" = false) (h3 : hasText msg "another ios_webkit_debug_proxy" = true) :
+    faultOf msg = .foreignProxy := by
+  simp [faultOf, h1, h2, h3]
+
+theorem faultOf_other {msg : String} (h1 : ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) = false)
+    (h2 : hasText msg "stale own tab" = false) (h3 : hasText msg "another ios_webkit_debug_proxy" = false) :
+    faultOf msg = .other := by
+  simp [faultOf, h1, h2, h3]
+
+/-- Seconds a run waits for the phone to list on USB again after a reset before it gives the visit up. -/
+def usbWaitS : Nat := 180
+
+/-- One look at the USB link: `idevice_id -l` lists the phone, the phone is on the USB bus, and the macOS log holds a
+`usbpowerd` terminated or discovered line since the visit began. -/
+structure UsbReading where
+  listed : Bool
+  onBus : Bool
+  evidence : Bool
+
+inductive UsbVerdict where
+  | ok
+  | reset
+  | absent
+  deriving DecidableEq
+
+def UsbVerdict.name : UsbVerdict → String
+  | .ok => "ok" | .reset => "reset" | .absent => "absent"
+
+/-- A re-enumeration is log evidence, or a phone on the bus that the listing does not show; no listing and no bus is an unplugged phone. -/
+def usbVerdict (r : UsbReading) : UsbVerdict :=
+  if r.evidence || (!r.listed && r.onBus) then .reset
+  else if r.listed then .ok
+  else .absent
+
+theorem usbVerdict_evidence {r : UsbReading} (h : r.evidence = true) : usbVerdict r = .reset := by
+  simp [usbVerdict, h]
+
+theorem usbVerdict_unlisted_on_bus {r : UsbReading} (hl : r.listed = false) (hb : r.onBus = true) : usbVerdict r = .reset := by
+  simp [usbVerdict, hl, hb]
+
+theorem usbVerdict_ok {r : UsbReading} (he : r.evidence = false) (hl : r.listed = true) : usbVerdict r = .ok := by
+  simp [usbVerdict, he, hl]
+
+theorem usbVerdict_absent {r : UsbReading} (he : r.evidence = false) (hl : r.listed = false) (hb : r.onBus = false) :
+    usbVerdict r = .absent := by
+  simp [usbVerdict, he, hl, hb]
+
+/-- A macOS log line that tells of a USB re-enumeration. -/
+def usbLine (line : String) : Bool :=
+  hasText line "usbpowerd" && (hasText line "terminated" || hasText line "discovered")
+
+/-- The fault of a failed attempt: its own text names it; an unnamed failure with a reset link behind it is the reset. -/
+def classify (msg : String) (u : UsbVerdict) : Fault :=
+  match faultOf msg with
+  | .other => if u = .reset then .usbReset else .other
+  | f => f
+
+theorem classify_named {msg : String} {u : UsbVerdict} (h : faultOf msg ≠ .other) : classify msg u = faultOf msg := by
+  unfold classify
+  split <;> simp_all
+
+theorem classify_reset {msg : String} (h : faultOf msg = .other) : classify msg .reset = .usbReset := by
+  simp [classify, h]
+
+theorem classify_unreset {msg : String} {u : UsbVerdict} (h : faultOf msg = .other) (hu : u ≠ .reset) : classify msg u = .other := by
+  simp [classify, h, hu]
+
+inductive UsbWait where
+  | resume
+  | keep
+  | giveUp
+  deriving DecidableEq
+
+def UsbWait.name : UsbWait → String
+  | .resume => "resume" | .keep => "keep" | .giveUp => "giveUp"
+
+/-- After a reset: resume as soon as the phone lists again, give up at `usbWaitS` seconds, else keep waiting. -/
+def usbWait (listed : Bool) (waitedS : Nat) : UsbWait :=
+  if listed then .resume else if usbWaitS ≤ waitedS then .giveUp else .keep
+
+theorem usbWait_resume {w : Nat} : usbWait true w = .resume := by
+  simp [usbWait]
+
+theorem usbWait_keep {w : Nat} (h : w < usbWaitS) : usbWait false w = .keep := by
+  have : ¬ usbWaitS ≤ w := by omega
+  simp [usbWait, this]
+
+theorem usbWait_giveUp {w : Nat} (h : usbWaitS ≤ w) : usbWait false w = .giveUp := by
+  simp [usbWait, h]
+
+/-- The ports no other proxy may hold (the user's own inspector lane). -/
+def guardedPorts : List Nat := [9221, 9222]
+
+inductive ProxyVerdict where
+  | clear
+  | holdsPorts
+  | attached
+  deriving DecidableEq
+
+def ProxyVerdict.name : ProxyVerdict → String
+  | .clear => "clear" | .holdsPorts => "holdsPorts" | .attached => "attached"
+
+def regexy (id : String) : Bool := id.any fun c => ".*+?[](){}|^$\\".toList.contains c
+
+/-- Whether a proxy config (`id:port` entries split by comma or newline) lets the proxy attach the phone: an entry that is neither
+the list entry `null` nor port `-1` and whose id is empty, the phone's id, or a pattern. -/
+def specAttaches (udid spec : String) : Bool :=
+  ((spec.map fun c => if c == '\n' then ',' else c).splitOn ",").any fun e =>
+    match e.splitOn ":" with
+    | [id, port] => id != "null" && port != "-1" && (id.isEmpty || id == udid || regexy id)
+    | _ => false
+
+/-- One foreign proxy: it holds a guarded port, or it can attach the phone (its config unknown counts as able). -/
+def proxyVerdict (ports : List Nat) (spec : Option String) (udid : String) : ProxyVerdict :=
+  if ports.any guardedPorts.contains then .holdsPorts
+  else match spec with
+    | none => .attached
+    | some s => if specAttaches udid s then .attached else .clear
+
+theorem proxyVerdict_holds {ports : List Nat} (spec : Option String) (udid : String) (h : ports.any guardedPorts.contains = true) :
+    proxyVerdict ports spec udid = .holdsPorts := by
+  simp [proxyVerdict, h]
+
+theorem proxyVerdict_unknown {ports : List Nat} (udid : String) (h : ports.any guardedPorts.contains = false) :
+    proxyVerdict ports none udid = .attached := by
+  simp [proxyVerdict, h]
+
+theorem proxyVerdict_attached {ports : List Nat} {s : String} (udid : String) (h : ports.any guardedPorts.contains = false)
+    (ha : specAttaches udid s = true) : proxyVerdict ports (some s) udid = .attached := by
+  simp [proxyVerdict, h, ha]
+
+theorem proxyVerdict_clear {ports : List Nat} {s : String} (udid : String) (h : ports.any guardedPorts.contains = false)
+    (ha : specAttaches udid s = false) : proxyVerdict ports (some s) udid = .clear := by
+  simp [proxyVerdict, h, ha]
+
+/-- The run starts only when every foreign proxy is clear; each proxy is decided on its own. -/
+def proxiesClear (ps : List (List Nat × Option String)) (udid : String) : Bool :=
+  ps.all fun p => proxyVerdict p.1 p.2 udid == .clear
+
+theorem proxiesClear_nil (udid : String) : proxiesClear [] udid = true := rfl
+
+theorem proxiesClear_iff (ps : List (List Nat × Option String)) (udid : String) :
+    proxiesClear ps udid = true ↔ ∀ p ∈ ps, proxyVerdict p.1 p.2 udid = .clear := by
+  simp [proxiesClear]
+
+theorem proxiesClear_refuses {ps : List (List Nat × Option String)} {p : List Nat × Option String} (udid : String) (hp : p ∈ ps)
+    (h : proxyVerdict p.1 p.2 udid ≠ .clear) : proxiesClear ps udid = false := by
+  cases hc : proxiesClear ps udid
+  · rfl
+  · exact absurd ((proxiesClear_iff ps udid).1 hc p hp) h
 
 inductive TabPlan where
   | drive (i : Nat)
@@ -659,7 +825,7 @@ private def tableArms : List (List (List Int)) :=
 private def faultTexts : List String :=
   ["Inspector proxy closed (code 1006)", "the phone is paired but not on USB", "the phone re-enumerated on USB",
    "phone proxy listed no tabs in 30 s", "stale own tab could not be returned to about:blank", "Runtime.evaluate timed out 15 s",
-   "expected exactly one about:blank Safari tab, found 0 of 2 tabs", ""]
+   "expected exactly one about:blank Safari tab, found 0 of 2 tabs", "another ios_webkit_debug_proxy holds port 9221", ""]
 
 private def attemptCases : List (List Fault) :=
   [[], [.other], [.usbReset], [.other, .other], [.usbReset, .staleTab], [.usbReset, .usbReset], [.staleTab, .other],
@@ -698,6 +864,38 @@ private def resetCases : List (List VisitRec × String × String) :=
   [(st, "6", "tab returned to about:blank by hand"), (st, "2", "x"), (st, "7", "no record"), (st, "16", "past the plan"),
    (st, "15", "in the plan, no record"), (st, "", "empty index"), (st, "6a", "digits and a letter"), (st, "-1", "sign"),
    (st, "6", ""), (st, "6", "   "), (st, "06", "leading zero"), (st, "1.5", "fraction"), ([], "0", "empty state")]
+
+private def usbReadings : List UsbReading :=
+  [false, true].flatMap fun l => [false, true].flatMap fun b => [false, true].map fun e => ⟨l, b, e⟩
+
+private def usbLines : List String :=
+  ["usbpowerd: discovered <private>", "usbpowerd: device terminated", "usbpowerd: assertion taken", "usbmuxd: discovered", "", "usbpowerd"]
+
+private def classifyTexts : List String :=
+  ["Runtime.evaluate timed out 15 s", "the phone is paired but not on USB", "stale own tab could not be returned to about:blank",
+   "another ios_webkit_debug_proxy holds port 9221"]
+
+private def waitCases : List (Bool × Nat) :=
+  [(true, 0), (true, 500), (false, 0), (false, 179), (false, 180), (false, 181)]
+
+private def specCases : List String :=
+  ["", ":9221,:9222-9322", "null:9221,:9222-9322", "AAAA-1111:9300", "BBBB-2222:9300", "BBBB-2222:9300,AAAA-1111:9301",
+   "AAAA-1111:-1", "null:9300", "A.*:9300", "BBBB-2222:9300\nAAAA-1111:9301", "9300", ":"]
+
+private def proxyCases : List (List Nat × Option String) :=
+  [([], some "BBBB-2222:9300"), ([9221], some "BBBB-2222:9300"), ([9222, 9300], none), ([9300], none), ([9300], some ":9301"),
+   ([9300], some "AAAA-1111:9301"), ([9300], some "BBBB-2222:9301"), ([9300, 9301], some "null:9300"), ([], some ""),
+   ([9223], some "BBBB-2222:9300")]
+
+private def specUdid : String := "AAAA-1111"
+
+private def proxySets : List (List (List Nat × Option String)) :=
+  [[], [([9300], some "BBBB-2222:9300")], [([9300], some "BBBB-2222:9300"), ([9221], some ":9301")],
+   [([9300], some "BBBB-2222:9300"), ([9301], none)], [([9300], some "null:9300"), ([9301], some "AAAA-1111:-1")]]
+
+private def optJ : Option String → Json
+  | none => Json.null
+  | some s => Json.str s
 
 private def resetJ : ResetPlan → Json
   | .badIndex => Json.mkObj [("plan", "badIndex")]
@@ -753,6 +951,20 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "write"), ("old", recsJ o), ("new", recsJ n), ("ok", writeOk o n)]).compress) ++
   (resetCases.map fun (vs, i, r) =>
     (Json.mkObj [("kind", "handreset"), ("state", recsJ vs), ("index", i), ("reason", r), ("plan", resetJ (resetPlan vs i r))]).compress) ++
+  (usbReadings.map fun r =>
+    (Json.mkObj [("kind", "usb"), ("listed", r.listed), ("onBus", r.onBus), ("evidence", r.evidence), ("verdict", (usbVerdict r).name)]).compress) ++
+  (usbLines.map fun (t : String) => (Json.mkObj [("kind", "usbline"), ("text", t), ("is", usbLine t)]).compress) ++
+  (classifyTexts.flatMap fun (t : String) => [UsbVerdict.ok, .reset, .absent].map fun (u : UsbVerdict) =>
+    (Json.mkObj [("kind", "classify"), ("text", t), ("usb", u.name), ("fault", (classify t u).name)]).compress) ++
+  [(Json.mkObj [("kind", "usbwait"), ("waitS", usbWaitS), ("cases", Json.arr ((waitCases.map fun (l, w) =>
+    Json.mkObj [("listed", l), ("waitedS", w), ("wait", (usbWait l w).name)]).toArray))]).compress] ++
+  (specCases.map fun (sp : String) =>
+    (Json.mkObj [("kind", "spec"), ("udid", specUdid), ("spec", sp), ("attaches", specAttaches specUdid sp)]).compress) ++
+  (proxyCases.map fun (ports, sp) =>
+    (Json.mkObj [("kind", "proxy"), ("ports", toJson ports), ("spec", optJ sp), ("udid", specUdid), ("verdict", (proxyVerdict ports sp specUdid).name)]).compress) ++
+  [(Json.mkObj [("kind", "proxies"), ("guarded", toJson guardedPorts), ("udid", specUdid), ("cases", Json.arr ((proxySets.map fun ps =>
+    Json.mkObj [("proxies", Json.arr (ps.map fun (po, sp) => Json.mkObj [("ports", toJson po), ("spec", optJ sp)]).toArray),
+      ("clear", proxiesClear ps specUdid)]).toArray))]).compress] ++
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]

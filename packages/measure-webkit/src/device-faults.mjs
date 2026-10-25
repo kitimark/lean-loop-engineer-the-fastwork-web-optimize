@@ -1,4 +1,4 @@
-const HARNESS = new Set(['usbReset', 'staleTab']);
+const HARNESS = new Set(['usbReset', 'staleTab', 'foreignProxy']);
 const USB_TEXTS = ['proxy closed', 'not on USB', 're-enumerat', 'listed no tabs'];
 
 export const isHarness = (fault) => HARNESS.has(fault);
@@ -6,6 +6,7 @@ export const isHarness = (fault) => HARNESS.has(fault);
 export function faultOf(msg) {
   if (USB_TEXTS.some((t) => msg.includes(t))) return 'usbReset';
   if (msg.includes('stale own tab')) return 'staleTab';
+  if (msg.includes('another ios_webkit_debug_proxy')) return 'foreignProxy';
   return 'other';
 }
 
@@ -40,3 +41,33 @@ export function resetPlan(recs, idx, reason, nVisits) {
   const index = Number(idx);
   return recs.some((r) => r.index === index) ? { plan: 'note', index, reason } : { plan: 'noVisit' };
 }
+
+export const USB_WAIT_S = 180;
+export const GUARDED_PORTS = [9221, 9222];
+
+export const usbVerdict = ({ listed, onBus, evidence }) => (evidence || (!listed && onBus) ? 'reset' : listed ? 'ok' : 'absent');
+
+export const usbLine = (line) => line.includes('usbpowerd') && (line.includes('terminated') || line.includes('discovered'));
+
+export function classify(msg, usb) {
+  const f = faultOf(msg);
+  return f === 'other' && usb === 'reset' ? 'usbReset' : f;
+}
+
+export const usbWait = (listed, waitedS) => (listed ? 'resume' : USB_WAIT_S <= waitedS ? 'giveUp' : 'keep');
+
+const regexy = (id) => [...id].some((c) => '.*+?[](){}|^$\\'.includes(c));
+
+export const specAttaches = (udid, spec) =>
+  spec.replace(/\n/g, ',').split(',').some((e) => {
+    const p = e.split(':');
+    return p.length === 2 && p[0] !== 'null' && p[1] !== '-1' && (p[0] === '' || p[0] === udid || regexy(p[0]));
+  });
+
+export function proxyVerdict(ports, spec, udid) {
+  if (ports.some((p) => GUARDED_PORTS.includes(p))) return 'holdsPorts';
+  if (spec === null) return 'attached';
+  return specAttaches(udid, spec) ? 'attached' : 'clear';
+}
+
+export const proxiesClear = (ps, udid) => ps.every((p) => proxyVerdict(p.ports, p.spec, udid) === 'clear');

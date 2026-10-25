@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { appendOnly, faultOf, handReset, isHarness, mayAttempt, recordFault, resetPlan, tabPlan, writeOk } from '../src/device-faults.mjs';
+import { GUARDED_PORTS, USB_WAIT_S, appendOnly, classify, faultOf, handReset, isHarness, mayAttempt, proxiesClear, proxyVerdict, recordFault, resetPlan, specAttaches, tabPlan, usbLine, usbVerdict, usbWait, writeOk } from '../src/device-faults.mjs';
 
 const lines = readFileSync(new URL('../../contracts/golden/device/phone-arms.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (kind) => lines.filter((l) => l.kind === kind);
@@ -110,4 +110,30 @@ test('arms-run --hand-reset notes the reset and keeps the faults; bad arguments 
   const st = handResetCommand(dir, '6', 'tab returned to about:blank by hand');
   assert.deepEqual(st.leadReset, [{ index: 6, reason: 'tab returned to about:blank by hand' }]);
   assert.deepEqual(loadState(dir).visits[0].faults, ['usbReset', 'staleTab']);
+});
+
+test('usb verdict, log lines, classify and the wait match Lean', () => {
+  assert.equal(of('usb').length, 8);
+  for (const c of of('usb')) assert.equal(usbVerdict(c), c.verdict, JSON.stringify(c));
+  for (const c of of('usbline')) assert.equal(usbLine(c.text), c.is, c.text);
+  assert.equal(of('classify').length, 12);
+  for (const c of of('classify')) assert.equal(classify(c.text, c.usb), c.fault, `${c.text} ${c.usb}`);
+  const [w] = of('usbwait');
+  assert.equal(w.waitS, USB_WAIT_S);
+  for (const c of w.cases) assert.equal(usbWait(c.listed, c.waitedS), c.wait, JSON.stringify(c));
+});
+
+test('proxy verdicts match Lean', () => {
+  assert.equal(of('spec').length, 12);
+  for (const c of of('spec')) assert.equal(specAttaches(c.udid, c.spec), c.attaches, c.spec);
+  assert.equal(of('proxy').length, 10);
+  for (const c of of('proxy')) assert.equal(proxyVerdict(c.ports, c.spec, c.udid), c.verdict, JSON.stringify(c));
+  const [g] = of('proxies');
+  assert.deepEqual(g.guarded, GUARDED_PORTS);
+  for (const c of g.cases) assert.equal(proxiesClear(c.proxies, g.udid), c.clear, JSON.stringify(c));
+});
+
+test('a foreign proxy is a named harness fault', () => {
+  assert.equal(faultOf('another ios_webkit_debug_proxy holds port 9221'), 'foreignProxy');
+  assert.equal(isHarness('foreignProxy'), true);
 });
