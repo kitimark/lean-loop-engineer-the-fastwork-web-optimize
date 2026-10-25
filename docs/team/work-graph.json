@@ -21765,7 +21765,8 @@
     "research/notes/2026/10-25-macos-vm-loss.md",
     "docs/team/handoffs/macos-vm-evidence.md",
     "packages/measure-webkit/src/cli.mjs",
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "scripts/wallclock-allow.json"
    ]
   },
   {
