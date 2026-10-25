@@ -99,3 +99,27 @@ export const afterLand = (k: Kind, paths: string[], ok: () => boolean): After =>
   needsRebuild(k, paths) ? (ok() ? { proceed: true, rebuilt: true } : { proceed: false }) : { proceed: true, rebuilt: false };
 export const stopKind = (a: After): Kind | null => (a.proceed ? null : "rebuild");
 export const REBUILD_REASON = "fwcore-rebuild-failed: sh scripts/fwcore-build.sh failed after a land that changed lean/";
+
+export type NoteKey = { entry: string; task: string };
+const noteKeyStr = (n: NoteKey): string => `note:${JSON.stringify([n.entry, n.task])}`;
+export function noteKeyDups(notes: readonly NoteKey[]): NoteKey[] {
+  const count = new Map<string, number>();
+  for (const n of notes) count.set(noteKeyStr(n), (count.get(noteKeyStr(n)) ?? 0) + 1);
+  const named = new Set<string>();
+  const out: NoteKey[] = [];
+  for (const n of notes) {
+    const k = noteKeyStr(n);
+    if (count.get(k)! > 1 && !named.has(k)) { named.add(k); out.push({ entry: n.entry, task: n.task }); }
+  }
+  return out;
+}
+export const onePerKey = (notes: readonly NoteKey[]): boolean => noteKeyDups(notes).length === 0;
+export function noteKeyRefusal(file: string, notes: readonly (NoteKey & { field?: unknown })[]): string | null {
+  const dups = noteKeyDups(notes);
+  if (dups.length === 0) return null;
+  const rows = dups.map((d) => {
+    const same = notes.filter((n) => noteKeyStr(n) === noteKeyStr(d));
+    return `  ${noteKeyStr(d)}: ${same.length} notes (fields ${same.map((n) => String(n.field)).join(", ")})`;
+  });
+  return `ledger-note-key: ${file} has more than one note per (entry, task) key; join each key's notes into one note (Lean onePerKey):\n${rows.join("\n")}`;
+}

@@ -70,6 +70,21 @@ describe("fw land --dry", () => {
     const idle = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...t("exit 1", ["docs/**"]) });
     expect(idle.kind).toBe("dry");
   });
+  it("two notes under one (entry, task) refuse as lint naming the key; one note per key passes (inc-ledger-note-key-dup)", async () => {
+    const { fx, wt, opts } = await setup(["research/**"]);
+    const note = (task: string, field: string) => ({ entry: "e1", task, field, text: `${task} ${field}` });
+    const doc = (notes: unknown[]) => JSON.stringify({ findings: [{ n: 1, candidate: "e1" }], notes }, null, 1) + "\n";
+    fx.commit(wt, "research/findings/ledger.json", doc([note("t1", "mechanism"), note("t1", "missingWhy"), note("t2", "next")]));
+    const bad = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], dryLocal: [] });
+    expect(bad.kind).toBe("lint");
+    expect(text(bad)).toContain('REFUSED: ledger-note-key: research/findings/ledger.json has more than one note per (entry, task) key');
+    expect(text(bad)).toContain('note:["e1","t1"]: 2 notes (fields mechanism, missingWhy)');
+    expect(text(bad)).not.toContain('note:["e1","t2"]');
+    fx.commit(wt, "research/findings/ledger.json", doc([note("t1", "mechanism"), note("t2", "next")]));
+    const ok = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], dryLocal: [] });
+    expect(ok.kind).toBe("dry");
+    expect(text(ok)).toContain("dry: ledger notes ok (one note per (entry, task) in research/findings/ledger.json)");
+  });
   it("path-pix 4 -> 6 (incident 2026-10-24): a workflow file change runs the overflow width test and the dry land refuses the stale row", async () => {
     const { fx, wt, opts } = await setup([".github/**"]);
     fx.commit(wt, ".github/workflows/path-pix.yml");

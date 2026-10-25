@@ -56,12 +56,26 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     expect(logs.join("\n")).toMatch(/refused: webkit \(profile\)/);
   });
 
-  it("webkit-sim takes target, preset and fw: the rewrite with flags is dispatched with them", async () => {
+  it("webkit-sim takes vms, target, preset and fw: the rewrite with flags is dispatched with them", async () => {
     const logs: string[] = [];
     const calls: string[][] = [];
     const gh: Gh = async (a) => { calls.push(a); if (a[0] === "run" && a[1] === "list") return "[]"; throw new Error("stop after the dispatch"); };
     await expect(runMain(parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--preset", "strip-demo", "--fw", "hero.countdown:strip", "--ref", "ci/wk"]), { ...base(), call, gh, store: mk(), sha: SHA, branch: "main", tmp: mk(), log: (l) => logs.push(l) })).rejects.toThrow(/stop after/);
-    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/wk", "-f", "fw=hero.countdown:strip", "-f", "preset=strip-demo", "-f", "target=rewrite", "-f", "nonce=n0nce1234"]);
+    expect(calls.find((c) => c[0] === "workflow")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/wk", "-f", "fw=hero.countdown:strip", "-f", "preset=strip-demo", "-f", "target=rewrite", "-f", "vms=3", "-f", "nonce=n0nce1234"]);
+  });
+
+  it("--runs reaches webkit-sim as vms and is part of the key: a 2-VM and a 3-VM request never share a run key", () => {
+    const store = mk();
+    const two = planRun(call, parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--runs", "2"]), SHA, store).reply.jobs[0]!;
+    const three = planRun(call, parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--runs", "3"]), SHA, store).reply.jobs[0]!;
+    expect(two.inputs.vms).toBe("2");
+    expect(three.inputs.vms).toBe("3");
+    expect(dispatchArgs(three, "main")).toContain("vms=3");
+    expect(three.key).toContainEqual(["runs", "3"]);
+    expect(keyDigest(two.key as [string, string][])).not.toBe(keyDigest(three.key as [string, string][]));
+    const four = planRun(call, parseRunArgs(["--engines", "webkit", "--target", "rewrite", "--runs", "4"]), SHA, store).reply;
+    expect(four.problems).toEqual(["runs: webkit-sim takes at most 3 VMs"]);
+    expect(four.jobs).toEqual([]);
   });
 
   it("--ref measures a base ref at its own commit: the run is awaited and checked at the ref's sha, not the checkout's", async () => {
@@ -133,6 +147,8 @@ describe.skipIf(!hasCore)("planRun and runMain against fwcore", () => {
     const m = JSON.parse(readFileSync(join(store, "runs", keyDigest(key), "manifest.json"), "utf8"));
     expect(m.entries.map((e: { name: string }) => e.name)).toEqual(["counts-run1.json", "trace/run1.json"]);
     expect(m.target).toBe("original");
+    expect(m.runs).toBe(3);
+    expect(planRun(call, { ...args, runs: 2 }, SHA, store).reply.jobs[0]!.cache).toBe("miss");
     expect(calls.find((c) => c[0] === "workflow")).toContain("target=original");
     expect(planRun(call, { ...args, target: "rewrite" }, SHA, store).reply.jobs[0]!.cache).toBe("miss");
     expect(existsSync(join(store, "objects", sha256("{}").slice(0, 2), sha256("{}").slice(2)))).toBe(true);
@@ -324,7 +340,7 @@ describe("goldens: dispatch args per lane", () => {
   });
   it("replays the args of one case per lane", () => {
     const by = (wf: string) => jobs.find((j) => j.workflow === wf && j.inputs.target !== "rewrite" && !j.blocked)!;
-    expect(dispatchArgs(by("webkit-sim.yml"), "ci/x")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/x", "-f", "fw=", "-f", "preset=original", "-f", "target=original"]);
+    expect(dispatchArgs(by("webkit-sim.yml"), "ci/x")).toEqual(["workflow", "run", "webkit-sim.yml", "--ref", "ci/x", "-f", "fw=", "-f", "preset=original", "-f", "target=original", "-f", "vms=3"]);
     expect(dispatchArgs(by("chromium-counts.yml"), "ci/x").slice(0, 5)).toEqual(["workflow", "run", "chromium-counts.yml", "--ref", "ci/x"]);
     expect(dispatchArgs(jobs.find((j) => j.workflow === "breakpoint-gate.yml")!, "ci/x")).toEqual(["workflow", "run", "breakpoint-gate.yml", "--ref", "ci/x", "-f", "engines=both", "-f", "fw=", "-f", "preset="]);
   });
