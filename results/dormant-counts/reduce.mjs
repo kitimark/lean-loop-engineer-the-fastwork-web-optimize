@@ -13,16 +13,23 @@ const args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(k); return i < 0 ? null : args.splice(i, 2)[1]; };
 const store = opt('--store');
 const out = opt('--out');
-const arms = args.map((a) => { const [id, runId] = a.split('='); const [engine, name] = id.split('/'); return { engine, name, runId }; });
+// <engine>/<name>=<run id> reads the filed run; <engine>/<name>=<run id>@<dir>@<profile>@<flag or ->@<sha> reads the sample files
+// of a `gh run download` into <dir> (a run whose filing is still pending).
+const arms = args.map((a) => {
+  const [id, spec] = a.split('=');
+  const [engine, name] = id.split('/');
+  const [runId, dir, profile, flag, sha] = spec.split('@');
+  return { engine, name, runId, dir, profile, fw: flag === undefined || flag === '-' ? [] : [flag], sha };
+});
 if (!store || !out || arms.length === 0) throw new Error('usage: reduce.mjs --store <dir> --out <file> <engine>/<name>=<run id> ...');
 
 const manifests = readdirSync(`${store}/runs`).filter((d) => existsSync(`${store}/runs/${d}/manifest.json`))
   .map((d) => JSON.parse(readFileSync(`${store}/runs/${d}/manifest.json`, 'utf8')));
-const object = (digest) => JSON.parse(readFileSync(`${store}/objects/${digest.slice(0, 2)}/${digest.slice(2)}`, 'utf8'));
+const object = (e) => JSON.parse(readFileSync(e.path ?? `${store}/objects/${e.digest.slice(0, 2)}/${e.digest.slice(2)}`, 'utf8'));
 const METRICS = [...COUNT_TYPES, 'paintArea'];
 
 function webkitVm(entry, vm) {
-  const file = object(entry.digest);
+  const file = object(entry);
   const bins = Object.fromEntries(METRICS.map((m) => [m, new Map()]));
   const census = new Map();
   for (const p of file.passes) {
@@ -47,8 +54,8 @@ function webkitVm(entry, vm) {
 
 function chromiumRun(m, r) {
   const find = (n) => m.entries.find((e) => e.name === `chromium-counts-rewrite-r${r}/${n}`);
-  const zs = object(find('zones.json').digest);
-  const meta = object(find('counts.json').digest).meta;
+  const zs = object(find('zones.json'));
+  const meta = object(find('counts.json')).meta;
   const bins = new Map();
   for (const z of zs.zones) {
     const g = /^y(\d+)$/.exec(z.id);
@@ -67,7 +74,11 @@ function chromiumRun(m, r) {
 
 const result = { schema: 'fw.dormant-counts.zones/1', zonePx: 500, arms: [] };
 for (const a of arms) {
-  const m = manifests.find((x) => x.runId === a.runId && x.engine === a.engine);
+  const m = a.dir
+    ? { runId: a.runId, engine: a.engine, profile: a.profile, fw: a.fw, ['git' + 'Sha']: a.sha,
+        entries: readdirSync(a.dir).flatMap((d) => (existsSync(`${a.dir}/${d}/`) && !d.includes('.')
+          ? readdirSync(`${a.dir}/${d}`).map((f) => ({ name: `${d}/${f}`, path: `${a.dir}/${d}/${f}` })) : [])) }
+    : manifests.find((x) => x.runId === a.runId && x.engine === a.engine);
   if (!m) throw new Error(`${a.engine} run ${a.runId} is not filed in ${store}`);
   const vms = [];
   for (const e of m.entries) {

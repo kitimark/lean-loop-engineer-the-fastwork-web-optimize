@@ -2023,8 +2023,8 @@
    "flags": [
     "morph.mount:shift-dormant"
    ],
-   "chromium": "trade",
-   "webkit": "unknown",
+   "chromium": "win (MEASURED, counts lane swipe-touch-v1, 3 runs per arm at 1fac415, base 40171939293, flag 40171969469, Lean Fw.Parts.DormantCounts): small and in the hero zone only: FunctionCall 2188/2184/2184 to 2140/2144/2140 (-2.0 %); every other decided cell equal or under 1 % (layers 24160 to 24159, UpdateLayoutTree 788 to 787); finish and rest no-win. The earlier trade was the resource model's prediction of about +200 resolved elements, which these counts do not show",
+   "webkit": "no-win (MEASURED, webkit-sim swipe-v1 at cb4bec8, 3 VMs x 2 passes per arm, base 40196215217, flag 40196227509, Lean Fw.Parts.DormantCounts): hero, finish and rest all same; no decided cell (Layout, RecalculateStyles, FunctionCall, Composite, layers, backing MB) is clear of the base spread; layers and Composite equal, hero FunctionCall 1096 to 1355 inside a spread of 164. The base is the faithful mount the default arm runs, which has no early mount, so there is no layer cost to give back",
    "visual": "equal: the panel is invisible while dormant and wakes on the original trigger (Lean visSame_dormant, dormant_iff); breakpoint gate run 39325704868 passes every morph.* cell (MEASURED)",
    "mechanism": "MEASURED (commit f59fdbf0; swipe-v1 runs 39325709978 faithful, 39325715862 shift, 39325721909 dormant; swipe-touch-v1 39325727288, 39325735139, 39325741608): shift adds 9 drawing layers per frame until the original trigger (+1053 swipe-v1, +1134 swipe-touch-v1), from 3 marquee tracks running a transform animation while mounted and invisible. shift-dormant gets the faithful layer census back (equal lists in a real dump) and keeps 3 of the 4 saved layouts, at about +200 resolved elements. WebKit: source-only (sim run 39309416016 measured shift only).",
    "leanFor": [
@@ -4739,6 +4739,12 @@
    "task": "toolbar-proof-morph",
    "field": "mechanism",
    "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
+  },
+  {
+   "entry": "morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger",
+   "task": "dormant-counts",
+   "field": "mechanism",
+   "text": "dormant-counts (Fw.Parts.DormantCounts, golden parts/dormant-counts.jsonl, note research/notes/2026/10-2x-dormant-counts.md): against the faithful mount the default arm runs, shift-dormant is no-win on WebKit in every zone (MEASURED, webkit-sim swipe-v1 at cb4bec8, base 40196215217, flag 40196227509, 3 VMs x 2 passes: Layout, RecalculateStyles, FunctionCall, Composite, layers and backing MB all inside the base spread) and a small hero-only win on Chromium (FunctionCall -2.0 %, runs 40171939293 and 40171969469 at 1fac415). Why: the base has no early mount, shift-dormant adds one invisible, asleep panel (no layer: layers_dormant_eq), so its best case is equal to the base. Lesson: a variant that only repairs the cost of a sibling variant (shift-dormant repairs shift) has no gain over the original unless the sibling beat it; judge it against the original, not the sibling."
   }
  ]
 }
