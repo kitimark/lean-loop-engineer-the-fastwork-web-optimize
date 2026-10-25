@@ -96,6 +96,14 @@ Why: equal toolchain keys still gave 20 of 104 class differences (MEASURED, n=1,
 - TS stand-ins: `classRowsOf` (codemagic.mjs `classRows`), the pair files, `rerouteTick` (queued rows and their age; the move is Lean's), `hwOf`.
 - Accepted limits: one Codemagic slot; Codemagic hardware varies within an instance_type (recorded per build); CircleCI is closed for macOS; no paid runners; k pairs are bounded by the minute budget.
 
+### Pinned pairs, k = 3 reached (MEASURED, 2026-10-26, commit 3ead519e1, target original, 1 VM v1, 1 session)
+| pair | GitHub webkit-sim run | Codemagic build | Codemagic minutes |
+|---|---|---|---|
+| 1 | 40225058193 (ci/cross-pool-pooling) | cm:6ade550f28f7ff171ac1a5a9 | 16 |
+| 2 | 40226715252 (-b) | cm:6ade59e62261fc70401bb883 | 19 |
+| 3 | 40229095163 (-c) | cm:6ade60fa118a2ae26ddd9238 | 18 |
+Keys: GitHub 3 cpu / 7516192768 bytes, Codemagic 8 cpu / 12884901888 bytes, same macOS, Xcode and runtime builds (26A434, 27A9275, 24A434). Lean `ci.poolRows` with the three records and 166 minutes used: 104 rows, 65 paired, 39 refused, 0 direct, `merged` false (hardware differs). Codemagic spent 53 minutes (219 of 500; stop line 400). The 39 refused rows are the rows whose class differs between the sides in at least one pair. Limit: all three pairs share one commit and one sessions setting, so the agreement is for this page and VM count only. Bug found on the way: `classRowsOf` read the five-column merged table as zero rows (fixed, test added).
+
 ## Not wired yet
 
 The poller calls `env.reroute` (packages/gh-budget/src/poller.ts `rerouteTick`) with the still-queued runs of each list; the runner does not set that hook in production yet, so `rerouteQueued` runs only where a caller sets it. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.
