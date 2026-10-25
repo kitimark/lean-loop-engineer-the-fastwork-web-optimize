@@ -21494,6 +21494,33 @@
     "docs/team/handoffs/phone-thermal-check.md"
    ],
    "title": "User 2026-10-25: add the iPhone thermal state check after the phone-end-counts session. The harness records thermalState as 'not exposed over USB lockdown or the inspector (no API)' (packages/measure-webkit/src/device.mjs:61) and uses battery temperature as the only heat proxy, but xctrace on this Mac lists a 'Thermal State' instrument, and devicectl has 'device info lockState'. Do: (1) one short probe on the phone in a cool gap (no page pass running): xcrun xctrace record --instrument 'Thermal State' on the measurement phone for a few seconds, export the table, and say whether it gives the state (nominal, fair, serious, critical) over USB on iOS 27.0.1; cite Apple docs for the instrument and for ProcessInfo.ThermalState; (2) if it does, read the thermal state at each block start and end and in every readout (replacing the 'not exposed' text), and read devicectl lockState so a locked phone is a named failure distinct from a harness fault; (3) Lean first: the stop rule as a decision (pause a block when the thermal state is fair or worse, or the battery temperature is 2 C or more above the session's first readout; resume only after a cool gap at nominal), with theorems (never starts a pass at serious or critical; at most one pass runs after the trigger) and a golden replayed by a test; (4) if xctrace cannot read it on the device, keep the battery rule alone and record the probe as a finding with the exact error. Never print or store device ids; kill only processes the run started."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "resource-footprint",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Engine/Resource.lean",
+    "lean/Fw/Engine/ResourceFlags.lean",
+    "lean/Fw/Engine/ResourceVerdict.lean",
+    "lean/scripts/ResourceGolden.lean",
+    "packages/contracts/golden/engine/resource*.jsonl",
+    "packages/measure-webkit/src/resource-check.mjs",
+    "packages/measure-webkit/test/resource-*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-25-resource-footprint.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/resource-footprint.md",
+    "research/notes/2026/10-25-webkit-ios-gpu-memory.md"
+   ],
+   "title": "User 2026-10-25: the proof should predict how a flag affects other resources and their trade-offs, and add the repaint area to the Lean resource model; more GPU memory is acceptable when work moves off the main thread. Build one Lean resource footprint per flag, predicted from the DOM/CSS change and the engine stage rules already in lean/Fw/Engine (WebKit.lean, Chromium.lean, Restyle.lean, PaintVisible.lean) and the per-part work modules (NavBarFixedWork area_trade, wk_allocs_push; MorphPanelOpt wk_rest_layers, cr_toggle_not_le), each resource with a sign and, where the source allows, a bound, per engine: (1) main-thread work per frame (style recalc, layout, paint records, script/FunctionCall, EventDispatch); (2) repaint area per frame = changed region area x DPR^2 x frames it changes in (WebKit Timeline Paint quad area; Chromium invalidation px), including repaint pushed back onto a shared layer when a flag removes a layer; (3) compositor: layer count and composite per frame (layer promotion reasons cited from source); (4) GPU memory = sum over layers of w x h x DPR^2 x 4 bytes plus tiles, with B (the memory budget) a named parameter the lead fills from the WebKit/iOS memory research; (5) frames requested (rAF loops, timers, scroll-driven updates) as a CPU/power proxy. Verdict rule (Lean, theorems): win when main-thread work and repaint area do not rise and at least one falls, and GPU memory stays within B (a memory-only cost is not a trade); trade when main-thread work or repaint rises anywhere; the predicted vector is checked against measurements per resource (agree / disagree, a disagreement is a finding with mechanism). Fill footprints for the measured flags: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, morph.panel:rest, nav:logo-3d, morph.mount:shift-dormant, engine.events:quiet; check them against today's phone data (results/phone/2026-10-25-end-counts, paintArea per zone, layers, backing MB) and the CI Simulator and Chromium runs cited in their ledger rows. Golden replayed by a test; TS checker against the golden."
   }
  ],
  "deadline": {
