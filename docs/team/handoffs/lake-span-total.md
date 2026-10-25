@@ -1,4 +1,4 @@
-branch: worktree-wf_25fb70f6-c00-1  worktree: .claude/worktrees/wf_25fb70f6-c00-1 (under the repo root)
+branch: worktree-wf_25fb70f6-c00-1  worktree: .claude/worktrees/wf_25fb70f6-c00-1
 last commit: see git log; CI runs: none (accepted limit: no CI dispatch)
 
 State: built and checked locally; dry land passed without --allow (graph r456 added slot.ts) (VERDICT dry lake-span-total).

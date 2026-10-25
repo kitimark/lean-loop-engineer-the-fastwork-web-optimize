@@ -13,7 +13,7 @@ the module counts MEASURED from the inner `land dry lake` spans: 25 (46.3 s), 6 
 - Lean `Fw.Obs.Timing`: `outerBuilt` (the sum), `outerBuilt_eq_zero`, `maxBuilt_le_outerBuilt`, `outer_rebuild_noBaseline`
   (an outer sample whose checks built a module has a mods class above 0 and, against a class-0 history, is `noBaseline`, never
   `slow`; it reuses `judgeQ_rebuild_noBaseline`) and `incident_outer_not_slow` (the three durations on both outer steps, any
-  build list with a positive entry, so every total b > 0, any class-0 history).
+  build list with a positive entry, any class-0 history).
 - Golden: `golden/obs/timing-outer.jsonl` (sum and class rows, replayed by `timing-work.test.ts`) and three rows in
   `golden/obs/timing.jsonl` (without the class the false alarm is `slow`, with it `noBaseline`).
 
@@ -42,7 +42,7 @@ Builds add: two checks that each built 3 modules did 6 modules of work, class 4 
   exists (INFERRED effect: the old alerts stop with the first keyed samples).
 - The retry-alone span and `Nothing to build.` builds stay as `lake-span-mods` left them.
 - No CI dispatch. The theorem holds for every total above 0; the measured counts 25, 6 and 41 are classes 16, 4 and 16.
-- A retried check counts the first attempt's modules too (`results[i].out` joins both outputs); this only raises the class.
+- A retried check counts the first attempt's modules too (`results[i].out` joins both outputs); that only raises the class.
 
 ## Follow-ups
 
