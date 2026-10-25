@@ -15906,7 +15906,8 @@
     "packages/contracts/golden/ci/pool*.jsonl",
     "scripts/codemagic.mjs",
     "scripts/codemagic.test.mjs",
-    "lean/Fw/Ci/PoolTierWire.lean"
+    "lean/Fw/Ci/PoolTierWire.lean",
+    "lean/scripts/PoolGolden.lean"
    ],
    "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event. Added 2026-10-25 (r484, after round 2): the paired rewrite cell had equal site digests but count classes differed in 18 of 104 rows; the GitHub and Codemagic images differ (Xcode 27.1 vs 27.0, extra iOS 26.5 runtime). Lean must refuse to merge or route a cell unless the toolchain identity (macOS, Xcode, Simulator runtime) matches; pin Codemagic to the GitHub Xcode where possible."
   },
@@ -21715,6 +21716,47 @@
     "research/notes/2026/10-25-toolbar-native.md"
    ],
    "title": "User 2026-10-25: 'can we make the animation render smoothly even while the toolbar resizes the viewport on each direction change?' Builds on research/notes/2026/10-2x-scroll-throttle-parts.md (fixes ranked 1-5; facts CONFIRMED there: during the inset change scrollY, getBoundingClientRect, scroll events and visualViewport are stale up to 100 ms and resize/layout are suppressed; threaded scroll-driven animations (opacity, transform, filter) and position: fixed/sticky layers move in the UI process every frame) and on push-cycle-lag's H1-H4 verdicts. Candidates, each its own flag, Lean first, same look unless marked: (a) trace why the morph reopens 8-41 times per pass at the end (fix 5, never a task) and make one push open it once, same look on first open; (b) take the morph arm/close geometry from toolbar-independent values (finger deltas, svh/lvh lengths, layout positions) instead of stale innerHeight/visualViewport/scrollY during an inset change; (c) move the morph's per-frame visuals that can be (panel opacity/scale/blur, platform fade, nav colour layers) to threaded animations so the UI process draws them every frame while the toolbar moves; (d) LOOK/UX CHANGE, user review only: scroll the page inside a container so Safari's toolbar does not collapse at all. Each: breakpoint gate both engines, counts per zone, push-cycle profile (CI Simulator real touches) and the phone replay in pinned Serious; negative results recorded with mechanism. Added 2026-10-25 (r483, from the checked toolbar-native research; inputs .local/research/toolbar-native/research.md and check.md, read the check first: it refutes ranks 2-4 and lane b of the research). First write research/notes/2026/10-25-toolbar-native.md from both files, keeping only claims the check let stand, with the check's corrections (file:line@862f17d). Findings that hold: iOS WebKit has no page-side per-frame toolbar handler; the UI process moves fixed/sticky layers every frame while the page's visible-rect updates (scroll offset included) are throttled to 100 ms, unless a progress-based scroll-driven animation runs on the main thread (our engine.scroll:unthrottle). Candidates added: (e) decide the push on the first touchmove (still preventable: the native pan waits for it) and never start pinning once the native pan has begun; touchstart is refuted (no direction, kills taps); (f) count unthrottle's own per-frame Layout and style cost (viewport-unit invalidation, vh included) so it is a measured trade, not assumed free; (g) overscroll-behavior-y: none while armed goes to the look-change class. Dropped: the lvh/svh probe-element idea and 'dvh vs vh saves layout' (refuted). Reproduction lanes: (a) Simulator XCUITest swipe (toolbar-throttle.yml), count the 10 Hz steps of visualViewport.height; (c1) WKTR forced inset via UIHelper begin/setObscuredInsets/endInteractiveObscuredInsetsChange with interleaved scrollTo, as a deterministic regression gate on CI; (c2) optional host app with the WKScrollViewTests SPI; real-phone safaridriver swipes stay blocked by the replay wedge in 10-2x-device-replay.md; no Playwright-Linux toolbar lane. Lean: the arm decision is proved equal for viewport height h and h+toolbar."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-run-dedup",
+   "owner": "lean-prover",
+   "stream": "infra",
+   "deps": [],
+   "title": "Lead 2026-10-25 (incident: fw run nav:clip-box refused to wait: 'nonce 912416a6895d9222 matches several runs (40196217959, 40196217959)'). Cause CONFIRMED (vm-loss investigation, checked): the gh-budget poller reads `gh run list` in several pages (poller.ts:70-99) and gh 2.86.0 appends pages without an id check, so a run created between page reads appears twice; wait.ts ambiguousIds -> want.ts selectOne (mirrors Lean Fw.Ci.Dispatch selectOne :179,:191) then refuses. Page-shift cause is INFERRED. Do: Lean dedupById (keep newest updatedAt) applied once in the poller before any select; theorems: dedupById has no duplicate ids; selectOne on dedupById rows is found i when every wanted row has id i; the ambiguous case stated on id sets (not list order; a reordering statement is false). Golden case rows [a,a] -> found a.id, TS checked against it. Poller logs each duplicate databaseId per tick as an event so the next case is MEASURED. Then refile nav:clip-box from run 40196217959 if the lead has not.",
+   "writes": [
+    "lean/Fw/Ci/Dispatch.lean",
+    "packages/contracts/golden/ci/dispatch.jsonl",
+    "packages/gh-budget/src/poller.ts",
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/src/want.ts",
+    "packages/gh-budget/test/**",
+    "docs/team/handoffs/ci-run-dedup.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-vm-evidence",
+   "owner": "measure-engineer",
+   "stream": "infra",
+   "deps": [],
+   "title": "Lead 2026-10-25 (incidents: webkit-sim and toolbar-throttle jobs on GitHub xcode-27 runners (3 vCPU M1, 7 GB) lost: 'hosted runner lost communication' at 69, 90, 94, 104 min; runs 40158609202, 40167641467, 40193540518). Checked investigation: 0 of 4 lost jobs left telemetry, so the cause is UNKNOWN; every measured job (12) runs at 100 % CPU, load median 468-717, used memory near 7.1 GB (pressure INFERRED: memUsedMb has no swap/compressor), so saturation is the setting, not a separator; exit 130 in 40193540518 sim(2) is our watchdog, likely blocked by spawnSync simctl (sim.mjs:41 SYNC_CAP_MS 200 s, sleepSync retries). Do in order: (1) upload each pass's results and the telemetry during the run (per pass and periodically), so a lost VM keeps its finished passes and evidence; (2) add swap, compressor and memory_pressure readings to scripts/ci-telemetry; (3) move simctl calls off spawnSync so the watchdog tick runs; turn off Simulator logging/widgets where documented, one long-lived XCUITest runner if the lane allows. (4) A Lean guard Probe -> Continue|Restart|Stop and (5) a job-length bound in the SimPlan come only after lost-VM data exist (follow-up). Each change keeps counts identical (golden or a paired run named in the note). Note research/notes/2026/10-25-macos-vm-loss.md (MEASURED/INFERRED per claim; investigation inputs .local/research/vm-loss/).",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    ".github/workflows/toolbar-throttle.yml",
+    "scripts/ci-telemetry/**",
+    "packages/measure-webkit/src/sim.mjs",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/src/session.mjs",
+    "packages/measure-webkit/test/**",
+    "lean/Fw/Ci/Telemetry.lean",
+    "research/notes/2026/10-25-macos-vm-loss.md",
+    "docs/team/handoffs/macos-vm-evidence.md"
+   ]
   }
  ],
  "deadline": {
