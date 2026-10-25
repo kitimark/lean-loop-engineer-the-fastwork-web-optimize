@@ -14,8 +14,8 @@ memory per zone (hero, finish, rest), per engine, against the base? Tags: CONFIR
 - MEASURED. WebKit: not one of the 18 decided cells (6 metrics x 3 zones) beats or loses to the base. Base run
   40196215217 and flag run 40196227509 are the same commit (cb4bec8), profile swipe-v1, 430 x 775 viewport.
 - MEASURED. Chromium: one cell beats, hero `trace.FunctionCall` 2188 / 2184 / 2184 for the base against 2140 / 2144 /
-  2140 for the flag (-2.0 %, base spread 4). The other 17 cells are equal or differ by a step under 1 % (hero
-  `UpdateLayoutTree` 788 against 787 is clear of a spread of 0 but is 0.1 %, so the rule counts it as no step). Base run
+  2140 for the flag (-2.0 %, base spread 4). The other 17 cells are same under the rule: inside the base spread (hero `trace.Layout`
+  238 / 240 / 237 against 235 / 234 / 235, -1.5 %) or a step under 1 % (hero `UpdateLayoutTree` 788 against 787). Base run
   40171939293 and flag run 40171969469, both at 1fac415, profile swipe-touch-v1.
 - The rewrite default runs the **`faithful`** mount, not a shifted one. CONFIRMED: the preset `original` sets no flag
   (`apps/site/src/registry/presets/original.json`), and an unset part takes the first variant of its `part.json`
@@ -34,7 +34,7 @@ memory per zone (hero, finish, rest), per engine, against the base? Tags: CONFIR
 Every cell is `same`: the arm's VMs are never clear of the base's by more than the base's VM-to-VM spread (for example
 hero FunctionCall: base 999 to 1163, spread 164, arm 1205 to 1604, the arm's lowest VM is 42 above the base's highest,
 less than the spread). The direction is up in the hero and finish zones for Layout, RecalculateStyles and FunctionCall,
-the layer count and Composite are equal, and backing memory moves by at most 1.3 %. Paint, FireAnimationFrame,
+the layer count and Composite are same (within 1 % and 2 %, inside the base spread), and backing memory moves by at most 1.3 %. Paint, FireAnimationFrame,
 EventDispatch and paint area are shown in the golden and decide nothing (quarantined classes or reported only).
 Per-VM values: `packages/contracts/golden/parts/dormant-counts.jsonl` (field `base`, `armVms`, `spread`).
 
@@ -48,13 +48,12 @@ also `same` in every cell of every zone (hero Layout 390 / 406 / 366 against 373
   driver until the original trigger. CONFIRMED (ledger row, Lean `Fw.Parts.MorphMountDormant.dormant_iff`,
   `visSame_dormant`).
 - So the two arms differ in one thing during the swipe, the early-mounted, invisible panel (about +200 resolved
-  elements, ledger MEASURED on Chromium). By construction it removes no work and adds no layer: a sleeping track is not promoted
-  (`layers_dormant_eq`, `census_dormant_eq`), so the model predicts equal layers and at most a little more style, layout or
-  script work. MEASURED here: layers and Composite equal on WebKit in every zone, Chromium `census.layers` 24160 against
+  elements, ledger MEASURED on Chromium). It adds no layer (`layers_dormant_eq`, `census_dormant_eq`); it moves mount work off the trigger frame, which on Chromium
+  saved 3 of 318 layout passes (10-20-morph-layers.md:26, MEASURED). MEASURED here: layers and Composite same on WebKit in every zone (within 1 % and 2 %, inside the base spread), Chromium `census.layers` 24160 against
   24159 / 24160 in the hero.
 - WebKit has nothing to win: the layer cost that `shift` adds (9 drawing layers per frame, ledger) is already absent
-  in the base. shift-dormant only gives it back, so its best case on WebKit is equal to the base, and the data show
-  that. The higher hero FunctionCall on WebKit is inside the spread, and the lower one on Chromium is 2 %; the early
+  in the base. shift-dormant gives that cost back; any count gain over the base can only come from the moved mount
+  work (INFERRED, no Lean bound on counts), and on WebKit no cell shows one. The higher hero FunctionCall on WebKit is inside the spread, and the lower one on Chromium is 2 %; the early
   mount's script work is a candidate for both, but no run isolates it (OPEN, not a mechanism claim). No other cell
   moves, so neither is a layout or layer effect.
 - Lean why, `lean/Fw/Parts/DormantCounts.lean`, golden `packages/contracts/golden/parts/dormant-counts.jsonl` replayed by

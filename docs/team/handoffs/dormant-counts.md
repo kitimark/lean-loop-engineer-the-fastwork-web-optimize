@@ -1,7 +1,7 @@
 # dormant-counts handoff
 
 - Branch worktree-wf_7d3b3dee-d5c-1, worktree .claude/worktrees/wf_7d3b3dee-d5c-1 of the main checkout, started from 1c493c313.
-- Last commit: see `git log -1` on the branch (data, note and ledger committed; checks and land steps follow).
+- Last commit: 1e2af8088 (data, note, ledger, golden); lead review fixes on top.
 - CI runs (this branch dispatched none and pushed no ci/* branch):
   - webkit base cb4bec8 40196215217: complete, filed
   - webkit flag morph.mount:shift-dormant cb4bec8 40196227509: complete, success, 3 VMs; read from gh run download because the
@@ -12,7 +12,7 @@
 - Verdicts: WebKit no-win in hero, finish and rest (n 3 VMs each); Chromium win in hero only (FunctionCall -2.0 %), finish and rest no-win.
 - Default arm runs faithful (apps/site/src/registry/resolve.ts:84, apps/site/src/parts/morph.mount/part.json:10).
 - No write outside the task list: the golden carries the reduced data as its first line, so check.sh reads no results/ file.
-- Dry land: VERDICT dry dormant-counts. Open: review ready (see the report). To refresh the data: run reduce.mjs (usage in its header; the five arms are
+- Dry land: VERDICT dry dormant-counts; review ready: VERDICT review-ready dormant-counts review. To refresh the data: run reduce.mjs (usage in its header; the five arms are
   webkit/base=40196215217 webkit/flag=40196227509 webkit/flag@1fac415=40171948671 chromium/base=40171939293 chromium/flag=40171969469),
   then `Fw.Parts.DormantCounts.gen ["--from", "../results/dormant-counts/zones.json"]` from lean/.
 - Conventions: one sample = one VM (WebKit) or one counts run (Chromium); a step under 1 percent is no win or loss.
