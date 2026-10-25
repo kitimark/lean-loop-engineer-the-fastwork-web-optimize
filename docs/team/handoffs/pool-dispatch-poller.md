@@ -12,3 +12,9 @@ Done: Lean cell theorems (PoolTier.lean); `codemagic.yaml` takes the cell as var
 Open: paired run. From a checkout with the app id: copy `.local/codemagic.json` and the ledger; GitHub twin `pnpm fw run --target original --engines webkit --runs 1 --ref ci/pool-dispatch-poller --no-route`; Codemagic cell `node scripts/codemagic.mjs trigger --pool --branch ci/pool-dispatch-poller --vars '{"FW_TARGET":"original","FW_PRESET":"original","FW_FW":"","FW_VM":"v1","FW_SESSIONS":"1"}'`, `wait --build <id> --out <dir>` (>= 120 s), then `node scripts/codemagic.mjs compare`.
 Follow-ups: re-route of already queued GitHub jobs (no re-route step in the Lean route); rewrite arm on Codemagic (needs the site build); spool `ci-route.jsonl` into console events.
 Read first: docs/team/tools/ci-pool.md (section "Dispatch-time route"), then `realRoute` in ci-pool-tier.ts.
+
+## Round 2 checkpoint (commit ec606c602)
+Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882-1`, last commit ec606c602, ci branch `ci/pool-dispatch-poller` pushed at ec606c602.
+Codemagic paired cell: build 6addffe5e4d133ded52e64b3 (rewrite, vm r1), running. GitHub twin: `fw run --target rewrite --engines webkit --runs 1 --no-route` started in the background (log scratchpad/pdp/gh.log). CI push run: not read yet.
+Done: Lean `ci.poolCell` (routable targets, rewrite filed only with equal non-empty site digests, theorems in PoolTier.lean), rewrite lane in pool7.cmAllow, codemagic.yaml builds the site (pinned elan, frozen pnpm install, @fw/site build, `codemagic.mjs site-digest`), `fw run` routes rewrite cells and checks the digest in `place`.
+Outside the task writes (lead to widen): lean/Fw/Ci/PoolTierWire.lean, lean/scripts/PoolGolden.lean.
