@@ -90,6 +90,13 @@ test('the phone replay profile equals the Lean profile', () => {
   for (const g of ops('phone')) assert.deepEqual(P.phoneProfile(P.CYCLES, g.dwellMs), g.profile);
 });
 
+test('the committed phone profiles (for phone-compose-counts) are the Lean profiles', () => {
+  for (const g of ops('phone')) {
+    const f = readFileSync(join(HERE, `../../../results/push-cycle-lag/phone-profile-d${g.dwellMs}.json`), 'utf8');
+    assert.deepEqual(JSON.parse(f), g.profile);
+  }
+});
+
 // a synthetic record: 6 cycles of 100 frames (20 closed, 60 open, 20 closed), 16 ms gaps; one toolbar change at frame 130 followed by two 60 ms frames,
 // one slow frame far from any change at frame 400
 function synthetic() {
