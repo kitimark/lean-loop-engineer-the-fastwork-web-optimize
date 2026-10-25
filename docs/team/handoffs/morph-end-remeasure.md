@@ -1,10 +1,9 @@
 branch: worktree-wf_1025224f-bba-1 (CI branch ci/morph-end-remeasure, 3 pushes used of 3; no more pushes)
 worktree: .claude/worktrees/wf_1025224f-bba-1
-last commit: 9e681f4eb (the push-3 commit; CI branch ci/morph-end-remeasure is at the same sha)
-CI runs: push 1 (067846590): toolbar-throttle 40158609202 FAILED (all 4 six-arm jobs lost; partial artifacts of jobs 1, 2 pooled), smoothness touch-lock 40158609210 success (results/morph-end-remeasure/touch-lock-run-40158609210.md), lean 40158609183 failure (init cost 1640; fixed b653fff4e). Push 2 (ba761c109): toolbar-throttle 40167641467 finished (jobs 1,3-8,10 success, job 2 failed at 90 min, job 9 cancelled but its artifact exists), lean 40167641470 success. Push 3 (9e681f4eb): toolbar-throttle 40193540518 RUNNING at fresh-builder start (sim 1, 3 lost 'runner lost communication' at 94 and 104 min; sim 2 exit 130 watchdog; sim 4,5,6,7 success; 8 running; 9, 10 queued, at 17:40 UTC), lean 40193540707 queued.
-verified: local check.sh green; measure-webkit 721 tests; ci-paths 56; runner land-inputs + overflow-widths 80 (max-parallel 3 after the widths test named 4); fw plan lint: no writesClosure line for this task
-open: pool run 40193540518 into scratchpad/mer/pool (relabel job vm: node-free script scratchpad/mer/relabel.py), regenerate results tables, write research/notes/2026/10-2x-morph-end-remeasure.md, dry land, review ready
-results so far: results/morph-end-remeasure/ (pooled tables of runs 40158609202 and 40167641467, pins.md, touch-lock table)
+last commit: see git log (note and pooled tables committed after run 40193540518)
+CI runs: push 1 (067846590): toolbar-throttle 40158609202 FAILED (4 six-arm jobs lost; jobs 1, 2 partial), smoothness touch-lock 40158609210 success, lean 40158609183 failure (fixed b653fff4e). Push 2 (ba761c109): toolbar-throttle 40167641467 finished (job 2 failed 90 min, job 9 cancelled, artifact kept), lean 40167641470 success. Push 3 (9e681f4eb): toolbar-throttle 40193540518 COMPLETE failure (sim 1, 3, 10 lost runner 94, 104, 80 min, sim 2 exit 130, sims 4-9 success), lean 40193540707 success.
+verified: pooled all three runs (scratchpad/mer/pool3, relabel.py c-prefix); results/morph-end-remeasure/ has pooled-runs-...-40193540518.md, run-40193540518.md, pins.md; note research/notes/2026/10-2x-morph-end-remeasure.md written (verdicts clamp no-win, flip no-win, release/all/all+unthrottle win on first stretch only).
+open: merge main, tests (measure-webkit, ci-paths, runner), check.sh, plan lint, dry land, review ready
 
 State and conventions
 - Lean: lean/Fw/Measure/MorphEndCount.lean (event counting by finger direction, spring-back fight, brick verdict, golden generator); golden packages/contracts/golden/device/morph-end-count.jsonl; check.sh job "morph-end-count golden check"; Trigger rows for lean.yml and toolbar-throttle.yml.
