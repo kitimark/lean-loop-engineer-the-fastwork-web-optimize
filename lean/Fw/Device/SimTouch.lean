@@ -7,37 +7,37 @@ namespace Fw.Device.SimTouch
 open Lean
 
 /-- Readiness polls before a pass gives up on the probe. -/
-def probeTries : Nat := 6
+def probeTries (_ : Unit := ()) : Nat := 6
 
 /-- Seconds between readiness polls. -/
-def probeGapS : Nat := 10
+def probeGapS (_ : Unit := ()) : Nat := 10
 
 /-- Seconds the probe may take in all. -/
-def probeBudgetS : Nat := probeTries * probeGapS
+def probeBudgetS (_ : Unit := ()) : Nat := probeTries * probeGapS
 
 /-- Seconds after the driver starts in which its first progress mark must appear (a 1-cycle warm-up took 145 and 220 s in total on the runner). -/
-def startS : Nat := 300
+def startS (_ : Unit := ()) : Nat := 300
 
 /-- Seconds without a new progress mark after which the driver counts as stalled (a press took 10 to 18 s, the slowest push 110 s for two presses). -/
-def gapS : Nat := 120
+def gapS (_ : Unit := ()) : Nat := 120
 
 /-- Fixed part of the hard cap on one touch run, in seconds. -/
-def capBaseS : Nat := 300
+def capBaseS (_ : Unit := ()) : Nat := 300
 
 /-- Seconds the hard cap adds per press. -/
-def capPressS : Nat := 45
+def capPressS (_ : Unit := ()) : Nat := 45
 
 /-- Seconds between two looks at the progress marks. -/
-def pollS : Nat := 5
+def pollS (_ : Unit := ()) : Nat := 5
 
 /-- Seconds a Simulator restart may take. -/
-def restartS : Nat := 600
+def restartS (_ : Unit := ()) : Nat := 600
 
 /-- Seconds the touch step may take in a job (the workflow's `timeout-minutes` of that step). -/
-def stepLimitS : Nat := 90 * 60
+def stepLimitS (_ : Unit := ()) : Nat := 90 * 60
 
 /-- Seconds a pass takes with no fault (measured 252 to 277 s of touches plus the page load and the fetch). -/
-def typicalPassS : Nat := 420
+def typicalPassS (_ : Unit := ()) : Nat := 420
 
 /-- The two drag modes of the lane. -/
 inductive Mode | drags | finish
@@ -325,7 +325,7 @@ def rank (s : St) : Nat :=
   | _ => 0
 
 /-- Events after which a pass has ended whatever they are. -/
-def passEvents : Nat := 5
+def passEvents (_ : Unit := ()) : Nat := 5
 
 theorem rank_init : rank init = passEvents := rfl
 
