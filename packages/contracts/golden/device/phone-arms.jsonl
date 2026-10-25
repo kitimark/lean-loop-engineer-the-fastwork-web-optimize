@@ -71,6 +71,7 @@
 {"fault":"staleTab","harness":true,"kind":"fault","text":"stale own tab could not be returned to about:blank"}
 {"fault":"other","harness":false,"kind":"fault","text":"Runtime.evaluate timed out 15 s"}
 {"fault":"other","harness":false,"kind":"fault","text":"expected exactly one about:blank Safari tab, found 0 of 2 tabs"}
+{"fault":"foreignProxy","harness":true,"kind":"fault","text":"another ios_webkit_debug_proxy holds port 9221"}
 {"fault":"other","harness":false,"kind":"fault","text":""}
 {"faults":[],"kind":"attempt","may":true}
 {"faults":["other"],"kind":"attempt","may":true}
@@ -122,4 +123,112 @@
 {"host":"http://harness.test","kind":"tabs","plan":{"plan":"refuse"},"urls":["http://harness.test.evil:4100/"]}
 {"host":"http://harness.test","kind":"tabs","plan":{"i":1,"plan":"drive"},"urls":["http://harness.test:3999/","about:blank"]}
 {"host":"http://harness.test","kind":"tabs","plan":{"plan":"refuse"},"urls":["https://harness.test:4100/"]}
+{"kind":"write","new":[],"ok":true,"old":[]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":[],"index":2}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":[],"index":2}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"kind":"write","new":[],"ok":true,"old":[{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab"],"index":6}],"ok":true,"old":[{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab","other"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["other"],"index":6}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["usbReset"],"index":6}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":[],"index":6}],"ok":false,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["other"],"index":2},{"faults":["usbReset","staleTab","other"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"kind":"write","new":[{"faults":[],"index":7},{"faults":["usbReset","staleTab"],"index":6}],"ok":true,"old":[{"faults":["usbReset","staleTab"],"index":6}]}
+{"kind":"write","new":[{"faults":["other"],"index":4}],"ok":false,"old":[{"faults":["other"],"index":3}]}
+{"index":"6","kind":"handreset","n":16,"plan":{"index":6,"plan":"note","reason":"tab returned to about:blank by hand"},"reason":"tab returned to about:blank by hand","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"3","kind":"handreset","n":16,"plan":{"plan":"noVisit"},"reason":"last visit of a 4-visit session","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"4","kind":"handreset","n":16,"plan":{"plan":"noVisit"},"reason":"one past a 4-visit session","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"2","kind":"handreset","n":16,"plan":{"index":2,"plan":"note","reason":"x"},"reason":"x","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"7","kind":"handreset","n":16,"plan":{"plan":"noVisit"},"reason":"no record","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"16","kind":"handreset","n":16,"plan":{"plan":"badIndex"},"reason":"past the plan","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"15","kind":"handreset","n":16,"plan":{"plan":"noVisit"},"reason":"in the plan, no record","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"","kind":"handreset","n":16,"plan":{"plan":"badIndex"},"reason":"empty index","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6a","kind":"handreset","n":16,"plan":{"plan":"badIndex"},"reason":"digits and a letter","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"-1","kind":"handreset","n":16,"plan":{"plan":"badIndex"},"reason":"sign","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6","kind":"handreset","n":16,"plan":{"plan":"noReason"},"reason":"","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6","kind":"handreset","n":16,"plan":{"plan":"noReason"},"reason":"   ","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"06","kind":"handreset","n":16,"plan":{"index":6,"plan":"note","reason":"leading zero"},"reason":"leading zero","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"1.5","kind":"handreset","n":16,"plan":{"plan":"badIndex"},"reason":"fraction","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"0","kind":"handreset","n":16,"plan":{"plan":"noVisit"},"reason":"empty state","state":[]}
+{"index":"6","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"tab returned to about:blank by hand","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"3","kind":"handreset","n":4,"plan":{"plan":"noVisit"},"reason":"last visit of a 4-visit session","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"4","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"one past a 4-visit session","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"2","kind":"handreset","n":4,"plan":{"index":2,"plan":"note","reason":"x"},"reason":"x","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"7","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"no record","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"16","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"past the plan","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"15","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"in the plan, no record","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"empty index","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6a","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"digits and a letter","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"-1","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"sign","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"6","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"   ","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"06","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"leading zero","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"1.5","kind":"handreset","n":4,"plan":{"plan":"badIndex"},"reason":"fraction","state":[{"faults":["usbReset","staleTab"],"index":6},{"faults":[],"index":2}]}
+{"index":"0","kind":"handreset","n":4,"plan":{"plan":"noVisit"},"reason":"empty state","state":[]}
+{"kind":"wallmin","n":0,"wallMin":0}
+{"kind":"wallmin","n":1,"wallMin":7}
+{"kind":"wallmin","n":2,"wallMin":14}
+{"kind":"wallmin","n":3,"wallMin":26}
+{"kind":"wallmin","n":4,"wallMin":33}
+{"kind":"wallmin","n":5,"wallMin":45}
+{"kind":"wallmin","n":15,"wallMin":140}
+{"kind":"wallmin","n":16,"wallMin":147}
+{"kind":"wallmin","n":17,"wallMin":159}
+{"evidence":false,"kind":"usb","listed":false,"onBus":false,"verdict":"absent"}
+{"evidence":true,"kind":"usb","listed":false,"onBus":false,"verdict":"reset"}
+{"evidence":false,"kind":"usb","listed":false,"onBus":true,"verdict":"reset"}
+{"evidence":true,"kind":"usb","listed":false,"onBus":true,"verdict":"reset"}
+{"evidence":false,"kind":"usb","listed":true,"onBus":false,"verdict":"ok"}
+{"evidence":true,"kind":"usb","listed":true,"onBus":false,"verdict":"reset"}
+{"evidence":false,"kind":"usb","listed":true,"onBus":true,"verdict":"ok"}
+{"evidence":true,"kind":"usb","listed":true,"onBus":true,"verdict":"reset"}
+{"is":true,"kind":"usbline","text":"usbpowerd: discovered <private>"}
+{"is":true,"kind":"usbline","text":"usbpowerd: device terminated"}
+{"is":false,"kind":"usbline","text":"usbpowerd: assertion taken"}
+{"is":false,"kind":"usbline","text":"usbmuxd: discovered"}
+{"is":false,"kind":"usbline","text":""}
+{"is":false,"kind":"usbline","text":"usbpowerd"}
+{"fault":"other","kind":"classify","text":"Runtime.evaluate timed out 15 s","usb":"ok"}
+{"fault":"usbReset","kind":"classify","text":"Runtime.evaluate timed out 15 s","usb":"reset"}
+{"fault":"other","kind":"classify","text":"Runtime.evaluate timed out 15 s","usb":"absent"}
+{"fault":"usbReset","kind":"classify","text":"the phone is paired but not on USB","usb":"ok"}
+{"fault":"usbReset","kind":"classify","text":"the phone is paired but not on USB","usb":"reset"}
+{"fault":"usbReset","kind":"classify","text":"the phone is paired but not on USB","usb":"absent"}
+{"fault":"staleTab","kind":"classify","text":"stale own tab could not be returned to about:blank","usb":"ok"}
+{"fault":"staleTab","kind":"classify","text":"stale own tab could not be returned to about:blank","usb":"reset"}
+{"fault":"staleTab","kind":"classify","text":"stale own tab could not be returned to about:blank","usb":"absent"}
+{"fault":"foreignProxy","kind":"classify","text":"another ios_webkit_debug_proxy holds port 9221","usb":"ok"}
+{"fault":"foreignProxy","kind":"classify","text":"another ios_webkit_debug_proxy holds port 9221","usb":"reset"}
+{"fault":"foreignProxy","kind":"classify","text":"another ios_webkit_debug_proxy holds port 9221","usb":"absent"}
+{"cases":[{"listed":true,"wait":"resume","waitedS":0},{"listed":true,"wait":"resume","waitedS":500},{"listed":false,"wait":"keep","waitedS":0},{"listed":false,"wait":"keep","waitedS":179},{"listed":false,"wait":"giveUp","waitedS":180},{"listed":false,"wait":"giveUp","waitedS":181}],"kind":"usbwait","waitS":180}
+{"attaches":false,"kind":"spec","spec":"","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":":9221,:9222-9322","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":"null:9221,:9222-9322","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":"AAAA-1111:9300","udid":"AAAA-1111"}
+{"attaches":false,"kind":"spec","spec":"BBBB-2222:9300","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":"BBBB-2222:9300,AAAA-1111:9301","udid":"AAAA-1111"}
+{"attaches":false,"kind":"spec","spec":"AAAA-1111:-1","udid":"AAAA-1111"}
+{"attaches":false,"kind":"spec","spec":"null:9300","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":"A.*:9300","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":"BBBB-2222:9300\nAAAA-1111:9301","udid":"AAAA-1111"}
+{"attaches":false,"kind":"spec","spec":"9300","udid":"AAAA-1111"}
+{"attaches":true,"kind":"spec","spec":":","udid":"AAAA-1111"}
+{"kind":"proxy","proxy":{"ports":[],"spec":"BBBB-2222:9300","usb":true},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[9221],"spec":"BBBB-2222:9300","usb":true},"udid":"AAAA-1111","verdict":"holdsPorts"}
+{"kind":"proxy","proxy":{"ports":[9222,9300],"spec":null,"usb":true},"udid":"AAAA-1111","verdict":"holdsPorts"}
+{"kind":"proxy","proxy":{"ports":[9300],"spec":null,"usb":true},"udid":"AAAA-1111","verdict":"attached"}
+{"kind":"proxy","proxy":{"ports":[9300],"spec":":9301","usb":true},"udid":"AAAA-1111","verdict":"attached"}
+{"kind":"proxy","proxy":{"ports":[9300],"spec":"AAAA-1111:9301","usb":true},"udid":"AAAA-1111","verdict":"attached"}
+{"kind":"proxy","proxy":{"ports":[9300],"spec":"BBBB-2222:9301","usb":true},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[9300,9301],"spec":"null:9300","usb":true},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[],"spec":"","usb":true},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[9223],"spec":"BBBB-2222:9300","usb":true},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[9341,9342],"spec":":9342","usb":false},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[9341],"spec":null,"usb":false},"udid":"AAAA-1111","verdict":"clear"}
+{"kind":"proxy","proxy":{"ports":[9221],"spec":":9342","usb":false},"udid":"AAAA-1111","verdict":"holdsPorts"}
+{"kind":"proxy","proxy":{"ports":[9300],"spec":":9301","usb":false},"udid":"AAAA-1111","verdict":"clear"}
+{"cases":[{"clear":true,"proxies":[]},{"clear":true,"proxies":[{"ports":[9300],"spec":"BBBB-2222:9300","usb":true}]},{"clear":false,"proxies":[{"ports":[9300],"spec":"BBBB-2222:9300","usb":true},{"ports":[9221],"spec":":9301","usb":true}]},{"clear":false,"proxies":[{"ports":[9300],"spec":"BBBB-2222:9300","usb":true},{"ports":[9301],"spec":null,"usb":true}]},{"clear":true,"proxies":[{"ports":[9300],"spec":"null:9300","usb":true},{"ports":[9301],"spec":"AAAA-1111:-1","usb":true}]},{"clear":true,"proxies":[{"ports":[9341,9342],"spec":":9342","usb":false},{"ports":[9300],"spec":"BBBB-2222:9300","usb":true}]},{"clear":true,"proxies":[{"ports":[9341,9342],"spec":":9342","usb":false}]}],"guarded":[9221,9222],"kind":"proxies","udid":"AAAA-1111"}
 {"arms":[[[4,4,4],[20,21,22],[7,7,7]],[[10,10,10],[40,41,42],[7,7,7]],[[4,4,4],[40,41,42],[7,7,7]],[[10,10,10],[20,21,22],[7,7,7]],[[9,9,9],[1],[]]],"base":[[10,10,10,11],[20,22,24,21],[7,7,7,7]],"cells":[["beats","same","same"],["same","worse","same"],["beats","worse","same"],["same","same","same"],["same","beats","unresolved"]],"kind":"table","labels":["better","worse","mixed","same","better"]}

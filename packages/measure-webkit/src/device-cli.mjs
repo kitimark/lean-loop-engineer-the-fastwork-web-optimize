@@ -22,20 +22,24 @@ import { phoneRecord, stepOf } from './device-record.mjs';
 import { CONST, reducePass, compareZones, normalize } from './device-session.mjs';
 import { sessionPlan, armSearch } from './device-arms.mjs';
 import { readRecord, writeProfile, writePackage } from './device-profile.mjs';
-import { planText, runBlock, reduceDir } from './device-phone-run.mjs';
+import { planText, runBlock, reduceDir, handResetCommand } from './device-phone-run.mjs';
+import * as PA from './device-phone-arms.mjs';
+import { readThermal } from './device-thermal.mjs';
+import { listPhone, readout } from './device.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
-const { values: v } = parseArgs({
-  args: rest, allowNegative: true,
+const { values: v, positionals } = parseArgs({
+  args: rest, allowNegative: true, allowPositionals: true,
   options: {
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
+const only = () => (v.only ? PA.sessionOf(v.only.split(',').map((x) => x.trim()).filter(Boolean)) : PA.SESSION);
 const sessionOpts = { site: v.target === 'rewrite' ? { dir: v.site, search: v.search } : null, log };
 if (v.target === 'rewrite' && !v.site) throw new Error('--target rewrite needs --site <dist/aot>');
 const save = (data) => {
@@ -68,15 +72,30 @@ async function main() {
       console.log(JSON.stringify({ arm: r.arm, appearance: r.appearance, frames: r.frames, reachedY: r.reachedY, maxY: r.maxY, total: r.summary.total }));
       break;
     }
+    case 'thermal': {
+      const id = listPhone().udid;
+      const t = readThermal(id);
+      const b = readout(id, { thermal: () => t });
+      const r = { at: b.at, state: t.state, lock: t.lock, batteryC: b.batteryVirtualTemp, batteryPct: b.batteryPct, charging: b.charging, source: b.thermalSource, ...(t.error ? { error: t.error } : {}) };
+      save(r);
+      console.log(JSON.stringify(r));
+      break;
+    }
     case 'arms-plan': {
       if (!v.site) throw new Error('arms-plan needs --site <dist/aot>');
-      console.log(planText(resolve(v.site)));
+      console.log(planText(resolve(v.site), only()));
       break;
     }
     case 'arms-run': {
+      if (v['hand-reset'] !== undefined) {
+        if (!v.dir) throw new Error('arms-run --hand-reset <index> <reason> needs --dir <raw dir>');
+        const st = handResetCommand(resolve(v.dir), v['hand-reset'], v.reason ?? positionals[0]);
+        console.log(JSON.stringify({ handReset: v['hand-reset'], notes: st.leadReset.length }));
+        break;
+      }
       if (!v.site || !v.dir) throw new Error('arms-run needs --site <dist/aot> and --dir <raw dir>');
       for (;;) {
-        const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), blocked: v.blocked ? resolve(v.blocked) : null, ...(v['max-visits'] ? { maxVisits: Number(v['max-visits']) } : {}) });
+        const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), blocked: v.blocked ? resolve(v.blocked) : null, session: only(), ...(v['max-visits'] ? { maxVisits: Number(v['max-visits']) } : {}) });
         console.log(JSON.stringify({ ran: r.ran.length, remaining: r.remaining, stopped: r.stopped }));
         if (r.stopped) { process.exitCode = 3; break; }
         if (!v.all || r.remaining <= 0 || r.ran.length === 0) break;
@@ -148,7 +167,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | arms-run | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
+      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | arms-run [--only <arm ids>] [--hand-reset <index> <reason>] | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
       process.exitCode = 2;
   }
 }

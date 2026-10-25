@@ -44,6 +44,7 @@ test('visits, blocks and the session plan match Lean', () => {
   assert.deepEqual(ids(P.SESSION), s.visits);
   assert.deepEqual(P.blocks(P.PA.perBlock, ids(P.SESSION)), s.blocks);
   assert.equal(P.wallMin(P.SESSION.length), s.wallMin);
+  for (const c of of('wallmin')) assert.equal(P.wallMin(c.n), c.wallMin, `n=${c.n}`);
   for (const c of of('blocks')) {
     const l = Array.from({ length: c.n }, (_, i) => i);
     const b = P.blocks(c.per, l);

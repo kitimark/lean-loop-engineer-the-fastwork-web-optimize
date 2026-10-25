@@ -37,7 +37,13 @@ export function blocks(per, l) {
 export const mayStart = (elapsedS, longestS) => elapsedS + longestS <= PA.capMin * 60;
 export const coolOk = (gapS) => PA.coolMin * 60 <= gapS;
 export const SESSION = Object.freeze(visits(BASE, OTHERS));
-export const wallMin = (n, perBlock = PA.perBlock) => n * PA.visitMin + (Math.max(1, blocks(perBlock, SESSION).length) - 1) * PA.coolMin;
+export function sessionOf(onlyIds) {
+  const known = OTHERS.map((a) => a.id);
+  const bad = onlyIds.filter((id) => !known.includes(id));
+  if (bad.length > 0 || onlyIds.length === 0) throw new Error(`--only needs kept arm ids from [${known.join(' | ')}]; got [${onlyIds.join(' | ')}]`);
+  return Object.freeze(visits(BASE, OTHERS.filter((a) => onlyIds.includes(a.id))));
+}
+export const wallMin = (n, perBlock = PA.perBlock) => n * PA.visitMin + (Math.max(1, Math.ceil(n / perBlock)) - 1) * PA.coolMin;
 
 export const binZone = (vh10, maxY10, y0) => zoneOf(vh10, maxY10, y0 * 10 + 2500);
 export const zoneSum = (vh10, maxY10, z, bins) => bins.filter((b) => binZone(vh10, maxY10, b[0]) === z).reduce((s, b) => s + b[1], 0);
