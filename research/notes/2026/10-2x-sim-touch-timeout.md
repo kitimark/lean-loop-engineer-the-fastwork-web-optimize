@@ -101,6 +101,9 @@ through `parts-cli.mjs` (cap, shutdown, boot, warm-up, retry done); it is a debu
   runs a one-cycle warm-up and retries the pass once; a second failure ends the pass as a named failure (`failed:touchesFailed`, `failed:notReady`,
   `failed:restartFailed`). A record that is unusable for another reason (page lost, or a recorder failure after clean touches) still gets one more machine run, outside the machine, only
   when the first run used no restart: a pass restarts the Simulator at most once in total. `failed[]` lists every pass whose phase is not `done`.
+- **Morph-end lane (`cli.mjs --timeout 480 --reset`, landed on main while this task ran).** The machine replaces both: the touch run is sized by the stall watch
+  and the Lean cap (570 s for two finish cycles) instead of a fixed 480 s, and a failed pass restarts the Simulator through the machine instead of a bare shutdown
+  before the second try. The two flags are still accepted and ignored. INFERRED to be at least as good; no morph-end run on this code exists.
 - **Blocking calls (`sim.mjs`).** Each blocking call ends within 200 s whatever the scale asks, so the stall guard sees the retry log lines; `listDevices` has the retry
   policy; `bootstatus` may retry 5 times.
 - **Lane.** Touch step 45 -> 90 min, job 60 -> 110 min (the Lean `stepLimitS`).
