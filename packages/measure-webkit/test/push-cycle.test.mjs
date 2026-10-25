@@ -145,6 +145,8 @@ test('the arms: searches and the pages the site build prerenders', () => {
   assert.equal(P.searchOf('user').split(',').length, 9);
   assert.equal(P.searchOf('off-engine.scroll:unthrottle').split(',').length, 8);
   assert.ok(!P.searchOf('off-engine.scroll:unthrottle').includes('engine.scroll'));
+  assert.ok(!P.searchOf('off-hero.countdown:strip').includes('countdown:strip'), 'morph.countdown:strip requires hero.countdown:strip, so both go');
+  assert.ok(P.searchOf('off-morph.countdown:strip').includes('hero.countdown:strip'));
   assert.throws(() => P.searchOf('off-nothing'));
   assert.throws(() => P.searchOf('lift'));
   assert.deepEqual(P.searchesOf(['original', 'rewrite', 'user']), [P.searchOf('user')]);

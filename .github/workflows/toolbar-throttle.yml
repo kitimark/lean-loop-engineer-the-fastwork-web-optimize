@@ -238,7 +238,7 @@ jobs:
           FW_WK_ATTEMPTS: '3'
           # [throttle:push-cycle] (task push-cycle-lag): six drag-past-the-end cycles per pass on original, rewrite and the user's composition, one round per job, the order rotated
           # by the job number; the dwell after each press is 300 ms, or 1000 ms with [throttle:push-cycle:1000]. It runs push-cycle-cli.mjs.
-          # With [throttle:push-cycle-off] the arms are the user's composition and three single-flag-off pages of it (flag-off attribution).
+          # With [throttle:push-cycle-off] the arms are the user's composition and three flag-off pages of it (hero.countdown:strip off takes morph.countdown:strip with it, which requires it).
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
           DWELL_MS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle:1000]') && '1000' || '300' }}
           PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}

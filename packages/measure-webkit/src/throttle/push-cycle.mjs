@@ -198,13 +198,17 @@ export const USER_FLAGS = Object.freeze([
   'morph.columns:idle-none', 'morph.countdown:strip', 'engine.events:quiet', 'engine.scroll:unthrottle',
 ]);
 
-/** `original` (no search), `rewrite` (default build), `user` (all flags), `off-<flag>` (all flags but one: the flag's share). */
+/** Flags that the site refuses without another one (morph.countdown:strip requires hero.countdown:strip), so a flag-off page drops them with it. */
+const NEEDS = Object.freeze({ 'hero.countdown:strip': ['morph.countdown:strip'] });
+
+/** `original` (no search), `rewrite` (default build), `user` (all flags), `off-<flag>` (all flags but one and what requires it: the flag's share). */
 export function searchOf(arm) {
   if (arm === 'original') return null;
   if (arm === 'rewrite') return '';
   if (arm === 'user') return `?fw=${USER_FLAGS.join(',')}`;
   if (arm.startsWith('off-')) {
-    const rest = USER_FLAGS.filter((f) => f !== arm.slice(4));
+    const gone = [arm.slice(4), ...(NEEDS[arm.slice(4)] ?? [])];
+    const rest = USER_FLAGS.filter((f) => !gone.includes(f));
     if (rest.length === USER_FLAGS.length) throw new Error(`unknown flag in ${arm}`);
     return `?fw=${rest.join(',')}`;
   }
