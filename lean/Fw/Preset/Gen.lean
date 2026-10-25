@@ -524,14 +524,26 @@ theorem threaded_not_yet {ledger : List Row} {st : List Stored} :
   ⟨q6_open.1, q6_open.2, (entry_notYet_of_unmet (by simp [entryReqs]) threaded_proofs_unmet).2,
     fun h => by simp [blockers, threaded_look_met] at h⟩
 
+/-- A failing run of the flag alone on one path of a family leaves that family's gate unmet and a blocker. -/
+theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
+    {s : Stored} (hw : w ∈ walks) (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key])
+    (hf : outcome s = .fail) :
+    reqMet ledger st f (.gate fam) = false ∧ .gate fam ∈ blockers ledger st f := by
+  have hu : reqMet ledger st f (.gate fam) = false := by
+    simp only [reqMet, List.all_eq_false, beq_iff_eq]
+    exact ⟨w, hw, by simp [tcell_own_fail hs ho hf]⟩
+  have hr : EntryReq.gate fam ∈ entryReqs := by cases fam <;> simp [entryReqs]
+  exact ⟨hu, (entry_notYet_of_unmet hr hu).2⟩
+
 def threadedEvidence (st : List Stored) : EntryReq → String
   | .proofs => "Fw.Parts.HeroExitOpt.consumer_eq_s (E-s under the hypothesis RG11), cr_real_tradeE and wk_tradeE (a \
       trade); ledger row hero-exit-threaded (v6, KD#2) is partly-proved and Gen.linkTable has no link"
   | .gate fam =>
     let cell (w : Walk) : String :=
-      let runs := (runsFor st heroExitThreaded fam w).map (·.run)
+      let runs := (runsFor st heroExitThreaded fam w).map fun s =>
+        "run " ++ s.run ++ " " ++ engineWord s.engine ++ " " ++ outcomeWord (outcome s)
       walkWord w ++ " " ++ tcellWord (tcell st heroExitThreaded fam w) ++
-        (if runs.isEmpty then " (no stored run)" else " (runs " ++ ", ".intercalate runs ++ ")")
+        (if runs.isEmpty then " (no stored run)" else " (" ++ ", ".intercalate runs ++ ")")
     "trajectory " ++ "; ".intercalate (walks.map cell) ++ "; PathPix runs 39924527942 and 39929556147 grade every \
       valid P cell L (research/notes/2026/10-2x-hero-exit-threaded-pix.md)"
   | .look => "accepted 2026-10-24 on the real iPhone (results/phone/2026-10-24-hero-exit-threaded/summary.md)"
@@ -826,6 +838,11 @@ private def unitsJ (refused : Bool) (search : String) : Json :=
 private def stPass (e : Engine) (w : Walk) : Stored :=
   ⟨"9", "s", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, w, Fw.Gate.Trajectory.allowedWidths, []⟩
 
+private def stFail (e : Engine) : Stored :=
+  ⟨"9", "s", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, .hero, Fw.Gate.Trajectory.allowedWidths,
+    [{ node := "hero.deck.card", prop := "opacity", content := [640, 641, 1280], coverage := [] }]⟩
+
+#guard outcome (stFail .chromium) == .fail
 #guard entry [] [] heroExitThreaded == .notYet [.proofs, .gate .chromium, .gate .webkit, .q6]
 #guard outcome (stPass .chromium .hero) == .pass
 #guard blockers [] ([Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e)) heroExitThreaded == [.proofs, .q6]
@@ -837,7 +854,12 @@ private def stPass (e : Engine) (w : Walk) : Stored :=
 #guard ((entryJson [] [] heroExitThreaded).getObjValAs? (List String) "blockers").toOption ==
   some ["proofs", "gate chromium", "gate webkit", "q6 same scroll offset"]
 #guard threadedEvidence [] (.gate .webkit) |>.startsWith "trajectory hero pending (no stored run); morph pending (no stored run)"
-#guard threadedEvidence [stPass .macWebkit .hero] (.gate .webkit) |>.startsWith "trajectory hero pass (runs 9); morph pending"
+#guard threadedEvidence [stPass .macWebkit .hero] (.gate .webkit) |>.startsWith
+  "trajectory hero pass (run 9 mac-webkit pass); morph pending"
+#guard threadedEvidence [stFail .linuxWebkit, stFail .macWebkit] (.gate .webkit) |>.startsWith
+  "trajectory hero fail (run 9 linux-webkit fail, run 9 mac-webkit fail); morph pending"
+#guard blockers [] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e))
+  heroExitThreaded == [.proofs, .gate .chromium, .q6]
 #guard refusedMembers lookDecisions [⟨"hero.accent", "draw-nolayout"⟩, ⟨"hero.exit", "threaded"⟩] ==
   [⟨"hero.accent", "draw-nolayout"⟩]
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "hero.exit:threaded"),
