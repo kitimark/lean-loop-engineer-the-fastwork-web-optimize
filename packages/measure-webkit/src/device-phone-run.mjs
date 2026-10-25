@@ -15,7 +15,6 @@ export const loadState = (dir) => {
   const f = join(dir, 'state.json');
   return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : { visits: [] };
 };
-/** Write the state; a visit's named faults only ever grow (Lean appendOnly), so a hand edit that dropped them is refused. */
 export const saveState = (dir, st) => {
   mkdirSync(dir, { recursive: true });
   const f = join(dir, 'state.json');
@@ -27,7 +26,6 @@ export const saveState = (dir, st) => {
   }
   writeFileSync(f, JSON.stringify(st, null, 1) + '\n');
 };
-/** A hand reset (tab, phone, proxy): noted in the state, the visit's faults stay as they are (Lean handReset). */
 export function markHandReset(dir, index, reason) {
   const st = loadState(dir);
   st.leadReset = [...(st.leadReset ?? []), { index, reason }];

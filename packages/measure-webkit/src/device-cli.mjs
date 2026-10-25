@@ -12,7 +12,6 @@
 //   node src/device-cli.mjs arms-plan --site <dist/aot>                    (end-of-page session: Lean's visit list, blocks and each arm's page; no phone)
 //   node src/device-cli.mjs arms-run --site <dist/aot> --dir <raw dir> [--blocked file]   (the next block of visits; waits out the cool gap first)
 //   node src/device-cli.mjs arms-reduce --dir <raw dir> --out results/phone/<name>        (tables and verdicts; no phone)
-// Nothing is committed from here except via results/phone/*. The LAN address and device id are never printed or stored.
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';

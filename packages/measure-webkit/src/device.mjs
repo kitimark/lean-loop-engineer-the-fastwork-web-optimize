@@ -148,7 +148,7 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
   process.once('SIGTERM', () => onSignal('SIGTERM'));
   try {
     proxy = await startPhoneProxy(phone.udid, { log: say });
-    const ownHost = `${new URL(server.url).protocol}//${new URL(server.url).hostname}`; // any port: each visit serves on a new one
+    const ownHost = `${new URL(server.url).protocol}//${new URL(server.url).hostname}`;
     let tabs = await tabsOf(proxy.ports);
     let plan = tabPlan(ownHost, tabs.map((t) => t.url));
     if (plan.plan === 'reset') {

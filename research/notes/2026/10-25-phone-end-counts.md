@@ -4,7 +4,7 @@
 
 - **15 of 16 planned visits ran (MEASURED, one phone, one session); morph.countdown:strip is the named lost arm.** The base ran three times
   (visits 0, 7, 15), so every verdict below is against a real A/B/A base spread (9 counts passes, 15 frame reps per cell). Strip failed in three
-  tries: (1) the phone's USB re-enumerated and the proxy closed with code 1006 (usbReset); (2) our own tab was left on the harness page (staleTab);
+  tries: (1) usbReset (code 1006); (2) staleTab;
   after a hand reset, (3) Runtime.evaluate timed out mid-scroll with no USB cycle (other, which points at the arm). Lean `mayAttempt
   [usbReset, staleTab, other]` is false, so the visit is lost in this session and not retryable here. Its re-measure in phone-thermal-check is a
   new visit in a new session with a fixed harness (the wip.mjs provisional-target fix), not a fourth attempt.
@@ -20,7 +20,7 @@
 - **Four arms trade on the phone (Lean label mixed)**: rest Paint falls beyond the base spread (base 899 down to 595-711) while FunctionCall and
   EventDispatch rise; hidden-pause and logo-3d also have frames worse. morph.countdown:hidden-pause (finish Layout 86 vs 52, finish over50 1.85 per
   100 vs 0), nav:logo-3d (rest over50 4.89 per 100 vs 0.46, rAF 418 vs 400), and, in counts only, hero:scene-pause and morph.panel:const-bounds. INFERRED
-  that work moves between steps (coalesced paints) rather than shrinking, not tested. One visit each: repeat before using it.
+  that work moves between steps (coalesced paints) rather than shrinking, not tested.
 - **No count, area, layer or frame cell moves beyond the base spread for nav.hitTest:hit-skip, nav:clip-box, nav:bar-fixed and
   morph.mount:shift-dormant.** For hit-skip that is expected (INFERRED): the scripted scroll sends no pointer path, which is what the flag skips.
 - **The original page is slow on the phone over the whole page (MEASURED):** hero 100 of 100 moving frames over 34 ms (rewrite 0.9), rest 79 of
@@ -122,4 +122,4 @@ counts. A match in direction is weak evidence; a difference is a different quant
   3-visit base spread only, so arm-side visit-to-visit drift is untested.
 - Repeat the four arms that trade on the phone (hidden-pause, logo-3d, scene-pause, const-bounds) before any flag decision.
 - ci/phone-end-counts push (ab773fe95): all 20 workflows concluded skipped (e.g. lean-math 40173828875, webkit-sim 40173828789); no CI measurement.
-  The Simulator side comes from the earlier runs named above.
+  

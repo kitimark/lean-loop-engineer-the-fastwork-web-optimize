@@ -1,7 +1,7 @@
 # phone-end-counts handoff (round 3)
 
 - Branch worktree-wf_67587a94-89a-1; worktree .claude/worktrees/wf_67587a94-89a-1; last commit: `git log -1`.
-- CI: no new push in rounds 2 and 3 (no measurement CI needed). Round 1 push ci/phone-end-counts at ab773fe95: all 20 workflows skipped (lean-math
+- CI: no new push in rounds 2 and 3. Round 1 push ci/phone-end-counts at ab773fe95: all 20 workflows skipped (lean-math
   40173828875, chromium-counts 40173828867, webkit-sim 40173828789). Runs in flight: none.
 - Phone: 15 of 16 visits done (base x3 at visits 0, 7, 15; 12 arms once). Lost: morph.countdown:strip (visit 6). Raw files .local/phone/2026-10-25/
   (gitignored). No phone use in rounds 2 and 3.

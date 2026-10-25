@@ -13,12 +13,10 @@ export const mayAttempt = (faults) => faults.length < 2 || (faults.length < 3 &&
 
 export const recordFault = (faults, f) => [...faults, f];
 
-/** A hand reset leaves the faults as they are. */
 export const handReset = (faults) => faults;
 
 export const appendOnly = (old, next) => old.length <= next.length && old.every((f, i) => next[i] === f);
 
-/** A tab on our host at any port: every visit serves on a new port, so the tab a visit leaves sits on that visit's port. */
 export const ownTab = (host, u) => u === host || u.startsWith(host + ':') || u.startsWith(host + '/');
 
 export function tabPlan(host, urls) {
