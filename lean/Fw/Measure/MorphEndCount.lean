@@ -516,7 +516,7 @@ private def noisy (n seed : Nat) : List Int × List Int :=
     (s, r, d, (r, d) :: acc.2.2.2)) (seed, 0, 0, [])
   (rows.2.2.2.reverse.map (·.1), rows.2.2.2.reverse.map (·.2))
 
-private def eventCases : List (String × List Int × List Int) :=
+private def eventCases (_ : Unit) : List (String × List Int × List Int) :=
   [("empty", [], []), ("single", [5], [1]), ("flat", [5, 5, 5], [1, 1, 1]), ("monotone rise", [0, 100, 200, 1000], [0, 0, 0, 0]),
    ("two closes and two re-opens", [0, 0, 300, 700, 1000, 1000, 600, 100, 0, 0, 400, 1000, 1000, 500, 800],
     [-1, -1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, -1, 1, -1]),
@@ -527,12 +527,12 @@ private def eventCases : List (String × List Int × List Int) :=
    ("constant", List.replicate 8 300, List.replicate 8 1), ("noisy 80", (noisy 80 7).1, (noisy 80 7).2),
    ("noisy 300", (noisy 300 11).1, (noisy 300 11).2)]
 
-private def stretchCases : List (List Int) :=
+private def stretchCases (_ : Unit) : List (List Int) :=
   [[], [0, 0], [1], [1, 1, 1], [0, 1, 1, 0, 1, 0, 0, 1, 1, 1], [1, 0, 1, 0, 1], [0, 0, 0, 1]]
 
 private def mkW (l : List (Int × Bool × Nat)) : List Write := l.map fun (t, o, f) => ⟨t, o, f⟩
 
-private def fightCases : List (String × List Int × List Int × List Write) :=
+private def fightCases (_ : Unit) : List (String × List Int × List Int × List Write) :=
   [("no writes", [5200, 5300], [-1, -1], []),
    ("finger up, write lowers", [5300, 5320, 5330], [-1, -1, -1], mkW [(5223, true, 3)]),
    ("finger up, write raises", [5200, 5210], [-1, -1], mkW [(5300, true, 2)]),
@@ -545,14 +545,14 @@ private def fightCases : List (String × List Int × List Int × List Write) :=
    ("write equal to the position", [5300, 5300], [-1, -1], mkW [(5300, true, 2)]),
    ("two directions", [5300, 5320, 5100, 5000], [-1, -1, 1, 1], mkW [(5223, true, 2), (5223, true, 3), (5500, true, 4), (5100, true, 4)])]
 
-private def passCases : List (String × List Int × List Int × List Int × List Write) :=
+private def passCases (_ : Unit) : List (String × List Int × List Int × List Int × List Write) :=
   [("one cycle", [0, 0, 300, 700, 1000, 600, 100, 0, 400], [0, -1, -1, -1, -1, 1, 1, 1, -1], [5200, 5210, 5300, 5320, 5330, 5300, 5250, 5240, 5260],
     mkW [(5223, true, 3), (5223, true, 4), (5300, true, 6)]),
    ("never opened", [0, 0, 0], [0, 0, 0], [5200, 5200, 5200], [])]
 
 private def pairsJ (l : List (Nat × Nat)) : Json := Json.arr (l.map fun p => toJson [p.1, p.2]).toArray
 
-private def verdictCases : List (String × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × Bool) :=
+private def verdictCases (_ : Unit) : List (String × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × List (Nat × Nat) × Bool) :=
   [("fewer reversals, fights equal", [(12, 4), (10, 4), (14, 4)], [(2, 4), (3, 4), (4, 4)], [(6, 4), (7, 4)], [(6, 4), (7, 4)], false),
    ("fewer fights", [(12, 4), (10, 4)], [(11, 4), (10, 4)], [(8, 4), (9, 4)], [(1, 4), (2, 4)], false),
    ("lower reversals, higher fights", [(12, 4), (10, 4)], [(2, 4), (3, 4)], [(1, 4), (2, 4)], [(8, 4), (9, 4)], false),
@@ -565,24 +565,24 @@ private def verdictCases : List (String × List (Nat × Nat) × List (Nat × Nat
    ("different open starts per pass", [(10, 2), (30, 6)], [(2, 4), (1, 3)], [(4, 2), (12, 6)], [(1, 4), (1, 3)], false)]
 
 private def goldenLines (_ : Unit) : List String :=
-  (eventCases.map fun (name, r, d) =>
+  ((eventCases ()).map fun (name, r, d) =>
     let evs := events r d
     (Json.mkObj [("kind", "events"), ("name", name), ("r", intsJ r), ("d", intsJ d), ("events", Json.arr (evs.map eventJ).toArray),
       ("closes", dirJ (byDirection .close evs)), ("reopens", dirJ (byDirection .reopen evs)), ("opens", opens r)]).compress) ++
-  (stretchCases.map fun o =>
+  ((stretchCases ()).map fun o =>
     (Json.mkObj [("kind", "stretches"), ("o", intsJ o),
       ("stretches", Json.arr ((stretches o).map fun p => toJson [p.1, p.2]).toArray)]).compress) ++
-  (fightCases.map fun (name, ys, ds, ws) =>
+  ((fightCases ()).map fun (name, ys, ds, ws) =>
     (Json.mkObj [("kind", "fights"), ("name", name), ("y", intsJ ys), ("d", intsJ ds), ("writes", Json.arr (ws.map writeJ).toArray),
       ("springBack", dirJ (springBack ys ds ws))]).compress) ++
-  (passCases.map fun (name, r, d, y, ws) =>
+  ((passCases ()).map fun (name, r, d, y, ws) =>
     (Json.mkObj [("kind", "pass"), ("name", name), ("r", intsJ r), ("d", intsJ d), ("y", intsJ y), ("writes", Json.arr (ws.map writeJ).toArray),
       ("counts", countsJ (ofRecord r d y ws))]).compress) ++
-  (verdictCases.map fun (name, fr, cr, ff, cf, still) =>
+  ((verdictCases ()).map fun (name, fr, cr, ff, cf, still) =>
     (Json.mkObj [("kind", "verdict"), ("name", name), ("faithRev", pairsJ fr), ("candRev", pairsJ cr), ("faithFight", pairsJ ff),
       ("candFight", pairsJ cf), ("stillLifted", still), ("rev", (cmp (rates fr) (rates cr)).name), ("fight", (cmp (rates ff) (rates cf)).name),
       ("verdict", (verdictOf fr cr ff cf still).name)]).compress) ++
-  (let cs := passCases.map fun (_, r, d, y, ws) => ofRecord r d y ws
+  (let cs := (passCases ()).map fun (_, r, d, y, ws) => ofRecord r d y ws
    let cs3 := cs ++ cs.reverse ++ cs
    [cs, cs.reverse, cs3, []].map fun l =>
     (Json.mkObj [("kind", "total"), ("passes", Json.arr (l.map countsJ).toArray), ("total", countsJ (total l))]).compress)
