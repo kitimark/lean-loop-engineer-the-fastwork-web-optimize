@@ -8,7 +8,7 @@
   69, 52 (strip), a "beats" cell at every stop, with the backing store the same except +2.0 MiB at y 0 (39.7 vs 37.7 MiB, "worse"; 1 MiB = 1048576 bytes, in this note and in `reduced/tables.md`). That agrees in
   direction with the Simulator result (a trade: finish layers 128 to 56, runs 39775198022 vs 39775174615). The earlier stall (phone-end-counts, three tries)
   did not recur; the harness differs in two ways (wip.mjs follows `Target.didCommitProvisionalTarget`; every block is gated on the thermal state),
-  so which of them mattered is not separated (not separated: the strip counts lane also started at Serious, as in the earlier stall).
+  so which of them mattered is not separated (the strip counts lane also started at Serious, as in the earlier stall).
 - **Every 7 minute visit ends at Serious thermal state (MEASURED, 4 of 4 visits): Nominal at the start, Fair or Serious by the first lane
   readout, Serious at the end.** The battery temperature stayed at 33 C for the whole session (80 percent, not charging), so it did not see any of it:
   a battery-temperature rule alone would never have stopped a block. The phone returned to Nominal after 8 to 16 minutes (Serious at 12:14, Fair 12:19 to

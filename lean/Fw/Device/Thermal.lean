@@ -3,8 +3,6 @@ import Fw.Device.PhoneArms
 /-!
 # The phone thermal check
 Gate, pause and resume rules of `packages/measure-webkit/src/device-thermal.mjs`.
-One pass here is one visit (the frames lane and the counts lane of one arm); the state is read at block start,
-visit start and visit end, so readings inside a visit are recorded but not gated.
 -/
 namespace Fw.Device.Thermal
 open Lean
@@ -99,7 +97,6 @@ theorem preflight_open {lock : Lock} (h : lock ≠ .locked) (th : Option Thermal
     preflight lock th temp first = gate th temp first := by
   simp [preflight, h]
 
-/-- Passes (visits) run before the first reading that is not `go`. -/
 def passesRun : List Verdict → Nat
   | [] => 0
   | .go :: rs => passesRun rs + 1
@@ -136,9 +133,6 @@ theorem blockPasses_le_critical {rd : List (Option Thermal × Option Nat)} {firs
     (h : rd[k]? = some (some .critical, c)) : blockPasses rd first ≤ k := by
   refine passesRun_le_stop _ k .thermal (by simp [h, gate]) (by decide)
 
-/-- Readings are taken only between passes, so a trigger that arises during pass `k - 1` is seen at reading `k`;
-one reading that is not `go` at index `k` leaves at most `k` passes run, so no pass starts after the trigger is
-read and only the pass in progress (`k - 1`) finishes. -/
 theorem blockPasses_one_after_trigger {rd : List (Option Thermal × Option Nat)} {first : Option Nat} {k : Nat} {r : Option Thermal × Option Nat}
     (h : rd[k]? = some r) (hv : gate r.1 r.2 first ≠ .go) : blockPasses rd first ≤ k :=
   passesRun_le_stop _ k _ (by simp [h]) hv

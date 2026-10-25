@@ -79,7 +79,6 @@ export function lanAddress(env = process.env) {
   return cand[0].address;
 }
 
-/** Strip the LAN address and any device id from a log line. */
 export const redact = (s, ...secrets) => secrets.filter(Boolean).reduce((t, x) => t.split(x).join('<redacted>'), String(s))
   .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, (ip) => (ip === '127.0.0.1' ? ip : '<ip>')).replace(/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}/g, '<id>');
 
