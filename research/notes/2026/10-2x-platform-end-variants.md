@@ -55,12 +55,16 @@ topics: [platform, sweep, glint, entries, fade-threaded, end-of-page, webkit, ch
   matches several runs (id, id); not guessing"): the same run id listed twice. The runs themselves were fine and were
   read with `fw ci wait <id>` and `gh run download`; no refile into the store. The duplicate listing is a poller bug,
   reported in `open`.
-- Chromium: frames of `counts.json`, finish zone = frames 540 to 740 (zone `y05000` of the run's `zones.json`), the page
-  end is reached at frame 574 in all 12 runs (scrollY 5342). Push phases are windows from the first frame at the end:
+- Chromium: frames of `counts.json`, finish window = frames 540 to 740 (201 frames): zone `y05000` of the run's `zones.json`
+  (frames 540-738, 191 swipe frames) plus 10 settle frames (581-584, 663-666, 739-740). The lane's own zone sums
+  (`zones.json`) are shown as a separate row. The page end is reached at frame 574 in all 12 runs (scrollY 5342). Push phases are windows from the first frame at the end:
   approach (34 frames before it), end 0-19, end 20-59, end 60-119, end 120+ (47). The window edges are mine (INFERRED:
   the profile has no marks for the morph push); they are the same in every arm because the profile is deterministic.
 - WebKit: `perStep` counts of `passes[].scroll.reduced`, zones by scroll y: z4500 (y 4500 to 4950, 10 steps), z5000
-  (y 5000 to 5231, 6 steps, the page end), finish (both, 16 steps), and the census layer count per y.
+  (the page end). The passes do not end at one y: 2 of 4 base passes, 2 of 6 sweep passes and 3 of 6 glint passes end
+  at y 5267 (107 steps); the others end at y 5231 (106 steps). The Lean rule needs one window (`sameWindow`, else
+  `noData`), so every WebKit table is cut to the common window y <= 5200: z5000 = y 5000 to 5200 (5 steps), finish =
+  y 4500 to 5200 (15 steps), whole run = 105 steps. Census layer counts per y are read as before.
 - Verdict rule: the Lean `Fw.Measure.Offscreen` comparison, per counter `cmp` of the spread (lo-hi) of the repeats with
   slack 0, then `judge`: any `more` is `noGain`; else any `less` is `gain`; else `noGain`
   (`judge_more`, `judge_gain`, `judge_same`). The code is the golden-checked twin in
@@ -82,13 +86,16 @@ Base sums per run (3 runs, identical spread except where a range is written), th
 | end 20-59 (40) | 252 | 25 | 454 | 37.4 | noGain, all same | noGain, all same | noGain: Paint 275, PrePaint 92 vs 66 (more); area 60.2 (more) |
 | end 60-119 (60) | 120 | 0 | 0 | 44.4 | noGain, all same | noGain, all same | noGain: area 116.5 (more) |
 | end 120+ (47) | 94 | 0 | 0 | 34.8 | noGain, all same | noGain, all same | noGain: area 91.3 (more) |
-| finish zone (201) | 915 | 52 | 1207 | 137.4 | noGain (+1 RecalcStyle, +1 UpdateLayoutTree) | noGain | noGain (RasterTask 1131 less, area 292.1 more) |
+| finish window, frames 540-740 (201) | 915 | 52 | 1207 | 137.4 | noGain (+1 RecalcStyle, +1 UpdateLayoutTree) | noGain | noGain (RasterTask 1131 less, area 292.1 more) |
+| zone `y05000` (191, lane sums) | 838 | 48 | 1112 | 130.0 | noGain (RecalcStyle and UpdateLayoutTree 304 vs 303, more; RasterTask 1053, less) | noGain, all same (RecalcStyle 303-304 vs 303) | noGain (Paint 861 vs 838 and PrePaint 350 vs 324, more; RasterTask 1063, less; area 276.6, more) |
 
 Reading:
 - The fade-threaded `gain` of the first push phase is not a gain over the zone: the Paint and PrePaint that it removes
   from frames 0-19 (23 and 26) come back in frames 20-59 (23 and 26), and the invalidation area is higher in every
   phase from the first frame at the end on (+17 %, +61 %, +163 %, +163 %). The unit of decision is the phase table and
-  the finish zone together; the zone says `noGain`. MEASURED.
+  the finish zone together; the lane zone `y05000` says `noGain` (Paint 861 vs 838 and PrePaint 350 vs 324 are more in
+  all 3 runs). Over the 201-frame window they are equal (915, 375) because the end 0-19 drop falls entirely in settle
+  frames 581-584, which the lane zone does not contain. MEASURED.
 - The sweep's one measured effect is outside the end: 59 raster tasks fewer in the approach (236 to 177, all 3 runs
   alike), which is the pause working while the section is not intersecting. It costs one style recalculation, which the
   Lean rule reads as `more`. MEASURED. At the end it does nothing (equal in all 3 runs of every end phase).
@@ -98,22 +105,26 @@ Reading:
 
 ## Result: WebKit Simulator, scroll zones
 
-Base 4 passes (VMs r2, r3), sweep and glint 6 passes (VMs r1 to r3), min-max per zone. `Paint` shown; every other
-counter is listed in the verdict row. Same Lean rule.
+Base 4 passes (VMs r2, r3), sweep and glint 6 passes (VMs r1 to r3), min-max per zone, every pass cut to the common
+window y <= 5200 (the page end is y 5231 in 106-step passes and y 5267 in 107-step passes; base 2+2, sweep 4+2, glint
+3+3). `Paint` shown; every other counter is listed in the verdict row. Same Lean rule.
 
 | zone | steps | base Paint | sweep Paint | glint Paint | sweep verdict | glint verdict |
 |---|---|---|---|---|---|---|
 | z4500 | 10 | 105-140 | 84-145 | 133-153 | noGain (ObserverCallback 12-16 vs 10, more) | noGain, all same |
-| z5000 (page end) | 6 | 65-84 | 43-70 | 72-86 | noGain (ObserverCallback 6 vs 4, more) | noGain, all same |
-| finish (y >= 4500) | 16 | 187-224 | 149-198 | 205-231 | noGain (ObserverCallback 18-22 vs 14) | noGain, all same |
-| whole run | 106 | 1310-1382 | 1222-1315 | 1253-1357 | noGain (ObserverCallback 69-74 vs 62-63) | noGain (Layout 631-659 vs 592-624, more) |
+| z5000 (to y 5200) | 5 | 54-64 | 37-55 | 60-67 | noGain (ObserverCallback 6 vs 4, more) | noGain, all same |
+| finish (y 4500-5200) | 15 | 166-204 | 138-188 | 193-219 | noGain (ObserverCallback 18-22 vs 14) | noGain, all same |
+| whole run (to y 5200) | 105 | 1290-1361 | 1212-1304 | 1234-1345 | noGain (ObserverCallback 69-74 vs 62-63) | noGain (Layout 624-653 vs 588-619, more) |
 
-- Sweep Paint at the page end is lower in the means (43-70 against 65-84) but the ranges overlap at 65-70, so the rule
+The verdicts equal those on the full passes (round 1 used mixed 106/107-step windows, where `sameWindow` fails and the
+Lean `verdict` would say `noData`). MEASURED.
+
+- Sweep Paint at the page end is lower in the means (37-55 against 54-64) but the ranges overlap at 54-55, so the rule
   says `same`. A larger sample could turn this into a `less`; with 3 VMs and the pass-to-pass spread of the base it is
   not a measured gain. MEASURED, inside noise.
-- Composite 12-14, 20 and 32-34 are equal in all arms (stable class). Census layer counts per y are equal within the
-  VM-to-VM spread (4500: base 141-146, sweep 141-146, glint 141-150). At y 5231 some passes carry no census sample
-  (blank), so that cell has 4 base, 3 sweep, 2 glint samples. MEASURED.
+- Composite 10, 20, 30 and 209 (zone, zone, finish, whole) are equal in all arms (stable class). Census layer counts
+  per y are equal within the VM-to-VM spread (4500: base 141-146, sweep 141-146, glint 141-150). Passes that end at
+  y 5267 have no step at y 5231, so that cell has only the 106-step passes (blank in the others). MEASURED.
 - WebKit scroll steps never reach the morph push, so this table covers the platform section on screen during the last
   steps, not a push. On WebKit no part has an effect in the end zones of the scroll lane.
 
@@ -123,7 +134,7 @@ counter is listed in the verdict row. Same Lean rule.
 |---|---|---|---|---|
 | platform.sweep:offscreen-pause | noGain (finish zone) | noGain (all zones) | unknown / unknown | pause is a no-op while visible; one extra observer and recalc |
 | platform.glint:offscreen-pause | noGain | noGain | unknown / unknown (negative) | agrees with the proved `faithful_no_ticks_away` |
-| platform:fade-threaded | noGain (area 2.1x) | no-win (recorded) | unknown / no-win | Chromium column now `no-win` |
+| platform:fade-threaded | noGain (area 2.1x) | no-win (recorded) | unknown / no-win | Chromium column now `no-win` (ledger field `chromium`) |
 
 ## Step-2 candidates and their premise
 
