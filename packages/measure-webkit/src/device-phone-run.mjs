@@ -40,8 +40,8 @@ export function markHandReset(dir, index, reason) {
 }
 export function handResetCommand(dir, idx, reason) {
   const recs = loadState(dir).visits.map((v) => ({ index: v.index, faults: faultsOfVisit(v) }));
-  const plan = resetPlan(recs, String(idx), String(reason ?? ''), P.SESSION.length);
-  if (plan.plan !== 'note') throw new Error(`hand reset refused: ${plan.plan} (index "${idx}", visits in the plan ${P.SESSION.length}, reason ${reason ? 'given' : 'missing'})`);
+  const plan = resetPlan(recs, String(idx), String(reason ?? ''), loadState(dir).session?.length ?? P.SESSION.length);
+  if (plan.plan !== 'note') throw new Error(`hand reset refused: ${plan.plan} (index "${idx}", visits in the plan ${loadState(dir).session?.length ?? P.SESSION.length}, reason ${reason ? 'given' : 'missing'})`);
   return markHandReset(dir, plan.index, plan.reason);
 }
 export const faultsOfVisit = (v) => {
