@@ -61,6 +61,15 @@
       animation: none;
     }
   }
+  @media (width<=1000px) {
+    .stage[data-fw-variant='final-scale'][data-fw-cs] .col {
+      flex: none;
+      width: calc(var(--cs-cf) * 1px);
+      transform-origin: 0 0;
+      transform: translateX(calc(var(--col-i) * (1 - var(--morph)) * var(--cs-d) * 1px)) translateY(var(--col-offset, 0))
+        scale(calc(var(--cs-a) + (1 - var(--cs-a)) * var(--morph)), 1);
+    }
+  }
   @media (width<=640px) {
     .col:nth-child(n + 4) {
       display: none;
