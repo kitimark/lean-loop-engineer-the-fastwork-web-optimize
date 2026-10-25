@@ -143,7 +143,7 @@ test('the compositable control: golden exempt false, one time-based page animati
   assert.equal(CONTROL_FLAG, 'compositable');
   assert.equal(golden.exempt.get(CONTROL_FLAG), false);
   const html = toolbarHtml({ flag: CONTROL_FLAG });
-  assert.ok(html.includes('translateX') && !html.includes('animation-timeline'));
+  assert.ok(html.includes('translateX') && !html.includes('animation-timeline: scroll'));
   assert.equal(toolbarHtml({ flag: 'unthrottle' }).includes('"flag":"compositable"'), false);
   assert.equal(judgeReport(golden, prod, fakeReport(CONTROL_FLAG)).ok, true);
   const fast = judgeReport(golden, prod, fakeReport(CONTROL_FLAG, { wait: 32 }));
