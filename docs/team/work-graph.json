@@ -5997,7 +5997,8 @@
     "packages/gate-breakpoints/src/scope.gen.json",
     "lean/Fw/Gate/Scope.lean",
     "lean/scripts/MorphPanelRestGolden.lean"
-   ]
+   ],
+   "evidence": "2a262ed"
   },
   {
    "devices": [
@@ -15897,9 +15898,16 @@
     "apps/runner/test/ci-pool-tier*.test.ts",
     "apps/runner/test/watch*.test.ts",
     "docs/team/tools/ci-pool.md",
-    "docs/team/handoffs/pool-dispatch-poller.md"
+    "docs/team/handoffs/pool-dispatch-poller.md",
+    "codemagic.yaml",
+    "apps/runner/src/run.ts",
+    "apps/runner/test/run*.test.ts",
+    "lean/Fw/Ci/PoolTier.lean",
+    "packages/contracts/golden/ci/pool*.jsonl",
+    "scripts/codemagic.mjs",
+    "scripts/codemagic.test.mjs"
    ],
-   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands."
+   "title": "Follow-up of macos-pool-7: no poller calls `fw ci pool dispatch` yet, so a queued macOS job never overflows to Codemagic on its own and the GitHub busy count was read by hand. Wire the existing Lean route (Fw.Ci.PoolTier, landed) into the watch loop or the dispatch path: read GitHub busy macOS jobs with gh run list (the gh rate-limit rules: list not view, >= 120 s), call the route, dispatch overflow, record each decision as an event. No decision logic in TS (the route is Lean). Also record Codemagic build startedAt/finishedAt (redacted) in the ledger so overlap claims are provable (review follow-up). Unit: the poller glue with tests, decision events, Codemagic build times recorded. Limits: free tiers only; CircleCI stays closed until circleci-storage-measured lands. Added 2026-10-25 (lead; user asked why CI did not use the Codemagic pool while 5 WebKit runs queued for hours): (a) codemagic.yaml is still the one-cell pilot (original arm, 1 session, 2 passes), so it cannot take a webkit-sim count job: extend it to the webkit-sim count matrix cell (target, preset, fw, vm index, sessions as dispatched), artifacts named as on GitHub so `fw run --from-run` files them, digest-equal on one paired run; (b) `fw run` dispatches every macOS job straight to GitHub: route each macOS job through the Lean pool route at dispatch time (and the poller for queued ones), stop Codemagic at 400 of 500 free minutes per month (Lean budget), record each decision as an event."
   },
   {
    "devices": [
@@ -21548,7 +21556,8 @@
    "stream": "measure",
    "deps": [
     "phone-end-counts",
-    "phone-thermal-check"
+    "phone-thermal-check",
+    "phone-thermal-pin"
    ],
    "writes": [
     "results/phone/2026-10-2x-compose/**",
@@ -21587,6 +21596,34 @@
     "docs/team/handoffs/resource-redecide.md"
    ],
    "title": "Re-decide preset rows with the landed resource verdict (resource-footprint, user 2026-10-25: a GPU-memory cost is acceptable when main-thread work falls, within budget B). Inputs: becomesWin = [morph.countdown:strip on WebKit], leavesWin = [morph.columns:idle-none both engines (open), morph.panel:rest WebKit (open; panel-rest-n11 measured a raw WebKit Paint rise and a Chromium trade, curated exclusion)]. Wait for phone-thermal-check's strip re-measure (strip stalled twice on the phone 2026-10-25) before moving strip into a preset; look-change flags still go to the look-change class for the user's visual review. Also take the resource-footprint review follow-ups: idle-none style sign marked INFERRED (removal treated as pause) or a removal lemma; the WebKit scene-pause event fall needs a CI eventDispatch measurement on a non-slow arm; name the mixed phone+Simulator source of the strip peak; derive repaint signs from changePx/repaintPx at DPR 3 for logo-3d, strip and panel:rest. Gen changes only through the Lean verdict; regenerate the preset goldens; per-row note with MEASURED/INFERRED tags."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-thermal-pin",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-thermal-check"
+   ],
+   "writes": [
+    "lean/Fw/Device/Thermal.lean",
+    "packages/contracts/golden/device/thermal.jsonl",
+    "lean/Fw/Device/PhoneArms.lean",
+    "packages/contracts/golden/device/phone-arms.jsonl",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/measure-webkit/src/device-thermal*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/src/device-phone-*.mjs",
+    "packages/measure-webkit/test/device-thermal*.test.mjs",
+    "packages/measure-webkit/test/device-phone-*.test.mjs",
+    "docs/team/tools/*.md",
+    "research/notes/2026/10-25-phone-thermal-pin.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/phone-thermal-pin.md"
+   ],
+   "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode."
   }
  ],
  "deadline": {
