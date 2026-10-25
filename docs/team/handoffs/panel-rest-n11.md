@@ -1,6 +1,6 @@
 Branch: worktree-wf_8a06f29a-d26-1. CI branch ci/panel-rest-n11 pushed at ab3b3248f (counts) and d1af634d5 (gate 40179231272, lead)
 Worktree: .claude/worktrees/wf_8a06f29a-d26-1 (under the main checkout)
-Last commit: see `git log -1` (round 2 text fixes), on top of 4200a4c06 on main merge cd97fbc5e.
+Last commit: see `git log -1`; on top of the main merge c959b8097 (main 445607b76).
 CI runs, all complete: lean 40174060322 success; WebKit Simulator base 40174475566 and flag 40174472900 (3 VMs each); Chromium swipe-touch-v1 base 40174480097 and flag 40174482844 (3 runs each); gate 40179231272 passed (both engines; 40174477871 failed only on the intended `filter blur(0px) -> none`, now excused by `Fw.Gate.FlagDelta`).
 
 Verdict (research/notes/2026/10-2x-panel-rest-n11.md, section "Per-engine verdict"): the flag stays a CURATED EXCLUSION, `Fw.Preset.Gen` unchanged.
@@ -9,7 +9,7 @@ Verdict (research/notes/2026/10-2x-panel-rest-n11.md, section "Per-engine verdic
 * "WebKit win with memory-only cost" does not hold; the cost is Paint, not memory.
 * Refuted by the data, named not corrected (follow-up, MorphPanelOpt unchanged): `wk_rest_claim` on rest frames (Paint rises there, raw); the `cr_toggle_not_le` mechanism (toggle pays no layout, `CrLevel.layoutFull`); `wk_toggle_eqv` covers only toggle frames. Ledger n 11 webkit is "partial win (...)"; Gen curated reason and decisions golden restated.
 
-Open (follow-ups, accepted limits): interleaved WebKit rerun for a Paint class, then correct `wk_toggle_eqv` in MorphPanelOpt.lean; fractional-edge premise in Lean; Chromium run-level mixed theorem; toggle-in-layout-frame decision (moot as stated: toggle frame has no layout). The per-zone verdict was computed with scratch glue (fwcore classify + engineCheck over frame slices); no code committed.
+Open (follow-ups, accepted limits): interleaved WebKit rerun for a Paint class, then correct `wk_rest_claim`, `wk_toggle_eqv` and the `cr_toggle_not_le` price in MorphPanelOpt.lean; fractional-edge premise in Lean; Chromium run-level mixed theorem; toggle-in-layout-frame decision (moot as stated: toggle frame has no layout). The per-zone verdict was computed with scratch glue (fwcore classify + engineCheck over frame slices); no code committed.
 Shipped: flag `morph.panel:rest` (rest.logic.ts setRest from morph.tween driver updateFade; Lean MorphPanelRest.lean; golden morph.panel.rest.jsonl; check.sh job; trigger row). RG10: 54 abs / 0 fixed descendants. Pixel check: only 721 px width differs beyond noise.
 Conventions: FootprintRows.lean and footprint-diff.gen.json come from `lake env lean --run scripts/ContractsGolden.lean --rows|--diff`.
 Round 2: check.sh green, contracts 11 and runner 3533 tests pass, ci-paths 56 pass; plan lint 1 error (resource-footprint trailerNoEvidence, not ours). Footprint extraction regenerated (polish moved source lines). Dry land: VERDICT dry panel-rest-n11.
