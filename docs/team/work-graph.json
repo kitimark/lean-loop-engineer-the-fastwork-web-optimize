@@ -5965,12 +5965,13 @@
     "local"
    ],
    "id": "panel-rest-n11",
-   "title": "n11 morph panel rest (from proved-flags-ts r1): wire rest.ts where the filter lives (parts/platform) and --morph-fade (parts/morph.tween); new optimized registration regenerates the preset decisions golden; Chromium trade, WebKit win model-only (ledger n11)",
+   "title": "Ship ledger row n 11 'blur(0) -> filter:none at rest' (Fw.Parts.MorphPanelOpt: rest_visSame_E under RG10; WebKit win claimed on rest frames only, wk_rest_claim; Chromium trade, cr_toggle_not_le) as the flag morph.panel:rest. variant-morph-panel-rest was cut at C3 2026-10-19 and proved-flags-ts removed the rest.* stand-ins, so the flag never existed and no CI run measured it. The filter lives in apps/site/src/parts/platform/platform.module.css (blur from --morph-fade, written by parts/morph.tween). Do: (1) settle RG10 on the rewrite DOM (no fixed or absolute descendant uses the panel as its containing block; ledger OPEN, report 4.3 CONFIRMED; cite DOM and CSS); (2) the variant (filter: none at rest, the same blur otherwise) checked against a Lean-generated golden replayed by a site test; the optimized registration regenerates the preset goldens via Gen.run; (3) breakpoint gate on both engines with the flag (the lead dispatches; exact command in items); (4) WebKit Simulator counts base vs flag, 3 VMs each, per finish zone, including the rest<->fade toggle frames that wk_toggle_eqv models but nobody measured (Layout, RecalculateStyles, Composite, layers, backing MB); Chromium swipe-touch-v1 3 runs per arm; (5) per-engine verdict; if the toggle costs on Chromium, the Lean decision whether to toggle only in a frame that already pays layout (row n 11 next). Negative results are findings (mechanism plus Lean why).",
    "stream": "parts",
    "milestone": "M5",
    "deps": [
     "morph-tween-inherit",
-    "proved-flags-ts"
+    "proved-flags-ts",
+    "columns-final-scale"
    ],
    "owner": "part-builder",
    "writes": [
@@ -5978,7 +5979,23 @@
     "apps/site/src/parts/morph.panel/**",
     "lean/Fw/Preset/Gen.lean",
     "packages/contracts/golden/preset/**",
-    "docs/team/handoffs/panel-rest-n11.md"
+    "docs/team/handoffs/panel-rest-n11.md",
+    "apps/site/src/parts/morph.tween/**",
+    "lean/Fw/Parts/MorphPanelOpt.lean",
+    "lean/Fw/Parts/MorphPanelRest.lean",
+    "packages/contracts/golden/parts/morph.panel*.jsonl",
+    "packages/contracts/golden/parts/platform*.jsonl",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "research/notes/2026/10-2x-panel-rest-n11.md",
+    "research/findings/ledger.json",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/gate-breakpoints/src/scope.gen.json",
+    "lean/Fw/Gate/Scope.lean"
    ]
   },
   {
