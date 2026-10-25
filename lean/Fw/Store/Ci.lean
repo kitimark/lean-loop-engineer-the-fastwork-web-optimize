@@ -198,15 +198,12 @@ def searchConfig (search : String) : String × List (String × String) :=
 #guard searchConfig "preset=p&&fw=a:x," == ("p", [("a", "x")])
 #guard searchConfig "?preset=&fw=hero" == ("", [("", "hero")])
 
-/-- The key inputs of one target, from the facts of its first shard: chromium, the target, the preset and flags of the
-query (the rewrite only; the original takes the default configuration), the shard's profile and image, the run's
-head sha.
--/
 def ciReq (r : CiRun) (t : Target) (f : ShardFacts) : Req :=
   let c : String × List (String × String) := match t with
     | .rewrite => searchConfig f.search
     | .original => (defaultPreset, [])
-  { engine := .chromium, target := t, preset := c.1, fw := c.2, profile := f.profile, sha := r.headSha, image := f.image }
+  { engine := .chromium, target := t, preset := c.1, fw := c.2, profile := f.profile, sha := r.headSha, image := f.image,
+    runs := (shardsOf r t).length }
 
 /-- One store key of an accepted run: its target, the shards filed under it, and its key inputs (only after the
 download).
