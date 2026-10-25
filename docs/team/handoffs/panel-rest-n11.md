@@ -12,5 +12,5 @@ Verdict (research/notes/2026/10-2x-panel-rest-n11.md, section "Per-engine verdic
 Open (follow-ups, accepted limits): interleaved WebKit rerun for a Paint class, then correct `wk_toggle_eqv` in MorphPanelOpt.lean; fractional-edge premise in Lean; Chromium run-level mixed theorem; toggle-in-layout-frame decision (moot as stated: toggle frame has no layout). The per-zone verdict was computed with scratch glue (fwcore classify + engineCheck over frame slices); no code committed.
 Shipped: flag `morph.panel:rest` (rest.logic.ts setRest from morph.tween driver updateFade; Lean MorphPanelRest.lean; golden morph.panel.rest.jsonl; check.sh job; trigger row). RG10: 54 abs / 0 fixed descendants. Pixel check: only 721 px width differs beyond noise.
 Conventions: FootprintRows.lean and footprint-diff.gen.json come from `lake env lean --run scripts/ContractsGolden.lean --rows|--diff`.
-Dry land at the merge of main (cd97fbc5e): VERDICT dry panel-rest-n11. check.sh green, runner tests 3533 pass, ci-paths test 56 pass, plan lint 0 errors.
+Round 2: check.sh green, contracts 11 and runner 3533 tests pass, ci-paths 56 pass; plan lint 1 error (resource-footprint trailerNoEvidence, not ours). Footprint extraction regenerated (polish moved source lines). Dry land: VERDICT dry panel-rest-n11.
 Read first: research/notes/2026/10-2x-panel-rest-n11.md.
