@@ -68,13 +68,40 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
 - The early-frame kind (other dirt before the callbacks, digits before the shared loop in the original) is fitted to
   the counts (+1 update, equal elements), not observed.
 
-## Dispatches (the lead runs them)
+## Round-2 runs at the subscribe position (MEASURED, head f74e3313a, ci/one-chain-webkit)
 
-- WebKit counts, base then flag (3 runs each):
-  `pnpm -s fw run --target rewrite --engines webkit --runs 3 --ref ci/one-chain-webkit` and the same with
-  `--fw hero.countdown:one-chain`.
-- Chromium counts, swipe-touch-v1, base then flag:
-  `pnpm -s fw run --target rewrite --engines chromium --profile swipe-touch-v1 --runs 3 --ref ci/one-chain-webkit
-  [--fw hero.countdown:one-chain]`.
-- Breakpoint gate, both engines, flag on:
-  `pnpm -s fw run --gate --engines both --fw hero.countdown:one-chain --ref ci/one-chain-webkit`.
+Summaries: `results/one-chain-webkit/summary.json`.
+
+| lane | base run | flag run | n per arm |
+|---|---|---|---|
+| Chromium counts, swipe-touch-v1 | 40153927556 | 40153920231 | 3 and 3 |
+| WebKit Simulator, rewrite, 430 | 40153925235 | 40153917806 | 3 VMs (6 passes) and 2 VMs (4 passes) |
+| breakpoint gate, both engines, flag on | 40153922711 | | |
+
+- **Chromium** (771 frames, totals per run, 3 runs each, spread at most 5): UpdateLayoutTree 2393/2392/2388 base against
+  2671/2676/2676 flag (+283 on average, +11.8 %); ScheduleStyleRecalculation 2409/2408/2404 against 2687/2692/2692
+  (+284); elements 60225/60158/60157 against 60139/60162/60163 (equal within 0.1 %); FireAnimationFrame 2572 against
+  2259/2258/2258 (-314, -12.2 %). The extra update is +1 in 233, 238 and 238 frames (30 %), in the same frame ranges
+  in all three runs (14-33, 62-79, 122-147, 182-207, ... 483-500), 5 of them in the settle phase. Frame 499 is
+  inside the last range: 5 updates against 4, elements 67 against 67.
+- **The round-2 prediction failed.** Lean `early_atSubscriber` says the subscribe position adds no update in the early
+  frames (1, f + o), and the old 531-frame runs showed +1 in 1 frame. On the current profile (771 frames) and the
+  merged base it adds +1 in 30 % of frames. The early-frame kind was fitted (INFERRED) and is falsified for this base:
+  the model explains frame 499 only. Frame 499 and the old runs are not comparable across profile versions.
+- **WebKit** (RecalculateStyles / Layout per pass; flag applied: configHash 1e8f122ab2eb19fc, `?fw=hero.countdown:one-chain`):
+  RecalculateStyles base mean 672.3 (654-692, n = 6 passes of 3 VMs) against flag 671.8 (652-693, n = 4 passes of 2 VMs);
+  Layout 627.2 (603-664) against 644.3 (618-680), +17, inside the 61-wide base spread; ScheduleStyleRecalculation
+  634.0 against 636.3; FireAnimationFrame 672.7 against 676.3. Per 500 px zone the RecalculateStyles means differ by at
+  most 3 (zone 4: 62.7 against 59.8), inside each zone's base spread (zone 4: 58-64). One flag VM (r1) failed: the
+  inspector died and `simctl launch Safari` failed with CoreSimulator code 405; n = 2 VMs for the flag.
+- **Breakpoint gate, flag on** (run 40153922711): Chromium 14 of 14 widths pass for every row incl. hero.countdown;
+  playwright-webkit 12 pass and 2 unreachable (primary-pair, whole-width), the same two for every row, none failing.
+
+## Verdicts (MEASURED)
+
+- **Chromium: trade, leaning no-win.** FireAnimationFrame -12 %, UpdateLayoutTree +12 % at equal elements: fewer rAF
+  callbacks, more but smaller style updates. The unit that mattered (a win in recalc) is not met; counts are engine
+  work, not felt smoothness.
+- **WebKit: no-win.** Style recalcs and rAF callbacks equal within noise; no measured effect, no regression.
+- Follow-up (outside the unit): the early-frame order needs a Lean model with the shared loop's real registration order
+  per frame; a per-frame order chosen at runtime stays out of scope.
