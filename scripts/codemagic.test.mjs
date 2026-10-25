@@ -6,7 +6,7 @@ import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { billedMin, buildMinutes, classDigest, classRows, compareTables, exitOf, fetchBuild, ledgerRows, loadConfig, loadGolden, main, mayTrigger, monthOf, normBuild,
-  poolFacts, poolOk, poolRefusals, redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
+  digestOfText, poolFacts, poolOk, siteDigest, poolRefusals, redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const g = loadGolden();
@@ -99,6 +99,24 @@ test('triggerRequest: POST /builds with appId, workflowId, branch; the token is 
   assert.equal(r.url, 'https://api.codemagic.io/builds');
   assert.deepEqual(r.body, { appId: APP, workflowId: 'webkit-sim', branch: 'ci/codemagic-pilot' });
   assert.equal(r.headers['x-auth-token'], '<redacted>');
+});
+
+test('triggerRequest: the cell variables of a webkit-sim count job go in environment.variables, others are refused', () => {
+  const vars = { FW_TARGET: 'original', FW_PRESET: 'original', FW_FW: '', FW_VM: 'v1', FW_SESSIONS: '1' };
+  assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body, { appId: APP, workflowId: 'webkit-sim', branch: 'ci/x', environment: { variables: { ...vars, FW_FW: 'none' } } });
+  for (const bad of [{ FW_TOKEN: 'x' }, { FW_VM: 'r1; rm' }, { FW_TARGET: 'both' }, { FW_SESSIONS: '0' }, { FW_FW: 'a b' }]) assert.throws(() => triggerRequest({ appId: APP, branch: 'ci/x', vars: bad }));
+});
+
+test('fetch writes the start, finish and create times of the build to the ledger row, and the commit hash only as sha', async () => {
+  const root = tmp(); const ledgerPath = join(root, 'ledger.json');
+  const hash = 'a'.repeat(40);
+  const res = { build: { _id: 'b2', status: 'finished', createdAt: '2026-10-21T10:00:00Z', startedAt: '2026-10-21T10:01:00Z', finishedAt: '2026-10-21T10:11:30Z', commit: { hash, authorEmail: 'someone@example.invalid' } } };
+  const ctx = { fetchFn: async () => ({ status: 200, ok: true, headers: new Headers(), text: async () => JSON.stringify(res), arrayBuffer: async () => new ArrayBuffer(0) }), getToken: () => TOKEN, ledgerPath, now: () => 0, log: () => {}, sleep: async () => {} };
+  const doc = await fetchBuild(ctx, { buildId: 'b2', out: join(root, 'o') });
+  const row = JSON.parse(readFileSync(ledgerPath, 'utf8')).builds.b2;
+  assert.deepEqual([row.startedAt, row.finishedAt, row.createdAt, row.minutes], [Date.parse('2026-10-21T10:01:00Z'), Date.parse('2026-10-21T10:11:30Z'), Date.parse('2026-10-21T10:00:00Z'), 11]);
+  assert.equal(doc.sha, hash);
+  assert.ok(!JSON.stringify(doc).includes('example.invalid') && !readFileSync(ledgerPath, 'utf8').includes('example.invalid'));
 });
 
 const finished = { build: { _id: 'b1', status: 'finished', index: 7, instanceType: 'mac_mini_m2', createdAt: '2026-10-21T10:00:00Z', startedAt: '2026-10-21T10:01:00Z', finishedAt: '2026-10-21T10:31:30Z',
@@ -270,7 +288,7 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
   assert.equal((y.match(/^ {2}[a-z][a-z0-9-]*:$/gm) ?? []).length, 1);
   assert.match(y, /instance_type: mac_mini_m2/);
   assert.match(y, new RegExp(`max_build_duration: ${g.constants.maxCapMin}\\b`));
-  assert.match(y, /xcode: 27\.0\b/);
+  assert.match(y, /xcode: 27\.1\b/);
   assert.match(y, /^ {6}node: 24\.22\.0$/m);
   assert.match(y, /echo "PATH=\$bin:\$PATH" >> "\$CM_ENV"/);
   assert.equal((y.match(/node --version \| grep -qx v24\.22\.0/g) ?? []).length, 1);
@@ -283,6 +301,85 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
     const pick = (s) => new RegExp(`${v}: ['"]?([^'"\\s]+)['"]?`).exec(s)?.[1];
     assert.equal(pick(y), pick(gh), v);
   }
-  assert.match(y, /node src\/cli\.mjs determinism --runs 2 --keep --out out\/v1-session-1\.json/);
+  assert.match(y, /node src\/cli\.mjs determinism --runs 2 --keep --out "out\/\$FW_VM-session-\$s\.json"/);
   assert.ok(!/x-auth-token|fw-codemagic-token/.test(y));
+});
+
+test('codemagic.yaml: the rewrite cell builds the site like the GitHub site job (pinned elan, frozen install, @fw/site build with the planned query, digest) and serves it', () => {
+  const y = readFileSync(new URL('../codemagic.yaml', import.meta.url), 'utf8');
+  const gh = readFileSync(new URL('../.github/workflows/webkit-sim.yml', import.meta.url), 'utf8');
+  const pick = (s, v) => new RegExp(`${v}: ['"]?([^'"\\s]+)['"]?`).exec(s)?.[1];
+  assert.equal(pick(y, 'ELAN_VERSION'), pick(readFileSync(new URL('../.github/actions/setup-lean/action.yml', import.meta.url), 'utf8'), 'ELAN_VERSION'));
+  assert.match(y, /ELAN_SHA256: [0-9a-f]{64}/);
+  assert.match(y, /pnpm install --frozen-lockfile --filter '@fw\/site\.\.\.'/);
+  assert.match(y, /pnpm --filter @fw\/site build --config "\$FW_SEARCH"/);
+  assert.match(gh, /pnpm --filter @fw\/site build --config "\$SEARCH"/);
+  assert.match(y, /node scripts\/codemagic\.mjs site-digest apps\/site\/dist\/aot/);
+  assert.match(y, /determinism --runs 2 --keep --site "\$PWD\/\.\.\/\.\.\/apps\/site\/dist\/aot" --search "\$FW_SEARCH"/);
+  assert.match(y, /verify-snapshot\.mjs/);
+  assert.match(y, /FW_SEARCH: none/);
+  assert.doesNotMatch(y, /^\s+FW_[A-Z]+: ""$/m);
+  assert.ok(!/needs the site-dist build/.test(y));
+});
+
+const site = (files) => { const d = mkdtempSync(join(tmpdir(), 'cm-site-')); for (const [f, c] of Object.entries(files)) { mkdirSync(dirname(join(d, f)), { recursive: true }); writeFileSync(join(d, f), c); } return d; };
+
+test('siteDigest: the same files give the same digest whatever the write order, a changed byte, name or an extra file changes it, an empty tree has none', () => {
+  const a = siteDigest(site({ 'index.html': 'x', 'a/b.js': 'y' })), b = siteDigest(site({ 'a/b.js': 'y', 'index.html': 'x' }));
+  assert.equal(a.digest, b.digest);
+  assert.equal(a.files, 2);
+  assert.match(a.digest, /^[0-9a-f]{64}$/);
+  for (const other of [{ 'index.html': 'z', 'a/b.js': 'y' }, { 'index.htm': 'x', 'a/b.js': 'y' }, { 'index.html': 'x', 'a/b.js': 'y', 'c': '' }]) assert.notEqual(siteDigest(site(other)).digest, a.digest);
+  assert.equal(siteDigest(site({})).digest, null);
+});
+
+test('siteDigest ignores hidden files and the build step times of build-info.json, nothing else of it', () => {
+  const info = (ms, extra = {}) => JSON.stringify({ buildId: 'x', ms: { client: ms, total: ms }, gates: [], ...extra });
+  const base = siteDigest(site({ 'index.html': 'x', 'build-info.json': info(1) })).digest;
+  assert.equal(siteDigest(site({ 'index.html': 'x', 'build-info.json': info(999), '.vite/manifest.json': '{}' })).digest, base);
+  assert.notEqual(siteDigest(site({ 'index.html': 'x', 'build-info.json': info(1, { buildId: 'y' }) })).digest, base);
+  assert.notEqual(siteDigest(site({ 'index.html': 'x', 'build-info.json': info(1), 'other.json': info(2) })).digest, base);
+});
+
+test('site-digest verb prints the digest and the file count, digestOfText reads it back', async () => {
+  const d = site({ 'index.html': 'x' });
+  const out = []; const code = await main(['site-digest', d], { log: (l) => out.push(l) });
+  assert.equal(code, 0);
+  assert.equal(digestOfText(out[0]), siteDigest(d).digest);
+  assert.equal(digestOfText('not a digest'), null);
+});
+
+test('rewrite cell variables: FW_TARGET rewrite, a vm r<n> and the planned FW_SEARCH go through, a search with a space or a shell character does not', () => {
+  const vars = { FW_TARGET: 'rewrite', FW_PRESET: 'original', FW_FW: 'hero.accent:draw-nolayout', FW_VM: 'r2', FW_SESSIONS: '1', FW_SEARCH: '?fw=hero.accent:draw-nolayout' };
+  assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body.environment.variables, vars);
+  for (const bad of ['a b', 'x;y', '$(id)', 'a'.repeat(301)]) assert.throws(() => triggerRequest({ appId: APP, branch: 'ci/x', vars: { FW_SEARCH: bad } }));
+});
+
+test('compare --vm r1 with site digests: equal digests exit 0, different digests exit 3', async () => {
+  const table = '| family | a | b | cls |  |  |  |  |\n| x | y | z | Layout |  |  |  |  |\n';
+  const gh = mkdtempSync(join(tmpdir(), 'cm-gh-')), cm = mkdtempSync(join(tmpdir(), 'cm-cm-'));
+  writeFileSync(join(gh, 'r1-session-1.md'), table); writeFileSync(join(cm, 'r1-session-1.md'), table);
+  const s = site({ 'index.html': 'x' });
+  writeFileSync(join(cm, 'site-digest.txt'), `${siteDigest(s).digest}  1 files\n`);
+  const run = (file) => main(['compare', '--github', gh, '--codemagic', cm, '--vm', 'r1', '--site-github', s, '--site-codemagic', file], { log: () => {} });
+  assert.equal(await run(join(cm, 'site-digest.txt')), 0);
+  writeFileSync(join(cm, 'other.txt'), `${'0'.repeat(64)}  1 files\n`);
+  assert.equal(await run(join(cm, 'other.txt')), 3);
+});
+
+test('fetchBuild unpacks the zip Codemagic bundles the artifacts into, flat next to it', async (t) => {
+  if (spawnSync('zip', ['-v']).error) return t.skip('no zip binary');
+  const src = site({ 'fw-result/r1-session-1.md': 'table', 'fw-extra/site-digest.txt': `${'a'.repeat(64)}  1 files\n` });
+  const zipPath = join(tmpdir(), `cm-${Date.now()}.zip`);
+  assert.equal(spawnSync('zip', ['-q', '-r', zipPath, 'fw-result', 'fw-extra'], { cwd: src }).status, 0);
+  const bytes = readFileSync(zipPath);
+  const root = tmp();
+  const responses = { build: { build: { _id: 'b3', status: 'finished', createdAt: '2026-10-21T10:00:00Z', startedAt: '2026-10-21T10:01:00Z', finishedAt: '2026-10-21T10:10:00Z', artefacts: [{ name: 'x_artifacts.zip', url: 'https://api.codemagic.io/artifacts/z', size: bytes.length }] } } };
+  const fetchFn = async (url) => (String(url).includes('/artifacts/z')
+    ? { status: 200, ok: true, headers: new Headers(), text: async () => '', arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) }
+    : { status: 200, ok: true, headers: new Headers(), text: async () => JSON.stringify(responses.build), arrayBuffer: async () => new ArrayBuffer(0) });
+  const ctx = { fetchFn, getToken: () => TOKEN, ledgerPath: join(root, 'ledger.json'), now: () => 0, log: () => {}, sleep: async () => {} };
+  await fetchBuild(ctx, { buildId: 'b3', out: join(root, 'o') });
+  assert.equal(readFileSync(join(root, 'o', 'artifacts', 'r1-session-1.md'), 'utf8'), 'table');
+  assert.equal(digestOfText(readFileSync(join(root, 'o', 'artifacts', 'site-digest.txt'), 'utf8')), 'a'.repeat(64));
 });

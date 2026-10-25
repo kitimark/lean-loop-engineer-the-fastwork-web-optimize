@@ -73,19 +73,44 @@ def sources : List (String × String × String) := [
   ("cmCls", "CONFIRMED", "codemagic.yaml instance_type mac_mini_m2, the free personal-plan machine (codemagic.io/pricing, checked 2026-10-21)"),
   ("cmConc", "CONFIRMED", "codemagic.io/pricing: the free personal plan runs one build at a time"),
   ("cmCapMin", "CONFIRMED", "Fw.Ci.Codemagic.maxCapMin, the max_build_duration of codemagic.yaml"),
-  ("cmAllow", "CONFIRMED", "codemagic.yaml has one workflow, webkit-sim")]
+  ("cmAllow", "CONFIRMED", "codemagic.yaml has one workflow, webkit-sim; its cell is the original arm or, with FW_TARGET=rewrite, the rewrite arm built from the same commit (lane webkit-sim-rewrite)")]
 
 def opConsts (req : Json) : Except String Reply := do
   let c ← cfgOf req
   pure [("cfg", cfgJson' c), ("macCap", macCap c), ("stopAt", Fw.Ci.Codemagic.stopAt),
     ("sources", .arr (sources.map fun (k, st, src) => Json.mkObj [("constant", k), ("status", st), ("source", src)]).toArray)]
 
-def ops : List String := ["ci.poolTier", "ci.poolTierConsts"]
+/-- `ci.poolCell`: `{target, ghDigest?, cmDigest?}` to `{lane, routable, needsDigest, filed}`. -/
+def opCell (req : Json) : Except String Reply := do
+  let t ← str req "target"
+  let dig (k : String) : Except String (Option String) :=
+    match (opt req k) with
+    | none => pure none
+    | some Json.null => pure none
+    | some j => do pure (some (← asStr k j))
+  let gh ← dig "ghDigest"
+  let cm ← dig "cmDigest"
+  let lane := laneOfTarget t
+  pure [("lane", match lane with | some l => Json.str l | none => .null), ("routable", routableTarget pool7 t),
+    ("needsDigest", lane == some rewriteLane), ("filed", match lane with | some l => toJson (cellFiled l gh cm) | none => toJson false)]
+
+/-- `ci.cellMerged`: `{ref:{macosBuild,xcodeBuild,runtimeBuild}, cell:{...}}` to `{merged}`. -/
+def opMerged (req : Json) : Except String Reply := do
+  let key (k : String) : Except String PlatformKey := do
+    let o ← field req k
+    pure ⟨← strD o "macosBuild" "", ← strD o "xcodeBuild" "", ← strD o "runtimeBuild" ""⟩
+  let r ← key "ref"
+  let c ← key "cell"
+  pure [("merged", cellMerged r c)]
+
+def ops : List String := ["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ci.poolTier" => some (opTier req)
   | "ci.poolTierConsts" => some (opConsts req)
+  | "ci.poolCell" => some (opCell req)
+  | "ci.cellMerged" => some (opMerged req)
   | _ => none
 
 #guard (cfgOf (Json.mkObj [])).toOption == some pool7
@@ -118,6 +143,12 @@ private def seven : String := "[" ++ ",".intercalate ((List.range 8).map rq) ++ 
 #guard runField "ci.poolTier" ("{\"state\":{\"ghMacBusy\":0,\"ghTotalBusy\":0,\"cmUsed\":46,\"ccSpent\":3575},\"reqs\":" ++ seven ++ "}") "inflight" == "7"
 #guard runField "ci.poolTier" ("{\"state\":{\"ghMacBusy\":5,\"ghTotalBusy\":5,\"cmUsed\":361},\"reqs\":[" ++ rq 0 ++ "]}") "cmOk" == "false"
 #guard runField "ci.poolTierConsts" "{}" "macCap" == "7"
+#guard run "ci.poolCell" "{\"target\":\"rewrite\",\"ghDigest\":\"ab\",\"cmDigest\":\"ab\"}" ==
+  "{\"filed\":true,\"lane\":\"webkit-sim-rewrite\",\"needsDigest\":true,\"routable\":true}"
+#guard runField "ci.poolCell" "{\"target\":\"rewrite\",\"ghDigest\":\"ab\",\"cmDigest\":\"cd\"}" "filed" == "false"
+#guard runField "ci.poolCell" "{\"target\":\"both\"}" "routable" == "false"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"}}" == "{\"merged\":true}"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\"}}" == "{\"merged\":false}"
 #guard run "ci.poolTier" "{\"over\":{\"cmConc\":\"x\"},\"state\":{\"ghMacBusy\":0,\"ghTotalBusy\":0},\"reqs\":[]}" |>.startsWith "error: "
 
 end Fw.Wire.CiPoolTier

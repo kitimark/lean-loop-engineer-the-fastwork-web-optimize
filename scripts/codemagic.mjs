@@ -4,10 +4,11 @@
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
+//   node scripts/codemagic.mjs site-digest DIR               sha256 over the files of a built site
 //   node scripts/codemagic.mjs ledger | digest FILE.md | dry-run
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -100,8 +101,25 @@ export function loadConfig(root = ROOT, env = process.env) {
   return { appId: env.FW_CODEMAGIC_APP_ID || f.appId || '' };
 }
 
-export const triggerRequest = ({ appId, workflowId = WORKFLOW, branch }) => ({ method: 'POST', url: `${API}/builds`,
-  headers: { 'x-auth-token': '<redacted>', Accept: 'application/json', 'Content-Type': 'application/json' }, body: { appId, workflowId, branch } });
+export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^[vr][1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/, FW_SEARCH: /^[A-Za-z0-9._:,=&%?-]{0,300}$/ };
+
+export const EMPTY = 'none';
+
+export function cellVars(vars) {
+  const out = {};
+  for (const [k, v] of Object.entries(vars ?? {})) {
+    if (!(k in CELL_VARS) || typeof v !== 'string' || !CELL_VARS[k].test(v)) throw new Usage(`--vars: ${k} is not an allowed cell variable or its value is off the pattern`);
+    out[k] = v === '' ? EMPTY : v;
+  }
+  return out;
+}
+
+export const triggerRequest = ({ appId, workflowId = WORKFLOW, branch, vars }) => {
+  const v = cellVars(vars);
+  return { method: 'POST', url: `${API}/builds`,
+    headers: { 'x-auth-token': '<redacted>', Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: { appId, workflowId, branch, ...(Object.keys(v).length ? { environment: { variables: v } } : {}) } };
+};
 
 export const urls = { build: (id) => `${API}/builds/${encodeURIComponent(id)}`, apps: `${API}/apps` };
 
@@ -126,6 +144,7 @@ export function normBuild(res) {
   const arts = pick(b, 'artefacts', 'artifacts') ?? [];
   return { id: String(pick(b, '_id', 'id') ?? ''), status: String(b.status ?? ''), index: pick(b, 'index'), instanceType: pick(b, 'instanceType', 'instance_type'),
     createdAt: ms(pick(b, 'createdAt', 'created_at')), startedAt: ms(pick(b, 'startedAt', 'started_at')), finishedAt: ms(pick(b, 'finishedAt', 'finished_at')),
+    sha: /^[0-9a-f]{40}$/.test(String(pick(pick(b, 'commit') ?? {}, 'hash') ?? '')) ? String(pick(b, 'commit').hash) : null,
     reportedMinutes: pick(b, 'buildMinutes', 'build_minutes'),
     steps: actions.map((a) => { const s = ms(pick(a, 'startedAt', 'started_at')), e = ms(pick(a, 'finishedAt', 'finished_at')); return { name: String(a.name ?? ''), status: a.status ?? null, durMs: s != null && e != null ? Math.max(0, e - s) : null, logUrl: pick(a, 'logUrl', 'log_url') ?? null }; }),
     artifacts: arts.map((a) => ({ name: String(a.name ?? ''), url: pick(a, 'url', 'short_lived_download_url') ?? null, bytes: pick(a, 'size', 'size_in_bytes') ?? null })) };
@@ -158,11 +177,15 @@ export async function fetchBuild(ctx, { buildId, out }) {
   mkdirSync(join(out, 'artifacts'), { recursive: true });
   const minutes = buildMinutes(b);
   const doc = { schema: 'fw.codemagic-build/1', buildId, status: b.status, index: b.index ?? null, instanceType: b.instanceType ?? null,
-    startedAt: b.startedAt, finishedAt: b.finishedAt, createdAt: b.createdAt, minutes, steps: b.steps.map(({ name, status, durMs }) => ({ name, status, durMs })), artifacts: b.artifacts.map(({ name, bytes }) => ({ name, bytes })) };
+    startedAt: b.startedAt, finishedAt: b.finishedAt, createdAt: b.createdAt, sha: b.sha, minutes, steps: b.steps.map(({ name, status, durMs }) => ({ name, status, durMs })), artifacts: b.artifacts.map(({ name, bytes }) => ({ name, bytes })) };
   writeFileSync(join(out, 'build.json'), `${JSON.stringify(doc, null, 2)}\n`);
   for (const a of b.artifacts) {
     if (!a.url) continue;
-    try { writeFileSync(join(out, 'artifacts', safeName(a.name)), Buffer.from(await (await request(ctx, 'GET', new URL(a.url, API).href, { accept: '*/*' })).arrayBuffer())); } catch (e) { ctx.log?.(`codemagic: artifact ${a.name}: ${e.message}`); }
+    try {
+      const file = join(out, 'artifacts', safeName(a.name));
+      writeFileSync(file, Buffer.from(await (await request(ctx, 'GET', new URL(a.url, API).href, { accept: '*/*' })).arrayBuffer()));
+      if (/\.zip$/i.test(a.name)) execFileSync('unzip', ['-o', '-q', '-j', file, '-d', join(out, 'artifacts')]);
+    } catch (e) { ctx.log?.(`codemagic: artifact ${a.name}: ${e.message}`); }
   }
   mkdirSync(join(out, 'logs'), { recursive: true });
   for (const [i, s] of b.steps.entries()) {
@@ -172,12 +195,36 @@ export async function fetchBuild(ctx, { buildId, out }) {
   if (ctx.ledgerPath && minutes != null && exitOf(b.status) !== null) {
     const ledger = readLedger(ctx.ledgerPath);
     const at = b.startedAt ?? b.createdAt ?? ctx.now();
-    ledger.builds[buildId] = { month: monthOf(at), minutes, pending: false, status: b.status, at };
+    ledger.builds[buildId] = { month: monthOf(at), minutes, pending: false, status: b.status, at, startedAt: b.startedAt, finishedAt: b.finishedAt, createdAt: b.createdAt };
     writeLedger(ctx.ledgerPath, ledger);
   }
   return doc;
 }
 
+
+export function siteDigest(dir) {
+  const files = [];
+  const walk = (d, rel) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.name.startsWith('.')) continue;
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(d, e.name), r);
+      else if (e.isFile()) files.push(r);
+    }
+  };
+  walk(dir, '');
+  files.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const content = (f) => {
+    const buf = readFileSync(join(dir, f));
+    if (f !== 'build-info.json') return buf;
+    try { const j = JSON.parse(buf.toString('utf8')); delete j.ms; return Buffer.from(JSON.stringify(j)); } catch { return buf; }
+  };
+  const h = createHash('sha256');
+  for (const f of files) { const c = content(f); h.update(`${f}\0${c.length}\0${createHash('sha256').update(c).digest('hex')}\n`); }
+  return { digest: files.length ? h.digest('hex') : null, files: files.length };
+}
+
+export function digestOfText(text) { return /^([0-9a-f]{64})\b/.exec(text.trim())?.[1] ?? null; }
 
 export function classRows(md) {
   const rows = {};
@@ -219,10 +266,10 @@ function flags(argv, spec) {
 const USAGE = [
   'usage: node scripts/codemagic.mjs <sub> ...',
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
-  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--dry]   (cap = codemagic.yaml max_build_duration; --pool: no build count)',
+  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--vars JSON] [--dry]   (--vars: FW_TARGET FW_PRESET FW_FW FW_VM FW_SESSIONS FW_SEARCH; cap = codemagic.yaml max_build_duration; --pool: no build count)',
   '  facts                                            {month, used, busy} for the macOS pool (fw ci pool dispatch)',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
-  '  compare --github DIR --codemagic DIR [--json]    ledger    digest FILE.md    dry-run',
+  '  compare --github DIR --codemagic DIR [--vm v1|r1] [--site-github DIR --site-codemagic FILE] [--json]    ledger    digest FILE.md    site-digest DIR    dry-run',
 ].join('\n');
 
 export function yamlCap(root) {
@@ -249,6 +296,13 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
     const ctx = { fetchFn: fetch, getToken: keychainToken, sleep: (s) => new Promise((r) => setTimeout(r, s * 1000)), now: () => Date.now(), log, ledgerPath: join(root, '.local', 'codemagic-ledger.json'), ...ctx0 };
     const cfg = loadConfig(root, env);
     const needApp = () => { if (!cfg.appId) throw new Usage('app id not set: FW_CODEMAGIC_APP_ID or .local/codemagic.json {"appId": ...}'); return cfg.appId; };
+    if (sub === 'site-digest') {
+      if (!rest[0] || !existsSync(rest[0])) throw new Usage('site-digest needs a directory');
+      const r = siteDigest(rest[0]);
+      if (!r.digest) { console.error('codemagic: site-digest: no files'); return 2; }
+      log(`${r.digest}  ${r.files} files`);
+      return 0;
+    }
     if (sub === 'digest') { if (!rest[0]) throw new Usage('digest needs a file'); log(JSON.stringify(classDigest(readFileSync(rest[0], 'utf8')))); return 0; }
     if (sub === 'ledger') {
       const rows = ledgerRows(readLedger(ctx.ledgerPath)), month = monthOf(ctx.now());
@@ -256,16 +310,24 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return 0;
     }
     if (sub === 'compare') {
-      const o = flags(rest, { github: 'v', codemagic: 'v', json: 'bool' });
+      const o = flags(rest, { github: 'v', codemagic: 'v', json: 'bool', vm: 'v', 'site-github': 'v', 'site-codemagic': 'v' });
       if (!o.github || !o.codemagic) throw new Usage(USAGE);
-      const r = compareTables(readFileSync(join(o.github, 'v1-session-1.md'), 'utf8'), readFileSync(join(o.codemagic, 'v1-session-1.md'), 'utf8'));
+      const vm = o.vm ?? 'v1';
+      if (!/^[vr][1-9][0-9]?$/.test(vm)) throw new Usage('--vm is v<n> or r<n>');
+      const r = compareTables(readFileSync(join(o.github, `${vm}-session-1.md`), 'utf8'), readFileSync(join(o.codemagic, `${vm}-session-1.md`), 'utf8'));
+      if (o['site-github'] || o['site-codemagic']) {
+        if (!o['site-github'] || !o['site-codemagic']) throw new Usage('give both --site-github DIR and --site-codemagic FILE');
+        r.site = { github: siteDigest(o['site-github']).digest, codemagic: digestOfText(readFileSync(o['site-codemagic'], 'utf8')) };
+        r.site.equal = r.site.github !== null && r.site.github === r.site.codemagic;
+      }
       if (o.json) log(JSON.stringify(r));
       else {
         log(`github:    ${r.github.rows} rows ${JSON.stringify(r.github.counts)}\ncodemagic: ${r.codemagic.rows} rows ${JSON.stringify(r.codemagic.counts)}`);
         log(`rows with another class: ${r.differ.length}; only on GitHub: ${r.onlyGithub.length}; only on Codemagic: ${r.onlyCodemagic.length}`);
         for (const d of r.differ.slice(0, 40)) log(`  ${d.key}: ${d.github} -> ${d.codemagic}`);
       }
-      return !r.comparable ? 2 : r.equal ? 0 : 1;
+      if (r.site) log(`site digest: github ${r.site.github ?? 'none'}, codemagic ${r.site.codemagic ?? 'none'}: ${r.site.equal ? 'equal' : 'DIFFERENT (the cell is not routable)'}`);
+      return !r.comparable ? 2 : r.site && !r.site.equal ? 3 : r.equal ? 0 : 1;
     }
     if (sub === 'facts') { flags(rest, {}); log(JSON.stringify(poolFacts(ctx.ledgerPath, ctx.now()))); return 0; }
     if (sub === 'dry-run' || (sub === 'trigger' && rest.includes('--dry'))) {
@@ -286,12 +348,12 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return ok ? 0 : 1;
     }
     if (sub === 'trigger') {
-      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool', pool: 'bool' });
+      const o = flags(rest, { branch: 'v', workflow: 'v', dry: 'bool', pool: 'bool', vars: 'v' });
       if (!/^ci\/[A-Za-z0-9._/-]+$/.test(o.branch ?? '')) throw new Usage(USAGE);
       const cap = yamlCap(root), workflowId = onlyWorkflow(o.workflow);
       const d = triggerDecision(g, ctx.ledgerPath, cap, ctx.now(), !!o.pool);
       if (d.refusals.length) { log(`STOP (Lean Fw.Ci.Codemagic.${d.rule}): ${d.refusals.join(', ')}; ${d.used} of ${g.constants.freeMinutes} minutes used in ${d.month} (line ${g.constants.stopAt}), ${d.builds} build(s) in the ledger${o.pool ? '' : ` (max ${g.constants.maxBuilds})`}, cap ${cap}`); return 5; }
-      const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch });
+      const req = triggerRequest({ appId: needApp(), workflowId, branch: o.branch, vars: o.vars ? JSON.parse(o.vars) : {} });
       const ledger = readLedger(ctx.ledgerPath), tmpId = `pending-${ctx.now()}`;
       ledger.builds[tmpId] = { month: d.month, minutes: cap, pending: true, at: ctx.now() };
       writeLedger(ctx.ledgerPath, ledger);

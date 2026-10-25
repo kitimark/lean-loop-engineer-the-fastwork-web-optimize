@@ -61,15 +61,22 @@ def linkTable : List (Flag × List Key) :=
    (⟨"hero", "scene-pause"⟩, [ksp]),
    (⟨"hero.exit", "threaded"⟩, [threadedKey])]
 
-def curated : List (Flag × String) :=
-  [(⟨"hero.accent", "steps"⟩,
+inductive Exclusion where
+  | hand (reason : String)
+  | resourceTrade
+
+def Exclusion.text : Exclusion → String
+  | .hand s => s
+  | .resourceTrade => "the decided resource verdict (Fw.Engine.Resource.Flags.decided) is a trade on every engine \
+      (#guard in Fw.Engine.Resource.Preset)"
+
+def curated : List (Flag × Exclusion) :=
+  [(⟨"hero.accent", "steps"⟩, .hand
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
       engine-win field"),
-   (⟨"morph.panel", "rest"⟩,
-    "ledger n = 11: a trade on Chromium (MEASURED, runs 40174480097 / 40174482844: PrePaint, invalidation and RasterTask \
-      cost); WebKit saves memory but Paint rises on rest frames (raw, runs 40174475566 / 40174472900); curated exclusion")]
+   (⟨"morph.panel", "rest"⟩, .resourceTrade)]
 
-def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
+def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2.text)
 
 def links : List (Flag × List Key) := linkTable.filter fun l => (reasonOf l.1).isNone
 
@@ -97,6 +104,10 @@ theorem linkOf_links_of_none {f : Flag} (h : reasonOf f = none) : linkOf links f
 theorem curated_not_mem {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} (h : reasonOf f ≠ none) :
     f ∉ preset reg links ledger st :=
   unlinked_not_mem (by simp [linkOf_links, h])
+
+theorem panel_rest_not_mem {reg : List Reg} {ledger : List Row} {st : List Stored} :
+    (⟨"morph.panel", "rest"⟩ : Flag) ∉ preset reg links ledger st :=
+  curated_not_mem (by simp [reasonOf, curated])
 
 def parseFlag (s : String) : Except String Flag :=
   match s.splitOn ":" with
@@ -151,8 +162,11 @@ def parseRow (j : Json) : Except String Row := do
   let fr ← match ← optStr j "fResult" with
     | none => pure none
     | some s => some <$> parseFRes s
+  let vc ← match ← optStr j "visClass" with
+    | none => pure none
+    | some s => some <$> parseVisClass s
   return { part := ← j.getObjValAs? String "part", candidate := ← j.getObjValAs? String "candidate",
-           status := ← j.getObjValAs? String "status", flag := ← optStr j "flag", fResult := fr }
+           status := ← j.getObjValAs? String "status", flag := ← optStr j "flag", fResult := fr, visClass := vc }
 
 def parseLedger (j : Json) : Except String (List Row) := do
   let a ← (← j.getObjVal? "findings").getArr?
@@ -299,6 +313,73 @@ def ledgerDisagreements (ledger : Json) (ds : List LookDecision) : List String :
           | some m =>
             [m.chromium.run, m.chromium.artifact, m.chromium.expires].filterMap fun o =>
               o.bind fun x => if has rev x then none else some s!"{d.flag.key}: review text lacks {x}")
+
+def flagRows (ledger : List Row) (f : Flag) : List Row := ledger.filter (·.flag == some f.key)
+
+inductive ClassIssue where
+  | noRow
+  | rowCount (n : Nat)
+  | differs (row : Option VisClass) (part : VisClass)
+deriving DecidableEq, Repr
+
+def ClassIssue.text (f : Flag) : ClassIssue → String
+  | .noRow => s!"{f.key}: no ledger row has this flag"
+  | .rowCount n => s!"{f.key}: {n} ledger rows have this flag"
+  | .differs row c =>
+    s!"{f.key}: the ledger row has visClass {(row.map visClassWord).getD "none"}, part.json has {visClassWord c}"
+
+def classIssue (ledger : List Row) (r : Reg) : Option ClassIssue :=
+  match r.visClass with
+  | none => none
+  | some c =>
+    match flagRows ledger r.flag with
+    | [] => some .noRow
+    | [x] => if x.visClass = some c then none else some (.differs x.visClass c)
+    | rs => some (.rowCount rs.length)
+
+def classDisagreements (reg : List Reg) (ledger : List Row) : List String :=
+  reg.filterMap fun r => (classIssue ledger r).map (·.text r.flag)
+
+def ClassAgrees (ledger : List Row) (r : Reg) : Prop :=
+  ∀ c, r.visClass = some c → ∃ x, flagRows ledger r.flag = [x] ∧ x.visClass = some c
+
+theorem classIssue_eq_none_iff {ledger : List Row} {r : Reg} : classIssue ledger r = none ↔ ClassAgrees ledger r := by
+  unfold classIssue ClassAgrees
+  cases hv : r.visClass with
+  | none => simp
+  | some c =>
+    simp only [Option.some.injEq, forall_eq']
+    match h : flagRows ledger r.flag with
+    | [] => simp
+    | [x] => by_cases hx : x.visClass = some c <;> simp [hx]
+    | _ :: _ :: _ => simp
+
+theorem classDisagreements_eq_nil_iff {reg : List Reg} {ledger : List Row} :
+    classDisagreements reg ledger = [] ↔ ∀ r ∈ reg, ClassAgrees ledger r := by
+  unfold classDisagreements
+  simp only [List.filterMap_eq_nil_iff, Option.map_eq_none_iff]
+  exact forall₂_congr fun _ _ => classIssue_eq_none_iff
+
+theorem classIssue_of_noRow {ledger : List Row} {r : Reg} {c : VisClass} (hc : r.visClass = some c)
+    (h : flagRows ledger r.flag = []) : classIssue ledger r = some .noRow := by
+  simp [classIssue, hc, h]
+
+theorem classIssue_of_rowCount {ledger : List Row} {r : Reg} {c : VisClass} {x y : Row} {rs : List Row}
+    (hc : r.visClass = some c) (h : flagRows ledger r.flag = x :: y :: rs) :
+    classIssue ledger r = some (.rowCount (rs.length + 2)) := by
+  simp [classIssue, hc, h]
+
+theorem classIssue_of_differs {ledger : List Row} {r : Reg} {c : VisClass} {x : Row}
+    (hc : r.visClass = some c) (h : flagRows ledger r.flag = [x]) (hx : x.visClass ≠ some c) :
+    classIssue ledger r = some (.differs x.visClass c) := by
+  simp [classIssue, hc, h, hx]
+
+theorem classIssue_of_unclassed {ledger : List Row} {r : Reg} (hc : r.visClass = none) : classIssue ledger r = none := by
+  simp [classIssue, hc]
+
+theorem mem_classDisagreements {reg : List Reg} {ledger : List Row} {r : Reg} {i : ClassIssue} (hr : r ∈ reg)
+    (h : classIssue ledger r = some i) : i.text r.flag ∈ classDisagreements reg ledger :=
+  List.mem_filterMap.2 ⟨r, hr, by simp [h]⟩
 
 def lookCandidates (reg : List Reg) : List Flag :=
   ((reg.filter fun r => r.visClass == some .l).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
@@ -656,6 +737,8 @@ def run (args : List String) : IO Unit := do
   let p ← IO.ofExcept (generate reg links ledger st)
   let bad := ledgerDisagreements (← readJson ledgerPath) lookDecisions
   unless bad.isEmpty do throw (IO.userError s!"the ledger text disagrees with Gen.lookDecisions: {bad}")
+  unless (classDisagreements reg ledger).isEmpty do
+    throw (IO.userError s!"the ledger visClass disagrees with part.json: {classDisagreements reg ledger}")
   unless (staleDecisions reg).isEmpty do
     throw (IO.userError s!"look decisions name no look-change candidate and no refused registered flag: {(staleDecisions reg).map (·.key)}")
   unless (refusedMembers lookDecisions p).isEmpty do
@@ -843,6 +926,27 @@ private def accentReg : Reg :=
   ("userDecision", Json.mkObj [("date", .str "2026-10-24"), ("decision", .str "rejected; review deferred"),
     ("review", .str "")])]])]) ((lookDecisions.drop 2).take 1)).length == 2
 #guard ((lookJson [] [] ⟨"x", "y"⟩).getObjVal? "userDecision").toOption == some .null
+private def classReg (v : String) (c : Option VisClass) : Reg :=
+  { flag := ⟨"p", v⟩, kind := .proposal, requires := [], conflicts := [], visClass := c }
+private def classRow (v : String) (c : Option VisClass) : Row :=
+  { part := "p", candidate := v, status := "proved", flag := some s!"p:{v}", fResult := none, visClass := c }
+#guard classDisagreements [classReg "a" (some .l)] [classRow "a" (some .l)] == []
+#guard classDisagreements [classReg "a" none] [] == []
+#guard classDisagreements [classReg "a" (some .e)] [classRow "b" (some .e)] == ["p:a: no ledger row has this flag"]
+#guard classDisagreements [classReg "a" (some .l)] [classRow "a" (some .e)] ==
+  ["p:a: the ledger row has visClass E, part.json has L"]
+#guard classDisagreements [classReg "a" (some .eS)] [classRow "a" none] ==
+  ["p:a: the ledger row has visClass none, part.json has E-s"]
+#guard classDisagreements [classReg "a" (some .q)] [classRow "a" (some .q), classRow "a" (some .q)] ==
+  ["p:a: 2 ledger rows have this flag"]
+#guard classDisagreements [classReg "a" (some .l), classReg "b" (some .e), classReg "c" none]
+  [classRow "a" (some .l), classRow "b" (some .eS), classRow "c" (some .q)] ==
+  ["p:b: the ledger row has visClass E-s, part.json has E"]
+#guard (parseRow (Json.mkObj [("part", "a"), ("candidate", "c"), ("status", "proved"), ("visClass", "E-s")])).toOption.map
+  (·.visClass) == some (some .eS)
+#guard (parseRow (Json.mkObj [("part", "a"), ("candidate", "c"), ("status", "proved")])).toOption.map (·.visClass) ==
+  some none
+#guard (parseRow (Json.mkObj [("part", "a"), ("candidate", "c"), ("status", "proved"), ("visClass", "e")])).toOption.isNone
 
 private def stEx : Stored :=
   ⟨"7", "s", "?fw=a:x", ["a:x"], .macWebkit, .morph, [390, 641], [⟨"nav", "opacity", [390], [641]⟩]⟩
@@ -913,7 +1017,8 @@ private def stFail (e : Engine) : Stored :=
   ("userDecision", Json.mkObj [("date", .str "2026-10-24"), ("decision", .str "kept; review deferred"),
     ("review", .str "")])]])]) ((lookDecisions.drop 3).take 1)).length == 2
 
-private def threadedRow (status : String) : Row := ⟨threadedKey.1, threadedKey.2, status, some "hero.exit:threaded", none⟩
+private def threadedRow (status : String) : Row :=
+  ⟨threadedKey.1, threadedKey.2, status, some "hero.exit:threaded", none, none⟩
 
 #guard why links [threadedRow "partly-proved"] heroExitThreaded == .notProved threadedKey "partly-proved"
 #guard blockers [threadedRow "partly-proved"] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e =>
