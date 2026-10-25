@@ -273,7 +273,7 @@ export function mergeClasses(root: string, dir: string, refused: { vm: string; k
 }
 
 /** A cell that differs from the reference only in hardware is a pinned pair, not a merge: record it and decide each row. */
-function pairRefused(a: { consoleDir: string; call: FwCall; read: CmDeps["read"] }, dir: string, refVm: string, ref: PlatformKey, refused: { vm: string; key: PlatformKey }[], cells: CmCellDone[], runId: string): void {
+function pairRefused(a: { consoleDir: string; call: FwCall; read: CmDeps["read"] }, dir: string, refVm: string, ref: PlatformKey, refused: { vm: string; key: PlatformKey }[], cells: CmCellDone[], runId: string, ghSha: string | null): void {
   const out = join(dir, "webkit-classes");
   const ghMd = readOr(join(out, `${refVm}-classes.md`));
   if (!ghMd) return;
@@ -282,10 +282,9 @@ function pairRefused(a: { consoleDir: string; call: FwCall; read: CmDeps["read"]
     const cell = cells.find((c) => c.vm === r.vm);
     if (!cmMd || !cell) continue;
     const build = /codemagic-([0-9a-f]{24})$/.exec(cell.out)?.[1];
-    if (!build) continue;
-    recordPair(join(a.consoleDir, "ci-pairs"), { sha: a.read(cell.out).sha ?? "0".repeat(40), target: cell.target ?? "original", vm: r.vm, ghRun: runId, cmBuild: `cm:${build}`, ghKey: ref, cmKey: r.key, gh: classRowsOf(ghMd), cm: classRowsOf(cmMd) });
-    const same = (k: PlatformKey) => k.macosBuild === ref.macosBuild && k.xcodeBuild === ref.xcodeBuild && k.runtimeBuild === ref.runtimeBuild;
-    if (!same(r.key)) continue;
+    const cmSha = a.read(cell.out).sha;
+    if (!build || !ghSha || !cmSha) continue;
+    recordPair(join(a.consoleDir, "ci-pairs"), { target: cell.target ?? "original", vm: r.vm, ghRun: runId, cmBuild: `cm:${build}`, ghSha, cmSha, ghKey: ref, cmKey: r.key, gh: classRowsOf(ghMd), cm: classRowsOf(cmMd) });
     const pooled = poolRows(a.call, ref, r.key, readPairs(join(a.consoleDir, "ci-pairs")).filter((p) => p.target === (cell.target ?? "original")));
     writeFileSync(join(out, "refused", `${r.vm}-pooled-rows.json`), JSON.stringify(pooled) + "\n");
   }
@@ -360,7 +359,7 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
         if (!merged) refused.push({ vm: c.vm, key });
       }
       mergeClasses(a.root, dir, refused);
-      pairRefused({ ...a, read: cm.read }, dir, refVm, ref, refused, cells, runId);
+      if (refused.length) pairRefused({ ...a, read: cm.read }, dir, refVm, ref, refused, cells, runId, await headShaOf(a.gh, runId));
     },
   };
 }
@@ -376,12 +375,20 @@ export function classRowsOf(md: string): Record<string, string> {
   return rows;
 }
 
-export type PairRecord = { sha: string; target: string; vm: string; ghRun: string; cmBuild: string; ghKey: PlatformKey; cmKey: PlatformKey; gh: Record<string, string>; cm: Record<string, string> };
+/** The commit a GitHub run measured (`gh run view --json headSha`); null when unreadable. */
+async function headShaOf(gh: Gh, runId: string): Promise<string | null> {
+  try {
+    const v = JSON.parse(await gh(["run", "view", runId, "--json", "headSha"])) as { headSha?: unknown };
+    return typeof v.headSha === "string" && v.headSha ? v.headSha : null;
+  } catch { return null; }
+}
+
+export type PairRecord = { target: string; vm: string; ghRun: string; cmBuild: string; ghSha: string; cmSha: string; ghKey: PlatformKey; cmKey: PlatformKey; gh: Record<string, string>; cm: Record<string, string> };
 
 /** One pinned pair: a GitHub cell and a Codemagic cell of one commit, with the key each was measured under. */
 export function recordPair(pairsDir: string, p: PairRecord): string {
   mkdirSync(pairsDir, { recursive: true });
-  const f = join(pairsDir, `${p.sha.slice(0, 7)}-${p.target}-${p.vm}-${p.cmBuild.replace(/^cm:/, "")}.json`);
+  const f = join(pairsDir, `${p.ghSha.slice(0, 7)}-${p.target}-${p.vm}-${p.cmBuild.replace(/^cm:/, "")}.json`);
   writeFileSync(f, JSON.stringify(p) + "\n");
   return f;
 }
@@ -397,7 +404,7 @@ export type PooledRows = { kReq: number; reachable: number; merged: boolean; row
 export function poolRows(call: FwCall, ref: PlatformKey, cell: PlatformKey, pairs: PairRecord[], used = 0): PooledRows {
   const names = new Set<string>();
   for (const p of pairs) for (const k of Object.keys(p.gh)) if (k in p.cm) names.add(k);
-  const rows = [...names].sort().map((row) => ({ row, obs: pairs.filter((p) => row in p.gh && row in p.cm).map((p) => ({ gh: p.gh[row], cm: p.cm[row], ghKey: p.ghKey, cmKey: p.cmKey })) }));
+  const rows = [...names].sort().map((row) => ({ row, obs: pairs.filter((p) => row in p.gh && row in p.cm).map((p) => ({ gh: p.gh[row], cm: p.cm[row], ghKey: p.ghKey, cmKey: p.cmKey, ghRun: p.ghRun, cmBuild: p.cmBuild, ghSha: p.ghSha, cmSha: p.cmSha })) }));
   return call({ op: "ci.poolRows", ref, cell, rows, used }) as unknown as PooledRows;
 }
 
@@ -407,12 +414,11 @@ export type RerouteDeps = { trigger: (req: Record<string, unknown>) => Promise<{
 /** Re-route still-queued GitHub jobs (Lean `ci.reroute`). Codemagic is triggered first; the GitHub run is cancelled only after
  * the trigger succeeded, and only when the job is the lone unfinished cell of its run. Returns the Codemagic builds started. */
 export async function rerouteQueued(call: FwCall, state: Record<string, unknown>, jobs: QueuedJob[], d: RerouteDeps): Promise<string[]> {
-  const reply = call({ op: "ci.reroute", state, queued: jobs.map((j) => ({ ...j.req, queuedS: j.queuedS, runCells: j.runCells })) }) as unknown as { log: { reroute: boolean }[] };
-  const aged = jobs.filter((j) => j.queuedS >= 300 && j.runCells === 1);
+  const reply = call({ op: "ci.reroute", state, queued: jobs.map((j) => ({ ...j.req, queuedS: j.queuedS, runCells: j.runCells })) }) as unknown as { log: { reroute: boolean; i: number }[] };
   const started: string[] = [];
-  for (const [i, row] of reply.log.entries()) {
+  for (const row of reply.log) {
     if (!row.reroute) continue;
-    const job = aged[i]!;
+    const job = jobs[row.i]!;
     const t = await d.trigger(job.req);
     if (!t.build || t.code !== 0) { d.log(`reroute: Codemagic refused (exit ${t.code}); run ${job.runId} stays on GitHub`); continue; }
     await d.cancel(job.runId);

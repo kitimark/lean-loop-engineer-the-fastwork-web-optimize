@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -192,7 +192,7 @@ describe("toolchain identity of a Codemagic cell (Lean ci.cellMerged)", () => {
 describe("row pooling by pinned pairs (Lean ci.poolRows)", () => {
   const ghK = parsePlatformKey(TOOLS("a", "b", "c").replace("12\n17179869184", "3\n7516192768"));
   const cmK = parsePlatformKey(TOOLS("a", "b", "c").replace("12\n17179869184", "8\n12884901888"));
-  const pair = (n: number, cm: string): PairRecord => ({ sha: "1".repeat(40), target: "original", vm: "v3", ghRun: String(n), cmBuild: `cm:${String(n).padStart(24, "0")}`, ghKey: ghK, cmKey: cmK, gh: { "a|m|l": "stable", "b|m|l": "stable" }, cm: { "a|m|l": "stable", "b|m|l": cm } });
+  const pair = (n: number, cm: string): PairRecord => ({ target: "original", vm: "v3", ghRun: String(n), cmBuild: `cm:${String(n).padStart(24, "0")}`, ghSha: "1".repeat(40), cmSha: "1".repeat(40), ghKey: ghK, cmKey: cmK, gh: { "a|m|l": "stable", "b|m|l": "stable" }, cm: { "a|m|l": "stable", "b|m|l": cm } });
   it("classRowsOf reads the merged table of several sessions (five columns)", () => {
     expect(classRowsOf("| family | count type | level | class (worst of sessions) | sessions agree |\n|---|---|---|---|---|\n| census | layerCount | y=0 | **quarantined** | yes |\n")).toEqual({ "census|layerCount|y=0": "quarantined" });
   });
@@ -205,6 +205,20 @@ describe("row pooling by pinned pairs (Lean ci.poolRows)", () => {
     expect(three.counts).toEqual({ direct: 0, paired: 1, refused: 1 });
     expect(poolRows(call, ghK, cmK, [pair(1, "stable"), pair(2, "stable")]).counts.paired).toBe(0);
     expect(poolRows(call, ghK, cmK, [pair(1, "stable"), pair(2, "stable"), pair(3, "stable")], 166).reachable).toBe(3);
+  });
+  it("a pair listed three times, a shared run or build, and a sha mismatch pool nothing (Lean rowPooled)", () => {
+    const four = (f: (p: PairRecord, i: number) => PairRecord) => poolRows(call, ghK, cmK, [pair(1, "stable"), pair(2, "stable"), pair(3, "stable")].map(f)).counts.paired;
+    expect(four((p) => p)).toBe(2);
+    expect(four(() => pair(1, "stable"))).toBe(0);
+    expect(four((p) => ({ ...p, ghRun: "7" }))).toBe(0);
+    expect(four((p) => ({ ...p, cmBuild: "cm:x" }))).toBe(0);
+    expect(four((p, i) => (i === 2 ? { ...p, cmSha: "2".repeat(40) } : p))).toBe(0);
+    expect(four((p) => ({ ...p, ghSha: "", cmSha: "" }))).toBe(0);
+  });
+  it("different toolchains pool nothing even with three agreeing pairs (Lean rowUse)", () => {
+    const other = { ...cmK, xcodeBuild: "z" };
+    const ps = [1, 2, 3].map((n) => ({ ...pair(n, "stable"), cmKey: other }));
+    expect(poolRows(call, ghK, other, ps).counts).toEqual({ direct: 0, paired: 0, refused: 2 });
   });
   it("recordPair and readPairs round-trip", () => {
     const d = mkdtempSync(join(tmpdir(), "pairs-"));
@@ -227,6 +241,14 @@ describe("queued re-route glue (Lean ci.reroute)", () => {
   it("aged lone job: Codemagic first, then the GitHub run is cancelled", async () => {
     expect(await run(300, 1)).toEqual({ out: ["a".repeat(24)], calls: ["trigger", "cancel 42"] });
   });
+  it("a young job queued ahead of an aged one: the aged job's run is the one cancelled", async () => {
+    const calls: string[] = [];
+    const out = await rerouteQueued(call, state, [{ req, queuedS: 10, runCells: 1, runId: "young" }, { req: { ...req, rep: 1 }, queuedS: 400, runCells: 1, runId: "aged" }], {
+      trigger: async () => { calls.push("trigger"); return { build: "a".repeat(24), code: 0 }; },
+      cancel: async (id) => { calls.push(`cancel ${id}`); }, log: () => {} });
+    expect(out).toEqual(["a".repeat(24)]);
+    expect(calls).toEqual(["trigger", "cancel aged"]);
+  });
   it("young, shared, or refused: the GitHub run is untouched", async () => {
     expect((await run(299, 1)).calls).toEqual([]);
     expect((await run(900, 2)).calls).toEqual([]);
@@ -236,17 +258,17 @@ describe("queued re-route glue (Lean ci.reroute)", () => {
 
 describe("realRoute place: platform verdict and missing sha", () => {
   const job = (inputs: Record<string, string>) => ({ engine: "webkit", workflow: "webkit-sim.yml", inputs, digest: "d", key: [] }) as unknown as PlanJob;
-  const run = async (cmTools: string, docSha: string | null = SHA) => {
+  const run = async (cmTools: string, docSha: string | null = SHA, session = true) => {
     const dir = mkdtempSync(join(tmpdir(), "route-"));
     const cm: CmDeps = {
       trigger: async () => ({ code: 0, build: "b".repeat(24) }),
-      wait: async (_b, out) => { mkdirSync(join(out, "artifacts"), { recursive: true }); writeFileSync(join(out, "artifacts", "tools.txt"), cmTools); writeFileSync(join(out, "artifacts", "v3-session-1.json"), "{}"); return 0; },
+      wait: async (_b, out) => { mkdirSync(join(out, "artifacts"), { recursive: true }); writeFileSync(join(out, "artifacts", "tools.txt"), cmTools); if (session) writeFileSync(join(out, "artifacts", "v3-session-1.json"), "{}"); return 0; },
       read: () => ({ status: "finished", startedAt: 5, finishedAt: 9, createdAt: 1, minutes: 4, sha: docSha }),
       facts: () => ({ cmUsed: 46, cmBusy: 0, ccSpent: 3575, ccStorage: 30 }),
       githubSiteDigest: async () => null,
       siteDigestOf: () => null,
     };
-    const gh = async (a: string[]) => (a[1] === "list" ? JSON.stringify([{ databaseId: 1, workflowName: "webkit-sim" }]) : JSON.stringify({ jobs: Array.from({ length: 5 }, (_, i) => ({ name: `sim (v${i + 1})`, status: "in_progress" })) }));
+    const gh = async (a: string[]) => (a[4] === "headSha" ? JSON.stringify({ headSha: SHA }) : a[1] === "list" ? JSON.stringify([{ databaseId: 1, workflowName: "webkit-sim" }]) : JSON.stringify({ jobs: Array.from({ length: 5 }, (_, i) => ({ name: `sim (v${i + 1})`, status: "in_progress" })) }));
     const r = realRoute({ root, consoleDir: dir, call, gh, log: () => {}, now: () => 7, cm });
     const events = () => readFileSync(join(dir, "ci-route.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
     const s = await r.split(job({ vms: "3", target: "original" }), "ci/x", SHA);
@@ -265,6 +287,26 @@ describe("realRoute place: platform verdict and missing sha", () => {
     await m.r.place(dl, cells, "99").catch((e: Error) => { if (!/merge failed/.test(e.message)) throw e; });
     expect(m.events().find((e) => e.kind === "ci.cell.platform")).toMatchObject({ vm: "v3", merged: false, key: { macosBuild: "26A428", xcodeBuild: "27A266a", runtimeBuild: "24A434" }, ref: { macosBuild: "26A434" } });
     expect(readFileSync(join(dl, "refused", "webkit-sim-v3", "tools.txt"), "utf8")).toContain("26A428");
+  });
+  it("same toolchain, other hardware: place records the pair and writes the pooled rows with merged false", async () => {
+    const gh3 = TOOLS("26A434", "27A9275", "24A434").replace("12\n17179869184", "3\n7516192768");
+    const m = await run(TOOLS("26A434", "27A9275", "24A434").replace("12\n17179869184", "8\n12884901888"), SHA, false);
+    const cells = await m.s.cm;
+    const dl = mkdtempSync(join(tmpdir(), "dl-"));
+    mkdirSync(join(dl, "webkit-sim-v1"), { recursive: true });
+    writeFileSync(join(dl, "webkit-sim-v1", "tools.txt"), gh3);
+    mkdirSync(join(dl, "webkit-classes", "refused"), { recursive: true });
+    const table = "| family | metric | level | class | a | b | c | d |\n|---|\n| x | y | z | **stable** | 1 | 2 | 3 | 4 |\n";
+    writeFileSync(join(dl, "webkit-classes", "v1-classes.md"), table);
+    writeFileSync(join(dl, "webkit-classes", "refused", "v3-classes.md"), table);
+    await m.r.place(dl, cells, "99");
+    const files = readdirSync(join(m.dir, "ci-pairs"));
+    expect(files).toHaveLength(1);
+    const rec = JSON.parse(readFileSync(join(m.dir, "ci-pairs", files[0]!), "utf8")) as PairRecord;
+    expect(rec).toMatchObject({ ghRun: "99", ghSha: SHA, cmSha: SHA, vm: "v3", ghKey: { cpus: 3 }, cmKey: { cpus: 8 } });
+    expect(rec.cmBuild).toMatch(/^cm:[0-9a-f]{24}$/);
+    const pooled = JSON.parse(readFileSync(join(dl, "webkit-classes", "refused", "v3-pooled-rows.json"), "utf8")) as { merged: boolean; counts: { paired: number; refused: number } };
+    expect(pooled).toMatchObject({ merged: false, counts: { paired: 0, refused: 1 } });
   });
   it("a pinned toolchain is merged: its cell is placed beside the GitHub cells", async () => {
     const m = await run(TOOLS("26A434", "27A9275", "24A434"));
