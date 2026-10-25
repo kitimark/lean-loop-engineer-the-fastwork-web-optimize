@@ -16,7 +16,7 @@
 
 ## Open
 - `cli.mjs` was not in the writes, so readings excused by a flag delta show as `pass` in `readings-<engine>.json`.
-  A follow-up could give them their own class there.
+  They need their own class.
 - The lead re-dispatches a gate run for morph.panel:rest after the land. No CI run was made in this task.
 
 ## Conventions

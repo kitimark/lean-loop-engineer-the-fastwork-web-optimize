@@ -3,20 +3,15 @@ import Fw.Wire.Gate
 import Fw.Gate.Settle
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphColumnsScale
-/-!
-# Flag deltas: the computed-style differences a flag is proved to cause, excused item by item in a gate reading
--/
 namespace Fw.Gate.FlagDelta
 open Fw.Gate
 
-/-- The look class of a flag: `e` exact, `q` within tolerance, `l` look change. -/
 inductive Look where
   | e
   | q
   | l
   deriving DecidableEq, Repr
 
-/-- One allowlisted item: flag, part, role, property, the original and the rewrite computed value, look class, premise. -/
 structure Delta where
   id : String
   flag : String
@@ -29,7 +24,6 @@ structure Delta where
   reason : String
   premise : Lean.Name
 
-/-- The flag-delta allowlist; every field is an exact value. -/
 def deltas : List Delta :=
   [ { id := "panel-rest-section-filter", flag := "morph.panel:rest", part := "platform", role := "section",
       property := "filter", orig := "blur(0px)", rewrite := "none", look := .e,
@@ -52,7 +46,6 @@ def deltas : List Delta :=
       reason := "the columns keep the final-width layout (flex: none) and a horizontal scale draws the base edges; a look change",
       premise := ``Fw.Parts.MorphColumnsScale.layout_const } ]
 
-/-- A failing item of one part reading: kind, role, key, status, whether a rect decided it, and the two values. -/
 structure DItem where
   cls : Cls
   role : String
@@ -63,24 +56,19 @@ structure DItem where
   rewrite : Option String
   deriving DecidableEq, Repr
 
-/-- A delta names an item: its flag is on, and part, role, property and both values are equal, on a style item that differs. -/
 def Delta.matches (d : Delta) (flags : List String) (part : String) (it : DItem) : Bool :=
   flags.contains d.flag && d.part == part && it.cls == .style && !it.byRect && it.status == .differ &&
     d.role == it.role && d.property == it.key && it.orig == some d.orig && it.rewrite == some d.rewrite
 
-/-- The first delta that names the item, or none. -/
 def excuseItem (flags : List String) (part : String) (it : DItem) : Option Delta :=
   deltas.find? (·.matches flags part it)
 
-/-- Every failing item of the reading is excused, and there is at least one. -/
 def allExcused (flags : List String) (part : String) (fails : List DItem) : Bool :=
   !fails.isEmpty && fails.all fun it => (excuseItem flags part it).isSome
 
-/-- The reading rule: a failing part reading whose failing items are all excused passes; any other reading keeps its verdict. -/
 def readingVerdict (flags : List String) (part : String) (v : Verdict) (fails : List DItem) : Verdict :=
   if v == .fail && allExcused flags part fails then .pass else v
 
-/-- The excused items of a reading with their delta ids; empty unless the rule turned the reading into a pass. -/
 def excusedItems (flags : List String) (part : String) (v : Verdict) (fails : List DItem) : List (DItem × String) :=
   if v == .fail && allExcused flags part fails then
     fails.filterMap fun it => (excuseItem flags part it).map fun d => (it, d.id)
@@ -100,12 +88,10 @@ theorem excuseItem_spec {flags : List String} {part : String} {it : DItem} {d : 
   have hp := List.find?_some h'
   exact ⟨List.mem_of_find?_eq_some h', hp⟩
 
-/-- **Excused only when the flag is on**: an item is excused only by a delta whose flag is a flag of the run. -/
 theorem excused_only_flag_on {flags : List String} {part : String} {it : DItem} {d : Delta}
     (h : excuseItem flags part it = some d) : d.flag ∈ flags :=
   ((matches_spec d flags part it).1 (excuseItem_spec h).2).1
 
-/-- **The allowlist is enumerated**: an excuse is an entry of `deltas` equal to the item in part, role, property and both values. -/
 theorem deltas_enumerated {flags : List String} {part : String} {it : DItem} {d : Delta}
     (h : excuseItem flags part it = some d) :
     d ∈ deltas ∧ d.part = part ∧ it.cls = .style ∧ it.status = .differ ∧ it.role = d.role ∧ it.key = d.property ∧
@@ -114,7 +100,6 @@ theorem deltas_enumerated {flags : List String} {part : String} {it : DItem} {d 
   obtain ⟨_, b, c, _, f, g, k, i, j⟩ := (matches_spec d flags part it).1 hx
   exact ⟨hm, b, c, f, g.symm, k.symm, i, j⟩
 
-/-- **One item that is not allowlisted fails the reading.** -/
 theorem unlisted_item_fails {flags : List String} {part : String} {fails : List DItem} {it : DItem}
     (hi : it ∈ fails) (hn : excuseItem flags part it = none) : readingVerdict flags part .fail fails = .fail := by
   have : allExcused flags part fails = false := by
@@ -122,7 +107,6 @@ theorem unlisted_item_fails {flags : List String} {part : String} {fails : List 
     exact .inr ⟨it, hi, by simp [hn]⟩
   simp [readingVerdict, this]
 
-/-- **The flags-off gate is unchanged**: with no flag of the allowlist on, every reading keeps its verdict. -/
 theorem flags_off_unchanged {flags : List String} (hoff : ∀ d ∈ deltas, d.flag ∉ flags) (part : String) (v : Verdict)
     (fails : List DItem) : readingVerdict flags part v fails = v := by
   have hn : ∀ it, excuseItem flags part it = none := fun it => by
@@ -136,11 +120,9 @@ theorem flags_off_unchanged {flags : List String} (hoff : ∀ d ∈ deltas, d.fl
     · subst hv; rw [← hf]; exact unlisted_item_fails (by rw [hf]; exact List.mem_cons_self) (hn it)
     · simp [readingVerdict, hv]
 
-/-- The default page (no flag) keeps every verdict. -/
 theorem no_flags_unchanged (part : String) (v : Verdict) (fails : List DItem) : readingVerdict [] part v fails = v :=
   flags_off_unchanged (fun _ _ h => by cases h) part v fails
 
-/-- The rule changes a verdict only from `fail` to `pass`. -/
 theorem readingVerdict_changes (flags : List String) (part : String) (v : Verdict) (fails : List DItem)
     (h : readingVerdict flags part v fails ≠ v) : v = .fail ∧ readingVerdict flags part v fails = .pass := by
   by_cases hc : (v == .fail && allExcused flags part fails) = true
@@ -148,7 +130,6 @@ theorem readingVerdict_changes (flags : List String) (part : String) (v : Verdic
     exact ⟨hc.1, by simp [readingVerdict, hc]⟩
   · simp [readingVerdict, hc] at h
 
-/-- Every failing item of a reading the rule turned into a pass is printed with its delta. -/
 theorem excused_all_printed {flags : List String} {part : String} {fails : List DItem} {it : DItem}
     (hp : readingVerdict flags part .fail fails = .pass) (hi : it ∈ fails) :
     ∃ d, excuseItem flags part it = some d ∧ (it, d.id) ∈ excusedItems flags part .fail fails := by
@@ -162,7 +143,6 @@ theorem excused_all_printed {flags : List String} {part : String} {fails : List 
   simp only [excusedItems, ha, beq_self_eq_true, Bool.and_self, ite_true, List.mem_filterMap]
   exact ⟨it, hi, by simp [hd]⟩
 
-/-- An item's status after the rule: an excused item reads as `equal`, any other keeps its status. -/
 def relabel (flags : List String) (part : String) (it : DItem) : Status :=
   if (excuseItem flags part it).isSome then .equal else it.status
 
@@ -171,8 +151,6 @@ theorem excused_differ {flags : List String} {part : String} {it : DItem} (h : (
   obtain ⟨d, hd⟩ := Option.isSome_iff_exists.1 h
   exact (deltas_enumerated hd).2.2.2.1
 
-/-- **The rule is the gate's rule with each excused item read as equal**: on all items of a part, re-running `cellVerdict` with
-`relabel` gives `readingVerdict` of the original verdict and the failing items. -/
 theorem readingVerdict_relabel (flags : List String) (part : String) (L : List DItem) :
     cellVerdict (L.map (relabel flags part)) =
       readingVerdict flags part (cellVerdict (L.map (·.status))) (L.filter fun it => failsS it.status) := by
@@ -229,14 +207,11 @@ theorem readingVerdict_relabel (flags : List String) (part : String) (L : List D
       · have hd := excused_differ h; have := hnot it hi; simp [hd, failsS] at this
     simp [relabel, he]
 
-/-- One flag of a search: `part:variant`, each side nonempty, letters, digits, `.`, `-` and `_` only. -/
 def flagOk (f : String) : Bool :=
   match f.splitOn ":" with
   | [p, v] => !p.isEmpty && !v.isEmpty && (p ++ v).all fun c => c.isAlphanum || c == '.' || c == '-' || c == '_'
   | _ => false
 
-/-- The flags of a run's `header.flags.search`: the comma-separated values of its `fw` params, distinct, in order; `none` when a
-param name holds `%`, an `fw` param has no `=` or a flag is not `flagOk`. -/
 def flagsOfSearch (s : String) : Option (List String) :=
   let body := if s.startsWith "?" then (s.drop 1).toString else s
   if body.isEmpty then some [] else
@@ -263,24 +238,18 @@ def flagsOfSearch (s : String) : Option (List String) :=
 #guard flagsOfSearch "?fw=a" == none
 #guard flagsOfSearch "?other=1" == some []
 
-/-- A style item that differs, for the cases below. -/
 def styleItem (role key a b : String) : DItem :=
   { cls := .style, role, key, status := .differ, orig := some a, rewrite := some b }
 
-/-- The `platform/section` filter item of run 40174477871. -/
 def sectionFilter : DItem := styleItem "section" "filter" "blur(0px)" "none"
 
-/-- The `engine.scene/scene` filter item of run 40174477871. -/
 def sceneFilter : DItem := styleItem "scene" "filter" "blur(0px)" "none"
 
-/-- The three flex items of one `morph.columns/col` element of run 40156380619. -/
 def flexItems : List DItem :=
   [styleItem "col" "flex-basis" "0px" "auto", styleItem "col" "flex-grow" "1" "0", styleItem "col" "flex-shrink" "1" "0"]
 
-/-- The flag of the panel-rest run. -/
 def restOn : List String := ["morph.panel:rest"]
 
-/-- The flag of the final-scale run. -/
 def scaleOn : List String := ["morph.columns:final-scale"]
 
 #guard readingVerdict restOn "platform" .fail [sectionFilter] == .pass
@@ -303,45 +272,37 @@ def scaleOn : List String := ["morph.columns:final-scale"]
 
 open Lean (Json toJson)
 
-/-- The wire name of a look class. -/
 def lookName : Look → String
   | .e => "E" | .q => "Q" | .l => "L"
 
-/-- The JSON of an optional value: the string, or null. -/
 def optJson : Option String → Json
   | some s => .str s
   | none => .null
 
-/-- The JSON of a failing item as `summary.mjs` passes it: cls, role, key, status, byRect, a, b. -/
 def itemJson (it : DItem) : Json :=
   Json.mkObj [("cls", .str (Fw.Wire.Gate.clsName it.cls)), ("role", .str it.role), ("key", .str it.key),
     ("status", .str (Fw.Wire.Gate.statusName it.status)), ("byRect", .bool it.byRect), ("a", optJson it.orig),
     ("b", optJson it.rewrite)]
 
-/-- The JSON line of one delta. -/
 def deltaLine (d : Delta) : String :=
   (Json.mkObj [("kind", "delta"), ("id", .str d.id), ("flag", .str d.flag), ("part", .str d.part), ("role", .str d.role),
     ("property", .str d.property), ("orig", .str d.orig), ("rewrite", .str d.rewrite), ("look", .str (lookName d.look)),
     ("reason", .str d.reason), ("premise", .str d.premise.toString)]).compress
 
-/-- The JSON line of one search case. -/
 def searchLine (s : String) : String :=
   (Json.mkObj [("kind", "search"), ("search", .str s),
     ("flags", match flagsOfSearch s with | some fs => toJson fs | none => .null)]).compress
 
-/-- The JSON line of one reading case: flags, part, verdict, failing items, the rule's verdict and the excused items' delta ids. -/
 def readingLine (flags : List String) (part : String) (v : Verdict) (fails : List DItem) : String :=
   (Json.mkObj [("kind", "reading"), ("flags", toJson flags), ("part", .str part),
     ("v", .str (Fw.Wire.Gate.verdictName v)), ("fails", Json.arr (fails.map itemJson).toArray),
     ("out", .str (Fw.Wire.Gate.verdictName (readingVerdict flags part v fails))),
     ("excused", toJson ((excusedItems flags part v fails).map (·.2)))]).compress
 
-/-- The search cases of the golden. -/
 def searchCases : List String :=
   ["", "?fw=morph.panel:rest", "?fw=morph.columns:final-scale", "?fw=morph.columns:final-scale,morph.panel:rest&x=1",
    "?fw=a:b&fw=c:d&fw=a:b", "?fw=a:b%2Cc:d", "?f%77=a:b", "?fw", "?fw=a", "?fw=a:b:c", "?other=1", "fw=a:b", "?fw=,a:b,"]
 
-/-- The reading cases of the golden. -/
 def readingCases : List (List String × String × Verdict × List DItem) :=
   [ (restOn, "platform", .fail, [sectionFilter]),
     (restOn, "engine.scene", .fail, [sceneFilter]),
@@ -369,15 +330,12 @@ def readingCases : List (List String × String × Verdict × List DItem) :=
     (restOn ++ scaleOn, "morph.columns", .fail, flexItems),
     (restOn ++ scaleOn, "platform", .fail, [sectionFilter]) ]
 
-/-- The golden lines (`packages/contracts/golden/gate/flag-delta.jsonl`): the deltas, the search cases, the reading cases. -/
 def goldenLines (_ : Unit := ()) : List String :=
   deltas.map deltaLine ++ searchCases.map searchLine ++
     readingCases.map fun (f, p, v, fs) => readingLine f p v fs
 
-/-- The exact bytes of the golden file. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
-/-- Print the golden text, or with `--check <file>` exit 0 exactly when the file holds those bytes. -/
 def run (args : List String) : IO UInt32 := do
   match Fw.Gate.Settle.argAfter args "--check" with
   | some path =>

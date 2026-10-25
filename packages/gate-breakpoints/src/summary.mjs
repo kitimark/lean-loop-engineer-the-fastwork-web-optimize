@@ -9,7 +9,6 @@ import { cell as settleCell, report as settleReport, staleComparable } from './s
 import { flagsOfSearch, readingVerdict, excusedItems, wireItem } from './flag-delta.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
-/** The matchMedia rows of the table, as Lean names them (Fw.Gate.truthRows); the part rows follow. */
 const TRUTH_ROWS = ['matchMedia orig=rewrite', 'matchMedia =Lean', 'matchMedia legacy text'];
 
 /** The failing items of one state (Lean marks them), grouped by (part, kind, role, key) for the report. */
@@ -118,11 +117,6 @@ export function maskNotRendered(state) {
   return { state: { ...state, orig: withRaw(state.orig, outO), rewrite: withRaw(state.rewrite, outR) }, masked };
 }
 
-/**
- * The flag-delta rule (Lean Fw.Gate.FlagDelta.readingVerdict, flag-delta.mjs) on the failing part rows of one state: a row whose
- * failing items are all allowlisted for a flag of the run becomes a pass and its items leave the failing list. Returns the excused
- * items; with no allowlisted flag on, `ev` is unchanged (flags_off_unchanged).
- */
 export function applyFlagDeltas(flags, ev, partIds) {
   const out = [];
   for (const pid of partIds) {
@@ -139,10 +133,8 @@ export function applyFlagDeltas(flags, ev, partIds) {
   return out;
 }
 
-/** The excused items of a settled state whose part row is still a pass after the masks. */
 const keptExcused = (label, ex, ev) => ex.filter((x) => ev.rows[x.part] === 'pass').map((x) => ({ at: label, ...x }));
 
-/** A part row that would pass while an item of the part was masked is not-comparable (never a silent pass). */
 const notRenderedRows = (rows, masked) => {
   const parts = new Set(masked.map((m) => m.part));
   return Object.fromEntries(Object.entries(rows).map(([k, v]) => [k, parts.has(k) && v === 'pass' ? 'not-comparable' : v]));
@@ -334,7 +326,6 @@ const cell = (c) => {
 };
 
 const staleText = (x) => (x.skipped ? `not compared (${x.skipped})` : `${x.differ}/${x.compared}`);
-/** The flag-delta section: the run's flags, one row per allowlisted tuple that excused items, and every excused item by reading. */
 function renderFlagDelta(fd) {
   const readings = new Map();
   for (const x of fd.excused) { const k = `${x.at} ${x.part}`; readings.set(k, [...(readings.get(k) ?? []), x]); }

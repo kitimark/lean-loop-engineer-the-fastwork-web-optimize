@@ -1,6 +1,6 @@
 # Gate flag deltas: per-flag computed-style changes excused item by item
 
-**Answer.** Both runs from the task now pass in both engines when re-judged offline with the new rule (MEASURED: the
+**Answer.** Both runs now pass in both engines when re-judged offline with the new rule (MEASURED: the
 CI artifacts were re-summarised with the branch's `summary.mjs`; no new CI run). Every excused item is one of 5
 allowlisted tuples, and no other failure remains.
 
