@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { GH_BOUNDS, ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
+import { DownloadReply, GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
 import { begin as beginSpan, recordRunKind } from "./timing.ts";
 import { runPhases } from "./run-phases.ts";
@@ -143,7 +143,8 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
   return { manifest, path: mpath, objects: entries.length - reused, reused, digest };
 }
 
-export type GhOpts = { deadline?: number; signal?: AbortSignal };
+/** `timeoutMs` and `cost` override the defaults of one call (the download pieces of fwcore `store.download`). */
+export type GhOpts = { deadline?: number; signal?: AbortSignal; timeoutMs?: number; cost?: number };
 export type Gh = (args: string[], o?: GhOpts) => Promise<string>;
 
 export function ghCost(args: string[]): number {
@@ -163,17 +164,59 @@ export function busyMessage(args: string[], reason: string): string {
   return `gh ${args.slice(0, 3).join(" ")} not made: ${reason}; ${isDispatch ? "nothing was dispatched" : "no request was made"}, run it again`;
 }
 
+/** A gh call that hit its timeout. `served` is the number of responses its trace showed before the kill; the call was
+charged once when it was reserved and `ci.budget.observe` booked only what the trace held beyond that charge. */
+export class GhTimedOut extends Error {
+  served: number;
+  constructor(message: string, served: number) { super(message); this.name = "GhTimedOut"; this.served = served; }
+}
+
+const servedOf = (lines: string[]): number => lines.filter((l) => /^< HTTP\//.test(l)).length;
+
 export function chargedGh(env: Env): Gh {
   return async (args, o) => {
     const what = args.slice(0, 3).join(" ");
     const isDispatch = args[0] === "workflow" && args[1] === "run";
     if (o?.signal?.aborted) throw new Error(`gh ${what} not made: aborted`);
-    const res = await ghCharged(env, args, { cost: ghCost(args), block: true, ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}), ...(isDispatch ? DISPATCH_LIMITS : {}) });
+    const res = await ghCharged(env, args, { cost: o?.cost ?? ghCost(args), block: true, ...(o?.timeoutMs !== undefined ? { timeoutMs: o.timeoutMs } : {}), ...(o?.deadline !== undefined ? { deadline: o.deadline } : {}), ...(isDispatch ? DISPATCH_LIMITS : {}) });
     if (!res.ran && res.decision === "busy") throw new Error(busyMessage(args, res.reason));
     if (!res.ran) throw new Error(`gh ${what} not made: the request budget says ${res.decision} (${res.reason}); see \`fw ci budget\``);
-    if (res.code !== 0) throw new Error(`gh ${what} failed: ${res.error ?? "unknown"}`);
+    if (res.code !== 0) {
+      const msg = `gh ${what} failed: ${res.error ?? "unknown"}`;
+      if (res.error?.startsWith("gh timed out after")) throw new GhTimedOut(msg, servedOf(res.lines));
+      throw new Error(msg);
+    }
     return res.stdout;
   };
+}
+
+export type DownloadPlan = ReturnType<typeof DownloadReply.parse>;
+
+/** fwcore `store.download`: the pieces of a run to download and the retry charge after `served` responses. */
+export function downloadPlan(call: FwCall, engine: string, target: string, runs: number, served = 0): DownloadPlan {
+  return DownloadReply.parse(call({ op: "store.download", engine, target, runs, ...(served ? { served } : {}) }));
+}
+
+/**
+ * Download what the store keeps of a run, one `gh run download --pattern` per piece, each with the timeout and charge
+ * fwcore gave it. A piece that times out is tried once more, charged `retryCost` (fwcore) and given the same bound; a
+ * second timeout, or any other error, is the caller's. Pieces run one after another, so the budget lock is never held
+ * longer than one piece's timeout (`maxHoldMs`).
+ */
+export async function downloadPieces(d: Pick<RunDeps, "gh" | "call" | "log">, runId: string, dir: string, engine: string, target: string, runs: number): Promise<number> {
+  const plan = downloadPlan(d.call, engine, target, runs);
+  for (const p of plan.pieces) {
+    const args = ["run", "download", runId, "-D", dir, "--pattern", p.pattern];
+    try {
+      await d.gh(args, { timeoutMs: p.timeoutMs, cost: p.cost });
+    } catch (e) {
+      if (!(e instanceof GhTimedOut)) throw e;
+      const retry = downloadPlan(d.call, engine, target, runs, e.served).retryCost;
+      d.log(`${p.pattern}: timed out after ${p.timeoutMs / 1000} s (${e.served} responses seen); trying once more, charged ${retry}`);
+      await d.gh(args, { timeoutMs: p.timeoutMs, cost: retry });
+    }
+  }
+  return plan.pieces.length;
 }
 
 export type WaitFn = (t: Target, timeoutS: number) => Promise<Waited>;
@@ -259,7 +302,7 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     const dir = mkdtempSync(join(d.tmp, `${j.engine}-${runId}-`));
     let r: ReturnType<typeof ingest>;
     try {
-      await d.gh(["run", "download", runId, "-D", dir]);
+      await downloadPieces(d, runId, dir, j.engine, args.target, keyRuns(j.key as [string, string][]));
       r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runs: keyRuns(j.key as [string, string][]), runId });
     } finally { rmSync(dir, { recursive: true, force: true }); }
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);

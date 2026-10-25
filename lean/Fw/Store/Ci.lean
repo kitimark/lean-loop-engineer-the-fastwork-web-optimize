@@ -447,4 +447,108 @@ private def exGot : Got :=
 #guard (ciRun exRun (some { exGot with artifacts := exGot.artifacts.set 0 { exFact "chromium-counts-original-r1" "" with target := some "rewrite" } })).refusals ==
   ["original shards disagree on profile, query, target or image"]
 
+/-! ## The download of a run that `fw run` files
+
+`gh run download <id>` without a pattern fetches every artifact of the run, the build outputs included (`chromium-image`
+209 MB, `fwcore` 158 MB, `site-dist` 27 MB; MEASURED 2026-10-25, runs 40153927556, 40153920231, 40156382719: 400 MB, 92 s,
+423 s, 122 s). The WebKit run 40153925235 had 210 MB and died at the 40 s bound. Nothing reads those outputs from the store
+(they are rebuilt from the commit), so the download fetches only the files the store keeps, one `Piece` per artifact,
+each with a timeout sized from its own byte bound. -/
+
+/-- The longest a charged gh call may hold the budget lock: `Fw.Obs.Timing.defaultCallTimeoutMs` (the runner test
+checks the two equal, `GH_BOUNDS.defaultCallTimeoutMs`). -/
+def maxHoldMs : Nat := 40000
+
+/-- Time a piece gets before any byte moves: the artifact listing and the redirect. -/
+def pieceBaseMs : Nat := 15000
+
+/-- Milliseconds per kilobyte of a piece: 2 ms is 0.5 MB/s, half the slowest rate measured (0.95 MB/s, run 40153920231). -/
+def msPerKb : Nat := 2
+
+/-- Requests one piece is charged: the artifact listing and the redirect to blob storage. -/
+def pieceCost : Nat := 2
+
+/-- One download call: a `gh run download --pattern` glob, the bound on its bytes, its timeout and its charge. -/
+structure Piece where
+  pattern : String
+  kb : Nat
+  timeoutMs : Nat
+  cost : Nat
+deriving Repr, DecidableEq
+
+/-- A piece of at most `kb` kilobytes. -/
+def piece (pattern : String) (kb : Nat) : Piece :=
+  { pattern, kb, timeoutMs := pieceBaseMs + msPerKb * kb, cost := pieceCost }
+
+/-- Byte bound of a chromium-counts shard artifact (largest seen 1844 KB). -/
+def countsKb : Nat := 2000
+
+/-- Byte bound of `chromium-classes` (seen 40 KB) and of the `telemetry-*` artifacts together (seen 36 KB). -/
+def smallKb : Nat := 100
+
+/-- Byte bound of a webkit-sim VM artifact (largest seen 11856 KB). -/
+def simKb : Nat := 12500
+
+/-- The repetition numbers `1` .. `n`, as digits. -/
+def reps (n : Nat) : List String := (List.range n).map fun i => toString (i + 1)
+
+/-- What `fw run` downloads for a run of `n` repetitions (chromium: of `target`; webkit: `n` VMs): the shard artifacts, then
+the class directories (chromium only) and the telemetry. Build outputs are not in the list. -/
+def downloadPieces (e : Engine) (t : Target) (n : Nat) : List Piece :=
+  match e with
+  | .chromium => (reps n).map (fun r => piece ("chromium-counts-" ++ t.name ++ "-r" ++ r) countsKb) ++
+      [piece "chromium-classes" smallKb, piece "telemetry-*" smallKb]
+  | .webkit => (reps n).map (fun r => piece ("webkit-sim-r" ++ r) simKb) ++ [piece "telemetry-*" smallKb]
+
+/-- Charge of the one retry of a piece that timed out: its full charge when no response of the first attempt was seen, one
+request (the listing again) when `served` responses arrived, since the first attempt's charge already covers the redirect. -/
+def retryCost (c served : Nat) : Nat := if served = 0 then c else 1
+
+/-- **Every piece fits the lock hold bound**, so a download never keeps the budget lock longer than a listing does. -/
+theorem piece_fits_hold (e : Engine) (t : Target) (n : Nat) :
+    ∀ p ∈ downloadPieces e t n, p.timeoutMs ≤ maxHoldMs := by
+  intro p hp
+  have hs : simKb ≤ 12500 := by decide
+  cases e <;> simp only [downloadPieces, List.mem_append, List.mem_map, List.mem_cons, List.not_mem_nil, or_false] at hp <;>
+    rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;>
+    simp [piece, pieceBaseMs, msPerKb, countsKb, smallKb, simKb, maxHoldMs]
+theorem piece_fits_hold_webkit_tight : (piece "x" simKb).timeoutMs = maxHoldMs := by decide
+
+/-- **A timeout is sized from the bytes:** a piece takes `pieceBaseMs` plus `msPerKb` per kilobyte. -/
+theorem piece_timeout (pattern : String) (kb : Nat) : (piece pattern kb).timeoutMs = pieceBaseMs + msPerKb * kb := rfl
+
+/-- **The shard artifacts are all downloaded:** the artifact of each shard `⟨t, r<k>⟩` of a run of `n` repetitions
+(`Shard.artifact`) is the pattern of a piece. -/
+theorem shard_downloaded (t : Target) (n : Nat) (i : Nat) (hi : i < n) :
+    (Shard.artifact ⟨t, toString (i + 1)⟩) ∈ (downloadPieces .chromium t n).map (·.pattern) := by
+  simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
+  left
+  simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
+  exact ⟨i, hi, rfl⟩
+
+/-- **No build output is downloaded:** the three big artifacts of a run are not a piece. -/
+theorem build_outputs_skipped (e : Engine) (t : Target) (n : Nat) :
+    ∀ p ∈ downloadPieces e t n, p.pattern ≠ "chromium-image" ∧ p.pattern ≠ "fwcore" ∧ p.pattern ≠ "site-dist" := by
+  intro p hp
+  cases e <;> simp only [downloadPieces, List.mem_append, List.mem_map, List.mem_cons, List.not_mem_nil, or_false] at hp <;>
+    rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp only [piece] <;>
+    refine ⟨?_, ?_, ?_⟩ <;> intro h <;> first | (have := congrArg (fun s => s.toList.take 10) h; simp [String.toList_append] at this) | (revert h; decide)
+
+/-- **A retry is never charged more than the call:** one request after a response was seen, the full charge before. -/
+theorem retryCost_le (c served : Nat) (h : 1 ≤ c) : retryCost c served ≤ c := by
+  unfold retryCost; split <;> omega
+
+theorem retryCost_served (c served : Nat) (h : 0 < served) : retryCost c served = 1 := by
+  simp [retryCost, Nat.pos_iff_ne_zero.mp h]
+
+theorem retryCost_unserved (c : Nat) : retryCost c 0 = c := by simp [retryCost]
+
+#guard (downloadPieces .webkit .rewrite 3).map (·.pattern) == ["webkit-sim-r1", "webkit-sim-r2", "webkit-sim-r3", "telemetry-*"]
+#guard (downloadPieces .webkit .rewrite 3).map (·.timeoutMs) == [40000, 40000, 40000, 15200]
+#guard (downloadPieces .chromium .original 2).map (·.pattern) ==
+  ["chromium-counts-original-r1", "chromium-counts-original-r2", "chromium-classes", "telemetry-*"]
+#guard (downloadPieces .chromium .rewrite 1).map (·.timeoutMs) == [19000, 15200, 15200]
+#guard 11856 ≤ simKb && 1844 ≤ countsKb
+#guard retryCost 2 0 == 2 && retryCost 2 1 == 1
+
 end Fw.Store

@@ -27,6 +27,18 @@ A job is blocked iff a needed input is missing from its lane's table (`blocked_e
 - `--dry` prints the plan (inputs, cache hit or miss, BLOCKED) and makes no gh call. Exit 0 ok, 2 refused (problems or blocked).
 - The branch must be pushed first (`git branch -f ci/<name> HEAD`, then `git push origin ci/<name>`).
 
+## What is downloaded and filed
+
+`fw run` files the measurements of a run, not its build outputs. fwcore `store.download` (`Fw.Store.downloadPieces`, golden
+`packages/contracts/golden/store/download.jsonl`) names one `gh run download --pattern` call per piece: chromium = the
+`chromium-counts-<target>-r<n>` shards, `chromium-classes`, `telemetry-*`; webkit = `webkit-sim-r<n>` per VM, `telemetry-*`.
+`chromium-image`, `fwcore` and `site-dist` (180 to 400 MB, rebuilt from the commit) are not downloaded. Each piece has a
+timeout of 15 s plus 2 ms per KB of its byte bound (at most 40 s, the budget lock hold bound) and a charge of 2 requests.
+A piece that times out is tried once more with the same bound, charged 1 request if a response was seen, else 2; a second
+timeout stops the run (nothing is filed, run it again with `--from-run`). To re-file a successful run without dispatching:
+`pnpm -s fw run --target rewrite --engines webkit --from-run webkit=<id> --sha <the run's headSha>` (same preset, fw and
+vms as the run's dispatch, or the key is wrong). Note: research/notes/2026/10-2x-fw-run-download.md.
+
 ## Recipes
 
 Counts on both profiles x3, candidate rewrite against base rewrite. Push the candidate as `ci/cand` and the base as `ci/base`, then:

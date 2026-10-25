@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { fwcoreCall, type FwCall } from "../src/run.ts";
-import { GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
+import { DownloadReply, DownloadRequest, GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "store");
 const load = (stem: string) =>
@@ -16,6 +16,7 @@ const files = [
   ["manifest", ManifestRequest, ManifestReply],
   ["objectPath", ObjectPathRequest, ObjectPathReply],
   ["reduce", ReduceRequest, ReduceReply],
+  ["download", DownloadRequest, DownloadReply],
 ] as const;
 
 describe("store golden vectors parse with the contracts", () => {
@@ -38,7 +39,7 @@ const hasCore = (() => { try { fwcoreCall(process.cwd()); return true; } catch {
 
 describe.skipIf(!hasCore)("store golden vectors replay against fwcore", () => {
   const call: FwCall = hasCore ? fwcoreCall(process.cwd()) : () => ({});
-  for (const stem of ["plan", "manifest"] as const) {
+  for (const stem of ["plan", "manifest", "download"] as const) {
     it(`${stem}: fwcore gives every golden response`, () => {
       for (const c of load(stem)) {
         const req = c.request as Record<string, unknown>;
