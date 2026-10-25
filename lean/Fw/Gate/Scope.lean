@@ -306,8 +306,9 @@ def pilotParts : List PartUse := [
     dismissed := [
       ("js.morph-arm", "platform rect against the visual viewport height at a scroll position, not a width edge; the part restates no CSS and the gate loads at the top")] },
   { id := "morph.columns", owners := ["morph.columns"],
-    orig := ["mq.rm-reduce", "mq.w-le-640"], rewrite := ["mq.rm-reduce", "mq.w-le-640"],
-    extra := [], knees := [], dismissed := [] },
+    orig := ["mq.rm-reduce", "mq.w-le-640"], rewrite := ["mq.rm-reduce", "mq.w-le-1000", "mq.w-le-640"],
+    extra := [], knees := [], dismissed := [],
+    added := [("mq.w-le-1000", "the final-scale variant lays the columns out at their final width up to 1000 px and scales them by transform")] },
   { id := "morph.tween", owners := ["morph.tween"], orig := ["mq.rm-reduce", "mq.w-le-640", "mq.c860"],
     rewrite := ["mq.rm-reduce", "mq.hover-none"],
     added := [("mq.hover-none", "the scroll-lock arm reads it once at mount; where it matches the arm installs no lock (engage_touch)")],

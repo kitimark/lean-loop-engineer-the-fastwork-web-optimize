@@ -217,7 +217,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "packages/contracts/golden/parts/nav.earn.curve.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl", "packages/contracts/golden/parts/morph.end.jsonl", "packages/contracts/golden/parts/combo-scroll.jsonl", "packages/contracts/golden/parts/platform-glint-pause.jsonl",
-    "results/gpu-safari/lane/elapsed.golden.jsonl", "packages/contracts/golden/gate/image-arm.jsonl", "packages/contracts/golden/parts/hero.accent.drawone.jsonl", "packages/contracts/golden/parts/hero.accent.nolayout.jsonl", "packages/contracts/golden/parts/footprint.classpos.jsonl", "packages/contracts/golden/parts/people-o-preview.jsonl", "packages/contracts/golden/parts/morph-idle-none.jsonl",
+    "results/gpu-safari/lane/elapsed.golden.jsonl", "packages/contracts/golden/gate/image-arm.jsonl", "packages/contracts/golden/parts/hero.accent.drawone.jsonl", "packages/contracts/golden/parts/hero.accent.nolayout.jsonl", "packages/contracts/golden/parts/footprint.classpos.jsonl", "packages/contracts/golden/parts/people-o-preview.jsonl", "packages/contracts/golden/parts/morph-idle-none.jsonl", "packages/contracts/golden/parts/morph.columns.final-scale.jsonl",
     "packages/contracts/golden/ops/rebuild-facts.jsonl",
     "packages/contracts/golden/ops/rebuild.jsonl", "packages/contracts/golden/plan/writes-closure.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",

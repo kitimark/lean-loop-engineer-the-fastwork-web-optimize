@@ -1,4 +1,5 @@
 import Fw.Store.Layout
+import Fw.Measure.SimPlan
 /-!
 # `fw ci`: which part of a finished CI run enters the artifact store
 
@@ -446,5 +447,98 @@ private def exGot : Got :=
   ["original shards disagree on profile, query, target or image"]
 #guard (ciRun exRun (some { exGot with artifacts := exGot.artifacts.set 0 { exFact "chromium-counts-original-r1" "" with target := some "rewrite" } })).refusals ==
   ["original shards disagree on profile, query, target or image"]
+
+structure DlRule where
+  maxHoldMs : Nat
+  baseMs : Nat
+  msPerKb : Nat
+  cost : Nat
+  countsKb : Nat
+  smallKb : Nat
+  simKb : Nat
+
+def dlRule : DlRule :=
+  { maxHoldMs := 40000, baseMs := 15000, msPerKb := 2, cost := 2, countsKb := 2000, smallKb := 100, simKb := 12500 }
+
+structure Piece where
+  pattern : String
+  kb : Nat
+  timeoutMs : Nat
+  cost : Nat
+deriving Repr, DecidableEq
+
+def piece (pattern : String) (kb : Nat) : Piece :=
+  { pattern, kb, timeoutMs := dlRule.baseMs + dlRule.msPerKb * kb, cost := dlRule.cost }
+
+def reps (n : Nat) : List String := (List.range n).map fun i => toString (i + 1)
+
+def downloadPieces (e : Engine) (t : Target) (n : Nat) : List Piece :=
+  match e with
+  | .chromium => (reps n).map (fun r => piece ("chromium-counts-" ++ t.name ++ "-r" ++ r) dlRule.countsKb) ++
+      [piece "chromium-classes" dlRule.smallKb, piece "telemetry-*" dlRule.smallKb]
+  | .webkit => (reps n).map (fun r => piece ("webkit-sim-" ++ (if t = .original then "v" else "r") ++ r) dlRule.simKb) ++
+      (if t = .original then [piece "webkit-classes" dlRule.smallKb] else []) ++ [piece "telemetry-*" dlRule.smallKb]
+
+def retryCost (c served : Nat) : Nat := if served = 0 then c else 1
+
+theorem piece_fits_hold (e : Engine) (t : Target) (n : Nat) :
+    ∀ p ∈ downloadPieces e t n, p.timeoutMs ≤ dlRule.maxHoldMs := by
+  intro p hp
+  cases e <;> cases t <;> simp [downloadPieces, reps] at hp <;>
+    rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp [piece, dlRule]
+theorem piece_fits_hold_webkit_tight : (piece "x" dlRule.simKb).timeoutMs = dlRule.maxHoldMs := by decide
+
+theorem piece_timeout (pattern : String) (kb : Nat) : (piece pattern kb).timeoutMs = dlRule.baseMs + dlRule.msPerKb * kb := rfl
+
+theorem shard_downloaded (t : Target) (n : Nat) (i : Nat) (hi : i < n) :
+    (Shard.artifact ⟨t, toString (i + 1)⟩) ∈ (downloadPieces .chromium t n).map (·.pattern) := by
+  simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
+  left
+  simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
+  exact ⟨i, hi, rfl⟩
+
+theorem webkit_original_downloaded (sha : String) (n i : Nat) (hi : i < n) :
+    ("webkit-sim-" ++ (Measure.SimPlan.origCell sha (i + 1)).vm) ∈ (downloadPieces .webkit .original n).map (·.pattern) := by
+  simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
+  left; left
+  simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
+  exact ⟨i, hi, by simp [piece, Measure.SimPlan.origCell]; rw [← String.append_assoc]; rfl⟩
+
+theorem webkit_rewrite_downloaded (sha q : String) (n i : Nat) (hi : i < n) :
+    ("webkit-sim-" ++ (Measure.SimPlan.rewCell sha q (i + 1)).vm) ∈ (downloadPieces .webkit .rewrite n).map (·.pattern) := by
+  simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
+  simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
+  left; left
+  exact ⟨i, hi, by simp [piece, Measure.SimPlan.rewCell]; rw [← String.append_assoc]; rfl⟩
+
+theorem webkit_original_classes (n : Nat) :
+    "webkit-classes" ∈ (downloadPieces .webkit .original n).map (·.pattern) := by
+  simp [downloadPieces, piece]
+
+theorem build_outputs_skipped (e : Engine) (t : Target) (n : Nat) :
+    ∀ p ∈ downloadPieces e t n, p.pattern ≠ "chromium-image" ∧ p.pattern ≠ "fwcore" ∧ p.pattern ≠ "site-dist" := by
+  intro p hp
+  cases e <;> cases t <;> simp [downloadPieces, reps] at hp <;>
+    rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp only [piece] <;>
+    refine ⟨?_, ?_, ?_⟩ <;> intro h <;> first | (have := congrArg (fun s => s.toList.take 10) h; simp [String.toList_append] at this) | (revert h; decide)
+
+theorem retryCost_le (c served : Nat) (h : 1 ≤ c) : retryCost c served ≤ c := by
+  unfold retryCost; split <;> omega
+
+theorem retryCost_served (c served : Nat) (h : 0 < served) : retryCost c served = 1 := by
+  simp [retryCost, Nat.pos_iff_ne_zero.mp h]
+
+theorem retryCost_unserved (c : Nat) : retryCost c 0 = c := by simp [retryCost]
+
+#guard (downloadPieces .webkit .rewrite 3).map (·.pattern) == ["webkit-sim-r1", "webkit-sim-r2", "webkit-sim-r3", "telemetry-*"]
+#guard (downloadPieces .webkit .original 3).map (·.pattern) ==
+  ["webkit-sim-v1", "webkit-sim-v2", "webkit-sim-v3", "webkit-classes", "telemetry-*"]
+#guard (downloadPieces .webkit .original 3).map (·.timeoutMs) == [40000, 40000, 40000, 15200, 15200]
+#guard (downloadPieces .webkit .rewrite 3).map (·.timeoutMs) == [40000, 40000, 40000, 15200]
+#guard (downloadPieces .chromium .original 2).map (·.pattern) ==
+  ["chromium-counts-original-r1", "chromium-counts-original-r2", "chromium-classes", "telemetry-*"]
+#guard (downloadPieces .chromium .rewrite 1).map (·.timeoutMs) == [19000, 15200, 15200]
+#guard 11856 ≤ dlRule.simKb && 1844 ≤ dlRule.countsKb
+#guard retryCost 2 0 == 2 && retryCost 2 1 == 1
 
 end Fw.Store

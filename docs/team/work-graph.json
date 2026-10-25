@@ -20310,7 +20310,8 @@
     "lean/Fw/Gate/ScopeGen.lean",
     "packages/gate-breakpoints/src/anchors.gen.json"
    ],
-   "title": "End-of-page GPU candidate 1 (research/notes/2026/10-2x-end-gpu-map.md): morph.columns:final-scale, a composer brick (look-change class): lay the 5 column tracks out once at the final panel width and scale each by a per-column transform during the morph, removing the per-frame re-layout of 21 images and the new track surfaces. Lean first: equal column edges per frame, a bound on the look change (gap, radius and drift scale by s, s >= 0.97 at 390 px INFERRED), then Chromium Layout counts and Simulator backing MB/Composite per finish zone (run ids), then the user's look review."
+   "title": "End-of-page GPU candidate 1 (research/notes/2026/10-2x-end-gpu-map.md): morph.columns:final-scale, a composer brick (look-change class): lay the 5 column tracks out once at the final panel width and scale each by a per-column transform during the morph, removing the per-frame re-layout of 21 images and the new track surfaces. Lean first: equal column edges per frame, a bound on the look change (gap, radius and drift scale by s, s >= 0.97 at 390 px INFERRED), then Chromium Layout counts and Simulator backing MB/Composite per finish zone (run ids), then the user's look review.",
+   "evidence": "0ea1315"
   },
   {
    "devices": [
@@ -21314,7 +21315,8 @@
     "lean/Fw/Store/Golden.lean",
     "lean/Fw/Wire/Store.lean"
    ],
-   "title": "fw run's artifact download failed five times on 2026-10-25 with 'gh run download <id> failed: gh timed out after 40 s and was killed' although each run succeeded (one-chain 40153927556, 40153920231, 40153925235; columns 40156382719, 40156384878), so the results were not filed in the store and builders downloaded by hand. Do: find where the 40 s bound comes from (packages/gh-budget, apps/runner/src/run.ts or ci.ts; cite), measure artifact sizes and download times for those runs, size the timeout from the artifact size reported by the run's artifact list (or download per artifact with its own bound) and retry once on timeout without a second charge when GitHub already served it; Lean first if the store's decision changes (Fw.Store.Ci); golden replayed by the runner test; show one fw run that files a 3-VM WebKit run end to end."
+   "title": "fw run's artifact download failed five times on 2026-10-25 with 'gh run download <id> failed: gh timed out after 40 s and was killed' although each run succeeded (one-chain 40153927556, 40153920231, 40153925235; columns 40156382719, 40156384878), so the results were not filed in the store and builders downloaded by hand. Do: find where the 40 s bound comes from (packages/gh-budget, apps/runner/src/run.ts or ci.ts; cite), measure artifact sizes and download times for those runs, size the timeout from the artifact size reported by the run's artifact list (or download per artifact with its own bound) and retry once on timeout without a second charge when GitHub already served it; Lean first if the store's decision changes (Fw.Store.Ci); golden replayed by the runner test; show one fw run that files a 3-VM WebKit run end to end.",
+   "evidence": "41b263b"
   }
  ],
  "deadline": {
