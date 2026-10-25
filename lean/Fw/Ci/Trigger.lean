@@ -4,6 +4,7 @@ import Fw.Ops.PathCheck
 import Fw.Ops.GateEngineTiming
 import Fw.Gate.Trajectory
 import Fw.Gate.Trajectory.Dispatch
+import Fw.Ci.AttemptGolden
 /-!
 # Which workflows a push to `ci/*` starts (task `ci-trigger-lean`)
 
