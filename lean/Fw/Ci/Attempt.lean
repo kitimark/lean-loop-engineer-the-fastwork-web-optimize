@@ -13,6 +13,11 @@ Five rules, each decided here and called through fwcore's op `ci.attempt` (`Fw.W
 - `current`: a row is current when its attempt is at least the newest attempt a view has shown for the run;
 - `fresh`: a finished row kept in the meta cache answers only for waiters that start together with the view that
   read it (`freshS` seconds); a later wait reads the run again, since a rerun may have started since.
+- `trusted` (task `gh-budget-fresh-inflight`): a cached row answers by its own rule: a finished row by `fresh`, a row
+  that is still queued or in progress only within `inflightS` of its view, so a row read hours ago never keeps a wait
+  pending on a run that has long finished (incident 2026-10-26: 47 such rows held `fw ci wait` to its 4 h cap);
+- `uncoveredExit`: a run whose watch the poller dropped as `uncovered` (older than its list window) twice ends the
+  wait with exit code `uncoveredCode` instead of polling to the cap.
 - `jobsSettled` (task `macos-telemetry`): a jobs view decides only when every job has a conclusion, or the run finished
   `jobsGraceS` ago. GitHub sets the conclusion of a matrix job a moment after the run is marked completed; a view in that
   moment read an open job as `""`, which the verdict folds to failure, and the facts were cached for good
@@ -45,6 +50,51 @@ def freshS : Nat := 30
 
 /-- A finished row read at `read` is still shared at `now`. -/
 def fresh (read now : Nat) : Bool := decide (now ≤ read + freshS)
+
+/-- Seconds a row that is still queued or in progress may be trusted after the view that read it (INFERRED: a run's state
+changes within minutes; a waiter that starts later reads the run again, one charged view). -/
+def inflightS : Nat := 300
+
+/-- Whether a cached row answers a wait: a finished row by `fresh`, an unfinished row for `inflightS` seconds. -/
+def trusted (completed : Bool) (read now : Nat) : Bool :=
+  if completed then fresh read now else decide (now ≤ read + inflightS)
+
+/-- **A finished row keeps its rule**: `trusted` is `fresh`. -/
+theorem trusted_completed (r t : Nat) : trusted true r t = fresh r t := rfl
+
+/-- **An unfinished row is trusted inside its bound.** -/
+theorem trusted_inflight_young (r t : Nat) (h : t ≤ r + inflightS) : trusted false r t = true := by
+  simp [trusted]; omega
+
+/-- **An unfinished row older than its bound is never trusted**: the wait reads the run again. -/
+theorem trusted_inflight_stale (r t : Nat) (h : r + inflightS < t) : trusted false r t = false := by
+  simp [trusted]; omega
+
+/-- **No row is trusted past the longer of the two windows.** -/
+theorem trusted_old_never (c : Bool) (r t : Nat) (h : r + inflightS < t) : trusted c r t = false := by
+  cases c
+  · exact trusted_inflight_stale r t h
+  · have h' : r + freshS < t := by simp [freshS, inflightS] at *; omega
+    simp only [trusted, fresh]; simp; omega
+
+/-- Incidents of one run (`uncovered`, written by the poller) that end a wait; one can be a passing window edge. -/
+def uncoveredMax : Nat := 2
+
+/-- The exit code of a wait ended by repeated `uncovered` incidents (3 is a timeout or a budget stop, 5 is gh unavailable for the land lanes). -/
+def uncoveredCode : Nat := 6
+
+/-- A wait ends when `n` `uncovered` incidents of its run were logged since the wait began. -/
+def uncoveredExit (n : Nat) : Bool := decide (uncoveredMax ≤ n)
+
+/-- **One `uncovered` incident does not end a wait.** -/
+theorem uncovered_once_waits : uncoveredExit 1 = false := rfl
+
+/-- **A repeated `uncovered` incident ends the wait.** -/
+theorem uncovered_repeated_exits (n : Nat) (h : 2 ≤ n) : uncoveredExit n = true := by
+  exact decide_eq_true (by simpa [uncoveredMax] using h)
+
+/-- **The exit code is neither the timeout code nor the gh-unavailable code**: a caller can tell them apart. -/
+theorem uncoveredCode_ne_timeout : uncoveredCode ≠ 3 ∧ uncoveredCode ≠ 5 := by decide
 
 /-- Seconds after a run finished within which an open job conclusion is lag, not a fact (INFERRED: the lag seen was seconds). -/
 def jobsGraceS : Nat := 300
@@ -98,6 +148,13 @@ theorem fresh_at_read (r : Nat) : fresh r r = true := by
 /-- **A finished row is not shared after the window.** -/
 theorem stale_after_window (r t : Nat) (h : r + freshS < t) : fresh r t = false := by
   simp [fresh]; omega
+
+#guard trusted false 100 400 == true
+#guard trusted false 100 401 == false
+#guard trusted true 100 130 == true
+#guard trusted true 100 131 == false
+#guard uncoveredExit 1 == false
+#guard uncoveredExit 2 == true
 
 #guard jobsSettled 0 0 == true
 #guard jobsSettled 1 0 == false

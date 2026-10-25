@@ -10,7 +10,7 @@
 // run (Lean `combine_requested_never_pass`; round 5: no skip stands in for a pass, lean included,
 // `wait_needs_default_pass`). Round 4: a message that could not be read (`msg` null or absent) is an unknown request,
 // and fwcore answers not-run at once (Lean `unknown_request_never_pass`); round 5: the message comes from git only.
-import { mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import type { Env } from "./core.ts";
@@ -31,8 +31,9 @@ export type Target =
        *  Absent: the newest run of the workflow for the commit (legacy; `fw run`'s count and gate dispatches still use it). */
       want?: Want };
 
-/** 0 pass, 1 fail, 2 a gh error, 3 timeout / budget stop, 4 not run (every decisive run's guard skipped). */
-export type Waited = { code: 0 | 1 | 2 | 3 | 4; lines: string[] };
+/** 0 pass, 1 fail, 2 a gh error, 3 timeout / budget stop, 4 not run (every decisive run's guard skipped), 6 the poller's
+ *  list never covers the run (Lean `Fw.Ci.Attempt.uncoveredCode`). */
+export type Waited = { code: 0 | 1 | 2 | 3 | 4 | 6; lines: string[] };
 
 /** What one wait measured about its own latency (task ci-wait-lag), all epoch ms unless noted; written on the `fw ci wait`
  *  span. Fields in the order the run's finish travels: GitHub marks the run done (`updMs`, GitHub's `updatedAt`, whole
@@ -65,6 +66,35 @@ export type WaitPhases = {
 };
 export type WaitOpts = { timeoutS: number; nowMs?: () => number; phases?: (p: WaitPhases) => void };
 type Probe = { ms: () => number; ph: WaitPhases };
+
+/** Seconds a queued or in-progress row stays trusted after its view. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.inflightS`). */
+export const INFLIGHT_S = 300;
+/** `uncovered` incidents of one run that end its wait, and the exit code. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.uncoveredMax`, `uncoveredCode`). */
+export const UNCOVERED_MAX = 2;
+export const UNCOVERED_CODE = 6;
+export const uncoveredExit = (n: number): boolean => UNCOVERED_MAX <= n;
+
+/** Whether a cached row answers a wait. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.trusted`):
+ *  a finished row by `fresh` (fwcore), an unfinished row only within `INFLIGHT_S` of its view. */
+export function trustedRow(env: Env, completed: boolean, readAt: number | undefined): boolean {
+  if (completed) return freshRead(env, readAt);
+  return readAt !== undefined && env.now() <= readAt + INFLIGHT_S;
+}
+
+/** The `uncovered` incidents of one run logged at or after `since` (the poller writes them, `drainIncidents`). */
+export function uncoveredSince(env: Env, runId: number, since: number): number {
+  let text: string;
+  try { text = readFileSync(paths(env.dir).incidents, "utf8"); } catch { return 0; }
+  let n = 0;
+  for (const l of text.split("\n")) {
+    if (!l.includes('"uncovered"') || !l.includes(`"runId":${runId},`)) continue;
+    try {
+      const i = JSON.parse(l) as { runId?: number; time?: number; why?: string };
+      if (i.runId === runId && i.why === "uncovered" && (i.time ?? 0) >= since) n++;
+    } catch { /* a torn line */ }
+  }
+  return n;
+}
 
 /** Local re-read period of a waiter, seconds (file reads and lock checks only, no GitHub call); `slice` in limits.json. */
 export const SLICE = 2;
@@ -304,17 +334,17 @@ export const cleanups = new Set<() => void>();
 
 // ---- the bootstrap of a run id: its creation time, from the poller's list or one charged view (cached) -----------------
 async function createdOf(env: Env, runId: number, deadline: number): Promise<{ row: Row } | { fail: Waited }> {
-  // a finished row (in the poller's file or the meta cache) answers only while the view that read it is recent (Lean
-  // `Fw.Ci.Attempt.fresh`): a later wait reads the run again, since a rerun may have started
-  const fresh = (readAt: number | undefined): boolean => freshRead(env, readAt);
+  // a row (in the poller's file or the meta cache) answers only while the view that read it is recent (Lean
+  // `Fw.Ci.Attempt.trusted`): a finished row for `freshS`, an unfinished one for `inflightS`; a later wait reads the run
+  // again, since a rerun may have started or the run has finished since. One charged view refreshes a stale row.
   const listed = (): Row | undefined => {
     const st = readStatus(env.dir);
     const r = st?.rows.find((x) => x.databaseId === runId);
-    return r && (r.status !== "completed" || fresh(st?.tickAt ?? st?.at)) ? r : undefined;
+    return r && trustedRow(env, r.status === "completed", st?.tickAt ?? st?.at) ? r : undefined;
   };
   const cached = (): Row | undefined => {
     const m = readJson<Row & { readAt?: number }>(paths(env.dir).meta(runId));
-    return m && (m.status !== "completed" || fresh(m.readAt)) ? m : undefined;
+    return m && trustedRow(env, m.status === "completed", m.readAt) ? m : undefined;
   };
   const known = (): Row | undefined => listed() ?? cached();
   const k = known();
@@ -434,6 +464,9 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
         // the rows say finished but a view showed a newer attempt: the poller dropped the watch on that finish, so watch again
         reregAt = st.tickAt;
         if (ev.done.some((r) => floor.has(r.databaseId))) stepEvent(env, { register: { runId: id, createdAt } }); // the watch this waiter owns
+      }
+      if (t.kind === "run" && uncoveredExit(uncoveredSince(env, id, regAt))) {
+        return { code: UNCOVERED_CODE, lines: [`wait: the poller's list does not cover run ${id} (logged uncovered ${UNCOVERED_MAX} times since this wait began); read it once with \`gh run view ${id}\``] };
       }
       const amb = ambiguousIds(st?.rows ?? [], t);
       if (amb) { return { code: 2, lines: [`wait: nonce ${t.kind === "branch" && t.want?.kind === "dispatch" ? t.want.nonce : ""} matches several runs (${amb.join(", ")}); not guessing (Lean Fw.Ci.Dispatch.selectOne)`] }; }
