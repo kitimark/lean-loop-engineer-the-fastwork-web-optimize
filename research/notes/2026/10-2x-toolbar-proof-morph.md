@@ -66,7 +66,7 @@ list is outside this task's writes.
 - (a) Simulator XCUITest (`toolbar-throttle.yml`): not built in this task; owned by follow-up task toolbar-sim-lane (arms default,
   `morph.mount:touch-first`, `morph.mount:open-once`, `engine.scroll:unthrottle`, `morph.panel:threaded`; per-arm counts and the 10 Hz
   `visualViewport.height` step count). Until it runs, (e), (a) have no felt count and (f) is a model.
-- (b), (f): decided from source and the Lean model, as stated in the table; (f) cost is a model until toolbar-sim-lane measures it.
+- (b), (f): decided from source and the Lean model,, as stated in the table.
 - (c1) WKTR forced inset: not built in this task: writes exclude packages/measure-wktr; hook presence
   (beginInteractiveObscuredInsetsChange/setObscuredInsets, `ui-helper.js:2018-2050`, `UIScriptControllerIOS.mm:1486-1494`) in r324039
   INFERRED (no archive symbol check done); follow-up task toolbar-wktr-gate.
@@ -78,5 +78,4 @@ list is outside this task's writes.
 ## Limits
 
 Simulator stands in for the iPhone; felt smoothness is the user's step. `overscroll-lock` and any container-scroll variant
-stay out of every preset until the user has looked at them. `touch-first` and `open-once` are filed as look-change proposals (L) in
-`look-change.candidates.jsonl` until a touch-driven same-look check exists.
+stay out of every preset until the user has looked at them.
