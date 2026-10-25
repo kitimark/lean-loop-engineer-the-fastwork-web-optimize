@@ -3,8 +3,6 @@ import { PIN, clearWait, closeAct, conditionSet, endVerdict, profileOf } from '.
 
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** A pinned session: one owner process holds the induced condition while `body` runs, and the finally path stops it
- *  after success and after every failure, then reads the reported state back (Fw.Device.Thermal closeAct, endVerdict). */
 export async function pinnedSession({ target, dir, log, owner, sense, body, signals = true, now = Date.now, sleep = sleepMs }) {
   const profile = profileOf(target);
   if (!profile) throw new Error(`target ${target} cannot be induced (Fair or Serious)`);

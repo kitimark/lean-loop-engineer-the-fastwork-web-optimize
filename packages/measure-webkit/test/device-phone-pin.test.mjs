@@ -19,7 +19,6 @@ const fakeResult = (hash) => ({
 });
 const S = (state, extra = {}) => ({ state, lock: 'unlocked', error: null, tempC: 33, ...extra });
 
-/** A phone world: `senses` is the list of readings in the order they are asked for (the last one repeats). */
 const phone = (w, { senses, held = () => true, onVisit = () => {} }) => {
   const c = { senseCalls: 0, lanes: [], visits: 0, order: [] };
   c.deps = {

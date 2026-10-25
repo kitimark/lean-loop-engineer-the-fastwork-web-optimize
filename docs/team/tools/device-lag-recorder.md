@@ -32,8 +32,7 @@ Known effects:
    `87-94`, `123-130`, `132-141` @ 862f17d), and `scrollY` does when it is not 0 (`LocalDOMWindow.cpp:1476-1480` @ 862f17d). The callback writes no DOM and `scale` and `scrollY`
    were already read every frame, so the layout is already current and `height` and `offsetTop` add no layout work. It runs before
    the page's callbacks of that frame, so the value read in frame i+1 is the one the page wrote in frame i from the position of frame
-   i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs (the old pairing of a
-   value with the position read beside it counted a false stall at every scroll start). All arms and both original passes carry the
+   i. Lean `partSeries` pairs each value with that earlier position, and the stall rule compares those pairs. All arms and both original passes carry the
    same probe effect, so the comparison is unaffected.
 3. The mark must not change the page. The step text says "tap 3 times quickly on an empty area (not on text, a link or a button)". A
    tap on a link navigates away and loses the pass: a passive `pagehide` listener writes `page navigated (a tap hit a link)`, and the

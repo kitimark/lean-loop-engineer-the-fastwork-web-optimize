@@ -194,43 +194,27 @@ theorem pauseOver_not_before {p n : Nat} (h : n < p + 3600) : pauseOver p n = fa
   have : ¬ p + pauseMaxS ≤ n := by simp [pauseMaxS]; omega
   simp [pauseOver, this]
 
-/-!
-## Pinned thermal state
-A pinned session holds one induced thermal state, the target, for the whole block. The induced state is a floor and
-not a clamp (WWDC19 422), so real heat can still lift it. The reported state must equal the target at every reading;
-a reading above or below it refuses the block. The condition lives only while its owner process lives.
--/
-
-/-- Severity order of the four ProcessInfo thermal states. -/
 def Thermal.rank : Thermal → Nat
   | .nominal => 0 | .fair => 1 | .serious => 2 | .critical => 3
 
-/-- Targets the harness may induce: Fair and Serious. Nominal needs no induction; Critical is never induced. -/
 def pinTarget (t : Thermal) : Bool := decide (t = .fair ∨ t = .serious)
 
-/-- Profile id of `condition list` in group ThermalCondition. -/
 def Thermal.profile : Thermal → Option String
   | .fair => some "ThermalFair" | .serious => some "ThermalSerious" | _ => none
 
-/-- Seconds a block waits for the first reading on target before it stops. -/
 def pinWaitMaxS : Nat := 180
 
-/-- Seconds between two readings while waiting. -/
 def pinPollS : Nat := 5
 
-/-- Seconds the owner gets to exit after SIGTERM before SIGKILL. -/
 def stopGraceS : Nat := 15
 
-/-- Seconds the owner gets to exit after SIGKILL before the session reports it stuck. -/
 def killGraceS : Nat := 5
 
-/-- Seconds to wait for the reported state to fall below the target after the owner is gone. -/
 def clearWaitMaxS : Nat := 300
 
 theorem profile_isSome_iff (t : Thermal) : (Thermal.profile t).isSome = pinTarget t := by
   cases t <;> simp [Thermal.profile, pinTarget]
 
-/-- Reason a reading does or does not allow work. -/
 inductive Why where
   | badTarget | locked | notHeld | unreadable | critical | above | below | rising | timeout | onTarget
   deriving DecidableEq
@@ -240,7 +224,6 @@ def Why.name : Why → String
   | .critical => "critical" | .above => "above" | .below => "below" | .rising => "rising" | .timeout => "timeout"
   | .onTarget => "onTarget"
 
-/-- Verdict of a pinned reading: `go` runs the next lane, `wait` reads again, `stop` ends the block. -/
 inductive Pin where
   | go | wait | stop
   deriving DecidableEq
@@ -253,8 +236,6 @@ def Why.pin : Why → Pin
   | .unreadable | .rising => .wait
   | _ => .stop
 
-/-- Why a pinned reading allows work or not. `held` is the owner process being alive, `entered` is a block that
-already had a go reading, `waitedS` is the time spent waiting for the first go. -/
 def pinWhy (target : Thermal) (held : Bool) (lock : Lock) (obs : Option Thermal) (entered : Bool) (waitedS : Nat) : Why :=
   if ¬ pinTarget target then .badTarget
   else if lock = .locked then .locked
@@ -325,31 +306,25 @@ theorem why_rising_timeout {t o : Thermal} (h : pinTarget t = true) {lock : Lock
   have hw' : ¬ w < pinWaitMaxS := by omega
   simp [pinWhy, h, hl, hc, hn, ho, hw']
 
-/-- Work runs only when the target can be induced, the phone is not locked, the owner holds the condition and the
-reported state is the target. -/
 theorem pinGate_go_iff (t : Thermal) (held : Bool) (lock : Lock) (o : Option Thermal) (e : Bool) (w : Nat) :
     pinGate t held lock o e w = .go ↔ pinTarget t = true ∧ lock ≠ .locked ∧ held = true ∧ o = some t := by
   by_cases hw : w < pinWaitMaxS <;>
   rcases o with _ | x <;> (try cases x) <;> cases t <;> cases held <;> cases e <;> cases lock <;>
   simp [pinGate, pinWhy, pinTarget, Thermal.rank, Why.pin, hw]
 
-/-- Critical always stops, at any phase of a block. -/
 theorem pinGate_critical (t : Thermal) (held : Bool) (lock : Lock) (e : Bool) (w : Nat) :
     pinGate t held lock (some .critical) e w = .stop := by
   cases t <;> cases held <;> cases lock <;> simp [pinGate, pinWhy, pinTarget, Why.pin]
 
-/-- Without the owner holding the condition nothing runs. -/
 theorem pinGate_notHeld (t : Thermal) (lock : Lock) (o : Option Thermal) (e : Bool) (w : Nat) : pinGate t false lock o e w ≠ .go := by
   intro h
   have := (pinGate_go_iff t false lock o e w).1 h
   simp at this
 
-/-- A reading below the target after the first go stops the block. -/
 theorem pinGate_below_entered {t o : Thermal} (h : pinTarget t = true) {lock : Lock} (hl : lock ≠ .locked) (hr : o.rank < t.rank) (w : Nat) :
     pinGate t true lock (some o) true w = .stop := by
   simp [pinGate, why_below_entered h hl hr w, Why.pin]
 
-/-- A wait never outlasts the wait budget. -/
 theorem pinGate_wait_lt {t : Thermal} {held : Bool} {lock : Lock} {o : Option Thermal} {e : Bool} {w : Nat}
     (h : pinGate t held lock o e w = .wait) : w < pinWaitMaxS := by
   by_cases hw : w < pinWaitMaxS
@@ -359,7 +334,6 @@ theorem pinGate_wait_lt {t : Thermal} {held : Bool} {lock : Lock} {o : Option Th
     rcases o with _ | x <;> (try cases x) <;> cases t <;> cases held <;> cases e <;> cases lock <;>
     simp [pinGate, pinWhy, pinTarget, Thermal.rank, Why.pin, hw]
 
-/-- Lanes that may run, given the pinned verdict before each: the run stops at the first reading that is not go. -/
 def lanesRun : List Pin → Nat
   | [] => 0
   | .go :: ps => lanesRun ps + 1
@@ -383,13 +357,11 @@ theorem lanesRun_go : ∀ (ps : List Pin) (k : Nat), k < lanesRun ps → ps[k]? 
     | zero => simp
     | succ k => simpa using lanesRun_go ps k (by omega)
 
-/-- Readings before each lane: (owner holds, lock, reported state). -/
 abbrev Rd := Bool × Lock × Option Thermal
 
 def laneGates (target : Thermal) (rs : List Rd) : List Pin :=
   rs.map fun r => pinGate target r.1 r.2.1 r.2.2 true 0
 
-/-- A lane runs only on a reading whose reported state is the target while the owner holds the condition. -/
 theorem lane_on_target (target : Thermal) (rs : List Rd) (k : Nat) (h : k < lanesRun (laneGates target rs)) :
     ∃ r, rs[k]? = some r ∧ r.1 = true ∧ r.2.2 = some target := by
   have hk := lanesRun_go _ k h
@@ -402,7 +374,6 @@ theorem lane_on_target (target : Thermal) (rs : List Rd) (k : Nat) (h : k < lane
     have := (pinGate_go_iff target r.1 r.2.1 r.2.2 true 0).1 hk
     exact ⟨this.2.2.1, this.2.2.2⟩
 
-/-- A visit counts only when the readings before the frames lane, before the counts lane and after the visit are all go. -/
 def visitOk (ps : List Pin) : Bool := decide (ps.length = 3) && ps.all (· == .go)
 
 theorem visitOk_iff (ps : List Pin) : visitOk ps = true ↔ ps.length = 3 ∧ ∀ p ∈ ps, p = .go := by
@@ -413,7 +384,6 @@ theorem visitOk_refuses {ps : List Pin} {p : Pin} (hp : p ∈ ps) (h : p ≠ .go
   · rfl
   · exact absurd ((visitOk_iff ps).1 hv).2 (fun a => h (a p hp))
 
-/-- A block is valid when every reported state of it is the target. -/
 def blockValid (target : Thermal) (rs : List (Option Thermal)) : Bool :=
   pinTarget target && rs.all (· == some target)
 
@@ -436,7 +406,6 @@ theorem blockValid_off_target {t : Thermal} {rs : List (Option Thermal)} {o : Op
   · rfl
   · exact absurd (((blockValid_iff t rs).1 hv).2 o h) ho
 
-/-- Signal already sent to the owner. -/
 inductive Sent where
   | none | term | kill
   deriving DecidableEq
@@ -444,7 +413,6 @@ inductive Sent where
 def Sent.name : Sent → String
   | .none => "none" | .term => "term" | .kill => "kill"
 
-/-- Next step of stopping the owner. SIGTERM comes first (the owner's `sigwait` returns on TERM); SIGKILL only after the grace. -/
 inductive StopAct where
   | done | term | wait | kill | stuck
   deriving DecidableEq
@@ -481,7 +449,6 @@ theorem stopAct_stuck {s : Nat} (h : killGraceS ≤ s) : stopAct true .kill s = 
   have : ¬ s < killGraceS := by omega
   simp [stopAct, this]
 
-/-- Where a session is in the life of its owner process. -/
 inductive Phase where
   | idle | starting | held | stopping | stopped
   deriving DecidableEq
@@ -500,7 +467,6 @@ inductive Close where
 def Close.name : Close → String
   | .nothing => "nothing" | .stopOwner => "stopOwner"
 
-/-- The finally path of a session, taken after success and after every failure. -/
 def closeAct (p : Phase) : Close := if p.mayBeAlive then .stopOwner else .nothing
 
 theorem closeAct_alive {p : Phase} (h : p.mayBeAlive = true) : closeAct p = .stopOwner := by
@@ -509,7 +475,6 @@ theorem closeAct_alive {p : Phase} (h : p.mayBeAlive = true) : closeAct p = .sto
 theorem closeAct_iff (p : Phase) : closeAct p = .stopOwner ↔ p.mayBeAlive = true := by
   cases p <;> simp [closeAct, Phase.mayBeAlive]
 
-/-- Result of the session end. -/
 inductive End where
   | cleared | heatRemains | unread | unconfirmed | stuck
   deriving DecidableEq
@@ -517,9 +482,6 @@ inductive End where
 def End.name : End → String
   | .cleared => "cleared" | .heatRemains => "heatRemains" | .unread => "unread" | .unconfirmed => "unconfirmed" | .stuck => "stuck"
 
-/-- MEASURED on the test phone: the induced state outlives the owner's connection (an owner ended by SIGTERM without a clear
-left Serious reported for 34 min); a clear sent on the connection that set it ends it, and the reported state falls after
-about 2.5 min. The condition is unset exactly when the owner is gone and acknowledged its own clear. -/
 def endVerdict (target : Thermal) (ownerGone acked : Bool) (back : Option Thermal) : End :=
   if ¬ ownerGone then .stuck
   else if ¬ acked then .unconfirmed
@@ -535,7 +497,6 @@ theorem endVerdict_stuck_iff (t : Thermal) (g a : Bool) (b : Option Thermal) : e
 theorem endVerdict_unconfirmed_iff (t : Thermal) (g a : Bool) (b : Option Thermal) : endVerdict t g a b = .unconfirmed ↔ g = true ∧ a = false := by
   cases g <;> cases a <;> cases b <;> simp [endVerdict] <;> split <;> simp
 
-/-- A session ends with the condition unset unless it reports stuck or unconfirmed. -/
 theorem endVerdict_unset {t : Thermal} {g a : Bool} {b : Option Thermal} (h1 : endVerdict t g a b ≠ .stuck) (h2 : endVerdict t g a b ≠ .unconfirmed) : conditionSet g a = false := by
   have e1 : ¬ g = false := fun h => h1 ((endVerdict_stuck_iff t g a b).2 h)
   have e2 : ¬ (g = true ∧ a = false) := fun h => h2 ((endVerdict_unconfirmed_iff t g a b).2 h)
@@ -552,7 +513,6 @@ theorem endVerdict_heat {t b : Thermal} (h : ¬ b.rank < t.rank) : endVerdict t 
 
 theorem endVerdict_unread (t : Thermal) : endVerdict t true true none = .unread := rfl
 
-/-- What a run does first, from the owner record an earlier run left. -/
 inductive Recover where
   | nothing | stopOwner | clearCycle
   deriving DecidableEq
@@ -560,8 +520,6 @@ inductive Recover where
 def Recover.name : Recover → String
   | .nothing => "nothing" | .stopOwner => "stopOwner" | .clearCycle => "clearCycle"
 
-/-- A live recorded owner is stopped; an owner that ended without acknowledging its clear needs one set-and-clear cycle;
-no record, or an acknowledged one, needs nothing. -/
 def recoverAct (hasRecord alive acked : Bool) : Recover :=
   if ¬ hasRecord then .nothing else if alive then .stopOwner else if acked then .nothing else .clearCycle
 
@@ -573,7 +531,6 @@ theorem recoverAct_unacked : recoverAct true false false = .clearCycle := rfl
 theorem recoverAct_nothing_iff (r l a : Bool) : recoverAct r l a = .nothing ↔ (r = false ∨ (l = false ∧ a = true)) := by
   cases r <;> cases l <;> cases a <;> simp [recoverAct]
 
-/-- Read again after the owner is gone while the state has not fallen below the target, within the budget. -/
 def clearWait (target : Thermal) (back : Option Thermal) (waitedS : Nat) : Bool :=
   decide (waitedS < clearWaitMaxS) && (match back with | some b => decide (¬ b.rank < target.rank) | none => true)
 
@@ -584,7 +541,6 @@ theorem clearWait_budget {t : Thermal} (b : Option Thermal) {w : Nat} (h : clear
   have : ¬ w < clearWaitMaxS := by omega
   simp [clearWait, this]
 
-/-- Signal the recorded owner only if the live process has the recorded pid and the recorded start time. -/
 def mayKill (recPid curPid : Nat) (recStart curStart : String) : Bool :=
   decide (recPid = curPid) && decide (recStart ≠ "") && decide (recStart = curStart)
 

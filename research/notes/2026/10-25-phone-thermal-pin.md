@@ -53,7 +53,6 @@ The lane gate sits in `realDeps.visit` between the frames lane and the counts la
 - Stop with `kill -TERM`, never `-INT` (a background job ignores INT): kept. The owner handles TERM and INT, clears, and acknowledges.
 - `--userspace` on every pymobiledevice3 command; `--native` is never used; `pymobiledevice3==11.44.0` via pipx. The owner program uses the same userspace tunnel
   (`userspace_tunnel.establish_userspace_rsd`), so it needs the venv python (`pipx environment --value PIPX_LOCAL_VENVS`, or `FW_PYMD3_PYTHON`).
-- The induced state is a floor: the harness requires the reported state = target at every reading and refuses Critical and anything below the target.
 - Profile id `ThermalSerious` CONFIRMED by `condition list --userspace` on this phone (group ThermalCondition: Fair, Serious, Critical).
 - `condition list` shows `isActive` and `activeProfile` only for the asking connection (blank from a new connection while the phone reported Serious), so it is
   not a way to read whether a condition is set. The reported state is the only reader.

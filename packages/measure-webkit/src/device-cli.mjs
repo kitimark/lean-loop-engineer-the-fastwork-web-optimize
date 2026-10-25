@@ -111,7 +111,6 @@ async function main() {
       process.exit(process.exitCode ?? 0);
     }
     case 'pin-probe': {
-      // pin-probe --pin Serious --dir <dir> [--hold s]: induce, read it back until it is the target, hold, clear, read back. No visit runs.
       if (!v.pin || !v.dir) throw new Error('pin-probe needs --pin Fair|Serious and --dir <dir>');
       const sense = phoneSense();
       const readings = [];
@@ -135,7 +134,6 @@ async function main() {
       process.exit(process.exitCode ?? 0);
     }
     case 'pin-stop': {
-      // pin-stop --dir <dir>: stop an owner an earlier run left behind (pid and start time must match the record).
       if (!v.dir) throw new Error('pin-stop needs --dir <dir>');
       const owner = new ConditionOwner({ dir: resolve(v.dir), log });
       const did = await owner.recover();

@@ -1,6 +1,6 @@
 # phone-thermal-pin handoff
 branch: worktree-wf_781356ec-209-1 (CI branch ci/phone-thermal-pin)
-worktree: .claude/worktrees/wf_781356ec-209-1 (under the main checkout)
+worktree: .claude/worktrees/wf_781356ec-209-1
 last commit: decd3209c (merge of main; later commit only edits this handoff)
 CI runs: 40204768832 lean pass (early commits); 40212266200 lean pass (merge commit). No measurement run needed.
 

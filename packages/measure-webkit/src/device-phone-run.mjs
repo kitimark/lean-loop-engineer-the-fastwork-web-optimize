@@ -110,8 +110,6 @@ const realDeps = () => {
   };
 };
 
-/** `pin` = { target, held: () => owner process alive, onHeld } turns on the pinned thermal mode: the reported state must be the target
- *  before every lane (Fw.Device.Thermal pinGate), and a reading that is not go refuses the visit and stops the block. */
 export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null, session = P.SESSION, pin = null, deps = realDeps() }) {
   const others = deps.others();
   if (others.length > 0) throw new Error(`another device-cli.mjs is running (pid ${others.join(', ')}); one phone run at a time`);
