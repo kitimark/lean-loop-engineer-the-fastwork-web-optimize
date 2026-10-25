@@ -643,7 +643,7 @@ private def wktrId : String := "wktr_scroll_timeline_restyle"
 def engineFiles : List String :=
   ["countdown-strip.jsonl", "hero-accent.jsonl", "hero-exit.jsonl", "hidden-pause.jsonl", "morph-mount.jsonl",
    "morph-panel.jsonl", "nav-hittest.jsonl", "pain-notes.jsonl", "people-card.jsonl", "people-deck.jsonl",
-   "transition-start.jsonl", "webkit.jsonl"]
+   "resource.jsonl", "transition-start.jsonl", "webkit.jsonl"]
 
 def crStages : List (String × String) :=
   ["script", "style", "layout", "props", "paint", "raster", "commit", "comp", "hits"].map fun s => (s, "cr." ++ s)

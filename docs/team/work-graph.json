@@ -21535,7 +21535,8 @@
     "lean/Fw/Ops/Premise.lean",
     "lean/scripts/EngineGoldens.lean"
    ],
-   "title": "User 2026-10-25: the proof should predict how a flag affects other resources and their trade-offs, and add the repaint area to the Lean resource model; more GPU memory is acceptable when work moves off the main thread. Build one Lean resource footprint per flag, predicted from the DOM/CSS change and the engine stage rules already in lean/Fw/Engine (WebKit.lean, Chromium.lean, Restyle.lean, PaintVisible.lean) and the per-part work modules (NavBarFixedWork area_trade, wk_allocs_push; MorphPanelOpt wk_rest_layers, cr_toggle_not_le), each resource with a sign and, where the source allows, a bound, per engine: (1) main-thread work per frame (style recalc, layout, paint records, script/FunctionCall, EventDispatch); (2) repaint area per frame = changed region area x DPR^2 x frames it changes in (WebKit Timeline Paint quad area; Chromium invalidation px), including repaint pushed back onto a shared layer when a flag removes a layer; (3) compositor: layer count and composite per frame (layer promotion reasons cited from source); (4) GPU memory = sum over layers of w x h x DPR^2 x 4 bytes plus tiles, with B (the memory budget) a named parameter the lead fills from the WebKit/iOS memory research; (5) frames requested (rAF loops, timers, scroll-driven updates) as a CPU/power proxy. Verdict rule (Lean, theorems): win when main-thread work and repaint area do not rise and at least one falls, and GPU memory stays within B (a memory-only cost is not a trade); trade when main-thread work or repaint rises anywhere; the predicted vector is checked against measurements per resource (agree / disagree, a disagreement is a finding with mechanism). Fill footprints for the measured flags: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, morph.panel:rest, nav:logo-3d, morph.mount:shift-dormant, engine.events:quiet; check them against today's phone data (results/phone/2026-10-25-end-counts, paintArea per zone, layers, backing MB) and the CI Simulator and Chromium runs cited in their ledger rows. Golden replayed by a test; TS checker against the golden."
+   "title": "User 2026-10-25: the proof should predict how a flag affects other resources and their trade-offs, and add the repaint area to the Lean resource model; more GPU memory is acceptable when work moves off the main thread. Build one Lean resource footprint per flag, predicted from the DOM/CSS change and the engine stage rules already in lean/Fw/Engine (WebKit.lean, Chromium.lean, Restyle.lean, PaintVisible.lean) and the per-part work modules (NavBarFixedWork area_trade, wk_allocs_push; MorphPanelOpt wk_rest_layers, cr_toggle_not_le), each resource with a sign and, where the source allows, a bound, per engine: (1) main-thread work per frame (style recalc, layout, paint records, script/FunctionCall, EventDispatch); (2) repaint area per frame = changed region area x DPR^2 x frames it changes in (WebKit Timeline Paint quad area; Chromium invalidation px), including repaint pushed back onto a shared layer when a flag removes a layer; (3) compositor: layer count and composite per frame (layer promotion reasons cited from source); (4) GPU memory = sum over layers of w x h x DPR^2 x 4 bytes plus tiles, with B (the memory budget) a named parameter the lead fills from the WebKit/iOS memory research; (5) frames requested (rAF loops, timers, scroll-driven updates) as a CPU/power proxy. Verdict rule (Lean, theorems): win when main-thread work and repaint area do not rise and at least one falls, and GPU memory stays within B (a memory-only cost is not a trade); trade when main-thread work or repaint rises anywhere; the predicted vector is checked against measurements per resource (agree / disagree, a disagreement is a finding with mechanism). Fill footprints for the measured flags: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, morph.panel:rest, nav:logo-3d, morph.mount:shift-dormant, engine.events:quiet; check them against today's phone data (results/phone/2026-10-25-end-counts, paintArea per zone, layers, backing MB) and the CI Simulator and Chromium runs cited in their ledger rows. Golden replayed by a test; TS checker against the golden.",
+   "evidence": "f625bc5"
   },
   {
    "devices": [
@@ -21564,6 +21565,27 @@
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "User 2026-10-25: measure variant compositions on the real iPhone to learn how flags combine. Same automated lanes and rules as phone-end-counts (counts with Timeline and paintArea and the layer census, frames at 800 px/s; blocks <= 15 min, cool >= 5 min; thermal and USB checks from phone-thermal-check). Lean first (lean/Fw/Device/PhoneCompose.lean, reusing Fw.Engine.Compose frameWork_append_units, passes_not_compositional, lego_swap_units and the coupled groups G1-G5 of report 4.5): (1) the arm plan: the combination of every flag that phone-end-counts judged a win or a memory-only cost, minus registry conflicts (apps/site/src/parts/*/part.json conflicts), then leave-one-out arms (the combination without each member), one coupled pair inside G2 (morph) and one inside G1 (hero threshold), and the base repeated at the start, middle and end; at most 12 visits; (2) the prediction per resource and zone: units add (sum of the single-flag deltas from phone-end-counts, and from resource-footprint when it has landed), pass-type counts and layers are not predicted to add; (3) the interaction verdict per resource: additive within the base spread, sub-additive or super-additive, each pair or leave-one-out decided on its own; a non-additive result is a finding with a mechanism and a Lean why. Commit only summaries; raw passes stay in .local/phone/."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "resource-redecide",
+   "owner": "lean-prover",
+   "stream": "proofs",
+   "deps": [
+    "phone-thermal-check"
+   ],
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/*.jsonl",
+    "lean/Fw/Engine/ResourceFlags.lean",
+    "packages/contracts/golden/engine/resource*.jsonl",
+    "research/notes/2026/10-2x-resource-redecide.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/resource-redecide.md"
+   ],
+   "title": "Re-decide preset rows with the landed resource verdict (resource-footprint, user 2026-10-25: a GPU-memory cost is acceptable when main-thread work falls, within budget B). Inputs: becomesWin = [morph.countdown:strip on WebKit], leavesWin = [morph.columns:idle-none both engines (open), morph.panel:rest WebKit (open; panel-rest-n11 measured a raw WebKit Paint rise and a Chromium trade, curated exclusion)]. Wait for phone-thermal-check's strip re-measure (strip stalled twice on the phone 2026-10-25) before moving strip into a preset; look-change flags still go to the look-change class for the user's visual review. Also take the resource-footprint review follow-ups: idle-none style sign marked INFERRED (removal treated as pause) or a removal lemma; the WebKit scene-pause event fall needs a CI eventDispatch measurement on a non-slow arm; name the mixed phone+Simulator source of the strip peak; derive repaint signs from changePx/repaintPx at DPR 3 for logo-3d, strip and panel:rest. Gen changes only through the Lean verdict; regenerate the preset goldens; per-row note with MEASURED/INFERRED tags."
   }
  ],
  "deadline": {
