@@ -1,6 +1,10 @@
-branch worktree-wf_d91e3108-16e-1; worktree .claude/worktrees/wf_d91e3108-16e-1; ci branch ci/cross-pool-pooling (1 of 3 pushes used)
-last commit: 88795a001 (see git log for later ones)
-CI runs: lean 40224630846 (queued at push), premise-tests 40224630870; webkit-sim 40224630867 skipped (a ci/* push does not dispatch it)
+branch worktree-wf_d91e3108-16e-1; worktree .claude/worktrees/wf_d91e3108-16e-1; ci branches ci/cross-pool-pooling, -b, -c (pushed at 3ead519e1)
+CI runs: lean 40224630846 (older commit, see gh); pair 1: GitHub webkit-sim 40225058193 (queued 19:14Z) + Codemagic cm:6ade550f28f7ff171ac1a5a9 (triggered, 40 min reserved)
+Codemagic minutes: 166 before; pair 1 reserves 40 (stop line 400). Pairs 2, 3 not started yet (one Codemagic slot: serial).
+Poller call site done: packages/gh-budget/src/poller.ts rerouteTick + env.reroute hook, test packages/gh-budget/test/reroute-tick.test.ts (runner does not set the hook in production: follow-up).
+Pair procedure: dispatch `gh workflow run webkit-sim.yml --ref B -f vms=1 -f target=original`, `node scripts/codemagic.mjs trigger --pool --branch B --vars '{"FW_TARGET":"original","FW_VM":"v1"}'`; then record with recordPair (apps/runner/src/ci-pool-tier.ts) and run poolRows.
+Rule: if GitHub keeps a twin queued > 3 h, report the k reached; decision stays 'not pooled'.
+
 Codemagic: 0 builds, 0 minutes used by this task; month stays 166 of 500 (stop line 400). Reason: copying .local/codemagic.json and
 .local/codemagic-ledger.json into the worktree was denied by the permission system, so no trigger was possible.
 
