@@ -2,7 +2,6 @@ import { spawn as nodeSpawn, spawnSync } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// Pinned thermal state: rules (twins of Fw.Device.Thermal, golden device/thermal.jsonl) and the condition owner process.
 const GOLDEN = readFileSync(new URL('../../contracts/golden/device/thermal.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 export const PIN = Object.freeze(GOLDEN.find((l) => l.kind === 'pinconsts'));
 

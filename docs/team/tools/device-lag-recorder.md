@@ -178,10 +178,10 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
   of Critical, or below or above the target, refuses the visit (`status: refused`, no raw files) and stops the block. The 5-minute cool
   between blocks is skipped. The induced state is a floor, not a clamp: real heat can lift the reported state to Critical.
 - The owner is stopped with `kill -TERM` (a backgrounded job ignores SIGINT), KILL after 15 s, and only after its recorded pid and start
-  time match the live process. The finally path stops it after success and after every failure, then reads the state back for up to 300 s;
+  time match the live process. The finally path stops it on success and failure, then reads the state back for up to 300 s;
   `state.json` `pin` records target, profile, owner pid and start, the readings (`thermal`), `acked`, the read-backs and the end verdict
   (`cleared`, `heatRemains` after real load, `unread`, `unconfirmed` for an owner that died or needed KILL, `stuck`). `unconfirmed` and
   `stuck` fail the session; the next run (or `pin-stop`) runs one set-and-clear cycle for an unconfirmed owner (Lean `recoverAct`).
-- The target is always named (`--pin Fair|Serious`); `--pin` has no default value, and the usual target is Serious.
+- `--pin Fair|Serious` names the target; it has no default.
 - `pin-probe --pin Serious --dir d [--hold s]`: induce, read back until the target, hold, clear, read back; no visit.
   `pin-stop --dir d`: stop an owner a crashed run left behind.

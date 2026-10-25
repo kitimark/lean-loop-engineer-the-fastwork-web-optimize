@@ -71,7 +71,7 @@ The lane gate sits in `realDeps.visit` between the frames lane and the counts la
 - Session-trace theorem: `endVerdict_unset` holds by the definition of `conditionSet`; add a theorem over a session trace (phase, failure) -> end that never yields `conditionSet = true` without a stuck or unconfirmed failure.
 - `held` in `src/device-phone-pin.mjs` is `owner.alive()` only; make it `alive() && readLog().includes('fw-pin held pid=N')` so the gap between spawn and the first set cannot count as held.
 - `onSig` stops the owner and exits 130 with no read-back and no `pin.end` in `state.json`; write the stop and `conditionSet` note there.
-- The target is named with `--pin Fair|Serious`; there is no default (see the tool doc).
+- `--pin Fair|Serious` names the target; it has no default (tool doc).
 
 ## Provenance
 
