@@ -1,86 +1,116 @@
-# phone-end-counts: counts and frame intervals per zone on the real iPhone
+# phone-end-counts: counts, painted area, layers and frame intervals per zone on the real iPhone
 
 ## Answer
 
-- **6 of 16 planned visits ran, so the result is partial (MEASURED, one phone, one session).** The phone dropped off USB during visit 6
-  (morph.countdown:strip): "connection closed by the proxy (code 1006)", then "paired but not on USB" for 4 more minutes. The rules allow
-  one retry; the retry could not start. Eight arms have no phone data (strip, shift-dormant, logo-3d, bar-fixed, clip-box, const-bounds,
-  engine.events:quiet, hit-skip) and the base was visited once, not three times (the middle and end visits did not run).
-- **Every verdict below is provisional.** The "base spread" is the spread of 3 counts passes and 5 frame reps inside one base visit, not
-  across visits. The rule (Lean `Fw.Device.PhoneArms`, golden `packages/contracts/golden/device/phone-arms.jsonl`) is applied as written;
-  the A/B/A repeat that would show visit-to-visit drift is the missing part.
-- **The original page is slow on the phone over the whole page (MEASURED):** 100 of 100 moving frames in the hero zone take over 34 ms
-  and over 50 ms, against 0 for the rewrite; in the rest zone 79 per 100 against 0.5. Its EventDispatch is lower (30 vs 262 hero).
-- **hero.exit:threaded lowers Layout and FireAnimationFrame in every zone** (hero Layout 165 vs 195, rAF 163 vs 192; finish Layout 33 vs 52;
-  rest Layout 321 vs 375), with frames the same, and raises Paint (hero 665 vs 539) and EventDispatch (338 vs 262). Counts label: mixed.
-- **morph.columns:idle-none changes no count and no frame cell (same, same).** Its CI win is memory, which this lane does not read.
-- **hero:scene-pause and morph.countdown:hidden-pause look worse on the phone** (hero over34 1.8 per 100 vs 0; FunctionCall and EventDispatch
-  up; finish Layout 80 and 86 vs 52). Single visit each; confirm with the base repeats before using it (INFERRED: the base repeats would show
-  whether visit-to-visit drift explains it; idle-none matching the base within 2 on every cell argues against a session-wide drift).
+- **15 of 16 planned visits ran (MEASURED, one phone, one session); morph.countdown:strip is the named lost arm.** The base ran three times
+  (visits 0, 7, 15), so every verdict below is against a real A/B/A base spread (9 counts passes, 15 frame reps per cell). Strip failed twice with
+  harness faults (the phone's USB re-enumerated and the proxy closed with code 1006; then our own tab was left on the harness page). Both are
+  named faults, so the new Lean retry rule (below) allows one more attempt; that retry belongs to phone-thermal-check (no phone use in this round).
+- **engine.events:quiet is the one clean count win and it matches the CI Simulator.** FunctionCall and EventDispatch drop beyond the base spread
+  in hero and rest (hero 276 vs 424 and 114 vs 262; rest 587 vs 831 and 288 vs 532), nothing else moves, frames the same. Simulator: EventDispatch
+  -53%, FunctionCall -36% (runs 40134234199 vs 40134016822); phone: -56% and -35% in the hero zone.
+- **hero.exit:threaded trades Layout and rAF for Paint and EventDispatch**, as on the Simulator (flag 39731192687, base 39739724461): hero Layout
+  165 vs 195, rAF 163 vs 192, finish Layout 33 vs 52, rest Layout 321 vs 376; Paint (hero 665 vs 534, rest 981 vs 899) and EventDispatch (338 vs
+  262, 625 vs 532) rise; frames the same; 4 to 5 more layers from y 3000 on.
+- **morph.columns:idle-none and hero:scene-pause cut layers on the phone as on the Simulator** (the census lane, new in this round): idle-none
+  124 vs 136 layers at y 3000, backing store 93.9 vs 111.0 MB (Simulator 106 to 90 MB); scene-pause 51 vs 136 layers at y 3000 (Simulator 58 vs
+  136). idle-none changes no count and no frame cell. scene-pause raises FunctionCall and EventDispatch (hero 712 vs 424 and 562 vs 262), frames the same.
+- **Four arms look worse on the phone than any CI lane says**: morph.countdown:hidden-pause (finish Layout 86 vs 52, finish over50 1.85 per 100 vs 0),
+  nav:logo-3d (rest over50 4.89 per 100 vs 0.46, rAF 418 vs 400) and, in counts only, hero:scene-pause and morph.panel:const-bounds. In all four the
+  rest-zone Paint falls (base 899 down to 595-711) while FunctionCall and EventDispatch rise; INFERRED that work moves between steps (coalesced paints)
+  rather than shrinking, not tested. One visit each: confirm before using it.
+- **No count, area, layer or frame cell moves beyond the base spread for nav.hitTest:hit-skip, nav:clip-box, nav:bar-fixed and
+  morph.mount:shift-dormant.** For hit-skip that is expected (INFERRED): the scripted scroll sends no pointer path, which is what the flag skips.
+- **The original page is slow on the phone over the whole page (MEASURED):** hero 100 of 100 moving frames over 34 ms (rewrite 0.9), rest 79 of
+  100 (rewrite 0.5); it has 30 to 47 layers at y 3000 and later against 124 to 141. Its EventDispatch is lower (hero 30 vs 262).
+- **paintArea (Timeline Paint clip areas, CSS px squared) moves in no arm beyond the base spread** in any zone (base hero 33.1, finish 3.1,
+  rest 44.7 Mpx squared).
+- **The base is steady between visits:** hero Layout 192-196 over the three visits, rest Layout 368-385, layers 110-116 at every stop, hero
+  frames over 34 ms 0 to 1.8 per 100. Its largest wobble is finish FunctionCall (183 to 371) and EventDispatch (112 to 300), a one-step spike that
+  appears in one or two passes of every base visit; it is the widest base spread and so the hardest cell to beat.
+
+## Per arm verdicts (Lean `Fw.Device.PhoneArms`, golden `packages/contracts/golden/device/phone-arms.jsonl`)
+
+Label per zone as counts / frames; "all" pools the zones of one family. A cell beats the base only if the arm's highest value plus the base
+spread stays below the base's lowest (worse the other way round). Counts cover Layout, RecalculateStyles, Paint, Composite, FireAnimationFrame,
+FunctionCall, EventDispatch and paintArea.
+
+| arm | visits | hero | finish | rest | counts all | frames all |
+|---|---|---|---|---|---|---|
+| original | 1 | mixed / worse | mixed / worse | mixed / worse | mixed | worse |
+| hero.exit:threaded | 1 | mixed / same | better / same | mixed / same | mixed | same |
+| hero:scene-pause | 1 | worse / same | mixed / same | mixed / same | mixed | same |
+| morph.columns:idle-none | 1 | same / same | same / same | same / same | same | same |
+| morph.countdown:hidden-pause | 1 | same / same | worse / worse | mixed / same | mixed | worse |
+| morph.countdown:strip | 0 (lost) | unresolved | unresolved | unresolved | unresolved | unresolved |
+| nav.hitTest:hit-skip | 1 | same / same | same / same | same / same | same | same |
+| engine.events:quiet | 1 | better / same | same / same | better / same | better | same |
+| morph.panel:const-bounds | 1 | same / same | same / same | mixed / same | mixed | same |
+| nav:clip-box | 1 | same / same | same / same | same / same | same | same |
+| nav:bar-fixed | 1 | same / same | same / same | same / same | same | same |
+| nav:logo-3d | 1 | mixed / same | mixed / same | mixed / worse | mixed | worse |
+| morph.mount:shift-dormant | 1 | same / same | same / same | same / same | same | same |
+
+Each cell with its base median and range is in `results/phone/2026-10-25-end-counts/tables.md` (one table per zone with counts, paintArea in Mpx
+squared and frame intervals per 100 moving frames, then the layer and backing-store tables per scroll stop). The census verdict uses the same Lean cell
+rule over the census values of all passes. Backing-store bytes come in tile steps of about 7 MB, so a one-step cell is noise-level (nav:bar-fixed
+at y 3000 reads "beats" with 103.9 vs 111.0 MB, base spread 0 there; hit-skip and logo-3d show the same 103.9 and read "same").
 
 ## Method (CONFIRMED from the code)
 
 - `node src/device-cli.mjs arms-run` (packages/measure-webkit): one `withPhone` session per visit, frames lane (800 px/s, 5 reps + 1
-  warm-up) then counts lane (Timeline on, 50 px steps, pinned clock, 3 passes + 1 warm-up). The Timeline adds its own cost equally to every arm.
+  warm-up) then counts lane (Timeline on, 50 px steps, pinned clock, 3 passes + 1 warm-up, layer census at y 0, 1500, 3000, 4500 and the end).
+  The Timeline adds its own cost equally to every arm.
 - Lean plan: 14 arms, none dropped (all prerender hashes distinct, flag sets distinct; the strip arm loads `hero.countdown:strip,morph.countdown:strip`
   because the part requires the hero flag). 16 visits: base, original and the first flag half, base, the second half reversed, base; blocks of at
-  most 15 min with 5 min cool (Lean `mayStart`, `coolOk`). Run: base 237 s, original 312 s, threaded 368 s, scene-pause 266 s, idle-none 237 s,
-  hidden-pause 265 s.
+  most 15 min with 5 min cool (Lean `mayStart`, `coolOk`). Visits took 234 to 368 s.
 - Zones from Lean `Session.zoneOf`: hero = first two viewports, finish = last viewport, rest = otherwise; viewport 775, maxY 5267. Counts are
-  summed over 500 px bins per zone. Verdict per cell: beats if arm high + base spread < base low, worse if the reverse, else same; a label per
-  zone and family (counts, frames) is never pooled across families.
-- Battery temperature stayed 33 C on every visit (the only heat proxy); the phone was charging. No visit was lost before visit 6.
-- Summaries: `results/phone/2026-10-25-end-counts/summary.json` and `tables.md` (raw passes in `.local/phone/2026-10-25/`, gitignored).
+  summed over 500 px bins per zone. A label per zone and family (counts, frames) is never pooled across families.
+- Heat: battery temperature stayed 33 C on all 15 visits (the only heat proxy this round; thermal state comes with phone-thermal-check); the
+  phone charged from 64 to 80 percent over the first visits and then held 80 (charge limit).
+- Raw passes stay in `.local/phone/2026-10-25/` (gitignored); the reduction (`arms-reduce`) wrote `summary.json` and `tables.md`.
 
-## Per zone, arm median (base median), verdict (MEASURED, 1 visit per arm)
+## What went wrong, and the rule that follows (Lean `PhoneArms.mayAttempt`, `tabPlan`)
 
-| arm | zone | Layout | RecalcStyles | Paint | Composite | rAF | FunctionCall | EventDispatch | over34 /100 | over50 /100 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| base | hero | 195 | 175 | 539 | 59 | 192 | 424 | 262 | 0.00 | 0.00 |
-| original | hero | 213 W | 197 W | 457 B | 59 = | 194 W | 301 B | 30 B | 100.0 W | 100.0 W |
-| hero.exit:threaded | hero | 165 B | 159 B | 665 W | 59 = | 163 B | 460 W | 338 W | 0.90 = | 0.00 = |
-| hero:scene-pause | hero | 195 = | 187 W | 483 = | 59 = | 192 = | 712 W | 562 W | 1.81 W | 0.00 = |
-| morph.columns:idle-none | hero | 191 = | 175 = | 506 = | 59 = | 192 = | 422 = | 260 = | 0.00 = | 0.00 = |
-| morph.countdown:hidden-pause | hero | 195 = | 177 = | 487 = | 59 = | 192 = | 481 W | 325 W | 1.83 W | 0.00 = |
-| base | finish | 52 | 76 | 163 | 34 | 89 | 201 | 130 | 0.00 | 0.00 |
-| original | finish | 72 W | 86 W | 185 = | 34 = | 85 B | 125 = | 17 B | 1.78 = | 1.78 W |
-| hero.exit:threaded | finish | 33 B | 76 = | 158 = | 34 = | 72 B | 172 = | 118 = | 1.72 = | 0.00 = |
-| hero:scene-pause | finish | 80 W | 90 W | 214 = | 34 = | 84 B | 228 = | 160 = | 0.00 = | 0.00 = |
-| morph.columns:idle-none | finish | 53 = | 77 = | 170 = | 34 = | 89 = | 285 = | 214 = | 0.00 = | 0.00 = |
-| morph.countdown:hidden-pause | finish | 86 W | 89 W | 207 = | 34 = | 85 = | 246 = | 178 = | 5.55 = | 1.85 W |
-| base | rest | 375 | 395 | 899 | 120 | 400 | 831 | 532 | 0.46 | 0.46 |
-| original | rest | 358 = | 415 W | 705 B | 120 = | 444 W | 601 B | 60 B | 79.5 W | 79.5 W |
-| hero.exit:threaded | rest | 321 B | 396 = | 981 W | 120 = | 340 B | 861 = | 625 W | 0.46 = | 0.46 = |
-| hero:scene-pause | rest | 350 B | 407 W | 595 B | 120 = | 418 = | 1003 W | 700 W | 1.43 W | 0.47 = |
-| morph.columns:idle-none | rest | 381 = | 395 = | 876 = | 120 = | 400 = | 831 = | 532 = | 0.45 = | 0.45 = |
-| morph.countdown:hidden-pause | rest | 356 B | 408 W | 637 B | 120 = | 400 = | 1006 W | 720 W | 3.06 W | 1.02 = |
-
-B = beats the base beyond the base spread, W = worse, = same. Per-arm labels (counts, frames): original mixed, worse; hero.exit:threaded mixed, same;
-hero:scene-pause mixed, worse; morph.columns:idle-none same, same; morph.countdown:hidden-pause mixed, worse; the eight other arms unresolved (no visit).
+- Visit 6 (morph.countdown:strip) stalled twice mid-scroll. Attempt 1: proxy closed (code 1006) together with a USB re-enumeration on the Mac;
+  after the user restarted usbmuxd the run resumed. Attempt 2: the stalled run could not return our tab to about:blank (the cleanup also needs the
+  USB link), so the next start found no blank tab. No WebContent crash or jetsam log on the phone. The lead reset the tab by hand and marked visit 6
+  lost; visits 7 to 15 then ran with `arms-run --all`.
+- Fix 1 (`packages/measure-webkit/src/device.mjs`): Lean `tabPlan` drives the one blank tab; with none it returns the one tab on our own
+  server origin to about:blank first (five theorems: drive, reset, refuse on two blanks, refuse otherwise, reset only without a blank tab). The
+  reset runs before the blank-tab check; it touches only a tab whose URL starts with the harness origin plus a slash.
+- Fix 2 (`device-phone-run.mjs`): Lean `Fault` names each failed attempt (`usbReset`, `staleTab`, `other`); `mayAttempt` gives two attempts and
+  a third only when every failed attempt was a harness fault (four theorems, one per branch). Visit 6 recorded as usbReset + staleTab is
+  retryable once more; a visit lost to an arm-side fault (`other`) is not. Older state entries without names count as `other`.
+- The retry of strip runs in phone-thermal-check. The lost arm leaves the strip verdict open here; its Simulator result (a trade: finish layers
+  128 to 56) stands unchecked on the phone.
 
 ## Phone against the CI Simulator verdicts
 
-Scenarios differ: the Simulator lanes read other zones (hero-exit scroll, census layers, memory), the phone reads end-of-page scripted-scroll counts.
-A match in direction is therefore weak evidence; a difference is a different quantity, not a contradiction.
+Scenarios differ: the Simulator lanes read other zones (hero-exit scroll, census layers, memory), the phone reads end-of-page scripted-scroll
+counts. A match in direction is weak evidence; a difference is a different quantity, not a contradiction.
 
-| flag | CI Simulator verdict (run ids) | phone (this note) | reading |
+| flag | CI Simulator verdict (run ids) | phone verdict (this note) | reading |
 |---|---|---|---|
-| hero.exit:threaded | trade: rAF 6.88 to 5.88 per step, Layout 7.80 to 6.51 (flag 39731192687, base 39739724461) | Layout and rAF lower in all 3 zones (-15% hero), Paint and EventDispatch higher | same direction on Layout and rAF (MEASURED both) |
-| hero:scene-pause | win: layers 58 vs 136 at y3000, 65 vs 145 at y4500 (39548856639 vs 39309416016) | counts mixed, frames worse; layers not read by this lane | not comparable; the phone shows no count win |
-| morph.columns:idle-none | win: backing 106 to 90 MB (Simulator census 39897807511 vs base 39897814980) | same on every cell | consistent: memory win, no count change |
-| morph.countdown:hidden-pause | win: no element drop (39312082945) | counts mixed, frames worse | phone disagrees in sign on the finish zone; one visit |
-| morph.countdown:strip | trade: finish layers 128 to 56 (39775198022 vs 39775174615; 39776554155 vs 39776549128; webkit-sim 40081936555) | not run | open |
-| nav.hitTest:hit-skip | no Simulator run (Chromium prediction) | not run | open |
-| engine.events:quiet | win: EventDispatch -53%, FunctionCall -36% (40134234199 vs 40134016822) | not run | open; the phone has the EventDispatch cell to test it |
-| morph.panel:const-bounds | unknown: open-push Composite 100-148 vs 176-181 ms (39760667274 vs 39744614747) | not run | open |
-| nav:clip-box, nav:bar-fixed, nav:logo-3d | unknown (39872562267, 39872566438, 39872570182; logo-3d moved no count) | not run | open |
-| morph.mount:shift-dormant | -3 layouts (39325721909), Simulator unknown | not run | open |
+| engine.events:quiet | win: EventDispatch -53%, FunctionCall -36% (40134234199 vs 40134016822) | counts better: hero EventDispatch -56%, FunctionCall -35%; rest -46%, -29%; frames same | agrees (MEASURED both) |
+| hero.exit:threaded | trade: rAF 6.88 to 5.88 per step, Layout 7.80 to 6.51 (flag 39731192687, base 39739724461) | Layout and rAF lower in all 3 zones (hero -15%), Paint and EventDispatch higher, frames same | agrees in direction on Layout and rAF |
+| morph.columns:idle-none | win: backing 106 to 90 MB (Simulator census 39897807511 vs base 39897814980) | layers 124 vs 136, backing 93.9 vs 111.0 MB at y 3000 (beats), 87.0 vs 104.2 at the end; counts, frames same | agrees (MEASURED both) |
+| hero:scene-pause | win: layers 58 vs 136 at y3000, 65 vs 145 at y4500 (39548856639 vs 39309416016) | layers 51 vs 136 and 56 vs 141 (beats); counts mixed (FunctionCall, EventDispatch up), frames same | layers agree; the phone adds a count cost |
+| morph.countdown:hidden-pause | win: no element drop (39312082945) | counts mixed, frames worse (finish Layout 86 vs 52, finish over50 1.85 vs 0) | phone disagrees; one visit |
+| morph.countdown:strip | trade: finish layers 128 to 56 (39775198022 vs 39775174615; 39776554155 vs 39776549128; webkit-sim 40081936555) | lost (named) | open until phone-thermal-check |
+| nav.hitTest:hit-skip | no Simulator run (Chromium prediction) | same, same | not exercised by scripted scroll (INFERRED) |
+| morph.panel:const-bounds | unknown: open-push Composite 100-148 vs 176-181 ms (39760667274 vs 39744614747) | counts mixed (rest Paint 711 vs 899 beats, rest FunctionCall 931 vs 831 worse), frames same | different quantity |
+| nav:clip-box | unknown (39872562267) | same, same | no phone effect |
+| nav:bar-fixed | unknown (39872566438) | same, same (one tile step at y 3000) | no phone effect |
+| nav:logo-3d | unknown, moved no count (39872570182) | counts mixed, frames worse (rest over50 4.89 vs 0.46) | phone cost; one visit |
+| morph.mount:shift-dormant | -3 layouts (39325721909), Simulator unknown | same, same | no phone effect |
 
 ## Limits and open items
 
-- One phone, one session; the phone locked or left USB at visit 6 (named failure: connection closed by the proxy, code 1006, then paired but not on
-  USB). Resume: `node src/device-cli.mjs arms-run --all --site ../../apps/site/dist/aot --dir ../../.local/phone/2026-10-25 --blocked ../../scratchpad/pec/blocked.txt`
-  (state in `.local/phone/2026-10-25/state.json`; visit 6 has one failed attempt, one retry remains).
-- The three base visits needed for the A/B/A spread did not all run (INFERRED consequence: verdicts of arms that differ by a small amount are not
-  trustworthy; hero:scene-pause and hidden-pause increases are the first to re-check).
+- One phone, one session; scripted scrolling does not move the Safari toolbar, so toolbar-throttle and touch-path flags (engine.scroll:unthrottle,
+  morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope. Each arm except the base has one visit; the verdict is against the
+  3-visit base spread only, so an arm-side visit-to-visit drift is untested (a second visit per arm would be a new arm plan).
+- morph.countdown:strip is lost; retry in phone-thermal-check (Lean says it may have one more attempt).
+- The four worse-looking arms (hidden-pause, logo-3d, scene-pause, const-bounds) should be repeated before a flag decision is based on them.
 - ci/phone-end-counts push (ab773fe95): all 20 workflows concluded skipped (e.g. lean-math 40173828875, webkit-sim 40173828789); no CI measurement.
+  The Simulator side comes from the earlier runs named above.
