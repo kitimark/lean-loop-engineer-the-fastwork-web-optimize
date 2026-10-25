@@ -4,11 +4,10 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { loadavg } from 'node:os';
 import { pathToFileURL } from 'node:url';
-import { withSession } from '../session.mjs';
 import { watch } from '../watchdog.mjs';
 import { findDevice } from '../sim.mjs';
-import { loadFresh } from '../page.mjs';
-import { buildDriver, cleanup, dragPass, findDriver, stop } from './driver.mjs';
+import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
+import { makePassRunner } from './pass-run.mjs';
 import { partsPass, MODES } from './parts-probe.mjs';
 import { excludeReason, ARMS, summarize, summaryMd } from './parts.mjs';
 
@@ -47,38 +46,17 @@ async function run(v) {
   const driver = v.driver ? findDriver(resolve(v.driver)) : await buildDriver({ udid, log });
   log(`load ${loadavg()[0].toFixed(0)} before the first pass`);
   const drag = dragOf(v.mode, v);
-  const passes = [], failed = [];
+  const passes = [], failed = [], machine = [];
   const file = resolve(v.out ?? 'out/throttle-parts.json');
   mkdirSync(dirname(file), { recursive: true });
-  const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, mode: v.mode, drag, passes, failed }) + '\n');
+  const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, mode: v.mode, drag, passes, failed, machine }) + '\n');
+  const { warmUp, runArm } = makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir: dirname(file), siteOf,
+    firstSiteArm: arms.find((a) => a !== 'original') ?? 'original', warmMode: 'drags', state: { passes, failed, machine }, save,
+    passOf: (ctx, o) => partsPass(ctx, { ...o, mode: v.mode }), reasonOf: (p) => (p.skipped ? null : excludeReason(p)) });
   try {
-    if (!v['no-warmup']) {
-      try {
-        await withSession(async (ctx) => {
-          await loadFresh(ctx.c, { clock: 'pinned', settleMs: 2000 });
-          const r = await dragPass(driver, { udid, tag: 'warm-up', log, ...drag, cycles: 1, mode: 'drags' });
-          log(`warm-up: touches ${r.code === 0 ? 'done' : `failed (code ${r.code})`}`);
-        }, { keep: v.keep, site: siteOf(arms.find((a) => a !== 'original') ?? 'original') });
-      } catch (e) { log(`warm-up failed: ${e.message}`); }
-    }
+    if (!v['no-warmup']) await warmUp('warm-up');
     for (let round = 0; round < Number(v.rounds); round++) {
-      for (const arm of rotate(arms, round)) {
-        for (let attempt = 1; attempt <= 2; attempt++) {
-          const tag = tagOf(arm, round + 1, attempt);
-          try {
-            const rec = await withSession((ctx) => partsPass(ctx, { driver, udid, drag, mode: v.mode, round: round + 1, settleMs: Number(v.settle), tag }),
-              { keep: v.keep, site: siteOf(arm) });
-            const bad = rec.skipped ? null : excludeReason({ arm, round: round + 1, vm: v.vm, ...rec });
-            if (bad && attempt < 2) { log(`${tag} not usable (${bad}); trying once more`); continue; }
-            passes.push({ arm, round: round + 1, vm: v.vm, attempt, ...rec });
-            break;
-          } catch (e) {
-            log(`${tag} failed: ${e.message}`);
-            if (attempt === 2) failed.push(`${tag}: ${e.message}`);
-          }
-        }
-        save();
-      }
+      for (const arm of rotate(arms, round)) await runArm(arm, round);
     }
   } finally { stop(); if (!v.driver) cleanup(driver); }
   save();
