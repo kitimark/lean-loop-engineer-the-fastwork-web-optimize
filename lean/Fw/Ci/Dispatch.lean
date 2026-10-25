@@ -308,23 +308,15 @@ theorem select_sound (w : Want) (rows : List Run) (i : Nat) (h : i ∈ select w 
   obtain ⟨r, hr, hid⟩ := List.mem_map.mp h
   exact ⟨r, (List.mem_filter.mp hr).1, hid, (List.mem_filter.mp hr).2⟩
 
-/-! ## One row per run (task `ci-run-dedup`)
-`gh run list` reads page by page, so one run can appear twice in one list; the poller keeps one row per id. -/
-
-/-- A run list row with GitHub's time of the run's last change (`updatedAt`, epoch milliseconds). -/
 structure Listed where
   run : Run
   updatedAt : Nat
 deriving Repr, DecidableEq
 
-/-- The ids of the rows, in list order. -/
 def ids (rows : List Listed) : List Nat := rows.map (·.run.id)
 
-/-- The runs of the rows, in list order. -/
 def runs (rows : List Listed) : List Run := rows.map (·.run)
 
-/-- Add a row: a new id goes last; a known id keeps its place and takes the row with the newer `updatedAt` (a tie keeps the
-row already there). -/
 def keepNewest (acc : List Listed) (r : Listed) : List Listed :=
   if acc.any (·.run.id == r.run.id) then
     acc.map fun s => if s.run.id == r.run.id && s.updatedAt < r.updatedAt then r else s
@@ -336,7 +328,7 @@ def dedupById (rows : List Listed) : List Listed := rows.foldl keepNewest []
 /-- The ids listed more than once, each once, in the order of `dedupById`. -/
 def dupIds (rows : List Listed) : List Nat := (ids (dedupById rows)).filter fun i => 2 ≤ (ids rows).count i
 
-/-- Copies of one id are one run: the same event, title and head sha (only status and `updatedAt` change). -/
+/-- INFERRED, not verified against gh data: GitHub keeps event, displayTitle and headSha fixed per run id. -/
 def OneRunPerId (rows : List Listed) : Prop := ∀ r ∈ rows, ∀ s ∈ rows, r.run.id = s.run.id → r.run = s.run
 
 #guard ids (dedupById [⟨⟨1, "push", "a", "s"⟩, 5⟩, ⟨⟨2, "push", "b", "s"⟩, 5⟩, ⟨⟨1, "push", "a", "s"⟩, 7⟩]) = [1, 2]
@@ -345,7 +337,6 @@ def OneRunPerId (rows : List Listed) : Prop := ∀ r ∈ rows, ∀ s ∈ rows, r
 #guard dupIds [⟨⟨1, "push", "a", "s"⟩, 5⟩, ⟨⟨2, "push", "b", "s"⟩, 5⟩, ⟨⟨1, "push", "a", "s"⟩, 7⟩] = [1]
 #guard dupIds [⟨⟨1, "push", "a", "s"⟩, 5⟩, ⟨⟨2, "push", "b", "s"⟩, 5⟩] = []
 
-/-- Adding a row keeps the id list, or appends the row's id when it is new. -/
 theorem ids_keepNewest (acc : List Listed) (r : Listed) :
     ids (keepNewest acc r) = if r.run.id ∈ ids acc then ids acc else ids acc ++ [r.run.id] := by
   have hany : acc.any (·.run.id == r.run.id) = true ↔ r.run.id ∈ ids acc := by
@@ -366,7 +357,6 @@ theorem ids_keepNewest (acc : List Listed) (r : Listed) :
     simp only [hf, h, Bool.false_eq_true, ↓reduceIte]
     simp [ids]
 
-/-- Adding a row keeps the ids free of duplicates. -/
 theorem nodup_keepNewest (acc : List Listed) (r : Listed) (h : (ids acc).Nodup) : (ids (keepNewest acc r)).Nodup := by
   rw [ids_keepNewest]
   split
@@ -377,17 +367,14 @@ theorem nodup_keepNewest (acc : List Listed) (r : Listed) (h : (ids acc).Nodup) 
     simp at hb
     exact hn (hb ▸ hab ▸ ha)
 
-/-- Adding rows keeps the ids free of duplicates. -/
 theorem nodup_foldl (acc rows : List Listed) (h : (ids acc).Nodup) : (ids (rows.foldl keepNewest acc)).Nodup := by
   induction rows generalizing acc with
   | nil => exact h
   | cons r rs ih => exact ih _ (nodup_keepNewest acc r h)
 
-/-- **No duplicate ids.** `dedupById` lists each id once. -/
 theorem dedupById_nodup (rows : List Listed) : (ids (dedupById rows)).Nodup :=
   nodup_foldl [] rows List.nodup_nil
 
-/-- A row after adding is the added row or a row from before. -/
 theorem mem_keepNewest (acc : List Listed) (r s : Listed) (h : s ∈ keepNewest acc r) : s ∈ acc ∨ s = r := by
   unfold keepNewest at h
   split at h
@@ -399,7 +386,6 @@ theorem mem_keepNewest (acc : List Listed) (r s : Listed) (h : s ∈ keepNewest 
     · exact Or.inl h
     · exact Or.inr (by simpa using h)
 
-/-- A row after adding rows is one of them or a row from before. -/
 theorem mem_foldl (acc rows : List Listed) (s : Listed) (h : s ∈ rows.foldl keepNewest acc) : s ∈ acc ∨ s ∈ rows := by
   induction rows generalizing acc with
   | nil => exact Or.inl h
@@ -410,16 +396,13 @@ theorem mem_foldl (acc rows : List Listed) (s : Listed) (h : s ∈ rows.foldl ke
       · exact Or.inr (h ▸ List.mem_cons_self)
     · exact Or.inr (List.mem_cons_of_mem r h)
 
-/-- **Soundness.** Every kept row is a row of the list. -/
 theorem mem_dedupById (rows : List Listed) (s : Listed) (h : s ∈ dedupById rows) : s ∈ rows := by
   rcases mem_foldl [] rows s h with h | h
   · simp at h
   · exact h
 
-/-- A row of the same id and at least the same `updatedAt` is in the list. -/
 def Covered (x : Listed) (l : List Listed) : Prop := ∃ y ∈ l, y.run.id = x.run.id ∧ x.updatedAt ≤ y.updatedAt
 
-/-- Adding a row covers the added row and every row from before. -/
 theorem covered_keepNewest (acc : List Listed) (r x : Listed) (h : x ∈ acc ∨ x = r) : Covered x (keepNewest acc r) := by
   unfold keepNewest Covered
   split
@@ -448,13 +431,11 @@ theorem covered_keepNewest (acc : List Listed) (r x : Listed) (h : x ∈ acc ∨
     · exact ⟨x, List.mem_append_left _ hx, rfl, Nat.le_refl _⟩
     · exact ⟨r, List.mem_append_right _ (List.mem_singleton_self r), hx ▸ rfl, hx ▸ Nat.le_refl _⟩
 
-/-- Covering is transitive. -/
 theorem covered_trans (x : Listed) (acc l : List Listed) (h : Covered x acc) (step : ∀ y ∈ acc, Covered y l) : Covered x l := by
   obtain ⟨y, hy, hid, hle⟩ := h
   obtain ⟨z, hz, hid', hle'⟩ := step y hy
   exact ⟨z, hz, hid'.trans hid, Nat.le_trans hle hle'⟩
 
-/-- Adding rows covers each of them and every row from before. -/
 theorem covered_foldl (acc rows : List Listed) (x : Listed) (h : x ∈ acc ∨ x ∈ rows) : Covered x (rows.foldl keepNewest acc) := by
   induction rows generalizing acc x with
   | nil =>
@@ -469,12 +450,10 @@ theorem covered_foldl (acc rows : List Listed) (x : Listed) (h : x ∈ acc ∨ x
       · exact covered_trans x _ _ (covered_keepNewest acc r x (Or.inr h)) step
       · exact ih _ x (Or.inr h)
 
-/-- **Newest wins.** Each row's id is kept, by a row whose `updatedAt` is at least the row's. -/
 theorem dedupById_newest (rows : List Listed) (r : Listed) (h : r ∈ rows) :
     ∃ s ∈ dedupById rows, s.run.id = r.run.id ∧ r.updatedAt ≤ s.updatedAt :=
   covered_foldl [] rows r (Or.inr h)
 
-/-- Adding rows of new ids appends them. -/
 theorem foldl_fresh (acc rows : List Listed) (h : (ids (acc ++ rows)).Nodup) : rows.foldl keepNewest acc = acc ++ rows := by
   induction rows generalizing acc with
   | nil => simp
@@ -493,12 +472,10 @@ theorem foldl_fresh (acc rows : List Listed) (h : (ids (acc ++ rows)).Nodup) : r
     rw [ih _ (by simpa using h)]
     simp
 
-/-- **No copies, no change.** A list whose ids are free of duplicates is kept as it is. -/
 theorem dedupById_of_nodup (rows : List Listed) (h : (ids rows).Nodup) : dedupById rows = rows := by
   unfold dedupById
   simpa using foldl_fresh [] rows (by simpa using h)
 
-/-- An id is listed in `dupIds` exactly when it is listed at least twice. -/
 theorem mem_dupIds (rows : List Listed) (i : Nat) : i ∈ dupIds rows ↔ 2 ≤ (ids rows).count i := by
   unfold dupIds
   simp only [List.mem_filter, decide_eq_true_eq]
@@ -508,14 +485,13 @@ theorem mem_dupIds (rows : List Listed) (i : Nat) : i ∈ dupIds rows ↔ 2 ≤ 
   obtain ⟨s, hs, hid, _⟩ := dedupById_newest rows r hr
   exact hid ▸ List.mem_map_of_mem hs
 
-/-- The selected ids of kept rows are free of duplicates. -/
 theorem select_dedupById_nodup (w : Want) (rows : List Listed) : (select w (runs (dedupById rows))).Nodup := by
   apply List.Nodup.sublist _ (dedupById_nodup rows)
   unfold select runs ids
   have := (List.filter_sublist (p := wanted w) (l := (dedupById rows).map (·.run))).map (·.id)
   simpa [List.map_map, Function.comp_def] using this
 
-/-- An id is selected from the kept rows exactly when a wanted row of the list has it. -/
+/-- Assumes `OneRunPerId`, an INFERRED assumption about gh data. -/
 theorem mem_select_dedupById (w : Want) (rows : List Listed) (h1 : OneRunPerId rows) (i : Nat) :
     i ∈ select w (runs (dedupById rows)) ↔ ∃ r ∈ rows, wanted w r.run = true ∧ r.run.id = i := by
   unfold select runs
@@ -528,7 +504,6 @@ theorem mem_select_dedupById (w : Want) (rows : List Listed) (h1 : OneRunPerId r
     have heq : s.run = r.run := h1 s (mem_dedupById rows s hs) r hr hid
     exact ⟨s.run, ⟨⟨s, hs, rfl⟩, heq ▸ hw⟩, heq ▸ rfl⟩
 
-/-- A list free of duplicates, not empty, all of whose elements are `i`, is `[i]`. -/
 theorem eq_singleton (l : List Nat) (i : Nat) (hn : l.Nodup) (hall : ∀ j ∈ l, j = i) (hne : l ≠ []) : l = [i] := by
   match l, hn with
   | [], _ => exact absurd rfl hne
@@ -539,8 +514,7 @@ theorem eq_singleton (l : List Nat) (i : Nat) (hn : l.Nodup) (hall : ∀ j ∈ l
     have := (List.nodup_cons.mp hn).1
     exact absurd (by simp [ha, hb]) this
 
-/-- **Found on kept rows.** When every wanted row has id `i` and one exists, `selectOne` on the kept rows is `found i`, for
-either want (so `[a, a]` is `found a.id`). -/
+/-- Assumes `OneRunPerId`, an INFERRED assumption about gh data. -/
 theorem selectOne_dedupById_found (w : Want) (rows : List Listed) (i : Nat) (h1 : OneRunPerId rows)
     (hall : ∀ r ∈ rows, wanted w r.run = true → r.run.id = i) (hex : ∃ r ∈ rows, wanted w r.run = true) :
     selectOne w (runs (dedupById rows)) = .found i := by
@@ -556,7 +530,6 @@ theorem selectOne_dedupById_found (w : Want) (rows : List Listed) (i : Nat) (h1 
   | push s => simpa using selectOne_push s _ i [] hs
   | dispatch wf n => exact selectOne_dispatch_found wf n _ i hs
 
-/-- **One run listed twice.** A wanted row and its copy are `found` with the row's id (incident nonce 912416a6895d9222). -/
 theorem selectOne_dedupById_twice (w : Want) (a : Listed) (h : wanted w a.run = true) :
     selectOne w (runs (dedupById [a, a])) = .found a.run.id := by
   apply selectOne_dedupById_found w [a, a] a.run.id
@@ -568,7 +541,6 @@ theorem selectOne_dedupById_twice (w : Want) (a : Listed) (h : wanted w a.run = 
     rw [hr]
   · exact ⟨a, by simp, h⟩
 
-/-- An ambiguous dispatch result is the selected ids, two or more. -/
 theorem selectOne_dispatch_ambiguous_select (w n : String) (rows : List Run) (l : List Nat)
     (h : selectOne (.dispatch w n) rows = .ambiguous l) : select (.dispatch w n) rows = l ∧ 2 ≤ l.length := by
   cases hs : select (.dispatch w n) rows with
@@ -582,8 +554,6 @@ theorem selectOne_dispatch_ambiguous_select (w n : String) (rows : List Run) (l 
       subst h
       simp
 
-/-- **Ambiguous on id sets.** An ambiguous result on kept rows lists two or more ids, each once, and its id set is exactly
-the ids of the wanted rows of the list: it depends on which rows are listed, not on their order or copies. -/
 theorem selectOne_dedupById_ambiguous (w n : String) (rows : List Listed) (l : List Nat) (h1 : OneRunPerId rows)
     (h : selectOne (.dispatch w n) (runs (dedupById rows)) = .ambiguous l) :
     l.Nodup ∧ 2 ≤ l.length ∧ ∀ i, i ∈ l ↔ ∃ r ∈ rows, wanted (.dispatch w n) r.run = true ∧ r.run.id = i := by
@@ -591,8 +561,6 @@ theorem selectOne_dedupById_ambiguous (w n : String) (rows : List Listed) (l : L
   subst hs
   exact ⟨select_dedupById_nodup _ rows, hlen, mem_select_dedupById _ rows h1⟩
 
-/-- **Order and copies play no part.** Two lists with the same rows (any order, any copies): when one is ambiguous on kept
-rows, so is the other, with the same id set. -/
 theorem selectOne_dedupById_ambiguous_same (w n : String) (rows rows' : List Listed) (l : List Nat) (h1 : OneRunPerId rows)
     (h1' : OneRunPerId rows') (hsame : ∀ r, r ∈ rows ↔ r ∈ rows')
     (h : selectOne (.dispatch w n) (runs (dedupById rows)) = .ambiguous l) :
@@ -618,9 +586,6 @@ theorem selectOne_dedupById_ambiguous_same (w n : String) (rows rows' : List Lis
         exact absurd (ha.trans hb.symm) hab
       | cons y rest => exact selectOne_dispatch_ambiguous w n _ x y rest hl
 
-/-! ## Golden -/
-
-/-- The rows of a case. -/
 def rowJson (r : Row) : Json := Json.mkObj [("id", .num r.id), ("event", .str r.event), ("title", .str r.title)]
 
 /-- The JSON of a pick. -/
@@ -727,10 +692,8 @@ def oneJson : One → Json
   | .absent => Json.mkObj [("kind", "absent")]
   | .ambiguous ids => Json.mkObj [("kind", "ambiguous"), ("ids", .arr (ids.map fun (i : Nat) => (Json.num i : Json)).toArray)]
 
-/-- A listed run of the dedup cases. -/
 def lr (i : Nat) (e t sha : String) (at_ : Nat) : Listed := ⟨⟨i, e, t, sha⟩, at_⟩
 
-/-- Cases of `dedupById` then `selectOne`: (name, want, rows). -/
 def dedupCases : List (String × Want × List Listed) := [
   ("dedup: one dispatch listed twice is found", .dispatch "trajectory-probe" "abc12345",
     [lr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567" 1000, lr 9 "workflow_dispatch" (title "abc12345") "abcdef1234567" 1000]),
@@ -753,17 +716,14 @@ def dedupCases : List (String × Want × List Listed) := [
 #guard selectOne (.dispatch "trajectory-probe" "abc12345")
   (runs (dedupById [lr 9 "workflow_dispatch" (title "abc12345") "x" 1, lr 9 "workflow_dispatch" (title "abc12345") "x" 1])) = .found 9
 
-/-- The JSON of a listed run. -/
 def listedJson (r : Listed) : Json :=
   Json.mkObj [("id", .num r.run.id), ("event", .str r.run.event), ("title", .str r.run.title), ("sha", .str r.run.sha), ("updatedAt", .num r.updatedAt)]
 
-/-- One golden line of `dedupById`, `dupIds` and `selectOne` on the kept rows. -/
 def dedupLine (c : String × Want × List Listed) : Json :=
   Json.mkObj [("kind", "dedup"), ("name", .str c.1), ("want", wantJson c.2.1), ("rows", .arr (c.2.2.map listedJson).toArray),
     ("kept", .arr ((dedupById c.2.2).map listedJson).toArray), ("dups", .arr ((dupIds c.2.2).map fun (i : Nat) => (Json.num i : Json)).toArray),
     ("result", oneJson (selectOne c.2.1 (runs (dedupById c.2.2))))]
 
-/-- One golden line of `selectOne`. -/
 def oneLine (c : String × Want × List Run) : Json :=
   Json.mkObj [("kind", "one"), ("name", .str c.1), ("want", wantJson c.2.1),
     ("rows", .arr (c.2.2.map fun r => Json.mkObj [("id", .num r.id), ("event", .str r.event), ("title", .str r.title), ("sha", .str r.sha)]).toArray),
@@ -774,13 +734,11 @@ def caseLine (c : String × String × List Row) : Json :=
   Json.mkObj [("kind", "pick"), ("name", .str c.1), ("nonce", .str c.2.1), ("rows", .arr (c.2.2.map rowJson).toArray),
     ("title", .str (title c.2.1)), ("valid", .bool (validNonce c.2.1)), ("result", pickJson (pick c.2.1 c.2.2))]
 
-/-- The text of the golden file. -/
 def goldenText (_ : Unit := ()) : String := String.join (cases.map fun c => (caseLine c).compress ++ "\n") ++
   String.join (selectCases.map fun c => (selectLine c).compress ++ "\n") ++
   String.join (hintCases.map fun c => (hintLine c).compress ++ "\n") ++ String.join (oneCases.map fun c => (oneLine c).compress ++ "\n") ++
   String.join (dedupCases.map fun c => (dedupLine c).compress ++ "\n") ++ workflowsLine.compress ++ "\n"
 
-/-- Compare (or write) the golden file; returns the number of stale files. -/
 def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   let p := root / ".." / "packages" / "contracts" / "golden" / "ci" / "dispatch.jsonl"
   if write then

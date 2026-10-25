@@ -2,15 +2,15 @@
 - Branch: worktree-wf_e99eb6af-be6-1; CI branch ci/ci-run-dedup.
 - Worktree: .claude/worktrees/wf_e99eb6af-be6-1
 - Last pushed commit: 84409c951 (merge of main on top of 1edaf2819).
-- CI runs of that push: lean 40210501188 complete, success -> pass; the other workflows of the push are not used as evidence.
+- CI: lean 40210501188 succeeded. Other workflows of that push are not evidence.
 
 ## State
-- Lean `lean/Fw/Ci/Dispatch.lean`, section "One row per run": `Listed` (run + `updatedAt` ms), `keepNewest`, `dedupById`
-  (newest `updatedAt` per id, place of the first row, tie keeps the first), `dupIds`, `OneRunPerId`.
+- Lean `lean/Fw/Ci/Dispatch.lean`, section "One row per run": `Listed` (a run and its `updatedAt` in ms), `keepNewest`, `dedupById`
+  (keeps the newest `updatedAt` per id, at the position of the first row; on a tie it keeps the first), `dupIds`, `OneRunPerId`.
 - Theorems: `dedupById_nodup`, `mem_dedupById`, `dedupById_newest`, `dedupById_of_nodup`, `mem_dupIds`,
-  `select_dedupById_nodup`, `mem_select_dedupById`, `selectOne_dedupById_found`, `selectOne_dedupById_twice` ([a,a]),
-  `selectOne_dedupById_ambiguous` (id set = ids of the wanted rows), `selectOne_dedupById_ambiguous_same` (same rows in
-  any order or with copies: ambiguous again, same id set). No `selectOne_dup` reorder theorem: it is false (check.md item 8).
+  `select_dedupById_nodup`, `mem_select_dedupById`, `selectOne_dedupById_found`, `selectOne_dedupById_twice`,
+  `selectOne_dedupById_ambiguous`, `selectOne_dedupById_ambiguous_same`. No `selectOne_dup` reorder theorem (false, see
+  the investigation check, item 8).
 - Golden: `dedup` lines in packages/contracts/golden/ci/dispatch.jsonl (`lake test -- --write-ci-trigger-golden`).
 - TS: `dedupById`, `dupIds` in packages/gh-budget/src/want.ts; poller.ts dedups each list before writing the runs-status
   file and appends `{duplicateIds, listed, pagesRead, at}` to the state dir's incidents.jsonl when a tick lists an id twice.
@@ -23,4 +23,7 @@
 ## Open
 - Page-shift cause stays INFERRED until incidents.jsonl shows a `duplicateIds` line.
 - Refiling nav:clip-box from run 40196217959: lead.
-- docs/team/tools/ts-stand-ins.md not updated (outside writes); want.ts dedup is golden-checked.
+- docs/team/tools/ts-stand-ins.md is not updated with `dedupById`, `dupIds` (outside this task's writes); want.ts dedup is golden-checked. Next step: the lead adds them.
+
+## Read first
+lean/Fw/Ci/Dispatch.lean (section "One row per run"), packages/gh-budget/src/want.ts, packages/gh-budget/src/poller.ts.

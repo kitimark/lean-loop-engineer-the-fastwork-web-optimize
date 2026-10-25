@@ -30,7 +30,6 @@ function intervalAt(env: Env, now: number, state: Json): number | undefined {
   }
 }
 
-/** The row's `updatedAt` in epoch milliseconds, 0 when absent (Lean `Fw.Ci.Dispatch.Listed.updatedAt`). */
 export function updatedMs(r: Row): number {
   const t = Date.parse(r.updatedAt ?? "");
   return Number.isFinite(t) && t > 0 ? t : 0;
@@ -88,7 +87,7 @@ async function pollTick(env: Env, lockWaitMs: number): Promise<Poll> {
     writeStatus(env.dir, { rows: [], ...(readStatus(env.dir) ?? {}), at: now, stopped: res.reason, stoppedAt: now });
     return { wakeAt: now + 2, ticked: false, stopped: res.reason };
   }
-  if (res.code !== 0) return { wakeAt: now, ticked: true }; // observed by fwcore already; `next` answers with the backoff
+  if (res.code !== 0) return { wakeAt: now, ticked: true };
   let listed: Row[];
   try {
     const j: unknown = JSON.parse(res.stdout);

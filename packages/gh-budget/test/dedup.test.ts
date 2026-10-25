@@ -1,5 +1,3 @@
-// One row per run: the TS twin (src/want.ts dedupById, dupIds) equals Lean Fw.Ci.Dispatch on every `dedup` line of the golden,
-// and the poller applies it before any select (incident: `nonce 912416a6895d9222 matches several runs (40196217959, 40196217959)`).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";

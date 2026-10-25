@@ -1,6 +1,3 @@
-// Which run does a wait mean? TS twin of Lean Fw.Ci.Dispatch.wanted / select (lean/Fw/Ci/Dispatch.lean, task ci-push-probe-inputs),
-// replayed against the `select`, `one` and `dedup` lines of packages/contracts/golden/ci/dispatch.jsonl by test/want.test.ts. The decision is Lean's;
-// this file only mirrors it until a fwcore op exists (a TS stand-in).
 export type Want = { kind: "push"; sha: string } | { kind: "dispatch"; workflow: string; nonce: string };
 export type WRun = { id: number; event: string; title: string; sha: string };
 
@@ -43,8 +40,6 @@ export function selectOne(w: Want, rows: WRun[]): One {
   return { kind: "ambiguous", ids };
 }
 
-/** Lean `Fw.Ci.Dispatch.dedupById` (`keepNewest` folded over the rows): one row per id, the one with the newest `at`, at the
- *  place of the id's first row; a tie keeps the row already kept. */
 export function dedupById<T>(rows: readonly T[], id: (r: T) => number, at: (r: T) => number): T[] {
   const kept: T[] = [];
   const place = new Map<number, number>();
@@ -56,7 +51,6 @@ export function dedupById<T>(rows: readonly T[], id: (r: T) => number, at: (r: T
   return kept;
 }
 
-/** Lean `Fw.Ci.Dispatch.dupIds`: the ids listed more than once, each once, in the order of `dedupById`. */
 export function dupIds<T>(rows: readonly T[], id: (r: T) => number): number[] {
   const count = new Map<number, number>();
   for (const r of rows) count.set(id(r), (count.get(id(r)) ?? 0) + 1);
