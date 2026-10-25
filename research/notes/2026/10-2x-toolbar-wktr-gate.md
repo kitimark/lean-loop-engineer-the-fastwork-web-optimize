@@ -19,6 +19,21 @@
   observation of the flag's gesture decision; they show that the production machine, on the arms the engine produced,
   gives the Lean takes.
 
+## Negative control: the gap comes from the scroll-driven exemption (MEASURED, run 40231779387)
+
+The `compositable` arm is the same page as `default` plus one time-based `transform` animation (`translateX`, 400 ms,
+linear, infinite; `CONTROL_CSS` in `toolbar-page.mjs`), which runs on the compositor and has no scroll timeline. Lean
+decides it is not exempt: `controlPage` holds one non-progress-based accelerated animation, so `control_page_not_lifted`
+(`compositable_does_not_lift`) gives `throttled true controlPage`, and the golden row is `gateExempt compositable false`
+(`Fw.Parts.MorphMountToolbar` `compositable_throttled`; `exempt_only_unthrottle` now covers all five arms).
+
+Run 40231779387 (3 jobs, 2 passes per arm, 30 of 30 reports pass, `VERDICT toolbar-gate pass` in each job): the page reports
+one running animation on a `DocumentTimeline` in every `compositable` report, and the median wait after the first set is
+81-83 ms for all four throttled arms, `compositable` 82-83 ms (j1 82, 82; j2 82, 82; j3 83, 82), `unthrottle` 31-32 ms. So
+the 82 ms wait of `compositable` sits 32 ms above the 50 ms bound, on the throttled side, with the same extra content
+(an animated element) as `unthrottle` has (its scroll-timeline element). The 32 ms of `unthrottle` therefore comes from the
+progress-based main-thread scroll-driven animation, not from extra page content or from any running animation.
+
 ## What the gate forces
 
 The page calls the three hooks the way `UIHelper.beginInteractiveObscuredInsetsChange` / `setObscuredInsets` /
@@ -41,6 +56,7 @@ Viewport height 810, 800, 790, 780, 790, 800, 810, 820 (vh0 820; `setObscuredIns
 | touch-first | 11100 / 0111 | 11100 / 0000 | 81-83 ms |
 | open-once | 11100 / 0111 | 10000 / 0100 | 82-83 ms |
 | unthrottle | 11100 / 0111 | 11100 / 0111 | 32-33 ms |
+| compositable (control) | 11100 / 0111 | 11100 / 0111 | 82-83 ms |
 
 The exemption is a throttle effect, not a look effect. While an interactive obscured-insets change runs and no main-thread
 progress-based scroll-driven animation exists, WebKit holds the visible-rect update 100 ms (`WKWebViewIOS.mm:3256-3268@862f17d`).
@@ -50,8 +66,8 @@ the verdict at `liftedBelowMs = throttleMs / 2` (50 ms); the observed values sit
 slow runner would have to add 17 ms to the lifted wait to flip it. No run came near that.
 
 Lean statements (`lean/Fw/Parts/MorphMountToolbar.lean`): `plain_throttled`, `touchFirst_throttled`, `openOnce_throttled`,
-`unthrottle_exempt`, `exempt_only_unthrottle`, `gateGeom_iff`, `down_geoms`, `up_geoms`, and eight take theorems (one per
-flag and phase), `unthrottle_same_takes`.
+`unthrottle_exempt`, `compositable_throttled`, `control_page_not_lifted`, `exempt_only_unthrottle`, `gateGeom_iff`, `down_geoms`, `up_geoms`, and eight take theorems (one per
+flag and phase), `unthrottle_same_takes`, `compositable_same_takes`.
 
 ## Limits (accepted)
 
@@ -65,6 +81,7 @@ flag and phase), `unthrottle_same_takes`.
 
 ## TS stand-ins
 
+- The `control-anim` check in `gate.mjs` (the control page reports one running `DocumentTimeline` animation) has no Lean row; it checks the fixture, not a decision.
 - `liftedBy` (one comparison) in `packages/measure-wktr/src/gate.mjs`, checked against the `gateLifted` golden rows.
 - The page script and driver (`toolbar-page.mjs`, `toolbar-cli.mjs`) are glue: they report observations and hold no decision.
 - `ts-ext-hooks.mjs` is a loader hook that lets Node resolve the production TS imports that omit `.ts`.

@@ -1,9 +1,9 @@
 branch: worktree-wf_6c371da2-432-1 (CI branch ci/toolbar-wktr-control, pushed tip ca231bbba)
 worktree: .claude/worktrees/wf_6c371da2-432-1
 last commit: ca231bbba (see `git log -1` for later local commits)
-CI runs: wktr 40231779387 in_progress: j1 success (compositable wait 82.0 ms both passes, VERDICT toolbar-gate pass), j2 queued, j3 pending (push 1 of 2); lean 40231779472 success.
+CI runs: wktr 40231779387 complete, success (j1 j2 j3 each VERDICT toolbar-gate pass; compositable wait 82-83 ms, unthrottle 31-32 ms, bound 50 ms); lean 40231779472 success. Pushes used: 1 of 2.
 verified locally: lean build green, check.sh green at ca231bbba+handoff commits (main merge: already up to date), @fw/measure-wktr test 73 pass, ci-paths test 56 pass.
-open: wait for the wktr run (3 jobs serial, about 40 min incl. macos queue); fold run id, waits and the control paragraph into the note; merge main; check.sh; ci-paths test; runner land-inputs test; dry land; review ready.
+open: none. After merging main: check.sh green, @fw/runner test green, ci-paths test 56 pass; dry land and review ready last.
 
 State
 - Lean: Flag gets .compositable (not a production flag; Flag.all unchanged, Flag.arms = all ++ [compositable]); controlPage = one time-based accelerated animation; theorems control_page_not_lifted, compositable_throttled, compositable_down/up, compositable_same_takes; exempt_only_unthrottle now covers all five arms.
