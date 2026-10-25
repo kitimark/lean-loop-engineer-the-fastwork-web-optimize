@@ -21575,7 +21575,7 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "User 2026-10-25: measure variant compositions on the real iPhone to learn how flags combine. Same automated lanes and rules as phone-end-counts (counts with Timeline and paintArea and the layer census, frames at 800 px/s; blocks <= 15 min, cool >= 5 min; thermal and USB checks from phone-thermal-check). Lean first (lean/Fw/Device/PhoneCompose.lean, reusing Fw.Engine.Compose frameWork_append_units, passes_not_compositional, lego_swap_units and the coupled groups G1-G5 of report 4.5): (1) the arm plan: the combination of every flag that phone-end-counts judged a win or a memory-only cost, minus registry conflicts (apps/site/src/parts/*/part.json conflicts), then leave-one-out arms (the combination without each member), one coupled pair inside G2 (morph) and one inside G1 (hero threshold), and the base repeated at the start, middle and end; at most 12 visits; (2) the prediction per resource and zone: units add (sum of the single-flag deltas from phone-end-counts, and from resource-footprint when it has landed), pass-type counts and layers are not predicted to add; (3) the interaction verdict per resource: additive within the base spread, sub-additive or super-additive, each pair or leave-one-out decided on its own; a non-additive result is a finding with a mechanism and a Lean why. Commit only summaries; raw passes stay in .local/phone/."
+   "title": "User 2026-10-25: measure variant compositions on the real iPhone to learn how flags combine. Same automated lanes and rules as phone-end-counts (counts with Timeline and paintArea and the layer census, frames at 800 px/s; blocks <= 15 min, cool >= 5 min; thermal and USB checks from phone-thermal-check). Lean first (lean/Fw/Device/PhoneCompose.lean, reusing Fw.Engine.Compose frameWork_append_units, passes_not_compositional, lego_swap_units and the coupled groups G1-G5 of report 4.5): (1) the arm plan: the combination of every flag that phone-end-counts judged a win or a memory-only cost, minus registry conflicts (apps/site/src/parts/*/part.json conflicts), then leave-one-out arms (the combination without each member), one coupled pair inside G2 (morph) and one inside G1 (hero threshold), and the base repeated at the start, middle and end; at most 12 visits; (2) the prediction per resource and zone: units add (sum of the single-flag deltas from phone-end-counts, and from resource-footprint when it has landed), pass-type counts and layers are not predicted to add; (3) the interaction verdict per resource: additive within the base spread, sub-additive or super-additive, each pair or leave-one-out decided on its own; a non-additive result is a finding with a mechanism and a Lean why. Commit only summaries; raw passes stay in .local/phone/. Added 2026-10-25 (user, phone feel, cool phone): '?fw=nav:earn-logical,hero.countdown:strip,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle' felt smoother than original. Include this exact composition as an arm (against base and original, in the pinned-thermal mode), report its per-zone verdict and frames, and record the user's feel next to it (one person, felt, not measured)."
   },
   {
    "devices": [
@@ -21625,6 +21625,34 @@
     "docs/team/handoffs/phone-thermal-pin.md"
    ],
    "title": "User 2026-10-25: 'if it is unstable to test on Fair, we can set the thermal state to Serious for testing on every case; improve the tools to set the thermal state on testing.' MEASURED in phone-thermal-check: a 7-9 min visit takes the iPhone from Nominal to Serious (battery stays 33 C), and cooling back to Nominal takes about 8 min. Build a pinned-thermal session mode: the session declares a target thermal state (default Serious); the harness induces it before the first visit (method from the lead's research note scratchpad/thermal-pin/research.md + check.md: Xcode device conditions / instruments ConditionInducer, e.g. pymobiledevice3 developer dvt condition, installed with Homebrew if a formula exists, else ask the lead), reads the state back (xctrace Thermal State) before and after every visit, and runs a visit only when the observed state equals the target; real heat above the target (Critical) stops the block (Lean). Clear the induced condition at session end and on any failure (finally path), and record it in state.json. Lean first in Thermal.lean: target, observed, induced flags, verdicts go/wait/stop, theorems (no visit runs unless observed = target; a session never ends with an induced condition left set; Critical always stops), golden + TS twin test. One phone check: induce Serious, read it back, measure base twice, clear, read back; report whether an induced state also changes the engine (frame intervals and counts vs a real-Serious base from phone-thermal-check) and say plainly if induced Serious only changes the reported flag. phone-compose-counts runs in this mode."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-end-variants",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.marquee/**",
+    "lean/Fw/Parts/Platform*.lean",
+    "lean/Fw/Parts/Platform*/**",
+    "packages/contracts/golden/parts/platform*.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-platform-end-variants.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/platform-end-variants.md"
+   ],
+   "title": "User 2026-10-25: add the platform.* variants to the end-of-page work. Step 1 (measure before building): which platform parts do work at the end of the page. The section paint is already skipped once fully faded (opacity 0 for fade(m)=0, m >= 0.55; RenderLayer.cpp:3365-3376@862f17d), so platform parts cost only while the section is visible during the push. Attribute per finish zone and per push phase on CI (WebKit Simulator rewrite counts + census, Chromium swipe-touch-v1), base vs the existing un-measured variants: platform.sweep:offscreen-pause (partly-proved), platform.glint:offscreen-pause (negative result: re-check at the end of the page only), platform:fade-threaded on Chromium (WebKit no-win, Chromium unknown). platform:mq stays closed (negative). Step 2, only for parts step 1 shows doing work, same look, Lean first (premise, theorem, golden), each its own flag: (a) platform.sweep:layer-sweep — the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor transform with the identical pixels (or prove it impossible and record the negative result); (b) platform.glint:transform — SMIL x1/x2 on the 94x3.2 SVG gradient becomes a translate on a pre-rendered gradient, identical pixels; (c) platform.entries:contain — count-up and typing writes isolated with contain/fixed boxes so they do not lay out the section, identical layout. platform.marquee is already a transform keyframe (compositor), measure only. Each variant: breakpoint gate (both engines), counts per engine and zone, look check; a look change goes to the look-change class for the user's visual review. Negative results are findings (mechanism + Lean why)."
   }
  ],
  "deadline": {
