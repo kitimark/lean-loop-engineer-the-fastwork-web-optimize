@@ -91,3 +91,5 @@ The Lean theorems prove the column box is constant in the morph value. They do n
 - Check or generate the `--morph`-dependent property set from the CSS module (`morph.module.css`), so `variant_no_layout` and `layout_const` (`MorphColumnsScale.lean`, `variantMorphDeps`) can fail when the CSS changes; today the list `[.transform]` is hand-written and `layout_const` is `rfl` over a box constant by definition.
 - Breakpoint gate rule for visClass L variants (run 40156380619): the only failing items are column flex-basis, flex-grow, flex-shrink (560 Chromium, 545 WebKit), the intended `flex: none` at desk-319 to desk-1000; `pain-1440-600-1440` fails only at 600; rects and margins pass.
 - Per-subtree layout attribution with a Lean why for the missing Layout win.
+
+Land fix: the Lean gate scope (Fw.Gate.Scope, morph.columns) now carries mq.w-le-1000, and scope.gen.json is regenerated from Lean; the whole gate-breakpoints suite passes (778) and check.sh is green.

@@ -5,3 +5,4 @@ Open: no look-review step (no count win); follow-up for the lead: Lean-first gat
 
 - Flag: `morph.columns:final-scale` (visClass L), layout at final width up to 1000 px, transform scale(sx,1) from --morph. TS stand-in: resize effect in index.tsx (DOM glue).
 - Read first: research/notes/2026/10-2x-columns-final-scale.md.
+Land-fix round: Lean Scope.lean morph.columns rewrite + added carry mq.w-le-1000; scope.gen.json regenerated (scopegen --check ok); gate-breakpoints 778 pass; check.sh green. Run 40167627217 had only that failure. No push.
