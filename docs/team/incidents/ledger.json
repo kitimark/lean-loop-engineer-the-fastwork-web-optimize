@@ -4599,7 +4599,7 @@
    "fix": {
     "task": "ledger-note-key-local"
    },
-   "regression": "ledger-note-key-local: Lean onePerKey / dupKeys (onePerKey_iff, onePerKey_false, mem_dupKeys, onePerKey_merge, onePerKey_tasks_merge in lean/Fw/Ops/LedgerMerge.lean), golden packages/contracts/golden/ops/ledger-note-key.jsonl with both refused trees, replayed by apps/runner/test/ledger-merge.test.ts; fw land --dry refuses VERDICT lint with 'REFUSED: ledger-note-key: ...' naming each repeated key (apps/runner/test/land-dry.test.ts). The remote ledger-merge.test.ts stays as the second line.",
+   "regression": "ledger-note-key-local: Lean onePerKey / dupKeys (onePerKey_iff, onePerKey_false, mem_dupKeys, onePerKey_merge, onePerKey_tasks_merge in lean/Fw/Ops/LedgerMerge.lean), golden packages/contracts/golden/ops/ledger-note-key.jsonl with both refused cases (excerpts of the trees before 9f59cf85a and fe854965f), replayed by apps/runner/test/ledger-merge.test.ts; fw land --dry refuses VERDICT lint with 'REFUSED: ledger-note-key: ...' naming each repeated key (apps/runner/test/land-dry.test.ts). The remote ledger-merge.test.ts stays as the second line.",
    "mistakeClass": "c-late-check",
    "leanVerdict": "provable",
    "leanReason": "Whether a notes array holds at most one note per (entry, task) is a pure function of the array; that passing branches merge with no clash is distinct_notes_merge.",
