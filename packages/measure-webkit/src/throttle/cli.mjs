@@ -5,8 +5,6 @@
 //   ?fw=engine.scroll:throttle-lift; unthrottle = the rewrite with ?fw=engine.scroll:unthrottle; unthrottle-follow = ?fw=engine.scroll:unthrottle-follow
 //   --mode finish: the page is scrolled to 300 px above its end, then real drags past the end open the morph panel and back (finish zone
 //   counts, scrollY reversals while open, open lateness; --drag 480 --velocity 150 by default).
-//   Each pass runs under the Lean machine (pass-run.mjs): --timeout and --reset are accepted for the morph-end lane and ignored, the stall watch
-//   sizes the touch run and a failed pass restarts the Simulator once.
 //   --rotate n rotates the first round's arm order by n (the workflow passes the job number - 1, so jobs start on different arms).
 // node src/throttle/cli.mjs build-driver --dir d  build the touch driver once, before the Simulator boots (run --driver d uses it)
 // node src/throttle/cli.mjs report --in a.json,b.json [--md file]   the still-run table and the verdict per job and pooled
@@ -68,14 +66,10 @@ async function main() {
       const file = resolve(v.out ?? 'out/throttle.json');
       const outDir = dirname(file);
       mkdirSync(outDir, { recursive: true });
-      // written after every pass: a stalled job still reports the passes it finished
       const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed, machine }) + '\n');
       const { warmUp, runArm } = makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
         firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf, reasonOf, state: { passes, failed, machine }, save });
       try {
-        // The first session on a fresh Simulator drops its openurl and asks again, and the first XCUITest run relaunches Safari: both
-        // reload the page after the recorder started (the first measured pass was lost that way in 4 of 6 CI jobs). One warm-up
-        // session loads the page and runs one touch cycle, unrecorded, before the arms.
         if (!v['no-warmup']) await warmUp('warm-up');
         for (let round = 0; round < Number(v.rounds); round++) {
           for (const arm of rotate(arms, round + Number(v.rotate))) await runArm(arm, round);

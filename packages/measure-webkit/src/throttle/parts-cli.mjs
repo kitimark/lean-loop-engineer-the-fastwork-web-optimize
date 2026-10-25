@@ -50,7 +50,6 @@ async function run(v) {
   const file = resolve(v.out ?? 'out/throttle-parts.json');
   mkdirSync(dirname(file), { recursive: true });
   const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, mode: v.mode, drag, passes, failed, machine }) + '\n');
-  // Each pass runs under the Lean machine of Fw.Device.SimTouch (probe, touches, one Simulator restart and one more try): pass-run.mjs
   const { warmUp, runArm } = makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir: dirname(file), siteOf,
     firstSiteArm: arms.find((a) => a !== 'original') ?? 'original', warmMode: 'drags', state: { passes, failed, machine }, save,
     passOf: (ctx, o) => partsPass(ctx, { ...o, mode: v.mode }), reasonOf: (p) => (p.skipped ? null : excludeReason(p)) });

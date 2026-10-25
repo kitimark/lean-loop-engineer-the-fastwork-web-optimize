@@ -35,11 +35,6 @@ export function ports(env = process.env) {
   return p;
 }
 
-/**
- * One blocking child call ends within this many ms, whatever the scaled timeout asks: a blocked event loop starves the stall guard
- * (watchdog.mjs, 300 s without output), which killed morph-end-measure sim 4 after one 604 s openurl. A longer wait is several
- * calls of the retry policy, each telling the log when it asks again.
- */
 export const SYNC_CAP_MS = 200000;
 
 function run(cmd, args, { timeoutMs = 120000 } = {}) {
@@ -59,7 +54,6 @@ export const simctlRetry = (args, opts, { max = 3, log = () => {} } = {}) => wit
 });
 const tail = (r) => (r.error ? r.error.code || r.error.message : (r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | '));
 
-/** [{udid, name, state, runtime}] for every available simulator device. */
 export function listDevices() {
   const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: 60000 }, { max: 3, log: (l) => process.stderr.write(`${l}\n`) });
   if (r.status !== 0) throw new Error(`simctl list devices failed: ${tail(r)}`);

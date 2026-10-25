@@ -1,7 +1,3 @@
-// The real-touch driver of the toolbar-throttle probe (I/O glue): builds the XCUITest bundle in driver/ once (xcodegen, then
-// xcodebuild build-for-testing in a temp dir; nothing is written into the repository) and runs its drag test against the booted
-// Simulator, which swipes in Mobile Safari with real touches. Every child runs in its own process group and is stopped by `stop`.
-// The readiness probe, the stall watch and the one-restart-per-pass machine are the TS twin of lean/Fw/Device/SimTouch.lean (task sim-touch-timeout).
 import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -75,34 +71,24 @@ export async function buildDriver({ udid, dir: given, log = () => {}, timeoutMs 
   return findDriver(dir);
 }
 
-/** The XCUITest method of each drag mode in DragTests.swift: the hero exit drags, or the drags past the page end. */
 export const DRAG_TESTS = Object.freeze({ drags: 'testDrags', finish: 'testFinish' });
 
-// ---- the readiness / watchdog / retry machine: the TS twin of lean/Fw/Device/SimTouch.lean (golden device/sim-touch.jsonl) ----
-
-/** The constants of Fw.Device.SimTouch (seconds unless named otherwise). */
 export const SIM_TOUCH = Object.freeze({ probeTries: 6, probeGapS: 10, probeBudgetS: 60, startS: 300, gapS: 120, capBaseS: 300, capPressS: 45,
   pollS: 5, restartS: 600, stepLimitS: 5400, typicalPassS: 420, passEvents: 5 });
 
-/** Presses of a pass: a hero-exit cycle is two presses, a finish cycle three. */
 export const presses = (mode, cycles) => (mode === 'finish' ? 3 : 2) * cycles;
-/** Hard cap in seconds on one touch run of `n` presses. */
 export const capS = (n) => SIM_TOUCH.capBaseS + n * SIM_TOUCH.capPressS;
-/** The stall rule: 'ok' | 'startup' | 'press' | 'cap' after `elapsed` s with `marks` marks seen (started plus one per press), the last `since` s ago. */
 export function stall(n, elapsed, marks, since) {
   if (capS(n) <= elapsed) return 'cap';
   if (marks === 0) return SIM_TOUCH.startS <= elapsed ? 'startup' : 'ok';
-  if (marks >= n + 1) return 'ok'; // started and every press marked: the tear-down writes no mark, only the cap applies
+  if (marks >= n + 1) return 'ok';
   return SIM_TOUCH.gapS <= since ? 'press' : 'ok';
 }
-/** The Simulator is booted, the Safari page answers and the driver is built. */
 export const ready = (sim, page, driver) => Boolean(sim && page && driver);
 
-/** A pass before its first probe. Phases: probing | touching | restarting | done | failed:<notReady|touchesFailed|restartFailed|protocol>. */
 export const initPass = () => ({ phase: 'probing', attempt: 1, restarts: 0 });
 export const terminal = (s) => s.phase === 'done' || s.phase.startsWith('failed:');
 const lose = (s, f) => (s.restarts === 0 ? { phase: 'restarting', attempt: s.attempt, restarts: 1 } : { phase: `failed:${f}`, attempt: s.attempt, restarts: s.restarts });
-/** One event of a pass (readyYes | readyNo | touchesOk | touchesFail | restartOk | restartFail). */
 export function step(s, e) {
   if (terminal(s)) return s;
   const keep = (phase) => ({ phase, attempt: s.attempt, restarts: s.restarts });
@@ -114,14 +100,12 @@ export function step(s, e) {
   if (s.phase === 'restarting' && e === 'restartFail') return keep('failed:restartFailed');
   return keep('failed:protocol');
 }
-/** A pass after a list of events, and how many of them it consumed. */
 export function exec(s, events) {
   let used = 0;
   for (const e of events) { if (terminal(s)) break; s = step(s, e); used++; }
   return { state: s, used };
 }
 
-/** The stall watch of one touch run: feed it the seconds elapsed and the mark names seen; it keeps when each mark was first seen. */
 export function touchWatch(n) {
   const seen = [];
   let last = 0;
@@ -134,12 +118,10 @@ export function touchWatch(n) {
   };
 }
 
-/** Raised by dragPass when the readiness probe never says yes; no touch run was started. */
 export class NotReadyError extends Error {
   constructor(probe) { super(`not ready after ${probe.tries} probes (sim ${probe.sim}, page ${probe.page}, driver ${probe.driver})`); this.probe = probe; }
 }
 
-/** Probe up to `tries` times, `gapS` apart, until the Simulator, the page and the driver are all ready. `checks` return booleans (a throw counts as false). */
 export async function probeLoop(checks, { tries = SIM_TOUCH.probeTries, gapS = SIM_TOUCH.probeGapS, nap = sleep, log = () => {} } = {}) {
   const t0 = Date.now();
   const seen = { sim: false, page: false, driver: false };
@@ -153,12 +135,10 @@ export async function probeLoop(checks, { tries = SIM_TOUCH.probeTries, gapS = S
   return { ready: false, tries, waitedS: Math.round((Date.now() - t0) / 1000), ...seen };
 }
 
-// hooks the CLI sets per session: `page` (async, true when the open Safari page answers), `capOnceS` (debug: a cap for the next measured touch run)
 const hooks = { page: null, capOnceS: null };
 let lastTouchRec = null;
 const runsOfTag = new Map();
 export const setTouchHooks = (h) => Object.assign(hooks, h);
-/** The record of the latest dragPass call (ready probe, marks, elapsed, stall verdict, log file), or null. */
 export const lastTouch = () => lastTouchRec;
 export const resetTouch = () => { lastTouchRec = null; };
 
@@ -201,7 +181,6 @@ export async function dragPass(driver, { udid, cycles = 4, dragPt = 360, velocit
     if (w.seen.length > before) log(`${passTag}: ${w.seen.slice(before).map((m) => m.name).join(', ')} at ${elapsedS} s`);
     return v === 'ok' ? null : v;
   };
-  // the driver's output goes to its log file, so this line is what the stall guard of the CLI sees while the touches run
   const t0 = Date.now();
   const beat = setInterval(() => log(`${passTag}: touches running, ${Math.round((Date.now() - t0) / 1000)} s, ${w.seen.length} marks`), 30000);
   const destSecs = Math.min(120, Math.round(30 * timeoutScale()));

@@ -1,4 +1,3 @@
-// The touch-driver readiness / watchdog / retry machine against the Lean golden (Fw.Device.SimTouch, packages/contracts/golden/device/sim-touch.jsonl).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -55,7 +54,6 @@ test('a pass ends within passEvents events and restarts at most once, over every
       const { state } = exec(initPass(), s);
       assert.ok(state.restarts <= 1 && state.attempt <= 2, s.join());
       if (len === SIM_TOUCH.passEvents) assert.ok(terminal(state), s.join());
-      // a touching step is reached only by readyYes from probing; attempt 2 only after restartOk
       let st = initPass();
       for (const e of s) {
         const nx = step(st, e);
