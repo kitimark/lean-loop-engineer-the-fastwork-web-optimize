@@ -21209,16 +21209,13 @@
    "id": "init-cost-depth",
    "owner": "lean-prover",
    "stream": "tooling",
-   "deps": [
-    "sim-touch-timeout"
-   ],
+   "deps": [],
    "writes": [
     "lean/scripts/InitCostLint.lean",
-    "lean/Fw/Device/SimTouch.lean",
     "research/notes/2026/10-2x-init-cost-depth.md",
     "docs/team/handoffs/init-cost-depth.md"
    ],
-   "title": "Found by sim-touch-timeout (2026-10-25): the init-cost lint (lean/scripts/InitCostLint.lean) fails with maximum recursion depth near 1640 start-time constants and main has 1632, so any task adding about 12 constants fails it (sim-touch-timeout worked around it by giving its twelve Nat constants in SimTouch.lean a Unit default argument). Do: find where the lint recurses per constant (cite file:line), make it iterate or raise maxRecDepth with a measured margin (the builder's tested fix: set_option maxRecDepth 100000 in that script; say why that is safe and what it costs in time), add a regression check that the lint runs with at least 4x today's constant count, then drop the Unit-argument workaround in SimTouch.lean if the plain constants now pass."
+   "title": "Found by sim-touch-timeout (2026-10-25): the init-cost lint (lean/scripts/InitCostLint.lean) fails with maximum recursion depth near 1640 start-time constants and main has 1632, so any task adding about 12 constants fails it (sim-touch-timeout worked around it by giving its twelve Nat constants in SimTouch.lean a Unit default argument). Do: find where the lint recurses per constant (cite file:line), make it iterate or raise maxRecDepth with a measured margin (the builder's tested fix: set_option maxRecDepth 100000 in that script; say why that is safe and what it costs in time), add a regression check that the lint runs with at least 4x today's constant count, (the Unit-argument workaround in SimTouch.lean is dropped later by its owner, not here). Urgent: it already blocks columns-final-scale (lean run 40153993443 on ci/columns-final-scale: InitCostLint.lean:6 maximum recursion depth)."
   }
  ],
  "deadline": {
