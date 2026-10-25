@@ -89,7 +89,7 @@ export function armTable(windowsPerRun, half = 'open') {
 
 /** `chromium-counts-<arm>-<run>` -> {arm, run}; the arm is original, rewrite or f1..f4 (the armmap names the flags). */
 export function armOf(dirName) {
-  const m = /^chromium-counts-(.+)-(\d+)$/.exec(dirName);
+  const m = /^chromium-counts-(.+)-r?(\d+)$/.exec(dirName);
   return m ? { arm: m[1], run: Number(m[2]) } : null;
 }
 

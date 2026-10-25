@@ -68,6 +68,7 @@ test('a later cycle is `more` than the first only when its whole spread lies abo
 test('artifact directory names and the markdown table', () => {
   assert.deepEqual(armOf('chromium-counts-f2-3'), { arm: 'f2', run: 3 });
   assert.deepEqual(armOf('chromium-counts-original-1'), { arm: 'original', run: 1 });
+  assert.deepEqual(armOf('chromium-counts-f1-r3'), { arm: 'f1', run: 3 });
   assert.equal(armOf('offscreen-trace-f1-1'), null);
   const plan = planOf(golden, 1000);
   const arms = new Map([['rewrite', [0, 1, 2].map((e) => ({ label: `rewrite-${e}`, counts: counts(plan, 8, e) }))]]);
