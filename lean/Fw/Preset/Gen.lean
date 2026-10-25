@@ -66,8 +66,8 @@ def curated : List (Flag × String) :=
     "ledger n = 15: a trade on Chromium and no win on WebKit (INFERRED); a follow-up makes the generator require an \
       engine-win field"),
    (⟨"morph.panel", "rest"⟩,
-    "ledger n = 11: a trade on Chromium (cr_toggle_not_le) and a WebKit win on rest frames only (wk_rest_claim); stays out \
-      of the arm until the per-engine counts of task panel-rest-n11 decide (INFERRED)")]
+    "ledger n = 11: a trade on Chromium (MEASURED, runs 40174480097 / 40174482844: PrePaint, invalidation and RasterTask \
+      cost); WebKit saves memory but Paint rises on rest frames (raw, runs 40174475566 / 40174472900); curated exclusion")]
 
 def reasonOf (f : Flag) : Option String := (curated.find? (·.1 == f)).map (·.2)
 
