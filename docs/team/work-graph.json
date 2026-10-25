@@ -21174,7 +21174,8 @@
     "research/notes/2026/10-2x-ledger-note-key-local.md",
     "docs/team/handoffs/ledger-note-key-local.md"
    ],
-   "title": "Incident (twice on 2026-10-24/25: combo-scroll-fight, commission-band-mech): a builder wrote more than one ledger note per (entry, task) and only the remote land lane's ledger-merge.test.ts refused it, after a full CI land. Do, Lean first: state the one-note-per-(entry, task) rule as a decision in lean/Fw/Ops/LedgerMerge.lean beside distinct_notes_merge (a theorem that a branch passing it never clashes in merge), run it in the local tier of fw land --dry (and so in fw review ready) with a named VERDICT/detail line pointing at the duplicate key, a golden from Lean replayed by a runner test with both refused cases from this incident, and an incident row in docs/team/incidents/ledger.json (no n). If the build-review preamble should name the rule, list that .claude edit in open for the lead."
+   "title": "Incident (twice on 2026-10-24/25: combo-scroll-fight, commission-band-mech): a builder wrote more than one ledger note per (entry, task) and only the remote land lane's ledger-merge.test.ts refused it, after a full CI land. Do, Lean first: state the one-note-per-(entry, task) rule as a decision in lean/Fw/Ops/LedgerMerge.lean beside distinct_notes_merge (a theorem that a branch passing it never clashes in merge), run it in the local tier of fw land --dry (and so in fw review ready) with a named VERDICT/detail line pointing at the duplicate key, a golden from Lean replayed by a runner test with both refused cases from this incident, and an incident row in docs/team/incidents/ledger.json (no n). If the build-review preamble should name the rule, list that .claude edit in open for the lead.",
+   "evidence": "9482b75"
   }
  ],
  "deadline": {
