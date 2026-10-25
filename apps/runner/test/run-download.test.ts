@@ -1,7 +1,3 @@
-// `fw run` downloads only what the store keeps, one `gh run download --pattern` per piece, each with the timeout and charge
-// fwcore's `store.download` gives it (lean/Fw/Store/Ci.lean `downloadPieces`; golden packages/contracts/golden/store/download.jsonl).
-// A piece that times out is tried once more, charged `retryCost`. The failure this guards: on 2026-10-25 a download of the
-// whole run (210 to 400 MB) hit the 40 s default and five runs were not filed (research/notes/2026/10-2x-fw-run-download.md).
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -82,7 +78,6 @@ describe.skipIf(!hasCore)("the download pieces of fw run", () => {
     const afterFirst = charge().length;
     await gh(["run", "download", "1", "-D", dir(), "--pattern", "webkit-sim-r1"], { timeoutMs: 40000, cost: 1 });
     const state = loadState(env.dir) as { ledger: { cost: number; charged: boolean }[] };
-    // one ledger entry per reservation (2 then 1): the served response of the first call is not booked a second time
     expect(afterFirst - base).toBe(1);
     expect(state.ledger.length - base).toBe(2);
     expect(state.ledger.slice(base).map((e) => [e.cost, e.charged])).toEqual([[2, true], [1, true]]);

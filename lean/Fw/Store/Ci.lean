@@ -448,21 +448,6 @@ private def exGot : Got :=
 #guard (ciRun exRun (some { exGot with artifacts := exGot.artifacts.set 0 { exFact "chromium-counts-original-r1" "" with target := some "rewrite" } })).refusals ==
   ["original shards disagree on profile, query, target or image"]
 
-/-! ## The download of a run that `fw run` files
-
-`gh run download <id>` without a pattern fetches every artifact of the run, the build outputs included (`chromium-image`
-209 MB, `fwcore` 158 MB, `site-dist` 27 MB; MEASURED 2026-10-25, runs 40153927556, 40153920231, 40156382719: 400 MB, 92 s,
-423 s, 122 s). The WebKit run 40153925235 had 210 MB and died at the 40 s bound. Nothing reads those outputs from the store
-(they are rebuilt from the commit), so the download fetches only the files the store keeps, one `Piece` per artifact,
-each with a timeout sized from its own byte bound. -/
-
-/-- The sizes of the download rule, in one record (one start-time constant, not seven: `Fw.Lint.InitCost` counts them).
-`maxHoldMs` is the longest a charged gh call may hold the budget lock, `Fw.Obs.Timing.defaultCallTimeoutMs` (the runner
-test checks the two equal). `baseMs` is the time a piece gets before any byte moves (the listing and the redirect),
-`msPerKb` the time per kilobyte (2 ms is 0.5 MB/s, half the slowest rate measured, 0.95 MB/s on run 40153920231), `cost`
-the requests one piece is charged (the listing and the redirect to blob storage). The `*Kb` fields bound the bytes of
-a chromium-counts shard (largest seen 1844 KB), of `chromium-classes` and `telemetry-*` (seen 40 and 36 KB) and of a
-webkit-sim VM (largest seen 11856 KB). -/
 structure DlRule where
   maxHoldMs : Nat
   baseMs : Nat
@@ -472,11 +457,9 @@ structure DlRule where
   smallKb : Nat
   simKb : Nat
 
-/-- The download rule. -/
 def dlRule : DlRule :=
   { maxHoldMs := 40000, baseMs := 15000, msPerKb := 2, cost := 2, countsKb := 2000, smallKb := 100, simKb := 12500 }
 
-/-- One download call: a `gh run download --pattern` glob, the bound on its bytes, its timeout and its charge. -/
 structure Piece where
   pattern : String
   kb : Nat
@@ -484,15 +467,11 @@ structure Piece where
   cost : Nat
 deriving Repr, DecidableEq
 
-/-- A piece of at most `kb` kilobytes. -/
 def piece (pattern : String) (kb : Nat) : Piece :=
   { pattern, kb, timeoutMs := dlRule.baseMs + dlRule.msPerKb * kb, cost := dlRule.cost }
 
-/-- The repetition numbers `1` .. `n`, as digits. -/
 def reps (n : Nat) : List String := (List.range n).map fun i => toString (i + 1)
 
-/-- What `fw run` downloads for a run of `n` repetitions (chromium: of `target`; webkit: `n` VMs): the shard artifacts, then
-the class directories (chromium only) and the telemetry. Build outputs are not in the list. -/
 def downloadPieces (e : Engine) (t : Target) (n : Nat) : List Piece :=
   match e with
   | .chromium => (reps n).map (fun r => piece ("chromium-counts-" ++ t.name ++ "-r" ++ r) dlRule.countsKb) ++
@@ -500,11 +479,8 @@ def downloadPieces (e : Engine) (t : Target) (n : Nat) : List Piece :=
   | .webkit => (reps n).map (fun r => piece ("webkit-sim-" ++ (if t = .original then "v" else "r") ++ r) dlRule.simKb) ++
       (if t = .original then [piece "webkit-classes" dlRule.smallKb] else []) ++ [piece "telemetry-*" dlRule.smallKb]
 
-/-- Charge of the one retry of a piece that timed out: its full charge when no response of the first attempt was seen, one
-request (the listing again) when `served` responses arrived, since the first attempt's charge already covers the redirect. -/
 def retryCost (c served : Nat) : Nat := if served = 0 then c else 1
 
-/-- **Every piece fits the lock hold bound**, so a download never keeps the budget lock longer than a listing does. -/
 theorem piece_fits_hold (e : Engine) (t : Target) (n : Nat) :
     ∀ p ∈ downloadPieces e t n, p.timeoutMs ≤ dlRule.maxHoldMs := by
   intro p hp
@@ -512,11 +488,8 @@ theorem piece_fits_hold (e : Engine) (t : Target) (n : Nat) :
     rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp [piece, dlRule]
 theorem piece_fits_hold_webkit_tight : (piece "x" dlRule.simKb).timeoutMs = dlRule.maxHoldMs := by decide
 
-/-- **A timeout is sized from the bytes:** a piece takes `dlRule.baseMs` plus `dlRule.msPerKb` per kilobyte. -/
 theorem piece_timeout (pattern : String) (kb : Nat) : (piece pattern kb).timeoutMs = dlRule.baseMs + dlRule.msPerKb * kb := rfl
 
-/-- **The shard artifacts are all downloaded:** the artifact of each shard `⟨t, r<k>⟩` of a run of `n` repetitions
-(`Shard.artifact`) is the pattern of a piece. -/
 theorem shard_downloaded (t : Target) (n : Nat) (i : Nat) (hi : i < n) :
     (Shard.artifact ⟨t, toString (i + 1)⟩) ∈ (downloadPieces .chromium t n).map (·.pattern) := by
   simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
@@ -524,8 +497,6 @@ theorem shard_downloaded (t : Target) (n : Nat) (i : Nat) (hi : i < n) :
   simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
   exact ⟨i, hi, rfl⟩
 
-/-- **The original WebKit VMs are all downloaded:** the artifact `webkit-sim-<vm>` of the original cell of VM `i + 1`
-(`SimPlan.origCell`, vm `v<i+1>`) is the pattern of a piece of an original run. -/
 theorem webkit_original_downloaded (sha : String) (n i : Nat) (hi : i < n) :
     ("webkit-sim-" ++ (Measure.SimPlan.origCell sha (i + 1)).vm) ∈ (downloadPieces .webkit .original n).map (·.pattern) := by
   simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
@@ -533,7 +504,6 @@ theorem webkit_original_downloaded (sha : String) (n i : Nat) (hi : i < n) :
   simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
   exact ⟨i, hi, by simp [piece, Measure.SimPlan.origCell]; rw [← String.append_assoc]; rfl⟩
 
-/-- **The rewrite WebKit VMs are all downloaded:** the same for the rewrite cell (`SimPlan.rewCell`, vm `r<i+1>`). -/
 theorem webkit_rewrite_downloaded (sha q : String) (n i : Nat) (hi : i < n) :
     ("webkit-sim-" ++ (Measure.SimPlan.rewCell sha q (i + 1)).vm) ∈ (downloadPieces .webkit .rewrite n).map (·.pattern) := by
   simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
@@ -541,12 +511,10 @@ theorem webkit_rewrite_downloaded (sha q : String) (n i : Nat) (hi : i < n) :
   left; left
   exact ⟨i, hi, by simp [piece, Measure.SimPlan.rewCell]; rw [← String.append_assoc]; rfl⟩
 
-/-- **The original WebKit run's class directories are downloaded.** -/
 theorem webkit_original_classes (n : Nat) :
     "webkit-classes" ∈ (downloadPieces .webkit .original n).map (·.pattern) := by
   simp [downloadPieces, piece]
 
-/-- **No build output is downloaded:** the three big artifacts of a run are not a piece. -/
 theorem build_outputs_skipped (e : Engine) (t : Target) (n : Nat) :
     ∀ p ∈ downloadPieces e t n, p.pattern ≠ "chromium-image" ∧ p.pattern ≠ "fwcore" ∧ p.pattern ≠ "site-dist" := by
   intro p hp
@@ -554,7 +522,6 @@ theorem build_outputs_skipped (e : Engine) (t : Target) (n : Nat) :
     rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp only [piece] <;>
     refine ⟨?_, ?_, ?_⟩ <;> intro h <;> first | (have := congrArg (fun s => s.toList.take 10) h; simp [String.toList_append] at this) | (revert h; decide)
 
-/-- **A retry is never charged more than the call:** one request after a response was seen, the full charge before. -/
 theorem retryCost_le (c served : Nat) (h : 1 ≤ c) : retryCost c served ≤ c := by
   unfold retryCost; split <;> omega
 

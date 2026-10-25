@@ -15,7 +15,7 @@ topics: [tooling, ci, store, gh-budget, timeouts]
   default `GH_BOUNDS.defaultCallTimeoutMs` (`packages/gh-budget/src/charged.ts:42`, killed at `:63`, message `:68`), generated
   from `defaultCallTimeoutMs := 40000` (`lean/Fw/Obs/Timing.lean:1660`). CONFIRMED (source).
 - Cause: `fw run` called `gh run download <id> -D dir` with no pattern, which fetches every artifact of the run, the build outputs
-  included. MEASURED below: a chromium run is 400 MB, a 3-VM WebKit run about 210 MB; only 5 to 25 MB of that is measurement.
+  included. MEASURED: a chromium run is 400 MB, a 3-VM WebKit run about 210 MB; only 5 to 25 MB of that is measurement.
 - The 40 s also cannot simply be raised: the call holds the gh-budget lock while it runs (`charged.ts:51-70`), and
   `hung_holder_fits` (`Timing.lean`) proves a holder is killed before a dispatch's 60 s lock wait ends.
 - Fix (Lean first, `Fw.Store.downloadPieces`, op `store.download`): download one piece per kept artifact, each with timeout

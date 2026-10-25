@@ -159,7 +159,6 @@ def opObjectPath (req : Json) : Except String Reply := do
   if !isHex 64 d then throw "digest must be 64 lowercase hex digits"
   pure [("path", .str (objectPath d))]
 
-/-- `store.download`: the pieces `fw run` downloads and the retry charge. -/
 def opDownload (req : Json) : Except String Reply := do
   let en ← str req "engine"
   let e ← match Engine.ofName en with
@@ -180,7 +179,6 @@ def opDownload (req : Json) : Except String Reply := do
           Json.mkObj [("pattern", .str p.pattern), ("kb", toJson p.kb), ("timeoutMs", toJson p.timeoutMs), ("cost", toJson p.cost)])),
         ("retryCost", toJson (retryCost dlRule.cost served)), ("maxHoldMs", toJson dlRule.maxHoldMs)]
 
-/-- Encode a class. -/
 def classJ : Class → Json
   | .deterministic => Json.mkObj [("class", .str "deterministic")]
   | .stable k t => Json.mkObj [("class", .str "stable"), ("k", toJson k), ("t", toJson t)]
@@ -269,7 +267,6 @@ theorem webkit_vms_accepted {q : Request} (h : reqProblems q = []) (hw : Engine.
 
 def ops : List String := ["store.plan", "store.gate", "store.trajectory", "store.manifest", "store.objectPath", "store.reduce", "store.ciRun", "store.download"]
 
-/-- Dispatch a `store.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "store.plan" => some (opPlan req)

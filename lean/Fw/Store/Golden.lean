@@ -165,7 +165,6 @@ def ciRunCases : List (String × String × Json) := [
    lit s!"\{\"run\":{ciRunJ "" "[{\"name\":\"counts (rewrite, r1)\",\"conclusion\":\"success\"}]"},\"artifacts\":[{fact "chromium-counts-rewrite-r1" "?fw=hero.countdown:strip"}],\"classes\":[\"rewrite\"]}"),
   ("a request without run is refused", "store.ciRun", lit "{\"artifacts\":[]}")]
 
-/-- The `store.download` cases. -/
 def downloadCases : List (String × String × Json) := [
   ("a 3-VM webkit run: one piece per VM at the 40 s lock bound, then the telemetry", "store.download",
    lit "{\"engine\":\"webkit\",\"runs\":3}"),
@@ -179,7 +178,6 @@ def downloadCases : List (String × String × Json) := [
   ("an unknown engine is refused", "store.download", lit "{\"engine\":\"gecko\",\"runs\":1}"),
   ("runs 0 is refused", "store.download", lit "{\"engine\":\"chromium\",\"runs\":0}")]
 
-/-- The files: (file stem, cases). -/
 def files : List (String × List (String × String × Json)) :=
   [("plan", planCases), ("gate", gateCases), ("trajectory", trajectoryCases),("manifest", manifestCases), ("objectPath", pathCases), ("reduce", reduceCases), ("ciRun", ciRunCases), ("download", downloadCases)]
 

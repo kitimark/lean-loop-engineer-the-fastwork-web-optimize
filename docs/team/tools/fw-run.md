@@ -3,7 +3,7 @@
 `pnpm -s fw run ...` dispatches a CI measurement workflow with its inputs, waits on the shared poller, and (count lanes)
 files the artifacts in `.fw-console/store/`. A `ci/*` push carries no workflow inputs and `gh workflow run` is refused in
 the agent sandbox, so this is how an agent runs a lane.
-Every decision (jobs, inputs, blocked) is Lean's (`store.plan`, `store.gate`; `lean/Fw/Store/Layout.lean`).
+Lean decides jobs, inputs and blocked (`store.plan`, `store.gate`; `lean/Fw/Store/Layout.lean`).
 
 ## Lanes and inputs
 

@@ -144,7 +144,6 @@ export function ingest(call: FwCall, store: string, dir: string, job: PlanJob, m
   return { manifest, path: mpath, objects: entries.length - reused, reused, digest };
 }
 
-/** `timeoutMs` and `cost` override the defaults of one call (the download pieces of fwcore `store.download`). */
 export type GhOpts = { deadline?: number; signal?: AbortSignal; timeoutMs?: number; cost?: number };
 export type Gh = (args: string[], o?: GhOpts) => Promise<string>;
 
@@ -165,8 +164,6 @@ export function busyMessage(args: string[], reason: string): string {
   return `gh ${args.slice(0, 3).join(" ")} not made: ${reason}; ${isDispatch ? "nothing was dispatched" : "no request was made"}, run it again`;
 }
 
-/** A gh call that hit its timeout. `served` is the number of responses its trace showed before the kill; the call was
-charged once when it was reserved and `ci.budget.observe` booked only what the trace held beyond that charge. */
 export class GhTimedOut extends Error {
   served: number;
   constructor(message: string, served: number) { super(message); this.name = "GhTimedOut"; this.served = served; }
@@ -191,7 +188,6 @@ export function chargedGh(env: Env): Gh {
   };
 }
 
-// ---- store.download (fwcore: the pieces of a run to download); the schemas live here, not in packages/contracts (task scope)
 export const DownloadRequest = z.object({ op: z.literal("store.download"), engine: z.string(), target: z.string().optional(), runs: z.number().int(), served: z.number().int().optional() });
 export const DownloadReply = z.object({
   pieces: z.array(z.object({ pattern: z.string(), kb: z.number().int(), timeoutMs: z.number().int(), cost: z.number().int() })),
@@ -199,17 +195,10 @@ export const DownloadReply = z.object({
 });
 export type DownloadPlan = z.infer<typeof DownloadReply>;
 
-/** fwcore `store.download`: the pieces of a run to download and the retry charge after `served` responses. */
 export function downloadPlan(call: FwCall, engine: string, target: string, runs: number, served = 0): DownloadPlan {
   return DownloadReply.parse(call({ op: "store.download", engine, target, runs, ...(served ? { served } : {}) }));
 }
 
-/**
- * Download what the store keeps of a run, one `gh run download --pattern` per piece, each with the timeout and charge
- * fwcore gave it. A piece that times out is tried once more, charged `retryCost` (fwcore) and given the same bound; a
- * second timeout, or any other error, is the caller's. Pieces run one after another, so the budget lock is never held
- * longer than one piece's timeout (`maxHoldMs`).
- */
 export async function downloadPieces(d: Pick<RunDeps, "gh" | "call" | "log">, runId: string, dir: string, engine: string, target: string, runs: number): Promise<number> {
   const plan = downloadPlan(d.call, engine, target, runs);
   for (const p of plan.pieces) {
