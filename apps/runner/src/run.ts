@@ -3,7 +3,8 @@ import { spawnSync } from "node:child_process";
 import { GH_BOUNDS, ghCharged, realEnv, titleFor, waitFor, type Env, type Target, type Waited } from "@fw/gh-budget";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { DownloadReply, GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
+import { z } from "zod";
+import { GateReply, ManifestReply, PlanReply, ReduceReply, type PlanJob, type RunManifest } from "@fw/contracts";
 import { UsageError } from "./lib.ts";
 import { begin as beginSpan, recordRunKind } from "./timing.ts";
 import { runPhases } from "./run-phases.ts";
@@ -190,7 +191,13 @@ export function chargedGh(env: Env): Gh {
   };
 }
 
-export type DownloadPlan = ReturnType<typeof DownloadReply.parse>;
+// ---- store.download (fwcore: the pieces of a run to download); the schemas live here, not in packages/contracts (task scope)
+export const DownloadRequest = z.object({ op: z.literal("store.download"), engine: z.string(), target: z.string().optional(), runs: z.number().int(), served: z.number().int().optional() });
+export const DownloadReply = z.object({
+  pieces: z.array(z.object({ pattern: z.string(), kb: z.number().int(), timeoutMs: z.number().int(), cost: z.number().int() })),
+  retryCost: z.number().int(), maxHoldMs: z.number().int(),
+});
+export type DownloadPlan = z.infer<typeof DownloadReply>;
 
 /** fwcore `store.download`: the pieces of a run to download and the retry charge after `served` responses. */
 export function downloadPlan(call: FwCall, engine: string, target: string, runs: number, served = 0): DownloadPlan {

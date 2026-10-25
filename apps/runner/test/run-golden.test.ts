@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { fwcoreCall, type FwCall } from "../src/run.ts";
-import { DownloadReply, DownloadRequest, GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
+import { DownloadReply, DownloadRequest, fwcoreCall, type FwCall } from "../src/run.ts";
+import { GateReply, GateRequest, ManifestReply, ManifestRequest, ObjectPathReply, ObjectPathRequest, PlanReply, PlanRequest, ReduceReply, ReduceRequest, StoreError, TrajectoryReply, TrajectoryRequest } from "@fw/contracts";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "packages", "contracts", "golden", "store");
 const load = (stem: string) =>

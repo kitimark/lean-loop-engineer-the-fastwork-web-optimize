@@ -11,8 +11,8 @@ apps/runner/src/run.ts (downloadPieces, GhTimedOut).
 
 Open:
 - ci.ts (fw ci) keeps one 40 s call, no retry (5.5 MB, 9.5 s measured): follow-up.
-- Writes outside the graph list: lean/Fw/Wire/Store.lean (op), lean/Fw/Store/Golden.lean (cases),
-  packages/contracts/src/artifacts.ts (zod), apps/runner/test/run.test.ts + run-budget.test.ts (expected download calls).
+- Writes outside the graph list: lean/Fw/Wire/Store.lean (op), lean/Fw/Store/Golden.lean (cases; the dry land refuses
+  it: scope). The zod schemas DownloadRequest/DownloadReply live in apps/runner/src/run.ts, not packages/contracts (scope): move later.
 - `maxHoldMs` in Ci.lean is a copy of Timing.defaultCallTimeoutMs; run-download.test.ts checks equality.
 - The 3-VM re-file wrote into the shared .fw-console/store (key 2ef4f3d8966c).
 Convention: gh run download always with --pattern, so entries keep the <artifact>/ directory prefix.

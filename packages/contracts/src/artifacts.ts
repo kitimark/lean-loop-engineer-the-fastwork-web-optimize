@@ -122,19 +122,6 @@ export type ManifestReply = z.infer<typeof ManifestReply>;
 export const ObjectPathRequest = z.object({ op: z.literal("store.objectPath"), digest: z.string() });
 export const ObjectPathReply = z.object({ path: z.string() });
 
-// ---- store.download (the pieces `fw run` downloads) -------------------------------------------------------------------
-export const DownloadRequest = z.object({
-  op: z.literal("store.download"),
-  engine: z.string(),
-  target: z.string().optional(),
-  runs: z.number().int(),
-  served: z.number().int().optional(),
-});
-export type DownloadRequest = z.infer<typeof DownloadRequest>;
-export const DownloadPiece = z.object({ pattern: z.string(), kb: z.number().int(), timeoutMs: z.number().int(), cost: z.number().int() });
-export const DownloadReply = z.object({ pieces: z.array(DownloadPiece), retryCost: z.number().int(), maxHoldMs: z.number().int() });
-export type DownloadReply = z.infer<typeof DownloadReply>;
-
 // ---- store.reduce --------------------------------------------------------------------------------------------------
 const Run = z.union([z.array(z.object({ counts: z.record(z.string(), z.number().int()) }).passthrough()), z.object({ frames: z.array(z.unknown()) }).passthrough()]);
 export const ReduceArm = z.object({ engine: z.string(), base: z.array(Run), var: z.array(Run) });
