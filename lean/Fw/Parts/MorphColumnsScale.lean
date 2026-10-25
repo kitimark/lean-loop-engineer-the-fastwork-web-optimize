@@ -216,7 +216,7 @@ def vpOf (w : Int) : Vp := ⟨w, 800⟩
 def colIdx (v : Vp) : List Rat := (List.range (cols v).num.toNat).map fun (i : Nat) => (i : Rat)
 
 open Lean Fw.Parts.Golden in
-def lines : List String :=
+def lines (_ : Unit) : List String :=
   widths.map (fun w =>
     line "vars" [("w", jint w)]
       (Json.mkObj [("applies", .bool (applies (vpOf w))), ("n", ratWire (cols (vpOf w))), ("cf", ratWire (finalW (vpOf w))),
@@ -230,18 +230,18 @@ def lines : List String :=
         ("baseLeft", .arr ((colIdx v).map (fun i => ratWire (baseLeft v m i))).toArray),
         ("baseRight", .arr ((colIdx v).map (fun i => ratWire (baseRight v m i))).toArray)])
 
-def goldenText : String := String.join (lines.map (· ++ "\n"))
+def goldenText (_ : Unit) : String := String.join ((lines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == goldenText then
-      IO.eprintln s!"morph-columns-scale golden: {path} is up to date ({lines.length} lines)"
+    if (← IO.FS.readFile path) == goldenText () then
+      IO.eprintln s!"morph-columns-scale golden: {path} is up to date ({(lines ()).length} lines)"
       return 0
     IO.eprintln s!"morph-columns-scale golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print goldenText
+    IO.print (goldenText ())
     return 0
 
 end Fw.Parts.MorphColumnsScale
