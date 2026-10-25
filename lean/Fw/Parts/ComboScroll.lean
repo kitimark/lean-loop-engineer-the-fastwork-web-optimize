@@ -357,20 +357,6 @@ theorem passive_quiet (h : Hooks) (hr : h.release = true) (w : W) (e : Ev) (c : 
     ∀ q ∈ wtrace h (wstep h w e c).1 t, q.2.write = none :=
   native_quiet h hr w e c he (holds_passive _ c hp ho) t hf
 
-def waapiPin (act : Bool) (y pinned : Rat) : Option Rat := if act && decide (y ≠ pinned) then some pinned else none
-
-theorem waapi_pin_eq_base (w : W) (y m : Rat) (c : Dlv) :
-    (wstep base w (.scroll y m) c).2.write = waapiPin w.s.tw.isActive y w.s.pin := by
-  rw [wstep_off base rfl]
-  by_cases ha : w.s.tw.isActive = true <;> by_cases hy : y = w.s.pin <;> simp [step, frameOut, waapiPin, base, ha, hy]
-
-theorem waapi_held_inert (w : W) (e : Ev) (c : Dlv) : (wstep base w e c).1.held = w.held := by
-  rw [wstep_off base rfl]
-
-theorem waapi_trace_eq (w : W) (t : List (Ev × Dlv)) (hw : w.held = true) :
-    wtrace base w t = trace base w.s (t.map (·.1)) ∧ (wfinal base w t).s = final base w.s (t.map (·.1)) :=
-  faithful_w base rfl w t hw
-
 theorem one_write_per_frame (h : Hooks) (w : W) (e : Ev) (c : Dlv) (x y : Rat)
     (h1 : (wstep h w e c).2.write = some x) (h2 : (wstep h w e c).2.write = some y) : x = y := by
   rw [h1] at h2; exact Option.some.inj h2

@@ -89,6 +89,7 @@ import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
+import Fw.Parts.MorphEndReleaseConflict
 import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
 import Fw.Parts.PlatformSweepPause
