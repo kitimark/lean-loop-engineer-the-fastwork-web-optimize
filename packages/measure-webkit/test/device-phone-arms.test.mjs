@@ -111,7 +111,6 @@ test('pagesOf names the prerendered page of each arm and the arm that would dupl
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-// A synthetic visit: bins of 500 px with a constant Layout count per bin, frames at 60 Hz with one slow frame in the finish zone.
 const countsFile = (layout, vh = 775, maxY = 5267, area = 0, layers = 100) => ({
   reduced: Array.from({ length: 3 }, () => ({
     info: { vh, maxY },

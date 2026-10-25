@@ -85,7 +85,7 @@ async function main() {
         if (r.stopped) { process.exitCode = 3; break; }
         if (!v.all || r.remaining <= 0 || r.ran.length === 0) break;
       }
-      process.exit(process.exitCode ?? 0); // a handle of the last phone session keeps node alive otherwise, and the next block must see no device-cli
+      process.exit(process.exitCode ?? 0);
     }
     case 'arms-reduce': {
       if (!v.dir || !v.out) throw new Error('arms-reduce needs --dir <raw dir> and --out <dir>');

@@ -1,6 +1,3 @@
-// I/O glue of the phone end-of-page session (task phone-end-counts): runs Lean's visit list on the real iPhone in blocks, keeps the
-// raw files and a state file under a local directory, and packages the reduced tables. Every decision (the visits, when a visit may
-// start, the cool gap, the verdicts) is device-phone-arms.mjs's, which is checked against lean/Fw/Device/PhoneArms.lean's golden.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -19,7 +16,6 @@ const loadState = (dir) => {
   return existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : { visits: [] };
 };
 const saveState = (dir, st) => { mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'state.json'), JSON.stringify(st, null, 1) + '\n'); };
-/** One fault name per failed attempt of a state entry (Lean `Fault`); an older entry without names counts each attempt as `other`. */
 export const faultsOfVisit = (v) => {
   if (!v) return [];
   const named = v.faults ?? [];
@@ -27,14 +23,12 @@ export const faultsOfVisit = (v) => {
 };
 const putJson = (file, data) => writeFileSync(file, JSON.stringify(data) + '\n');
 
-/** Other device-cli processes on this Mac (a second one would compete for the phone and the proxy ports). */
 export function otherDeviceClis(self = process.pid) {
   const out = execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   return out.split('\n').map((l) => l.trim()).filter((l) => /^\d+\s+\S*node\s.*device-cli\.mjs/.test(l)).map((l) => Number(l.split(/\s+/)[0])).filter((p) => p !== self && p !== process.ppid);
 }
 
 const TAB_RACE = /expected exactly one about:blank Safari tab/;
-/** The phone's tab returns to about:blank a moment after the last session ends; a start in that moment waits and tries again (no visit is lost, nothing was loaded). */
 export async function whenTabBlank(fn, log, tries = 4, waitMs = 15000) {
   for (let i = 1; ; i++) {
     try { return await fn(); } catch (e) {
@@ -51,7 +45,6 @@ const batteryOf =(...files) => {
   return { first: pick(rs[0] ?? {}), last: pick(rs[rs.length - 1] ?? {}), maxTemp: Math.max(...rs.map((r) => r.batteryVirtualTemp ?? 0)) };
 };
 
-/** The plan: the visit list, the blocks and the page of each arm. */
 export function planText(distDir) {
   const pages = P.pagesOf(distDir);
   const lines = [];
@@ -64,10 +57,6 @@ export function planText(distDir) {
   return lines.join('\n');
 }
 
-/**
- * Run the next block: the visits not yet done, in Lean's order, while Lean's `mayStart` allows one more, at most `maxVisits`.
- * Waits out the cool gap since the last block first (Lean's `coolOk`). Returns {ran, stopped}; `stopped` names a failure.
- */
 export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null }) {
   const others = otherDeviceClis();
   if (others.length > 0) throw new Error(`another device-cli.mjs is running (pid ${others.join(', ')}); one phone run at a time`);
@@ -136,7 +125,6 @@ const LETTER = { beats: 'B', worse: 'W', same: '=', unresolved: '?' };
 const fmt = (m, v) => (v === null || v === undefined ? '-' : P.familyOf(m) === 'frames' ? (v / 100).toFixed(2) : m === 'paintArea' ? (v / 1e6).toFixed(2) : String(v));
 const med = (l) => { const s = [...l].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
-/** Markdown tables of a reduced session: per zone, arms x metrics, each cell "arm median (base median) verdict". */
 export function tablesMarkdown(sum) {
   const out = [];
   out.push(`Cells: arm median (base median) verdict; B = beats the base beyond the base spread, W = worse, = same, ? unresolved. Counts are per ${P.PA.zonePx} px bins summed over a zone; frame metrics are moving frames over 34 / 50 ms per 100.`);
@@ -164,7 +152,6 @@ export function tablesMarkdown(sum) {
   return out.join('\n') + '\n';
 }
 
-/** Reduce the raw files of a session directory to summary.json and tables.md in `out` (no timestamps, no device id, no address). */
 export function reduceDir({ dir, out }) {
   const st = loadState(dir);
   const done = st.visits.filter((v) => v.status === 'done').sort((a, b) => a.index - b.index);

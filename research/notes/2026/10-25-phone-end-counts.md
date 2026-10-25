@@ -12,7 +12,7 @@
 - **hero.exit:threaded trades Layout and rAF for Paint and EventDispatch**, as on the Simulator (flag 39731192687, base 39739724461): hero Layout
   165 vs 195, rAF 163 vs 192, finish Layout 33 vs 52, rest Layout 321 vs 376; Paint (hero 665 vs 534, rest 981 vs 899) and EventDispatch (338 vs
   262, 625 vs 532) rise; frames the same; 4 to 5 more layers from y 3000 on.
-- **morph.columns:idle-none and hero:scene-pause cut layers on the phone as on the Simulator** (the census lane, new in this round): idle-none
+- **morph.columns:idle-none and hero:scene-pause cut layers on the phone as on the Simulator** (census lane): idle-none
   124 vs 136 layers at y 3000, backing store 93.9 vs 111.0 MB (Simulator 106 to 90 MB); scene-pause 51 vs 136 layers at y 3000 (Simulator 58 vs
   136). idle-none changes no count and no frame cell. scene-pause raises FunctionCall and EventDispatch (hero 712 vs 424 and 562 vs 262), frames the same.
 - **Four arms look worse on the phone than any CI lane says**: morph.countdown:hidden-pause (finish Layout 86 vs 52, finish over50 1.85 per 100 vs 0),
@@ -82,7 +82,7 @@ at y 3000 reads "beats" with 103.9 vs 111.0 MB, base spread 0 there; hit-skip an
 - Fix 2 (`device-phone-run.mjs`): Lean `Fault` names each failed attempt (`usbReset`, `staleTab`, `other`); `mayAttempt` gives two attempts and
   a third only when every failed attempt was a harness fault (four theorems, one per branch). Visit 6 recorded as usbReset + staleTab is
   retryable once more; a visit lost to an arm-side fault (`other`) is not. Older state entries without names count as `other`.
-- The retry of strip runs in phone-thermal-check. The lost arm leaves the strip verdict open here; its Simulator result (a trade: finish layers
+- The lost arm leaves the strip verdict open here; its Simulator result (a trade: finish layers
   128 to 56) stands unchecked on the phone.
 
 ## Phone against the CI Simulator verdicts
@@ -109,8 +109,7 @@ counts. A match in direction is weak evidence; a difference is a different quant
 
 - One phone, one session; scripted scrolling does not move the Safari toolbar, so toolbar-throttle and touch-path flags (engine.scroll:unthrottle,
   morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope. Each arm except the base has one visit; the verdict is against the
-  3-visit base spread only, so an arm-side visit-to-visit drift is untested (a second visit per arm would be a new arm plan).
-- morph.countdown:strip is lost; retry in phone-thermal-check (Lean says it may have one more attempt).
-- The four worse-looking arms (hidden-pause, logo-3d, scene-pause, const-bounds) should be repeated before a flag decision is based on them.
+  3-visit base spread only, so arm-side visit-to-visit drift is untested.
+- Repeat the four worse-looking arms (hidden-pause, logo-3d, scene-pause, const-bounds) before any flag decision.
 - ci/phone-end-counts push (ab773fe95): all 20 workflows concluded skipped (e.g. lean-math 40173828875, webkit-sim 40173828789); no CI measurement.
   The Simulator side comes from the earlier runs named above.
