@@ -21001,7 +21001,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/parts/footprint-diff.gen.json"
    ],
-   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists."
+   "title": "Finish the proof of hero:scene-pause (ledger hero.scenePause, partly-proved, WebKit win): prove the kCopy bound after the splash (hero_paused_hidden_copy, now INFERRED) in Lean; judge the trajectory probe's open@1 coverage against the original's first frame (the probe follow-up in the ledger next field); repeat the y 5267 census (n=1, run 39548856639) to 3 runs on CI; then let Gen.run decide v2-proved membership (never edit the preset by hand). Safari frame time stays a follow-up unless a lane exists.",
+   "evidence": "b7b364a"
   },
   {
    "devices": [

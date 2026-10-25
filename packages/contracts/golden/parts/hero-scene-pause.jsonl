@@ -31,3 +31,23 @@
 {"fn":"scene","in":{"bottom":-2700,"top":-4500,"vh":900},"out":"paused"}
 {"fn":"scene","in":{"bottom":-3467,"top":-5267,"vh":900},"out":"paused"}
 {"fn":"const","in":{},"out":{"active":"active","attr":"data-fw-hero-scene","paused":"paused","playState":"paused","rootMargin":"100% 0px","willChange":"auto"}}
+{"fn":"anim","in":{"file":"hero/hero.module.css","name":"copyFromRing"},"out":{"afterSplash":false,"fam":"copy","uses":[{"off":"[data-splash='done'] .copy","sel":".copy"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"strokeIn"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".drawingIn .path"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"strokeOut"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".drawingOut .path"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"clipIn"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".accent:is([data-fw-draw='nolayout'], [data-fw-draw='nolayout-full']).drawingIn .frame0"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"clipOut"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".accent:is([data-fw-draw='nolayout'], [data-fw-draw='nolayout-full']).drawingOut .frame0"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"idle0"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".idle .frame0"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"idle1"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".idle .frame1"}]}}
+{"fn":"anim","in":{"file":"hero.accent/accent.module.css","name":"idle2"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".idle .frame2"}]}}
+{"fn":"anim","in":{"file":"hero.cue/cue.module.css","name":"copyIn"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".cue"}]}}
+{"fn":"anim","in":{"file":"hero.cue/cue.module.css","name":"copyFromRing"},"out":{"afterSplash":false,"fam":"copy","uses":[{"off":"[data-splash='done'] .cue","sel":".cue"}]}}
+{"fn":"anim","in":{"file":"hero.cue/cue.module.css","name":"scrollFloat"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":".float"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitFade"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero']"},{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero-cue']"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitCardFade"},"out":{"afterSplash":true,"fam":"card","uses":[{"off":null,"sel":"[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id]"},{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitCopyUp"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero']"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitCopyUpNarrow"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero']"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitCueUpNarrow"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero-cue']"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitBlur"},"out":{"afterSplash":true,"fam":"copy","uses":[{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero']"},{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero-cue']"}]}}
+{"fn":"anim","in":{"file":"hero.exit/threaded.module.css","name":"exitCardMove"},"out":{"afterSplash":true,"fam":"card","uses":[{"off":null,"sel":"[data-fw='hero-exit'][data-exit-live] [data-splash='done'] [data-orbit-id]"},{"off":null,"sel":"[data-exit-live] [data-splash='done'] [data-fw='hero-deck'] > article"}]}}
+{"fn":"anim","in":{"file":"hero.orbit/card.module.css","name":"cardFromRing"},"out":{"afterSplash":false,"fam":"card","uses":[{"off":"[data-orbit][data-done] .card","sel":".card"}]}}
+{"fn":"anim","in":{"file":"hero.orbit/card.module.css","name":"ringAppear"},"out":{"afterSplash":false,"fam":"card","uses":[{"off":"[data-orbit][data-done] .card","sel":".card"}]}}
