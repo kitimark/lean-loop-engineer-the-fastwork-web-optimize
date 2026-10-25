@@ -2,7 +2,8 @@
 Branch worktree-wf_3b4e5a02-d28-1; worktree .claude/worktrees/wf_3b4e5a02-d28-1; last commit: see `git log -1` (wip.mjs fix 8ad8d7590 plus later docs commits).
 CI runs: none yet (phone run is local; one ci/phone-thermal-check push for the Lean check is optional).
 Verified: measure-webkit tests 793 pass (device-faults 18, device-thermal 8, device-phone-run 11, device-phone-env 8, wip-target-swap 7); Lean builds PhoneArms and Thermal.
-Open: phone run in progress at the time of writing (raw `.local/phone/2026-10-25-thermal/`, local only, run.log, thermal-before.json); then arms-reduce, thermal-after, research note, final checks, merge main, plan lint, dry land, review ready.
+Phone run DONE: strip measured (counts and frames same, layers 110->38 at y 0, no stall); every visit ended Serious, battery stayed 33 C. Raw: `.local/phone/2026-10-25-thermal/` (local only). Note: research/notes/2026/10-25-phone-thermal-check.md.
+Open: final checks (check.sh, tests, runner land-inputs, merge main, plan lint, dry land, review ready).
 
 What changed
 - Lean: `lean/Fw/Device/PhoneArms.lean` (hand reset, fault-drop refusal, usbReset classify/wait, ForeignProxy verdicts) and `lean/Fw/Device/Thermal.lean` (gate, preflight, passesRun, resume, pauseOver); goldens `packages/contracts/golden/device/{phone-arms,thermal}.jsonl` (regenerate with `lake env lean --run scripts/{PhoneArmsGolden,DeviceThermalGolden}.lean`); wired in Fw.lean, check.sh, Trigger.lean, triggers.jsonl.
