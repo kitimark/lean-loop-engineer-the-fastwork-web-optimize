@@ -64,7 +64,6 @@ test('a command sent to the old page when its navigation commits fails at once w
     FakeSocket.last.push(created('page-1'));
     const c = await cp;
     const ws = FakeSocket.last;
-    const t0 = Date.now();
     const p = c.send('Runtime.evaluate', { expression: '1' }, { timeoutMs: 15000 });
     const out = JSON.parse(ws.sent.at(-1).params.message);
     assert.equal(ws.sent.at(-1).params.targetId, 'page-1');
@@ -72,7 +71,7 @@ test('a command sent to the old page when its navigation commits fails at once w
     ws.push(created('page-2', true));
     ws.push(commit('page-1', 'page-2'));
     await assert.rejects(p, (e) => e.swapped === true && /replaced by a navigation commit/.test(e.message));
-    assert.ok(Date.now() - t0 < 1000, 'failed fast, not after the 15 s timeout');
+    assert.doesNotMatch((await p.catch((e) => e)).message, /timed out/);
     const q = c.send('Runtime.evaluate', { expression: '2' });
     assert.equal(ws.sent.at(-1).params.targetId, 'page-2');
     const id = JSON.parse(ws.sent.at(-1).params.message).id;
