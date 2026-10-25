@@ -21835,6 +21835,36 @@
     "research/notes/2026/10-2x-ledger-class-lint.md",
     "docs/team/handoffs/ledger-class-lint.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cross-pool-pooling",
+   "owner": "console-builder",
+   "stream": "infra",
+   "deps": [
+    "pool-dispatch-poller"
+   ],
+   "title": "Follow-up of pool-dispatch-poller (landed 4abbb49ed): with equal toolchain keys (macOS 26A434, Xcode 27A9275, runtime 24A434) a Codemagic cell still differed from GitHub in 20 of 104 count classes (MEASURED, n=1; hardware 3 vCPU M1 vs 8 cpu / 12 GiB). Decide in Lean whether cross-pool pooling is ever sound: run k pinned pairs (budget-named Codemagic minutes, stop line 400 of 500/month), add hardware to the key once the GitHub tools step prints memsize (webkit-sim.yml), and decide per row class. Also: fw ci state accepts cm: ids (apps/runner/src/ci.ts), ReviewReady evidence accepts cm: build ids, and the poller re-routes jobs still queued on GitHub when Codemagic is free. Until this lands, Codemagic cells file under their own key and never merge with GitHub classes unless keys match.",
+   "writes": [
+    "lean/Fw/Ci/PoolTier.lean",
+    "lean/Fw/Ci/PoolTierWire.lean",
+    "lean/scripts/PoolGolden.lean",
+    "packages/contracts/golden/ci/pool*.jsonl",
+    "apps/runner/src/ci-pool-tier.ts",
+    "apps/runner/src/ci.ts",
+    "apps/runner/test/ci-pool-tier*.test.ts",
+    "apps/runner/test/ci*.test.ts",
+    "lean/Fw/Plan/ReviewReady.lean",
+    "packages/gh-budget/src/poller.ts",
+    ".github/workflows/webkit-sim.yml",
+    "codemagic.yaml",
+    "scripts/codemagic.mjs",
+    "scripts/codemagic.test.mjs",
+    "docs/team/tools/ci-pool.md",
+    "docs/team/handoffs/cross-pool-pooling.md"
+   ]
   }
  ],
  "deadline": {
