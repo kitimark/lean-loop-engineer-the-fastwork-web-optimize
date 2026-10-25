@@ -192,8 +192,6 @@ theorem lockOp_reaches (cur want : Bool) : (match lockOp cur want with | .set =>
 
 theorem lockOp_idem (b : Bool) : lockOp b b = .none := by cases b <;> rfl
 
-/-! WKTR inset hooks: `ui-helper.js:2018-2050`, `UIScriptControllerIOS.mm:1486-1494@862f17d`. -/
-
 open Fw.Parts.EngineScrollUnthrottle (Anim Page throttled lifted_when_supported compositable_does_not_lift)
 
 inductive Flag where

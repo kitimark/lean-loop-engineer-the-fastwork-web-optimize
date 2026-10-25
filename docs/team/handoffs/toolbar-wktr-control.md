@@ -2,7 +2,7 @@ branch: worktree-wf_6c371da2-432-1 (CI branch ci/toolbar-wktr-control, pushed ti
 worktree: .claude/worktrees/wf_6c371da2-432-1
 last commit: ca231bbba (see `git log -1` for later local commits)
 CI runs: wktr 40231779387 complete, success (j1 j2 j3 each VERDICT toolbar-gate pass; compositable wait 82-83 ms, unthrottle 31-32 ms, bound 50 ms); lean 40231779472 success. Pushes used: 1 of 2.
-verified locally: lean build green, check.sh green at ca231bbba+handoff commits (main merge: already up to date), @fw/measure-wktr test 73 pass, ci-paths test 56 pass.
+verified locally: lean build green, check.sh green at ca231bbba+handoff commits, @fw/measure-wktr test 73 pass, ci-paths test 56 pass.
 open: none. Main merged (e56a3bcab+): check.sh green, @fw/measure-wktr test green, ci-paths 56 pass, dry VERDICT dry toolbar-wktr-control, review ready VERDICT review-ready toolbar-wktr-control review. Report: scratchpad/twc/report.json.
 
 State

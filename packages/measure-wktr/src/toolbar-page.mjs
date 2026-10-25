@@ -1,4 +1,3 @@
-// The 'compositable' arm is the negative control: a time-based transform animation (compositor-only), no scroll timeline.
 // WKTR UI-script hooks, as LayoutTests/resources/ui-helper.js:2018-2050@862f17d:
 //   uiController.beginInteractiveObscuredInsetsChange()      Tools/WebKitTestRunner/ios/UIScriptControllerIOS.mm:1486-1489
 //   uiController.setObscuredInsets(top, right, bottom, left) Tools/WebKitTestRunner/cocoa/UIScriptControllerCocoa.mm:683-692

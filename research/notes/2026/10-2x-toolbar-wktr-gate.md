@@ -16,8 +16,7 @@
   `setObscuredInsets` until `visualViewport.height` changes (so the exemption). It sends no touches and runs no
   gesture code. The take sequences in the table come from Node: `gate.mjs` feeds the observed arm sequence to the
   production `gesture.ts` `step`, and compares the result with the Lean golden. So the takes are not an engine
-  observation of the flag's gesture decision; they show that the production machine, on the arms the engine produced,
-  gives the Lean takes.
+  observation; they show that the production machine, on the arms the engine produced, gives the Lean takes.
 
 ## Negative control: the gap comes from the scroll-driven exemption (MEASURED, run 40231779387)
 
@@ -29,10 +28,10 @@ decides it is not exempt: `controlPage` holds one non-progress-based accelerated
 
 Run 40231779387 (3 jobs, 2 passes per arm, 30 of 30 reports pass, `VERDICT toolbar-gate pass` in each job): the page reports
 one running animation on a `DocumentTimeline` in every `compositable` report, and the median wait after the first set is
-81-83 ms for all four throttled arms, `compositable` 82-83 ms (j1 82, 82; j2 82, 82; j3 83, 82), `unthrottle` 31-32 ms. So
-the 82 ms wait of `compositable` sits 32 ms above the 50 ms bound, on the throttled side, with the same extra content
-(an animated element) as `unthrottle` has (its scroll-timeline element). The 32 ms of `unthrottle` therefore comes from the
-progress-based main-thread scroll-driven animation, not from extra page content or from any running animation.
+81-83 ms for all four throttled arms, `compositable` 82-83 ms (j1 82, 82; j2 82, 82; j3 83, 82), `unthrottle` 31-32 ms. The
+82 ms of `compositable` sits 32 ms above the 50 ms bound and the page has an animated element, as `unthrottle` does. So the
+32 ms of `unthrottle` comes from the progress-based main-thread scroll-driven animation, not from extra content or any
+running animation.
 
 ## What the gate forces
 
