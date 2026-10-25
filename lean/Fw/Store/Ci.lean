@@ -1,4 +1,5 @@
 import Fw.Store.Layout
+import Fw.Measure.SimPlan
 /-!
 # `fw ci`: which part of a finished CI run enters the artifact store
 
@@ -496,7 +497,8 @@ def downloadPieces (e : Engine) (t : Target) (n : Nat) : List Piece :=
   match e with
   | .chromium => (reps n).map (fun r => piece ("chromium-counts-" ++ t.name ++ "-r" ++ r) dlRule.countsKb) ++
       [piece "chromium-classes" dlRule.smallKb, piece "telemetry-*" dlRule.smallKb]
-  | .webkit => (reps n).map (fun r => piece ("webkit-sim-r" ++ r) dlRule.simKb) ++ [piece "telemetry-*" dlRule.smallKb]
+  | .webkit => (reps n).map (fun r => piece ("webkit-sim-" ++ (if t = .original then "v" else "r") ++ r) dlRule.simKb) ++
+      (if t = .original then [piece "webkit-classes" dlRule.smallKb] else []) ++ [piece "telemetry-*" dlRule.smallKb]
 
 /-- Charge of the one retry of a piece that timed out: its full charge when no response of the first attempt was seen, one
 request (the listing again) when `served` responses arrived, since the first attempt's charge already covers the redirect. -/
@@ -506,9 +508,8 @@ def retryCost (c served : Nat) : Nat := if served = 0 then c else 1
 theorem piece_fits_hold (e : Engine) (t : Target) (n : Nat) :
     ∀ p ∈ downloadPieces e t n, p.timeoutMs ≤ dlRule.maxHoldMs := by
   intro p hp
-  cases e <;> simp only [downloadPieces, List.mem_append, List.mem_map, List.mem_cons, List.not_mem_nil, or_false] at hp <;>
-    rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;>
-    simp [piece, dlRule]
+  cases e <;> cases t <;> simp [downloadPieces, reps] at hp <;>
+    rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp [piece, dlRule]
 theorem piece_fits_hold_webkit_tight : (piece "x" dlRule.simKb).timeoutMs = dlRule.maxHoldMs := by decide
 
 /-- **A timeout is sized from the bytes:** a piece takes `dlRule.baseMs` plus `dlRule.msPerKb` per kilobyte. -/
@@ -523,11 +524,33 @@ theorem shard_downloaded (t : Target) (n : Nat) (i : Nat) (hi : i < n) :
   simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
   exact ⟨i, hi, rfl⟩
 
+/-- **The original WebKit VMs are all downloaded:** the artifact `webkit-sim-<vm>` of the original cell of VM `i + 1`
+(`SimPlan.origCell`, vm `v<i+1>`) is the pattern of a piece of an original run. -/
+theorem webkit_original_downloaded (sha : String) (n i : Nat) (hi : i < n) :
+    ("webkit-sim-" ++ (Measure.SimPlan.origCell sha (i + 1)).vm) ∈ (downloadPieces .webkit .original n).map (·.pattern) := by
+  simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
+  left; left
+  simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
+  exact ⟨i, hi, by simp [piece, Measure.SimPlan.origCell]; rw [← String.append_assoc]; rfl⟩
+
+/-- **The rewrite WebKit VMs are all downloaded:** the same for the rewrite cell (`SimPlan.rewCell`, vm `r<i+1>`). -/
+theorem webkit_rewrite_downloaded (sha q : String) (n i : Nat) (hi : i < n) :
+    ("webkit-sim-" ++ (Measure.SimPlan.rewCell sha q (i + 1)).vm) ∈ (downloadPieces .webkit .rewrite n).map (·.pattern) := by
+  simp only [downloadPieces, List.map_append, List.map_map, List.mem_append]
+  simp only [reps, List.map_map, List.mem_map, List.mem_range, Function.comp]
+  left; left
+  exact ⟨i, hi, by simp [piece, Measure.SimPlan.rewCell]; rw [← String.append_assoc]; rfl⟩
+
+/-- **The original WebKit run's class directories are downloaded.** -/
+theorem webkit_original_classes (n : Nat) :
+    "webkit-classes" ∈ (downloadPieces .webkit .original n).map (·.pattern) := by
+  simp [downloadPieces, piece]
+
 /-- **No build output is downloaded:** the three big artifacts of a run are not a piece. -/
 theorem build_outputs_skipped (e : Engine) (t : Target) (n : Nat) :
     ∀ p ∈ downloadPieces e t n, p.pattern ≠ "chromium-image" ∧ p.pattern ≠ "fwcore" ∧ p.pattern ≠ "site-dist" := by
   intro p hp
-  cases e <;> simp only [downloadPieces, List.mem_append, List.mem_map, List.mem_cons, List.not_mem_nil, or_false] at hp <;>
+  cases e <;> cases t <;> simp [downloadPieces, reps] at hp <;>
     rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;> simp only [piece] <;>
     refine ⟨?_, ?_, ?_⟩ <;> intro h <;> first | (have := congrArg (fun s => s.toList.take 10) h; simp [String.toList_append] at this) | (revert h; decide)
 
@@ -541,6 +564,9 @@ theorem retryCost_served (c served : Nat) (h : 0 < served) : retryCost c served 
 theorem retryCost_unserved (c : Nat) : retryCost c 0 = c := by simp [retryCost]
 
 #guard (downloadPieces .webkit .rewrite 3).map (·.pattern) == ["webkit-sim-r1", "webkit-sim-r2", "webkit-sim-r3", "telemetry-*"]
+#guard (downloadPieces .webkit .original 3).map (·.pattern) ==
+  ["webkit-sim-v1", "webkit-sim-v2", "webkit-sim-v3", "webkit-classes", "telemetry-*"]
+#guard (downloadPieces .webkit .original 3).map (·.timeoutMs) == [40000, 40000, 40000, 15200, 15200]
 #guard (downloadPieces .webkit .rewrite 3).map (·.timeoutMs) == [40000, 40000, 40000, 15200]
 #guard (downloadPieces .chromium .original 2).map (·.pattern) ==
   ["chromium-counts-original-r1", "chromium-counts-original-r2", "chromium-classes", "telemetry-*"]

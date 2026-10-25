@@ -169,6 +169,8 @@ def ciRunCases : List (String × String × Json) := [
 def downloadCases : List (String × String × Json) := [
   ("a 3-VM webkit run: one piece per VM at the 40 s lock bound, then the telemetry", "store.download",
    lit "{\"engine\":\"webkit\",\"runs\":3}"),
+  ("a 3-VM original webkit run: v1..v3, the class directories, the telemetry", "store.download",
+   lit "{\"engine\":\"webkit\",\"target\":\"original\",\"runs\":3}"),
   ("a chromium run of the original with 2 shards: counts, classes, telemetry; no build output", "store.download",
    lit "{\"engine\":\"chromium\",\"target\":\"original\",\"runs\":2}"),
   ("a chromium run defaults to the rewrite", "store.download", lit "{\"engine\":\"chromium\",\"runs\":1}"),

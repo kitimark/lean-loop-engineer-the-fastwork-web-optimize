@@ -40,14 +40,14 @@ chromium-classes 40 KB, each telemetry 4 to 8 KB. WebKit: `webkit-sim-r1` 5.0 MB
 
 - The same 400 MB took 92, 122 and 423 s: a 4.6x spread (0.95 to 4.3 MB/s). GitHub-side slowness; named, not fixed.
 - The whole WebKit run is 210 MB: 32 s at the fast rate, so it is the 40 s bound that killed it (MEASURED: 25 + 185 MB).
-  The three chromium runs failed for the same reason at the slower rate. Run 40156384878 is chromium too (columns).
+  The three chromium runs failed for the same reason at the slower rate. Run 40156384878 is chromium too (columns); it was measured only for its kept pieces (5.5 MB, 9.5 s), so its full size and whole-run download time are not measured.
 - Overhead per call is a few seconds (listing + redirect), so one call per artifact costs about 1 s each (5 pieces in 9.5 s).
 
 ## The rule
 
 `timeout(piece) = 15000 + 2 * kb(piece)` ms. `kb`: counts shard 2000 (seen 1844), `chromium-classes` and `telemetry-*` 100
 (seen 40, 36), webkit VM 12500 (seen 11856). 2 ms/KB is 0.5 MB/s, half the slowest rate seen. A webkit VM piece gets exactly 40 s
-(`piece_fits_hold_webkit_tight`); at 0.5 MB/s it has 25 s of transfer to spare for 12.5 MB.
+(`piece_fits_hold_webkit_tight`); at 0.5 MB/s its 25 s after the base just carry 12.5 MB; at the slowest rate seen (0.95 MB/s) the transfer takes 13 s, 12 s inside the bound.
 Golden `packages/contracts/golden/store/download.jsonl` (7 cases), replayed against fwcore by `apps/runner/test/run-golden.test.ts`.
 
 ## Retry and the budget
@@ -73,3 +73,11 @@ f74e3313a0de16a16602eb7e6a9794a7e042f376` (the run's own headSha and inputs: pre
 - `fw ci` (`apps/runner/src/ci.ts:115`) already downloads only `chromium-counts-*` and `chromium-classes` in one call (5.5 MB,
   9.5 s); it keeps the 40 s default and has no retry.
 - Existing store entries from before this change hold `fwcore`, `site-dist` and image artifacts; they are not rewritten.
+
+## Original target (WebKit)
+
+An original WebKit run names its VMs `v1..vN` (`SimPlan.origCell`; artifact `webkit-sim-v<i>`) and has the merge job's
+`webkit-classes` artifact; a rewrite run names them `r<i>` (`rewCell`). `downloadPieces .webkit .original n` gives
+`webkit-sim-v1..vN`, `webkit-classes`, `telemetry-*`. Theorems `webkit_original_downloaded`, `webkit_rewrite_downloaded` and
+`webkit_original_classes` tie the patterns to the SimPlan cells. No original-target 3-VM run was re-filed; the golden case
+(download.jsonl) and the runner test show the plan, not a live download.

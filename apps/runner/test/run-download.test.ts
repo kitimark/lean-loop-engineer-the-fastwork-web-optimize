@@ -23,6 +23,13 @@ describe.skipIf(!hasCore)("the download pieces of fw run", () => {
     expect((call({ op: "store.download", engine: "webkit", runs: 1 }) as { maxHoldMs: number }).maxHoldMs).toBe(GH_BOUNDS.defaultCallTimeoutMs);
   });
 
+  it("a 3-VM original webkit run names its VMs v1..v3 and takes the class directories", async () => {
+    const seen: string[][] = [];
+    const gh: Gh = async (args) => { seen.push(args); return ""; };
+    expect(await downloadPieces({ gh, call, log: () => {} }, "1", dir(), "webkit", "original", 3)).toBe(5);
+    expect(seen.map((a) => a[a.indexOf("--pattern") + 1])).toEqual(["webkit-sim-v1", "webkit-sim-v2", "webkit-sim-v3", "webkit-classes", "telemetry-*"]);
+  });
+
   it("a 3-VM webkit run is four calls, one per VM and the telemetry, none of them the build outputs", async () => {
     const seen: { args: string[]; timeoutMs?: number; cost?: number }[] = [];
     const gh: Gh = async (args, o) => { seen.push({ args, ...(o?.timeoutMs !== undefined ? { timeoutMs: o.timeoutMs } : {}), ...(o?.cost !== undefined ? { cost: o.cost } : {}) }); return ""; };
