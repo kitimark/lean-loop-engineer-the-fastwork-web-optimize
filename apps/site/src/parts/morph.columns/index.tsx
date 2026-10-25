@@ -6,6 +6,7 @@ import '../engine.scene/scene.module.css';
 import { COLUMNS } from './data';
 import { IdleHold, idleRemoved } from './idle';
 import css from './morph.module.css';
+import { scaleApplies, scaleVars } from './scale';
 
 export interface MorphColumnsProps {
   variant: string;
@@ -31,6 +32,7 @@ export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
   const clockRef = useRef<ReturnType<typeof createSceneClock> | null>(null);
   const hiddenPause = variant === 'hidden-pause';
   const idleNone = variant === 'idle-none';
+  const finalScale = variant === 'final-scale';
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -94,10 +96,36 @@ export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
     };
   }, [idleNone]);
 
+  useEffect(() => {
+    const stage = stageRef.current;
+    if (!finalScale || !stage) return;
+    let last = -1;
+    const write = () => {
+      const w = window.innerWidth;
+      if (w === last) return;
+      last = w;
+      if (!scaleApplies(w)) {
+        stage.removeAttribute('data-fw-cs');
+        return;
+      }
+      const v = scaleVars(w);
+      stage.style.setProperty('--cs-cf', String(v.cf));
+      stage.style.setProperty('--cs-a', String(v.a));
+      stage.style.setProperty('--cs-d', String(v.d));
+      stage.setAttribute('data-fw-cs', '');
+    };
+    write();
+    window.addEventListener('resize', write);
+    return () => {
+      window.removeEventListener('resize', write);
+      stage.removeAttribute('data-fw-cs');
+    };
+  }, [finalScale]);
+
   return (
     <div ref={stageRef} className={css.stage} data-fw="morph-columns" data-fw-variant={variant} data-fw-dormant={dormant ? '' : undefined}>
       {COLUMNS.map((c, i) => (
-        <div key={i} className={css.col} style={{ '--col-offset': c.offset } as CSSProperties}>
+        <div key={i} className={css.col} style={{ '--col-offset': c.offset, '--col-i': i } as CSSProperties}>
           <div className={css.track}>
             {c.heights.map((h, j) => (
               <img key={j} src={c.srcs[j]} alt="" loading="eager" decoding="async" style={{ height: `${h}px` }} />
