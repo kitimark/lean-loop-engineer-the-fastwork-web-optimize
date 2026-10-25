@@ -1,7 +1,7 @@
 # The dry land's outer spans carry the lake member, so a rebuild is not judged against no-op dry lands
 
 Status: CONFIRMED (code, Lean proofs, a real span line), the three incident durations MEASURED (`.fw-console/timings.jsonl`),
-the module counts of the 46.3 s and 35.8 s samples INFERRED (not recorded).
+the module counts MEASURED from the inner `land dry lake` spans: 25 (46.3 s), 6 (35.8 s), 41 (67.4 s).
 
 ## Answer
 
@@ -41,5 +41,12 @@ Builds add: two checks that each built 3 modules did 6 modules of work, class 4 
 - Old samples without the member stay unkeyed; `unkeyedLate` withholds a verdict from an unkeyed sample once keyed history
   exists (INFERRED effect: the old alerts stop with the first keyed samples).
 - The retry-alone span and `Nothing to build.` builds stay as `lake-span-mods` left them.
-- No CI dispatch. The 46.3 s and 35.8 s samples have no recorded count; the theorem holds for every total above 0.
+- No CI dispatch. The theorem holds for every total above 0; the measured counts 25, 6 and 41 are classes 16, 4 and 16.
 - A retried check counts the first attempt's modules too (`results[i].out` joins both outputs); this only raises the class.
+
+## Follow-ups
+
+- The admitted branch of `slot.run` (a session's `fw slot run --kind land`, no holder) has no test and no real line yet;
+  `land-slot-lake.test.ts` covers only the nested-held branch.
+- The incident samples are modelled at load 5 and holdMs 0; the real lines had load 8.15 to 8.9 (above loadMax 8).
+  `incident_outer_not_slow` is proved for the modelled samples, not the recorded lines; a load variant is open.

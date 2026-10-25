@@ -2982,7 +2982,7 @@ def incidentOuterRun (keyed : Bool) : List Sample :=
   ([23232, 23100, 23500, 23410, 23180, 23300, 23250, 23360].map fun d =>
     ({ tool := "fw land", step := "dry total lake", durMs := d, host := .«local», load := 5, exit := some 0,
        work := if keyed then modsWork 0 else [] } : Sample)) ++
-  [{ incidentOuter ("fw land", "dry total lake") 46323 [30, 11] with work := if keyed then outerWork [30, 11] else [] }]
+  [{ incidentOuter ("fw land", "dry total lake") 46323 [25] with work := if keyed then outerWork [25] else [] }]
 
 def incidentSlotRun (keyed : Bool) : List Sample :=
   ([23400, 23100, 23500, 23610, 23180, 23300, 23250, 23360].map fun d =>
@@ -3180,11 +3180,11 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, incidentLandRun true),
    ("fw land dry lake build and axiom-check, the same samples recorded without a mods class: 37.4 s against the 3.2 s p50 is slow",
       {}, incidentLandRun false),
-   ("fw land dry total lake: the 46.3 s span of 2026-10-25 (the checks built 30 + 11 modules, class 16) against eight dry lands that built nothing (p50 near 23.3 s, class 0): noBaseline",
+   ("fw land dry total lake: the 46.3 s span of 2026-10-25 (the checks built 25 modules, class 16) against eight dry lands that built nothing (p50 near 23.3 s, class 0): noBaseline",
       {}, incidentOuterRun true),
    ("fw land dry total lake: the same spans recorded without a mods class: the 46.3 s span is slow against the 23.3 s p50 (the false alarm)",
       {}, incidentOuterRun false),
-   ("slot run land dry: the 67.4 s span carrying the checks' module count (class 16) against eight class-0 spans: noBaseline",
+   ("slot run land dry: the 67.4 s span carrying the checks' 30 + 11 = 41 modules (class 16) against eight class-0 spans: noBaseline",
       {}, incidentSlotRun true),
    ("fw ci wait: the 23 min wait is judged by its own 27.3 s against the six waits before it (own p50 20.6 s): ok, though 23 min is far over 1.5 times its raw p50",
       {}, ciWaitRun),
