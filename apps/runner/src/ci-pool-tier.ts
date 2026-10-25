@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { jsonArg } from "./ci-pool.ts";
@@ -98,11 +98,24 @@ export async function tierCli(argv: string[], cwd: string): Promise<number> {
 
 // ---- dispatch time: `fw run` routes the cells of a webkit-sim count job through the Lean pool route (task pool-dispatch-poller) ----
 // The decision is Lean's (`ci.poolTier`, Fw.Ci.PoolTier: GitHub first, Codemagic when GitHub has no slot, stop at 400 of 500
-// minutes, never the rewrite arm). Everything below reads facts, maps the reply and moves files. TS stand-ins: `lanePool` (the
-// lane a target is routed under; `rewrite_never_codemagic` is the Lean side) and the local class merge (the `merge` job of webkit-sim.yml).
+// minutes; `ci.poolCell`: which targets are routable and when a finished rewrite cell may be filed, only with the site digest of
+// the GitHub site job). Everything below reads facts, maps the reply and moves files. TS stand-in: the local class merge (the
+// `merge` job of webkit-sim.yml).
 
-/** The pool lane of a count target. The rewrite arm needs the site build of the GitHub site job, so its lane is not in the Codemagic allow-list. */
-export const lanePool = (target: string): string => (target === "original" ? "webkit-sim" : "webkit-sim-rewrite");
+export type CellFacts = { lane: string | null; routable: boolean; needsDigest: boolean; filed: boolean };
+
+/** Lean's `ci.poolCell`: the pool lane of a count target, whether it is routable, and whether a finished cell with these site digests may be filed. */
+export function poolCell(call: FwCall, target: string, ghDigest?: string | null, cmDigest?: string | null): CellFacts {
+  const r = call({ op: "ci.poolCell", target, ...(ghDigest ? { ghDigest } : {}), ...(cmDigest ? { cmDigest } : {}) }) as unknown as CellFacts;
+  return { lane: r.lane, routable: r.routable, needsDigest: r.needsDigest, filed: r.filed };
+}
+
+/** The cells of a count job as Lean plans them (`measure.simPlan`): the VM name (v<n> original, r<n> rewrite) and the query each is served with. */
+export function planCells(call: FwCall, a: { target: string; vms: number; sessions: string; preset: string; fw: string; sha: string }): { vm: string; search: string }[] {
+  const r = call({ op: "measure.simPlan", id: "sim-plan", target: a.target, vms: String(a.vms), sessions: a.sessions, preset: a.preset, fw: a.fw, experiment: "determinism", sha: a.sha }) as unknown as { matrix: { vm: string; search: string }[]; problems: string[] };
+  if (r.problems.length) throw new Error(`plan refused: ${r.problems.join("; ")}`);
+  return r.matrix.map(({ vm, search }) => ({ vm, search }));
+}
 
 export type Busy = { ghMacBusy: number; ghTotalBusy: number };
 
@@ -124,7 +137,9 @@ export type CellRoute = { total: number; codemagic: number; github: number; rows
 
 /** Ask Lean where each of `vms` cells of one count job goes. CircleCI is closed (its allow-list is emptied); a cell that is not Codemagic stays on GitHub, whose queue holds it. */
 export function routeCells(call: FwCall, a: { sha: string; key: string; target: string; vms: number; busy: Busy; facts: CmFacts }): CellRoute {
-  const reqs = Array.from({ length: a.vms }, (_, rep) => ({ sha: a.sha, lane: lanePool(a.target), cfg: a.key, rep, engine: "iosSimSafari", image: "xcode-27", capMin: 40 }));
+  const lane = poolCell(call, a.target).lane;
+  if (!lane) throw new Error(`target ${a.target} has no pool lane`);
+  const reqs = Array.from({ length: a.vms }, (_, rep) => ({ sha: a.sha, lane, cfg: a.key, rep, engine: "iosSimSafari", image: "xcode-27", capMin: 40 }));
   const reply = call({ op: "ci.poolTier", over: { circleMacAllow: [], circleCaps: {} }, state: { ...a.busy, ...a.facts, ccSpent: 0, ccStorage: 0 }, reqs });
   const rows = (reply.log as { rep: number; decision: string; via: string | null }[]).map(({ rep, decision, via }) => ({ rep, decision, via }));
   const codemagic = (reply.counts as Record<string, number>).codemagic ?? 0;
@@ -133,7 +148,8 @@ export function routeCells(call: FwCall, a: { sha: string; key: string; target: 
 
 /** The route events: one append-only line per decision (`<console dir>/ci-route.jsonl`, the runner's own log like timings.jsonl). */
 export type RouteEvent =
-  | { kind: "ci.route"; at: number; sha7: string; lane: string; cells: number; codemagic: number; github: number; rows: CellRoute["rows"]; busy: Busy; facts: CmFacts }
+  | { kind: "ci.site.digest"; at: number; vm: string; github: string | null; codemagic: string | null; filed: boolean }
+  | { kind: "ci.route"; at: number; sha7: string; lane: string; target: string; cells: number; codemagic: number; github: number; rows: CellRoute["rows"]; busy: Busy; facts: CmFacts }
   | { kind: "ci.route.skip"; at: number; why: string }
   | { kind: "ci.codemagic.build"; at: number; build: string; vm: string; status: string; startedAt: number | null; finishedAt: number | null; createdAt: number | null; minutes: number | null }
   | { kind: "ci.codemagic.refused"; at: number; vm: string; code: number };
@@ -151,9 +167,13 @@ export type CmDeps = {
   wait: (build: string, out: string) => Promise<number>;
   read: (out: string) => CmBuildDoc;
   facts: () => CmFacts;
+  /** The digest of the site build of the GitHub run (its `site-dist` artifact), null when the run has none. */
+  githubSiteDigest: (runId: string, tmp: string) => Promise<string | null>;
+  /** The digest the Codemagic cell printed for its own site build (`site-digest.txt` among the fetched artifacts), null when absent. */
+  siteDigestOf: (out: string) => string | null;
 };
 
-export function realCmDeps(root: string, log: (l: string) => void): CmDeps {
+export function realCmDeps(root: string, log: (l: string) => void, gh?: Gh): CmDeps {
   const script = join(root, "scripts/codemagic.mjs");
   const run = (args: string[]) => new Promise<{ code: number; out: string }>((res) => {
     const c = spawn(process.execPath, [script, ...args], { cwd: root, stdio: ["ignore", "pipe", "inherit"] });
@@ -170,6 +190,21 @@ export function realCmDeps(root: string, log: (l: string) => void): CmDeps {
     },
     wait: async (build, out) => { const r = await run(["wait", "--build", build, "--out", out, "--interval", "120", "--timeout", "3000"]); log(r.out.trim()); return r.code; },
     read: (out) => JSON.parse(readFileSync(join(out, "build.json"), "utf8")) as CmBuildDoc,
+    githubSiteDigest: async (runId, tmp) => {
+      if (!gh) return null;
+      rmSync(tmp, { recursive: true, force: true });
+      mkdirSync(tmp, { recursive: true });
+      try { await gh(["run", "download", runId, "-D", tmp, "--pattern", "site-dist"]); } catch { return null; }
+      const sub = join(tmp, "site-dist");
+      const dir = existsSync(sub) ? sub : tmp;
+      const r = await run(["site-digest", dir]);
+      rmSync(tmp, { recursive: true, force: true });
+      return r.code === 0 ? (/^([0-9a-f]{64})\b/.exec(r.out.trim())?.[1] ?? null) : null;
+    },
+    siteDigestOf: (out) => {
+      const f = join(out, "artifacts", "site-digest.txt");
+      return existsSync(f) ? (/^([0-9a-f]{64})\b/.exec(readFileSync(f, "utf8").trim())?.[1] ?? null) : null;
+    },
     facts: () => {
       const r = spawnSync(process.execPath, [script, "facts"], { cwd: root, encoding: "utf8" });
       if (r.status !== 0) throw new Error(`codemagic facts failed: ${r.stderr.trim()}`);
@@ -192,8 +227,8 @@ export function placeCmArtifacts(buildOut: string, dir: string, vm: string): num
 
 /** The `merge` job of webkit-sim.yml, run here for a mixed run: classes over every VM and the within-VM tables (`webkit-classes`). */
 export function mergeClasses(root: string, dir: string): number {
-  const files = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && /^webkit-sim-v\d+$/.test(e.name))
-    .flatMap((e) => readdirSync(join(dir, e.name)).filter((f) => /^v\d+-session-\d+\.json$/.test(f)).map((f) => join(dir, e.name, f))).sort();
+  const files = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && /^webkit-sim-[vr]\d+$/.test(e.name))
+    .flatMap((e) => readdirSync(join(dir, e.name)).filter((f) => /^[vr]\d+-session-\d+\.json$/.test(f)).map((f) => join(dir, e.name, f))).sort();
   if (!files.length) return 0;
   const cli = join(root, "packages/measure-webkit/src/cli.mjs");
   const merge = (fs: string[]) => {
@@ -204,7 +239,7 @@ export function mergeClasses(root: string, dir: string): number {
   const out = join(dir, "webkit-classes");
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, "classes.md"), merge(files));
-  for (const vm of new Set(files.map((f) => /\/(v\d+)-session-/.exec(f)![1]!))) writeFileSync(join(out, `${vm}-classes.md`), merge(files.filter((f) => f.includes(`/${vm}-session-`))));
+  for (const vm of new Set(files.map((f) => /\/([vr]\d+)-session-/.exec(f)![1]!))) writeFileSync(join(out, `${vm}-classes.md`), merge(files.filter((f) => f.includes(`/${vm}-session-`))));
   writeFileSync(join(out, "sha256.txt"), files.map((f) => `${createHash("sha256").update(readFileSync(f)).digest("hex")}  ${f.split("/").pop()}\n`).join(""));
   return files.length;
 }
@@ -214,30 +249,33 @@ export function mergeClasses(root: string, dir: string): number {
 export function realRoute(a: { root: string; consoleDir: string; call: FwCall; gh: Gh; log: (l: string) => void; now: () => number; cm?: CmDeps }): RouteDeps {
   const file = join(a.consoleDir, "ci-route.jsonl");
   const ev = (e: RouteEvent) => appendRouteEvent(file, e);
-  const cm = a.cm ?? realCmDeps(a.root, a.log);
+  const cm = a.cm ?? realCmDeps(a.root, a.log, a.gh);
   const macOf = (wf: string, names: string[]) => (a.call({ op: "obs.macIs", rows: names.map((name) => ({ wf, name })) }) as unknown as { mac: boolean[] }).mac;
   return {
     split: async (job, ref, sha) => {
       const total = Number(job.inputs.vms ?? "1");
+      const target = job.inputs.target ?? "original";
       const keep = (why: string) => { ev({ kind: "ci.route.skip", at: a.now(), why }); a.log(`route: ${why}; all ${total} cells on GitHub`); return { github: total, cm: Promise.resolve([] as CmCellDone[]) }; };
-      if ((job.inputs.target ?? "original") !== "original") return keep("rewrite arm is GitHub-only");
+      if (!poolCell(a.call, target).routable) return keep(`target ${target} is not routable (Lean ci.poolCell)`);
       if (!ref.startsWith("ci/")) return keep(`ref ${ref} is not a pushed ci/* branch`);
       if (total < 2) return keep("one cell stays on GitHub");
       let r: CellRoute;
-      try { r = routeCells(a.call, { sha, key: /^[0-9a-f]{64}$/.test(String(job.digest)) ? String(job.digest) : createHash("sha256").update(JSON.stringify(job.key ?? job.inputs)).digest("hex"), target: "original", vms: total, busy: await readGhBusy(a.gh, macOf), facts: cm.facts() }); }
-      catch (e) { return keep(`facts unavailable (${(e as Error).message.split("\n")[0]})`); }
+      let cells: { vm: string; search: string }[];
+      try {
+        cells = planCells(a.call, { target, vms: total, sessions: job.inputs.sessions ?? "1", preset: job.inputs.preset ?? "original", fw: job.inputs.fw ?? "", sha });
+        r = routeCells(a.call, { sha, key: /^[0-9a-f]{64}$/.test(String(job.digest)) ? String(job.digest) : createHash("sha256").update(JSON.stringify(job.key ?? job.inputs)).digest("hex"), target, vms: total, busy: await readGhBusy(a.gh, macOf), facts: cm.facts() });
+      } catch (e) { return keep(`facts unavailable (${(e as Error).message.split("\n")[0]})`); }
       const offload = Math.min(r.codemagic, total - 1);
-      ev({ kind: "ci.route", at: a.now(), sha7: sha.slice(0, 7), lane: lanePool("original"), cells: total, codemagic: offload, github: total - offload, rows: r.rows, busy: r.busy, facts: r.facts });
-      a.log(`route: ${total} cells, ${offload} to Codemagic, ${total - offload} to GitHub (macOS busy ${r.busy.ghMacBusy}, Codemagic used ${r.facts.cmUsed} min)`);
+      ev({ kind: "ci.route", at: a.now(), sha7: sha.slice(0, 7), lane: poolCell(a.call, target).lane ?? "", target, cells: total, codemagic: offload, github: total - offload, rows: r.rows, busy: r.busy, facts: r.facts });
+      a.log(`route: ${total} ${target} cells, ${offload} to Codemagic, ${total - offload} to GitHub (macOS busy ${r.busy.ghMacBusy}, Codemagic used ${r.facts.cmUsed} min)`);
       if (!offload) return { github: total, cm: Promise.resolve([]) };
       const github = total - offload;
       const sessions = job.inputs.sessions ?? "1";
       const started: { vm: string; build: string }[] = [];
-      for (let k = github + 1; k <= total; k++) {
-        const vm = `v${k}`;
-        const t = await cm.trigger(ref, { FW_TARGET: "original", FW_PRESET: "original", FW_FW: "", FW_VM: vm, FW_SESSIONS: sessions });
-        if (t.build && t.code === 0) started.push({ vm, build: t.build });
-        else { ev({ kind: "ci.codemagic.refused", at: a.now(), vm, code: t.code }); throw new Error(`Codemagic cell ${vm} was not started (exit ${t.code}); rerun with --no-route to keep every cell on GitHub`); }
+      for (const c of cells.slice(github)) {
+        const t = await cm.trigger(ref, { FW_TARGET: target, FW_PRESET: job.inputs.preset ?? "original", FW_FW: job.inputs.fw ?? "", FW_VM: c.vm, FW_SESSIONS: sessions, ...(target === "rewrite" ? { FW_SEARCH: c.search } : {}) });
+        if (t.build && t.code === 0) started.push({ vm: c.vm, build: t.build });
+        else { ev({ kind: "ci.codemagic.refused", at: a.now(), vm: c.vm, code: t.code }); throw new Error(`Codemagic cell ${c.vm} was not started (exit ${t.code}); rerun with --no-route to keep every cell on GitHub`); }
       }
       const done = Promise.all(started.map(async ({ vm, build }) => {
         const out = join(a.consoleDir, "tmp", `codemagic-${build}`);
@@ -246,11 +284,22 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
         ev({ kind: "ci.codemagic.build", at: a.now(), build, vm, status: doc.status, startedAt: doc.startedAt, finishedAt: doc.finishedAt, createdAt: doc.createdAt, minutes: doc.minutes });
         if (code !== 0) throw new Error(`Codemagic build ${build} (${vm}) ended with exit ${code}`);
         if (doc.sha && doc.sha !== sha) throw new Error(`Codemagic build ${build} measured ${doc.sha.slice(0, 7)}, not ${sha.slice(0, 7)}`);
-        return { vm, out };
+        return { vm, out, target };
       }));
       return { github, cm: done };
     },
-    place: (dir, cells) => {
+    place: async (dir, cells, runId) => {
+      const rewrite = cells.filter((c) => poolCell(a.call, c.target ?? "original").needsDigest);
+      if (rewrite.length) {
+        // The rewrite cell built its own site: it is filed only when that build equals the build of the GitHub site job (Lean ci.poolCell).
+        const gh = await cm.githubSiteDigest(runId, join(a.consoleDir, "tmp", `site-${runId}`));
+        for (const c of rewrite) {
+          const mine = cm.siteDigestOf(c.out);
+          const v = poolCell(a.call, c.target!, gh, mine);
+          ev({ kind: "ci.site.digest", at: a.now(), vm: c.vm, github: gh, codemagic: mine, filed: v.filed });
+          if (!v.filed) throw new Error(`Codemagic cell ${c.vm}: site digest ${mine ?? "missing"} is not the GitHub site job digest ${gh ?? "missing"}; the rewrite cell is not routable, rerun with --no-route`);
+        }
+      }
       for (const c of cells) if (placeCmArtifacts(c.out, dir, c.vm) === 0) throw new Error(`Codemagic cell ${c.vm}: no artifacts in ${c.out}`);
       mergeClasses(a.root, dir);
     },

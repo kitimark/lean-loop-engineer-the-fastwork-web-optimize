@@ -6,7 +6,7 @@ import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { billedMin, buildMinutes, classDigest, classRows, compareTables, exitOf, fetchBuild, ledgerRows, loadConfig, loadGolden, main, mayTrigger, monthOf, normBuild,
-  poolFacts, poolOk, poolRefusals, redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
+  digestOfText, poolFacts, poolOk, siteDigest, poolRefusals, redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const g = loadGolden();
@@ -303,4 +303,57 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
   }
   assert.match(y, /node src\/cli\.mjs determinism --runs 2 --keep --out "out\/\$FW_VM-session-\$s\.json"/);
   assert.ok(!/x-auth-token|fw-codemagic-token/.test(y));
+});
+
+test('codemagic.yaml: the rewrite cell builds the site like the GitHub site job (pinned elan, frozen install, @fw/site build with the planned query, digest) and serves it', () => {
+  const y = readFileSync(new URL('../codemagic.yaml', import.meta.url), 'utf8');
+  const gh = readFileSync(new URL('../.github/workflows/webkit-sim.yml', import.meta.url), 'utf8');
+  const pick = (s, v) => new RegExp(`${v}: ['"]?([^'"\\s]+)['"]?`).exec(s)?.[1];
+  assert.equal(pick(y, 'ELAN_VERSION'), pick(readFileSync(new URL('../.github/actions/setup-lean/action.yml', import.meta.url), 'utf8'), 'ELAN_VERSION'));
+  assert.match(y, /ELAN_SHA256: [0-9a-f]{64}/);
+  assert.match(y, /pnpm install --frozen-lockfile --filter '@fw\/site\.\.\.'/);
+  assert.match(y, /pnpm --filter @fw\/site build --config "\$FW_SEARCH"/);
+  assert.match(gh, /pnpm --filter @fw\/site build --config "\$SEARCH"/);
+  assert.match(y, /node scripts\/codemagic\.mjs site-digest apps\/site\/dist\/aot/);
+  assert.match(y, /determinism --runs 2 --keep --site "\$PWD\/\.\.\/\.\.\/apps\/site\/dist\/aot" --search "\$FW_SEARCH"/);
+  assert.match(y, /verify-snapshot\.mjs/);
+  assert.match(y, /FW_SEARCH: ""/);
+  assert.ok(!/needs the site-dist build/.test(y));
+});
+
+const site = (files) => { const d = mkdtempSync(join(tmpdir(), 'cm-site-')); for (const [f, c] of Object.entries(files)) { mkdirSync(dirname(join(d, f)), { recursive: true }); writeFileSync(join(d, f), c); } return d; };
+
+test('siteDigest: the same files give the same digest whatever the write order, a changed byte, name or an extra file changes it, an empty tree has none', () => {
+  const a = siteDigest(site({ 'index.html': 'x', 'a/b.js': 'y' })), b = siteDigest(site({ 'a/b.js': 'y', 'index.html': 'x' }));
+  assert.equal(a.digest, b.digest);
+  assert.equal(a.files, 2);
+  assert.match(a.digest, /^[0-9a-f]{64}$/);
+  for (const other of [{ 'index.html': 'z', 'a/b.js': 'y' }, { 'index.htm': 'x', 'a/b.js': 'y' }, { 'index.html': 'x', 'a/b.js': 'y', 'c': '' }]) assert.notEqual(siteDigest(site(other)).digest, a.digest);
+  assert.equal(siteDigest(site({})).digest, null);
+});
+
+test('site-digest verb prints the digest and the file count, digestOfText reads it back', async () => {
+  const d = site({ 'index.html': 'x' });
+  const out = []; const code = await main(['site-digest', d], { log: (l) => out.push(l) });
+  assert.equal(code, 0);
+  assert.equal(digestOfText(out[0]), siteDigest(d).digest);
+  assert.equal(digestOfText('not a digest'), null);
+});
+
+test('rewrite cell variables: FW_TARGET rewrite, a vm r<n> and the planned FW_SEARCH go through, a search with a space or a shell character does not', () => {
+  const vars = { FW_TARGET: 'rewrite', FW_PRESET: 'original', FW_FW: 'hero.accent:draw-nolayout', FW_VM: 'r2', FW_SESSIONS: '1', FW_SEARCH: '?fw=hero.accent:draw-nolayout' };
+  assert.deepEqual(triggerRequest({ appId: APP, branch: 'ci/x', vars }).body.environment.variables, vars);
+  for (const bad of ['a b', 'x;y', '$(id)', 'a'.repeat(301)]) assert.throws(() => triggerRequest({ appId: APP, branch: 'ci/x', vars: { FW_SEARCH: bad } }));
+});
+
+test('compare --vm r1 with site digests: equal digests exit 0, different digests exit 3', async () => {
+  const table = '| family | a | b | cls |  |  |  |  |\n| x | y | z | Layout |  |  |  |  |\n';
+  const gh = mkdtempSync(join(tmpdir(), 'cm-gh-')), cm = mkdtempSync(join(tmpdir(), 'cm-cm-'));
+  writeFileSync(join(gh, 'r1-session-1.md'), table); writeFileSync(join(cm, 'r1-session-1.md'), table);
+  const s = site({ 'index.html': 'x' });
+  writeFileSync(join(cm, 'site-digest.txt'), `${siteDigest(s).digest}  1 files\n`);
+  const run = (file) => main(['compare', '--github', gh, '--codemagic', cm, '--vm', 'r1', '--site-github', s, '--site-codemagic', file], { log: () => {} });
+  assert.equal(await run(join(cm, 'site-digest.txt')), 0);
+  writeFileSync(join(cm, 'other.txt'), `${'0'.repeat(64)}  1 files\n`);
+  assert.equal(await run(join(cm, 'other.txt')), 3);
 });

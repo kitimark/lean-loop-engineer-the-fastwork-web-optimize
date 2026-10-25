@@ -1,6 +1,6 @@
 workflows:
   webkit-sim:
-    name: webkit-sim (one count cell, original arm)
+    name: webkit-sim (one count cell, original or rewrite arm)
     instance_type: mac_mini_m2
     max_build_duration: 40
     environment:
@@ -20,6 +20,10 @@ workflows:
         FW_FW: ""
         FW_VM: v1
         FW_SESSIONS: "1"
+        # the query the rewrite cell is served with (Lean's plan, passed by fw run; empty = the default configuration)
+        FW_SEARCH: ""
+        ELAN_VERSION: v4.2.4
+        ELAN_SHA256: 7ad829861392c718dfebde3a83b5c8508df47be02af68894b094b0b3952616e5
     scripts:
       - name: Node 24.22.0 first on PATH
         script: |
@@ -50,6 +54,27 @@ workflows:
         script: |
           set -eu
           node .github/scripts/verify-snapshot.mjs
+      - name: rewrite cell, the site build of the GitHub site job (elan pinned and sha256 checked, pnpm install, pnpm --filter @fw/site build)
+        script: |
+          set -eu
+          export RUNNER_TEMP=/tmp/fw
+          if [ "$FW_TARGET" != rewrite ]; then echo "original cell: the read-only snapshot is served, no site build"; exit 0; fi
+          t=$(date +%s)
+          dl="$RUNNER_TEMP/elan-dl"; mkdir -p "$dl"
+          curl -fsSL --retry 5 --retry-all-errors -o "$dl/elan.tgz" "https://github.com/leanprover/elan/releases/download/${ELAN_VERSION}/elan-aarch64-apple-darwin.tar.gz"
+          echo "${ELAN_SHA256}  $dl/elan.tgz" | shasum -a 256 -c -
+          tar -xzf "$dl/elan.tgz" -C "$dl"
+          "$dl/elan-init" -y --no-modify-path --default-toolchain none
+          export PATH="$HOME/.elan/bin:$PATH"
+          mkdir -p "$HOME/fw-bin"; corepack enable --install-directory "$HOME/fw-bin"
+          export PATH="$HOME/fw-bin:$PATH"
+          pnpm --version
+          pnpm install --frozen-lockfile --filter '@fw/site...'
+          # the toolchain named in lean/lean-toolchain (what setup-lean installs on the GitHub job)
+          (cd lean && elan toolchain install "$(cat lean-toolchain)" && lake build breakgen)
+          if [ -n "$FW_SEARCH" ]; then pnpm --filter @fw/site build --config "$FW_SEARCH"; else pnpm --filter @fw/site build; fi
+          node scripts/codemagic.mjs site-digest apps/site/dist/aot | tee "$RUNNER_TEMP/result/site-digest.txt"
+          echo "site build: $(( $(date +%s) - t )) s"
       - name: ios_webkit_debug_proxy (preinstalled, else the cached kegs, else brew)
         script: |
           set -eu
@@ -90,16 +115,15 @@ workflows:
           export RUNNER_TEMP=/tmp/fw
           export FW_SNAPSHOT_SITE="$PWD/snapshot/site"
           echo "cell: target=$FW_TARGET preset=$FW_PRESET fw=$FW_FW vm=$FW_VM sessions=$FW_SESSIONS"
-          if [ "$FW_TARGET" != original ]; then
-            echo "the rewrite arm needs the site-dist build of the GitHub site job; this machine runs the original arm only"
-            echo 2 > "$RUNNER_TEMP/determinism.rc"
-            exit 0
-          fi
           cd packages/measure-webkit
           mkdir -p out
           rc=0
           for s in $(seq 1 "$FW_SESSIONS"); do
-            node src/cli.mjs determinism --runs 2 --keep --out "out/$FW_VM-session-$s.json" > "out/$FW_VM-session-$s.md" 2> "out/$FW_VM-session-$s.log"
+            if [ "$FW_TARGET" = rewrite ]; then
+              node src/cli.mjs determinism --runs 2 --keep --site "$PWD/../../apps/site/dist/aot" --search "$FW_SEARCH" --out "out/$FW_VM-session-$s.json" > "out/$FW_VM-session-$s.md" 2> "out/$FW_VM-session-$s.log"
+            else
+              node src/cli.mjs determinism --runs 2 --keep --out "out/$FW_VM-session-$s.json" > "out/$FW_VM-session-$s.md" 2> "out/$FW_VM-session-$s.log"
+            fi
             r=$?
             cat "out/$FW_VM-session-$s.md"
             tail -n 40 "out/$FW_VM-session-$s.log"
@@ -115,6 +139,7 @@ workflows:
           cp packages/measure-webkit/out/"$FW_VM"-* "$CM_BUILD_DIR/fw-result/" 2>/dev/null || true
           sh .github/scripts/runner-info.sh "$CM_BUILD_DIR/fw-result/runner.json" || true
           cp "$RUNNER_TEMP/result/tools.txt" "$CM_BUILD_DIR/fw-result/" 2>/dev/null || true
+          cp "$RUNNER_TEMP/result/site-digest.txt" "$CM_BUILD_DIR/fw-extra/" 2>/dev/null || true
           { uptime; xcrun simctl list devices booted; ps -axo pid,pcpu,rss,comm | sort -k2 -nr | head -15; } > "$CM_BUILD_DIR/fw-extra/host.txt" 2>&1 || true
           echo "tool-start $(cat "$RUNNER_TEMP/t0") end $(date +%s)" > "$CM_BUILD_DIR/fw-extra/wall.txt"
           cp "$RUNNER_TEMP/result/check-simulator.txt" "$CM_BUILD_DIR/fw-extra/" 2>/dev/null || true

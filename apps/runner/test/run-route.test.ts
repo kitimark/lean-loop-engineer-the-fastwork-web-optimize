@@ -21,18 +21,18 @@ describe("runMain with the pool route", () => {
 
   it("dispatches only the cells the route keeps on GitHub, and waits for the Codemagic cells", async () => {
     let settled = false;
-    const route: RouteDeps = { split: async (j) => { expect(j.inputs.vms).toBe("3"); return { github: 2, cm: Promise.resolve([]).then(() => { settled = true; return []; }) }; }, place: () => {} };
+    const route: RouteDeps = { split: async (j) => { expect(j.inputs.vms).toBe("3"); return { github: 2, cm: Promise.resolve([]).then(() => { settled = true; return []; }) }; }, place: async () => {} };
     const dispatched = await drive(argv, route);
     expect(dispatched).toContain("vms=2");
     expect(settled).toBe(true);
   });
   it("--no-route and a missing route dispatch every cell", async () => {
-    const route: RouteDeps = { split: async () => { throw new Error("must not route"); }, place: () => {} };
+    const route: RouteDeps = { split: async () => { throw new Error("must not route"); }, place: async () => {} };
     expect(await drive([...argv, "--no-route"], route)).toContain("vms=3");
     expect(await drive(argv, undefined)).toContain("vms=3");
   });
   it("a Codemagic failure fails the run", async () => {
-    const route: RouteDeps = { split: async () => ({ github: 2, cm: Promise.reject(new Error("Codemagic build failed")) }), place: () => {} };
+    const route: RouteDeps = { split: async () => ({ github: 2, cm: Promise.reject(new Error("Codemagic build failed")) }), place: async () => {} };
     const ghCalls: string[][] = [];
     const gh: Gh = async (a) => { ghCalls.push(a); return ""; };
     const d = { nonce: () => "n", now: () => 1_800_000_000, wait: async (_t: Target) => ({ code: 0 as const, lines: ["run 55 x"] }), call: plan, gh, store: "/nonexistent-store", sha: SHA, branch: "ci/x", tmp: "", log: () => {}, route };

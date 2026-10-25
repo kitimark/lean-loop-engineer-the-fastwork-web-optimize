@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { lanePool, placeCmArtifacts, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
+import { placeCmArtifacts, poolCell, planCells, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
 import type { PlanJob } from "@fw/contracts";
 import { fwcoreCall } from "../src/run.ts";
 
@@ -35,9 +35,24 @@ describe("routeCells: the Lean route at dispatch time", () => {
     expect(cell(1, full, { cmUsed: 360, cmBusy: 0 }).codemagic).toBe(1);
     expect(cell(1, full, { cmUsed: 361, cmBusy: 0 }).codemagic).toBe(0);
   });
-  it("the rewrite arm never goes to Codemagic", () => {
-    expect(lanePool("rewrite")).toBe("webkit-sim-rewrite");
-    expect(cell(2, { ghMacBusy: 5, ghTotalBusy: 5 }, facts, "rewrite").codemagic).toBe(0);
+  it("the rewrite arm is routable under its own lane: a full GitHub sends one rewrite cell to Codemagic", () => {
+    expect(poolCell(call, "rewrite")).toMatchObject({ lane: "webkit-sim-rewrite", routable: true, needsDigest: true });
+    expect(cell(2, { ghMacBusy: 5, ghTotalBusy: 5 }, facts, "rewrite").codemagic).toBe(1);
+    expect(cell(2, idle, facts, "rewrite").codemagic).toBe(0);
+  });
+  it("both is not routable (two arms in one run)", () => {
+    expect(poolCell(call, "both")).toMatchObject({ lane: null, routable: false });
+  });
+  it("Lean files a rewrite cell only with equal, non-empty site digests; the original arm needs none", () => {
+    expect(poolCell(call, "rewrite", "ab", "ab").filed).toBe(true);
+    expect(poolCell(call, "rewrite", "ab", "cd").filed).toBe(false);
+    expect(poolCell(call, "rewrite", "ab", null).filed).toBe(false);
+    expect(poolCell(call, "rewrite", null, "ab").filed).toBe(false);
+    expect(poolCell(call, "original", null, null).filed).toBe(true);
+  });
+  it("planCells names the rewrite VMs r<n> and carries the planned query", () => {
+    expect(planCells(call, { target: "rewrite", vms: 3, sessions: "1", preset: "original", fw: "", sha: SHA }).map((c) => c.vm)).toEqual(["r1", "r2", "r3"]);
+    expect(planCells(call, { target: "original", vms: 2, sessions: "1", preset: "original", fw: "", sha: SHA }).map((c) => c.vm)).toEqual(["v1", "v2"]);
   });
 });
 
@@ -55,7 +70,7 @@ describe("readGhBusy", () => {
 
 describe("realRoute.split", () => {
   const job = (inputs: Record<string, string>) => ({ engine: "webkit", workflow: "webkit-sim.yml", inputs, digest: "d", key: [] }) as unknown as PlanJob;
-  const mk = (full: boolean, trig = { code: 0, build: "b".repeat(24) }) => {
+  const mk = (full: boolean, trig = { code: 0, build: "b".repeat(24) }, ghDigest: string | null = "ab", cmDigest: string | null = "ab") => {
     const dir = mkdtempSync(join(tmpdir(), "route-"));
     const triggered: Record<string, string>[] = [];
     const cm: CmDeps = {
@@ -63,6 +78,8 @@ describe("realRoute.split", () => {
       wait: async (_b, out) => { mkdirSync(join(out, "artifacts"), { recursive: true }); return 0; },
       read: () => ({ status: "finished", startedAt: 5, finishedAt: 9, createdAt: 1, minutes: 4, sha: SHA }),
       facts: () => facts,
+      githubSiteDigest: async () => ghDigest,
+      siteDigestOf: () => cmDigest,
     };
     const gh = async (a: string[]) => (a[1] === "list" ? JSON.stringify(full ? [{ databaseId: 1, workflowName: "webkit-sim" }] : []) : JSON.stringify({ jobs: Array.from({ length: 5 }, (_, i) => ({ name: `sim (v${i + 1})`, status: "in_progress" })) }));
     const r = realRoute({ root, consoleDir: dir, call, gh, log: () => {}, now: () => 7, cm });
@@ -87,8 +104,33 @@ describe("realRoute.split", () => {
     expect(s.github).toBe(3);
     expect(m.triggered).toEqual([]);
   });
-  it("skips are recorded: rewrite arm, non-ci ref, single cell", async () => {
-    for (const [inputs, ref, why] of [[{ vms: "3", target: "rewrite" }, "ci/x", /rewrite/], [{ vms: "3", target: "original" }, "main", /not a pushed ci/], [{ vms: "1", target: "original" }, "ci/x", /one cell/]] as const) {
+  it("full GitHub, rewrite: the Codemagic cell is r3 with FW_TARGET rewrite and the planned query", async () => {
+    const m = mk(true);
+    const s = await m.r.split(job({ vms: "3", target: "rewrite", preset: "original", fw: "" }), "ci/x", SHA);
+    expect(s.github).toBe(2);
+    expect(m.triggered).toEqual([{ FW_TARGET: "rewrite", FW_PRESET: "original", FW_FW: "", FW_VM: "r3", FW_SESSIONS: "1", FW_SEARCH: "" }]);
+    expect(m.events()[0]).toMatchObject({ kind: "ci.route", target: "rewrite", lane: "webkit-sim-rewrite", codemagic: 1 });
+  });
+  it("place: a rewrite cell is filed when its site digest equals the GitHub site job digest, and the event says so", async () => {
+    const m = mk(true);
+    const s = await m.r.split(job({ vms: "2", target: "rewrite" }), "ci/x", SHA);
+    const cells = await s.cm;
+    mkdirSync(join(cells[0]!.out, "artifacts"), { recursive: true });
+    writeFileSync(join(cells[0]!.out, "artifacts", "r2-session-1.json"), "{}");
+    await m.r.place(mkdtempSync(join(tmpdir(), "dl-")), cells, "99").catch((e: Error) => { if (!/merge failed/.test(e.message)) throw e; });
+    expect(m.events().find((e) => e.kind === "ci.site.digest")).toMatchObject({ vm: "r2", github: "ab", codemagic: "ab", filed: true });
+  });
+  it("place: a differing or missing site digest refuses the rewrite cell, nothing is placed", async () => {
+    for (const [g, c] of [["ab", "cd"], ["ab", null], [null, "ab"]] as const) {
+      const m = mk(true, undefined, g, c);
+      const cells = await (await m.r.split(job({ vms: "2", target: "rewrite" }), "ci/x", SHA)).cm;
+      const dl = mkdtempSync(join(tmpdir(), "dl-"));
+      await expect(m.r.place(dl, cells, "99")).rejects.toThrow(/not routable/);
+      expect(m.events().find((e) => e.kind === "ci.site.digest")).toMatchObject({ filed: false });
+    }
+  });
+  it("skips are recorded: not routable target, non-ci ref, single cell", async () => {
+    for (const [inputs, ref, why] of [[{ vms: "3", target: "both" }, "ci/x", /not routable/], [{ vms: "3", target: "original" }, "main", /not a pushed ci/], [{ vms: "1", target: "original" }, "ci/x", /one cell/]] as const) {
       const m = mk(true);
       const s = await m.r.split(job({ ...inputs }), ref, SHA);
       expect(s.github).toBe(Number(inputs.vms));

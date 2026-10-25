@@ -263,10 +263,10 @@ export function renderPlan(p: Planned, dry: boolean): string[] {
 /** Dispatch-time pool route (task pool-dispatch-poller). `split` asks the Lean route where the cells of one webkit-sim count job go, starts the
  *  Codemagic cells and returns how many cells stay on GitHub; `cm` settles with the fetched Codemagic cells (vm names v<github+1>..); `place` files them
  *  next to the GitHub download and merges the classes over every VM. */
-export type CmCellDone = { vm: string; out: string };
+export type CmCellDone = { vm: string; out: string; target?: string };
 export type RouteDeps = {
   split: (job: PlanJob, ref: string, sha: string) => Promise<{ github: number; cm: Promise<CmCellDone[]> }>;
-  place: (dir: string, cells: CmCellDone[]) => void;
+  place: (dir: string, cells: CmCellDone[], runId: string) => Promise<void>;
 };
 
 export type RunDeps = {
@@ -325,7 +325,7 @@ export async function runMain(args: RunArgs, d: RunDeps): Promise<number> {
     let r: ReturnType<typeof ingest>;
     try {
       await downloadPieces(d, runId, dir, j.engine, args.target, ghRuns, cells.length > 0);
-      if (cells.length) d.route!.place(dir, cells);
+      if (cells.length) await d.route!.place(dir, cells, runId);
       r = ingest(d.call, d.store, dir, j, { target: args.target, preset: args.preset, fw: planned.reply.fw, profile: args.profile ?? "swipe-v1", gitSha: sha, runs: keyRuns(j.key as [string, string][]), runId });
     } finally { rmSync(dir, { recursive: true, force: true }); }
     d.log(`${j.engine}: run ${runId} filed, ${r.manifest.entries.length} artifacts (${r.objects} new, ${r.reused} already stored) -> ${relative(d.store, r.path)}`);

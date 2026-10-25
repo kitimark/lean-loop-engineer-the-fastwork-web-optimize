@@ -29,7 +29,7 @@ def pool7 : Cfg where
   cmCls := "mac_mini_m2"
   cmConc := 1
   cmCapMin := Codemagic.maxCapMin
-  cmAllow := ["webkit-sim"]
+  cmAllow := ["webkit-sim", "webkit-sim-rewrite"]
 
 structure State where
   base : Fallback.State
@@ -304,12 +304,69 @@ theorem cm_cells_slots (c : Cfg) (rs : List Req) (s : State) (h : Inv c s) :
   rw [← step_cm_busy]
   exact (step_inv c rs s h).2.1
 
-/-- The rewrite arm is never sent to Codemagic: its lane is not in the Codemagic allow-list of the pool (the site build is not on that machine). -/
-theorem rewrite_never_codemagic (r : Req) (s : State) (h : r.lane = "webkit-sim-rewrite") (cls : String) (e : Engine) (m : Nat) :
-    route pool7 r s ≠ .codemagic cls e m := by
-  intro hr
-  obtain ⟨_, _, hm, _⟩ := (route_cm_iff pool7 r s cls e m).1 hr
-  simp [cmOk, pool7, h] at hm
+/-- The pool lane of the rewrite arm of a count job: its Codemagic cell builds the site itself from the same commit. -/
+def rewriteLane : String := "webkit-sim-rewrite"
+
+/-- The pool lane a count target is routed under, `none` for a target the pool never splits (`both` holds two arms in one run). -/
+def laneOfTarget : String → Option String
+  | "original" => some "webkit-sim"
+  | "rewrite" => some rewriteLane
+  | _ => none
+
+/-- A lane the Codemagic tier may take cells of: on, in the allow-list, and not GitHub-only. -/
+def routableLane (c : Cfg) (lane : String) : Bool :=
+  c.cmOn && c.cmAllow.contains lane && !c.base.ghOnly.contains lane
+
+/-- A target is routable when it maps to a routable lane. -/
+def routableTarget (c : Cfg) (t : String) : Bool :=
+  match laneOfTarget t with
+  | some l => routableLane c l
+  | none => false
+
+/-- The site digests agree: both builds exist, are non-empty and are equal. -/
+def siteMatch (gh cm : Option String) : Bool :=
+  match gh, cm with
+  | some a, some b => !a.isEmpty && a == b
+  | _, _ => false
+
+/-- A finished Codemagic cell may be filed: the original arm serves the read-only snapshot (checked by `verify-snapshot`), the rewrite arm only when the digest of
+its own site build equals the digest of the site build of the GitHub site job. -/
+def cellFiled (lane : String) (gh cm : Option String) : Bool :=
+  lane != rewriteLane || siteMatch gh cm
+
+theorem original_routable : routableTarget pool7 "original" = true := by decide
+
+/-- The rewrite arm is routable: its cell builds the site on the Codemagic machine, so its lane is in the allow-list. -/
+theorem rewrite_routable : routableTarget pool7 "rewrite" = true := by decide
+
+theorem both_not_routable (c : Cfg) : routableTarget c "both" = false := rfl
+
+/-- A rewrite cell is filed only with two equal, non-empty site digests. -/
+theorem rewrite_filed_needs_digest (gh cm : Option String) (h : cellFiled rewriteLane gh cm = true) :
+    ∃ d, d ≠ "" ∧ gh = some d ∧ cm = some d := by
+  unfold cellFiled at h
+  have hl : (rewriteLane != rewriteLane) = false := by simp
+  rw [hl, Bool.false_or] at h
+  unfold siteMatch at h
+  cases gh <;> cases cm <;> simp at h
+  rename_i a b
+  exact ⟨a, by simpa using h.1, by simp [h.2], by simp [h.2]⟩
+
+/-- Differing digests refuse the rewrite cell. -/
+theorem rewrite_mismatch_refused (a b : String) (h : a ≠ b) : cellFiled rewriteLane (some a) (some b) = false := by
+  simp [cellFiled, siteMatch, h]
+
+/-- A Codemagic site build that gave no digest refuses the rewrite cell. -/
+theorem rewrite_no_cm_digest_refused (gh : Option String) : cellFiled rewriteLane gh none = false := by
+  cases gh <;> simp [cellFiled, siteMatch]
+
+/-- A GitHub site build with no digest refuses the rewrite cell. -/
+theorem rewrite_no_gh_digest_refused (cm : Option String) : cellFiled rewriteLane none cm = false := by
+  cases cm <;> simp [cellFiled, siteMatch]
+
+/-- The original arm needs no site digest. -/
+theorem original_filed (gh cm : Option String) : cellFiled "webkit-sim" gh cm = true := by
+  simp [cellFiled, rewriteLane]
 
 structure Res where
   key : Key

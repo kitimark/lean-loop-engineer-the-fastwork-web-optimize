@@ -4,10 +4,11 @@
 //   node scripts/codemagic.mjs wait --build ID [--timeout S] [--interval S>=120] [--out DIR]
 //   node scripts/codemagic.mjs fetch --build ID --out DIR     build.json, steps.json, artifacts/, ledger row with the minutes the build billed
 //   node scripts/codemagic.mjs compare --github DIR --codemagic DIR [--json]   (each DIR holds v1-session-1.md, the class table)
+//   node scripts/codemagic.mjs site-digest DIR               sha256 over the files of a built site (task pool-dispatch-poller: GitHub's site job and the Codemagic rewrite cell must agree)
 //   node scripts/codemagic.mjs ledger | digest FILE.md | dry-run
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -100,7 +101,7 @@ export function loadConfig(root = ROOT, env = process.env) {
   return { appId: env.FW_CODEMAGIC_APP_ID || f.appId || '' };
 }
 
-export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^[vr][1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/ };
+export const CELL_VARS = { FW_TARGET: /^(original|rewrite)$/, FW_PRESET: /^[A-Za-z0-9._-]{1,40}$/, FW_FW: /^[A-Za-z0-9._:,-]{0,200}$/, FW_VM: /^[vr][1-9][0-9]?$/, FW_SESSIONS: /^[1-9]$/, FW_SEARCH: /^[A-Za-z0-9._:,=&%?-]{0,300}$/ };
 
 /** The cell variables of a webkit-sim count job (the dispatch inputs `target`, `preset`, `fw`, the VM index and `sessions`); any other name or a value off its pattern is refused. */
 export function cellVars(vars) {
@@ -196,6 +197,26 @@ export async function fetchBuild(ctx, { buildId, out }) {
 }
 
 
+/** The digest of a built site: sha256 over `path NUL size NUL sha256(file)` lines of every file, paths sorted bytewise, relative to `dir`. */
+export function siteDigest(dir) {
+  const files = [];
+  const walk = (d, rel) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(join(d, e.name), r);
+      else if (e.isFile()) files.push(r);
+    }
+  };
+  walk(dir, '');
+  files.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const h = createHash('sha256');
+  for (const f of files) h.update(`${f}\0${statSync(join(dir, f)).size}\0${createHash('sha256').update(readFileSync(join(dir, f))).digest('hex')}\n`);
+  return { digest: files.length ? h.digest('hex') : null, files: files.length };
+}
+
+/** The digest in a `site-digest.txt` file (`<hex>  <n> files`), or null when it is not one. */
+export function digestOfText(text) { return /^([0-9a-f]{64})\b/.exec(text.trim())?.[1] ?? null; }
+
 export function classRows(md) {
   const rows = {};
   for (const line of md.split('\n')) {
@@ -236,10 +257,10 @@ function flags(argv, spec) {
 const USAGE = [
   'usage: node scripts/codemagic.mjs <sub> ...',
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
-  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--vars JSON] [--dry]   (--vars: FW_TARGET FW_PRESET FW_FW FW_VM FW_SESSIONS; cap = codemagic.yaml max_build_duration; --pool: no build count)',
+  '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--vars JSON] [--dry]   (--vars: FW_TARGET FW_PRESET FW_FW FW_VM FW_SESSIONS FW_SEARCH; cap = codemagic.yaml max_build_duration; --pool: no build count)',
   '  facts                                            {month, used, busy} for the macOS pool (fw ci pool dispatch)',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
-  '  compare --github DIR --codemagic DIR [--json]    ledger    digest FILE.md    dry-run',
+  '  compare --github DIR --codemagic DIR [--vm v1|r1] [--site-github DIR --site-codemagic FILE] [--json]    ledger    digest FILE.md    site-digest DIR    dry-run',
 ].join('\n');
 
 export function yamlCap(root) {
@@ -266,6 +287,13 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
     const ctx = { fetchFn: fetch, getToken: keychainToken, sleep: (s) => new Promise((r) => setTimeout(r, s * 1000)), now: () => Date.now(), log, ledgerPath: join(root, '.local', 'codemagic-ledger.json'), ...ctx0 };
     const cfg = loadConfig(root, env);
     const needApp = () => { if (!cfg.appId) throw new Usage('app id not set: FW_CODEMAGIC_APP_ID or .local/codemagic.json {"appId": ...}'); return cfg.appId; };
+    if (sub === 'site-digest') {
+      if (!rest[0] || !existsSync(rest[0])) throw new Usage('site-digest needs a directory');
+      const r = siteDigest(rest[0]);
+      if (!r.digest) { console.error('codemagic: site-digest: no files'); return 2; }
+      log(`${r.digest}  ${r.files} files`);
+      return 0;
+    }
     if (sub === 'digest') { if (!rest[0]) throw new Usage('digest needs a file'); log(JSON.stringify(classDigest(readFileSync(rest[0], 'utf8')))); return 0; }
     if (sub === 'ledger') {
       const rows = ledgerRows(readLedger(ctx.ledgerPath)), month = monthOf(ctx.now());
@@ -273,16 +301,24 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       return 0;
     }
     if (sub === 'compare') {
-      const o = flags(rest, { github: 'v', codemagic: 'v', json: 'bool' });
+      const o = flags(rest, { github: 'v', codemagic: 'v', json: 'bool', vm: 'v', 'site-github': 'v', 'site-codemagic': 'v' });
       if (!o.github || !o.codemagic) throw new Usage(USAGE);
-      const r = compareTables(readFileSync(join(o.github, 'v1-session-1.md'), 'utf8'), readFileSync(join(o.codemagic, 'v1-session-1.md'), 'utf8'));
+      const vm = o.vm ?? 'v1';
+      if (!/^[vr][1-9][0-9]?$/.test(vm)) throw new Usage('--vm is v<n> or r<n>');
+      const r = compareTables(readFileSync(join(o.github, `${vm}-session-1.md`), 'utf8'), readFileSync(join(o.codemagic, `${vm}-session-1.md`), 'utf8'));
+      if (o['site-github'] || o['site-codemagic']) {
+        if (!o['site-github'] || !o['site-codemagic']) throw new Usage('give both --site-github DIR and --site-codemagic FILE');
+        r.site = { github: siteDigest(o['site-github']).digest, codemagic: digestOfText(readFileSync(o['site-codemagic'], 'utf8')) };
+        r.site.equal = r.site.github !== null && r.site.github === r.site.codemagic;
+      }
       if (o.json) log(JSON.stringify(r));
       else {
         log(`github:    ${r.github.rows} rows ${JSON.stringify(r.github.counts)}\ncodemagic: ${r.codemagic.rows} rows ${JSON.stringify(r.codemagic.counts)}`);
         log(`rows with another class: ${r.differ.length}; only on GitHub: ${r.onlyGithub.length}; only on Codemagic: ${r.onlyCodemagic.length}`);
         for (const d of r.differ.slice(0, 40)) log(`  ${d.key}: ${d.github} -> ${d.codemagic}`);
       }
-      return !r.comparable ? 2 : r.equal ? 0 : 1;
+      if (r.site) log(`site digest: github ${r.site.github ?? 'none'}, codemagic ${r.site.codemagic ?? 'none'}: ${r.site.equal ? 'equal' : 'DIFFERENT (the cell is not routable)'}`);
+      return !r.comparable ? 2 : r.site && !r.site.equal ? 3 : r.equal ? 0 : 1;
     }
     if (sub === 'facts') { flags(rest, {}); log(JSON.stringify(poolFacts(ctx.ledgerPath, ctx.now()))); return 0; }
     if (sub === 'dry-run' || (sub === 'trigger' && rest.includes('--dry'))) {

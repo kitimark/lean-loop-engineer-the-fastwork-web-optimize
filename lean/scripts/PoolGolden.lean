@@ -33,6 +33,7 @@ def tierCases : List (String × Json) := [
   ("CircleCI at 15400 spent, storage at the allowance: CircleCI", tier (st 5 46 15400 [("cmBusy", (1 : Nat)), ("ccStorage", (2000 : Nat))]) [rq]),
   ("CircleCI at 15400 spent, storage 2001: the overage credit passes the reserve line, wait", tier (st 5 46 15400 [("cmBusy", (1 : Nat)), ("ccStorage", (2001 : Nat))]) [rq]),
   ("a slot frees in 300 s: GitHub queue before Codemagic", tier (st 5 46 3575 [("ghRemainingS", .arr #[(300 : Nat)])]) [rq]),
+  ("rewrite lane, GitHub full: Codemagic builds the site itself", tier (st 5 46 3575) [rq 0 [("lane", "webkit-sim-rewrite")]]),
   ("GitHub degraded: Codemagic", tier (st 0 46 3575 [("ghDegraded", true)]) [rq]),
   ("a request over the Codemagic cap goes to CircleCI", tier (st 5 46 3575) [rq 0 [("capMin", (41 : Nat))]]),
   ("gate-gaps never leaves GitHub", tier (st 5 46 3575) [rq 0 [("lane", "gate-gaps")]]),
@@ -41,6 +42,15 @@ def tierCases : List (String × Json) := [
   ("Codemagic off", tier (st 5 46 3575) [rq] (some (Json.mkObj [("cmOn", false)]))),
   ("Bitrise off by default: never", tier (st 5 46 3575 [("cmBusy", (1 : Nat)), ("circleBusy", (1 : Nat))]) [rq]
     (some (Json.mkObj [("bitriseAllow", .arr #["webkit-sim"])])))]
+
+def cellCases : List (String × Json) := [
+  ("original: routable, no digest needed", Json.mkObj [("target", "original")]),
+  ("rewrite, equal digests: filed", Json.mkObj [("target", "rewrite"), ("ghDigest", "ab12"), ("cmDigest", "ab12")]),
+  ("rewrite, different digests: refused", Json.mkObj [("target", "rewrite"), ("ghDigest", "ab12"), ("cmDigest", "cd34")]),
+  ("rewrite, no Codemagic digest: refused", Json.mkObj [("target", "rewrite"), ("ghDigest", "ab12")]),
+  ("rewrite, no GitHub digest: refused", Json.mkObj [("target", "rewrite"), ("cmDigest", "ab12")]),
+  ("rewrite, empty digests: refused", Json.mkObj [("target", "rewrite"), ("ghDigest", ""), ("cmDigest", "")]),
+  ("both: not routable", Json.mkObj [("target", "both")])]
 
 def line (op name : String) (request response : Json) : String :=
   (Json.mkObj [("op", .str op), ("name", .str name), ("request", request), ("response", response)]).compress ++ "\n"
@@ -53,6 +63,7 @@ def reply (op : String) (req : Json) : Json :=
 
 def text : String :=
   String.join (tierCases.map fun (n, r) => line "ci.poolTier" n r (reply "ci.poolTier" r))
+    ++ String.join (cellCases.map fun (n, r) => line "ci.poolCell" n r (reply "ci.poolCell" r))
     ++ line "ci.poolTierConsts" "pool7" (Json.mkObj []) (reply "ci.poolTierConsts" (Json.mkObj []))
 
 def main (args : List String) : IO UInt32 := do
