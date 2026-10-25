@@ -153,8 +153,8 @@ page recorder runs against a stubbed page (passive listeners, no `preventDefault
   before (CoreDevice must list the phone as connected); one read takes about 7 s. Apple's ProcessInfo.ThermalState: nominal, fair,
   serious, critical (INFERRED meanings). Battery temperature (`AverageBattVirtualTemp`) is a proxy, not the SoC.
 - Stop rule (Lean `gate`, `resume`, `pauseOver`): a block starts only at Nominal and a battery temperature under 2 C above the
-  session's first readout; the state is read at block start and after every visit. Fair or worse, or the rise, ends the block (at
-  most one pass runs after the trigger); the next block resumes only after a 300 s gap of Nominal readings, polling every 60 s, and
+  session's first readout; the state is read at block start and after every visit. Fair or worse, or the rise, ends the block (a pass is one
+  visit; readings inside a visit are recorded, not gated); the next block resumes only after 300 s since the last reading that was not Nominal, polling every 60 s, and
   stops with a named reason after 3600 s. An unreadable state pauses. A locked phone (`passcodeRequired`, INFERRED) is a named stop,
   not a harness fault.
 - Named faults (`device-faults.mjs`, twin of `PhoneArms`): `usbReset` (an `other` failure with `usbpowerd` terminated/discovered log

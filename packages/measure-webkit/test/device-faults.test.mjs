@@ -79,7 +79,8 @@ test('writeOk matches Lean: a visit with faults is never removed, its faults onl
 });
 
 test('resetPlan matches Lean: bad index, no reason, no visit, or a note', () => {
-  for (const c of of('handreset')) assert.deepEqual(resetPlan(c.state, c.index, c.reason, 16), c.plan, `${c.index} ${c.reason}`);
+  assert.deepEqual([...new Set(of('handreset').map((c) => c.n))], [16, 4]);
+  for (const c of of('handreset')) assert.deepEqual(resetPlan(c.state, c.index, c.reason, c.n), c.plan, `${c.index} ${c.reason}`);
 });
 
 test('the state refuses a write that removes a visit with faults, and allows removing one without', async () => {

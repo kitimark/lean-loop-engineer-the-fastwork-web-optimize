@@ -435,35 +435,35 @@ def blank (s : String) : Bool := s.all Char.isWhitespace
 
 def numeral (s : String) : Bool := !s.isEmpty && s.all fun c => '0' ≤ c && c ≤ '9'
 
-def resetPlan (vs : List VisitRec) (idx reason : String) : ResetPlan :=
-  if !numeral idx || sessionVisits.length ≤ idx.toNat! then .badIndex
+def resetPlan (n : Nat) (vs : List VisitRec) (idx reason : String) : ResetPlan :=
+  if !numeral idx || n ≤ idx.toNat! then .badIndex
   else if blank reason then .noReason
   else if vs.any (·.index == idx.toNat!) then .note idx.toNat! reason
   else .noVisit
 
-theorem resetPlan_badIndex_text {vs : List VisitRec} {idx : String} (reason : String) (h : numeral idx = false) :
-    resetPlan vs idx reason = .badIndex := by
+theorem resetPlan_badIndex_text {n : Nat} {vs : List VisitRec} {idx : String} (reason : String) (h : numeral idx = false) :
+    resetPlan n vs idx reason = .badIndex := by
   simp [resetPlan, h]
 
-theorem resetPlan_badIndex_range {vs : List VisitRec} {idx : String} (reason : String) (h : sessionVisits.length ≤ idx.toNat!) :
-    resetPlan vs idx reason = .badIndex := by
+theorem resetPlan_badIndex_range {n : Nat} {vs : List VisitRec} {idx : String} (reason : String) (h : n ≤ idx.toNat!) :
+    resetPlan n vs idx reason = .badIndex := by
   simp [resetPlan, h]
 
-theorem resetPlan_noReason {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
-    (hr : idx.toNat! < sessionVisits.length) (h : blank reason = true) : resetPlan vs idx reason = .noReason := by
-  have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
+theorem resetPlan_noReason {n : Nat} {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < n) (h : blank reason = true) : resetPlan n vs idx reason = .noReason := by
+  have : ¬ n ≤ idx.toNat! := by omega
   simp [resetPlan, hd, this, h]
 
-theorem resetPlan_noVisit {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
-    (hr : idx.toNat! < sessionVisits.length) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = false) :
-    resetPlan vs idx reason = .noVisit := by
-  have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
+theorem resetPlan_noVisit {n : Nat} {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < n) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = false) :
+    resetPlan n vs idx reason = .noVisit := by
+  have : ¬ n ≤ idx.toNat! := by omega
   simp [resetPlan, hd, this, h, hv]
 
-theorem resetPlan_note {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
-    (hr : idx.toNat! < sessionVisits.length) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = true) :
-    resetPlan vs idx reason = .note idx.toNat! reason := by
-  have : ¬ sessionVisits.length ≤ idx.toNat! := by omega
+theorem resetPlan_note {n : Nat} {vs : List VisitRec} {idx : String} {reason : String} (hd : numeral idx = true)
+    (hr : idx.toNat! < n) (h : blank reason = false) (hv : vs.any (·.index == idx.toNat!) = true) :
+    resetPlan n vs idx reason = .note idx.toNat! reason := by
+  have : ¬ n ≤ idx.toNat! := by omega
   simp [resetPlan, hd, this, h, hv]
 
 
@@ -681,7 +681,9 @@ theorem ownTab_any_port (host port : String) : ownTab host (host ++ ":" ++ port)
 
 def sessionBlocks : List (List Arm) := blocks perBlock sessionVisits
 
-def wallMin (n : Nat) : Nat := n * visitMin + (sessionBlocks.length - 1) * coolMin
+def wallMin (n : Nat) : Nat := n * visitMin + ((blocks perBlock (List.range n)).length - 1) * coolMin
+
+theorem wallMin_session : wallMin sessionVisits.length = 147 := by decide
 
 def binZone (vh10 maxY10 y0 : Int) : Zone := zoneOf vh10 maxY10 (y0 * 10 + 2500)
 
@@ -851,9 +853,11 @@ private def writeCases : List (List VisitRec × List VisitRec) :=
    ([a], [⟨6, [.other]⟩]), ([a], [⟨6, [.usbReset]⟩]), ([a], [⟨6, []⟩]), ([a, c], [⟨2, [.other]⟩, ⟨6, [.usbReset, .staleTab, .other]⟩]),
    ([a, c], handResetRecs [a, c] 6), ([a], [⟨7, []⟩, a]), ([⟨3, [.other]⟩], [⟨4, [.other]⟩])]
 
+private def wallCases : List Nat := [0, 1, 2, 3, 4, 5, 15, 16, 17]
+
 private def resetCases : List (List VisitRec × String × String) :=
   let st : List VisitRec := [⟨6, [.usbReset, .staleTab]⟩, ⟨2, []⟩]
-  [(st, "6", "tab returned to about:blank by hand"), (st, "2", "x"), (st, "7", "no record"), (st, "16", "past the plan"),
+  [(st, "6", "tab returned to about:blank by hand"), (st, "3", "last visit of a 4-visit session"), (st, "4", "one past a 4-visit session"), (st, "2", "x"), (st, "7", "no record"), (st, "16", "past the plan"),
    (st, "15", "in the plan, no record"), (st, "", "empty index"), (st, "6a", "digits and a letter"), (st, "-1", "sign"),
    (st, "6", ""), (st, "6", "   "), (st, "06", "leading zero"), (st, "1.5", "fraction"), ([], "0", "empty state")]
 
@@ -945,8 +949,9 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "tabs"), ("host", tabHost), ("urls", strsJ us), ("plan", planJ (tabPlan tabHost us))]).compress) ++
   (writeCases.map fun (o, n) =>
     (Json.mkObj [("kind", "write"), ("old", recsJ o), ("new", recsJ n), ("ok", writeOk o n)]).compress) ++
-  (resetCases.map fun (vs, i, r) =>
-    (Json.mkObj [("kind", "handreset"), ("state", recsJ vs), ("index", i), ("reason", r), ("plan", resetJ (resetPlan vs i r))]).compress) ++
+  (([16, 4] : List Nat).flatMap fun (n : Nat) => resetCases.map fun (vs, i, r) =>
+    (Json.mkObj [("kind", "handreset"), ("n", n), ("state", recsJ vs), ("index", i), ("reason", r), ("plan", resetJ (resetPlan n vs i r))]).compress) ++
+  (wallCases.map fun (n : Nat) => (Json.mkObj [("kind", "wallmin"), ("n", n), ("wallMin", wallMin n)]).compress) ++
   (usbReadings.map fun r =>
     (Json.mkObj [("kind", "usb"), ("listed", r.listed), ("onBus", r.onBus), ("evidence", r.evidence), ("verdict", (usbVerdict r).name)]).compress) ++
   (usbLines.map fun (t : String) => (Json.mkObj [("kind", "usbline"), ("text", t), ("is", usbLine t)]).compress) ++

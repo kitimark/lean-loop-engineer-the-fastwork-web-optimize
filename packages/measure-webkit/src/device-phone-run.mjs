@@ -254,8 +254,8 @@ export function tablesMarkdown(sum) {
       out.push(`| ${a.id} | ${cs.join(' | ')} | ${a.labels.counts[z]} | ${a.labels.frames[z]} |`);
     }
   }
-  out.push('', '### Layer census (layers, backing store MB) per scroll state', '', 'Cells: arm median (base median) verdict, as above; the base row shows median [min-max] over all base passes. States are the scripted stops (0, 1500, 3000, 4500 px and the end).');
-  for (const [field, unit, f] of [['layers', 'layers', (v) => (v === null || v === undefined ? '-' : String(v))], ['bytes', 'backing MB', (v) => (v === null || v === undefined ? '-' : (v / 1048576).toFixed(1))]]) {
+  out.push('', '### Layer census (layers, backing store MiB) per scroll state', '', 'Cells: arm median (base median) verdict, as above; the base row shows median [min-max] over all base passes. States are the scripted stops (0, 1500, 3000, 4500 px and the end).');
+  for (const [field, unit, f] of [['layers', 'layers', (v) => (v === null || v === undefined ? '-' : String(v))], ['bytes', 'backing MiB', (v) => (v === null || v === undefined ? '-' : (v / 1048576).toFixed(1))]]) {
     const states = sum.base.census.map((c) => (typeof c.y === 'number' ? `y=${c.y}` : 'end'));
     out.push('', `#### ${unit}`, '', `| arm | ${states.join(' | ')} |`, `|---|${states.map(() => '---').join('|')}|`);
     out.push(`| base (n=${sum.base.visits} visits) | ${sum.base.census.map((c) => `${f(c[field].median)} [${f(c[field].min)}-${f(c[field].max)}]`).join(' | ')} |`);
