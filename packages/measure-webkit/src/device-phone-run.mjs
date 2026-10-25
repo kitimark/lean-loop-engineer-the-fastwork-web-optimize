@@ -22,11 +22,23 @@ const putJson = (file, data) => writeFileSync(file, JSON.stringify(data) + '\n')
 
 /** Other device-cli processes on this Mac (a second one would compete for the phone and the proxy ports). */
 export function otherDeviceClis(self = process.pid) {
-  const out = execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8' });
-  return out.split('\n').map((l) => l.trim()).filter((l) => /device-cli\.mjs/.test(l)).map((l) => Number(l.split(/\s+/)[0])).filter((p) => p !== self);
+  const out = execFileSync('ps', ['-axo', 'pid=,command='], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+  return out.split('\n').map((l) => l.trim()).filter((l) => /^\d+\s+\S*node\s.*device-cli\.mjs/.test(l)).map((l) => Number(l.split(/\s+/)[0])).filter((p) => p !== self && p !== process.ppid);
 }
 
-const batteryOf = (...files) => {
+const TAB_RACE = /expected exactly one about:blank Safari tab/;
+/** The phone's tab returns to about:blank a moment after the last session ends; a start in that moment waits and tries again (no visit is lost, nothing was loaded). */
+export async function whenTabBlank(fn, log, tries = 4, waitMs = 15000) {
+  for (let i = 1; ; i++) {
+    try { return await fn(); } catch (e) {
+      if (!TAB_RACE.test(e.message) || i >= tries) throw e;
+      log(`the tab is not blank yet (try ${i} of ${tries}); waiting ${waitMs / 1000} s`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+}
+
+const batteryOf =(...files) => {
   const rs = files.flatMap((f) => f.readouts ?? []);
   const pick = (r) => ({ pct: r.batteryPct, temp: r.batteryVirtualTemp, skin: r.batterySkinTemp, charging: r.charging });
   return { first: pick(rs[0] ?? {}), last: pick(rs[rs.length - 1] ?? {}), maxTemp: Math.max(...rs.map((r) => r.batteryVirtualTemp ?? 0)) };
@@ -81,11 +93,11 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
     const start = Date.now();
     log(`visit ${index} (${a.id}), attempt ${attempts + 1}`);
     try {
-      const r = await withPhone(async (ctx) => {
+      const r = await whenTabBlank(() => withPhone(async (ctx) => {
         const frames = await phoneFrames(ctx, { reps: P.PA.reps, speed: P.PA.speedPxPerS, settleMs: settle, clock, loadFresh, log: ctx.log });
         const counts = await phoneCounts(ctx, { passes: P.PA.passes, warmup: P.PA.warmup, step: P.PA.stepPx, framesPerStep: 2, settleMs: settle, clock, loadFresh, log: ctx.log });
         return { frames, counts };
-      }, { site: a.target === 'rewrite' ? { dir: site, search: row.search } : null, log });
+      }, { site: a.target === 'rewrite' ? { dir: site, search: row.search } : null, log }), log);
       putJson(join(dir, rawName(index, a.id, 'counts')), { target: a.target, arm: a.id, ...r.counts });
       putJson(join(dir, rawName(index, a.id, 'frames')), { target: a.target, arm: a.id, ...r.frames });
       const durationS = Math.round((Date.now() - start) / 1000);
@@ -97,6 +109,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
       const bat = batteryOf(r.frames, r.counts);
       ran.push({ index, arm: a.id, durationS, vh: vals.vh, maxY: vals.maxY, hash: r.counts.fw?.configHash ?? null, hashOk: a.target === 'original' || r.counts.fw?.configHash === row.hash, battery: bat });
       console.log(JSON.stringify(ran[ran.length - 1]));
+      await new Promise((r) => setTimeout(r, 10000));
     } catch (e) {
       st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'failed', attempts: attempts + 1, error: String(e.message).slice(0, 300) }]);
       st.lastEndMs = Date.now();

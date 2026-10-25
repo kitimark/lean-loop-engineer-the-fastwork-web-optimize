@@ -1,0 +1,5729 @@
+{
+ "schema": "fw.phone.end-counts/1",
+ "device": {
+  "model": "iPhone 15 Pro Max",
+  "os": "27.0.1",
+  "build": "24A446"
+ },
+ "consts": {
+  "capMin": 15,
+  "coolMin": 5,
+  "kind": "consts",
+  "metrics": [
+   "Layout",
+   "RecalculateStyles",
+   "Paint",
+   "Composite",
+   "FireAnimationFrame",
+   "FunctionCall",
+   "EventDispatch",
+   "over34",
+   "over50"
+  ],
+  "passes": 3,
+  "perBlock": 3,
+  "reps": 5,
+  "speedPxPerS": 800,
+  "stepPx": 50,
+  "visitMin": 5,
+  "warmup": 1,
+  "zonePx": 500
+ },
+ "order": [
+  "base",
+  "original",
+  "hero.exit:threaded",
+  "hero:scene-pause",
+  "morph.columns:idle-none",
+  "morph.countdown:hidden-pause",
+  "morph.countdown:strip",
+  "base",
+  "morph.mount:shift-dormant",
+  "nav:logo-3d",
+  "nav:bar-fixed",
+  "nav:clip-box",
+  "morph.panel:const-bounds",
+  "engine.events:quiet",
+  "nav.hitTest:hit-skip",
+  "base"
+ ],
+ "visits": [
+  {
+   "index": 0,
+   "arm": "base",
+   "durationS": 237,
+   "vh": 775,
+   "maxY": 5267,
+   "configHash": "fc809c0b9227ef69",
+   "battery": {
+    "first": {
+     "pct": 64,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "last": {
+     "pct": 65,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "maxTemp": 33
+   }
+  },
+  {
+   "index": 1,
+   "arm": "original",
+   "durationS": 312,
+   "vh": 775,
+   "maxY": 5267,
+   "configHash": null,
+   "battery": {
+    "first": {
+     "pct": 65,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "last": {
+     "pct": 67,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "maxTemp": 33
+   }
+  },
+  {
+   "index": 2,
+   "arm": "hero.exit:threaded",
+   "durationS": 368,
+   "vh": 775,
+   "maxY": 5267,
+   "configHash": "6243a0b9511fa3f7",
+   "battery": {
+    "first": {
+     "pct": 70,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "last": {
+     "pct": 72,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "maxTemp": 33
+   }
+  },
+  {
+   "index": 3,
+   "arm": "hero:scene-pause",
+   "durationS": 266,
+   "vh": 775,
+   "maxY": 5267,
+   "configHash": "2855c4a3ad503201",
+   "battery": {
+    "first": {
+     "pct": 72,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "last": {
+     "pct": 74,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "maxTemp": 33
+   }
+  },
+  {
+   "index": 4,
+   "arm": "morph.columns:idle-none",
+   "durationS": 237,
+   "vh": 775,
+   "maxY": 5267,
+   "configHash": "df310cd06d0f38f5",
+   "battery": {
+    "first": {
+     "pct": 78,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "last": {
+     "pct": 79,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "maxTemp": 33
+   }
+  },
+  {
+   "index": 5,
+   "arm": "morph.countdown:hidden-pause",
+   "durationS": 265,
+   "vh": 775,
+   "maxY": 5267,
+   "configHash": "6c8eccb31d2c4815",
+   "battery": {
+    "first": {
+     "pct": 80,
+     "temp": 33,
+     "skin": 33,
+     "charging": true
+    },
+    "last": {
+     "pct": 80,
+     "temp": 33,
+     "skin": 33,
+     "charging": false
+    },
+    "maxTemp": 33
+   }
+  }
+ ],
+ "notRun": [
+  {
+   "index": 6,
+   "arm": "morph.countdown:strip",
+   "status": "failed",
+   "attempts": 1
+  }
+ ],
+ "anomalies": [],
+ "base": {
+  "id": "base",
+  "visits": 1,
+  "cells": [
+   {
+    "zone": "hero",
+    "metric": "Layout",
+    "n": 3,
+    "median": 195,
+    "min": 195,
+    "max": 196,
+    "spread": 1
+   },
+   {
+    "zone": "hero",
+    "metric": "RecalculateStyles",
+    "n": 3,
+    "median": 175,
+    "min": 175,
+    "max": 175,
+    "spread": 0
+   },
+   {
+    "zone": "hero",
+    "metric": "Paint",
+    "n": 3,
+    "median": 539,
+    "min": 519,
+    "max": 544,
+    "spread": 25
+   },
+   {
+    "zone": "hero",
+    "metric": "Composite",
+    "n": 3,
+    "median": 59,
+    "min": 59,
+    "max": 59,
+    "spread": 0
+   },
+   {
+    "zone": "hero",
+    "metric": "FireAnimationFrame",
+    "n": 3,
+    "median": 192,
+    "min": 192,
+    "max": 192,
+    "spread": 0
+   },
+   {
+    "zone": "hero",
+    "metric": "FunctionCall",
+    "n": 3,
+    "median": 424,
+    "min": 422,
+    "max": 425,
+    "spread": 3
+   },
+   {
+    "zone": "hero",
+    "metric": "EventDispatch",
+    "n": 3,
+    "median": 262,
+    "min": 260,
+    "max": 262,
+    "spread": 2
+   },
+   {
+    "zone": "hero",
+    "metric": "over34",
+    "n": 5,
+    "median": 0,
+    "min": 0,
+    "max": 88,
+    "spread": 88
+   },
+   {
+    "zone": "hero",
+    "metric": "over50",
+    "n": 5,
+    "median": 0,
+    "min": 0,
+    "max": 0,
+    "spread": 0
+   },
+   {
+    "zone": "finish",
+    "metric": "Layout",
+    "n": 3,
+    "median": 52,
+    "min": 47,
+    "max": 53,
+    "spread": 6
+   },
+   {
+    "zone": "finish",
+    "metric": "RecalculateStyles",
+    "n": 3,
+    "median": 76,
+    "min": 76,
+    "max": 77,
+    "spread": 1
+   },
+   {
+    "zone": "finish",
+    "metric": "Paint",
+    "n": 3,
+    "median": 163,
+    "min": 157,
+    "max": 175,
+    "spread": 18
+   },
+   {
+    "zone": "finish",
+    "metric": "Composite",
+    "n": 3,
+    "median": 34,
+    "min": 34,
+    "max": 34,
+    "spread": 0
+   },
+   {
+    "zone": "finish",
+    "metric": "FireAnimationFrame",
+    "n": 3,
+    "median": 89,
+    "min": 89,
+    "max": 89,
+    "spread": 0
+   },
+   {
+    "zone": "finish",
+    "metric": "FunctionCall",
+    "n": 3,
+    "median": 201,
+    "min": 189,
+    "max": 278,
+    "spread": 89
+   },
+   {
+    "zone": "finish",
+    "metric": "EventDispatch",
+    "n": 3,
+    "median": 130,
+    "min": 118,
+    "max": 206,
+    "spread": 88
+   },
+   {
+    "zone": "finish",
+    "metric": "over34",
+    "n": 5,
+    "median": 0,
+    "min": 0,
+    "max": 172,
+    "spread": 172
+   },
+   {
+    "zone": "finish",
+    "metric": "over50",
+    "n": 5,
+    "median": 0,
+    "min": 0,
+    "max": 0,
+    "spread": 0
+   },
+   {
+    "zone": "rest",
+    "metric": "Layout",
+    "n": 3,
+    "median": 375,
+    "min": 374,
+    "max": 384,
+    "spread": 10
+   },
+   {
+    "zone": "rest",
+    "metric": "RecalculateStyles",
+    "n": 3,
+    "median": 395,
+    "min": 395,
+    "max": 399,
+    "spread": 4
+   },
+   {
+    "zone": "rest",
+    "metric": "Paint",
+    "n": 3,
+    "median": 899,
+    "min": 887,
+    "max": 899,
+    "spread": 12
+   },
+   {
+    "zone": "rest",
+    "metric": "Composite",
+    "n": 3,
+    "median": 120,
+    "min": 120,
+    "max": 120,
+    "spread": 0
+   },
+   {
+    "zone": "rest",
+    "metric": "FireAnimationFrame",
+    "n": 3,
+    "median": 400,
+    "min": 400,
+    "max": 400,
+    "spread": 0
+   },
+   {
+    "zone": "rest",
+    "metric": "FunctionCall",
+    "n": 3,
+    "median": 831,
+    "min": 831,
+    "max": 858,
+    "spread": 27
+   },
+   {
+    "zone": "rest",
+    "metric": "EventDispatch",
+    "n": 3,
+    "median": 532,
+    "min": 532,
+    "max": 558,
+    "spread": 26
+   },
+   {
+    "zone": "rest",
+    "metric": "over34",
+    "n": 5,
+    "median": 46,
+    "min": 45,
+    "max": 46,
+    "spread": 1
+   },
+   {
+    "zone": "rest",
+    "metric": "over50",
+    "n": 5,
+    "median": 46,
+    "min": 45,
+    "max": 46,
+    "spread": 1
+   }
+  ]
+ },
+ "arms": [
+  {
+   "id": "original",
+   "target": "original",
+   "flags": [],
+   "visits": 1,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [
+      213,
+      204,
+      214
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [
+      195,
+      197,
+      200
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [
+      487,
+      425,
+      457
+     ],
+     "spread": 25,
+     "verdict": "beats"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [
+      59,
+      59,
+      59
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [
+      194,
+      194,
+      194
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [
+      301,
+      301,
+      311
+     ],
+     "spread": 3,
+     "verdict": "beats"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [
+      30,
+      30,
+      30
+     ],
+     "spread": 2,
+     "verdict": "beats"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [
+      10000,
+      10000,
+      10000,
+      10000,
+      10000
+     ],
+     "spread": 88,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      10000,
+      10000,
+      10000,
+      10000,
+      10000
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [
+      60,
+      81,
+      72
+     ],
+     "spread": 6,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [
+      79,
+      95,
+      86
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [
+      185,
+      198,
+      184
+     ],
+     "spread": 18,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [
+      34,
+      34,
+      34
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [
+      85,
+      85,
+      85
+     ],
+     "spread": 0,
+     "verdict": "beats"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [
+      116,
+      130,
+      125
+     ],
+     "spread": 89,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [
+      17,
+      17,
+      17
+     ],
+     "spread": 88,
+     "verdict": "beats"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [
+      175,
+      175,
+      566,
+      178,
+      370
+     ],
+     "spread": 172,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      175,
+      175,
+      566,
+      178,
+      370
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [
+      358,
+      354,
+      373
+     ],
+     "spread": 10,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [
+      410,
+      415,
+      426
+     ],
+     "spread": 4,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [
+      724,
+      705,
+      701
+     ],
+     "spread": 12,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [
+      120,
+      120,
+      120
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [
+      442,
+      445,
+      444
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [
+      586,
+      601,
+      602
+     ],
+     "spread": 27,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [
+      60,
+      60,
+      60
+     ],
+     "spread": 26,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      5438,
+      6078,
+      10000,
+      7948,
+      10000
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      5438,
+      6078,
+      10000,
+      7948,
+      10000
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "mixed",
+     "hero": "mixed",
+     "finish": "mixed",
+     "rest": "mixed"
+    },
+    "frames": {
+     "all": "worse",
+     "hero": "worse",
+     "finish": "worse",
+     "rest": "worse"
+    }
+   }
+  },
+  {
+   "id": "hero.exit:threaded",
+   "target": "rewrite",
+   "flags": [
+    "hero.exit:threaded"
+   ],
+   "visits": 1,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [
+      164,
+      165,
+      167
+     ],
+     "spread": 1,
+     "verdict": "beats"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [
+      159,
+      159,
+      157
+     ],
+     "spread": 0,
+     "verdict": "beats"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [
+      788,
+      665,
+      653
+     ],
+     "spread": 25,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [
+      59,
+      59,
+      59
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [
+      163,
+      163,
+      163
+     ],
+     "spread": 0,
+     "verdict": "beats"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [
+      460,
+      462,
+      460
+     ],
+     "spread": 3,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [
+      338,
+      340,
+      338
+     ],
+     "spread": 2,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [
+      87,
+      90,
+      176,
+      180,
+      87
+     ],
+     "spread": 88,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [
+      33,
+      32,
+      35
+     ],
+     "spread": 6,
+     "verdict": "beats"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [
+      76,
+      76,
+      77
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [
+      158,
+      158,
+      168
+     ],
+     "spread": 18,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [
+      34,
+      34,
+      34
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [
+      72,
+      72,
+      72
+     ],
+     "spread": 0,
+     "verdict": "beats"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [
+      172,
+      172,
+      256
+     ],
+     "spread": 89,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [
+      118,
+      118,
+      202
+     ],
+     "spread": 88,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [
+      172,
+      172,
+      169,
+      172,
+      169
+     ],
+     "spread": 172,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [
+      321,
+      321,
+      329
+     ],
+     "spread": 10,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [
+      396,
+      396,
+      393
+     ],
+     "spread": 4,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [
+      993,
+      978,
+      981
+     ],
+     "spread": 12,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [
+      120,
+      120,
+      120
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [
+      340,
+      340,
+      340
+     ],
+     "spread": 0,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [
+      860,
+      861,
+      861
+     ],
+     "spread": 27,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [
+      623,
+      625,
+      625
+     ],
+     "spread": 26,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      92,
+      92,
+      46,
+      46,
+      46
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      46,
+      46,
+      46,
+      46,
+      46
+     ],
+     "spread": 1,
+     "verdict": "same"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "mixed",
+     "hero": "mixed",
+     "finish": "better",
+     "rest": "mixed"
+    },
+    "frames": {
+     "all": "same",
+     "hero": "same",
+     "finish": "same",
+     "rest": "same"
+    }
+   }
+  },
+  {
+   "id": "hero:scene-pause",
+   "target": "rewrite",
+   "flags": [
+    "hero:scene-pause"
+   ],
+   "visits": 1,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [
+      186,
+      195,
+      197
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [
+      179,
+      187,
+      188
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [
+      480,
+      517,
+      483
+     ],
+     "spread": 25,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [
+      59,
+      59,
+      59
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [
+      192,
+      192,
+      192
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [
+      488,
+      712,
+      769
+     ],
+     "spread": 3,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [
+      331,
+      562,
+      625
+     ],
+     "spread": 2,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [
+      178,
+      180,
+      181,
+      183,
+      340
+     ],
+     "spread": 88,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      0,
+      340
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [
+      72,
+      97,
+      80
+     ],
+     "spread": 6,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [
+      82,
+      99,
+      90
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [
+      191,
+      227,
+      214
+     ],
+     "spread": 18,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [
+      34,
+      34,
+      34
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [
+      88,
+      83,
+      84
+     ],
+     "spread": 0,
+     "verdict": "beats"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [
+      222,
+      239,
+      228
+     ],
+     "spread": 89,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [
+      152,
+      172,
+      160
+     ],
+     "spread": 88,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [
+      172,
+      0,
+      0,
+      0,
+      0
+     ],
+     "spread": 172,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [
+      350,
+      349,
+      353
+     ],
+     "spread": 10,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [
+      407,
+      404,
+      410
+     ],
+     "spread": 4,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [
+      653,
+      595,
+      582
+     ],
+     "spread": 12,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [
+      120,
+      120,
+      120
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [
+      400,
+      418,
+      418
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [
+      965,
+      1003,
+      1021
+     ],
+     "spread": 27,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [
+      680,
+      700,
+      720
+     ],
+     "spread": 26,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      93,
+      93,
+      143,
+      423,
+      1012
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      46,
+      46,
+      47,
+      105,
+      316
+     ],
+     "spread": 1,
+     "verdict": "same"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "mixed",
+     "hero": "worse",
+     "finish": "mixed",
+     "rest": "mixed"
+    },
+    "frames": {
+     "all": "worse",
+     "hero": "worse",
+     "finish": "same",
+     "rest": "worse"
+    }
+   }
+  },
+  {
+   "id": "morph.columns:idle-none",
+   "target": "rewrite",
+   "flags": [
+    "morph.columns:idle-none"
+   ],
+   "visits": 1,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [
+      195,
+      191,
+      191
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [
+      175,
+      175,
+      175
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [
+      527,
+      448,
+      506
+     ],
+     "spread": 25,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [
+      59,
+      59,
+      59
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [
+      192,
+      192,
+      192
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [
+      424,
+      406,
+      422
+     ],
+     "spread": 3,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [
+      262,
+      239,
+      260
+     ],
+     "spread": 2,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [
+      87,
+      87,
+      0,
+      0,
+      0
+     ],
+     "spread": 88,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [
+      53,
+      49,
+      56
+     ],
+     "spread": 6,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [
+      77,
+      77,
+      78
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [
+      170,
+      166,
+      178
+     ],
+     "spread": 18,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [
+      34,
+      34,
+      34
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [
+      89,
+      89,
+      89
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [
+      285,
+      268,
+      382
+     ],
+     "spread": 89,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [
+      214,
+      196,
+      306
+     ],
+     "spread": 88,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "spread": 172,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [
+      378,
+      381,
+      384
+     ],
+     "spread": 10,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [
+      395,
+      395,
+      396
+     ],
+     "spread": 4,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [
+      876,
+      877,
+      866
+     ],
+     "spread": 12,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [
+      120,
+      120,
+      120
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [
+      400,
+      400,
+      400
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [
+      831,
+      838,
+      830
+     ],
+     "spread": 27,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [
+      532,
+      540,
+      530
+     ],
+     "spread": 26,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      45,
+      45,
+      45,
+      45,
+      45
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      45,
+      45,
+      45,
+      45,
+      45
+     ],
+     "spread": 1,
+     "verdict": "same"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "same",
+     "hero": "same",
+     "finish": "same",
+     "rest": "same"
+    },
+    "frames": {
+     "all": "same",
+     "hero": "same",
+     "finish": "same",
+     "rest": "same"
+    }
+   }
+  },
+  {
+   "id": "morph.countdown:hidden-pause",
+   "target": "rewrite",
+   "flags": [
+    "morph.countdown:hidden-pause"
+   ],
+   "visits": 1,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [
+      196,
+      183,
+      195
+     ],
+     "spread": 1,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [
+      177,
+      175,
+      184
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [
+      487,
+      506,
+      472
+     ],
+     "spread": 25,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [
+      59,
+      59,
+      59
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [
+      192,
+      192,
+      192
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [
+      431,
+      481,
+      766
+     ],
+     "spread": 3,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [
+      268,
+      325,
+      623
+     ],
+     "spread": 2,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [
+      180,
+      181,
+      183,
+      285,
+      306
+     ],
+     "spread": 88,
+     "verdict": "worse"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      0,
+      0,
+      0,
+      190,
+      306
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [
+      61,
+      86,
+      90
+     ],
+     "spread": 6,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [
+      79,
+      89,
+      102
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [
+      187,
+      207,
+      224
+     ],
+     "spread": 18,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [
+      34,
+      34,
+      34
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [
+      90,
+      85,
+      83
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [
+      363,
+      246,
+      246
+     ],
+     "spread": 89,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [
+      288,
+      178,
+      178
+     ],
+     "spread": 88,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [
+      545,
+      555,
+      784,
+      833,
+      181
+     ],
+     "spread": 172,
+     "verdict": "same"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [
+      181,
+      185,
+      392,
+      833,
+      181
+     ],
+     "spread": 0,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [
+      348,
+      357,
+      356
+     ],
+     "spread": 10,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [
+      408,
+      404,
+      408
+     ],
+     "spread": 4,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [
+      697,
+      637,
+      584
+     ],
+     "spread": 12,
+     "verdict": "beats"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [
+      120,
+      120,
+      120
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [
+      400,
+      400,
+      418
+     ],
+     "spread": 0,
+     "verdict": "same"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [
+      972,
+      1006,
+      1023
+     ],
+     "spread": 27,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [
+      686,
+      720,
+      722
+     ],
+     "spread": 26,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      142,
+      145,
+      306,
+      701,
+      838
+     ],
+     "spread": 1,
+     "verdict": "worse"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [
+      47,
+      97,
+      102,
+      292,
+      299
+     ],
+     "spread": 1,
+     "verdict": "same"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "mixed",
+     "hero": "worse",
+     "finish": "worse",
+     "rest": "mixed"
+    },
+    "frames": {
+     "all": "worse",
+     "hero": "worse",
+     "finish": "worse",
+     "rest": "worse"
+    }
+   }
+  },
+  {
+   "id": "morph.countdown:strip",
+   "target": "rewrite",
+   "flags": [
+    "hero.countdown:strip",
+    "morph.countdown:strip"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "nav.hitTest:hit-skip",
+   "target": "rewrite",
+   "flags": [
+    "nav.hitTest:hit-skip"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "engine.events:quiet",
+   "target": "rewrite",
+   "flags": [
+    "engine.events:quiet"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "morph.panel:const-bounds",
+   "target": "rewrite",
+   "flags": [
+    "morph.panel:const-bounds"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "nav:clip-box",
+   "target": "rewrite",
+   "flags": [
+    "nav:clip-box"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "nav:bar-fixed",
+   "target": "rewrite",
+   "flags": [
+    "nav:bar-fixed"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "nav:logo-3d",
+   "target": "rewrite",
+   "flags": [
+    "nav:logo-3d"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  },
+  {
+   "id": "morph.mount:shift-dormant",
+   "target": "rewrite",
+   "flags": [
+    "morph.mount:shift-dormant"
+   ],
+   "visits": 0,
+   "cells": [
+    {
+     "zone": "hero",
+     "metric": "Layout",
+     "base": [
+      196,
+      195,
+      195
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "RecalculateStyles",
+     "base": [
+      175,
+      175,
+      175
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Paint",
+     "base": [
+      539,
+      544,
+      519
+     ],
+     "arm": [],
+     "spread": 25,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "Composite",
+     "base": [
+      59,
+      59,
+      59
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FireAnimationFrame",
+     "base": [
+      192,
+      192,
+      192
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "FunctionCall",
+     "base": [
+      424,
+      425,
+      422
+     ],
+     "arm": [],
+     "spread": 3,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "EventDispatch",
+     "base": [
+      262,
+      262,
+      260
+     ],
+     "arm": [],
+     "spread": 2,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over34",
+     "base": [
+      0,
+      0,
+      0,
+      88,
+      88
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "hero",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Layout",
+     "base": [
+      52,
+      47,
+      53
+     ],
+     "arm": [],
+     "spread": 6,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "RecalculateStyles",
+     "base": [
+      76,
+      76,
+      77
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Paint",
+     "base": [
+      163,
+      157,
+      175
+     ],
+     "arm": [],
+     "spread": 18,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "Composite",
+     "base": [
+      34,
+      34,
+      34
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FireAnimationFrame",
+     "base": [
+      89,
+      89,
+      89
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "FunctionCall",
+     "base": [
+      201,
+      189,
+      278
+     ],
+     "arm": [],
+     "spread": 89,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "EventDispatch",
+     "base": [
+      130,
+      118,
+      206
+     ],
+     "arm": [],
+     "spread": 88,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over34",
+     "base": [
+      0,
+      172,
+      0,
+      0,
+      172
+     ],
+     "arm": [],
+     "spread": 172,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "finish",
+     "metric": "over50",
+     "base": [
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Layout",
+     "base": [
+      375,
+      374,
+      384
+     ],
+     "arm": [],
+     "spread": 10,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "RecalculateStyles",
+     "base": [
+      395,
+      395,
+      399
+     ],
+     "arm": [],
+     "spread": 4,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Paint",
+     "base": [
+      899,
+      899,
+      887
+     ],
+     "arm": [],
+     "spread": 12,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "Composite",
+     "base": [
+      120,
+      120,
+      120
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FireAnimationFrame",
+     "base": [
+      400,
+      400,
+      400
+     ],
+     "arm": [],
+     "spread": 0,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "FunctionCall",
+     "base": [
+      831,
+      831,
+      858
+     ],
+     "arm": [],
+     "spread": 27,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "EventDispatch",
+     "base": [
+      532,
+      532,
+      558
+     ],
+     "arm": [],
+     "spread": 26,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over34",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    },
+    {
+     "zone": "rest",
+     "metric": "over50",
+     "base": [
+      45,
+      46,
+      46,
+      46,
+      46
+     ],
+     "arm": [],
+     "spread": 1,
+     "verdict": "unresolved"
+    }
+   ],
+   "labels": {
+    "counts": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    },
+    "frames": {
+     "all": "unresolved",
+     "hero": "unresolved",
+     "finish": "unresolved",
+     "rest": "unresolved"
+    }
+   }
+  }
+ ]
+}

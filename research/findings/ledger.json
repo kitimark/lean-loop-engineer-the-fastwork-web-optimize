@@ -4415,6 +4415,30 @@
    "task": "columns-final-scale",
    "field": "mechanism",
    "text": "columns-final-scale: closed as a negative finding. PROVED in Lean (Fw.Parts.MorphColumnsScale): edges_eq, look bound for 314 to 1000 px, variant_no_layout; golden replayed by scale.golden.test.ts. MEASURED: no Layout or style-recalc win on Chromium (40156382719 vs 40156384878) or the WebKit Simulator (40156388674 vs 40156393010, n=2 per arm); gate run 40156380619 fails only on the intended flex: none at desk-319 to desk-1000. INFERRED mechanism: the per-frame layouts re-lay out more than the column subtree (dirtyObjects about 11 per morph-zone layout in both arms; totalObjects is tree size, not work). Limit: below 314 px the variant still applies and its squeeze bound is not proved (a = 0.9657 at 280 px, a_narrow). Follow-ups: CSS-tied morph dependency set, gate rule for visClass L, per-subtree layout attribution. Note research/notes/2026/10-2x-columns-final-scale.md."
+  },
+  {
+   "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit (MEASURED, base visited once so provisional): Layout and FireAnimationFrame lower in hero, finish and rest (hero Layout 165 vs 195, rAF 163 vs 192), Paint (665 vs 539) and EventDispatch (338 vs 262) higher, moving frames over 34 ms the same. Matches the CI Simulator direction on Layout and rAF (runs 39731192687 vs 39739724461). Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, one visit (MEASURED, provisional): counts mixed (finish Layout 80 vs 52, hero FunctionCall 712 vs 424, rest Paint 595 vs 899), hero frames over 34 ms 1.8 per 100 vs 0. The Simulator win is layer count (runs 39548856639 vs 39309416016), which the counts lane does not read; no phone count win. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.columns:idle-none: remove the marquee track animations (animation-name none) while the scene rule pauses the panel, and seek them back to their kept time on return",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, one visit (MEASURED): no count and no frame cell differs from the base beyond its spread (same, same). The CI win is memory (Simulator census 39897807511 vs 39897814980), not read by this lane. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, one visit (MEASURED, provisional): counts mixed, frames worse (finish Layout 86 vs 52, hero over34 1.83 per 100 vs 0, FunctionCall and EventDispatch higher); the CI result was no element drop (39312082945). Needs the base repeats (visits 7 and 15) before it is trusted. Note research/notes/2026/10-25-phone-end-counts.md."
   }
  ]
 }
