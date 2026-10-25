@@ -93,9 +93,9 @@ Why: equal toolchain keys still gave 20 of 104 class differences (MEASURED, n=1,
 - Re-route (`reroutePlan`, op `ci.reroute`): a queued GitHub job moves when it has waited 300 s and is the only unfinished cell of its run; the plan is `step` over the movable requests, so `reroute_budget`, `reroute_slots`, `reroute_cap_7` hold. Glue `rerouteQueued` (ci-pool-tier.ts): trigger Codemagic first, cancel the GitHub run only after the trigger succeeded.
 - Pair records: `place` writes `<console dir>/ci-pairs/<sha7>-<target>-<vm>-<build>.json` for each refused cell and `webkit-classes/refused/<vm>-pooled-rows.json` (the `ci.poolRows` reply) when the three builds agree.
 - `fw ci state cm:<24 hex>` prints `running`, `complete` or `failed` (scripts/codemagic.mjs `state --build`); `fw review ready` accepts `cm:<24 hex>` as run evidence (Lean `runIdOf`).
-- TS stand-ins: `classRowsOf` (codemagic.mjs `classRows`), the pair files, the poller-side choice of which queued jobs to offer (no poller edit: the runner glue takes the queued list), `hwOf`.
+- TS stand-ins: `classRowsOf` (codemagic.mjs `classRows`), the pair files, `rerouteTick` (queued rows and their age; the move is Lean's), `hwOf`.
 - Accepted limits: one Codemagic slot; Codemagic hardware varies within an instance_type (recorded per build); CircleCI is closed for macOS; no paid runners; k pairs are bounded by the minute budget.
 
 ## Not wired yet
 
-The poller does not yet call `rerouteQueued` on its own (the decision and glue exist; the call site is a follow-up). Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.
+The poller calls `env.reroute` (packages/gh-budget/src/poller.ts `rerouteTick`) with the still-queued runs of each list; the runner does not set that hook in production yet, so `rerouteQueued` runs only where a caller sets it. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.
