@@ -1,5 +1,6 @@
 import Fw.Parts.MorphMount
 import Fw.Parts.MorphTween
+import Fw.Parts.EngineScrollUnthrottle
 
 /-! WebKit premises, `file:line@862f17d`: the first `touchmove` is cancelable because the native pan waits for it
 (`WKContentViewInteraction.mm:1368`, `:2562`); once the pan began, `preventDefault` no longer stops it (`:4239-4245`);
@@ -190,5 +191,113 @@ theorem lockOp_reaches (cur want : Bool) : (match lockOp cur want with | .set =>
   cases cur <;> cases want <;> rfl
 
 theorem lockOp_idem (b : Bool) : lockOp b b = .none := by cases b <;> rfl
+
+/-! ## The WKTR forced-inset gate (task toolbar-wktr-gate)
+
+WKTR drives `beginInteractiveObscuredInsetsChange`, `setObscuredInsets` and `endInteractiveObscuredInsetsChange`
+(`ui-helper.js:2018-2050`, `UIScriptControllerIOS.mm:1486-1494@862f17d`). The page holds a fixed platform stand-in of height
+`3/5` of the visual viewport height before any inset (`vh0`), its bottom edge `15` px above `vh0`, and sets the top inset
+`0 -> 40 -> 0` in steps of 10 with a `scrollTo` before each set. The viewport height at inset `t` is `vh0 - t`. Each step is
+one forward, idle, cancelable move of a touch gesture. `lvh`/`svh` are not overridden in WKTR; the gate reads no viewport unit. -/
+
+open Fw.Parts.EngineScrollUnthrottle (Page throttled lifted_when_supported compositable_does_not_lift)
+
+inductive Flag where
+  | plain | touchFirst | openOnce | unthrottle
+  deriving DecidableEq, Repr
+
+def Flag.id : Flag → String
+  | .plain => "default" | .touchFirst => firstId | .openOnce => onceId | .unthrottle => "unthrottle"
+
+def Flag.all : List Flag := [.plain, .touchFirst, .openOnce, .unthrottle]
+
+/-- The gesture rule a flag selects: `unthrottle` leaves the gesture to the original. -/
+def Flag.opt : Flag → Opt
+  | .touchFirst => firstOnly
+  | .openOnce => onceOnly
+  | _ => orig
+
+/-- The WKTR page without a flag: the style engine supports scroll timelines and no animation runs. -/
+def gatePage : Page := ⟨true, []⟩
+
+/-- The page of a flag: `unthrottle` adds the production main-thread progress-based animation. -/
+def Flag.page : Flag → Page
+  | .unthrottle => gatePage.withLift
+  | _ => gatePage
+
+/-- The flag leaves the 100 ms visible-rect wait during an interactive inset change. -/
+def Flag.exempt (f : Flag) : Bool := !throttled true f.page
+
+theorem plain_throttled : Flag.exempt .plain = false := by decide
+
+theorem touchFirst_throttled : Flag.exempt .touchFirst = false := by decide
+
+theorem openOnce_throttled : Flag.exempt .openOnce = false := by decide
+
+theorem unthrottle_exempt : Flag.exempt .unthrottle = true := by
+  simp [Flag.exempt, Flag.page, lifted_when_supported gatePage rfl]
+
+theorem exempt_only_unthrottle (f : Flag) : f.exempt = true ↔ f = .unthrottle := by
+  cases f <;> simp [plain_throttled, touchFirst_throttled, openOnce_throttled, unthrottle_exempt]
+
+/-- Any page whose animations the compositor can run alone stays throttled (the gate page has none). -/
+theorem gate_page_not_lifted : throttled true gatePage = true :=
+  compositable_does_not_lift gatePage (by simp [gatePage])
+
+def gateRect (vh0 : Rat) : Rect := ⟨vh0 * 3 / 5, vh0 - 15⟩
+
+def gateVh (vh0 t : Rat) : Rat := vh0 - t
+
+def gateGeom (vh0 t : Rat) : Bool := armed (gateRect vh0) (gateVh vh0 t)
+
+/-- The platform stays armed exactly while the inset is at most 23 px, whatever the viewport height. -/
+theorem gateGeom_iff (vh0 t : Rat) (h0 : 0 ≤ vh0) (ht : 0 ≤ t) : gateGeom vh0 t = decide (t ≤ 23) := by
+  unfold gateGeom armed gateRect gateVh
+  by_cases h : t ≤ 23 <;> simp [h] <;> grind
+
+def downInsets : List Rat := [0, 10, 20, 30, 40]
+def upInsets : List Rat := [30, 20, 10, 0]
+
+def gateGeoms (vh0 : Rat) (ts : List Rat) : List Bool := ts.map (gateGeom vh0)
+
+theorem down_geoms (vh0 : Rat) (h0 : 0 ≤ vh0) : gateGeoms vh0 downInsets = [true, true, true, false, false] := by
+  have e : ∀ t : Rat, 0 ≤ t → gateGeom vh0 t = decide (t ≤ 23) := fun t ht => gateGeom_iff vh0 t h0 ht
+  simp only [gateGeoms, downInsets, List.map, e 0 (by decide), e 10 (by decide), e 20 (by decide), e 30 (by decide), e 40 (by decide)]
+  decide +kernel
+
+theorem up_geoms (vh0 : Rat) (h0 : 0 ≤ vh0) : gateGeoms vh0 upInsets = [false, true, true, true] := by
+  have e : ∀ t : Rat, 0 ≤ t → gateGeom vh0 t = decide (t ≤ 23) := fun t ht => gateGeom_iff vh0 t h0 ht
+  simp only [gateGeoms, upInsets, List.map, e 0 (by decide), e 10 (by decide), e 20 (by decide), e 30 (by decide)]
+  decide +kernel
+
+/-- The takes of one gate phase: every move is idle, forward and cancelable. -/
+def gateTakes (o : Opt) : G → List Bool → List Bool
+  | _, [] => []
+  | g, geom :: rest => let r := step o g false 1 geom true; r.1 :: gateTakes o r.2 rest
+
+def gateRun (f : Flag) (geoms : List Bool) : List Bool := gateTakes f.opt .fresh geoms
+
+theorem plain_down : gateRun .plain [true, true, true, false, false] = [true, true, true, false, false] := by decide +kernel
+theorem touchFirst_down : gateRun .touchFirst [true, true, true, false, false] = [true, true, true, false, false] := by decide +kernel
+theorem openOnce_down : gateRun .openOnce [true, true, true, false, false] = [true, false, false, false, false] := by decide +kernel
+theorem unthrottle_down : gateRun .unthrottle [true, true, true, false, false] = [true, true, true, false, false] := by decide +kernel
+
+theorem plain_up : gateRun .plain [false, true, true, true] = [false, true, true, true] := by decide +kernel
+theorem touchFirst_up : gateRun .touchFirst [false, true, true, true] = [false, false, false, false] := by decide +kernel
+theorem openOnce_up : gateRun .openOnce [false, true, true, true] = [false, true, false, false] := by decide +kernel
+theorem unthrottle_up : gateRun .unthrottle [false, true, true, true] = [false, true, true, true] := by decide +kernel
+
+/-- `unthrottle` does not change the morph decision: it takes what the original takes. -/
+theorem unthrottle_same_takes (geoms : List Bool) : gateRun .unthrottle geoms = gateRun .plain geoms := rfl
+
+/-- A visible-rect update under the wait arrives `throttleMs` after its set; unthrottled, within a frame. -/
+def liftedBelowMs : Rat := throttleMs / 2
+
+def liftedBy (medianLatencyMs : Rat) : Bool := decide (medianLatencyMs < liftedBelowMs)
+
+theorem frame_is_lifted : liftedBy frameMs = true := by decide +kernel
+
+theorem wait_is_not_lifted : liftedBy throttleMs = false := by decide +kernel
+
 
 end Fw.Parts.MorphMountToolbar

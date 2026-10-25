@@ -173,6 +173,26 @@ archive sha256 / iOS runtime build (23F77). Each workflow run's own table is ove
   at launch once on a runner in an earlier run; the driver retries up to twice).
 - Wall time: the 1-job, 12-pass exploratory run took 13m54s; queueing for a macOS runner was the longer part when other jobs ran. Never phone time.
 
+## Toolbar forced-inset gate (task toolbar-wktr-gate)
+
+A gate, not a count lane. `[toolbar]` in the head commit (or the `toolbar` dispatch input) turns the `wktr` job's measuring step into:
+
+1. `scripts/hook-check.sh`: do `beginInteractiveObscuredInsetsChange`, `endInteractiveObscuredInsetsChange` (`UIScriptControllerIOS.mm:1486-1494`) and
+   `setObscuredInsets` (`UIScriptControllerCocoa.mm:683-692`, @862f17d) exist in the pinned binary (`hooks.json`).
+2. `src/toolbar-cli.mjs`: per flag (`default`, `touch-first`, `open-once`, `unthrottle`) and pass one fresh WebKitTestRunnerApp process loads
+   `src/toolbar-page.mjs`'s page, which calls `begin`, then `setObscuredInsets(inset,0,0,0)` for inset 10, 20, 30, 40, 30, 20, 10, 0 with a
+   `scrollTo` before each, then `end`. It reports `typeof uiController.<hook>` (the hook is bound in the running WKTR), the viewport height,
+   a fixed platform stand-in's rect and the time from each set's return to the first frame that sees the new height.
+3. `src/gate.mjs`: the verdict against the Lean golden `packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl`
+   (`Fw.Parts.MorphMountToolbar`, `gate*` rows): the arm sequence of each phase (production `armed`), the take sequence of each flag
+   (production gesture `step`, looked up in the golden `gateRun` rows), and the unthrottle exemption (median wait of the sets after the first
+   below `liftedBelowMs`, Lean `liftedBy`, exempt iff the flag is `unthrottle`).
+
+Limits: `setObscuredInsets` is applied step-wise (each set returns after the UI process applied it), not once per frame; `lvh`/`svh` are not
+overridden in WKTR, so viewport-unit values differ from Safari and the gate reads none; WKTR is not Safari and has no real toolbar; waits are in ms
+of a free shared macOS runner, never phone time. TS stand-ins: `liftedBy` (one comparison, `test/toolbar.test.mjs` checks it against the golden
+rows) and the page/driver glue.
+
 ## TS stand-ins (CLAUDE.md "Lean first")
 
 - `src/reduce.mjs` (interval sums, deltas, the undercount arithmetic, output parsing, `ev_*` zero-filling) is pure
