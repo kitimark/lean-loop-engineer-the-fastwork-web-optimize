@@ -58,3 +58,12 @@ test('offscreen-webkit: passOf reads a session pass', () => {
   const p = passOf({ scroll: { ys: [0, 50], reduced: { perStep: [[1], [2]] } } });
   assert.deepEqual(p, { ys: [0, 50], rows: [[1], [2]] });
 });
+
+test('offscreen-webkit-cli: the report row of each zone is the Lean zone verdict', async () => {
+  const { report, markdown } = await import('../src/offscreen-webkit-cli.mjs');
+  for (const g of ops('zones')) {
+    const rows = report([{ name: 'base', passes: g.base }, { name: 'arm', passes: g.flag }]);
+    assert.deepEqual(rows.map((r) => [r.zone, r.verdict]), g.zones.map((z) => [z.zone, z.verdict]), g.case);
+    assert.ok(markdown(rows).includes('| z4500 |'));
+  }
+});
