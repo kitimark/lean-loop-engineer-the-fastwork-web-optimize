@@ -112,7 +112,7 @@ theorem length_chunks_lt {α : Type} {f : Nat} (hf : 1 < f) {xs : List α} (hx :
 
 -- The compiler's `simp` pass recurses once per `let` of a definition (src/Lean/Compiler/LCNF/Simp/Main.lean:218,258
 -- @eb6cafb) up to a depth of at least 8192 (src/Lean/Compiler/LCNF/Main.lean:122@eb6cafb), and a list literal of `n`
--- rows takes `5 * n + 1` lets.
+-- rows takes about 5 lets per row (measured boundary 1637/1638).
 def fanOut : Nat := 256
 
 def addListTree (base : Name) (ty : Expr) (xs : List Expr) : TermElabM Unit := do

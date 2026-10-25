@@ -6,7 +6,7 @@ INFERRED (reasoned, not seen).
 ## Answer
 
 - **Cause (CONFIRMED).** The scan put every probe row into one definition, `initCostRows := [row0, ..., rowN]`.
-  The compiler turns that literal into one chain of `5 * N + 1` lets. Its `simp` pass recurses once per let
+  The compiler turns that literal into one chain of `5 * N + 1` lets (INFERRED from the MEASURED 1637/1638 boundary). Its `simp` pass recurses once per let
   (`src/Lean/Compiler/LCNF/Simp/Main.lean:218` adds a depth level through `withIncRecDepth`, `:258` recurses on the
   continuation). The compiler's depth limit is `max 8192 maxRecDepth` (`src/Lean/Compiler/LCNF/Main.lean:122`,
   `withAtLeastMaxRecDepth 8192`; `src/Lean/CoreM.lean:663`). So the limit is reached near N = 8192 / 5.
