@@ -1,7 +1,7 @@
 branch: worktree-wf_8b04760d-e7c-1 (CI branch ci/macos-vm-evidence = same commit)
 worktree: .claude/worktrees/wf_8b04760d-e7c-1
 last commit: 2dba3ad9e plus the main merge (handoff commit follows)
-CI runs: push 1 webkit-sim 40232220883 skipped (guard needs "[ci:webkit-sim]" in the head commit message); push 2 webkit-sim 40233131521 FAILED at 2b1ea36c1 (Determinism sessions "error: lsof: ETIMEDOUT" in startProxy, 30 s lsof on a starved host, pressure level 2; the new telemetry line printed peak swap 121 MB, compressor 1415 MB); push 3 (last allowed) webkit-sim: id in the next update, after the startProxy lsof retry (2dba3ad9e)
+CI runs: push 1 webkit-sim 40232220883 skipped (guard needs "[ci:webkit-sim]" in the head commit message); push 2 webkit-sim 40233131521 FAILED at 2b1ea36c1 (Determinism sessions "error: lsof: ETIMEDOUT" in startProxy, 30 s lsof on a starved host, pressure level 2; the new telemetry line printed peak swap 121 MB, compressor 1415 MB); push 3 (last allowed) webkit-sim 40234829295 in_progress at 315d7a10f, after the startProxy lsof retry (2dba3ad9e)
 paired run for counts: none yet named; counts are not changed by construction (the async layer only changes how simctl is called), golden replay covers the new decisions
 
 Phase 1 of macos-vm-evidence (harness and telemetry code only; workflows untouched).
