@@ -1,10 +1,3 @@
-// Copies the per-step series and the census out of webkit-sim session files into cells.json, the input of
-// Fw.Parts.ConstBoundsCounts (no decision is made here).
-//   node extract.mjs <out.json> baseRun=<id> flagRun=<id> sha=<sha> flag=<part:variant> \
-//        base=<vm>:<session.json> ... arm=<vm>:<session.json> ... \
-//        crBaseRun=<id> crFlagRun=<id> crSha=<sha> crbase=<run>:<counts.json> ... crarm=<run>:<counts.json> ...
-// A session file holds `passes[]`; each pass has scroll.ys, scroll.reduced.{countTypes,perStep,perStepPaintArea}
-// and census[]. Every number must be an integer, else the script stops.
 import fs from 'node:fs'
 
 const METRICS = ['Layout', 'RecalculateStyles', 'Paint', 'Composite', 'FunctionCall', 'EventDispatch', 'paintArea']
@@ -39,7 +32,6 @@ const passesOf = (list) =>
       }
     })
   })
-// A Chromium counts file holds frames[]: scrollY and counts{type: n} per 60 Hz frame; a run plays the part of a VM.
 const CR = [
   'trace.Layout', 'metric.LayoutCount', 'trace.Layout.dirtyObjects', 'trace.InvalidateLayout', 'trace.UpdateLayoutTree',
   'metric.RecalcStyleCount', 'trace.Paint', 'trace.PrePaint', 'trace.cc.Commit', 'trace.FunctionCall', 'trace.EventDispatch',
