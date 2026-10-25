@@ -121,9 +121,10 @@ def useName : Use → String
   | .refused => "refused"
 
 def obsOf (o : Json) : Except String Obs := do
-  pure ⟨← classOf o "gh", ← classOf o "cm", ← keyOf (← field o "ghKey"), ← keyOf (← field o "cmKey")⟩
+  pure ⟨← classOf o "gh", ← classOf o "cm", ← keyOf (← field o "ghKey"), ← keyOf (← field o "cmKey"),
+    ← strD o "ghRun" "", ← strD o "cmBuild" "", ← strD o "ghSha" "", ← strD o "cmSha" ""⟩
 
-/-- `ci.poolRows`: `{ref, cell, rows:[{row, obs:[{gh, cm, ghKey, cmKey}]}], used?}` to the use of each row
+/-- `ci.poolRows`: `{ref, cell, rows:[{row, obs:[{gh, cm, ghKey, cmKey, ghRun, cmBuild, ghSha, cmSha}]}], used?}` to the use of each row
 (`direct`, `paired` with its class, `refused`), the counts, `kReq` and `reachable` pairs under the Codemagic line. -/
 def opRows (req : Json) : Except String Reply := do
   let r ← keyOf (← field req "ref")
@@ -144,15 +145,15 @@ def queuedOf (j : Json) : Except String Queued := do
   pure ⟨← reqOf j, ← natD j "queuedS" 0, ← natD j "runCells" 0⟩
 
 /-- `ci.reroute`: the tier request with `queued` (each a request plus `queuedS`) instead of `reqs`; a queued job moves to
-Codemagic when it has waited 300 s, is the only unfinished cell of its run (`runCells` 1; absent = 0) and the route sends it there. Reply `log` rows have `reroute`. -/
+Codemagic when it has waited 300 s, is the only unfinished cell of its run (`runCells` 1; absent = 0) and the route sends it there. Reply `log` rows have `i` (the job's index in `queued`) and `reroute`. -/
 def opReroute (req : Json) : Except String Reply := do
   let c ← cfgOf req
   let s ← stateOf (← field req "state")
   let qs ← (← arr req "queued").toList.mapM queuedOf
   let o := reroutePlan c qs s
-  let aged := qs.filter Queued.movable
-  let rows := (aged.zip o.1).map fun (q, p) =>
-    Json.mkObj [("sha", q.req.key.sha), ("lane", q.req.key.lane), ("cfg", q.req.key.cfg), ("rep", q.req.key.rep),
+  let aged := qs.zipIdx.filter (·.1.movable)
+  let rows := (aged.zip o.1).map fun ((q, i), p) =>
+    Json.mkObj [("i", toJson i), ("sha", q.req.key.sha), ("lane", q.req.key.lane), ("cfg", q.req.key.cfg), ("rep", q.req.key.rep),
       ("queuedS", q.queuedS), ("runCells", q.runCells), ("reroute", p.2.isCm)]
   pure [("log", .arr rows.toArray), ("moved", cmCount o.1), ("skipped", qs.length - aged.length), ("state", stateJson' o.2)]
 

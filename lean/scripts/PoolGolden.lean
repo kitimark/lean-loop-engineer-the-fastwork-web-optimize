@@ -78,8 +78,10 @@ def mergedCases : List (String × Json) := [
   ("both sides empty: refused",
     Json.mkObj [("ref", pk "" "" "" 0 0), ("cell", pk "" "" "" 0 0)])]
 
-def ob (g c : String) (gk : Json := ghK) (ck : Json := cmK) : Json :=
-  Json.mkObj [("gh", g), ("cm", c), ("ghKey", gk), ("cmKey", ck)]
+def ob (g c : String) (n : Nat := 0) (gk : Json := ghK) (ck : Json := cmK) (over : List (String × Json) := []) : Json :=
+  let base : List (String × Json) := [("gh", Json.str g), ("cm", Json.str c), ("ghKey", gk), ("cmKey", ck),
+    ("ghRun", Json.str s!"4000{n}"), ("cmBuild", Json.str s!"cm:{n}"), ("ghSha", Json.str sha), ("cmSha", Json.str sha)]
+  Json.mkObj (base.filter (fun kv => !over.any (·.1 == kv.1)) ++ over)
 
 def rw (n : String) (obs : List Json) : Json := Json.mkObj [("row", n), ("obs", .arr obs.toArray)]
 
@@ -88,21 +90,40 @@ def rowsReq (ref cell : Json) (rows : List Json) (used : Nat := 166) : Json :=
 
 def rowsCases : List (String × Json) := [
   ("3 pairs agree, other hardware: paired, class is the weakest seen",
-    rowsReq ghK cmK [rw "scroll|Layout|total" [ob "stable" "stable", ob "stable" "stable", ob "deterministic" "deterministic"],
-      rw "census|layerCount|per state" [ob "deterministic" "deterministic", ob "deterministic" "deterministic", ob "deterministic" "deterministic"]]),
-  ("only 2 pairs: refused", rowsReq ghK cmK [rw "scroll|Layout|total" [ob "stable" "stable", ob "stable" "stable"]]),
+    rowsReq ghK cmK [rw "scroll|Layout|total" [ob "stable" "stable" 0, ob "stable" "stable" 1, ob "deterministic" "deterministic" 2],
+      rw "census|layerCount|per state" [ob "deterministic" "deterministic" 0, ob "deterministic" "deterministic" 1, ob "deterministic" "deterministic" 2]]),
+  ("only 2 pairs: refused", rowsReq ghK cmK [rw "scroll|Layout|total" [ob "stable" "stable" 0, ob "stable" "stable" 1]]),
   ("no pairs: refused", rowsReq ghK cmK [rw "scroll|Layout|total" []]),
   ("one pair disagrees: that row refused, the next row decided on its own",
-    rowsReq ghK cmK [rw "scroll|Composite|total" [ob "stable" "deterministic", ob "stable" "stable", ob "stable" "stable"],
-      rw "scroll|Paint|total" [ob "stable" "stable", ob "stable" "stable", ob "stable" "stable"]]),
+    rowsReq ghK cmK [rw "scroll|Composite|total" [ob "stable" "deterministic" 0, ob "stable" "stable" 1, ob "stable" "stable" 2],
+      rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 1, ob "stable" "stable" 2]]),
   ("a pair measured other hardware than the cell now: refused",
-    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable", ob "stable" "stable", ob "stable" "stable" ghK ghK]]),
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 1, ob "stable" "stable" 2 ghK ghK]]),
   ("keys equal: direct, no pairs needed", rowsReq ghK ghK [rw "scroll|Paint|total" []]),
   ("quarantined on both sides in every pair: paired as quarantined",
-    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "quarantined" "quarantined", ob "quarantined" "quarantined", ob "quarantined" "quarantined"]]),
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "quarantined" "quarantined" 0, ob "quarantined" "quarantined" 1, ob "quarantined" "quarantined" 2]]),
+  ("toolchain differs, 3 agreeing pairs: refused",
+    rowsReq ghK (pk "26A434" "27A1111" "24A434" 8 12884901888)
+      [rw "scroll|Paint|total" [ob "stable" "stable" 0 ghK (pk "26A434" "27A1111" "24A434" 8 12884901888),
+        ob "stable" "stable" 1 ghK (pk "26A434" "27A1111" "24A434" 8 12884901888),
+        ob "stable" "stable" 2 ghK (pk "26A434" "27A1111" "24A434" 8 12884901888)]]),
+  ("one pair listed three times: refused",
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 0, ob "stable" "stable" 0]]),
+  ("one GitHub run paired with three Codemagic builds: refused",
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 1 ghK cmK [("ghRun", "40000")],
+      ob "stable" "stable" 2 ghK cmK [("ghRun", "40000")]]]),
+  ("one Codemagic build paired with three GitHub runs: refused",
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 1 ghK cmK [("cmBuild", "cm:0")],
+      ob "stable" "stable" 2 ghK cmK [("cmBuild", "cm:0")]]]),
+  ("a pair whose GitHub and Codemagic commits differ: refused",
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 1,
+      ob "stable" "stable" 2 ghK cmK [("cmSha", "fedcba9876543210fedcba9876543210fedcba98")]]]),
+  ("a pair with no commit recorded: refused",
+    rowsReq ghK cmK [rw "scroll|Paint|total" [ob "stable" "stable" 0, ob "stable" "stable" 1,
+      ob "stable" "stable" 2 ghK cmK [("ghSha", ""), ("cmSha", "")]]]),
   ("budget short: 281 minutes used, 2 pairs reachable", rowsReq ghK cmK [] 281),
   ("budget gone: 361 minutes used, 0 pairs reachable", rowsReq ghK cmK [] 361),
-  ("unknown class word: error", rowsReq ghK cmK [rw "x" [ob "flaky" "stable"]])]
+  ("unknown class word: error", rowsReq ghK cmK [rw "x" [ob "flaky" "stable" 0]])]
 
 def qd (rep : Nat) (age : Nat) (over : List (String × Json) := []) (cells : Nat := 1) : Json :=
   (rq rep over).mergeObj (Json.mkObj [("queuedS", toJson age), ("runCells", toJson cells)])
@@ -112,6 +133,7 @@ def rerouteCases : List (String × Json) := [
   ("queued 299 s: stays on GitHub", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 299])]),
   ("GitHub has a free slot: stays", Json.mkObj [("state", st 4 166 3575), ("queued", .arr #[qd 0 900])]),
   ("two aged jobs, one Codemagic slot: first moves, second stays", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 400, qd 1 400])]),
+  ("a young job ahead of an aged one: the aged job (index 1) moves", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 60, qd 1 400])]),
   ("Codemagic at 361 used: stays", Json.mkObj [("state", st 5 361 3575), ("queued", .arr #[qd 0 400])]),
   ("Codemagic busy: stays", Json.mkObj [("state", st 5 166 3575 [("cmBusy", (1 : Nat))]), ("queued", .arr #[qd 0 400])]),
   ("gate-gaps never leaves GitHub", Json.mkObj [("state", st 5 166 3575), ("queued", .arr #[qd 0 900 [("lane", "gate-gaps")]])]),

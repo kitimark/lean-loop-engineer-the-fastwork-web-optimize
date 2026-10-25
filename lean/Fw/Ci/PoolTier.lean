@@ -424,7 +424,7 @@ theorem cellMerged_no_cpus (ref cell : PlatformKey) (h : cell.hw.cpus = 0) : cel
 theorem cellMerged_no_memsize (ref cell : PlatformKey) (h : cell.hw.memsize = 0) : cellMerged ref cell = false := by
   cases cell; simp_all [cellMerged, PlatformKey.complete]
 
-/-- A GitHub `xcode-27` macOS runner as measured: 3 CPUs; the memory figure is a stand-in for the golden. -/
+/-- A GitHub `xcode-27` macOS runner as measured (tools.txt of run 40225058193): 3 CPUs, 7516192768 bytes. -/
 def ghHw : Hw := ⟨3, 7516192768⟩
 
 /-- A Codemagic `mac_mini_m2` as measured: 8 CPUs, 12 GiB. -/
@@ -479,12 +479,19 @@ theorem worse_ge_left (a b : RowClass) : a.rank ≤ (a.worse b).rank := by
 theorem worse_ge_right (a b : RowClass) : b.rank ≤ (a.worse b).rank := by
   unfold RowClass.worse; split <;> omega
 
-/-- One row seen in one pair: the class on each side and the platform key of each side. -/
+/-- One row seen in one pair: the class and platform key of each side, and the identity of the pair.
+
+`ghRun` and `cmBuild` name the two cells; `ghSha` and `cmSha` are the commits they measured.
+-/
 structure Obs where
   gh : RowClass
   cm : RowClass
   ghKey : PlatformKey
   cmKey : PlatformKey
+  ghRun : String
+  cmBuild : String
+  ghSha : String
+  cmSha : String
 deriving DecidableEq, Repr
 
 /-- The number of pinned pairs a row needs before it may pool.
@@ -495,19 +502,23 @@ def kReq : Nat := 3
 
 /-- Does one observation support pooling for the pair of keys now compared?
 
-Both sides in the same class, and the sides measured exactly `ref` and `cell`.
+Both sides in the same class, the sides measured exactly `ref` and `cell`, and both measured one non-empty commit.
 -/
-def Obs.holds (ref cell : PlatformKey) (o : Obs) : Bool := o.gh == o.cm && o.ghKey == ref && o.cmKey == cell
+def Obs.holds (ref cell : PlatformKey) (o : Obs) : Bool :=
+  o.gh == o.cm && o.ghKey == ref && o.cmKey == cell && o.ghSha == o.cmSha && !o.ghSha.isEmpty
 
 /-- May a row pool across the two platforms?
 
-At least `kReq` observations, each one supporting.
+At least `kReq` observations, each one supporting, from distinct GitHub runs and distinct Codemagic builds.
 -/
-def rowPooled (ref cell : PlatformKey) (obs : List Obs) : Bool := decide (kReq ≤ obs.length) && obs.all (·.holds ref cell)
+def rowPooled (ref cell : PlatformKey) (obs : List Obs) : Bool :=
+  decide (kReq ≤ obs.length) && obs.all (·.holds ref cell) && decide (obs.map (·.ghRun)).Nodup &&
+    decide (obs.map (·.cmBuild)).Nodup
 
 theorem rowPooled_iff (ref cell : PlatformKey) (obs : List Obs) :
-    rowPooled ref cell obs = true ↔ kReq ≤ obs.length ∧ ∀ o ∈ obs, o.holds ref cell = true := by
-  simp [rowPooled]
+    rowPooled ref cell obs = true ↔
+      kReq ≤ obs.length ∧ (∀ o ∈ obs, o.holds ref cell = true) ∧ (obs.map (·.ghRun)).Nodup ∧ (obs.map (·.cmBuild)).Nodup := by
+  simp [rowPooled, and_assoc]
 
 theorem pooled_too_few (ref cell : PlatformKey) (obs : List Obs) (h : obs.length < kReq) : rowPooled ref cell obs = false := by
   have : ¬ kReq ≤ obs.length := by omega
@@ -517,26 +528,56 @@ theorem pooled_disagree (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho 
     rowPooled ref cell obs = false := by
   cases hp : rowPooled ref cell obs
   · rfl
-  · have := ((rowPooled_iff ref cell obs).1 hp).2 o ho
+  · have := ((rowPooled_iff ref cell obs).1 hp).2.1 o ho
     simp [Obs.holds, h] at this
 
 theorem pooled_ghKey_mismatch (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs) (h : o.ghKey ≠ ref) :
     rowPooled ref cell obs = false := by
   cases hp : rowPooled ref cell obs
   · rfl
-  · have := ((rowPooled_iff ref cell obs).1 hp).2 o ho
+  · have := ((rowPooled_iff ref cell obs).1 hp).2.1 o ho
     simp [Obs.holds, h] at this
 
 theorem pooled_cmKey_mismatch (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs) (h : o.cmKey ≠ cell) :
     rowPooled ref cell obs = false := by
   cases hp : rowPooled ref cell obs
   · rfl
-  · have := ((rowPooled_iff ref cell obs).1 hp).2 o ho
+  · have := ((rowPooled_iff ref cell obs).1 hp).2.1 o ho
     simp [Obs.holds, h] at this
 
 theorem pooled_append_disagree (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (h : o.gh ≠ o.cm) :
     rowPooled ref cell (obs ++ [o]) = false :=
   pooled_disagree ref cell _ o (by simp) h
+
+theorem pooled_dup_gh_refused (ref cell : PlatformKey) (obs : List Obs) (h : ¬ (obs.map (·.ghRun)).Nodup) :
+    rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · exact absurd ((rowPooled_iff ref cell obs).1 hp).2.2.1 h
+
+theorem pooled_dup_cm_refused (ref cell : PlatformKey) (obs : List Obs) (h : ¬ (obs.map (·.cmBuild)).Nodup) :
+    rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · exact absurd ((rowPooled_iff ref cell obs).1 hp).2.2.2 h
+
+theorem pooled_sha_mismatch_refused (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs)
+    (h : o.ghSha ≠ o.cmSha) : rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · have := ((rowPooled_iff ref cell obs).1 hp).2.1 o ho
+    simp [Obs.holds, h] at this
+
+theorem pooled_empty_sha_refused (ref cell : PlatformKey) (obs : List Obs) (o : Obs) (ho : o ∈ obs)
+    (h : o.ghSha = "") : rowPooled ref cell obs = false := by
+  cases hp : rowPooled ref cell obs
+  · rfl
+  · have := ((rowPooled_iff ref cell obs).1 hp).2.1 o ho
+    simp [Obs.holds, h] at this
+
+/-- Do the keys name one toolchain: equal macOS, Xcode and runtime builds? -/
+def sameToolchain (ref cell : PlatformKey) : Bool :=
+  ref.macosBuild == cell.macosBuild && ref.xcodeBuild == cell.xcodeBuild && ref.runtimeBuild == cell.runtimeBuild
 
 /-- How the counts of a row of the cell under test are used. -/
 inductive Use where
@@ -547,12 +588,12 @@ deriving DecidableEq, Repr
 
 /-- The use of one row of the cell.
 
-`direct` when the keys merge (hardware included); `paired` when they differ but `kReq` pinned pairs of exactly these
-keys agree on the row; else `refused`.
+`direct` when the keys merge (hardware included); `paired` when they differ, the three toolchain builds are equal, and
+`kReq` pinned pairs of exactly these keys agree on the row; else `refused`.
 -/
 def rowUse (ref cell : PlatformKey) (obs : List Obs) : Use :=
   if cellMerged ref cell then .direct
-  else if ref.complete && cell.complete && rowPooled ref cell obs then .paired
+  else if ref.complete && cell.complete && sameToolchain ref cell && rowPooled ref cell obs then .paired
   else .refused
 
 theorem rowUse_direct_iff (ref cell : PlatformKey) (obs : List Obs) :
@@ -561,18 +602,19 @@ theorem rowUse_direct_iff (ref cell : PlatformKey) (obs : List Obs) :
   by_cases h : cellMerged ref cell = true
   · simp [h]
   · simp only [h, ↓reduceIte, Bool.false_eq_true, iff_false]
-    by_cases p : (ref.complete && cell.complete && rowPooled ref cell obs) = true <;> simp [p]
+    by_cases p : (ref.complete && cell.complete && sameToolchain ref cell && rowPooled ref cell obs) = true <;> simp [p]
 
 theorem rowUse_paired_iff (ref cell : PlatformKey) (obs : List Obs) :
     rowUse ref cell obs = .paired ↔
-      cellMerged ref cell = false ∧ ref.complete = true ∧ cell.complete = true ∧ rowPooled ref cell obs = true := by
+      cellMerged ref cell = false ∧ ref.complete = true ∧ cell.complete = true ∧ sameToolchain ref cell = true ∧
+        rowPooled ref cell obs = true := by
   unfold rowUse
   by_cases h : cellMerged ref cell = true
   · simp [h]
   · have h' : cellMerged ref cell = false := by simpa using h
-    by_cases p : (ref.complete && cell.complete && rowPooled ref cell obs) = true
+    by_cases p : (ref.complete && cell.complete && sameToolchain ref cell && rowPooled ref cell obs) = true
     · simp only [h', p]; simp at p; simp [p]
-    · simp only [h', p]; simp at p ⊢; intro a b; exact p a b
+    · simp only [h', p]; simp at p ⊢; intro a b c; exact p a b c
 
 theorem hw_differs_not_direct (ref cell : PlatformKey) (obs : List Obs) (h : ref.hw ≠ cell.hw) :
     rowUse ref cell obs ≠ .direct := by
@@ -584,6 +626,31 @@ theorem hw_differs_not_direct (ref cell : PlatformKey) (obs : List Obs) (h : ref
 theorem rowUse_unpaired_refused (ref cell : PlatformKey) (obs : List Obs) (h : cellMerged ref cell = false)
     (hp : rowPooled ref cell obs = false) : rowUse ref cell obs = .refused := by
   simp [rowUse, h, hp]
+
+theorem rowUse_toolchain_refused (ref cell : PlatformKey) (obs : List Obs) (h : cellMerged ref cell = false)
+    (ht : sameToolchain ref cell = false) : rowUse ref cell obs = .refused := by
+  simp [rowUse, h, ht]
+
+theorem rowUse_xcode_not_paired (ref cell : PlatformKey) (obs : List Obs) (h : ref.xcodeBuild ≠ cell.xcodeBuild) :
+    rowUse ref cell obs ≠ .paired := by
+  intro e
+  have := ((rowUse_paired_iff ref cell obs).1 e).2.2.2.1
+  simp [sameToolchain] at this
+  exact h this.1.2
+
+theorem rowUse_macos_not_paired (ref cell : PlatformKey) (obs : List Obs) (h : ref.macosBuild ≠ cell.macosBuild) :
+    rowUse ref cell obs ≠ .paired := by
+  intro e
+  have := ((rowUse_paired_iff ref cell obs).1 e).2.2.2.1
+  simp [sameToolchain] at this
+  exact h this.1.1
+
+theorem rowUse_runtime_not_paired (ref cell : PlatformKey) (obs : List Obs) (h : ref.runtimeBuild ≠ cell.runtimeBuild) :
+    rowUse ref cell obs ≠ .paired := by
+  intro e
+  have := ((rowUse_paired_iff ref cell obs).1 e).2.2.2.1
+  simp [sameToolchain] at this
+  exact h this.2
 
 theorem rowUse_incomplete_ref_refused (ref cell : PlatformKey) (obs : List Obs) (h : cellMerged ref cell = false)
     (hc : ref.complete = false) : rowUse ref cell obs = .refused := by
@@ -825,16 +892,22 @@ private def seven : List Req := (List.range 7).map fun i => rq "webkit-sim" i
 
 private def refK : PlatformKey := ⟨"26A434", "27A9275", "24A434", ghHw⟩
 private def cmK : PlatformKey := ⟨"26A434", "27A9275", "24A434", cmHw⟩
-private def ob (g c : RowClass) : Obs := ⟨g, c, refK, cmK⟩
+private def ob (g c : RowClass) (n : Nat := 0) : Obs := ⟨g, c, refK, cmK, s!"gh{n}", s!"cm{n}", "abc", "abc"⟩
 
 #guard rowUse refK cmK [] == .refused
-#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable] == .refused
-#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable, ob .deterministic .deterministic] == .paired
-#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable, ob .stable .deterministic] == .refused
-#guard rowUse refK cmK [ob .stable .stable, ob .stable .stable, { ob .stable .stable with cmKey.hw := ghHw }] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, ob .deterministic .deterministic 2] == .paired
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, ob .stable .deterministic 2] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, { ob .stable .stable 2 with cmKey.hw := ghHw }] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 0, ob .stable .stable 0] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, { ob .stable .stable 2 with ghRun := "gh0" }] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, { ob .stable .stable 2 with cmBuild := "cm0" }] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, { ob .stable .stable 2 with cmSha := "def" }] == .refused
+#guard rowUse refK cmK [ob .stable .stable 0, ob .stable .stable 1, { ob .stable .stable 2 with ghSha := "", cmSha := "" }] == .refused
+#guard rowUse refK { cmK with xcodeBuild := "27A1" } [ob .stable .stable 0, ob .stable .stable 1, ob .stable .stable 2] == .refused
 #guard rowUse refK refK [] == .direct
-#guard pairedClass [ob .stable .stable, ob .deterministic .deterministic, ob .stable .stable] == .stable
-#guard pairedClass [ob .quarantined .quarantined, ob .deterministic .deterministic] == .quarantined
+#guard pairedClass [ob .stable .stable 0, ob .deterministic .deterministic 1, ob .stable .stable 2] == .stable
+#guard pairedClass [ob .quarantined .quarantined 0, ob .deterministic .deterministic 1] == .quarantined
 #guard pairsReachable 166 == 3
 #guard pairsReachable 280 == 3
 #guard pairsReachable 281 == 2
