@@ -76,17 +76,13 @@ export function builtLine(l: string): boolean {
   return progress.length === 2 && progress.every((x) => /^[0-9]+$/.test(x)) && name !== "" && !name.includes(":");
 }
 
-/** Lean `Fw.Obs.Timing.builtModules`: the modules a lake run built, from its output. */
 export const builtModules = (out: string): number => out.split("\n").filter(builtLine).length;
 
-/** Lean `Fw.Obs.Timing.lakeBuilt?`: the `lake` member of a span that exited 0, from the output of its command: the
- *  modules built when the output shows a finished build (a Built line or lake's closing line), none otherwise. */
 export function lakeMember(out: string): { lake?: { built: number } } {
   const built = builtModules(out);
   return built > 0 || out.includes("Build completed successfully") ? { lake: { built } } : {};
 }
 
-/** Lean `Fw.Obs.Timing.spanWork`: the checks class, the rebuilt-module class and the slot width of a span line. */
 export function spanWork(o: { slot?: unknown; checks?: unknown; lake?: unknown }): { work?: Record<string, string> } {
   const work = { ...checksWork(o.checks).work, ...lakeWork(o.lake).work, ...slotWork(o.slot).work };
   return Object.keys(work).length ? { work } : {};

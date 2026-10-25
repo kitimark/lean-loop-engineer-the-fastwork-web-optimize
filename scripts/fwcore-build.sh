@@ -21,9 +21,6 @@
 #   that sha256 (Lake did not relink) is kept as it is. MEASURED 2026-10-19 on macOS: stripping a stripped binary again
 #   changes its bytes once (sha256 8a4fd2d6ff6f, then 495249a32f9b), so without this the binary of one tree would depend
 #   on how often the script ran, and `fw land` compares binaries by sha256 (task land-fwcore-key).
-# - `lake build` runs under a machine-wide build slot (scripts/lake-slot-lib.sh, sourced so that no second sh starts).
-#   Its stdout is copied through `tee`; with FW_LAKE_BUILT_FILE set, a build that exited 0 writes the span member
-#   `,"lake":{"built":N}` there (lake_built_member), which the caller puts in span_more (task lake-span-mods).
 # Run it in the checkout whose binary runs: sh scripts/fwcore-build.sh
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)

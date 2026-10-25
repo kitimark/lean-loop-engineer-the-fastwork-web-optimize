@@ -595,14 +595,9 @@ def builtLine (l : String) : Bool :=
 
 def builtModules (out : String) : Nat := (out.splitOn "\n").countP builtLine
 
-/-- Lake printed its closing line, so the run finished a build (a no-op build prints it with no `Built` line). -/
 def lakeDone (out : String) : Bool := 1 < (out.splitOn "Build completed successfully").length
 
-/-- The `lake.built` member of a span whose command ran `lake build` and exited 0: the modules built, recorded when the
-output shows a finished build (a `Built` line or the closing line), none for other output. The emitters
-(`scripts/lake-slot-lib.sh` `lake_built_member`, `apps/runner/src/timing.ts` `lakeMember`) apply it to the output of
-spans that exited 0 only.
--/
+/-- The `lake.built` span member for the output of a `lake build` that exited 0; none when no build finished. -/
 def lakeBuilt? (out : String) : Option Nat :=
   if 0 < builtModules out || lakeDone out then some (builtModules out) else none
 
@@ -1522,11 +1517,6 @@ theorem judgeQ_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : S
   rw [judgeQ_keyed p _ i s hk, judgeQ_keyed p _ i s hk]
   exact judgeQ0_unbuilt p hist others i s w j c hs h
 
-/-- A rebuild is not judged against cached no-op builds: a sample whose built-module class is above 0 (`modsLow b`) and
-whose earlier samples are all of class 0 has an empty window, so its code is `noBaseline`, never `slow`, whatever the
-class-0 durations were. It holds for a sample that is not an overflow bucket, did not wait for a slot holder and has no
-ceiling breach.
--/
 theorem judgeQ_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (b : Nat)
     (hs : s.work = modsWork b) (hb : 0 < modsLow b) (h : ∀ x ∈ hist, x.work = modsWork 0)
     (hm : s.mixed = false) (hq : queuedWithin s = false) (hc : ceilingBreach p s = false) (hn : 0 < p.nMin) :
@@ -1542,23 +1532,18 @@ theorem judgeQ_rebuild_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s
   have hk : s.unkeyed = false := by simp [Sample.unkeyed, hs, modsWork, modsDim]
   simp [judgeQ, hm, unkeyedLate, hk, judgeW, hq, judge, hc, windowOf, codeOf, lastN, hn]
 
-/-- The history of an incident: `n` full class-0 samples (cached no-op builds) of one step, `d` ms each. -/
 def noopHist (tool step : String) (n d : Nat) : List Sample :=
   List.replicate n { tool, step, durMs := d, host := .«local», work := modsWork 0 }
 
-/-- Incident 1: `lean/check` `lake build` took 51053 ms right after a main merge, against a p50 of 780 ms of class-0 builds. -/
 def incidentCheck : Sample :=
   { tool := "lean/check", step := "lake build", durMs := 51053, host := .«local», load := 6, work := modsWork 24 }
 
-/-- Incident 2: the dry land's `lake_slot .. lake build && axiom-check` took 37430 ms against a p50 of 3182 ms. -/
 def incidentLand : Sample :=
   { tool := "fw land", step := "dry sh -c cd lean && . ../scripts/lake-slot-lib.sh && (lake_slot .. lake build) >&2 && sh scripts/axiom-check.sh",
     durMs := 37430, host := .«local», load := 5, work := modsWork 24 }
 
-/-- Unkeyed, as recorded before the emitters wrote `lake.built`. -/
 def unkeyedOf (s : Sample) : Sample := { s with work := [] }
 
-/-- The verdicts of 8 no-op samples of `d` ms with work `w`, then `s`. -/
 def noopRun (s : Sample) (d : Nat) (w : List (String × String)) : List SampleVerdict :=
   sampleVerdicts {} ((noopHist s.tool s.step 8 d).map (fun x => { x with work := w }) ++ [s])
 
@@ -1567,9 +1552,6 @@ def noopRun (s : Sample) (d : Nat) (w : List (String × String)) : List SampleVe
 #guard ((noopRun incidentCheck 780 (modsWork 0)).getLast?.map (·.code)) == some .noBaseline
 #guard ((noopRun incidentLand 3182 (modsWork 0)).getLast?.map (·.code)) == some .noBaseline
 
-/-- Both recorded incident samples (51053 ms and 37430 ms, class `modsLow 24 = 16`) are not slow against any history of
-class-0 builds, of any length and duration, under the default parameters.
--/
 theorem incident_not_slow (hist : List Sample) (i : Nat) (hc : ∀ x ∈ hist, x.work = modsWork 0) :
     (judgeQ {} hist i incidentCheck).code = .noBaseline ∧ (judgeQ {} hist i incidentLand).code = .noBaseline := by
   constructor <;>
@@ -2922,16 +2904,12 @@ def landKeyedRun (n : Nat) : List Sample :=
     { tool := "fw", step := "land dry lake", durMs := d, host := .«local», load := l, exit := some 0,
       work := (m.map modsWork).getD [] }
 
-/-- Eight cached no-op builds of `lean/check` `lake build` (the p50 of the recorded ones was 780 ms), then the 51053 ms
-build after a main merge (24 modules), as the emitters now record them (`keyed`) or as they were recorded before. -/
 def incidentCheckRun (keyed : Bool) : List Sample :=
   ([812, 780, 755, 801, 790, 846, 770, 783].map fun d =>
     ({ tool := "lean/check", step := "lake build", durMs := d, host := .«local», load := 4, exit := some 0,
        work := if keyed then modsWork 0 else [] } : Sample)) ++
   [{ incidentCheck with exit := some 0, work := if keyed then modsWork 24 else [] }]
 
-/-- Eight cached no-op dry-land lake steps (the p50 of the recorded ones was 3182 ms), then the 37430 ms one after a
-main merge (24 modules). -/
 def incidentLandRun (keyed : Bool) : List Sample :=
   ([3182, 3301, 2987, 3050, 3410, 3175, 3190, 3120].map fun d =>
     ({ tool := "fw land", step := incidentLand.step, durMs := d, host := .«local», load := 4, exit := some 0,
@@ -3266,7 +3244,6 @@ def lakeCases : List (String × String) :=
    ("real output of lake build on this repo (2026-10-25, after an edit of Fw.Obs.Timing): 8 modules, a facet object, the exe, warnings between",
       "⚠ [865/929] Built Fw.Obs.Timing (5.0s)\nwarning: Fw/Obs/Timing.lean:1252:21: This simp argument is unused:\n  e\n\nHint: Omit it from the simp argument list.\n  [apply] simp [budgetOf, h]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n✔ [866/929] Built Fw.Sup.MeasureWindow (1.6s)\n✔ [868/929] Built Fw.Plan.WritesClosure (1.9s)\n✔ [870/929] Built Fw.Sup.AdaptGolden (868ms)\n✔ [872/929] Built Fw.Obs.Timing:c.o (2.6s)\n⚠ [873/929] Built Fw.Obs.Health (15s)\nwarning: Fw/Obs/Health.lean:121:22: This simp argument is unused:\n  List.lookup\n\nHint: Omit it from the simp argument list.\n  [apply] simp [ciSlowFor, h]\n\nNote: This linter can be disabled with `set_option linter.unusedSimpArgs false`\n✔ [875/929] Built Fw.Obs.Next (1.6s)\n✔ [877/929] Built Fw.Wire.Obs (4.0s)\n✔ [927/929] Built Main (1.1s)\n✔ [929/929] Built fwcore:exe (1.9s)\nBuild completed successfully (929 jobs).\n")]
 
-/-- The golden row of a lake output: the modules built, and the `lake.built` member a span that exited 0 records (`null`: none). -/
 def lakeGoldenText (_ : Unit := ()) : String :=
   String.join (lakeCases.map fun (n, out) =>
     (Json.mkObj [("name", .str n), ("out", .str out), ("built", toJson (builtModules out)),

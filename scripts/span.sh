@@ -6,8 +6,6 @@
 # Cost: two `date` spawns per step (no git, no node); commit and load are read once, when this file is sourced.
 # No paths, no user names in the line. FW_TIMINGS_FILE overrides the file (tests); FW_TIMINGS=off disables.
 # span_more: JSON members the command sets for its own line (`,"slot":{"width":2,"jobs":30}`), cleared after each line.
-# span_more_file: a file whose content (members like span_more) a command in another process wrote for the next line,
-# appended after the command ends; cleared after each line (task lake-span-mods: fwcore-build.sh writes the lake member).
 
 _span_now() { _t=$(date +%s%N 2>/dev/null); case "$_t" in *N|"") _t=$(( $(date +%s) * 1000 )) ;; *) _t=$((_t / 1000000)) ;; esac; }
 
