@@ -180,10 +180,11 @@ export function parsePlatformKey(tools: string | null, iosVersion = "27.0"): Pla
 /** Hardware of a cell: `runner.json` cpus (GitHub), else the two `sysctl hw.ncpu hw.memsize` lines of a Codemagic `tools.txt`. */
 export function parseHw(dir: string): Hw {
   const rj = join(dir, "runner.json");
-  if (existsSync(rj)) { try { const c = Number((JSON.parse(readFileSync(rj, "utf8")) as { cpus?: unknown }).cpus); if (Number.isFinite(c) && c > 0) return { cpus: c, memsize: null }; } catch { /* unreadable: unrecorded */ } }
+  let cpus: number | null = null;
+  if (existsSync(rj)) { try { const c = Number((JSON.parse(readFileSync(rj, "utf8")) as { cpus?: unknown }).cpus); if (Number.isFinite(c) && c > 0) cpus = c; } catch { /* unreadable: unrecorded */ } }
   const tf = join(dir, "tools.txt");
   const nums = existsSync(tf) ? readFileSync(tf, "utf8").split("\n").filter((l) => /^\d+$/.test(l.trim())).map((l) => Number(l.trim())) : [];
-  return { cpus: nums[0] ?? null, memsize: nums[1] ?? null };
+  return { cpus: cpus ?? nums[0] ?? null, memsize: nums[1] ?? null };
 }
 
 const readOr = (f: string): string | null => (existsSync(f) ? readFileSync(f, "utf8") : null);

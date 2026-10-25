@@ -179,7 +179,7 @@ describe("toolchain identity of a Codemagic cell (Lean ci.cellMerged)", () => {
     writeFileSync(join(d, "tools.txt"), TOOLS("a", "b", "c"));
     expect(parseHw(d)).toEqual({ cpus: 12, memsize: 17179869184 });
     writeFileSync(join(d, "runner.json"), JSON.stringify({ cpus: 3 }));
-    expect(parseHw(d)).toEqual({ cpus: 3, memsize: null });
+    expect(parseHw(d)).toEqual({ cpus: 3, memsize: 17179869184 });
   });
 });
 

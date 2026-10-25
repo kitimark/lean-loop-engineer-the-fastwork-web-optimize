@@ -61,6 +61,30 @@ Why the 2026-10-25 webkit-sim count runs queued behind the 5 GitHub macOS slots 
 - A Codemagic build whose record carries no commit sha is refused.
 - Limits: hardware (cpus, memsize) is recorded, not keyed; merged cells can only demote rows (worst wins); no claim of equal counts across pools; GitHub VMs' keys are not cross-checked; no auto-pin when the GitHub image moves. TS stand-in: `mergeClasses` (the webkit-sim.yml merge job), the site-digest walk, the `tools.txt`/facts readers.
 
+#### Paired rewrite run, outcome (a) (MEASURED, n=1 per side, commit f438f8623)
+GitHub webkit-sim run 40211928946 cell r1 against the Codemagic cell r1 (Codemagic build 6ade316d, pinned image xcode 27.1). Keys equal and complete (macOS 26A434, Xcode 27A9275, runtime 24A434), so Lean `ci.cellMerged` merges the cell; site digests equal (ca7745e4f918...). Hardware (recorded, not keyed): GitHub 3 cpus, Codemagic 8 cpus / 12 GiB (mac_mini_m2).
+Class diff, row by row (GitHub class -> Codemagic class): 20 of 104 rows differ, none only on one side. GitHub 39 quarantined / 52 deterministic / 13 stable; Codemagic 27 / 59 / 18. The cause is not attributed (n=1 per side). Count equality across pools is not claimed; a merged cell can only demote rows (worst wins). By the final-design-round rule this goes to a re-plan (hardware key, k pairs), not into this branch.
+- census|layerCount|per state: quarantined -> stable
+- census|layerCount|y=0: quarantined -> stable
+- census|backing memory bytes (sum)|y=0: quarantined -> stable
+- census|layerCount|y=1500: deterministic -> stable
+- census|layerCount|y=5267: stable -> deterministic
+- census|backing memory bytes (sum)|per state: quarantined -> stable
+- census|layers with reason (gone)|per state: quarantined -> stable
+- census|layers with reason overlap|per state: deterministic -> stable
+- census|layers with reason transformWithCompositedDescendants|per state: stable -> quarantined
+- scroll|RecalculateStyles|total: quarantined -> stable
+- scroll|Layout|total: quarantined -> stable
+- scroll|Paint|total: quarantined -> stable
+- scroll|Composite|total: stable -> deterministic
+- scroll|ObserverCallback|total: stable -> deterministic
+- scroll|InvalidateLayout|total: quarantined -> deterministic
+- scroll|Composite|per 500 px zone: stable -> deterministic
+- scroll|ObserverCallback|per 500 px zone: quarantined -> deterministic
+- scroll|Composite|per step: quarantined -> deterministic
+- scroll|RenderingFrame|per step: quarantined -> deterministic
+- scroll|ObserverCallback|per step: quarantined -> deterministic
+
 ## Not wired yet
 
 Jobs already queued on GitHub are not re-routed (the Lean route has no re-route step: a GitHub dispatch is final); a poller that cancels and re-dispatches them needs its own proof. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.
