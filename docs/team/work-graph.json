@@ -21303,7 +21303,9 @@
     "packages/contracts/golden/store/**",
     "docs/team/tools/fw-run.md",
     "research/notes/2026/10-2x-fw-run-download.md",
-    "docs/team/handoffs/fw-run-download.md"
+    "docs/team/handoffs/fw-run-download.md",
+    "lean/Fw/Store/Golden.lean",
+    "lean/Fw/Wire/Store.lean"
    ],
    "title": "fw run's artifact download failed five times on 2026-10-25 with 'gh run download <id> failed: gh timed out after 40 s and was killed' although each run succeeded (one-chain 40153927556, 40153920231, 40153925235; columns 40156382719, 40156384878), so the results were not filed in the store and builders downloaded by hand. Do: find where the 40 s bound comes from (packages/gh-budget, apps/runner/src/run.ts or ci.ts; cite), measure artifact sizes and download times for those runs, size the timeout from the artifact size reported by the run's artifact list (or download per artifact with its own bound) and retry once on timeout without a second charge when GitHub already served it; Lean first if the store's decision changes (Fw.Store.Ci); golden replayed by the runner test; show one fw run that files a 3-VM WebKit run end to end."
   }
