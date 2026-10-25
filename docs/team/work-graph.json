@@ -5995,7 +5995,8 @@
     "lean/scripts/check.sh",
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/gate-breakpoints/src/scope.gen.json",
-    "lean/Fw/Gate/Scope.lean"
+    "lean/Fw/Gate/Scope.lean",
+    "lean/scripts/MorphPanelRestGolden.lean"
    ]
   },
   {
@@ -21434,6 +21435,63 @@
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
    "title": "User 2026-10-25: 'you can try to measure on the iphone device. it already connected.' Measure the end-of-page and hero-exit variants on the real measurement iPhone with the automated lanes that need no swiping (packages/measure-webkit/src/device-cli.mjs counts: Timeline on, scripted 50 px steps, pinned clock; frames: scripted scroll at 800 px/s, frame intervals), session rules of docs/team/tools/device-lag-recorder.md and results/phone/2026-10-17-s1/README.md (blocks <= 15 min, cool >= 5 min, battery readouts; ping first). Arms, each 3 counts passes plus 1 warm-up and 5 frames reps, in an A/B/A order with the rewrite base repeated at the start, middle and end: original, rewrite, and rewrite with each flag alone: hero.exit:threaded, hero:scene-pause, morph.columns:idle-none, morph.countdown:hidden-pause, morph.countdown:strip, nav.hitTest:hit-skip, engine.events:quiet, morph.panel:const-bounds, nav:clip-box, nav:bar-fixed, nav:logo-3d, morph.mount:shift-dormant (drop an arm that loads the same page as another, with the reason). Reduce per zone (hero, finish, rest; 500 px zones) Layout, RecalculateStyles, Paint, Composite, FireAnimationFrame, FunctionCall, EventDispatch, and frame intervals (moving frames over 34 and 50 ms per 100); per arm verdict against the base, each arm decided on its own beyond the spread of the repeated base passes. Lean first: the arm plan and the per-arm verdict rule (lean/Fw/Device/PhoneArms.lean, golden replayed by a test); reuse Fw.Device.Session and the Classes policy where they fit. Commit only summaries (no timestamps, device ids, addresses); raw passes stay in .local/phone/2026-10-25/. Scripted scrolling does not move the Safari toolbar, so the toolbar throttle and touch-path flags (engine.scroll:unthrottle, morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope here (named). Compare each phone verdict with the CI Simulator verdict where one exists (run ids)."
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-flag-deltas",
+   "owner": "lean-prover",
+   "stream": "gate",
+   "deps": [],
+   "writes": [
+    "lean/Fw/Gate/Exit.lean",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "lean/scripts/GateFlagDeltaGolden.lean",
+    "packages/contracts/golden/gate/**",
+    "packages/gate-breakpoints/src/summary.mjs",
+    "packages/gate-breakpoints/src/verdict.mjs",
+    "packages/gate-breakpoints/src/flag-delta.mjs",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "packages/gate-breakpoints/test/exit*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-25-gate-flag-deltas.md",
+    "docs/team/handoffs/gate-flag-deltas.md",
+    "docs/team/tools/gate.md"
+   ],
+   "title": "The breakpoint gate compares computed styles, so a flag whose intended change is a computed value proved invisible fails every cell it touches: morph.panel:rest at run 40174477871 (both engines; the only failing items are platform/section and engine.scene/scene filter 'blur(0px)' vs 'none', 196 Chromium and 188 WebKit probes; Lean MorphPanelOpt.rest_visSame_E under RG10, which panel-rest-n11 measured on the rewrite DOM), and morph.columns:final-scale at run 40156380619 (flex: none at desk-319 to desk-1000, class L). Today's exemptions (Fw.Gate.Exit.exemptions) excuse whole readings, which would hide any other difference in the same cell. Design (closed, Lean first): a reading is ok when every differing item is in the run's flag-delta allowlist: exact tuples (flag, part, role, property, original value, rewrite value), each with a premise naming a Lean theorem (for class E or Q flags the visSame theorem; class L flags list their changed properties and stay look-change), enumerated in Lean (no patterns), applied only when that flag is in the run's ?fw config (read from the page, header.flags); a reading with any other differing item still fails; every excused item is printed in the verdict. Theorems: excused only when the flag is on, a reading with one non-allowlisted item fails, the allowlist is enumerated, the flags-off gate is unchanged. Golden replayed by a gate-breakpoints test; fill the two tuples above (rest: filter blur(0px)->none for platform/section and engine.scene/scene; final-scale: its flex rows from run 40156380619) and re-judge the two runs offline from their artifacts (gh run download into scratchpad, summaries only): give each engine's verdict."
+  },
+  {
+   "devices": [
+    "phone"
+   ],
+   "id": "phone-thermal-check",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-end-counts"
+   ],
+   "writes": [
+    "packages/measure-webkit/src/device.mjs",
+    "packages/measure-webkit/src/device-thermal.mjs",
+    "packages/measure-webkit/src/device-arms*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/test/device-thermal.test.mjs",
+    "lean/Fw/Device/Thermal.lean",
+    "lean/scripts/DeviceThermalGolden.lean",
+    "packages/contracts/golden/device/thermal.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/tools/device-lag-recorder.md",
+    "research/notes/2026/10-25-phone-thermal-check.md",
+    "docs/team/handoffs/phone-thermal-check.md"
+   ],
+   "title": "User 2026-10-25: add the iPhone thermal state check after the phone-end-counts session. The harness records thermalState as 'not exposed over USB lockdown or the inspector (no API)' (packages/measure-webkit/src/device.mjs:61) and uses battery temperature as the only heat proxy, but xctrace on this Mac lists a 'Thermal State' instrument, and devicectl has 'device info lockState'. Do: (1) one short probe on the phone in a cool gap (no page pass running): xcrun xctrace record --instrument 'Thermal State' on the measurement phone for a few seconds, export the table, and say whether it gives the state (nominal, fair, serious, critical) over USB on iOS 27.0.1; cite Apple docs for the instrument and for ProcessInfo.ThermalState; (2) if it does, read the thermal state at each block start and end and in every readout (replacing the 'not exposed' text), and read devicectl lockState so a locked phone is a named failure distinct from a harness fault; (3) Lean first: the stop rule as a decision (pause a block when the thermal state is fair or worse, or the battery temperature is 2 C or more above the session's first readout; resume only after a cool gap at nominal), with theorems (never starts a pass at serious or critical; at most one pass runs after the trigger) and a golden replayed by a test; (4) if xctrace cannot read it on the device, keep the battery rule alone and record the probe as a finding with the exact error. Never print or store device ids; kill only processes the run started."
   }
  ],
  "deadline": {
