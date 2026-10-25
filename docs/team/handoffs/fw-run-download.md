@@ -1,6 +1,6 @@
 branch: worktree-wf_7b33798c-11e-1
 worktree: .claude/worktrees/wf_7b33798c-11e-1
-last commit: see `git log -1`
+last commit: 48bf2ae5d (round 2)
 CI runs: none (no push needed; the measurement is gh run download timings, not a CI lane)
 
 State: fw run downloads per piece (fwcore op store.download), sized timeout, one retry. Verified: lake build of Fw.Store.Ci

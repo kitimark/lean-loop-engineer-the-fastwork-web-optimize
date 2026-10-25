@@ -11,7 +11,7 @@ topics: [tooling, ci, store, gh-budget, timeouts]
 
 ## Answer
 
-- The 40 s is not a `fw run` setting. `chargedGh` (`apps/runner/src/run.ts:176`) passes no timeout, so `chargedOnce` uses its
+- The 40 s is not a `fw run` setting. `chargedGh` (`apps/runner/src/run.ts:171`@eda627b3d, before this change) passes no timeout, so `chargedOnce` uses its
   default `GH_BOUNDS.defaultCallTimeoutMs` (`packages/gh-budget/src/charged.ts:42`, killed at `:63`, message `:68`), generated
   from `defaultCallTimeoutMs := 40000` (`lean/Fw/Obs/Timing.lean:1660`). CONFIRMED (source).
 - Cause: `fw run` called `gh run download <id> -D dir` with no pattern, which fetches every artifact of the run, the build outputs
@@ -48,7 +48,7 @@ chromium-classes 40 KB, each telemetry 4 to 8 KB. WebKit: `webkit-sim-r1` 5.0 MB
 `timeout(piece) = 15000 + 2 * kb(piece)` ms. `kb`: counts shard 2000 (seen 1844), `chromium-classes` and `telemetry-*` 100
 (seen 40, 36), webkit VM 12500 (seen 11856). 2 ms/KB is 0.5 MB/s, half the slowest rate seen. A webkit VM piece gets exactly 40 s
 (`piece_fits_hold_webkit_tight`); at 0.5 MB/s its 25 s after the base just carry 12.5 MB; at the slowest rate seen (0.95 MB/s) the transfer takes 13 s, 12 s inside the bound.
-Golden `packages/contracts/golden/store/download.jsonl` (7 cases), replayed against fwcore by `apps/runner/test/run-golden.test.ts`.
+Golden `packages/contracts/golden/store/download.jsonl` (8 cases), replayed against fwcore by `apps/runner/test/run-golden.test.ts`.
 
 ## Retry and the budget
 
