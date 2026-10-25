@@ -1,10 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.Nav
 import Fw.Parts.Golden
-/-!
-# morph.columns, variant `final-scale`: columns laid out once at the final width, drawn by a per-column transform
-Note: research/notes/2026/10-2x-columns-final-scale.md.
--/
 namespace Fw.Parts.MorphColumnsScale
 
 open Fw.Parts.Nav
@@ -13,7 +9,6 @@ def gap (_ : Unit := ()) : Rat := 12
 def bleed (_ : Unit := ()) : Rat := 53 / 50
 def cols (v : Vp) : Rat := if phone v.w then 3 else 5
 
-/-- The width below which the variant draws nothing different (the original's `mq.w-le-1000`). -/
 def scaleMaxW (_ : Unit := ()) : Rat := 1000
 def applies (v : Vp) : Bool := decide (v.w ≤ scaleMaxW)
 
@@ -30,7 +25,6 @@ def tx (v : Vp) (m i : Rat) : Rat := i * (colW v m - finalW v)
 def drawnLeft (v : Vp) (m i : Rat) : Rat := finalLeft v i + tx v m i
 def drawnRight (v : Vp) (m i : Rat) : Rat := drawnLeft v m i + sx v m * finalW v
 
-/-- The two constants the part writes once per viewport; the rest is `calc()` of `--morph`. -/
 def a (v : Vp) : Rat := colW v 0 / finalW v
 def d (v : Vp) : Rat := colW v 0 - finalW v
 def sxCss (v : Vp) (m : Rat) : Rat := a v + (1 - a v) * m
@@ -82,8 +76,6 @@ theorem css_eq (v : Vp) (hf : finalW v ≠ 0) (m i : Rat) : sxCss v m = sx v m �
 theorem final_at_one (v : Vp) (hf : finalW v ≠ 0) : sx v 1 = 1 ∧ tx v 1 0 = 0 := by
   unfold sx tx finalW
   exact ⟨by rw [Rat.div_def]; exact Rat.mul_inv_cancel _ hf, by grind⟩
-
-/-! ## Look-change bound -/
 
 def radiusX (v : Vp) (m : Rat) : Rat := 12 * sx v m
 def radiusY (_ : Unit := ()) : Rat := 12
@@ -174,8 +166,6 @@ theorem squeeze_bound (w h m : Rat) (h1 : 314 ≤ w) (h2 : w ≤ 1000) (hm0 : 0 
   have := sx_range w h m h1 h2 hm0 hm1
   grind
 
-/-! ## No layout write per frame -/
-
 inductive Css | transform | width | height | left | top | gap | flexBasis | opacity | filter
 deriving DecidableEq
 
@@ -183,7 +173,6 @@ def layoutAffecting : Css → Bool
   | .transform | .opacity | .filter => false
   | .width | .height | .left | .top | .gap | .flexBasis => true
 
-/-- The properties the columns' rules compute from `--morph`, one list per arm. -/
 def baseMorphDeps : List Css := [.width]
 def variantMorphDeps : List Css := [.transform]
 

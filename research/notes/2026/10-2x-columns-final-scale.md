@@ -29,7 +29,7 @@ Look-change class (the user's review decides); the iOS Simulator stands in for t
 
 ## Runs
 
-All on `ci/columns-final-scale` at 6d8fbd72f. Raw artifacts were read in a scratch folder; only these summaries are committed.
+All on `ci/columns-final-scale` at 6d8fbd72f.
 
 | run | what | state |
 |---|---|---|

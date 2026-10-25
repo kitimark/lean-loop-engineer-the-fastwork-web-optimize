@@ -6,5 +6,4 @@ import { mediaCondition } from '../../breakpoints';
  */
 export const MEDIA_IDS = ['mq.rm-reduce', 'mq.w-le-1000', 'mq.w-le-640'] as const;
 
-/** The conditions as CSS text, from the generated file. */
 export const mediaTexts = (): string[] => MEDIA_IDS.map((id) => mediaCondition(id));

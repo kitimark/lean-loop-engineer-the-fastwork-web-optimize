@@ -26,10 +26,6 @@ const SCENE_ATTR = 'data-start-selling-scene';
  * tracks (nothing removed); on the way back the tracks are seeked to `origClock` (the clock of an animation that ran
  * only while the scene was active), in the observer callback, before paint. The scene state is the panel's
  * `data-start-selling-scene` attribute, followed by a MutationObserver (it changes at one value of the morph only).
- *
- * Variant `final-scale` (Lean `Fw.Parts.MorphColumnsScale`, look-change class L): at widths up to 1000 px the columns
- * keep the final-width layout and a transform computed from `--morph` in CSS gives them the base layout's edges; this
- * effect writes three constants per viewport width (on mount and resize), nothing per frame.
  */
 export function MorphColumns({ variant, dormant = false }: MorphColumnsProps) {
   const stageRef = useRef<HTMLDivElement>(null);
