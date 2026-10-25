@@ -1,4 +1,3 @@
-// The recover path (Lean: Fw.Device.SimRelaunch) against its golden, and the glue around it with injected probes and a fake `xcrun`.
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync, mkdtempSync, chmodSync, rmSync } from 'node:fs';
@@ -37,7 +36,6 @@ test('callWorst: two tries at the limit and one wait', () => {
   for (const g of of('callWorst')) assert.equal(callWorstS(g.limitS), g.worstS, `limit ${g.limitS}`);
 });
 
-// A simctl call is `withRetry` with CALL.tries: the events script its results.
 const R = { answers: { status: 0, stdout: '', stderr: '' }, transient: { status: 1, stderr: 'ETIMEDOUT' }, permanent: { status: 1, stderr: 'boom' } };
 test('call: the retry policy of a bounded simctl call replays the Lean call machine', () => {
   for (const g of of('call')) {
@@ -161,7 +159,6 @@ test('relaunchTab shares the one Safari relaunch with the dead-inspector rule', 
   assert.deepEqual(order, ['relaunch']);
 });
 
-// A fake xcrun: logs its arguments, answers `list` from a json file, and refuses shutdown of a shut-down device.
 const fake = (() => {
   const dir = mkdtempSync(join(tmpdir(), 'fw-relaunch-'));
   const bin = join(dir, 'xcrun');

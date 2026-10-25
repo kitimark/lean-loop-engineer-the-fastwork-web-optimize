@@ -54,7 +54,6 @@ export const simctlRetry = (args, opts, { max = 3, log = () => {} } = {}) => wit
 });
 const tail = (r) => (r.error ? r.error.code || r.error.message : (r.stderr || r.stdout).trim().split('\n').slice(-2).join(' | '));
 
-/** Per-call limits of the recover path in ms and the tries per call (Lean: Fw.Device.SimRelaunch, golden sim-relaunch.jsonl). Not scaled. */
 export const CALL = Object.freeze({ tries: 2, stateMs: 30000, listMs: 90000, shutdownMs: 40000, bootMs: 60000, bootstatusMs: 120000 });
 
 const parseDevices = (r) => Object.entries(JSON.parse(r.stdout).devices).flatMap(([runtime, ds]) =>
@@ -71,18 +70,13 @@ export function listDevices() {
 
 const known = { udid: null };
 
-/** Lean `deadUp` or `deadDown`: is the device still Booted? One list call of 30 s, asked once more; no answer counts as down. */
 export function deviceBooted(udid = known.udid, { log = () => {} } = {}) {
-  if (!udid) return true; // no device was booted by this process: nothing says it is down
+  if (!udid) return true;
   const r = simctlRetry(['list', '-j', 'devices'], { timeoutMs: CALL.stateMs }, { max: CALL.tries, log });
   if (r.status !== 0) return false;
   try { return parseDevices(r).some((d) => d.udid === udid && d.state === 'Booted'); } catch { return false; }
 }
 
-/**
- * The one reboot of a session (Lean: `rebooting`): shutdown, boot and wait until booted, each call within its limit and asked
- * once more. Safari and the proxy are started again by the caller. Throws when a call fails for good.
- */
 export async function rebootDevice({ udid = known.udid, log = () => {} } = {}) {
   if (!udid) throw new Error('no Simulator device known to reboot');
   const calls = [
@@ -98,7 +92,6 @@ export async function rebootDevice({ udid = known.udid, log = () => {} } = {}) {
   }
 }
 
-/** The one device named DEVICE_NAME. Refuses zero or several. */
 export function findDevice(name = DEVICE_NAME) {
   const m = listDevices().filter((d) => d.name === name);
   if (m.length !== 1) throw new Error(`expected exactly one Simulator device named "${name}", found ${m.length}`);

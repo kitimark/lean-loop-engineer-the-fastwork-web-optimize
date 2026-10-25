@@ -48,8 +48,6 @@ theorem reboot_exceeds_spare : sessionLimitS - healthySessionMaxS < rebootS := b
 theorem step_with_recovery_fits : healthySessionMaxS + rebootS ≤ (Fw.Measure.SimBound.perSessionMin + recoverMin) * 60 := by
   decide
 
-/-! ## One simctl call -/
-
 inductive CallEv | answers | transient | permanent
   deriving DecidableEq, Repr
 
@@ -182,8 +180,6 @@ theorem call_tries_le (es : List CallEv) : callAttemptsOf (callExec callInit es)
 
 theorem call_worst_two_limits (limitS : Nat) : callWorstS limitS = 2 * limitS + 2 := by
   simp [callWorstS, callTries, callGapS_eq]
-
-/-! ## One pass -/
 
 inductive Ev | passOk | deadUp | deadDown | relaunchOk | relaunchFail | rebootOk | rebootFail
   deriving DecidableEq, Repr
@@ -414,8 +410,6 @@ theorem pass_ends_named (es : List Ev) (h : passEvents ≤ es.length) :
   obtain ⟨p, a, r, b⟩ := s
   cases p <;> simp_all [terminal]
 
-/-! ## Seconds -/
-
 def cost (s : St) (e : Ev) : Nat :=
   match s.phase, e with
   | .running, .deadUp => detectS
@@ -465,8 +459,6 @@ theorem time_used_le {s : St} (h : Inv s) : ∀ es : List Ev, timeUsed s es ≤ 
       omega
 
 theorem pass_time_le (es : List Ev) : timeUsed init es ≤ recoverWorstS := time_used_le inv_init es
-
-/-! ## Golden -/
 
 private def evsOf (l : List Ev) : Json := Json.arr (l.map fun e => Json.str e.name).toArray
 
@@ -541,7 +533,6 @@ private def goldenLines (_ : Unit) : List String :=
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
-/-- Print the golden, or with `--check <file>` compare its bytes; exit 1 when they differ. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | "--check" :: path :: _ =>
