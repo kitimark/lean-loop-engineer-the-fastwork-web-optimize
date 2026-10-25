@@ -178,7 +178,7 @@ def opDownload (req : Json) : Except String Reply := do
   let served ← natD req "served" 0
   pure [("pieces", .arr ((downloadPieces e t n).toArray.map fun p =>
           Json.mkObj [("pattern", .str p.pattern), ("kb", toJson p.kb), ("timeoutMs", toJson p.timeoutMs), ("cost", toJson p.cost)])),
-        ("retryCost", toJson (retryCost pieceCost served)), ("maxHoldMs", toJson maxHoldMs)]
+        ("retryCost", toJson (retryCost dlRule.cost served)), ("maxHoldMs", toJson dlRule.maxHoldMs)]
 
 /-- Encode a class. -/
 def classJ : Class → Json

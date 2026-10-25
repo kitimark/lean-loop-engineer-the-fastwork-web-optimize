@@ -455,18 +455,25 @@ private def exGot : Got :=
 (they are rebuilt from the commit), so the download fetches only the files the store keeps, one `Piece` per artifact,
 each with a timeout sized from its own byte bound. -/
 
-/-- The longest a charged gh call may hold the budget lock: `Fw.Obs.Timing.defaultCallTimeoutMs` (the runner test
-checks the two equal, `GH_BOUNDS.defaultCallTimeoutMs`). -/
-def maxHoldMs : Nat := 40000
+/-- The sizes of the download rule, in one record (one start-time constant, not seven: `Fw.Lint.InitCost` counts them).
+`maxHoldMs` is the longest a charged gh call may hold the budget lock, `Fw.Obs.Timing.defaultCallTimeoutMs` (the runner
+test checks the two equal). `baseMs` is the time a piece gets before any byte moves (the listing and the redirect),
+`msPerKb` the time per kilobyte (2 ms is 0.5 MB/s, half the slowest rate measured, 0.95 MB/s on run 40153920231), `cost`
+the requests one piece is charged (the listing and the redirect to blob storage). The `*Kb` fields bound the bytes of
+a chromium-counts shard (largest seen 1844 KB), of `chromium-classes` and `telemetry-*` (seen 40 and 36 KB) and of a
+webkit-sim VM (largest seen 11856 KB). -/
+structure DlRule where
+  maxHoldMs : Nat
+  baseMs : Nat
+  msPerKb : Nat
+  cost : Nat
+  countsKb : Nat
+  smallKb : Nat
+  simKb : Nat
 
-/-- Time a piece gets before any byte moves: the artifact listing and the redirect. -/
-def pieceBaseMs : Nat := 15000
-
-/-- Milliseconds per kilobyte of a piece: 2 ms is 0.5 MB/s, half the slowest rate measured (0.95 MB/s, run 40153920231). -/
-def msPerKb : Nat := 2
-
-/-- Requests one piece is charged: the artifact listing and the redirect to blob storage. -/
-def pieceCost : Nat := 2
+/-- The download rule. -/
+def dlRule : DlRule :=
+  { maxHoldMs := 40000, baseMs := 15000, msPerKb := 2, cost := 2, countsKb := 2000, smallKb := 100, simKb := 12500 }
 
 /-- One download call: a `gh run download --pattern` glob, the bound on its bytes, its timeout and its charge. -/
 structure Piece where
@@ -478,16 +485,7 @@ deriving Repr, DecidableEq
 
 /-- A piece of at most `kb` kilobytes. -/
 def piece (pattern : String) (kb : Nat) : Piece :=
-  { pattern, kb, timeoutMs := pieceBaseMs + msPerKb * kb, cost := pieceCost }
-
-/-- Byte bound of a chromium-counts shard artifact (largest seen 1844 KB). -/
-def countsKb : Nat := 2000
-
-/-- Byte bound of `chromium-classes` (seen 40 KB) and of the `telemetry-*` artifacts together (seen 36 KB). -/
-def smallKb : Nat := 100
-
-/-- Byte bound of a webkit-sim VM artifact (largest seen 11856 KB). -/
-def simKb : Nat := 12500
+  { pattern, kb, timeoutMs := dlRule.baseMs + dlRule.msPerKb * kb, cost := dlRule.cost }
 
 /-- The repetition numbers `1` .. `n`, as digits. -/
 def reps (n : Nat) : List String := (List.range n).map fun i => toString (i + 1)
@@ -496,9 +494,9 @@ def reps (n : Nat) : List String := (List.range n).map fun i => toString (i + 1)
 the class directories (chromium only) and the telemetry. Build outputs are not in the list. -/
 def downloadPieces (e : Engine) (t : Target) (n : Nat) : List Piece :=
   match e with
-  | .chromium => (reps n).map (fun r => piece ("chromium-counts-" ++ t.name ++ "-r" ++ r) countsKb) ++
-      [piece "chromium-classes" smallKb, piece "telemetry-*" smallKb]
-  | .webkit => (reps n).map (fun r => piece ("webkit-sim-r" ++ r) simKb) ++ [piece "telemetry-*" smallKb]
+  | .chromium => (reps n).map (fun r => piece ("chromium-counts-" ++ t.name ++ "-r" ++ r) dlRule.countsKb) ++
+      [piece "chromium-classes" dlRule.smallKb, piece "telemetry-*" dlRule.smallKb]
+  | .webkit => (reps n).map (fun r => piece ("webkit-sim-r" ++ r) dlRule.simKb) ++ [piece "telemetry-*" dlRule.smallKb]
 
 /-- Charge of the one retry of a piece that timed out: its full charge when no response of the first attempt was seen, one
 request (the listing again) when `served` responses arrived, since the first attempt's charge already covers the redirect. -/
@@ -506,16 +504,15 @@ def retryCost (c served : Nat) : Nat := if served = 0 then c else 1
 
 /-- **Every piece fits the lock hold bound**, so a download never keeps the budget lock longer than a listing does. -/
 theorem piece_fits_hold (e : Engine) (t : Target) (n : Nat) :
-    ∀ p ∈ downloadPieces e t n, p.timeoutMs ≤ maxHoldMs := by
+    ∀ p ∈ downloadPieces e t n, p.timeoutMs ≤ dlRule.maxHoldMs := by
   intro p hp
-  have hs : simKb ≤ 12500 := by decide
   cases e <;> simp only [downloadPieces, List.mem_append, List.mem_map, List.mem_cons, List.not_mem_nil, or_false] at hp <;>
     rcases hp with ⟨r, _, rfl⟩ | rfl | rfl <;>
-    simp [piece, pieceBaseMs, msPerKb, countsKb, smallKb, simKb, maxHoldMs]
-theorem piece_fits_hold_webkit_tight : (piece "x" simKb).timeoutMs = maxHoldMs := by decide
+    simp [piece, dlRule]
+theorem piece_fits_hold_webkit_tight : (piece "x" dlRule.simKb).timeoutMs = dlRule.maxHoldMs := by decide
 
-/-- **A timeout is sized from the bytes:** a piece takes `pieceBaseMs` plus `msPerKb` per kilobyte. -/
-theorem piece_timeout (pattern : String) (kb : Nat) : (piece pattern kb).timeoutMs = pieceBaseMs + msPerKb * kb := rfl
+/-- **A timeout is sized from the bytes:** a piece takes `dlRule.baseMs` plus `dlRule.msPerKb` per kilobyte. -/
+theorem piece_timeout (pattern : String) (kb : Nat) : (piece pattern kb).timeoutMs = dlRule.baseMs + dlRule.msPerKb * kb := rfl
 
 /-- **The shard artifacts are all downloaded:** the artifact of each shard `⟨t, r<k>⟩` of a run of `n` repetitions
 (`Shard.artifact`) is the pattern of a piece. -/
@@ -548,7 +545,7 @@ theorem retryCost_unserved (c : Nat) : retryCost c 0 = c := by simp [retryCost]
 #guard (downloadPieces .chromium .original 2).map (·.pattern) ==
   ["chromium-counts-original-r1", "chromium-counts-original-r2", "chromium-classes", "telemetry-*"]
 #guard (downloadPieces .chromium .rewrite 1).map (·.timeoutMs) == [19000, 15200, 15200]
-#guard 11856 ≤ simKb && 1844 ≤ countsKb
+#guard 11856 ≤ dlRule.simKb && 1844 ≤ dlRule.countsKb
 #guard retryCost 2 0 == 2 && retryCost 2 1 == 1
 
 end Fw.Store
