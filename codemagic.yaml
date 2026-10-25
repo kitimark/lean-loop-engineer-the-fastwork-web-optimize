@@ -4,7 +4,7 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 40
     environment:
-      xcode: 27.0
+      xcode: 27.1
       node: 24.22.0
       vars:
         HOMEBREW_NO_AUTO_UPDATE: "1"

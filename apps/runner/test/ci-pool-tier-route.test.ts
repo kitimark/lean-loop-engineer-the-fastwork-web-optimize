@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { placeCmArtifacts, poolCell, planCells, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
+import { cellMerged, parseHw, parsePlatformKey, placeCmArtifacts, poolCell, planCells, readGhBusy, realRoute, routeCells, type CmDeps } from "../src/ci-pool-tier.ts";
 import type { PlanJob } from "@fw/contracts";
 import { fwcoreCall } from "../src/run.ts";
 
@@ -70,13 +70,13 @@ describe("readGhBusy", () => {
 
 describe("realRoute.split", () => {
   const job = (inputs: Record<string, string>) => ({ engine: "webkit", workflow: "webkit-sim.yml", inputs, digest: "d", key: [] }) as unknown as PlanJob;
-  const mk = (full: boolean, trig = { code: 0, build: "b".repeat(24) }, ghDigest: string | null = "ab", cmDigest: string | null = "ab") => {
+  const mk = (full: boolean, trig = { code: 0, build: "b".repeat(24) }, ghDigest: string | null = "ab", cmDigest: string | null = "ab", docSha: string | null = SHA) => {
     const dir = mkdtempSync(join(tmpdir(), "route-"));
     const triggered: Record<string, string>[] = [];
     const cm: CmDeps = {
       trigger: async (_b, vars) => { triggered.push(vars); return trig; },
       wait: async (_b, out) => { mkdirSync(join(out, "artifacts"), { recursive: true }); return 0; },
-      read: () => ({ status: "finished", startedAt: 5, finishedAt: 9, createdAt: 1, minutes: 4, sha: SHA }),
+      read: () => ({ status: "finished", startedAt: 5, finishedAt: 9, createdAt: 1, minutes: 4, sha: docSha }),
       facts: () => facts,
       githubSiteDigest: async () => ghDigest,
       siteDigestOf: () => cmDigest,
@@ -156,5 +156,80 @@ describe("placeCmArtifacts", () => {
     for (const f of ["v3-session-1.json", "v3-session-1.md", "runner.json", "tools.txt", "other.txt"]) writeFileSync(join(out, "artifacts", f), f);
     expect(placeCmArtifacts(out, dir, "v3")).toBe(4);
     expect(readFileSync(join(dir, "webkit-sim-v3", "v3-session-1.json"), "utf8")).toBe("v3-session-1.json");
+  });
+});
+
+const TOOLS = (mac: string, xc: string, rt: string, extra = "") =>
+  `ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t${mac}\nXcode 27.1\nBuild version ${xc}\n== Runtimes ==\n${extra}iOS 27.0 (27.0 - ${rt}) - com.apple.CoreSimulator.SimRuntime.iOS-27-0\nv24.22.0\n12\n17179869184\narm64\n`;
+
+describe("toolchain identity of a Codemagic cell (Lean ci.cellMerged)", () => {
+  const gh = parsePlatformKey(TOOLS("26A434", "27A9275", "24A434"));
+  it("parses the three builds; an extra other-version runtime does not matter", () => {
+    expect(gh).toEqual({ macosBuild: "26A434", xcodeBuild: "27A9275", runtimeBuild: "24A434" });
+    expect(parsePlatformKey(TOOLS("26A434", "27A9275", "24A434", "iOS 26.5 (26.5 - 23F77) - x\n"))).toEqual(gh);
+    expect(parsePlatformKey(null)).toEqual({ macosBuild: "", xcodeBuild: "", runtimeBuild: "" });
+  });
+  it("round-2 pair refused, pinned pair merged, missing runtime refused", () => {
+    expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A428", "27A266a", "24A434")))).toBe(false);
+    expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A434", "27A9275", "24A434")))).toBe(true);
+    expect(cellMerged(call, gh, parsePlatformKey(TOOLS("26A434", "27A9275", "24A434").replace(/^iOS 27.*\n/m, "")))).toBe(false);
+  });
+  it("hardware: sysctl lines of tools.txt, runner.json cpus", () => {
+    const d = mkdtempSync(join(tmpdir(), "hw-"));
+    writeFileSync(join(d, "tools.txt"), TOOLS("a", "b", "c"));
+    expect(parseHw(d)).toEqual({ cpus: 12, memsize: 17179869184 });
+    writeFileSync(join(d, "runner.json"), JSON.stringify({ cpus: 3 }));
+    expect(parseHw(d)).toEqual({ cpus: 3, memsize: null });
+  });
+});
+
+describe("realRoute place: platform verdict and missing sha", () => {
+  const job = (inputs: Record<string, string>) => ({ engine: "webkit", workflow: "webkit-sim.yml", inputs, digest: "d", key: [] }) as unknown as PlanJob;
+  const run = async (cmTools: string, docSha: string | null = SHA) => {
+    const dir = mkdtempSync(join(tmpdir(), "route-"));
+    const cm: CmDeps = {
+      trigger: async () => ({ code: 0, build: "b".repeat(24) }),
+      wait: async (_b, out) => { mkdirSync(join(out, "artifacts"), { recursive: true }); writeFileSync(join(out, "artifacts", "tools.txt"), cmTools); writeFileSync(join(out, "artifacts", "v3-session-1.json"), "{}"); return 0; },
+      read: () => ({ status: "finished", startedAt: 5, finishedAt: 9, createdAt: 1, minutes: 4, sha: docSha }),
+      facts: () => ({ cmUsed: 46, cmBusy: 0, ccSpent: 3575, ccStorage: 30 }),
+      githubSiteDigest: async () => null,
+      siteDigestOf: () => null,
+    };
+    const gh = async (a: string[]) => (a[1] === "list" ? JSON.stringify([{ databaseId: 1, workflowName: "webkit-sim" }]) : JSON.stringify({ jobs: Array.from({ length: 5 }, (_, i) => ({ name: `sim (v${i + 1})`, status: "in_progress" })) }));
+    const r = realRoute({ root, consoleDir: dir, call, gh, log: () => {}, now: () => 7, cm });
+    const events = () => readFileSync(join(dir, "ci-route.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
+    const s = await r.split(job({ vms: "3", target: "original" }), "ci/x", SHA);
+    return { r, s, events, dir };
+  };
+  it("a build that reports no sha is refused", async () => {
+    const m = await run(TOOLS("26A434", "27A9275", "24A434"), null);
+    await expect(m.s.cm).rejects.toThrow(/no commit sha/);
+  });
+  it("a refused toolchain is filed aside with its key and emits ci.cell.platform merged:false", async () => {
+    const m = await run(TOOLS("26A428", "27A266a", "24A434"));
+    const cells = await m.s.cm;
+    const dl = mkdtempSync(join(tmpdir(), "dl-"));
+    mkdirSync(join(dl, "webkit-sim-v1"), { recursive: true });
+    writeFileSync(join(dl, "webkit-sim-v1", "tools.txt"), TOOLS("26A434", "27A9275", "24A434"));
+    await m.r.place(dl, cells, "99").catch((e: Error) => { if (!/merge failed/.test(e.message)) throw e; });
+    expect(m.events().find((e) => e.kind === "ci.cell.platform")).toMatchObject({ vm: "v3", merged: false, key: { macosBuild: "26A428", xcodeBuild: "27A266a", runtimeBuild: "24A434" }, ref: { macosBuild: "26A434" } });
+    expect(readFileSync(join(dl, "refused", "webkit-sim-v3", "tools.txt"), "utf8")).toContain("26A428");
+  });
+  it("a pinned toolchain is merged: its cell is placed beside the GitHub cells", async () => {
+    const m = await run(TOOLS("26A434", "27A9275", "24A434"));
+    const cells = await m.s.cm;
+    const dl = mkdtempSync(join(tmpdir(), "dl-"));
+    mkdirSync(join(dl, "webkit-sim-v1"), { recursive: true });
+    writeFileSync(join(dl, "webkit-sim-v1", "tools.txt"), TOOLS("26A434", "27A9275", "24A434"));
+    await m.r.place(dl, cells, "99").catch((e: Error) => { if (!/merge failed/.test(e.message)) throw e; });
+    expect(m.events().find((e) => e.kind === "ci.cell.platform")).toMatchObject({ vm: "v3", merged: true });
+    expect(readFileSync(join(dl, "webkit-sim-v3", "tools.txt"), "utf8")).toContain("26A434");
+  });
+  it("no reference tools.txt: the cell is refused (an unread key never merges)", async () => {
+    const m = await run(TOOLS("26A434", "27A9275", "24A434"));
+    const cells = await m.s.cm;
+    const dl = mkdtempSync(join(tmpdir(), "dl-"));
+    await m.r.place(dl, cells, "99").catch((e: Error) => { if (!/merge failed/.test(e.message)) throw e; });
+    expect(m.events().find((e) => e.kind === "ci.cell.platform")).toMatchObject({ merged: false });
   });
 });

@@ -54,6 +54,13 @@ Why the 2026-10-25 webkit-sim count runs queued behind the 5 GitHub macOS slots 
 
 `fw run ... --no-route` keeps every cell on GitHub. A refused trigger (exit 5) or a failed Codemagic build fails the run; rerun with `--no-route`.
 
+### Toolchain identity of a Codemagic cell (final design round)
+- `codemagic.yaml` pins `xcode: 27.1`, the Xcode of the GitHub `xcode-27` image; `FW_IOS_BUILD` and the `check-simulator` refusal pin the runtime.
+- Key = `{macosBuild, xcodeBuild, runtimeBuild}` read from each cell's `tools.txt`. Lean `ci.cellMerged` (PoolTier.lean `cellMerged`) merges a cell only when its key equals the key of the GitHub cell v1 (r1 for the rewrite arm) and every component is non-empty. TypeScript parses and passes keys, never compares them.
+- A refused cell is filed aside: `refused/webkit-sim-<vm>/` and, in `webkit-classes/refused/`, `<vm>-classes.md` and `<vm>-key.json`. Event `ci.cell.platform {vm, ref, key, merged, hw}` in `ci-route.jsonl`.
+- A Codemagic build whose record carries no commit sha is refused.
+- Limits: hardware (cpus, memsize) is recorded, not keyed; merged cells can only demote rows (worst wins); no claim of equal counts across pools; GitHub VMs' keys are not cross-checked; no auto-pin when the GitHub image moves. TS stand-in: `mergeClasses` (the webkit-sim.yml merge job), the site-digest walk, the `tools.txt`/facts readers.
+
 ## Not wired yet
 
 Jobs already queued on GitHub are not re-routed (the Lean route has no re-route step: a GitHub dispatch is final); a poller that cancels and re-dispatches them needs its own proof. Live slot reading (`ghRemainingS`), the `ghWaitMaxS` sweep (pool-replay) and one `Provider` type with Telemetry are follow-ups. Spooling `ci-route.jsonl` into console events is a follow-up.

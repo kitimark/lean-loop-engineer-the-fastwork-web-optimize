@@ -368,6 +368,65 @@ theorem rewrite_no_gh_digest_refused (cm : Option String) : cellFiled rewriteLan
 theorem original_filed (gh cm : Option String) : cellFiled "webkit-sim" gh cm = true := by
   simp [cellFiled, rewriteLane]
 
+/-- The toolchain a count cell measured under: the macOS build, the Xcode build and the Simulator runtime build it used. An empty string means
+"not read". Hardware is recorded elsewhere and is not part of the key. -/
+structure PlatformKey where
+  macosBuild : String
+  xcodeBuild : String
+  runtimeBuild : String
+deriving DecidableEq, Repr
+
+/-- All three components are present. -/
+def PlatformKey.complete (k : PlatformKey) : Bool :=
+  !k.macosBuild.isEmpty && !k.xcodeBuild.isEmpty && !k.runtimeBuild.isEmpty
+
+/-- A Codemagic cell may be pooled with the GitHub cells when its toolchain key equals the key of the GitHub cell v1 and every component is non-empty
+(allowlist: an unread component never merges). -/
+def cellMerged (ref cell : PlatformKey) : Bool :=
+  cell.complete && ref == cell
+
+/-- Merged exactly when the two keys are equal and complete. -/
+theorem cellMerged_iff (ref cell : PlatformKey) : cellMerged ref cell = true ↔ ref = cell ∧ cell.complete = true := by
+  unfold cellMerged
+  simp [Bool.and_eq_true, and_comm]
+
+/-- Equal keys with non-empty components merge. -/
+theorem cellMerged_of_eq (k : PlatformKey) (h : k.complete = true) : cellMerged k k = true := by
+  simp [cellMerged, h]
+
+/-- A different macOS build refuses. -/
+theorem cellMerged_macos_refused (ref cell : PlatformKey) (h : ref.macosBuild ≠ cell.macosBuild) : cellMerged ref cell = false := by
+  cases ref; cases cell; simp_all [cellMerged]
+
+/-- A different Xcode build refuses. -/
+theorem cellMerged_xcode_refused (ref cell : PlatformKey) (h : ref.xcodeBuild ≠ cell.xcodeBuild) : cellMerged ref cell = false := by
+  cases ref; cases cell; simp_all [cellMerged]
+
+/-- A different runtime build refuses. -/
+theorem cellMerged_runtime_refused (ref cell : PlatformKey) (h : ref.runtimeBuild ≠ cell.runtimeBuild) : cellMerged ref cell = false := by
+  cases ref; cases cell; simp_all [cellMerged]
+
+/-- An empty macOS build refuses, even against an equally empty reference. -/
+theorem cellMerged_empty_macos (ref cell : PlatformKey) (h : cell.macosBuild = "") : cellMerged ref cell = false := by
+  cases cell; simp_all [cellMerged, PlatformKey.complete]
+
+/-- An empty Xcode build refuses. -/
+theorem cellMerged_empty_xcode (ref cell : PlatformKey) (h : cell.xcodeBuild = "") : cellMerged ref cell = false := by
+  cases cell; simp_all [cellMerged, PlatformKey.complete]
+
+/-- An empty runtime build refuses. -/
+theorem cellMerged_empty_runtime (ref cell : PlatformKey) (h : cell.runtimeBuild = "") : cellMerged ref cell = false := by
+  cases cell; simp_all [cellMerged, PlatformKey.complete]
+
+/-- The round-2 pair (GitHub 26A434 / 27A9275, Codemagic 26A428 / 27A266a, same runtime 24A434) is refused. -/
+theorem round2_pair_refused : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A428", "27A266a", "24A434"⟩ = false := by decide
+
+/-- The pinned pair (same macOS, Xcode and runtime builds) is merged. -/
+theorem pinned_pair_merged : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A434", "27A9275", "24A434"⟩ = true := by decide
+
+/-- A cell whose runtime was not read is refused. -/
+theorem missing_runtime_refused : cellMerged ⟨"26A434", "27A9275", "24A434"⟩ ⟨"26A434", "27A9275", ""⟩ = false := by decide
+
 structure Res where
   key : Key
   leg : Nat

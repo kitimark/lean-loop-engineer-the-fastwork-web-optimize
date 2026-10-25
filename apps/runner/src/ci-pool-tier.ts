@@ -152,11 +152,45 @@ export type RouteEvent =
   | { kind: "ci.route"; at: number; sha7: string; lane: string; target: string; cells: number; codemagic: number; github: number; rows: CellRoute["rows"]; busy: Busy; facts: CmFacts }
   | { kind: "ci.route.skip"; at: number; why: string }
   | { kind: "ci.codemagic.build"; at: number; build: string; vm: string; status: string; startedAt: number | null; finishedAt: number | null; createdAt: number | null; minutes: number | null }
-  | { kind: "ci.codemagic.refused"; at: number; vm: string; code: number };
+  | { kind: "ci.codemagic.refused"; at: number; vm: string; code: number }
+  | { kind: "ci.cell.platform"; at: number; vm: string; ref: PlatformKey; key: PlatformKey; merged: boolean; hw: { ref: Hw; cell: Hw } };
 
 export function appendRouteEvent(file: string, ev: RouteEvent): void {
   mkdirSync(dirname(file), { recursive: true });
   appendFileSync(file, JSON.stringify(ev) + "\n");
+}
+
+/** The toolchain a cell measured under, as read from its `tools.txt`; "" = not read. Lean (`ci.cellMerged`) compares keys; TypeScript only parses and passes them. */
+export type PlatformKey = { macosBuild: string; xcodeBuild: string; runtimeBuild: string };
+/** Hardware facts, recorded and not keyed. */
+export type Hw = { cpus: number | null; memsize: number | null };
+
+/** Parse a `tools.txt` (sw_vers, xcodebuild -version, simctl list runtimes) into the key. The runtime is the one of the pinned iOS version; two lines of it read as unread. */
+export function parsePlatformKey(tools: string | null, iosVersion = "27.0"): PlatformKey {
+  const t = tools ?? "";
+  const one = (re: RegExp) => { const m = [...t.matchAll(re)]; return m.length === 1 ? m[0]![1]! : ""; };
+  const esc = iosVersion.replace(/\./g, "\\.");
+  return {
+    macosBuild: one(/^BuildVersion:\s*(\S+)\s*$/gm),
+    xcodeBuild: one(/^Build version\s+(\S+)\s*$/gm),
+    runtimeBuild: one(new RegExp(`^iOS ${esc} \\(${esc} - (\\w+)\\)`, "gm")),
+  };
+}
+
+/** Hardware of a cell: `runner.json` cpus (GitHub), else the two `sysctl hw.ncpu hw.memsize` lines of a Codemagic `tools.txt`. */
+export function parseHw(dir: string): Hw {
+  const rj = join(dir, "runner.json");
+  if (existsSync(rj)) { try { const c = Number((JSON.parse(readFileSync(rj, "utf8")) as { cpus?: unknown }).cpus); if (Number.isFinite(c) && c > 0) return { cpus: c, memsize: null }; } catch { /* unreadable: unrecorded */ } }
+  const tf = join(dir, "tools.txt");
+  const nums = existsSync(tf) ? readFileSync(tf, "utf8").split("\n").filter((l) => /^\d+$/.test(l.trim())).map((l) => Number(l.trim())) : [];
+  return { cpus: nums[0] ?? null, memsize: nums[1] ?? null };
+}
+
+const readOr = (f: string): string | null => (existsSync(f) ? readFileSync(f, "utf8") : null);
+
+/** Ask Lean whether a Codemagic cell's key may be pooled with the reference key (GitHub cell v1). */
+export function cellMerged(call: FwCall, ref: PlatformKey, cell: PlatformKey): boolean {
+  return (call({ op: "ci.cellMerged", ref, cell }) as unknown as { merged: boolean }).merged;
 }
 
 export type CmBuildDoc = { status: string; startedAt: number | null; finishedAt: number | null; createdAt: number | null; minutes: number | null; sha: string | null };
@@ -225,12 +259,13 @@ export function placeCmArtifacts(buildOut: string, dir: string, vm: string): num
   return n;
 }
 
-/** The `merge` job of webkit-sim.yml, run here for a mixed run: classes over every VM and the within-VM tables (`webkit-classes`). */
-export function mergeClasses(root: string, dir: string): number {
+/** The `merge` job of webkit-sim.yml, run here for a mixed run: classes over every VM and the within-VM tables (`webkit-classes`).
+ *  TS STAND-IN of that job (no decision here: the cells in `dir` are the ones Lean merged). Cells Lean refused sit in `dir/refused/webkit-sim-<vm>`;
+ *  each gets its own table and its key in `webkit-classes/refused/`, outside the pooled classes. */
+export function mergeClasses(root: string, dir: string, refused: { vm: string; key: PlatformKey }[] = []): number {
+  const cli = join(root, "packages/measure-webkit/src/cli.mjs");
   const files = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && /^webkit-sim-[vr]\d+$/.test(e.name))
     .flatMap((e) => readdirSync(join(dir, e.name)).filter((f) => /^[vr]\d+-session-\d+\.json$/.test(f)).map((f) => join(dir, e.name, f))).sort();
-  if (!files.length) return 0;
-  const cli = join(root, "packages/measure-webkit/src/cli.mjs");
   const merge = (fs: string[]) => {
     const r = spawnSync(process.execPath, [cli, "merge", ...fs], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
     if (r.status !== 0) throw new Error(`merge failed: ${r.stderr.trim().split("\n").slice(-3).join("; ")}`);
@@ -238,6 +273,14 @@ export function mergeClasses(root: string, dir: string): number {
   };
   const out = join(dir, "webkit-classes");
   mkdirSync(out, { recursive: true });
+  for (const r of refused) {
+    const rf = (existsSync(join(dir, "refused", `webkit-sim-${r.vm}`)) ? readdirSync(join(dir, "refused", `webkit-sim-${r.vm}`)) : [])
+      .filter((f) => /^[vr]\d+-session-\d+\.json$/.test(f)).map((f) => join(dir, "refused", `webkit-sim-${r.vm}`, f)).sort();
+    mkdirSync(join(out, "refused"), { recursive: true });
+    writeFileSync(join(out, "refused", `${r.vm}-key.json`), JSON.stringify(r.key) + "\n");
+    if (rf.length) writeFileSync(join(out, "refused", `${r.vm}-classes.md`), merge(rf));
+  }
+  if (!files.length) return 0;
   writeFileSync(join(out, "classes.md"), merge(files));
   for (const vm of new Set(files.map((f) => /\/([vr]\d+)-session-/.exec(f)![1]!))) writeFileSync(join(out, `${vm}-classes.md`), merge(files.filter((f) => f.includes(`/${vm}-session-`))));
   writeFileSync(join(out, "sha256.txt"), files.map((f) => `${createHash("sha256").update(readFileSync(f)).digest("hex")}  ${f.split("/").pop()}\n`).join(""));
@@ -283,7 +326,8 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
         const doc = cm.read(out);
         ev({ kind: "ci.codemagic.build", at: a.now(), build, vm, status: doc.status, startedAt: doc.startedAt, finishedAt: doc.finishedAt, createdAt: doc.createdAt, minutes: doc.minutes });
         if (code !== 0) throw new Error(`Codemagic build ${build} (${vm}) ended with exit ${code}`);
-        if (doc.sha && doc.sha !== sha) throw new Error(`Codemagic build ${build} measured ${doc.sha.slice(0, 7)}, not ${sha.slice(0, 7)}`);
+        if (!doc.sha) throw new Error(`Codemagic build ${build} (${vm}) reports no commit sha; its cell is refused`);
+        if (doc.sha !== sha) throw new Error(`Codemagic build ${build} measured ${doc.sha.slice(0, 7)}, not ${sha.slice(0, 7)}`);
         return { vm, out, target };
       }));
       return { github, cm: done };
@@ -300,8 +344,22 @@ export function realRoute(a: { root: string; consoleDir: string; call: FwCall; g
           if (!v.filed) throw new Error(`Codemagic cell ${c.vm}: site digest ${mine ?? "missing"} is not the GitHub site job digest ${gh ?? "missing"}; the rewrite cell is not routable, rerun with --no-route`);
         }
       }
-      for (const c of cells) if (placeCmArtifacts(c.out, dir, c.vm) === 0) throw new Error(`Codemagic cell ${c.vm}: no artifacts in ${c.out}`);
-      mergeClasses(a.root, dir);
+      // Toolchain identity: Lean decides per cell whether its key equals the key of the GitHub cell v1 (r1 for the rewrite arm); a refused cell is filed aside.
+      const refVm = (cells[0]?.target ?? "original") === "rewrite" ? "r1" : "v1";
+      const refDir = join(dir, `webkit-sim-${refVm}`);
+      const ref = parsePlatformKey(readOr(join(refDir, "tools.txt")));
+      const refused: { vm: string; key: PlatformKey }[] = [];
+      for (const c of cells) {
+        const cellDir = join(c.out, "artifacts");
+        const key = parsePlatformKey(readOr(join(cellDir, "tools.txt")));
+        const merged = cellMerged(a.call, ref, key);
+        ev({ kind: "ci.cell.platform", at: a.now(), vm: c.vm, ref, key, merged, hw: { ref: parseHw(refDir), cell: parseHw(cellDir) } });
+        a.log(`route: cell ${c.vm} toolchain ${merged ? "merged" : "refused, filed aside"} (macOS ${key.macosBuild || "?"}, Xcode ${key.xcodeBuild || "?"}, runtime ${key.runtimeBuild || "?"})`);
+        const where = merged ? dir : join(dir, "refused");
+        if (placeCmArtifacts(c.out, where, c.vm) === 0) throw new Error(`Codemagic cell ${c.vm}: no artifacts in ${c.out}`);
+        if (!merged) refused.push({ vm: c.vm, key });
+      }
+      mergeClasses(a.root, dir, refused);
     },
   };
 }

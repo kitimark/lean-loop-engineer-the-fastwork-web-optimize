@@ -95,13 +95,24 @@ def opCell (req : Json) : Except String Reply := do
   pure [("lane", match lane with | some l => Json.str l | none => .null), ("routable", routableTarget pool7 t),
     ("needsDigest", lane == some rewriteLane), ("filed", match lane with | some l => toJson (cellFiled l gh cm) | none => toJson false)]
 
-def ops : List String := ["ci.poolTier", "ci.poolTierConsts", "ci.poolCell"]
+/-- `ci.cellMerged`: whether a Codemagic cell's toolchain key may be pooled with the key of the GitHub cell v1.
+`{ref:{macosBuild,xcodeBuild,runtimeBuild}, cell:{...}}`; a missing component reads as empty and refuses. -/
+def opMerged (req : Json) : Except String Reply := do
+  let key (k : String) : Except String PlatformKey := do
+    let o ← field req k
+    pure ⟨← strD o "macosBuild" "", ← strD o "xcodeBuild" "", ← strD o "runtimeBuild" ""⟩
+  let r ← key "ref"
+  let c ← key "cell"
+  pure [("merged", cellMerged r c)]
+
+def ops : List String := ["ci.poolTier", "ci.poolTierConsts", "ci.poolCell", "ci.cellMerged"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ci.poolTier" => some (opTier req)
   | "ci.poolTierConsts" => some (opConsts req)
   | "ci.poolCell" => some (opCell req)
+  | "ci.cellMerged" => some (opMerged req)
   | _ => none
 
 #guard (cfgOf (Json.mkObj [])).toOption == some pool7
@@ -138,6 +149,8 @@ private def seven : String := "[" ++ ",".intercalate ((List.range 8).map rq) ++ 
   "{\"filed\":true,\"lane\":\"webkit-sim-rewrite\",\"needsDigest\":true,\"routable\":true}"
 #guard runField "ci.poolCell" "{\"target\":\"rewrite\",\"ghDigest\":\"ab\",\"cmDigest\":\"cd\"}" "filed" == "false"
 #guard runField "ci.poolCell" "{\"target\":\"both\"}" "routable" == "false"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"}}" == "{\"merged\":true}"
+#guard run "ci.cellMerged" "{\"ref\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\",\"runtimeBuild\":\"c\"},\"cell\":{\"macosBuild\":\"a\",\"xcodeBuild\":\"b\"}}" == "{\"merged\":false}"
 #guard run "ci.poolTier" "{\"over\":{\"cmConc\":\"x\"},\"state\":{\"ghMacBusy\":0,\"ghTotalBusy\":0},\"reqs\":[]}" |>.startsWith "error: "
 
 end Fw.Wire.CiPoolTier

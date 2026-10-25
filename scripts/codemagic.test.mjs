@@ -288,7 +288,7 @@ test('codemagic.yaml: one workflow, the pilot cap, no triggering block, the pinn
   assert.equal((y.match(/^ {2}[a-z][a-z0-9-]*:$/gm) ?? []).length, 1);
   assert.match(y, /instance_type: mac_mini_m2/);
   assert.match(y, new RegExp(`max_build_duration: ${g.constants.maxCapMin}\\b`));
-  assert.match(y, /xcode: 27\.0\b/);
+  assert.match(y, /xcode: 27\.1\b/);
   assert.match(y, /^ {6}node: 24\.22\.0$/m);
   assert.match(y, /echo "PATH=\$bin:\$PATH" >> "\$CM_ENV"/);
   assert.equal((y.match(/node --version \| grep -qx v24\.22\.0/g) ?? []).length, 1);

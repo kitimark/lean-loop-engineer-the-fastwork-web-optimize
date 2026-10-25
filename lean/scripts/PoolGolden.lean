@@ -52,6 +52,20 @@ def cellCases : List (String × Json) := [
   ("rewrite, empty digests: refused", Json.mkObj [("target", "rewrite"), ("ghDigest", ""), ("cmDigest", "")]),
   ("both: not routable", Json.mkObj [("target", "both")])]
 
+def pk (m x r : String) : Json := Json.mkObj [("macosBuild", m), ("xcodeBuild", x), ("runtimeBuild", r)]
+
+def mergedCases : List (String × Json) := [
+  ("round-2 pair: macOS and Xcode differ, refused",
+    Json.mkObj [("ref", pk "26A434" "27A9275" "24A434"), ("cell", pk "26A428" "27A266a" "24A434")]),
+  ("pinned pair: all three equal, merged",
+    Json.mkObj [("ref", pk "26A434" "27A9275" "24A434"), ("cell", pk "26A434" "27A9275" "24A434")]),
+  ("missing runtime: refused",
+    Json.mkObj [("ref", pk "26A434" "27A9275" "24A434"), ("cell", pk "26A434" "27A9275" "")]),
+  ("runtime differs: refused",
+    Json.mkObj [("ref", pk "26A434" "27A9275" "24A434"), ("cell", pk "26A434" "27A9275" "24A94425")]),
+  ("both sides empty: refused",
+    Json.mkObj [("ref", pk "" "" ""), ("cell", pk "" "" "")])]
+
 def line (op name : String) (request response : Json) : String :=
   (Json.mkObj [("op", .str op), ("name", .str name), ("request", request), ("response", response)]).compress ++ "\n"
 
@@ -64,6 +78,7 @@ def reply (op : String) (req : Json) : Json :=
 def text : String :=
   String.join (tierCases.map fun (n, r) => line "ci.poolTier" n r (reply "ci.poolTier" r))
     ++ String.join (cellCases.map fun (n, r) => line "ci.poolCell" n r (reply "ci.poolCell" r))
+    ++ String.join (mergedCases.map fun (n, r) => line "ci.cellMerged" n r (reply "ci.cellMerged" r))
     ++ line "ci.poolTierConsts" "pool7" (Json.mkObj []) (reply "ci.poolTierConsts" (Json.mkObj []))
 
 def main (args : List String) : IO UInt32 := do
