@@ -18,3 +18,10 @@ Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882
 Codemagic paired cell: build 6addffe5e4d133ded52e64b3 (rewrite, vm r1), running. GitHub twin: `fw run --target rewrite --engines webkit --runs 1 --no-route` started in the background (log scratchpad/pdp/gh.log). CI push run: not read yet.
 Done: Lean `ci.poolCell` (routable targets, rewrite filed only with equal non-empty site digests, theorems in PoolTier.lean), rewrite lane in pool7.cmAllow, codemagic.yaml builds the site (pinned elan, frozen pnpm install, @fw/site build, `codemagic.mjs site-digest`), `fw run` routes rewrite cells and checks the digest in `place`.
 Outside the task writes (lead to widen): lean/Fw/Ci/PoolTierWire.lean, lean/scripts/PoolGolden.lean.
+
+## Round 2 checkpoint 4 (commit 2f847f8a3, pushed to ci/pool-dispatch-poller)
+Branch `worktree-wf_2de28e7d-882-1`, worktree `.claude/worktrees/wf_2de28e7d-882-1`, last commit 2f847f8a3.
+Runs: GitHub twin 40196504411 (rewrite, r1+r2, --no-route, at ec606c602) queued/in progress waiting for macOS slots. Codemagic r1: 6ade005d9ff25140a255e015 (9 min, digest mismatch, cause below), 6ade07e480382cf4e724c435 (8 min, finished). Month used 104 of 400 min line.
+Digest finding: first mismatch was our digest, not the site. upload-artifact drops hidden `.vite/manifest.json`; `build-info.json` holds build `ms` times. siteDigest now skips hidden paths and drops `ms`. With that the GitHub site-dist and the Codemagic build both give ca7745e4f918...d, 243 files.
+Verified: runner 3563 tests, ci-paths 56, codemagic 33, check.sh green.
+Open: count-artifact compare of webkit-sim-r1 once the twin finishes; CI on 2f847f8a3; dry land; review ready.
