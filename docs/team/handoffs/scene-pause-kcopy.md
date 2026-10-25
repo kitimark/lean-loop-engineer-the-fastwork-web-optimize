@@ -9,6 +9,8 @@
 - Verified: hero_paused_hidden_copy and the golden replay (build round); census reduced per VM (note section y 5267
   census): flag 39-47 layers, base 124-128, will-change 90 to 5 in every pass; Gen.record + Gen.run: hero:scene-pause
   not a member (status partly-proved, trajectory falsified by the macOS morph cell).
+- Init cost lint: main has about 1636 start-time constants and the lint hits maxRecDepth near 1640 (task
+  init-cost-depth), so `heroAnims` and `baseAnims` take a Unit argument; check.sh green at 1636.
 - Open: the macOS nav background-color close@0 fail also appears in the A/A arm 39472217441; it needs the in-flight
   rule (docs/team/tools/trajectory-probe.md) or an A/A rate before the morph cell and the ledger status move.
 
