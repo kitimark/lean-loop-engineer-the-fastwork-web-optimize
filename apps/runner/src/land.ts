@@ -18,7 +18,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -316,6 +316,16 @@ export function allocLedger(dir: string, mainRef: string): "written" | "none" | 
     writeFileSync(f, JSON.stringify(d, null, 1) + (raw.endsWith("\n") ? "\n" : ""));
     return tryGit(dir, ["add", "--", LEDGER_FILE]) ? "written" : "failed";
   } catch { return "failed"; }
+}
+
+export function ledgerNoteKeyCheck(dir: string): string | null {
+  let raw: string;
+  try { raw = readFileSync(join(dir, LEDGER_FILE), "utf8"); } catch { return null; }
+  let notes: unknown;
+  try { notes = (JSON.parse(raw) as { notes?: unknown }).notes; } catch { return `ledger-note-key: ${LEDGER_FILE} is not valid JSON`; }
+  if (!Array.isArray(notes)) return null;
+  const keyed = notes.filter((n): n is NoteKey & { field?: unknown } => typeof n?.entry === "string" && typeof n?.task === "string");
+  return noteKeyRefusal(LEDGER_FILE, keyed);
 }
 
 export function writeEvidence(dir: string, task: string, evidence: string): "written" | "present" | "none" | "failed" {
@@ -865,6 +875,11 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           }
         }
       } else lines.push("dry: lints skipped (reads refused first)");
+      if (reads && lints) {
+        const bad = ledgerNoteKeyCheck(slot.dir);
+        lints = bad === null; detail = bad ?? "";
+        if (lints) lines.push(`dry: ledger notes ok (one note per (entry, task) in ${LEDGER_FILE})`);
+      }
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {
