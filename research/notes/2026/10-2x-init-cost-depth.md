@@ -45,6 +45,9 @@ The fix leaves the lint time unchanged within run-to-run spread. The first old r
 memory-pressure wait. INFERRED: the extra `addAndCompile` calls (9 for 1636 rows: 7 leaves, 1 node, the root) cost too
 little to show.
 
+check.sh (MEASURED, `fw slot run --kind check`) is green at 9525f69ac, main merged in: the lint reports 1636 constants
+in 456 modules, and `init cost lint scale` reports 8192 constants linted in 10 s.
+
 ## Accepted limits
 
 - `maxRecDepth` is not raised. The lint passes at the default limit, with no recursion that grows with the count.
