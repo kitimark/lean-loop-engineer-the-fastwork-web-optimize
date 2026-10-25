@@ -2,31 +2,24 @@ import Lean.Data.Json
 import Fw.Device.Session
 /-!
 # The phone end-of-page session: arm plan and per-arm verdict
-Task phone-end-counts. Zones and the verdict rule are `Fw.Device.Session`'s; this module adds the arm list, the A/B/A visit order, the blocks and the zone sums of the counts.
 -/
 namespace Fw.Device.PhoneArms
 open Lean
 open Fw.Device.Session (Zone zoneOf Verdict verdict spread sameFlags sameFlags_comm sameFlags_refl)
 
-/-! ## Arms -/
-
-/-- Which site the phone loads. -/
 inductive Target where
   | original | rewrite
   deriving DecidableEq, Repr
 
-/-- The name written in the output. -/
 def Target.name : Target → String
   | .original => "original" | .rewrite => "rewrite"
 
-/-- A page the phone loads: its id, the site and the flags it resolves to (defaults removed, requirements added). -/
 structure Arm where
   id : String
   target : Target
   flags : List String
   deriving DecidableEq, Repr
 
-/-- Two arms load the same page: the same site and the same flag set. -/
 def samePage (a b : Arm) : Bool := a.target == b.target && sameFlags a.flags b.flags
 
 theorem samePage_comm (a b : Arm) : samePage a b = samePage b a := by
@@ -40,32 +33,24 @@ theorem samePage_comm (a b : Arm) : samePage a b = samePage b a := by
 theorem samePage_refl (a : Arm) : samePage a a = true := by
   simp [samePage, sameFlags_refl]
 
-/-- The rewrite with no flag: the base of every verdict. -/
 def base : Arm := ⟨"base", .rewrite, []⟩
 
-/-- The original site. -/
 def original : Arm := ⟨"original", .original, []⟩
 
 private def flagArm (flags : List String) : Arm := ⟨flags.getLast!, .rewrite, flags⟩
 
-/-- The rewrite with one flag alone; a flag that requires another carries it. -/
 def flagArms : List Arm :=
   [flagArm ["hero.exit:threaded"], flagArm ["hero:scene-pause"], flagArm ["morph.columns:idle-none"],
    flagArm ["morph.countdown:hidden-pause"], flagArm ["hero.countdown:strip", "morph.countdown:strip"],
    flagArm ["nav.hitTest:hit-skip"], flagArm ["engine.events:quiet"], flagArm ["morph.panel:const-bounds"],
    flagArm ["nav:clip-box"], flagArm ["nav:bar-fixed"], flagArm ["nav:logo-3d"], flagArm ["morph.mount:shift-dormant"]]
 
-/-- Every arm asked for, in order, before the dedup. -/
 def candidates : List Arm := base :: original :: flagArms
 
-/-! ## Arms that load the same page are one arm -/
-
-/-- Keep an arm unless an arm kept before it (or in `seen`) loads the same page. -/
 def dedupAux : List Arm → List Arm → List Arm
   | _, [] => []
   | seen, x :: rest => if seen.any (samePage x) then dedupAux seen rest else x :: dedupAux (x :: seen) rest
 
-/-- The arms of a list that stay, in order. -/
 def dedup (xs : List Arm) : List Arm := dedupAux [] xs
 
 theorem dedupAux_sub : ∀ (seen xs : List Arm) {x}, x ∈ dedupAux seen xs → x ∈ xs
@@ -90,7 +75,6 @@ theorem dedupAux_fresh : ∀ (seen xs : List Arm) {x}, x ∈ dedupAux seen xs �
         simp only [List.any_cons, Bool.or_eq_false_iff] at this
         exact this.2
 
-/-- No two kept arms load the same page. -/
 theorem dedupAux_pairwise : ∀ (seen xs : List Arm), (dedupAux seen xs).Pairwise (fun p q => samePage p q = false)
   | _, [] => by simp [dedupAux]
   | seen, y :: rest => by
@@ -128,13 +112,11 @@ theorem dedup_sub {xs : List Arm} {x : Arm} (h : x ∈ dedup xs) : x ∈ xs := d
 theorem dedup_pairwise (xs : List Arm) : (dedup xs).Pairwise (fun p q => samePage p q = false) :=
   dedupAux_pairwise [] xs
 
-/-- Every dropped arm has a kept arm that loads its page. -/
 theorem dedup_covered {xs : List Arm} {x : Arm} (h : x ∈ xs) : ∃ y ∈ dedup xs, samePage x y = true := by
   rcases dedupAux_covered [] xs h with ⟨s, hs, _⟩ | h
   · simp at hs
   · exact h
 
-/-- The first arm is always kept. -/
 theorem dedup_head (a : Arm) (rest : List Arm) : (dedup (a :: rest)).head? = some a := by
   simp [dedup, dedupAux]
 
@@ -150,7 +132,6 @@ theorem dedup_length_le (xs : List Arm) : (dedup xs).length ≤ xs.length := by
       · simp only [List.length_cons]; exact Nat.succ_le_succ (ih _)
   exact this [] xs
 
-/-- Arms with pairwise different pages all stay. -/
 theorem dedup_distinct (a b c : Arm) (hab : samePage a b = false) (hac : samePage a c = false)
     (hbc : samePage b c = false) : dedup [a, b, c] = [a, b, c] := by
   have hba : samePage b a = false := by rw [samePage_comm]; exact hab
@@ -158,21 +139,15 @@ theorem dedup_distinct (a b c : Arm) (hab : samePage a b = false) (hac : samePag
   have hcb : samePage c b = false := by rw [samePage_comm]; exact hbc
   simp [dedup, dedupAux, hba, hca, hcb]
 
-/-- A second arm with the page of the first is dropped. -/
 theorem dedup_twin (a b : Arm) (h : samePage b a = true) : dedup [a, b] = [a] := by
   simp [dedup, dedupAux, h]
 
-/-- The arms the session visits besides the base. -/
 def others : List Arm := (dedup candidates).drop 1
 
-/-- The base and the original are different pages, so the original is kept. -/
 theorem original_kept : original ∈ others := by decide
 
 theorem others_length : others.length = 13 := by decide
 
-/-! ## The visit order: the base at the start, the middle and the end -/
-
-/-- Base, the first half of the others, base, the second half reversed, base. -/
 def visits (b : Arm) (os : List Arm) : List Arm :=
   (b :: (os.take (os.length / 2) ++ b :: (os.drop (os.length / 2)).reverse)) ++ [b]
 
@@ -195,7 +170,6 @@ theorem visits_mid (b : Arm) (os : List Arm) : (visits b os)[os.length / 2 + 1]?
   rw [List.getElem?_append_left (by simp [h1]), List.getElem?_cons_succ, List.getElem?_append_right (by omega)]
   simp [h1]
 
-/-- Every other arm is visited once, the base three times. -/
 theorem visits_perm (b : Arm) (os : List Arm) : (visits b os).Perm (b :: b :: b :: os) := by
   have hp : (os.take (os.length / 2) ++ (os.drop (os.length / 2)).reverse).Perm os := by
     refine List.Perm.trans (List.Perm.append_left _ (List.reverse_perm _)) ?_
@@ -209,20 +183,15 @@ theorem visits_perm (b : Arm) (os : List Arm) : (visits b os).Perm (b :: b :: b 
   refine List.Perm.trans h2 ?_
   exact List.Perm.cons b (List.Perm.trans h1 (List.Perm.cons b hp))
 
-/-- The visits of the session. -/
 def sessionVisits : List Arm := visits base others
 
 theorem sessionVisits_length : sessionVisits.length = 16 := by decide
 
-/-! ## Blocks: at most 15 minutes of device time, 5 minutes cool between -/
-
-/-- Cut a list into pieces of at most `per`, fuel `n`. -/
 def blocksAux {α : Type} : Nat → Nat → List α → List (List α)
   | 0, _, _ => []
   | _ + 1, _, [] => []
   | n + 1, per, l => l.take per :: blocksAux n per (l.drop per)
 
-/-- The blocks of a list of visits. -/
 def blocks {α : Type} (per : Nat) (l : List α) : List (List α) := blocksAux l.length per l
 
 theorem blocksAux_flatten {α : Type} {per : Nat} (hp : 0 < per) :
@@ -261,7 +230,6 @@ theorem blocksAux_ne_nil {α : Type} {per : Nat} (hp : 0 < per) :
       · simp; omega
       · exact blocksAux_ne_nil hp n _ b h
 
-/-- The blocks hold the visits in order. -/
 theorem blocks_flatten {α : Type} {per : Nat} (hp : 0 < per) (l : List α) : (blocks per l).flatten = l :=
   blocksAux_flatten hp l.length l (Nat.le_refl _)
 
@@ -271,16 +239,12 @@ theorem blocks_len {α : Type} {per : Nat} (l : List α) : ∀ b ∈ blocks per 
 theorem blocks_ne_nil {α : Type} {per : Nat} (hp : 0 < per) (l : List α) : ∀ b ∈ blocks per l, b ≠ [] :=
   blocksAux_ne_nil hp l.length l
 
-/-- The longest block, in minutes. -/
 def capMin : Nat := 15
 
-/-- The shortest rest between blocks, in minutes. -/
 def coolMin : Nat := 5
 
-/-- Minutes one visit takes: the counts passes, the frames reps and the page loads, rounded up. The longest measured visit took 368 s. -/
 def visitMin : Nat := 7
 
-/-- Visits in one block. -/
 def perBlock : Nat := capMin / visitMin
 
 theorem block_fits {α : Type} (l : List α) : ∀ b ∈ blocks perBlock l, b.length * visitMin ≤ capMin := by
@@ -289,7 +253,6 @@ theorem block_fits {α : Type} (l : List α) : ∀ b ∈ blocks perBlock l, b.le
   calc b.length * visitMin ≤ perBlock * visitMin := Nat.mul_le_mul_right _ h
     _ ≤ capMin := Nat.div_mul_le_self _ _
 
-/-- A visit starts only when the block, after a visit as long as the longest so far, still ends within the cap (seconds). -/
 def mayStart (elapsedS longestS : Nat) : Bool := decide (elapsedS + longestS ≤ capMin * 60)
 
 theorem mayStart_fits {e l : Nat} (h : mayStart e l = true) : e + l ≤ 900 := by
@@ -301,16 +264,12 @@ theorem mayStart_refused {e l : Nat} (h : 900 < e + l) : mayStart e l = false :=
   unfold mayStart capMin
   exact decide_eq_false (by omega)
 
-/-- A block starts after a rest of at least `coolMin` minutes (seconds). -/
 def coolOk (gapS : Nat) : Bool := decide (coolMin * 60 ≤ gapS)
 
 theorem coolOk_iff (g : Nat) : coolOk g = true ↔ 300 ≤ g := by
   unfold coolOk coolMin
   rw [decide_eq_true_iff]
 
-/-! ## A failed visit: harness faults and the retry -/
-
-/-- Why an attempt at a visit failed. `usbReset` and `staleTab` are faults of the harness, not of the arm. -/
 inductive Fault where
   | usbReset
   | staleTab
@@ -322,60 +281,48 @@ def Fault.name : Fault → String
   | .staleTab => "staleTab"
   | .other => "other"
 
-/-- A harness fault says nothing about the arm: the phone left USB, or our own tab was left on the harness page. -/
 def Fault.harness : Fault → Bool
   | .usbReset => true
   | .staleTab => true
   | .other => false
 
-/-- Whether `pat` occurs in `msg`. -/
 def hasText (msg pat : String) : Bool := decide (1 < (msg.splitOn pat).length)
 
-/-- The fault named by an attempt's error text. -/
 def faultOf (msg : String) : Fault :=
   if ["proxy closed", "not on USB", "re-enumerat", "listed no tabs"].any (hasText msg) then .usbReset
   else if hasText msg "stale own tab" then .staleTab
   else .other
 
-/-- A visit gets two attempts; a third only when every failed attempt was a harness fault. -/
 def mayAttempt (faults : List Fault) : Bool :=
   decide (faults.length < 2) || (decide (faults.length < 3) && faults.all Fault.harness)
 
-/-- The first two attempts are always allowed. -/
 theorem mayAttempt_first_two {faults : List Fault} (h : faults.length < 2) : mayAttempt faults = true := by
   unfold mayAttempt
   simp [h]
 
-/-- After two failures that were all harness faults, one more attempt. -/
 theorem mayAttempt_third_harness {faults : List Fault} (hl : faults.length = 2) (hh : faults.all Fault.harness = true) :
     mayAttempt faults = true := by
   unfold mayAttempt
   simp [hl, hh]
 
-/-- After two failures with one that is not a harness fault, the visit is lost. -/
 theorem mayAttempt_third_other {faults : List Fault} (hl : faults.length = 2) (hh : faults.all Fault.harness = false) :
     mayAttempt faults = false := by
   unfold mayAttempt
   simp [hl, hh]
 
-/-- Never a fourth attempt. -/
 theorem mayAttempt_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayAttempt faults = false := by
   unfold mayAttempt
   have h1 : ¬ faults.length < 2 := by omega
   have h2 : ¬ faults.length < 3 := by omega
   simp [h1, h2]
 
-/-- The harness faults are exactly the two named ones. -/
 theorem harness_iff (f : Fault) : f.harness = true ↔ f = .usbReset ∨ f = .staleTab := by
   cases f <;> simp [Fault.harness]
 
-/-- A failed attempt adds its fault at the end of the visit's faults. -/
 def recordFault (faults : List Fault) (f : Fault) : List Fault := faults ++ [f]
 
-/-- A hand reset of a tab, the phone or the proxy leaves the visit's faults as they are. -/
 def handReset (faults : List Fault) : List Fault := faults
 
-/-- A saved fault list is valid only when the earlier one is its prefix. -/
 def appendOnly (old new : List Fault) : Bool := old.isPrefixOf new
 
 theorem recordFault_prefix (faults : List Fault) (f : Fault) : faults <+: recordFault faults f :=
@@ -386,14 +333,11 @@ theorem recordFault_length (faults : List Fault) (f : Fault) : (recordFault faul
 
 theorem handReset_keeps (faults : List Fault) : handReset faults = faults := rfl
 
-/-- A hand reset does not give the visit new attempts. -/
 theorem handReset_mayAttempt (faults : List Fault) : mayAttempt (handReset faults) = mayAttempt faults := rfl
 
-/-- Faults recorded after a hand reset still extend the faults before it. -/
 theorem handReset_append_only (faults : List Fault) (f : Fault) : faults <+: recordFault (handReset faults) f :=
   recordFault_prefix faults f
 
-/-- After a hand reset the visit is still never attempted a fourth time. -/
 theorem handReset_fourth {faults : List Fault} (h : 3 ≤ faults.length) : mayAttempt (handReset faults) = false :=
   mayAttempt_fourth h
 
@@ -404,12 +348,8 @@ theorem appendOnly_iff (old new : List Fault) : appendOnly old new = true ↔ ol
 theorem appendOnly_record (faults : List Fault) (f : Fault) : appendOnly faults (recordFault faults f) = true :=
   (appendOnly_iff _ _).2 (recordFault_prefix faults f)
 
-/-- Session 2026-10-25, visit 6 (the strip arm): a USB reset, a stale tab, then a stall mid-scroll, so the visit is lost. -/
 theorem strip_visit_lost : mayAttempt [.usbReset, .staleTab, .other] = false := by decide
 
-/-! ## The tab the phone run may drive -/
-
-/-- What to do with the phone's Safari tabs. -/
 inductive TabPlan where
   | drive (i : Nat)
   | reset (i : Nat)
@@ -418,29 +358,23 @@ inductive TabPlan where
 
 def isBlank (u : String) : Bool := u == "about:blank"
 
-/-- A tab on our own harness server at any port; `host` is `http://host` without the port, because every visit serves on a new port
-and the tab a visit leaves sits on the port of that visit. -/
 def ownTab (host u : String) : Bool := u == host || u.startsWith (host ++ ":") || u.startsWith (host ++ "/")
 
-/-- Drive the one blank tab; with none, return the one tab of our own host (any port) to blank first; otherwise refuse. -/
 def tabPlan (host : String) (urls : List String) : TabPlan :=
   if urls.countP isBlank = 1 then .drive (urls.findIdx isBlank)
   else if urls.countP isBlank = 0 ∧ urls.countP (ownTab host) = 1 then .reset (urls.findIdx (ownTab host))
   else .refuse
 
-/-- Exactly one blank tab: it is the one driven. -/
 theorem tabPlan_drive {host : String} {urls : List String} (h : urls.countP isBlank = 1) :
     tabPlan host urls = .drive (urls.findIdx isBlank) := by
   unfold tabPlan
   simp [h]
 
-/-- No blank tab and exactly one tab of ours: it is returned to blank. -/
 theorem tabPlan_reset {host : String} {urls : List String} (h0 : urls.countP isBlank = 0)
     (h1 : urls.countP (ownTab host) = 1) : tabPlan host urls = .reset (urls.findIdx (ownTab host)) := by
   unfold tabPlan
   simp [h0, h1]
 
-/-- Two or more blank tabs: refused, whatever else is open. -/
 theorem tabPlan_refuse_blank {host : String} {urls : List String} (h : 1 < urls.countP isBlank) :
     tabPlan host urls = .refuse := by
   unfold tabPlan
@@ -448,13 +382,11 @@ theorem tabPlan_refuse_blank {host : String} {urls : List String} (h : 1 < urls.
   have h2 : ¬ urls.countP isBlank = 0 := by omega
   simp [h1, h2]
 
-/-- No blank tab and not exactly one of ours: refused. -/
 theorem tabPlan_refuse_none {host : String} {urls : List String} (h0 : urls.countP isBlank = 0)
     (h1 : urls.countP (ownTab host) ≠ 1) : tabPlan host urls = .refuse := by
   unfold tabPlan
   simp [h0, h1]
 
-/-- A reset happens only when no tab is blank (the tab driven is never a second blank one). -/
 theorem tabPlan_reset_no_blank {host : String} {urls : List String} {i : Nat} (h : tabPlan host urls = .reset i) :
     urls.countP isBlank = 0 := by
   unfold tabPlan at h
@@ -465,7 +397,6 @@ theorem tabPlan_reset_no_blank {host : String} {urls : List String} {i : Nat} (h
       exact h2.1
     · cases h
 
-/-- A tab left by an earlier visit, on any port of our host, is one of ours. -/
 theorem ownTab_any_port (host port : String) : ownTab host (host ++ ":" ++ port) = true := by
   unfold ownTab
   have h : (host ++ ":" ++ port).startsWith (host ++ ":") = true := by
@@ -473,22 +404,15 @@ theorem ownTab_any_port (host port : String) : ownTab host (host ++ ":" ++ port)
     simp
   simp [h]
 
-/-- The session in blocks. -/
 def sessionBlocks : List (List Arm) := blocks perBlock sessionVisits
 
-/-- Device minutes plus the rests between the blocks. -/
 def wallMin (n : Nat) : Nat := n * visitMin + (sessionBlocks.length - 1) * coolMin
 
-/-! ## Zones of the counts: the 500 px bins -/
-
-/-- A bin is in the zone of its centre; positions in tenth px, `y0` in px. -/
 def binZone (vh10 maxY10 y0 : Int) : Zone := zoneOf vh10 maxY10 (y0 * 10 + 2500)
 
-/-- The sum of the values (bin start in px, count) whose bin is in the zone. -/
 def zoneSum (vh10 maxY10 : Int) (z : Zone) (bins : List (Int × Int)) : Int :=
   ((bins.filter fun b => binZone vh10 maxY10 b.1 == z).map (·.2)).sum
 
-/-- The three zones hold every bin once. -/
 theorem zoneSum_split (vh10 maxY10 : Int) :
     ∀ bins : List (Int × Int), zoneSum vh10 maxY10 .hero bins + zoneSum vh10 maxY10 .finish bins +
       zoneSum vh10 maxY10 .rest bins = (bins.map (·.2)).sum
@@ -498,25 +422,18 @@ theorem zoneSum_split (vh10 maxY10 : Int) :
     unfold zoneSum at ih ⊢
     cases h : binZone vh10 maxY10 b.1 <;> simp [h] <;> omega
 
-/-- A bin whose centre is in the hero is in the hero zone of the frames. -/
 theorem binZone_hero {vh10 maxY10 y0 : Int} (h : y0 * 10 + 2500 < 2 * vh10) : binZone vh10 maxY10 y0 = .hero :=
   Fw.Device.Session.zoneOf_hero h
 
-/-! ## The verdict of an arm -/
-
-/-- The verdict of every cell (zone and metric): the arm's values against the base's, cell by cell. -/
 def cells (bs as : List (List Int)) : List Verdict := List.zipWith verdict bs as
 
-/-- How an arm stands over all its cells. -/
 inductive Label where
   | better | worse | mixed | same | unresolved
   deriving DecidableEq, Repr
 
-/-- The name written in the output. -/
 def Label.name : Label → String
   | .better => "better" | .worse => "worse" | .mixed => "mixed" | .same => "same" | .unresolved => "unresolved"
 
-/-- Better when a cell beats the base and none is worse, worse the other way round, mixed with both, same when no cell leaves the spread. -/
 def labelOf (vs : List Verdict) : Label :=
   if vs.contains .beats && vs.contains .worse then .mixed
   else if vs.contains .beats then .better
@@ -543,51 +460,41 @@ theorem labelOf_unresolved {vs : List Verdict} (h1 : .beats ∉ vs) (h2 : .worse
 
 theorem labelOf_nil : labelOf [] = .unresolved := by decide
 
-/-- A better arm has a cell beyond the base spread and no cell worse. -/
 theorem labelOf_better_iff (vs : List Verdict) : labelOf vs = .better ↔ .beats ∈ vs ∧ .worse ∉ vs := by
   unfold labelOf
   by_cases h1 : Verdict.beats ∈ vs <;> by_cases h2 : Verdict.worse ∈ vs <;> by_cases h3 : Verdict.same ∈ vs <;>
     simp [h1, h2, h3]
 
-/-- A worse arm has a cell worse and no cell beating the base. -/
 theorem labelOf_worse_iff (vs : List Verdict) : labelOf vs = .worse ↔ .worse ∈ vs ∧ .beats ∉ vs := by
   unfold labelOf
   by_cases h1 : Verdict.beats ∈ vs <;> by_cases h2 : Verdict.worse ∈ vs <;> by_cases h3 : Verdict.same ∈ vs <;>
     simp [h1, h2, h3]
 
-/-- The label of one arm. -/
 def armLabel (bs as : List (List Int)) : Label := labelOf (cells bs as)
 
-/-- The labels of the arms, each from the base and its own values only. -/
 def table (bs : List (List Int)) (arms : List (List (List Int))) : List Label := arms.map (armLabel bs)
 
 theorem table_cons (bs : List (List Int)) (a : List (List Int)) (rest : List (List (List Int))) :
     table bs (a :: rest) = armLabel bs a :: table bs rest := rfl
 
-/-- Adding or removing another arm changes no label. -/
 theorem table_append (bs : List (List Int)) (xs ys : List (List (List Int))) :
     table bs (xs ++ ys) = table bs xs ++ table bs ys := List.map_append
 
-/-- A cell is beats only beyond the spread of the base values. -/
 theorem cell_beats_beyond {base arm : List Int} (h : verdict base arm = .beats) :
     ∀ o ∈ base, ∀ a ∈ arm, a + spread base < o := Fw.Device.Session.verdict_beats_beyond h
 
 theorem cell_worse_beyond {base arm : List Int} (h : verdict base arm = .worse) :
     ∀ o ∈ base, ∀ a ∈ arm, o + spread base < a := Fw.Device.Session.verdict_worse_beyond h
 
-/-- One base value is not enough to know a spread. -/
 theorem cell_unresolved_base {base : List Int} (arm : List Int) (h : base.length < 2) : verdict base arm = .unresolved :=
   Fw.Device.Session.verdict_unresolved_single arm h
 
 theorem cell_unresolved_arm (base : List Int) : verdict base [] = .unresolved :=
   Fw.Device.Session.verdict_unresolved_no_arm base
 
-/-- An arm value within the spread of a base value is never a win. -/
 theorem cell_not_beats_within {base arm : List Int} {o a : Int} (ho : o ∈ base) (ha : a ∈ arm)
     (h : o ≤ a + spread base) : verdict base arm ≠ .beats :=
   Fw.Device.Session.not_beats_within ho ha h
-
-/-! ## Golden -/
 
 private def strsJ (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
@@ -595,8 +502,6 @@ private def armJ (a : Arm) : Json := Json.mkObj [("id", a.id), ("target", a.targ
 
 private def idsJ (l : List Arm) : Json := strsJ (l.map (·.id))
 
-/-- The metrics of a cell: the Timeline counts, the painted area (sum of the Paint clip areas of a zone), then the share of
-moving frames over 34 and 50 ms. -/
 def metrics : List String :=
   ["Layout", "RecalculateStyles", "Paint", "Composite", "FireAnimationFrame", "FunctionCall", "EventDispatch",
    "paintArea", "over34", "over50"]
@@ -667,7 +572,6 @@ private def planJ : TabPlan → Json
 
 private def vJ (v : Verdict) : Json := Json.str v.name
 
-/-- The golden lines. -/
 def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("passes", (3 : Nat)), ("warmup", (1 : Nat)), ("reps", (5 : Nat)), ("speedPxPerS", (800 : Nat)),
     ("stepPx", (50 : Nat)), ("zonePx", (500 : Nat)), ("capMin", capMin), ("coolMin", coolMin), ("visitMin", visitMin),
@@ -709,10 +613,8 @@ def goldenLines (_ : Unit) : List String :=
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress]
 
-/-- The golden text. -/
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
-/-- Print the golden, or with `--check <file>` compare it with the file. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | "--check" :: path :: _ =>

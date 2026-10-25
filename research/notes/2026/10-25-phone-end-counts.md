@@ -129,5 +129,5 @@ counts. A match in direction is weak evidence; a difference is a different quant
   morph.mount:arm-late, morph.mount:band, morph.end.*) are out of scope. Each arm except the base has one visit; the verdict is against the
   3-visit base spread only, so arm-side visit-to-visit drift is untested.
 - Repeat the four arms that trade on the phone (hidden-pause, logo-3d, scene-pause, const-bounds) before any flag decision.
-- ci/phone-end-counts push (ab773fe95): all 20 workflows concluded skipped (e.g. lean-math 40173828875, webkit-sim 40173828789); no CI measurement. The Simulator side comes from the earlier runs named above.
+- ci/phone-end-counts push (ab773fe95): all 20 workflows concluded skipped (e.g. lean-math 40173828875, webkit-sim 40173828789); no CI measurement.
   

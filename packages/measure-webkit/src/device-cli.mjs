@@ -9,9 +9,6 @@
 //   node src/device-cli.mjs profile --in rec-k.json --id user-<name> --out ../measure-chromium/profiles/user-<name>.json
 //   node src/device-cli.mjs package --kind session --in rec-1.json,... --date YYYY-MM-DD --out results/phone/<date>
 //   node src/device-cli.mjs frames  --target original|rewrite [--site <dist/aot>] [--reps 5] [--speed 800] [--out file]
-//   node src/device-cli.mjs arms-plan --site <dist/aot>                    (end-of-page session: Lean's visit list, blocks and each arm's page; no phone)
-//   node src/device-cli.mjs arms-run --site <dist/aot> --dir <raw dir> [--blocked file]   (the next block of visits; waits out the cool gap first)
-//   node src/device-cli.mjs arms-reduce --dir <raw dir> --out results/phone/<name>        (tables and verdicts; no phone)
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
