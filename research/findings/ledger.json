@@ -4025,6 +4025,107 @@
    "lesson": "A transform stands in for a re-layout only when the layout is separable per axis: the fixed picture heights force a one-axis scale, and the bound on the other axis decides where the variant may apply, here the width range where the final and the starting column width differ by at most 3 %.",
    "next": "No count win on either engine, so the variant is not promoted; the look review is moot unless a count win is shown. Gate run 40156380619 fails only on the intended flex change (flex: none) at 319 to 1000 px; follow-up: judge visClass L variants by a declared changed-property set plus rest-rect equality, in Lean first.",
    "evidence": "research/notes/2026/10-2x-columns-final-scale.md; runs 40156382719, 40156384878, 40156388674, 40156393010 and 40156380619 (ci/columns-final-scale)"
+  },
+  {
+   "id": "mount.touch-first",
+   "n": 77,
+   "part": "morph.mount",
+   "flags": [
+    "morph.mount:touch-first"
+   ],
+   "candidate": "morph.mount:touch-first: take the push decision on the first touchmove of a gesture (the native pan waits for it) and never start pinning once the native pan began; a gesture that starts unarmed hands over to the morph at the next gesture, not mid-gesture",
+   "status": "partly-proved",
+   "flag": "morph.mount:touch-first",
+   "chromium": "trajectory probe run 40213443051 (fw=morph.mount:touch-first widths 390,1280): 0 new fails, 0 baseline-red, 44 undecided open@1 (same as the other mount flags); the trajectory drives wheel and pointer scroll, not touch gestures, so the touch rule itself is not exercised",
+   "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40213443051); felt effect not measured: the Simulator lane arm for the flag is not delivered",
+   "visual": "L (look-change proposal): equal on a cancelable first move (first_same_first_move, active_taken); differs when a drag enters the armed zone after its first move (handover moves to the next gesture); same look under touch unproven until toolbar-sim-lane runs",
+   "mechanism": "CONFIRMED by source (WKContentViewInteraction.mm:1368, :2562, :4239-4245@862f17d): the first touchmove is cancelable, after the pan began preventDefault no longer stops it, so a pin started then fights the native scroll. PROVED in Lean: native_no_start, take_le_orig, active_taken, first_same_first_move, first_uncancelable",
+   "leanFor": [
+    "Fw.Parts.MorphMountToolbar.native_no_start",
+    "Fw.Parts.MorphMountToolbar.take_le_orig",
+    "Fw.Parts.MorphMountToolbar.active_taken",
+    "Fw.Parts.MorphMountToolbar.first_same_first_move",
+    "Fw.Parts.MorphMountToolbar.first_uncancelable"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "per-arm counts and the 10 Hz visualViewport.height step count: follow-up task toolbar-sim-lane",
+    "WKTR forced-inset gate: follow-up task toolbar-wktr-gate; hooks in r324039 INFERRED"
+   ],
+   "premises": [
+    "cancelable is false for touchmoves after the pan began, INFERRED",
+    "a listener attached mid-gesture counts as native until the next touchstart (conservative)"
+   ],
+   "v1Evidence": "none",
+   "lesson": "Decide a push where the browser still lets the page cancel it; a decision after the native pan began can only fight it.",
+   "next": "toolbar-sim-lane adds the arm and reads the 10 Hz steps.",
+   "evidence": "Lean Fw.Parts.MorphMountToolbar.*; golden packages/contracts/golden/parts/morph-mount-toolbar.jsonl; trajectory probe 40213443051"
+  },
+  {
+   "id": "mount.open-once",
+   "n": 78,
+   "part": "morph.mount",
+   "flags": [
+    "morph.mount:open-once"
+   ],
+   "candidate": "morph.mount:open-once: one touch gesture opens the morph at most once (the first idle-to-taken move opens it; after a close inside the same gesture no move reopens it)",
+   "status": "partly-proved",
+   "flag": "morph.mount:open-once",
+   "chromium": "trajectory probe run 40214808662 (fw=morph.mount:open-once widths 390,1280): 0 new fails, 44 undecided open@1 (as every mount flag); the trajectory drives wheel and pointer scroll, not touch gestures",
+   "webkit": "trajectory probe on Playwright WebKit: 2000 units pass, 0 fail (run 40214808662); felt effect not measured",
+   "visual": "L (look-change proposal): a reopen inside one finger drag is dropped; same look under touch unproven until toolbar-sim-lane runs",
+   "mechanism": "The original reopens on every forward move of an idle armed page (orig_reopens: n moves, n opens). PROVED: once_at_most_one, once_no_open. Whether the 8-41 reopens per pass come from one gesture is not traced (INFERRED)",
+   "leanFor": [
+    "Fw.Parts.MorphMountToolbar.once_at_most_one",
+    "Fw.Parts.MorphMountToolbar.once_no_open",
+    "Fw.Parts.MorphMountToolbar.orig_reopens",
+    "Fw.Parts.MorphMountToolbar.take_le_orig"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "per-arm counts and the 10 Hz visualViewport.height step count: follow-up task toolbar-sim-lane",
+    "WKTR forced-inset gate: follow-up task toolbar-wktr-gate; hooks in r324039 INFERRED",
+    "the trace of arm and close events at the end that names the cause of the 8-41 reopens"
+   ],
+   "premises": [
+    "the reopens are inside single gestures, INFERRED"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A bound proved on the decision says nothing about the cause; trace the events before counting a win.",
+    "next": "toolbar-sim-lane adds the arm and reads the 10 Hz steps.",
+   "evidence": "Lean Fw.Parts.MorphMountToolbar.once_at_most_one; golden morph-mount-toolbar.jsonl; trajectory probe 40214808662"
+  },
+  {
+   "id": "mount.overscroll-lock",
+   "n": 79,
+   "part": "morph.mount",
+   "flags": [
+    "morph.mount:overscroll-lock"
+   ],
+   "candidate": "morph.mount:overscroll-lock: root overscroll-behavior-y none while the platform is near and armed or the morph is active, so the native rubber band cannot fight the pinned scroll at the page end",
+   "status": "look-change",
+   "flag": "morph.mount:overscroll-lock",
+   "chromium": "no effect expected (no touch overscroll in Chromium desktop)",
+   "webkit": "not measured",
+   "visual": "L (look change): no rubber band at the page end while locked; user visual review pending; never into a preset",
+   "mechanism": "CONFIRMED by source (WKWebViewIOS.mm:1084-1087@862f17d): root overscroll-behavior sets the main scroll view bounces. Lean: lock_off_when_far, lock_when_active, lockOp_reaches",
+   "leanFor": [
+    "Fw.Parts.MorphMountToolbar.lock_off_when_far",
+    "Fw.Parts.MorphMountToolbar.lock_when_active",
+    "Fw.Parts.MorphMountToolbar.lockOp_reaches"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "per-arm counts and the 10 Hz visualViewport.height step count: follow-up task toolbar-sim-lane",
+    "WKTR forced-inset gate: follow-up task toolbar-wktr-gate; hooks in r324039 INFERRED"
+   ],
+   "premises": [
+    "the lock covers every frame in which the pinned scroll would otherwise fight the bounce, INFERRED"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A native stop (bounces off) replaces a JS fight but changes the feel at the page end.",
+   "next": "The user looks at the page end on the phone with the flag.",
+   "evidence": "Lean Fw.Parts.MorphMountToolbar.lock_*; golden morph-mount-toolbar.jsonl"
   }
  ],
  "notes": [
@@ -4579,6 +4680,12 @@
    "task": "resource-redecide",
    "field": "mechanism",
    "text": "resource-redecide (Fw.Engine.Resource.Flags.decided, golden engine/resource.jsonl, note research/notes/2026/10-2x-resource-redecide.md): decided trade on both engines from rows already measured (WebKit script and EventDispatch up on the phone; Chromium about 200 more resolved elements), predicted neutral."
+  },
+  {
+     "entry": "morph.mount:touch-first: take the push decision on the first touchmove of a gesture (the native pan waits for it) and never start pinning once the native pan began; a gesture that starts unarmed hands over to the morph at the next gesture, not mid-gesture",
+     "task": "toolbar-proof-morph",
+     "field": "mechanism",
+     "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
   }
  ]
 }
