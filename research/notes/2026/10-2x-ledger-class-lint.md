@@ -1,7 +1,6 @@
 # ledger-class-lint: the ledger's structured visClass against part.json
 
-Task `ledger-class-lint` (incident 2026-10-25: `toolbar-proof-morph` was refused twice because a flag moved to look
-change L in `part.json` kept E prose in the ledger).
+`toolbar-proof-morph` was refused twice (2026-10-25) because a flag moved to look change L in `part.json` while the ledger kept E prose.
 
 ## Check (Lean)
 

@@ -4,7 +4,7 @@
   the branch. No CI runs: the task needs none, since the check runs in `lean/scripts/check.sh`.
 - Verified: the `Fw.Preset.Gen.run ["--check"]` preset check passes after the backfill and failed on all 18 classed
   flags before it. The apps/runner `test/ledger-merge.test.ts` passes (41 tests; the ledger round-trips byte for
-  byte). `check.sh` and the dry land: see the report.
+  byte). `check.sh` and the dry land: in the report.
 
 ## State
 - `lean/Fw/Preset/V2Proved.lean`: `Row.visClass : Option VisClass := none`.
