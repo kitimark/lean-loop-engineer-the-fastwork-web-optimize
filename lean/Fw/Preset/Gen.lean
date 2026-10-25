@@ -119,6 +119,7 @@ def parseKind : String → Except String Kind
   | "optimized" => .ok .optimized
   | "ablation" => .ok .ablation
   | "proposal" => .ok .proposal
+  | "probe" => .ok .probe
   | s => .error s!"unknown kind {s}"
 
 def parseVisClass : String → Except String VisClass
@@ -139,6 +140,7 @@ def kindWord : Kind → String
   | .optimized => "optimized"
   | .ablation => "ablation"
   | .proposal => "proposal"
+  | .probe => "probe"
 
 def parseFRes : String → Except String FRes
   | "pass" => .ok .pass
@@ -189,6 +191,7 @@ def parsePart (j : Json) : Except String (List Reg) := do
       | none => pure none
       | some w => some <$> parseVisClass w
     if kind == .optimized && vc == some .l then throw s!"{f.key}: an optimized variant cannot be a look change (L)"
+    if kind == .probe && vc.isSome then throw s!"{f.key}: a probe is measurement only and carries no look class"
     return { flag := f, kind, requires := ← rel "requires" f.key, conflicts := ← rel "conflicts" f.key, visClass := vc }
 
 def presetText (p : List Flag) : String :=
@@ -383,6 +386,18 @@ theorem mem_classDisagreements {reg : List Reg} {ledger : List Row} {r : Reg} {i
 
 def lookCandidates (reg : List Reg) : List Flag :=
   ((reg.filter fun r => r.visClass == some .l).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
+
+/-- **A probe is never a look-change candidate**: with probes clean (no look class on a probe), a flag whose every
+registration is a probe is not in `lookCandidates`, so it never reaches a look verdict. -/
+theorem probe_not_mem_lookCandidates {reg : List Reg} {f : Flag} (hc : probesClean reg = true) (h : OnlyProbe reg f) :
+    f ∉ lookCandidates reg := by
+  intro hm
+  unfold lookCandidates at hm
+  obtain ⟨r, hr, rfl⟩ := List.mem_map.1 ((List.mem_mergeSort).1 hm)
+  simp only [List.mem_filter, beq_iff_eq] at hr
+  have hk := h r hr.1 rfl
+  have hall := List.all_eq_true.1 hc r hr.1
+  simp [hk, hr.2] at hall
 
 theorem isLook_of_mem_lookCandidates {reg : List Reg} {f : Flag} (h : f ∈ lookCandidates reg) : isLook reg f = true := by
   unfold lookCandidates at h
@@ -700,6 +715,17 @@ def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) 
     ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray),
     ("userDecision", decisionOf f), ("entry", entryJson ledger st f)]
 
+/-- The registered probes in key order. -/
+def probeFlags (reg : List Reg) : List Flag :=
+  ((reg.filter fun r => r.kind == .probe).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
+
+/-- One row per registered probe: whether the arm holds it and whether it is a look-change candidate (both false by
+`probe_not_mem` and `probe_not_mem_lookCandidates`). -/
+def probesText (reg : List Reg) (p : List Flag) : String :=
+  String.join ((probeFlags reg).map fun f =>
+    (Json.mkObj [("flag", .str f.key), ("kind", "probe"), ("member", .bool (p.contains f)),
+      ("lookCandidate", .bool ((lookCandidates reg).contains f))]).compress ++ "\n")
+
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
 
@@ -710,6 +736,8 @@ def goldenDecisions : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.decisions.jsonl"
 def goldenLook : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "look-change.candidates.jsonl"
+def goldenProbes : System.FilePath :=
+  ".." / "packages" / "contracts" / "golden" / "preset" / "probes.jsonl"
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
 def storedPath : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.trajectory.jsonl"
@@ -729,7 +757,7 @@ def readRegistry : IO (List Reg) := do
       out := out ++ (← IO.ofExcept ((parsePart (← readJson pj)).mapError fun e => s!"{pj}: {e}"))
   return out
 
-/-- Write the four preset files, or with `--check` throw when any differs from the Lean output. -/
+/-- Write the five preset files, or with `--check` throw when any differs from the Lean output. -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry
@@ -744,7 +772,8 @@ def run (args : List String) : IO Unit := do
   unless (refusedMembers lookDecisions p).isEmpty do
     throw (IO.userError s!"refused flags in v2-proved: {(refusedMembers lookDecisions p).map (·.key)}")
   let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
-    (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p)]
+    (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p),
+    (goldenProbes, probesText reg p)]
   if args.contains "--check" then
     let mut stale : List String := []
     for (path, text) in outs do
@@ -830,6 +859,12 @@ def record (args : List String) : IO Unit := do
 #guard (parseFlag ":b").toOption.isNone
 #guard (parseKind "optimized").toOption == some .optimized
 #guard (parseKind "Optimized").toOption.isNone
+#guard (parseKind "probe").toOption == some .probe
+#guard (parsePart (Json.mkObj [("id", "m"), ("variants", Json.mkObj [("off", Json.mkObj [("kind", "probe")])])])).toOption.map
+  (fun rs => rs.map (·.kind)) == some [.probe]
+#guard (parsePart (Json.mkObj [("id", "m"), ("variants", Json.mkObj [("off", Json.mkObj [("kind", "probe"), ("visClass", "L")])])])).toOption.isNone
+#guard probesText [⟨⟨"m", "off"⟩, .probe, [], [], none⟩, ⟨⟨"m", "faithful"⟩, .faithful, [], [], none⟩] []
+  == "{\"flag\":\"m:off\",\"kind\":\"probe\",\"lookCandidate\":false,\"member\":false}\n"
 #guard (parseFRes "model-bug").toOption == some .modelBug
 #guard (parseFRes "falsified").toOption.isNone
 #guard (parseRow (Json.mkObj [("part", "a"), ("candidate", "c"), ("status", "proved")])).toOption.map (·.fResult)

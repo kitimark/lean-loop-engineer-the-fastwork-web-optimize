@@ -2011,16 +2011,16 @@ def accesses : List Access := [
   ⟨"platform", "platform/visuals.module.css", 1244, .cssVar, "--ask-cascade-i", "", "style", ["faithful", "mq", "fade-threaded"]⟩,
   ⟨"platform", "platform/visuals.module.css", 1247, .cssVar, "--ask-service-index", "", "style", ["faithful", "mq", "fade-threaded"]⟩,
   ⟨"platform", "platform/visuals.module.css", 1250, .cssVar, "--ask-service-index", "", "style", ["faithful", "mq", "fade-threaded"]⟩,
-  ⟨"platform.entries", "platform.entries/driver.ts", 11, .rect, "", "platform", "observer:IntersectionObserver", ["faithful"]⟩,
-  ⟨"platform.entries", "platform.entries/driver.ts", 44, .clock, "subscribe", "", "callback", ["faithful"]⟩,
-  ⟨"platform.entries", "platform.entries/driver.ts", 44, .clock, "subscribe", "", "observer:IntersectionObserver", ["faithful"]⟩,
-  ⟨"platform.entries", "platform.entries/driver.ts", 80, .clock, "subscribe", "", "callback", ["faithful"]⟩,
-  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "callback", ["faithful", "offscreen-pause"]⟩,
-  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "clock", ["faithful", "offscreen-pause"]⟩,
-  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "listener:media-change", ["faithful", "offscreen-pause"]⟩,
-  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "observer:IntersectionObserver", ["faithful", "offscreen-pause"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 45, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 45, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause"]⟩]
+  ⟨"platform.entries", "platform.entries/driver.ts", 11, .rect, "", "platform", "observer:IntersectionObserver", ["faithful", "probe-off"]⟩,
+  ⟨"platform.entries", "platform.entries/driver.ts", 44, .clock, "subscribe", "", "callback", ["faithful", "probe-off"]⟩,
+  ⟨"platform.entries", "platform.entries/driver.ts", 44, .clock, "subscribe", "", "observer:IntersectionObserver", ["faithful", "probe-off"]⟩,
+  ⟨"platform.entries", "platform.entries/driver.ts", 80, .clock, "subscribe", "", "callback", ["faithful", "probe-off"]⟩,
+  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "callback", ["faithful", "offscreen-pause", "probe-off"]⟩,
+  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "clock", ["faithful", "offscreen-pause", "probe-off"]⟩,
+  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "listener:media-change", ["faithful", "offscreen-pause", "probe-off"]⟩,
+  ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "observer:IntersectionObserver", ["faithful", "offscreen-pause", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 45, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 45, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "probe-off"]⟩]
 
 /-- Extractor findings (dead, dynamic, unresolved selectors and targets): (part, file, line, kind, detail). -/
 def findings : List Finding := [
@@ -2222,12 +2222,16 @@ def variantFiles : List (String × String × List String) := [
   ("platform", "mq", []),
   ("platform", "fade-threaded", []),
   ("platform.entries", "faithful", []),
+  ("platform.entries", "probe-off", []),
   ("platform.glint", "faithful", []),
   ("platform.glint", "offscreen-pause", []),
+  ("platform.glint", "probe-off", []),
   ("platform.marquee", "faithful", []),
+  ("platform.marquee", "probe-off", []),
   ("platform.stageBg", "faithful", []),
   ("platform.sweep", "faithful", []),
-  ("platform.sweep", "offscreen-pause", [])]
+  ("platform.sweep", "offscreen-pause", []),
+  ("platform.sweep", "probe-off", [])]
 
 /-- Every declared layer of every part.json, in part then part.json order: (part, layer id, holds text). -/
 def layerDecls : List (String × String × Bool) := [

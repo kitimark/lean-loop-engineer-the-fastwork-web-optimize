@@ -10,6 +10,13 @@
       "kind": "faithful",
       "tier": "T1",
       "provenance": { "original": "assets/2.gBuqKVzi.css:6484-6496, 7497", "lean": "lean/Fw/Parts/PlatformMarquee.lean" }
+    },
+    "probe-off": {
+      "kind": "probe",
+      "provenance": {
+        "lean": "Fw.Preset.V2Proved probe_not_mem, probe_not_isOpt; Fw.Preset.Gen probe_not_mem_lookCandidates",
+        "limit": "measurement only, never in a preset or a look verdict (task platform-attribution): the reviews marquee track renders data-marquee=off, with no scroll animation"
+      }
     }
   },
   "requires": {},
