@@ -1,7 +1,7 @@
 # init-cost-depth handoff
 
 - Branch: worktree-wf_77b610a8-3fd-1; worktree: .claude/worktrees/wf_77b610a8-3fd-1
-- Last commit: 9525f69ac (check.sh green there, main merged); this handoff commit follows it
+- Last commit: f1ad0601b (main f611b0f12 merged, check.sh green there); this handoff commit follows it
 - CI runs: none (accepted limit: the next lean run on any ci/* branch after the land is the live check)
 
 ## State
@@ -15,12 +15,11 @@
 - Times and details: research/notes/2026/10-2x-init-cost-depth.md.
 
 ## Verified
-- check.sh green at 9525f69ac; real lint 1636 constants, 7-9 s (same as before); scale job 10 s, fails on the old scanner.
-- Dry land: VERDICT scope (the three writes under Open are not in the graph row); with --allow for them: VERDICT dry.
+- check.sh green at f1ad0601b; real lint 1636 constants, 7-9 s (same as before); scale job 10 s, fails on the old scanner.
+- Dry land (no --allow): VERDICT dry init-cost-depth. Plan lint: 0 errors, no writesClosure line for this task.
 
 ## Open
-- Writes outside the graph's list: lean/Fw/Lint/InitCostScan.lean, lean/scripts/check.sh,
-  lean/scripts/init-cost-cases/Many.lean. lean/scripts/InitCostLint.lean is unchanged.
+- None outside the graph row (r457 added InitCostScan.lean, check.sh, init-cost-cases/**).
 - Follow-up: grow Many.lean when fwcore passes 2048 start-time constants (keeps 4x).
 
 ## Read first

@@ -45,13 +45,15 @@ The fix leaves the lint time unchanged within run-to-run spread. The first old r
 memory-pressure wait. INFERRED: the extra `addAndCompile` calls (9 for 1636 rows: 7 leaves, 1 node, the root) cost too
 little to show.
 
-check.sh (MEASURED, `fw slot run --kind check`) is green at 9525f69ac, main merged in: the lint reports 1636 constants
-in 456 modules, and `init cost lint scale` reports 8192 constants linted in 10 s.
+check.sh (MEASURED, `fw slot run --kind check`) is green at 9525f69ac and again at f1ad0601b (main f611b0f12 merged
+in, with scene-pause-kcopy): the lint reports 1636 constants in 456 modules, and `init cost lint scale` reports 8192
+constants linted in 10 s.
 
 ## Accepted limits
 
 - `maxRecDepth` is not raised. The lint passes at the default limit, with no recursion that grows with the count.
-- The `Unit` default argument workaround in `lean/Fw/Device/SimTouch.lean` stays. Its owner removes it.
+- The `Unit` argument workarounds in `lean/Fw/Device/SimTouch.lean` and `lean/Fw/Parts/HeroScenePause.lean`
+  (`heroAnims`, `baseAnims`) stay. Their owners remove them.
 - No CI dispatch. The next lean run on any `ci/*` branch after the land is the live check.
 - The scale case uses a fixed 8192. If fwcore passes 2048 start-time constants, that check drops below 4x and
   `Many.lean` should grow (follow-up).
