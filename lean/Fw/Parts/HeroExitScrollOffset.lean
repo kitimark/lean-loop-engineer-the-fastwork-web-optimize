@@ -29,8 +29,8 @@ def threadedAge : Engine → Path → Nat → Kind → Nat
   | _, .accelerated, _, _ => 0
   -- scroll_snapshot_timeline.cc:211-290@f842f52: the frame-start snapshot is validated after layout
   | .chromium, .mainThread, lag, _ => lag
-  -- ViewTimeline.cpp:444-450,503-518 and ScrollTimeline.cpp:300-327@862f17d: cached at the animation update, refreshed
-  -- only when the maximum scroll offset changes
+  -- ViewTimeline.cpp:444-450,503-518 and ScrollTimeline.cpp:300-327@862f17d: cached at the animation update; after rAF the
+  -- stale check re-resolves the animations only when the maximum scroll offset changes
   | .webkit, .mainThread, lag, .inFrameScroll => lag + 1
   | .webkit, .mainThread, lag, _ => lag
 

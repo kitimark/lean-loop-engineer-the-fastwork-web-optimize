@@ -4354,6 +4354,12 @@
    "task": "scene-pause-kcopy",
    "field": "missingWhy",
    "text": "scene-pause-kcopy: kCopy proved (hero_paused_hidden_copy, hero_paused_same_after_splash over the CSS-read table heroAnims, replayed against every @keyframes of the hero subtree); open@1 judged against the original's first frame (recorded_clean, run 40139690556); hero:scene-pause linked in Gen.linkTable, Gen.run: not a member (status partly-proved, webkit morph cell fail, macOS run 40143377510, nav background-color close@0 at 390 and 641)."
+  },
+  {
+   "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "task": "hero-exit-q6",
+   "field": "mechanism",
+   "text": "hero-exit-q6: q6 answered in Lean (lean/Fw/Parts/HeroExitScrollOffset.lean). The threaded arm is never older than the original (threaded_never_older), except in a WebKit main-thread frame with an in-frame script scroll (threaded_older_iff; ViewTimeline.cpp:503-518, ScrollTimeline.cpp:300-327@862f17d). CONFIRMED from source. MEASURED, run 40156078840: the 25/40/40 new hero units were judged at equal scrollY (120/120 rest rows equal the target) on nodes that paint no box (measured_hidden), so unequal offsets do not explain them; the cause is the display:none consumers. The reducer judges rest rows without comparing offsets (judgedNow_unequal); the follow-up is the judgedEqual rule. Gen links hero.exit:threaded to this row; entry is not yet: proofs, gate chromium, gate webkit (research/notes/2026/10-2x-hero-exit-q6.md)."
   }
  ]
 }
