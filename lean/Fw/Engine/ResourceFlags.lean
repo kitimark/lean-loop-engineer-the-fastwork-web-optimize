@@ -173,12 +173,12 @@ def hiddenCommon : List (Res × Effect) :=
    (.gpuMem, ef .same "no layer change"), (.frames, ef .same "skipWrites keeps the callbacks")]
 
 /-- `morph.countdown:hidden-pause` on Chromium. -/
-def hiddenCr : Footprint :=
+def hiddenCr (_ : Unit) : Footprint :=
   ⟨"morph.countdown:hidden-pause", .chromium,
     stageEffects (pairsSign crPairs) "HiddenPause.crPairs, cr_countdown_style" ++ hiddenCommon, none⟩
 
 /-- `morph.countdown:hidden-pause` on WebKit. -/
-def hiddenWk : Footprint :=
+def hiddenWk (_ : Unit) : Footprint :=
   ⟨"morph.countdown:hidden-pause", .webkit,
     stageEffects (pairsSign wkPairs) "HiddenPause.wkPairs, wk_countdown_style" ++ hiddenCommon, some 168397197⟩
 
@@ -345,18 +345,18 @@ def quietWk : Footprint :=
 end Quiet
 
 /-- The eighteen footprints. -/
-def footprints : List Footprint :=
-  [threadedCr, threadedWk, scenePauseCr, scenePauseWk, idleNoneCr, idleNoneWk, hiddenCr, hiddenWk, stripCr, stripWk,
+def footprints (_ : Unit) : List Footprint :=
+  [threadedCr, threadedWk, scenePauseCr, scenePauseWk, idleNoneCr, idleNoneWk, hiddenCr (), hiddenWk (), stripCr, stripWk,
    panelCr, panelWk, logoCr, logoWk, dormantCr, dormantWk, quietCr, quietWk]
 
 /-- The footprint of a flag on an engine. -/
-def footprint? (flag : String) (e : Eng) : Option Footprint := footprints.find? fun f => f.flag == flag && f.eng == e
+def footprint? (flag : String) (e : Eng) : Option Footprint := (footprints ()).find? fun f => f.flag == flag && f.eng == e
 
 /-- The verdict of every footprint at budget `B`. -/
-def verdicts (B : Nat) : List (String × Eng × Verdict) := footprints.map fun f => (f.flag, f.eng, verdict B f)
+def verdicts (B : Nat) : List (String × Eng × Verdict) := (footprints ()).map fun f => (f.flag, f.eng, verdict B f)
 
-#guard footprints.length == 18
-#guard footprints.all fun f => Res.all.all fun r => (f.effects.filter (·.1 == r)).length == 1
+#guard (footprints ()).length == 18
+#guard (footprints ()).all fun f => Res.all.all fun r => (f.effects.filter (·.1 == r)).length == 1
 #guard verdicts budgetB == [
   ("hero.exit:threaded", .chromium, .trade), ("hero.exit:threaded", .webkit, .trade),
   ("hero:scene-pause", .chromium, .win), ("hero:scene-pause", .webkit, .win),
@@ -533,13 +533,13 @@ def checkRow (o : Obs) : Json :=
     ("source", toJson o.src), ("stage", toJson (Res.stage o.eng o.res)), ("tol", toJson o.tol)]
 
 /-- The golden rows: every predicted effect, then every check. -/
-def goldenRows : List Json :=
-  footprints.flatMap (fun fp => Res.all.filterMap fun r => (fp.effects.find? (·.1 == r)).map fun (_, e) =>
+def goldenRows (_ : Unit) : List Json :=
+  (footprints ()).flatMap (fun fp => Res.all.filterMap fun r => (fp.effects.find? (·.1 == r)).map fun (_, e) =>
     predictRow fp r e) ++ observations.map checkRow
 
 /-- The golden text (`packages/contracts/golden/engine/resource.jsonl`). -/
-def goldenText : String := String.join (goldenRows.map fun j => j.compress ++ "\n")
+def goldenText (_ : Unit) : String := String.join ((goldenRows ()).map fun j => j.compress ++ "\n")
 
-#guard goldenRows.length == 18 * 10 + 70 + 13
+#guard (goldenRows ()).length == 18 * 10 + 70 + 13
 
 end Fw.Engine.Resource.Flags

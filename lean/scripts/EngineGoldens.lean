@@ -27,7 +27,7 @@ def generators : List (String × String) :=
    ("pain-notes.jsonl", Fw.Parts.PainNotesOpt.goldenText),
    ("people-card.jsonl", Fw.Parts.PeopleCardOpt.goldenText),
    ("people-deck.jsonl", Fw.Parts.PeopleDeckOpt.goldenText),
-   ("resource.jsonl", Fw.Engine.Resource.Flags.goldenText),
+   ("resource.jsonl", Fw.Engine.Resource.Flags.goldenText ()),
    ("transition-start.jsonl", Fw.Engine.TransitionStart.goldenJsonl ()),
    ("webkit.jsonl", Fw.Engine.WebKit.goldenJsonl)]
 
