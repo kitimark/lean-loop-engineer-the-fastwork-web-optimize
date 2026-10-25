@@ -16,6 +16,7 @@ inductive Kind
   | inFrameScroll
 deriving DecidableEq, Repr
 
+/-- The `.accelerated` path presumes the scroll is realized on the compositor (CanRealizeScrollsOnActiveTree); otherwise Chromium reads ActiveBase (property_tree.cc:2067-2083@f842f52) and the arm's age is the `.mainThread` row. -/
 def threadedAge : Engine → Path → Nat → Kind → Nat
   -- RemoteProgressBasedTimeline.cpp:61-65@862f17d; cc/animation/scroll_timeline.cc:85-131@f842f52
   | _, .accelerated, _, _ => 0
@@ -91,6 +92,7 @@ theorem judgedNow_unequal : ∃ s, judgedNow s = true ∧ s.yOrig ≠ s.yCand :=
 theorem judged_agree_of_equal {s : Sample} (h : s.yOrig = s.yCand) : judgedNow s = judgedEqual s := by
   simp [judgedNow, judgedEqual, h]
 
+/-- Synthetic rows, not from a run: they exercise judgedNow and judgedEqual against the reducer (hero-exit-offset.test.mjs). -/
 def samples : List Sample :=
   [⟨"s25@1", .move, 53, 53⟩, ⟨"s25@2", .move, 104, 106⟩, ⟨"s25", .rest, 211, 211⟩, ⟨"s50@3", .move, 370, 317⟩,
    ⟨"s50", .rest, 422, 422⟩, ⟨"s90", .rest, 700, 760⟩, ⟨"b0", .rest, 0, 0⟩]

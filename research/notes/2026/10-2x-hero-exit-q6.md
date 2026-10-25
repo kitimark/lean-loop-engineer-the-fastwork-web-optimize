@@ -19,7 +19,7 @@ topics: [hero.exit, scroll-driven, trajectory-probe, webkit, chromium, v2-proved
 - **On the first frame after a scroll change, the threaded arm is strictly newer** on the accelerated path
   (`accelerated_first_newer`). The original's scroll event only requests a rAF, its hero callback requests another one,
   and the body that reads the offset runs a frame later (snapshot `2.DyWL8TcE.js` 2667-2669, 4155-4175, 4239, as cited
-  in lean/Fw/Parts/EngineScroll.lean). CONFIRMED.
+  in lean/Fw/Parts/EngineScroll.lean). CONFIRMED. The `.accelerated` path presumes the scroll is realized on the compositor (CanRealizeScrollsOnActiveTree); otherwise Chromium reads ActiveBase (property_tree.cc:2067-2083@f842f52) and the arm's age is the `.mainThread` row.
 - **At a probe rest row, both arms show the same offset** when the offset has been still for the probe's 8 frames and
   both ages fit in that window (`arms_equal_at_rest`, `stillFrames` = 8 from kit.mjs:206). Whether ages fit in 8 frames
   is INFERRED: `lag + since + 1 ≤ 8` is a hypothesis.
@@ -56,7 +56,7 @@ the offset drawn in that frame.
 | WebKit UI process updates progress timelines on every scrolling-tree scroll | Source/WebKit/UIProcess/RemoteLayerTree/ios/RemoteScrollingTreeIOS.cpp:56-64@862f17d; RemoteScrollingTree.cpp:345-350; RemoteProgressBasedTimelineRegistry.cpp:149-161 |
 | the UI-process timeline reads the node's own offset | RemoteProgressBasedTimeline.cpp:61-75@862f17d |
 | WebKit main-thread view timeline is cached at the animation update and read from that cache | Source/WebCore/animation/ViewTimeline.cpp:296-329, 444-450, 503-518@862f17d |
-| after rAF and style, the stale check re-resolves animations only when the maximum scroll offset changed | Source/WebCore/animation/ScrollTimeline.cpp:300-327@862f17d (:312-315) |
+| after rAF and style, the stale check re-resolves animations only when the maximum scroll offset changed, and does not refresh a ViewTimeline's cache (non-virtual cacheCurrentTime, ScrollTimeline.h:138, ViewTimeline.h:125) | Source/WebCore/animation/ScrollTimeline.cpp:300-327@862f17d (:312-315) |
 | threaded animations are Cocoa only, so Linux WebKit runs the main-thread path | Source/WTF/wtf/PlatformEnableCocoa.h:904-905; PlatformEnable.h:566-567@862f17d |
 | Chromium compositor timeline reads the scroll tree's offset, ticked right after a scroll update | cc/animation/scroll_timeline.cc:85-131, 175-193; cc/input/input_handler.cc:512-513@f842f52 |
 | Chromium falls back to the main-committed offset when a delta cannot be realized | cc/trees/property_tree.cc:2067-2083@f842f52 |

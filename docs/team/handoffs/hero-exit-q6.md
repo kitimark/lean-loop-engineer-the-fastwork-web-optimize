@@ -18,7 +18,7 @@
 - Gen.entry for hero.exit:threaded: not yet, blockers proofs, gate chromium, gate webkit. v2-proved stays
   [engine.scroll:unthrottle].
 - Golden `packages/contracts/golden/parts/hero-exit-offset.jsonl`, replayed by
-  `packages/gate-breakpoints/test/hero-exit-offset.test.mjs` (a write outside the task list).
+  `packages/gate-breakpoints/test/hero-exit-offset.test.mjs`.
 
 ## Conventions
 - Regenerate goldens only from Lean: `HeroExitScrollOffset.gen`, `Gen.run` (drop `--check` to write).
