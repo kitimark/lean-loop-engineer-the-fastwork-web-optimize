@@ -137,14 +137,25 @@ def MiB : Nat := 1024 * 1024
 /-- The jetsam fallback when the process limit is unknown (`WTF/wtf/AvailableMemory.cpp:89-97@862f17d`). -/
 def fallbackJetsam : Nat := 840 * MiB
 
-/-- The iOS conservative memory-pressure threshold: half the RAM size (`WTF/wtf/MemoryPressureHandler.cpp:46-48@862f17d`). -/
-def conservativeAt (ram : Nat) : Nat := ram / 2
+/-- WebKit's RAM size under a jetsam limit: the limit rounded up to 128 MiB (`WTF/wtf/AvailableMemory.cpp:145-151@862f17d`,
+`RAMSize.cpp:44-47`). -/
+def ramUnder (lim : Nat) : Nat := (lim + 128 * MiB - 1) / (128 * MiB) * (128 * MiB)
+
+/-- The iOS conservative memory-pressure threshold: half of min(3 GiB, RAM size)
+(`WTF/wtf/MemoryPressureHandler.cpp:46-48,155-156,375@862f17d`). -/
+def conservativeAt (ram : Nat) : Nat := min (3 * 1024 * MiB) ram / 2
 
 /-- **The GPU memory budget B** for all layer backing, in bytes; edit this constant to change the verdict's budget. -/
 def budgetB : Nat := 210 * MiB
 
-/-- B is half the conservative threshold at the jetsam fallback. -/
-theorem budgetB_half : budgetB = conservativeAt fallbackJetsam / 2 := by decide
+/-- B is a quarter of the 840 MiB jetsam fallback. -/
+theorem budgetB_quarter : 4 * budgetB = fallbackJetsam := by decide
+
+/-- The conservative threshold at the fallback is 448 MiB, since 840 MiB rounds up to 896 MiB. -/
+theorem conservative_fallback : conservativeAt (ramUnder fallbackJetsam) = 448 * MiB := by decide
+
+/-- B is at most half the conservative threshold at the jetsam fallback. -/
+theorem budgetB_le_half : 2 * budgetB ≤ conservativeAt (ramUnder fallbackJetsam) := by decide
 
 theorem budgetB_bytes : budgetB = 220200960 := by decide
 

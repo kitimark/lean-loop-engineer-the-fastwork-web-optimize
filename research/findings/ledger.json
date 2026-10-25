@@ -4415,6 +4415,60 @@
    "task": "columns-final-scale",
    "field": "mechanism",
    "text": "columns-final-scale: closed as a negative finding. PROVED in Lean (Fw.Parts.MorphColumnsScale): edges_eq, look bound for 314 to 1000 px, variant_no_layout; golden replayed by scale.golden.test.ts. MEASURED: no Layout or style-recalc win on Chromium (40156382719 vs 40156384878) or the WebKit Simulator (40156388674 vs 40156393010, n=2 per arm); gate run 40156380619 fails only on the intended flex: none at desk-319 to desk-1000. INFERRED mechanism: the per-frame layouts re-lay out more than the column subtree (dirtyObjects about 11 per morph-zone layout in both arms; totalObjects is tree size, not work). Limit: below 314 px the variant still applies and its squeeze bound is not proved (a = 0.9657 at 280 px, a_narrow). Follow-ups: CSS-tied morph dependency set, gate rule for visClass L, per-subtree layout attribution. Note research/notes/2026/10-2x-columns-final-scale.md."
+  },
+  {
+   "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium trade, WebKit trade. Chromium: script, repaint and frames fall, style and event dispatch rise (cr_lane_mixed, records_orig). WebKit: main-thread stages fall, event dispatch rises; paint records and repaint unknown (promote_tween re-attach). Phone: 6 agree, 2 unresolved, 2 unpredicted; the paint-record rise is INFERRED to be re-attach paints of the promoted targets."
+  },
+  {
+   "entry": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium win, WebKit win: hero layers drop (heroLayers_drop), style or event dispatch falls, nothing gated rises. The Chromium ledger trade came from trajectory timing, not a resource. Phone walk is slow, so 8 rows are confounded and the 3 census rows agree."
+  },
+  {
+   "entry": "morph.columns:idle-none: remove the marquee track animations (animation-name none) while the scene rule pauses the panel, and seek them back to their kept time on return",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium win, WebKit win: track layers, composite and GPU memory fall (tracks_layers_drop), event dispatch falls (INFERRED). Phone: 10 agree, 2 unresolved; CI Chromium: 2 agree, 1 unresolved."
+  },
+  {
+   "entry": "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium win, WebKit win: the skipped face writes remove style (both) and layout and paint records (WebKit) (HiddenPause crPairs, wkPairs). Phone walk is slow: 8 confounded, 2 census rows agree."
+  },
+  {
+   "entry": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium open (repaint unknown), WebKit win: style, layers and composite fall; GPU memory rises by at most 2,287,000 bytes to a peak within B = 210 MiB (strip_claim_trade_verdict_win). The Core claim stays a trade; the resource verdict turns the WebKit trade into a win. CI WebKit: 2 agree."
+  },
+  {
+   "entry": "blur(0) -> filter:none at rest (MorphPanelOpt rest variant)",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium trade (style, layout, paint, repaint rise), WebKit trade: main-thread work is unchanged but repaint rises with the re-attach on each blur fade, so the ledger WebKit win becomes a trade under the resource rule."
+  },
+  {
+   "entry": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium open (no GPU peak for the added layer), WebKit win: layout and repaint fall (bar_resizePaint_zero), one 440x120 nav layer at DPR 3 adds 3,801,600 bytes (navMorphBytes, INFERRED box size) within B. Phone walk is slow: 8 confounded, 2 unresolved."
+  },
+  {
+   "entry": "morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict neutral on both engines: the shift model keeps totals equal. Disagreements: WebKit script and event dispatch rise (INFERRED: the early-mounted panel transitions reach the React root listeners); Chromium layout falls and style rises by about 200 resolved elements (MEASURED, runs 39325709978 and 39325721909). The model has no dormant restyle."
+  },
+  {
+   "entry": "engine.events:quiet: the React root container registers none of the 7 animation and transition listeners (animationstart, animationiteration, animationend, transitionrun, transitionstart, transitioncancel, transitionend; capture and bubble, 14 registrations), through an own addEventListener on #root that drops them; every other root listener stays",
+   "task": "resource-footprint",
+   "field": "mechanism",
+   "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium open (script sign unknown), WebKit win: 7 fewer root listener registrations remove dispatch and its script (quietRecords_eq). Phone: 11 agree, 1 disagree (one more layer at y=4500 in all three passes, open)."
   }
  ]
 }
