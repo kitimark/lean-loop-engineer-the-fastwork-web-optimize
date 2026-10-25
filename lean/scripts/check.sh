@@ -32,12 +32,18 @@ serial() {  # serial <step> <cmd...>: a failing serial stage is recorded and the
 serial "grep gates" scripts/check-partial.sh
 serial "check.sh one job per line" node ../scripts/lint-check-sh.mjs
 serial "import check" node scripts/check-imports.mjs
+lake_f=$(mktemp "${TMPDIR:-/tmp}/fwlakebuilt.XXXXXX")
+export FW_LAKE_BUILT_FILE=$lake_f
+span_more_file=$lake_f
 if ! span lean/check "lake build" sh ../scripts/fwcore-build.sh; then
+  rm -f "$lake_f"
   fails="$fails
   - lake build"
   echo "check: FAILED: $fails"
   exit 1
 fi
+unset FW_LAKE_BUILT_FILE
+rm -f "$lake_f"
 
 bin=.lake/build/bin
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/fwcheck.XXXXXX")
@@ -137,6 +143,7 @@ run_group() {
   job "census golden check" lake env lean --run scripts/CensusGolden.lean --check ../packages/contracts/golden/measure/census.jsonl
   job "stage golden check" lake env lean --run scripts/StageGolden.lean --check ../packages/contracts/golden/parts/stage.jsonl
   job "layer-opts golden check" lake env lean --run scripts/LayerOptsGolden.lean --check ../apps/site/src/registry/layer-opts.gen.ts ../packages/contracts/golden/console/layer-opts.jsonl
+  job "react-root-quiet golden check" lake env lean --run scripts/ReactRootQuietGolden.lean --check ../apps/site/src/parts/engine.events/quiet.gen.ts ../packages/contracts/golden/parts/react-root-quiet.jsonl
   job "reconcile-sched golden check" lake env lean --run scripts/ReconcileSchedGolden.lean --check  # golden/console/reconcile-sched.jsonl
   job "dormant golden check" lake env lean --run scripts/MorphDormantGolden.lean --check ../packages/contracts/golden/parts/morph.mount.dormant.jsonl
   job "headgen check" lake env lean --run HeadgenMain.lean --check ../apps/site/src/head.gen.json  # the document head table (Fw.Site.Head)

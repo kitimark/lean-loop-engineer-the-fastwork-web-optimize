@@ -501,8 +501,130 @@ theorem distinct_notes_append (N X Y : Notes V) (hnd : (keys (N ++ X ++ Y)).Nodu
   some [(("hero.exit", "a"), "m"), (("hero.exit", "wktr-p1p4"), "p1p4"), (("hero.exit", "hero-exit-restate"), "restate")]
 -- one task, two entries; two tasks, one entry: all distinct keys
 #guard (merge ([] : Notes String) [(("e1", "t"), "x")] [(("e2", "t"), "y"), (("e1", "u"), "z")]).isSome
--- the same (entry, task) key with different texts on both sides: conflict (excluded by distinct keys)
 #guard merge ([] : Notes String) [(("e", "t"), "x")] [(("e", "t"), "y")] = none
+
+def twice (k : K) : List K → Bool
+  | [] => false
+  | x :: r => if x = k then decide (k ∈ r) else twice k r
+
+def firsts : List K → List K
+  | [] => []
+  | x :: r => x :: (firsts r).filter (fun y => decide (y ≠ x))
+
+def dupKeys (l : List (K × V)) : List K := firsts ((keys l).filter (fun k => twice k (keys l)))
+
+def onePerKey (l : List (K × V)) : Bool := (dupKeys l).isEmpty
+
+theorem twice_iff (k : K) : ∀ (l : List K), twice k l = true ↔ ∃ a b, l = a ++ k :: b ∧ k ∈ b
+  | [] => by simp [twice]
+  | x :: r => by
+    have ih := twice_iff k r
+    constructor
+    · intro h
+      by_cases hx : x = k
+      · subst hx
+        simp only [twice, ↓reduceIte, decide_eq_true_eq] at h
+        exact ⟨[], r, rfl, h⟩
+      · simp only [twice, hx, ↓reduceIte] at h
+        obtain ⟨a, b, he, hb⟩ := ih.mp h
+        exact ⟨x :: a, b, by rw [he]; rfl, hb⟩
+    · rintro ⟨a, b, he, hb⟩
+      cases a with
+      | nil =>
+        simp only [List.nil_append, List.cons.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        simp [twice, hb]
+      | cons y a =>
+        simp only [List.cons_append, List.cons.injEq] at he
+        obtain ⟨rfl, rfl⟩ := he
+        by_cases hy : x = k
+        · subst hy
+          simp [twice]
+        · simp only [twice, hy, ↓reduceIte]
+          exact ih.mpr ⟨a, b, rfl, hb⟩
+
+theorem mem_of_twice {k : K} : ∀ {l : List K}, twice k l = true → k ∈ l
+  | [], h => by simp [twice] at h
+  | x :: r, h => by
+    by_cases hx : x = k
+    · rw [hx]; exact List.mem_cons_self
+    · simp only [twice, hx, ↓reduceIte] at h
+      exact List.mem_cons_of_mem _ (mem_of_twice h)
+
+theorem mem_firsts (y : K) : ∀ (l : List K), y ∈ firsts l ↔ y ∈ l
+  | [] => by simp [firsts]
+  | x :: r => by
+    simp only [firsts, List.mem_cons, List.mem_filter, mem_firsts y r, decide_eq_true_eq]
+    by_cases h : y = x <;> simp [h]
+
+theorem firsts_nodup : ∀ (l : List K), (firsts l).Nodup
+  | [] => List.nodup_nil
+  | x :: r => by
+    simp only [firsts, List.nodup_cons, List.mem_filter, decide_eq_true_eq, ne_eq, not_true_eq_false, and_false,
+      not_false_eq_true, true_and]
+    exact (firsts_nodup r).filter _
+
+theorem nodup_iff_not_twice : ∀ (l : List K), l.Nodup ↔ ∀ k, twice k l = false
+  | [] => by simp [twice]
+  | x :: r => by
+    rw [List.nodup_cons, nodup_iff_not_twice r]
+    constructor
+    · rintro ⟨hx, hr⟩ k
+      by_cases h : x = k
+      · subst h; simp [twice, hx]
+      · simp only [twice, h, ↓reduceIte]; exact hr k
+    · intro h
+      refine ⟨fun hx => by simpa [twice, hx] using h x, fun k => ?_⟩
+      by_cases hk : x = k
+      · subst hk
+        refine Bool.eq_false_iff.mpr fun ht => ?_
+        have := h x
+        simp [twice, mem_of_twice ht] at this
+      · have := h k
+        simpa [twice, hk] using this
+
+omit [DecidableEq V] in
+theorem mem_dupKeys (l : List (K × V)) (k : K) : k ∈ dupKeys l ↔ ∃ a b, keys l = a ++ k :: b ∧ k ∈ b := by
+  rw [dupKeys, mem_firsts, List.mem_filter, ← twice_iff]
+  exact ⟨fun h => h.2, fun h => ⟨mem_of_twice h, h⟩⟩
+
+omit [DecidableEq V] in
+theorem dupKeys_nodup (l : List (K × V)) : (dupKeys l).Nodup := firsts_nodup _
+
+omit [DecidableEq V] in
+theorem onePerKey_iff (l : List (K × V)) : onePerKey l = true ↔ (keys l).Nodup := by
+  rw [nodup_iff_not_twice, onePerKey, List.isEmpty_iff, List.eq_nil_iff_forall_not_mem]
+  refine forall_congr' fun k => ?_
+  rw [dupKeys, mem_firsts, List.mem_filter, Bool.eq_false_iff]
+  exact ⟨fun h ht => h ⟨mem_of_twice ht, ht⟩, fun h ⟨_, ht⟩ => h ht⟩
+
+omit [DecidableEq V] in
+theorem onePerKey_false (l : List (K × V)) : onePerKey l = false ↔ ∃ k, k ∈ dupKeys l := by
+  rw [onePerKey, Bool.eq_false_iff, ne_eq, List.isEmpty_iff, List.eq_nil_iff_forall_not_mem]
+  simp
+
+theorem onePerKey_merge (b o t : Notes V) (hpo : onePerKey o = true) (hpt : onePerKey t = true)
+    (ho : ∀ k, look k b ≠ none → look k o = look k b) (ht : ∀ k, look k b ≠ none → look k t = look k b)
+    (hd : ∀ k, k ∈ keys o → k ∈ keys t → k ∈ keys b) :
+    ∃ m, merge b o t = some m ∧ (∀ n ∈ o, n ∈ m) ∧ (∀ n ∈ t, n ∈ m) :=
+  distinct_notes_merge b o t ho ht hd ((onePerKey_iff o).mp hpo) ((onePerKey_iff t).mp hpt)
+
+theorem onePerKey_tasks_merge (τo τt : String) (hτ : τo ≠ τt) (b o t : Notes V) (hpo : onePerKey o = true)
+    (hpt : onePerKey t = true) (ho : ∀ k, look k b ≠ none → look k o = look k b)
+    (ht : ∀ k, look k b ≠ none → look k t = look k b) (hwo : ∀ k ∈ keys o, k ∉ keys b → k.2 = τo)
+    (hwt : ∀ k ∈ keys t, k ∉ keys b → k.2 = τt) :
+    ∃ m, merge b o t = some m ∧ (∀ n ∈ o, n ∈ m) ∧ (∀ n ∈ t, n ∈ m) :=
+  onePerKey_merge b o t hpo hpt ho ht fun k hko hkt =>
+    Classical.byContradiction fun hb => hτ ((hwo k hko hb).symm.trans (hwt k hkt hb))
+
+#guard dupKeys ([(("morph.end.release:on", "combo-scroll-fight"), "mechanism"),
+    (("morph.end.release:on", "combo-scroll-fight"), "visual"),
+    (("morph.end.release:on", "combo-scroll-fight"), "next")] : Notes String) =
+  [("morph.end.release:on", "combo-scroll-fight")]
+#guard onePerKey ([(("e1", "t"), "x"), (("e1", "u"), "y"), (("e2", "t"), "z")] : Notes String)
+#guard dupKeys ([(("b", "t"), "1"), (("a", "t"), "1"), (("a", "t"), "2"), (("b", "t"), "2")] : Notes String) =
+  [("b", "t"), ("a", "t")]
+#guard merge ([] : Notes String) [(("e", "t"), "a"), (("e", "t"), "b")] [] = some [(("e", "t"), "a"), (("e", "t"), "a")]
 
 end Fw.Ops.LedgerMerge
 
@@ -614,19 +736,58 @@ def fileText (_ : Unit := ()) : String :=
   String.join (cases.map fun (n, b, o, t) => line idKey n b o t ++ "\n") ++
     String.join (noteCases.map fun (n, b, o, t) => line noteKey n b o t ++ "\n")
 
-/-- Compare (or write) `packages/contracts/golden/ops/ledger-merge.jsonl` under `root` (the `lean/` directory);
-returns 1 if the file is stale, else 0. -/
-def run (root : System.FilePath) (write : Bool) : IO Nat := do
-  let p := root / ".." / "packages" / "contracts" / "golden" / "ops" / "ledger-merge.jsonl"
+def noteKeyCases : List (String × Notes String) :=
+  let hit := (("elements-skip (elementsFromPoint with an allow-list, no pointer-events write)",
+    "hittest-elements-proof"), "chromium")
+  let morph := "morph.end.release:on (brick C of morph-end-bricks): a close start drops the pin and stops \
+    preventDefault until the next open"
+  let band := "commission:band-gate: in the c1000 band skip the two custom-property writes \
+    (--commission-enter-shrink, --commission-shrink) every follower frame, since the CSS pins scale 1 and radius 0 \
+    there; write the current pair on the first frame that reads the band off"
+  [("refused: combo-scroll-fight writes three notes under one (entry, task), one field each (tip before 9f59cf85a)",
+      [hit, ((morph, "combo-scroll-fight"), "mechanism"), ((morph, "combo-scroll-fight"), "visual"),
+        ((morph, "combo-scroll-fight"), "next")]),
+    ("refused: commission-band-mech writes two notes under one (entry, task), one field each (tip before fe854965f)",
+      [hit, ((morph, "combo-scroll-fight"), "mechanism"), ((band, "commission-band-mech"), "mechanism"),
+        ((band, "commission-band-mech"), "missingWhy")]),
+    ("passes: both fixes, one note per (entry, task) (fe854965f)",
+      [hit, ((morph, "combo-scroll-fight"), "mechanism"), ((band, "commission-band-mech"), "mechanism")]),
+    ("passes: two tasks note one entry, one task notes two entries",
+      [((band, "commission-band-mech"), "mechanism"), ((band, "second-task"), "next"),
+        ((morph, "commission-band-mech"), "visual")]),
+    ("refused: two repeated keys, named once each in first-occurrence order",
+      [(("b", "t"), "f"), (("a", "t"), "f"), (("a", "t"), "g"), (("b", "t"), "g"), (("a", "t"), "h")]),
+    ("passes: no notes", [])]
+
+#guard (noteKeyCases.map fun (_, l) => onePerKey l) = [false, false, true, true, false, true]
+#guard (noteKeyCases.map fun (_, l) => (dupKeys l).length) = [1, 1, 0, 0, 2, 0]
+
+def noteKeyJson (k : NoteKey) : Json := Json.mkObj [("entry", .str k.1), ("task", .str k.2)]
+
+def noteKeyLine (name : String) (l : Notes String) : String :=
+  (Json.mkObj [("name", .str name),
+    ("notes", .arr (l.map fun (k, f) => Json.mkObj [("entry", .str k.1), ("task", .str k.2), ("field", .str f)]).toArray),
+    ("dups", .arr ((dupKeys l).map noteKeyJson).toArray), ("onePerKey", .bool (onePerKey l))]).compress
+
+def noteKeyText (_ : Unit := ()) : String :=
+  String.join (noteKeyCases.map fun (n, l) => noteKeyLine n l ++ "\n")
+
+def runFile (p : System.FilePath) (label : String) (count : Nat) (text : String) (write : Bool) : IO Nat := do
   if write then
-    IO.FS.writeFile p fileText
-    IO.println s!"ledger-merge golden: {cases.length + noteCases.length} cases written"
+    IO.FS.writeFile p text
+    IO.println s!"{label} golden: {count} cases written"
     return 0
   let cur ← try IO.FS.readFile p catch _ => pure ""
-  if cur != fileText then
-    IO.println s!"ledger-merge golden: {p} is stale (regenerate: cd lean && lake test -- --write-ledger-merge-golden)"
+  if cur != text then
+    IO.println s!"{label} golden: {p} is stale (regenerate: cd lean && lake test -- --write-ledger-merge-golden)"
     return 1
-  IO.println s!"ledger-merge golden: {cases.length + noteCases.length} cases, 0 stale"
+  IO.println s!"{label} golden: {count} cases, 0 stale"
   return 0
+
+def run (root : System.FilePath) (write : Bool) : IO Nat := do
+  let d := root / ".." / "packages" / "contracts" / "golden" / "ops"
+  let a ← runFile (d / "ledger-merge.jsonl") "ledger-merge" (cases.length + noteCases.length) fileText write
+  let b ← runFile (d / "ledger-note-key.jsonl") "ledger-note-key" noteKeyCases.length noteKeyText write
+  return a + b
 
 end Fw.Wire.LedgerMerge.Golden

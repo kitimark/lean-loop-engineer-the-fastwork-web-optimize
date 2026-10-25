@@ -6,7 +6,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin as rawBegin, builtModules, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
+import { begin as rawBegin, builtModules, lakeMember, noteSpan, record as rawRecord, span as rawSpan } from "./timing.ts";
 
 let stepPrefix = "";
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
@@ -18,7 +18,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
-import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, outcome, outcomeKind, type Kind, type Outcome } from "./land-verdict.ts";
+import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -316,6 +316,16 @@ export function allocLedger(dir: string, mainRef: string): "written" | "none" | 
     writeFileSync(f, JSON.stringify(d, null, 1) + (raw.endsWith("\n") ? "\n" : ""));
     return tryGit(dir, ["add", "--", LEDGER_FILE]) ? "written" : "failed";
   } catch { return "failed"; }
+}
+
+export function ledgerNoteKeyCheck(dir: string): string | null {
+  let raw: string;
+  try { raw = readFileSync(join(dir, LEDGER_FILE), "utf8"); } catch { return null; }
+  let notes: unknown;
+  try { notes = (JSON.parse(raw) as { notes?: unknown }).notes; } catch { return `ledger-note-key: ${LEDGER_FILE} is not valid JSON`; }
+  if (!Array.isArray(notes)) return null;
+  const keyed = notes.filter((n): n is NoteKey & { field?: unknown } => typeof n?.entry === "string" && typeof n?.task === "string");
+  return noteKeyRefusal(LEDGER_FILE, keyed);
 }
 
 export function writeEvidence(dir: string, task: string, evidence: string): "written" | "present" | "none" | "failed" {
@@ -720,7 +730,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     let d1: Digest = d0;
     phase1Built = false;
     if (phase1Build(changed)) {
-      const r = await span("fw land", "fwcore build (phase 1)", () => runCheck(dir, ["sh", "scripts/fwcore-build.sh"]), (p) => p.status);
+      const endBuild = begin("fw land", "fwcore build (phase 1)");
+      const r = await runCheck(dir, ["sh", "scripts/fwcore-build.sh"]);
+      endBuild(r.status, r.status === 0 ? lakeMember(`${r.stdout}${r.stderr}`) : {});
       phase1Built = r.status === 0;
       d1 = r.status === 0 && buildClean(dir) ? binDigest(dir) : null;
       lines.push(`fwcore digest: ${main} ${d0?.slice(0, 12) ?? "unknown"}, merge ${d1?.slice(0, 12) ?? "unknown"}: fwcore users ${binMoved(changed, d0, d1) ? "selected" : "skipped"}`);
@@ -782,7 +794,9 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           if (started.has(i) || !deps[i]!.every((d) => results[d])) continue;
           started.add(i); running++;
           const argv = list[i]!;
-          void span("fw land", argv.join(" "), () => runCheck(cwd, argv, limit), (r) => r.status).then((p) => {
+          const end = begin("fw land", argv.join(" "));
+          void runCheck(cwd, argv, limit).then((p) => {
+            end(p.status, p.status === 0 ? lakeMember(`${p.stdout}${p.stderr}`) : {});
             results[i] = { status: p.status, out: `${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
             running--; pump();
           });
@@ -861,6 +875,11 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           }
         }
       } else lines.push("dry: lints skipped (reads refused first)");
+      if (reads && lints) {
+        const bad = ledgerNoteKeyCheck(slot.dir);
+        lints = bad === null; detail = bad ?? "";
+        if (lints) lines.push(`dry: ledger notes ok (one note per (entry, task) in ${LEDGER_FILE})`);
+      }
       if (reads && lints) {
         const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
         if (local.length) {

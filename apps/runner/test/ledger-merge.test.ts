@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
+import { LEDGER_FILE, ledgerNoteKeyCheck } from "../src/land.ts";
+import { noteKeyDups, noteKeyRefusal, onePerKey, type NoteKey } from "../src/land-verdict.ts";
 
 // scripts/merge-ledger.mjs (git merge driver) against Lean's Fw.Ops.LedgerMerge: the golden vectors
 // (packages/contracts/golden/ops/ledger-merge.jsonl, written by `lake test -- --write-ledger-merge-golden`), the real
@@ -33,6 +35,27 @@ describe("merge-ledger.mjs reproduces the Lean golden (Fw.Ops.LedgerMerge)", () 
       expect(driver.merge(g.base, g.ours, g.theirs)).toEqual(g.merged);
     });
   }
+});
+
+type NoteKeyGolden = { name: string; notes: { entry: string; task: string; field: string }[]; dups: NoteKey[]; onePerKey: boolean };
+const noteKeyGolden: NoteKeyGolden[] = readFileSync(join(repo, "packages", "contracts", "golden", "ops", "ledger-note-key.jsonl"), "utf8")
+  .split("\n").filter((l) => l !== "").map((l) => JSON.parse(l) as NoteKeyGolden);
+
+describe("one note per (entry, task) reproduces the Lean golden (onePerKey, dupKeys; inc-ledger-note-key-dup)", () => {
+  it("has both refused incident cases and a passing case", () => {
+    expect(noteKeyGolden.filter((g) => g.name.startsWith("refused: combo-scroll-fight") || g.name.startsWith("refused: commission-band-mech")).map((g) => g.onePerKey)).toEqual([false, false]);
+    expect(noteKeyGolden.some((g) => g.onePerKey && g.notes.length > 0)).toBe(true);
+  });
+  for (const g of noteKeyGolden) {
+    it(g.name, () => {
+      expect(noteKeyDups(g.notes)).toEqual(g.dups);
+      expect(onePerKey(g.notes)).toBe(g.onePerKey);
+      const r = noteKeyRefusal(LEDGER_FILE, g.notes);
+      if (g.onePerKey) expect(r).toBeNull();
+      else for (const d of g.dups) expect(r).toContain(`note:${JSON.stringify([d.entry, d.task])}: `);
+    });
+  }
+  it("the real findings ledger passes the dry land's check", () => expect(ledgerNoteKeyCheck(repo)).toBeNull());
 });
 
 const ledgers = ["docs/team/incidents/ledger.json", "research/findings/ledger.json", "research/mistakes/ledger.json"];

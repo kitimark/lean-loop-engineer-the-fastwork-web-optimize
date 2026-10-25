@@ -1,3 +1,4 @@
+import Std.Data.String.ToNat
 /-!
 # The artifact store: layout, run manifests and the `fw run` plan
 
@@ -12,7 +13,7 @@ runs/<runKey>/manifest.json       one manifest per run: what was measured and wh
 
 An object is **content-addressed**: its path is a function of the sha256 of its bytes
 (`objectPath`, injective on 64-hex digests). A run manifest names the engine, the target (original site
-or rewrite), preset, flags, profile, git sha and the image the run executed in, and lists its artifacts as
+or rewrite), preset, flags, profile, git sha, the image the run executed in and its run count, and lists its artifacts as
 `{name, digest, bytes}` sorted by name. The digest of the run's identity (the `runKey`) is the
 sha256 of the canonical JSON of `keyPairs`; the hash is computed by the caller (L3 assumption: sha256
 has no collisions on what we hash), while `keyPairs_inj` proves that distinct configurations
@@ -215,6 +216,7 @@ structure Manifest where
   profile : String
   gitSha : String
   image : String
+  runs : Nat
   runId : String
   entries : List Entry
 deriving Repr
@@ -260,16 +262,16 @@ def Manifest.problems (m : Manifest) : List String :=
   (if !m.runId.isEmpty && m.runId.toList.all Char.isDigit then [] else ["runId: not digits"]) ++
   (if entriesSorted m.entries then [] else ["entries: names must be strictly increasing"]) ++
   (if m.entries.all (fun e => safeName e.name) then [] else ["entries: name escapes the run directory"]) ++
-  (if m.entries.all (fun e => isHex 64 e.digest) then [] else ["entries: digest not 64 hex digits"])
+  (if m.entries.all (fun e => isHex 64 e.digest) then [] else ["entries: digest not 64 hex digits"]) ++
+  (if 1 ≤ m.runs then [] else ["runs: not a positive count"])
 
-/-- A manifest is valid when it has no problem. -/
 def Manifest.valid (m : Manifest) : Bool := m.problems.isEmpty
 
 /-- A valid manifest names a known engine. -/
 theorem Manifest.valid_engine {m : Manifest} (h : m.valid = true) :
     ∃ e, Engine.ofName m.engine = some e := by
   simp only [valid, problems, List.isEmpty_iff, List.append_eq_nil_iff] at h
-  have h1 := h.1.1.1.1.1.1.1.1.1.1.1.1
+  have h1 := h.1.1.1.1.1.1.1.1.1.1.1.1.1
   by_cases hs : (Engine.ofName m.engine).isSome
   · exact Option.isSome_iff_exists.mp hs
   · simp [hs] at h1
@@ -278,8 +280,8 @@ theorem Manifest.valid_engine {m : Manifest} (h : m.valid = true) :
 theorem Manifest.valid_target {m : Manifest} (h : m.valid = true) :
     (∃ t, Target.ofName m.target = some t) ∧ targetFits m.target m.preset m.fw = true := by
   simp only [valid, problems, List.isEmpty_iff, List.append_eq_nil_iff] at h
-  have h1 := h.1.1.1.1.1.1.1.1.1.1.1.2
-  have h2 := h.1.1.1.1.1.1.1.1.1.1.2
+  have h1 := h.1.1.1.1.1.1.1.1.1.1.1.1.2
+  have h2 := h.1.1.1.1.1.1.1.1.1.1.1.2
   constructor
   · by_cases hs : (Target.ofName m.target).isSome
     · exact Option.isSome_iff_exists.mp hs
@@ -296,18 +298,15 @@ theorem Manifest.valid_entries {m : Manifest} (h : m.valid = true) :
   · apply entriesSorted_nodup
     by_cases hs : entriesSorted m.entries = true
     · exact hs
-    · have := h.1.1.2; simp [hs] at this
+    · have := h.1.1.1.2; simp [hs] at this
   · intro e he
-    have h3 := h.2
+    have h3 := h.1.2
     by_cases hs : (m.entries.all (fun e => isHex 64 e.digest)) = true
     · simp only [List.all_eq_true] at hs; exact hs e he
     · simp [hs] at h3
 
 /-! ## The identity of a run -/
 
-/-- What a run's identity depends on. `target` selects the page (original or rewrite), `preset` and the flags the
-site configuration, `profile` the scroll script, `sha` the code, `image` the browser build and machine.
--/
 structure Req where
   engine : Engine
   target : Target
@@ -316,8 +315,8 @@ structure Req where
   profile : String
   sha : String
   image : String
+  runs : Nat
 
-/-- Flatten flags to key pairs: each part and each variant is its own pair. -/
 def flagPairs (fw : List (String × String)) : List (String × String) :=
   fw.flatMap fun p => [("fw", p.1), ("fwv", p.2)]
 
@@ -333,22 +332,19 @@ theorem flagPairs_inj : ∀ {a b : List (String × String)}, flagPairs a = flagP
     have := flagPairs_inj (a := a) (b := b) h3
     rw [h1, h2, this]
 
-/-- The pairs whose canonical JSON the caller hashes to get the run key.
-
-Version 2 added the target (version 1 keys had none, so an original and a rewrite run shared one key).
--/
+/-- The pairs whose canonical JSON the caller hashes to get the run key. -/
 def keyPairs (r : Req) : List (String × String) :=
-  [("v", "2"), ("engine", r.engine.name), ("target", r.target.name), ("preset", r.preset), ("profile", r.profile),
-   ("sha", r.sha), ("image", r.image)] ++ flagPairs r.fw
+  [("v", "3"), ("engine", r.engine.name), ("target", r.target.name), ("preset", r.preset), ("profile", r.profile),
+   ("sha", r.sha), ("image", r.image), ("runs", toString r.runs)] ++ flagPairs r.fw
 
-/-- **Distinct configurations never share the input of the key hash.** -/
 theorem keyPairs_inj {r r' : Req} (h : keyPairs r = keyPairs r') : r = r' := by
   simp only [keyPairs, List.cons_append, List.nil_append, List.cons.injEq, Prod.mk.injEq] at h
-  obtain ⟨_, ⟨_, he⟩, ⟨_, ht⟩, ⟨_, hp⟩, ⟨_, hr⟩, ⟨_, hs⟩, ⟨_, hi⟩, hf⟩ := h
+  obtain ⟨_, ⟨_, he⟩, ⟨_, ht⟩, ⟨_, hp⟩, ⟨_, hr⟩, ⟨_, hs⟩, ⟨_, hi⟩, ⟨_, hn⟩, hf⟩ := h
   have hf := flagPairs_inj hf
+  have hn : r.runs = r'.runs := Nat.repr_injective hn
   cases r; cases r'
   simp only at *
-  rw [Engine.name_inj he, Target.name_inj ht, hp, hr, hs, hi, hf]
+  rw [Engine.name_inj he, Target.name_inj ht, hp, hr, hs, hi, hn, hf]
 
 /-- **Different targets give different keys:** an original run and a rewrite run never share a key, whatever else they
 have in common.
@@ -356,20 +352,24 @@ have in common.
 theorem keyPairs_target_ne {r r' : Req} (h : r.target ≠ r'.target) : keyPairs r ≠ keyPairs r' :=
   fun hk => h (congrArg Req.target (keyPairs_inj hk))
 
-/-- The run identity a manifest records, when its engine and target are known names. -/
+theorem keyPairs_runs_ne {r r' : Req} (h : r.runs ≠ r'.runs) : keyPairs r ≠ keyPairs r' :=
+  fun hk => h (congrArg Req.runs (keyPairs_inj hk))
+
+theorem keyPairs_ne_v2 (r : Req) (rest : List (String × String)) : keyPairs r ≠ ("v", "2") :: rest := by
+  simp [keyPairs]
+
 def Manifest.req (m : Manifest) : Option Req :=
   match Engine.ofName m.engine, Target.ofName m.target with
   | some e, some t => some { engine := e, target := t, preset := m.preset, fw := m.fw, profile := m.profile,
-                             sha := m.gitSha, image := m.image }
+                             sha := m.gitSha, image := m.image, runs := m.runs }
   | _, _ => none
 
-/-- **A valid manifest has a key**, and its key records the manifest's target name. -/
 theorem Manifest.valid_req {m : Manifest} (h : m.valid = true) :
     ∃ r, m.req = some r ∧ ("target", m.target) ∈ keyPairs r := by
   obtain ⟨e, he⟩ := Manifest.valid_engine h
   obtain ⟨⟨t, ht⟩, _⟩ := Manifest.valid_target h
   refine ⟨{ engine := e, target := t, preset := m.preset, fw := m.fw, profile := m.profile, sha := m.gitSha,
-            image := m.image }, by simp [Manifest.req, he, ht], ?_⟩
+            image := m.image, runs := m.runs }, by simp [Manifest.req, he, ht], ?_⟩
   simp [keyPairs, Target.name_ofName ht]
 
 /-! ## The plan of `fw run` -/
@@ -459,23 +459,18 @@ def needs (q : Request) : List String :=
   (if q.preset == defaultPreset then [] else ["preset"]) ++
   (if q.fw.isEmpty then [] else ["fw"])
 
-/-- The dispatch inputs: the engine's own, from the request. Chromium takes the profile, the run count (in decimal),
-the target (always sent, so the workflow never falls back to its default `both`), the preset and the flags
-(`image_run` keeps its default); WebKit takes the target, the preset and the flags (webkit-sim has no profile input, so a
-profile other than the default is blocked; the run count is not an input either: its VM and session counts stay at the
-workflow defaults).
--/
 def dispatchInputs (e : Engine) (q : Request) : List (String × String) :=
   match e with
   | .chromium => [("profile", q.profile), ("runs", toString q.runs), ("target", q.target), ("preset", q.preset),
                   ("fw", fwInput q.fw)]
-  | .webkit => [("target", q.target), ("preset", q.preset), ("fw", fwInput q.fw)]
+  | .webkit => [("vms", toString q.runs), ("target", q.target), ("preset", q.preset), ("fw", fwInput q.fw)]
 
-/-- **Chromium is told the target:** its dispatch inputs carry the request's target, never the workflow default. -/
 theorem dispatch_target (q : Request) : ("target", q.target) ∈ dispatchInputs .chromium q := by
   simp [dispatchInputs]
 
-/-- Why a job cannot run: the first needed field its workflow has no input for. -/
+theorem dispatch_vms (q : Request) : ("vms", toString q.runs) ∈ dispatchInputs .webkit q := by
+  simp [dispatchInputs]
+
 def blocked (e : Engine) (q : Request) : Option String :=
   (needs q).find? (fun x => !(workflowInputs e).contains x)
 
@@ -554,7 +549,8 @@ theorem dispatch_keys_declared (e : Engine) (q : Request) : ∀ p ∈ dispatchIn
   intro p hp
   cases e <;> simp [dispatchInputs, workflowInputs, Lane.ofEngine, Lane.inputs] at hp ⊢ <;> rcases hp with rfl | rfl | rfl | rfl | rfl <;> simp
 
-/-- One job of a plan. -/
+def webkitMaxVms : Nat := 3
+
 structure Job where
   engine : Engine
   workflow : String
@@ -578,17 +574,16 @@ def reqProblems (q : Request) : List String :=
   (if flagsOk q.fw then [] else ["fw: a part appears twice"]) ++
   (if 2 ≤ q.runs && q.runs ≤ 10 then [] else ["runs: must be 2 to 10"]) ++
   (if isHex 40 q.sha then [] else ["sha: not 40 hex digits"]) ++
-  (if q.images.all (fun p => (Engine.ofName p.1).isSome && imageOk p.2) then [] else ["images: unknown engine or bad image"])
+  (if q.images.all (fun p => (Engine.ofName p.1).isSome && imageOk p.2) then [] else ["images: unknown engine or bad image"]) ++
+  (if q.engines.contains Engine.webkit.name && webkitMaxVms < q.runs then ["runs: webkit-sim takes at most 3 VMs"] else [])
 
-/-- The jobs of a request for one target: one per distinct requested engine, in canonical order. -/
 def jobsFor (q : Request) (t : Target) : List Job :=
   let es := canonEngines (q.engines.filterMap Engine.ofName)
   es.map fun e =>
     { engine := e, workflow := workflowOf e, inputs := dispatchInputs e q, blocked := blocked e q,
       key := keyPairs { engine := e, target := t, preset := q.preset, fw := q.fw, profile := q.profile, sha := q.sha,
-                        image := imageOf q e } }
+                        image := imageOf q e, runs := q.runs } }
 
-/-- The jobs of a request: those for its target, none when the target is not a known name. -/
 def jobsOf (q : Request) : List Job :=
   match Target.ofName q.target with
   | some t => jobsFor q t
@@ -605,8 +600,8 @@ theorem plan_nil_of_problems {q : Request} (h : reqProblems q ≠ []) : plan q =
 theorem reqProblems_nil_target {q : Request} (h : reqProblems q = []) :
     (∃ t, Target.ofName q.target = some t) ∧ targetFits q.target q.preset q.fw = true := by
   simp only [reqProblems, List.append_eq_nil_iff] at h
-  have h1 := h.1.1.1.1.1.1.1.1.2
-  have h2 := h.1.1.1.1.1.1.1.2
+  have h1 := h.1.1.1.1.1.1.1.1.1.2
+  have h2 := h.1.1.1.1.1.1.1.1.2
   constructor
   · by_cases hs : (Target.ofName q.target).isSome
     · exact Option.isSome_iff_exists.mp hs
@@ -639,7 +634,7 @@ theorem reqProblems_nil_flags {q : Request} (h : reqProblems q = []) : flagsOk q
   simp only [reqProblems, List.append_eq_nil_iff] at h
   by_cases hs : flagsOk q.fw = true
   · exact hs
-  · have := h.1.1.1.2; simp [hs] at this
+  · have := h.1.1.1.1.2; simp [hs] at this
 
 /-- **A job's key carries its engine and the request's flags.** Two jobs of one plan have different
 keys (they differ in the engine pair).
@@ -681,6 +676,37 @@ theorem plan_key_target_ne {q q' : Request} (h : reqProblems q = []) (h' : reqPr
   apply ht
   rw [← Target.name_ofName hq, ← Target.name_ofName hq']
   exact congrArg Target.name htt
+
+theorem plan_key_runs {q : Request} {j : Job} (hj : j ∈ plan q) : ∃ r : Req, r.runs = q.runs ∧ j.key = keyPairs r := by
+  unfold plan at hj
+  split at hj
+  · unfold jobsOf at hj
+    split at hj
+    · simp only [jobsFor, List.mem_map] at hj
+      obtain ⟨e, _, rfl⟩ := hj
+      exact ⟨_, rfl, rfl⟩
+    · simp at hj
+  · simp at hj
+
+theorem plan_key_runs_ne {q q' : Request} (hr : q.runs ≠ q'.runs) {j j' : Job} (hj : j ∈ plan q)
+    (hj' : j' ∈ plan q') : j.key ≠ j'.key := by
+  obtain ⟨r, hr1, hk⟩ := plan_key_runs hj
+  obtain ⟨r', hr2, hk'⟩ := plan_key_runs hj'
+  rw [hk, hk']
+  exact keyPairs_runs_ne (by rw [hr1, hr2]; exact hr)
+
+theorem reqProblems_nil_webkit_runs {q : Request} (h : reqProblems q = []) (hw : Engine.webkit.name ∈ q.engines) :
+    2 ≤ q.runs ∧ q.runs ≤ webkitMaxVms := by
+  simp only [reqProblems, List.append_eq_nil_iff] at h
+  have h1 := h.1.1.1.2
+  have h2 := h.2
+  constructor
+  · by_cases hs : (2 ≤ q.runs && q.runs ≤ 10) = true
+    · simp at hs; exact hs.1
+    · simp [hs] at h1
+  · by_cases hs : webkitMaxVms < q.runs
+    · simp [hs, hw] at h2
+    · omega
 
 /-! ## The breakpoint gate lane
 
@@ -846,8 +872,15 @@ def exRw : Request := { exReq with target := "rewrite", preset := "strip-demo", 
 #guard blocked .webkit exRw == none
 #guard dispatchInputs .chromium exRw
   == [("profile", "swipe-v1"), ("runs", "3"), ("target", "rewrite"), ("preset", "strip-demo"), ("fw", "hero.countdown:strip")]
-#guard dispatchInputs .webkit exRw == [("target", "rewrite"), ("preset", "strip-demo"), ("fw", "hero.countdown:strip")]
-#guard dispatchInputs .webkit exReq == [("target", "original"), ("preset", "original"), ("fw", "")]
+#guard dispatchInputs .webkit exRw == [("vms", "3"), ("target", "rewrite"), ("preset", "strip-demo"), ("fw", "hero.countdown:strip")]
+#guard dispatchInputs .webkit exReq == [("vms", "3"), ("target", "original"), ("preset", "original"), ("fw", "")]
+#guard dispatchInputs .webkit { exReq with runs := 2 } |>.contains ("vms", "2")
+#guard (dispatchInputs .webkit exRw).all (fun p => Lane.webkitSim.inputs.contains p.1)
+#guard (plan exReq).map (·.key) != (plan { exReq with runs := 2 }).map (·.key)
+#guard ((plan exReq).map (·.key)).all (·.contains ("runs", "3"))
+#guard reqProblems { exReq with runs := 4 } == ["runs: webkit-sim takes at most 3 VMs"]
+#guard reqProblems { exReq with runs := 4, engines := ["chromium"] } == []
+#guard reqProblems { exReq with runs := 3 } == []
 #guard cacheOf (some "a") ["a"] == "hit"
 #guard cacheOf (some "b") ["a"] == "miss"
 #guard cacheOf none ["a"] == "unknown"

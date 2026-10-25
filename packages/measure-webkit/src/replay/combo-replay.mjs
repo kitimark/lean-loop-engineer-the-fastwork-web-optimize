@@ -37,6 +37,16 @@ export const RECORDER_JS = `(() => {
   requestAnimationFrame(loop);
 })()`;
 
+export const PASSIVE_JS = `(() => {
+  const add = EventTarget.prototype.addEventListener;
+  add.call(window, 'touchmove', () => {}, { capture: true, passive: false });
+  EventTarget.prototype.addEventListener = function (type, fn, opts) {
+    if (type !== 'touchmove' && type !== 'wheel') return add.call(this, type, fn, opts);
+    const o = typeof opts === 'object' && opts !== null ? { ...opts, passive: true } : { capture: opts === true, passive: true };
+    return add.call(this, type, fn, o);
+  };
+})()`;
+
 export const START_JS = (start) => `(() => {
   const se = document.scrollingElement;
   const max = se.scrollHeight - innerHeight;
@@ -50,10 +60,11 @@ export const START_JS = (start) => `(() => {
   return y;
 })()`;
 
-export async function comboPass({ browser, origin, search = '', profile, throttle = 6, settleMs = 4000, tailMs = 2500, log = () => {} }) {
+export async function comboPass({ browser, origin, search = '', profile, throttle = 6, settleMs = 4000, tailMs = 2500, passive = false, log = () => {} }) {
   const v = profile.viewport;
   const context = await browser.newContext({ viewport: { width: v.width, height: v.height }, deviceScaleFactor: v.dpr, isMobile: true, hasTouch: true });
   try {
+    if (passive) await context.addInitScript(PASSIVE_JS);
     await context.addInitScript(RECORDER_JS);
     const page = await context.newPage();
     const cdp = await context.newCDPSession(page);
@@ -75,7 +86,7 @@ export async function comboPass({ browser, origin, search = '', profile, throttl
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
     const rec = await page.evaluate('JSON.stringify({ t: __combo.t, y: __combo.y, m: __combo.m, d: __combo.d, writes: __combo.writes, moves: __combo.moves })');
     const r = JSON.parse(rec);
-    return { maxY, variants: JSON.parse(variants), events: events.length, lateMax: Math.max(...late), rec: r, metrics: metrics({ ts: r.t, ys: r.y, down: r.d, writes: r.writes, ms: r.m }) };
+    return { maxY, variants: JSON.parse(variants), events: events.length, lateMax: Math.max(...late), rec: r, metrics: metrics({ ts: r.t, ys: r.y, down: r.d, writes: r.writes, ms: r.m, moves: r.moves }) };
   } finally {
     await context.close();
   }

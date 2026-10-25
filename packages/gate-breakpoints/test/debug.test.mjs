@@ -33,6 +33,7 @@ test('withDebug: appends fw-debug after the search; nothing for no recorder', ()
 
 test('readDebug: the field of the recorder, or null when the page did not install it', () => {
   assert.equal(fieldOf('nav-transition'), 'navTransition');
+  assert.equal(fieldOf('root-events'), 'rootEvents');
   const had = globalThis.window;
   try {
     globalThis.window = {};

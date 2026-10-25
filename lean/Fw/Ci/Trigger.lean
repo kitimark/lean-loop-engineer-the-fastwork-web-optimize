@@ -212,6 +212,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/contracts/golden/gate/run-perm.jsonl", "packages/contracts/golden/gate/run-perm-cells.jsonl",
     "packages/contracts/golden/parts/stage.jsonl", "packages/contracts/golden/parts/stage-mode.jsonl",
     "apps/site/src/registry/layer-opts.gen.ts", "packages/contracts/golden/console/layer-opts.jsonl",
+    "apps/site/src/parts/engine.events/quiet.gen.ts", "packages/contracts/golden/parts/react-root-quiet.jsonl",
     "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "packages/contracts/golden/parts/nav.earn.curve.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl", "packages/contracts/golden/parts/morph.end.jsonl", "packages/contracts/golden/parts/combo-scroll.jsonl", "packages/contracts/golden/parts/platform-glint-pause.jsonl",
@@ -997,7 +998,7 @@ the smoothness workflow reads the same line as before, and a `[frames:` message 
 The lane is still asked for with its `[ci:trajectory-probe]` token (`Fw.Ci.Intent`); this section decides what the push
 runs *with*. Only a line that starts with the keyword counts, so a message that quotes the form in prose asks for nothing.
 Keys: `fw`, `preset` (exclusive with `fw`), `widths`, `engines`, `debug`, and the bare word `diagnostic`; each at most once, each with a value from a closed
-character set. `debug` names a page recorder of the probe (`nav-transition`) and takes only a value of a closed list; no file
+character set. `debug` names a page recorder of the probe (`nav-transition`, `root-events`) and takes only a value of a closed list; no file
 of the repo can turn a recorder on, so nothing that lands on `main` does. A line that does not parse is refused with a reason (the plan step of the workflow fails with it); it is
 never ignored. Two such lines are refused too. -/
 
@@ -1134,8 +1135,7 @@ def diagnosticWord : String := "diagnostic"
 /-- The engines input values. -/
 def probeEngines : List String := ["both", "chromium", "playwright-webkit"]
 
-/-- The page recorders a push may ask for (`apps/site/src/debug/`; the probe loads the rewrite arms with `fw-debug=<name>`). -/
-def probeDebugs : List String := ["nav-transition"]
+def probeDebugs : List String := ["nav-transition", "root-events"]
 
 /-- Split `key=value` at the first `=`. -/
 def splitEq : List Char → Option (List Char × List Char)
@@ -1177,7 +1177,7 @@ def build (lane : ProbeLane) (kv : List (String × String)) : Except String Prob
   if p.fw != "" && p.preset != "" then .error "fw and preset are exclusive"
   else if !probeEngines.contains p.engines then .error "engines must be both, chromium or playwright-webkit"
   else if !p.widthsOk lane then .error (p.widthsWhy lane)
-  else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition"
+  else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition or root-events"
   else .ok p
 
 /-- One candidate line parsed. -/
@@ -1497,7 +1497,7 @@ def buildPre (kv : List (String × String)) : Except String ProbeIn :=
   else if !probeEngines.contains p.engines then .error "engines must be both, chromium or playwright-webkit"
   else if decide (Fw.Gate.Trajectory.pickWidths p.widths = .refused) then
     .error "widths must be a comma list of 390, 640, 641, 1280 without repeats"
-  else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition"
+  else if p.debug != "" && !probeDebugs.contains p.debug then .error "debug must be nav-transition or root-events"
   else .ok p
 
 /-- Pre-task `parseOne`. -/
@@ -1640,6 +1640,7 @@ def appleMsgs : List String := [
   "ci: measure\n\n[ci:trajectory-probe]",
   "[ci:trajectory-probe]\n[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]",
   "[trajectory debug=nav-transition]",
+  "[trajectory debug=root-events]",
   "[trajectory debug=other]",
   "[trajectory fw=a.b:c widths=1280]",
   "[trajectory fw=a.b:c debug=nav-transition debug=nav-transition]",
@@ -1708,6 +1709,7 @@ def probeMsgs : List String := [
   "[trajectory fw=morph.tween:waapi widths=1280 engines=playwright-webkit debug=nav-transition]",
   "[trajectory debug=nav-transition]",
   "[trajectory fw=morph.tween:waapi debug=nav-transition debug=nav-transition]",
+  "[trajectory debug=root-events]",
   "[trajectory debug=other]",
   "[trajectory debug=Nav-Transition]",
   "[trajectory debug=nav-transition,nav-transition]",
@@ -1738,7 +1740,8 @@ def probeLines (_ : Unit := ()) : List Json :=
 
 example : pushProbe .trajectory true "[trajectory fw=a.b:c widths=390 diagnostic]" = .run ⟨"both", "a.b:c", "", "390", "", true⟩ := by decide
 example : pushProbe .trajectory true "[trajectory debug=nav-transition]" = .run { ProbeIn.default with debug := "nav-transition" } := by decide
-example : pushProbe .trajectory true "[trajectory debug=other]" = .refused "debug must be nav-transition" := by decide
+example : pushProbe .trajectory true "[trajectory debug=root-events]" = .run { ProbeIn.default with debug := "root-events" } := by decide
+example : pushProbe .trajectory true "[trajectory debug=other]" = .refused "debug must be nav-transition or root-events" := by decide
 example : pushProbe .trajectory true "x [trajectory fw=a.b:c]" = .run ProbeIn.default := by decide
 example : pushProbe .trajectory false "[trajectory fw=a.b:c]" = .needsLane := by decide
 example : pushProbe .trajectory true "[trajectory fw=a preset=b]" = .refused "fw and preset are exclusive" := by decide

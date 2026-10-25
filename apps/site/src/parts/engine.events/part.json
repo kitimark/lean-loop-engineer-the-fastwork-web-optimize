@@ -1,0 +1,14 @@
+{
+  "id": "engine.events",
+  "slot": "engine",
+  "anchors": ["engine-events"],
+  "experiment": true,
+  "impls": [],
+  "muiStates": [],
+  "variants": {
+    "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "react": "react-dom 19.3.1 listenToAllSupportedEvents, DOMPluginEventSystem.js:432-445@61aa00d" } },
+    "quiet": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.ReactRootOpt quiet_none, quiet_keeps, handled_stays, orig_registers, quiet_drops, records_orig, records_quiet, records_other", "webkit": "dom/EventTarget.cpp:313-357@862f17d", "limit": "the root container only: a React portal into another container would register the 7 types again (quiet.scan.test.ts refuses portals and the input family); no look change, no handler of the page changes; counts are engine work, not felt smoothness" } }
+  },
+  "requires": {},
+  "conflicts": {}
+}
