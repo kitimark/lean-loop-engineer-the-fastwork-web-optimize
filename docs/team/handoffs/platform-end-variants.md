@@ -22,4 +22,4 @@ read first: the note.
 
 round 2 (no new dispatch): Chromium zone y05000 row (191 frames, lane sums: base Paint 838 PrePaint 324, fade 861/350) added, claims in note and ledger corrected;
 WebKit tables recomputed on y <= 5200 (passes end at 5231 or 5267; verdicts unchanged); ledger fade-threaded field is now 'chromium'.
-Numbers rebuilt from the downloaded artifacts (scratchpad/pev/ch.py, wk.py, not committed). Follow-ups open: base VM r1 rerun, WebKit Lean zone verdict, attribution arms, re-dry at land.
+Rebuilt with scratchpad/pev/ch.py, wk.py (not committed). Follow-ups open: base VM r1 rerun, WebKit Lean zone verdict, attribution arms, re-dry at land.

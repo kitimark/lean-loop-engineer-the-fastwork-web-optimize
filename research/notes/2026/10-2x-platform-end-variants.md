@@ -68,7 +68,7 @@ topics: [platform, sweep, glint, entries, fade-threaded, end-of-page, webkit, ch
 - Verdict rule: the Lean `Fw.Measure.Offscreen` comparison, per counter `cmp` of the spread (lo-hi) of the repeats with
   slack 0, then `judge`: any `more` is `noGain`; else any `less` is `gain`; else `noGain`
   (`judge_more`, `judge_gain`, `judge_same`). The code is the golden-checked twin in
-  `packages/measure-chromium/src/offscreen.mjs` (`cmp`, `judge`). **TS stand-in:** the key subset (the lane has no
+  `packages/measure-chromium/src/offscreen.mjs` (`cmp`, `judge`). TS stand-in: the key subset (the lane has no
   `BeginMainFrame`, `NeedsTick`, `TickAnimations`, so `verdict` itself would say `noData` through `hasKeys`) and the
   zone sums are scratch scripts (`scratchpad/pev/ch.mjs`, `wk.mjs`, not committed). Chromium keys: RecalcStyleCount,
   LayoutCount, UpdateLayoutTree, Layout, PrePaint, Paint, Commit, cc.Draw, FireAnimationFrame. WebKit keys:
@@ -155,7 +155,7 @@ first, because the pause arm already shows it rasters. This is a follow-up round
 ## Limits
 
 - CI only, no phone (the Simulator stands in for the iPhone; phone checks come with phone-compose-counts).
-- Chromium push windows are my fixed frame edges; WebKit has no push, only scroll zones.
+- WebKit has no push, only scroll zones.
 - WebKit base has 4 passes on 2 VMs (VM r1 was cancelled by the runner), the arms have 6 on 3 VMs; the ranges of the
   base are therefore a little narrower, which can only turn a `same` into `more` or `less` for a flag, and no `less`
   appeared.
