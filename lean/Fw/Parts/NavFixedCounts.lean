@@ -312,9 +312,9 @@ def decode (text : String) : Except String (List ArmData) := do
 
 def rawText : String := include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.webkit-passes.json"
 
-def data : List ArmData := (decode rawText).toOption.getD []
+def data (_ : Unit) : List ArmData := (decode rawText).toOption.getD []
 
-def armData (name : String) : Option ArmData := data.find? (·.arm == name)
+def armData (name : String) : Option ArmData := (data ()).find? (·.arm == name)
 
 /-! ## Zone sums -/
 
@@ -416,14 +416,14 @@ def workCells : List CellId :=
   zones.flatMap fun z => [Metric.layout, .recalc, .functionCall, .composite].map fun m => ⟨z, m, none⟩
 
 /-- The census states of all arms, as (zone, requested y), lowest y first, the end state last. -/
-def censusStates : List (Zone × Int) :=
-  let all := data.flatMap fun a => a.passes.flatMap fun p => p.census.dropLast.map fun e => (censusZone p e.1, e.1)
+def censusStates (_ : Unit) : List (Zone × Int) :=
+  let all := (data ()).flatMap fun a => a.passes.flatMap fun p => p.census.dropLast.map fun e => (censusZone p e.1, e.1)
   (all.eraseDups.mergeSort fun a b => a.2 ≤ b.2) ++ [(.finish, endState)]
 
-def censusCells : List CellId :=
-  censusStates.flatMap fun s => [Metric.layers, .bytes].map fun m => ⟨s.1, m, some s.2⟩
+def censusCells (_ : Unit) : List CellId :=
+  (censusStates ()).flatMap fun s => [Metric.layers, .bytes].map fun m => ⟨s.1, m, some s.2⟩
 
-def cells : List CellId := workCells ++ censusCells
+def cells (_ : Unit) : List CellId := workCells ++ censusCells ()
 
 def flags : List String := ["clip-box", "bar-fixed", "logo-3d"]
 
@@ -434,9 +434,9 @@ def cellVerdict (flag : String) (c : CellId) : V :=
 
 /-- A flag's decision in one zone, from its own cells against the base. -/
 def zoneVerdict (flag : String) (z : Zone) : A :=
-  armOf ((cells.filter (·.zone == z)).map (cellVerdict flag))
+  armOf (((cells ()).filter (·.zone == z)).map (cellVerdict flag))
 
-def flagVerdict (flag : String) : A := armOf (cells.map (cellVerdict flag))
+def flagVerdict (flag : String) : A := armOf ((cells ()).map (cellVerdict flag))
 
 /-! ## Chromium bands
 
@@ -471,9 +471,9 @@ def decodeC (text : String) : Except String (List CArm) := do
 
 def chromiumText : String := include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.chromium-bands.json"
 
-def cdata : List CArm := (decodeC chromiumText).toOption.getD []
+def cdata (_ : Unit) : List CArm := (decodeC chromiumText).toOption.getD []
 
-def carmData (name : String) : Option CArm := cdata.find? (·.arm == name)
+def carmData (name : String) : Option CArm := (cdata ()).find? (·.arm == name)
 
 def bandZone (id : String) : Zone :=
   if id == "y05000" || id == "tail" then .finish
@@ -674,26 +674,26 @@ def cflagLine (flag : String) : String :=
   (Json.mkObj [("fn", jstr "cflag"), ("flag", jstr flag), ("verdict", jstr (aName (cflagVerdict flag))),
     ("review", .bool (lookReview (cflagVerdict flag)))]).compress
 
-def lines : List String :=
+def lines (_ : Unit) : List String :=
   flags.flatMap fun f =>
-    (cells.map (cellLine f)) ++ (zones.map (zoneLine f)) ++ [flagLine f] ++
+    ((cells ()).map (cellLine f)) ++ (zones.map (zoneLine f)) ++ [flagLine f] ++
       (zones.flatMap fun z => cmetrics.map (ccellLine f z)) ++ (zones.map (czoneLine f)) ++ [cflagLine f]
 
-def jsonl : String := String.join ((lines.filter (· ≠ "")).map (· ++ "\n"))
+def jsonl (_ : Unit) : String := String.join (((lines ()).filter (· ≠ "")).map (· ++ "\n"))
 
 /-! ## What the raw files must hold
 
 Lake does not track `include_str`, so a cached build can outlive a changed data file. These guards name the runs and the passes the files
 hold; changing a file means changing them here, and so the module's source. -/
 
-#guard data.map (fun a => (a.arm, a.run, a.passes.length)) ==
+#guard (data ()).map (fun a => (a.arm, a.run, a.passes.length)) ==
   [("base", 40196215217, 6), ("clip-box", 40196217959, 4), ("bar-fixed", 40196221086, 6), ("logo-3d", 40196212618, 6)]
-#guard cdata.map (fun a => (a.arm, a.run, a.passes.length)) ==
+#guard (cdata ()).map (fun a => (a.arm, a.run, a.passes.length)) ==
   [("base", 40171939293, 3), ("clip-box", 40171943772, 3), ("bar-fixed", 40171960215, 3), ("logo-3d", 40171946109, 3)]
-#guard data.all fun a => a.passes.all fun p => p.vh == 775 && p.ys.length == p.steps.length
+#guard (data ()).all fun a => a.passes.all fun p => p.vh == 775 && p.ys.length == p.steps.length
 #guard 3 ≤ endSpread
 
 /-! The golden is this module's own output (written from `jsonl`, never by hand). -/
-#guard jsonl == include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.jsonl"
+#guard jsonl () == include_str "../../../packages/contracts/golden/parts/nav-fixed-counts.jsonl"
 
 end Fw.Parts.NavFixedCounts
