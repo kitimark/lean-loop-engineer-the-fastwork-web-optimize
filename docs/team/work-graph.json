@@ -19981,7 +19981,8 @@
     "docs/report/v2-report.md",
     "docs/team/handoffs/look-decisions-1024.md"
    ],
-   "title": "Record the user's phone review of 2026-10-24 (results/phone/2026-10-24*, user words: 'both of the ?fw=hero.exit:threaded and ?fw=engine.scroll:throttle-lift looks the same as the original'; accent: 'the animation looks difference from the original'): Lean LookDecision rows in Fw.Preset.Gen (hero.exit:threaded accepted as same look on the iPhone; hero.accent:draw-nolayout and draw-nolayout-full rejected), ledger userDecision fields agreeing (ledgerDisagreements empty), goldens regenerated; then decide in Lean whether hero.exit:threaded may enter v2-proved (its proofs, gate rows and the one-frame-lag question q6 'same scroll offset' from the pixel-proof review) and report the preset delta in v2-report.md with the phone numbers (hero felt marks 12 -> 0 for both flags; throttle-lift band runs 90 -> 2)."
+   "title": "Record the user's phone review of 2026-10-24 (results/phone/2026-10-24*, user words: 'both of the ?fw=hero.exit:threaded and ?fw=engine.scroll:throttle-lift looks the same as the original'; accent: 'the animation looks difference from the original'): Lean LookDecision rows in Fw.Preset.Gen (hero.exit:threaded accepted as same look on the iPhone; hero.accent:draw-nolayout and draw-nolayout-full rejected), ledger userDecision fields agreeing (ledgerDisagreements empty), goldens regenerated; then decide in Lean whether hero.exit:threaded may enter v2-proved (its proofs, gate rows and the one-frame-lag question q6 'same scroll offset' from the pixel-proof review) and report the preset delta in v2-report.md with the phone numbers (hero felt marks 12 -> 0 for both flags; throttle-lift band runs 90 -> 2).",
+   "evidence": "72da9a6"
   },
   {
    "devices": [
