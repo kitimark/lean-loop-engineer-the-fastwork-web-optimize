@@ -91,7 +91,7 @@ Per run (MEASURED, artifacts of each run; the last row is the re-scoped claim: 3
   The stall rule (`stall`, `stall_cap`, `stall_startup`, `stall_press`) and the cap `capS n = 300 + 45 n` s are proved to cover the measured
   passes (`cap_covers_samples`, `cap_twice_covers_passes`) and a job of six passes with one worst pass fits the 90 minute step
   (`job_fits`: 4530 s for drags, 4890 s for finish at four cycles, against 5400 s; `job_fits_extra`: 4950 s and 5310 s when that pass also
-  had a clean first run with no usable record). Once `started` and every press mark are in, only the cap applies (`stall_ok_done`): the
+  had a clean first run with no usable record). These cover six passes per job; the toolbar finish lane (run `40145882715`) runs eight, where `jobWorstS (presses .finish 4) 8` = 5730 s exceeds the 5400 s step, so one worst pass there is not proved to fit (MEASURED: touch step 77.5 min in sim 1); follow-up. Once `started` and every press mark are in, only the cap applies (`stall_ok_done`): the
   tear-down after the last press takes 61 to 86 s and writes no mark, and the first CI run killed a finished run there (fin sim 1, `warm-up-t3`,
   3 of 3 presses at 160 s, stopped as `press` at 285 s).
 - **Driver (`driver.mjs`, `DragTests.swift`).** The XCUITest writes a mark file per step (`started`, `press-<i>`) into `TEST_RUNNER_FW_DIR`; the Node side polls every 5 s
@@ -120,7 +120,7 @@ Per run (MEASURED, artifacts of each run; the last row is the re-scoped claim: 3
 
 ## Before and after
 
-Per job (MEASURED, artifacts of the runs; the finish run on the merged code, `40145882715`, ends 3 of 3 jobs with 23 of 24 passes, 1 pass lost to the start-up stall, at most 1 restart per pass; "ok" = `xcodebuild` code 0 and the page record kept; a pass is one arm in one round; 6 per job):
+Per job (MEASURED, artifacts of the runs; the finish run on the merged code, `40145882715`, ends 3 of 3 jobs with 23 of 24 passes, 1 pass lost to the start-up stall, at most 1 restart per pass; "ok" = `xcodebuild` code 0 and the page record kept; a pass is one arm in one round; 6 per job in the earlier runs, 8 in `40145882715`):
 
 | Run | Job | Passes ok | Machine ends | Restarts (recovered) | Longest ok pass |
 |---|---|---|---|---|---|
@@ -151,6 +151,8 @@ Per job (MEASURED, artifacts of the runs; the finish run on the merged code, `40
 - The 709 s restart (lift r2, job 1) passed the Lean 600 s restart budget, so the pass ended as `restartFailed` as the machine says.
 
 ## Limits
+
+- The extra-run rule (one more machine run only when the first used no restart) is TS in `pass-run.mjs`, tested with fakes; `restarts_le_one` covers one machine run.
 
 - Pass bookkeeping is tested with fake sessions (`sim-touch-runner.test.mjs`); the Simulator calls are the TS stand-in. The merged code ran once in CI as a whole (`40145882715`); one run is one sample of 3 jobs.
 
