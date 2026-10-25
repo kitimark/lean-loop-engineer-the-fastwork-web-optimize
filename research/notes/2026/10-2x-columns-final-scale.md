@@ -7,7 +7,7 @@
 - Bound at 390 px: `sx >= a = 0.9767`, so at most 2.3 % horizontal squeeze (`a_390`: a >= 0.97, the proved statement). It holds for every width from 314 to 1000 px (`a_range`, `sx_range`, `squeeze_bound`: squeeze <= 3 %; `radius_bound`: horizontal corner radius within 0.36 px of 12).
 - The bound fails outside that range, so the variant applies only up to 1000 px (the original's `mq.w-le-1000` edge): a = 0.786 at 1280 px, 0.694 at 1440 px (`a_desktop`), 0.9657 at 280 px (`a_narrow`). Above 1000 px the arm is the base layout. Below 314 px the variant still applies and its squeeze bound is not proved (a = 0.9657 at 280 px, `a_narrow`); named, not fixed, since the variant does not ship without a win. This narrows the candidate: no desktop effect.
 - Per-frame layout: the variant's only `--morph`-dependent property in the columns is `transform` (`variant_no_layout`); the base's is the column `width` (`base_width_moves`: strictly increasing in m). The layout box is constant in m (`layout_const`). The backdrop box itself, owned by morph.panel, still changes width each frame; INFERRED that its fixed-width flex items skip relayout.
-- CI counts (MEASURED, runs below): no Layout or style-recalc win on Chromium (40156382719 vs 40156384878) or the WebKit Simulator (40156388674 vs 40156393010, n=2 per arm). Class L, so the user's look review decides shipping.
+- CI counts (MEASURED, runs below): no Layout or style-recalc win on Chromium (40156382719 vs 40156384878) or the WebKit Simulator (40156388674 vs 40156393010, n=2 per arm).
 
 ## Geometry (Lean statements)
 
@@ -76,7 +76,7 @@ Layout per 500 px zone, mean of 2 passes (base r1 / base r3 / flag r1 / flag r3)
 | z8 | 48 | 32.5 | 39 | 35 |
 | z9 | 45.5 | 68 | 59.5 | 65 |
 
-Composite is 19 in z0 and 20 in each of z1 to z9 in every pass of all four sessions (199). Backing memory at the final state is 105.8 MB base (both sessions) against 97.9 MB (r1) and 105.8 MB (r3) flag; the other states are equal within 5 MB. Verdict: z7 is lower in both flag sessions (67.5, 68.5 vs 71, 73) and z0, z6 in flag r1 only; with n=2, zones far from the morph, and the 0-4999 px sums inside the base range, no zone win is established; Composite identical; backing MB unchanged except flag r1 at its final state (-7.9 MB, one session, different final scroll y) (flag r1's final census is at scroll y 5267, the others at 5231, so this is not the same state). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Per-engine verdict: no win on either engine.
+Composite is 19 in z0 and 20 in each of z1 to z9 in every pass of all four sessions (199). Backing memory at the final state is 105.8 MB base (both sessions) against 97.9 MB (r1) and 105.8 MB (r3) flag; the other states are equal within 5 MB. Verdict: z7 is lower in both flag sessions (67.5, 68.5 vs 71, 73) and z0, z6 in flag r1 only; with n=2, zones far from the morph, and the 0-4999 px sums inside the base range, no zone win is established; Composite identical; backing MB unchanged except flag r1 at its final state (-7.9 MB, one session; flag r1's final census is at scroll y 5267, the others at 5231, so not the same state). The last zone (from 5000 px) holds the idle tail and varies from 67 to 455 Layout between passes; it is left out. Per-engine verdict: no win on either engine.
 
 ### Breakpoint gate (run 40156380619, both engines)
 
