@@ -113,6 +113,7 @@ import Fw.Measure.WkCost
 import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
+import Fw.Device.PhoneArms
 import Fw.Device.StillRuns
 import Fw.Device.ThrottleParts
 import Fw.Device.FinishRuns

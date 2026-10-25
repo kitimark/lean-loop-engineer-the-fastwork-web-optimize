@@ -4477,6 +4477,78 @@
    "task": "resource-footprint",
    "field": "mechanism",
    "text": "resource-footprint (Fw.Engine.Resource.Flags, golden engine/resource.jsonl, note research/notes/2026/10-25-resource-footprint.md): resource verdict Chromium open (event dispatch and script unknown: Blink creates an animation event only while a listener of its type exists, css_animations.cc:3610@f842f52), WebKit win: 7 fewer root listener registrations remove dispatch and its script (quietRecords_eq). Phone: 9 agree, 1 disagree (one more layer at y=4500 in all three passes, open); CI WebKit: 2 agree."
+  },
+  {
+   "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): Layout and FireAnimationFrame lower in all three zones (hero Layout 165 vs 195, rAF 163 vs 192, rest Layout 321 vs 376), Paint (hero 665 vs 534) and EventDispatch (338 vs 262) higher, frames the same, 4 to 5 more layers from y 3000. Same direction as the CI Simulator (flag run 39731192687, base 39739724461). Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): layers 51 vs 136 at y 3000 and 56 vs 141 at y 4500 (matches the Simulator, 39548856639 vs 39309416016), but counts mixed (a trade; rest Paint beats the base): hero FunctionCall 712 vs 424 and EventDispatch 562 vs 262 higher, finish Layout 80 vs 52 higher, rest Paint 595 vs 899 lower; frames the same. Repeat before a decision. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.columns:idle-none: remove the marquee track animations (animation-name none) while the scene rule pauses the panel, and seek them back to their kept time on return",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): no count and no frame cell differs from the base spread; layers 124 vs 136 and backing store 93.9 vs 111.0 MB at y 3000 (87.0 vs 104.2 at the end) beat the base, matching the Simulator win (backing 106 to 90 MB, 39897807511 vs 39897814980). Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.countdown hidden: keep the spring integrating, skip the 16 face writes per digit (HiddenPause skipWrites)",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts mixed (a trade: rest Paint falls beyond the base spread while FunctionCall and EventDispatch rise), frames worse (finish Layout 86 vs 52, finish over50 1.85 per 100 vs 0, rest FunctionCall 1006 vs 831 and EventDispatch 720 vs 532 higher, rest Paint 637 vs 899 lower); the CI result was no element drop (39312082945), so the phone disagrees. One visit; repeat. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: lost on the phone, no arm data: three tries in this order, (1) USB re-enumeration with proxy code 1006, named usbReset on the lead's account (INFERRED; try 1 has no error line on disk), (2) our own tab left on the harness page, text \"found 0 of 1 tabs\", which Lean faultOf names other and which was named staleTab by hand (INFERRED), then a hand reset, (3) Runtime.evaluate timed out 15 s mid-scroll with no USB cycle (other, which points at the arm). The lead marked the visit lost after the third (\"strip stall twice\"); Lean PhoneArms.mayAttempt agrees for any three faults (mayAttempt_fourth, strip_visit_lost), so the visit is lost and not retryable in this session; try 3 ran only because the counter restarted after the hand reset; the re-measure is a new visit in a new session in phone-thermal-check with the wip.mjs target-swap fix, not a fourth attempt. The Simulator trade (finish layers 128 to 56, 39775198022 vs 39775174615) is unchecked on the phone. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "hit-skip (skip the probe while morph > 0.2)",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts, area, layers and frames same as the base in every zone; expected (INFERRED), the scripted scroll sends no pointer path for the probe to skip. Not evidence for or against the flag. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "engine.events:quiet: the React root container registers none of the 7 animation and transition listeners (animationstart, animationiteration, animationend, transitionrun, transitionstart, transitioncancel, transitionend; capture and bubble, 14 registrations), through an own addEventListener on #root that drops them; every other root listener stays",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts better, frames same: hero FunctionCall 276 vs 424 (-35%) and EventDispatch 114 vs 262 (-56%), rest 587 vs 831 and 288 vs 532, nothing else moves. Agrees with the Simulator win (EventDispatch -53%, FunctionCall -36%, 40134234199 vs 40134016822). Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.panel:const-bounds: while the nav morphs, keep the panel layer at the nav's final box and inset every child onto the nav box, so the blur-backed panel layer is not resized on any morph frame",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts mixed (a trade: rest Paint beats the base while FunctionCall rises), frames same: rest Paint 711 vs 899 lower, rest FunctionCall 931 vs 831 higher, every other cell same. The Simulator question (open-push Composite 100-148 vs 176-181 ms, 39760667274 vs 39744614747) is another quantity. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius on the nav; the bar and the panel are still placed by the insets, so they lay out per frame",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts and frames same as the base in every zone, layers and backing same; no phone effect in this lane. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "nav:bar-fixed (includes clip-box): the bar keeps its union width and moves by translate, the logo and actions by closed-form translations, so the morph writes no layout property on the bar",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts and frames same in every zone; layers same; backing 103.9 vs 111.0 MB at y 3000 reads beats (one 7 MB tile step, base spread 0 there), noise-level. No phone effect in this lane. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts mixed (a trade: rest Paint falls beyond the base spread while FunctionCall and EventDispatch rise), frames worse: hero Layout 178 vs 195 lower, hero FunctionCall 483 vs 424 and EventDispatch 327 vs 262 higher, finish Layout 90 vs 52 higher, rest over50 4.89 per 100 vs 0.46 and rAF 418 vs 400 higher, rest Paint 649 vs 899 lower. The Simulator moved no count (39872570182). One visit; repeat. Note research/notes/2026/10-25-phone-end-counts.md."
+  },
+  {
+   "entry": "morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger",
+   "task": "phone-end-counts",
+   "field": "lesson",
+   "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts, area, layers and frames same as the base in every zone; no phone effect in this lane (Simulator: -3 layouts, 39325721909). Note research/notes/2026/10-25-phone-end-counts.md."
   }
  ]
 }
