@@ -21096,7 +21096,11 @@
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-combo-held-identity.md",
-    "docs/team/handoffs/combo-held-identity.md"
+    "docs/team/handoffs/combo-held-identity.md",
+    "apps/site/src/parts/morph.end.release/part.json",
+    "packages/contracts/golden/console/console.compose.jsonl",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw/Ops/Golden.lean"
    ],
    "title": "Follow-up of combo-scroll-fight (the user's scroll-back bug): the hold bit in morph.tween/driver.ts:121-138 reads e.cancelable, but a passive listener (the band hub's passive mode, morph.mount:arm-late outside the band) keeps cancelable true while preventDefault is ignored, so the frame writer could still pin against a native scroll there. Do: base held on e.defaultPrevented after the handler's call (identity over inference), model it in Lean Fw.Parts.ComboScroll (held iff the move was actually prevented; the fix theorem and brick theorems kept, including with arm-late passive), regenerate the golden from Lean and replay it in combo-scroll.test.ts; apply the same hold rule to the waapi and waapi-scoped pin writers (waapi.driver.ts:234-235) or prove they cannot run with release; re-run the device-replay combo job (its needs/max-parallel shape has never run) on the user-bug-1025 profiles with the user's 8 flags plus an arm-late-passive case: zero script writes against a native scroll, zero no-finger reversals (run ids)."
   },
@@ -21123,7 +21127,8 @@
     "research/notes/2026/10-2x-lake-span-mods.md",
     "docs/team/handoffs/lake-span-mods.md"
    ],
-   "title": "timing.slow raises false alarms on real Lean rebuilds: 'lean/check/lake build' took 51 s against a p50 of 0.78 s and the dry land's 'lake_slot .. lake build && axiom-check' 37 s against 3.2 s, both right after a branch merged main (new Lean modules), because these two spans carry no mods work dimension, so a rebuild is judged against cached no-op samples. Lean Fw.Obs.Timing already has modsDim/modsWork (modsLow buckets) and Sample.unkeyed, and apps/runner/src/timing.ts lakeWork reads lake.built, but the emitters never record the built count. Do: make fwcore-build.sh / the check.sh lake span and the land dry lake step record lake.built (the number of modules lake built, from its output), so their samples are keyed by mods; prove in Lean that a sample with a different mods class is never judged against another class's baseline, and that the two recorded incident samples (51053 ms at mods >= 1 vs 780 ms at mods 0) are not slow; golden replayed by the timing tests."
+   "title": "timing.slow raises false alarms on real Lean rebuilds: 'lean/check/lake build' took 51 s against a p50 of 0.78 s and the dry land's 'lake_slot .. lake build && axiom-check' 37 s against 3.2 s, both right after a branch merged main (new Lean modules), because these two spans carry no mods work dimension, so a rebuild is judged against cached no-op samples. Lean Fw.Obs.Timing already has modsDim/modsWork (modsLow buckets) and Sample.unkeyed, and apps/runner/src/timing.ts lakeWork reads lake.built, but the emitters never record the built count. Do: make fwcore-build.sh / the check.sh lake span and the land dry lake step record lake.built (the number of modules lake built, from its output), so their samples are keyed by mods; prove in Lean that a sample with a different mods class is never judged against another class's baseline, and that the two recorded incident samples (51053 ms at mods >= 1 vs 780 ms at mods 0) are not slow; golden replayed by the timing tests.",
+   "evidence": "2bc3e2c"
   },
   {
    "devices": [
