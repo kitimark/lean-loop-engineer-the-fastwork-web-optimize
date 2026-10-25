@@ -358,3 +358,20 @@ test('compare --vm r1 with site digests: equal digests exit 0, different digests
   writeFileSync(join(cm, 'other.txt'), `${'0'.repeat(64)}  1 files\n`);
   assert.equal(await run(join(cm, 'other.txt')), 3);
 });
+
+test('fetchBuild unpacks the zip Codemagic bundles the artifacts into, flat next to it', async (t) => {
+  if (spawnSync('zip', ['-v']).error) return t.skip('no zip binary');
+  const src = site({ 'fw-result/r1-session-1.md': 'table', 'fw-extra/site-digest.txt': `${'a'.repeat(64)}  1 files\n` });
+  const zipPath = join(tmpdir(), `cm-${Date.now()}.zip`);
+  assert.equal(spawnSync('zip', ['-q', '-r', zipPath, 'fw-result', 'fw-extra'], { cwd: src }).status, 0);
+  const bytes = readFileSync(zipPath);
+  const root = tmp();
+  const responses = { build: { build: { _id: 'b3', status: 'finished', createdAt: '2026-10-21T10:00:00Z', startedAt: '2026-10-21T10:01:00Z', finishedAt: '2026-10-21T10:10:00Z', artefacts: [{ name: 'x_artifacts.zip', url: 'https://api.codemagic.io/artifacts/z', size: bytes.length }] } } };
+  const fetchFn = async (url) => (String(url).includes('/artifacts/z')
+    ? { status: 200, ok: true, headers: new Headers(), text: async () => '', arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.length) }
+    : { status: 200, ok: true, headers: new Headers(), text: async () => JSON.stringify(responses.build), arrayBuffer: async () => new ArrayBuffer(0) });
+  const ctx = { fetchFn, getToken: () => TOKEN, ledgerPath: join(root, 'ledger.json'), now: () => 0, log: () => {}, sleep: async () => {} };
+  await fetchBuild(ctx, { buildId: 'b3', out: join(root, 'o') });
+  assert.equal(readFileSync(join(root, 'o', 'artifacts', 'r1-session-1.md'), 'utf8'), 'table');
+  assert.equal(digestOfText(readFileSync(join(root, 'o', 'artifacts', 'site-digest.txt'), 'utf8')), 'a'.repeat(64));
+});

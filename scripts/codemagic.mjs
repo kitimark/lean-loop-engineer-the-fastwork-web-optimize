@@ -183,7 +183,12 @@ export async function fetchBuild(ctx, { buildId, out }) {
   writeFileSync(join(out, 'build.json'), `${JSON.stringify(doc, null, 2)}\n`);
   for (const a of b.artifacts) {
     if (!a.url) continue;
-    try { writeFileSync(join(out, 'artifacts', safeName(a.name)), Buffer.from(await (await request(ctx, 'GET', new URL(a.url, API).href, { accept: '*/*' })).arrayBuffer())); } catch (e) { ctx.log?.(`codemagic: artifact ${a.name}: ${e.message}`); }
+    try {
+      const file = join(out, 'artifacts', safeName(a.name));
+      writeFileSync(file, Buffer.from(await (await request(ctx, 'GET', new URL(a.url, API).href, { accept: '*/*' })).arrayBuffer()));
+      // Codemagic bundles the artifacts of a build into one zip (build 6ade005d: fw-result/ and fw-extra/); the cell files sit flat next to it.
+      if (/\.zip$/i.test(a.name)) execFileSync('unzip', ['-o', '-q', '-j', file, '-d', join(out, 'artifacts')]);
+    } catch (e) { ctx.log?.(`codemagic: artifact ${a.name}: ${e.message}`); }
   }
   mkdirSync(join(out, 'logs'), { recursive: true });
   for (const [i, s] of b.steps.entries()) {
