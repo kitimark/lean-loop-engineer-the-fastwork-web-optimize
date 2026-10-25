@@ -21,7 +21,7 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
   position reproduces.
 - **Decision (closed design, round 2).** Digits last is reverted to the subscribe position. Measured on Chromium,
   swipe-touch-v1: subscribe position +1 UpdateLayoutTree in 1 of 531 frames (frame 499; old runs, all 3 runs), digits
-  last +1 in 157 of 771 frames. The revert is the lead's closed-design choice. On the same 771-frame profile the subscribe position adds +1 in
+  last +1 in 157 of 771 frames. On the same 771-frame profile the subscribe position adds +1 in
   233-238 frames (round 2) and digits last in 157-159 (round 1), so on Chromium the subscribe position is the larger
   extra. Golden row `orders` (regenerated from Lean) is replayed through the real shared loop by
   `oneChain.test.ts` for the three orders and both kinds; `last` is the model's order, not shipped code.
@@ -47,7 +47,7 @@ Task one-chain-webkit, CI branch ci/one-chain-webkit. Follows `10-20-countdown-o
   layout 663 from a degraded session. That is not a comparison. Re-dispatch the base:
   `pnpm -s fw run --target rewrite --engines webkit --runs 3 --ref ci/one-chain-webkit`.
 - Breakpoint gate, both engines, flag on: run 40139523821 success (chromium j0-j2, playwright-webkit j0-j3, merge).
-- Round 2 took the second branch: back to the subscribe position (net recalc +1, not +157).
+- Round 2 went back to the subscribe position (net recalc +1, not +157).
 
 ## Source (CONFIRMED)
 
@@ -104,7 +104,6 @@ Summaries: `results/one-chain-webkit/summary.json`.
   callbacks, more but smaller style updates. The unit that mattered (a win in recalc) is not met; counts are engine
   work, not felt smoothness.
 - **WebKit: no-win.** Style recalcs and rAF callbacks equal within noise; no measured effect, no regression.
-- Follow-ups (outside the unit): (1) a Lean model of the shared loop's per-frame registration order (the early-frame
-  kind is a fit, early_atSubscriber is falsified on the 771-frame profile; frame499_atSubscriber holds for the
+- Follow-ups (outside the unit): (1) a Lean model of the shared loop's per-frame registration order (early_atSubscriber is falsified on the 771-frame profile; frame499_atSubscriber holds for the
   531-frame profile only; no_fixed_order is a model result); (2) the TS stand-in `frameCost` in `oneChain.test.ts`
   stays until that model exists.

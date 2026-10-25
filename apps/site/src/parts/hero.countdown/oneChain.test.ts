@@ -95,13 +95,6 @@ describe('hero.countdown one-chain against the Lean golden', () => {
       expect(got.map((f) => f.oneChain)).toEqual(row.frames.map((f) => f.oneChain));
     });
   }
-  /**
-   * The two frame kinds of Lean `kind499` and `kindEarly` through the real shared loop, TS stand-in of `fstep` and
-   * `frameCost` (a read flushes only dirty style; the frame ends with one more). Frame 499: the scroll tick reads
-   * layout, then dirties a 320-element subtree, and the original's digits (own rAF) run after the shared loop. Early
-   * frames: 134 other elements are dirty before the callbacks, one shared subscriber reads, and the original's digits
-   * run before the shared loop. `last` is the model's order, not shipped code.
-   */
   const frameCost = (kind: 'frame499' | 'early', arm: 'faithful' | 'atSubscriber' | 'last'): Cost => {
     const e = mkEnv();
     const clock = createRafClock(e.env);
@@ -121,7 +114,7 @@ describe('hero.countdown one-chain against the Lean golden', () => {
           dirt.walk = true;
         }
       : read;
-    if (kind === 'frame499' && arm === 'faithful') clock.subscribe(() => {}); // the loop was live first
+    if (kind === 'frame499' && arm === 'faithful') clock.subscribe(() => {});
     if (arm === 'faithful') clock.subscribe(faces, { own: true });
     if (arm === 'atSubscriber') oneChainClock(clock).subscribe(faces, { own: true });
     clock.subscribe(sub);
