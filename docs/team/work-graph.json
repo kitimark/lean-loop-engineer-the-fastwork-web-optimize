@@ -22379,7 +22379,18 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
-    "research/findings/ledger.json"
+    "research/findings/ledger.json",
+    "apps/site/src/parts/morph.tween/driver.ts",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/platform/index.tsx",
+    "apps/site/src/parts/platform/fadedpause.test.ts",
+    "lean/Fw/Parts/PlatformFadedPause*.lean",
+    "packages/contracts/golden/parts/platform-faded-pause.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Bridge.lean"
    ]
   },
   {
@@ -22402,7 +22413,8 @@
     "lean/Fw/Measure/TouchLock.lean",
     "packages/contracts/golden/measure/touch-lock.jsonl",
     "research/notes/2026/10-2x-evidence-twins.md",
-    "docs/team/handoffs/evidence-twins.md"
+    "docs/team/handoffs/evidence-twins.md",
+    "packages/measure-webkit/test/throttle-morph-end.test.mjs"
    ]
   },
   {
