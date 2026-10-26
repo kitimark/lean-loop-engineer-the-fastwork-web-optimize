@@ -106,6 +106,8 @@ export function resolve(
     for (const [id, v] of Object.entries(presetEntries(presetName, presets, errors))) {
       const [variant, implName] = v.split('@');
       apply(id, variant!, implName, `preset "${presetName}"`);
+      if (byId.get(id)?.variants[variant!]?.kind === 'probe')
+        errors.push(`preset "${presetName}": ${id}:${variant} is a probe (measurement only, never in a preset)`);
     }
   }
 

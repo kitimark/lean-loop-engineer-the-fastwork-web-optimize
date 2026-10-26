@@ -141,6 +141,8 @@ import Fw.Measure.TouchPush
 import Fw.Measure.PushCycle
 import Fw.Measure.Offscreen
 import Fw.Measure.OffscreenGolden
+import Fw.Measure.OffscreenWebKit
+import Fw.Measure.OffscreenWebKitGolden
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard
