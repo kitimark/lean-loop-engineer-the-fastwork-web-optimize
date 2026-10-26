@@ -14,11 +14,12 @@ Tags: MEASURED (CI run id named), CONFIRMED (Lean theorem or source cited), INFE
   ends at frame 670 and records 703 frames (last frame 673, 3 after the end). Window cuts are clipped to the last frame
   (`pushWindows`, `offscreen-windows.mjs:23-31`), so the stage windows hold 3 / 0 / 0 / 0 / 37 frames where the base
   holds 20 / 40 / 60 / 47 / 201.
-* Why only 3 frames follow the end (INFERRED from `packages/measure-chromium/src/run.mjs:417-422` and the phases in
-  counts.json): the swipe planner is told `ended` on the frame the page end is reached and stops when its current
-  stroke is done; the base run swiped on for 164 frames (swipe phase 11-738), the stage run for 0 (swipe phase 11-670).
-  The page is 860 px longer with the stage (`scrollY` maximum 6202 against 5342, MEASURED), which moves the end frame
-  and the stroke phase it falls in.
+* Why only 3 frames follow the end (MEASURED, counts.json meta.input of the six runs; rule in
+  `packages/measure-chromium/src/profile.mjs:98` and `run.mjs:420`): the base runs stop 4 px short of the scroll limit
+  (scrollY 5342, limit 5346, endReason stalled), so the swipe ends only after the stall rule sees 2 strokes of idle
+  frames (swipe phase 11-738, 164 frames after the end frame 574). The stage runs reach the limit (6202, endReason
+  limit), so the swipe ends on the end frame (swipe phase 11-670). The page is 860 px longer with the stage (scrollY
+  maximum 6202 against 5342).
 * The data the old rule needed is missing in the stage run, not misaligned. No window reader can compare frames 20-59 after the end when one arm has
   none.
 
@@ -77,6 +78,7 @@ Reading:
 
 ## Follow-ups (outside the unit)
 
-* Profile or run rule that guarantees a fixed number of frames after the end (for example a tail counted from the end
-  frame, not from the stroke that happened to finish), so end windows exist in every arm. Needs new CI runs.
+* Profile or run rule that guarantees a fixed number of frames after the end: a tail counted from the end frame, so a
+  limit end and a stalled end get the same number of frames after the end (today a stalled end gets 2 strokes of idle
+  frames and a limit end none). Needs new CI runs.
 * A minimum frame count per window (the rule here compares 3 frames when 3 exist); none is specified.
