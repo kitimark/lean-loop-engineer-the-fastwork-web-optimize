@@ -8,6 +8,7 @@ def wkKeys : List String :=
    "ObserverCallback", "EventDispatch", "FunctionCall", "ScheduleStyleRecalculation", "InvalidateLayout"]
 
 structure Pass where
+  vm : Nat
   ys : List Nat
   rows : List (List Nat)
 deriving Repr, DecidableEq
@@ -39,14 +40,29 @@ def sameSteps (lo hi : Nat) : List Pass → Bool
   | [] => false
   | p :: ps => ps.all fun q => windowSteps lo hi q == windowSteps lo hi p
 
-def usable (lo hi : Nat) (base flag : List Pass) : Bool :=
+def minVms : Nat := 3
+
+def vmCount (ps : List Pass) : Nat := (ps.map (·.vm)).eraseDups.length
+
+def enoughVms (ps : List Pass) : Bool := decide (minVms ≤ vmCount ps)
+
+def undecided (base flag : List Pass) : Bool := !(enoughVms base && enoughVms flag)
+
+def passUsable (lo hi : Nat) (base flag : List Pass) : Bool :=
   decide (minRuns ≤ base.length) && decide (minRuns ≤ flag.length) && (base ++ flag).all shaped &&
     sameSteps lo hi (base ++ flag) && sameWindow ((base ++ flag).map (windowVec lo hi))
 
+def usable (lo hi : Nat) (base flag : List Pass) : Bool :=
+  enoughVms base && enoughVms flag && passUsable lo hi base flag
+
+def judged (lo hi : Nat) (base flag : List Pass) : Verdict :=
+  judge (wkKeys.filterMap (cmpKey slack (base.map (windowVec lo hi)) (flag.map (windowVec lo hi))))
+
+def passVerdict (lo hi : Nat) (base flag : List Pass) : Verdict :=
+  if passUsable lo hi base flag then judged lo hi base flag else .noData
+
 def verdict (lo hi : Nat) (base flag : List Pass) : Verdict :=
-  if usable lo hi base flag then
-    judge (wkKeys.filterMap (cmpKey slack (base.map (windowVec lo hi)) (flag.map (windowVec lo hi))))
-  else .noData
+  if usable lo hi base flag then judged lo hi base flag else .noData
 
 def zoneVerdicts (base flag : List Pass) : List (String × Verdict) :=
   zones.map fun z => (z.name, verdict z.lo z.hi base flag)
@@ -77,26 +93,26 @@ theorem sameWindow_of_sameSteps (lo hi : Nat) (ps : List Pass) (h : sameSteps lo
 
 theorem noData_of_steps (lo hi : Nat) (base flag : List Pass) (h : sameSteps lo hi (base ++ flag) = false) :
     verdict lo hi base flag = .noData := by
-  simp [verdict, usable, h]
+  simp [verdict, usable, passUsable, h]
 
 theorem noData_of_fewBase (lo hi : Nat) (base flag : List Pass) (h : base.length < minRuns) :
     verdict lo hi base flag = .noData := by
   have : ¬ minRuns ≤ base.length := by omega
-  simp [verdict, usable, this]
+  simp [verdict, usable, passUsable, this]
 
 theorem noData_of_fewFlag (lo hi : Nat) (base flag : List Pass) (h : flag.length < minRuns) :
     verdict lo hi base flag = .noData := by
   have : ¬ minRuns ≤ flag.length := by omega
-  simp [verdict, usable, this]
+  simp [verdict, usable, passUsable, this]
 
 theorem noData_of_unshaped (lo hi : Nat) (base flag : List Pass) (h : (base ++ flag).all shaped = false) :
     verdict lo hi base flag = .noData := by
-  simp [verdict, usable, h]
+  simp [verdict, usable, passUsable, h]
 
 theorem verdict_of_usable (lo hi : Nat) (base flag : List Pass) (h : usable lo hi base flag = true) :
     verdict lo hi base flag =
       judge (wkKeys.filterMap (cmpKey slack (base.map (windowVec lo hi)) (flag.map (windowVec lo hi)))) := by
-  simp [verdict, h]
+  simp [verdict, judged, h]
 
 theorem usable_of_verdict (lo hi : Nat) (base flag : List Pass) (h : verdict lo hi base flag ≠ .noData) :
     usable lo hi base flag = true := by
@@ -120,6 +136,60 @@ theorem gain_sound (lo hi : Nat) (base flag : List Pass) (h : verdict lo hi base
   refine ⟨hu, ?_, fun j hj hjm => hm (List.mem_filterMap.2 ⟨j, hj, hjm⟩)⟩
   obtain ⟨k, hk, hkm⟩ := List.mem_filterMap.1 hl
   exact ⟨k, hk, hkm⟩
+
+theorem noData_of_fewVmsBase (lo hi : Nat) (base flag : List Pass) (h : vmCount base < minVms) :
+    verdict lo hi base flag = .noData := by
+  have : ¬ minVms ≤ vmCount base := by omega
+  simp [verdict, usable, enoughVms, this]
+
+theorem noData_of_fewVmsFlag (lo hi : Nat) (base flag : List Pass) (h : vmCount flag < minVms) :
+    verdict lo hi base flag = .noData := by
+  have : ¬ minVms ≤ vmCount flag := by omega
+  simp [verdict, usable, enoughVms, this]
+
+theorem zones_noData_of_fewVmsBase (base flag : List Pass) (h : vmCount base < minVms) :
+    ∀ zv ∈ zoneVerdicts base flag, zv.2 = .noData := by
+  intro zv hzv
+  obtain ⟨z, _, rfl⟩ := List.mem_map.1 hzv
+  exact noData_of_fewVmsBase _ _ _ _ h
+
+theorem zones_noData_of_fewVmsFlag (base flag : List Pass) (h : vmCount flag < minVms) :
+    ∀ zv ∈ zoneVerdicts base flag, zv.2 = .noData := by
+  intro zv hzv
+  obtain ⟨z, _, rfl⟩ := List.mem_map.1 hzv
+  exact noData_of_fewVmsFlag _ _ _ _ h
+
+theorem fewVms_of_undecided (base flag : List Pass) (h : undecided base flag = true) :
+    vmCount base < minVms ∨ vmCount flag < minVms := by
+  simp only [undecided, enoughVms, Bool.not_eq_true', Bool.and_eq_false_iff, decide_eq_false_iff_not] at h
+  omega
+
+theorem undecided_of_fewVmsBase (base flag : List Pass) (h : vmCount base < minVms) : undecided base flag = true := by
+  have : ¬ minVms ≤ vmCount base := by omega
+  simp [undecided, enoughVms, this]
+
+theorem undecided_of_fewVmsFlag (base flag : List Pass) (h : vmCount flag < minVms) : undecided base flag = true := by
+  have : ¬ minVms ≤ vmCount flag := by omega
+  simp [undecided, enoughVms, this]
+
+theorem zones_noData_of_undecided (base flag : List Pass) (h : undecided base flag = true) :
+    ∀ zv ∈ zoneVerdicts base flag, zv.2 = .noData := by
+  rcases fewVms_of_undecided base flag h with hb | hf
+  · exact zones_noData_of_fewVmsBase base flag hb
+  · exact zones_noData_of_fewVmsFlag base flag hf
+
+theorem verdict_eq_passVerdict (lo hi : Nat) (base flag : List Pass) (hb : minVms ≤ vmCount base)
+    (hf : minVms ≤ vmCount flag) : verdict lo hi base flag = passVerdict lo hi base flag := by
+  simp [verdict, passVerdict, usable, enoughVms, hb, hf]
+
+theorem zoneVerdicts_eq_pass (base flag : List Pass) (hb : minVms ≤ vmCount base) (hf : minVms ≤ vmCount flag) :
+    zoneVerdicts base flag = zones.map fun z => (z.name, passVerdict z.lo z.hi base flag) := by
+  simp only [zoneVerdicts, verdict_eq_passVerdict _ _ base flag hb hf]
+
+theorem decided_of_not_undecided (base flag : List Pass) (h : undecided base flag = false) :
+    zoneVerdicts base flag = zones.map fun z => (z.name, passVerdict z.lo z.hi base flag) := by
+  simp only [undecided, enoughVms, Bool.not_eq_false', Bool.and_eq_true, decide_eq_true_eq] at h
+  exact zoneVerdicts_eq_pass base flag h.1 h.2
 
 theorem not_mem_windowSteps_of_gt (lo hi y : Nat) (p : Pass) (h : hi < y) : y ∉ windowSteps lo hi p := by
   intro hm

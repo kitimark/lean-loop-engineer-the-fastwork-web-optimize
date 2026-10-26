@@ -1,0 +1,15 @@
+# offscreen-vm-count handoff
+* Branch: worktree-wf_92b98b26-109-1; worktree: .claude/worktrees/wf_92b98b26-109-1 (repo-relative).
+* Last commit: see `git log -1` on the branch (this file is committed with the work).
+* CI runs: none started (task reads existing artifacts only).
+* Verified: the Lean VM-count rule in `lean/Fw/Measure/OffscreenWebKit.lean` (`vmCount`, `enoughVms`, `undecided`, `passUsable`,
+  `passVerdict`; theorems `noData_of_fewVms*`, `zones_noData_of_*`, `verdict_eq_passVerdict`, `zoneVerdicts_eq_pass`,
+  `decided_of_not_undecided`). The golden was regenerated from `OffscreenWebKitGolden`, and the JS twin and test replay it.
+  The CLI reads the VM id from `webkit-sim-r<k>`. A re-read of the platform-attribution artifacts shows entries and
+  marquee undecided in all zones, with sweep and glint unchanged (`research/notes/2026/10-2x-offscreen-vm-count.md`).
+* Open: none in the unit. The lead decides whether `10-2x-platform-attribution.md` drops its "prose stand-in" sentence
+  (no cell changed).
+* Conventions: never hand-edit the golden; regenerate it with
+  `printf 'import Fw.Measure.OffscreenWebKitGolden\n#eval Fw.Measure.OffscreenWebKitGolden.write Fw.Measure.OffscreenWebKitGolden.goldenPath\n' | lake env lean --stdin`
+  from `lean/`.
+* Read first: the note above, then `OffscreenWebKit.lean` from `minVms` down.
