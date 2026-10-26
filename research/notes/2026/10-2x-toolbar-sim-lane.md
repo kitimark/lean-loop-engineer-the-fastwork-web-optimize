@@ -1,7 +1,7 @@
 ---
 id: 2026-10-2x-toolbar-sim-lane
 kind: note
-title: "Toolbar lane on the Simulator (real touch swipes): unthrottle lifts the 10 Hz toolbar steps to per frame (undecided, cost not measured; enters a preset: no), the other flags keep them throttled"
+title: "Toolbar lane on the Simulator (real touch swipes): unthrottle lifts the 10 Hz toolbar steps to about 50 ms (about 1.5 frame gaps) (undecided, cost not measured; enters a preset: no), the other flags keep them throttled"
 status: review
 created: 2026-10-26
 topics: [toolbar, unthrottle, simulator, webkit, touch, ci, morph]
@@ -12,7 +12,7 @@ topics: [toolbar, unthrottle, simulator, webkit, touch, ci, morph]
 ## Answer
 - MEASURED (Simulator on GitHub macOS, Mac GPU, not the iPhone): with real touch drags past the page end, the `visualViewport.height` steps of the default arrive about 95 ms apart (the 100 ms visible-rect throttle, `WKWebViewIOS.mm:143` and `:3256-3268`@862f17d). `engine.scroll:unthrottle` brings them to about 50 ms (about 1.5 frame gaps; frames are about 34 ms apart), past the midpoint between per-frame and the 100 ms throttle that Lean stepsLifted uses. Idle requestAnimationFrame cadence is 32 to 38 Hz on the VM (MEASURED); frame gaps under touch are 32 to 38 ms (26 to 31 Hz).
 - Verdict by the Lean rule (`Fw.Measure.MorphEndCount.flagVerdict`): engine.scroll:unthrottle undecided (cost not measured; enters a preset: no): its cadence is lifted and no state column is worse, but no default pass beside it holds a cost window, and a win needs at least 3 cost windows on each side. touch-first, open-once, overscroll-lock and threaded no-win. Look-change arms (touch-first, open-once, overscroll-lock) never enter a preset whatever the verdict.
-- The touch script opens the morph once per cycle in every arm (4 opens in 12 gestures), so closes, re-opens and fade onsets per gesture are 0.33, 0.25 and 0.33 for every arm: this lane cannot show a flag that removes re-opens. Reversals per gesture overlap between every flag and the default.
+- The touch script opens the morph once per cycle in every arm (4 opens in 12 gestures), so closes, re-opens and fade onsets per gesture are 0.33, 0.24 to 0.25 and 0.33 in every arm: this lane cannot show a flag that removes re-opens. Reversals per gesture overlap between every flag and the default.
 - Layout and RecalculateStyles per frame are not judged here: they move to task toolbar-cost-sample (section "Not measured here"). The model says 3x the updates at the idle rAF cadence seen here (6x at 60 Hz, 12x at 120 Hz, Lean `unthrottle_costs_twelve_fold_120hz`); that fold is derived from the cadence, not measured.
 - Round 1 called unthrottle a win from missing data: its jobs held 0 default passes with a whole cost window, `TouchLock.cmp_empty_faith` makes `cmp [] cand` overlap, so Layout and RecalcStyle counted as not higher. The cost-evidence rule (`costKnown`, theorem `unthrottle_no_cost_undecided`) closes that.
 
