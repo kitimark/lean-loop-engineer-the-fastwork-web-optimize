@@ -22039,7 +22039,8 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl"
-   ]
+   ],
+   "evidence": "7940e13"
   },
   {
    "devices": [
