@@ -28,10 +28,10 @@ export function armRow(passes) {
     gestures: sum(recs.map((r) => r.gestures)), reversals: sum(recs.map((r) => r.reversals)),
     closes: sum(fs.map((f) => f.closes)), reopens: sum(fs.map((f) => f.reopens)), swaps: sum(recs.map((r) => r.swaps)),
     onsets: sum(recs.map((r) => r.onsets)), onsetGestures: sum(recs.map((r) => r.onsetGestures)),
-    steps: sum(fs.map((f) => f.steps)), gaps: gaps.length, medianGapCs: gaps.length ? medianCs(gaps) : null, lifted: stepsLifted(gaps),
+    steps: sum(fs.map((f) => f.steps)), gaps: gaps.length, medianGapCs: gaps.length ? medianCs(gaps) : null, frameCs: medianCs(recs.map((r) => r.frameCs)), lifted: stepsLifted(medianCs(recs.map((r) => r.frameCs)), gaps),
     vhMin: fs.length ? Math.min(...fs.map((f) => f.vhMin)) : null, vhMax: fs.length ? Math.max(...fs.map((f) => f.vhMax)) : null,
     peaks: recs.map((r) => r.peak), unsettled: recs.filter((r) => !r.settled).length,
-    timed: timed.length, frames: sum(timed.map((r) => r.frames)), layout: sum(timed.map((r) => r.layout)), recalc: sum(timed.map((r) => r.recalc)),
+    overran: us.filter((p) => p.cost && p.cost.counts === false && p.cost.rows > 0).length, timed: timed.length, frames: sum(timed.map((r) => r.frames)), layout: sum(timed.map((r) => r.layout)), recalc: sum(timed.map((r) => r.recalc)),
     hz: median(hz), recs,
   };
 }
@@ -51,20 +51,20 @@ export function reportMd(vms) {
   const all = vms.flatMap((v) => v.passes.map((p) => ({ ...p, job: v.vm })));
   const arms = ARM_ORDER.filter((a) => all.some((p) => p.arm === a));
   const rows = Object.fromEntries(arms.map((a) => [a, armRow(all.filter((p) => p.arm === a))]));
-  const h1 = '| arm | passes (usable) | passes with a toolbar move | vh steps | steps per pass | median step gap ms | step cadence | vh range px |';
+  const h1 = '| arm | passes (usable) | passes with a toolbar move | vh steps | steps per pass | median step gap ms | median frame gap ms | step cadence | vh range px |';
   const t1 = arms.map((a) => {
     const r = rows[a];
-    return `| ${a} | ${r.total} (${r.usable}) | ${r.moved} | ${r.steps} | ${per(r.steps, r.usable, 1)} | ${r.medianGapCs === null ? '-' : (r.medianGapCs / 100).toFixed(1)} | ${r.gaps === 0 ? '-' : r.lifted ? 'per frame' : 'throttled'} | ${r.vhMin === null ? '-' : `${px(r.vhMin)} to ${px(r.vhMax)}`} |`;
+    return `| ${a} | ${r.total} (${r.usable}) | ${r.moved} | ${r.steps} | ${per(r.steps, r.usable, 1)} | ${r.medianGapCs === null ? '-' : (r.medianGapCs / 100).toFixed(1)} | ${r.frameCs ? (r.frameCs / 100).toFixed(1) : '-'} | ${r.gaps === 0 ? '-' : r.lifted ? 'per frame' : 'throttled'} | ${r.vhMin === null ? '-' : `${px(r.vhMin)} to ${px(r.vhMax)}`} |`;
   });
   const h2 = '| arm | gestures | reversals per gesture | closes per gesture | re-opens per gesture | fade onsets per gesture | gestures with an onset | lowest peak (of 1000) | passes open at the end |';
   const t2 = arms.map((a) => {
     const r = rows[a];
     return `| ${a} | ${r.gestures} | ${per(r.reversals, r.gestures)} | ${per(r.closes, r.gestures)} | ${per(r.reopens, r.gestures)} | ${per(r.onsets, r.gestures)} | ${r.onsetGestures} / ${r.gestures} | ${r.peaks.length ? Math.min(...r.peaks) : '-'} | ${r.unsettled} |`;
   });
-  const h3 = '| arm | passes with a Timeline window | frames in the windows | Layout per frame | RecalcStyle per frame | Simulator refresh Hz (median of passes) | unthrottle cost model (fold of the throttle) |';
+  const h3 = '| arm | passes with a counted Timeline window | windows past gesture 5 or 20 s (left out) | frames in the windows | Layout per frame | RecalcStyle per frame | Simulator refresh Hz (median of passes) | unthrottle cost model (fold of the throttle) |';
   const t3 = arms.map((a) => {
     const r = rows[a];
-    return `| ${a} | ${r.timed} | ${r.frames} | ${per(r.layout, r.frames, 3)} | ${per(r.recalc, r.frames, 3)} | ${r.hz ?? '-'} | ${r.hz ? `${foldOf(r.hz)}x` : '-'} |`;
+    return `| ${a} | ${r.timed} | ${r.overran} | ${r.frames} | ${per(r.layout, r.frames, 3)} | ${per(r.recalc, r.frames, 3)} | ${r.hz ?? '-'} | ${r.hz ? `${foldOf(r.hz)}x` : '-'} |`;
   });
   const h4 = '| flag | class | usable passes | default passes beside them | jobs | reversals | re-opens | onsets | Layout | RecalcStyle | step cadence lifted | same look | verdict | enters a preset |';
   const t4 = FLAG_ARMS.filter((a) => arms.includes(a)).map((a) => {

@@ -13,7 +13,7 @@ import { tally } from '../reduce.mjs';
 import { dragPass } from './driver.mjs';
 import { START_TB_JS, FETCH_TB_JS, COUNT_TB_JS, nearEndJs } from './toolbar-page.mjs';
 import { GAP_PX, NEAR_END_SETTLE_MS } from './finish-probe.mjs';
-import { winPhase } from './toolbar.mjs';
+import { winPhase, winCounts } from './toolbar.mjs';
 
 export const POLL_MS = 250;
 
@@ -32,36 +32,43 @@ export function windowWatcher(c, { log, tag }, deps = {}) {
   const d = { startTimeline, sleep, now: Date.now, ...deps };
   const state = { stop: false, cost: { ...NO_COST, note: 'window never opened' } };
   const run = (async () => {
-    let tl = null, at = 0, nf0 = 0, g0 = 0;
-    const close = async (why) => {
+    let tl = null, at = 0, g0 = 0, startMs = 0;
+    const close = async (why, seen) => {
       const t = tl; tl = null;
-      let end = null;
-      try { end = JSON.parse(await c.evaluate(COUNT_TB_JS)); } catch (e) { log(`${tag}: window end read failed: ${e.message}`); }
+      const sent = d.now();
+      let g1 = seen?.g ?? null;
+      if (g1 === null) {
+        try { g1 = JSON.parse(await c.evaluate(COUNT_TB_JS)).g; } catch (e) { log(`${tag}: window end read failed: ${e.message}`); }
+      }
+      const spanMs = sent - at;
       try {
         const rows = await t.stop();
         const k = tally(rows).counts;
-        const frames = end ? end.nf - nf0 : 0;
-        state.cost = { layout: k.Layout, recalc: k.RecalculateStyles, frames, rows: rows.length, ms: d.now() - at, g0, g1: end?.g ?? null, why };
-        log(`${tag}: window ${why}: ${rows.length} records, ${frames} frames, Layout ${k.Layout}, RecalculateStyles ${k.RecalculateStyles}`);
+        state.cost = {
+          layout: k.Layout, recalc: k.RecalculateStyles, frames: k.RenderingFrame, rows: rows.length, spanMs, stopMs: d.now() - sent, startMs, g0, g1, why,
+          counts: g1 !== null && winCounts(g1, spanMs),
+        };
+        log(`${tag}: window ${why}: ${rows.length} records, ${k.RenderingFrame} frames, Layout ${k.Layout}, RecalculateStyles ${k.RecalculateStyles}, gestures ${g0} to ${g1}, span ${spanMs} ms, start ${startMs} ms, stop ${state.cost.stopMs} ms, ${state.cost.counts ? 'counts' : 'overran'}`);
       } catch (e) {
-        state.cost = { ...NO_COST, error: e.message, why };
+        state.cost = { ...NO_COST, error: e.message, why, spanMs, startMs, g0, g1, counts: false };
         log(`${tag}: Timeline stop failed: ${e.message}`);
       }
     };
     for (;;) {
       await d.sleep(POLL_MS);
-      if (state.stop) { if (tl) await close('touches ended'); return; }
+      if (state.stop) { if (tl) await close('touches ended', null); return; }
       let cnt = null;
       try { cnt = JSON.parse(await c.evaluate(COUNT_TB_JS)); } catch (e) { log(`${tag}: window poll failed: ${e.message}`); }
       if (!cnt) continue;
       const phase = winPhase(cnt.g, tl ? d.now() - at : null);
       if (phase === 'record' && !tl) {
         try {
+          const s0 = d.now();
           tl = await d.startTimeline(c, { stopMs: T(15000) });
-          at = d.now(); g0 = cnt.g; nf0 = cnt.nf;
+          at = d.now(); startMs = at - s0; g0 = cnt.g;
         } catch (e) { state.cost = { ...NO_COST, error: `Timeline start failed: ${e.message}` }; log(`${tag}: ${state.cost.error}`); return; }
       } else if (phase === 'done') {
-        if (tl) await close(cnt.g > 4 ? 'next gesture' : 'cap');
+        if (tl) await close(cnt.g > 4 ? 'next gesture' : 'cap', cnt);
         else state.cost = { ...NO_COST, note: 'window missed (gesture counter past the start)' };
         return;
       }

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ARMS, ARM_ORDER, FLAG_ARMS, LOOK_CHANGE, stepFrames, stepGaps, medianCs, stepsLifted, gestureCount, perGesture, onsetFrames, refreshHz, foldOf, tbPass,
+  ARMS, ARM_ORDER, FLAG_ARMS, LOOK_CHANGE, stepFrames, stepGaps, medianCs, stepsLifted, frameGapCs, winCounts, gestureCount, perGesture, onsetFrames, refreshHz, foldOf, tbPass,
   columns, flagVerdict, enters, winPhase, reasonOf, passOf, facts, hzOf,
 } from '../src/throttle/toolbar.mjs';
 import { opens } from '../src/throttle/morph-end.mjs';
@@ -18,7 +18,7 @@ const gold = readFileSync(join(here, '../../contracts/golden/device/morph-end-co
 const of = (kind) => gold.filter((l) => l.kind === kind);
 
 test('golden: every toolbar kind has lines', () => {
-  for (const k of ['tb-steps', 'tb-gestures', 'tb-onsets', 'tb-pass', 'tb-verdict', 'tb-hz', 'tb-win']) assert.ok(of(k).length > 0, k);
+  for (const k of ['tb-steps', 'tb-gestures', 'tb-onsets', 'tb-pass', 'tb-verdict', 'tb-hz', 'tb-win', 'tb-wincount']) assert.ok(of(k).length > 0, k);
 });
 
 test('golden: vh steps, their burst gaps, the median and the lifted call', () => {
@@ -28,7 +28,8 @@ test('golden: vh steps, their burst gaps, the median and the lifted call', () =>
     const gaps = stepGaps(g.t, fs);
     assert.deepEqual(gaps, g.gaps, g.name);
     assert.equal(medianCs(gaps), g.median, g.name);
-    assert.equal(stepsLifted(gaps), g.lifted, g.name);
+    assert.equal(frameGapCs(g.t), g.frameCs, g.name);
+    assert.equal(stepsLifted(frameGapCs(g.t), gaps), g.lifted, g.name);
   }
 });
 
@@ -120,7 +121,7 @@ function record({ every = 6, open = [3, 21], n = 60, extra = {} } = {}) {
   }
   return { start: { ih: 7750, vh: 7750, y: 5000, scale: 1 }, nav: true, frames: n, t, y, mx, o, r, d, g, ih, vh, ca: [], hz: Array.from({ length: 40 }, (_, i) => i * 16.67), wobble: 0, moves: 30, total: n, ...extra };
 }
-const pass = (arm, job, rec = record(), cost = { layout: 12, recalc: 20, frames: 600 }) => ({ arm, job, rec, cost, drag: { code: 0 } });
+const pass = (arm, job, rec = record(), cost = { layout: 12, recalc: 20, frames: 600, counts: true }) => ({ arm, job, rec, cost, drag: { code: 0 } });
 
 test('a pass: the Lean record from the recorder arrays, the cost window folded in', () => {
   const p = passOf(pass('default', 'job 1'));
@@ -149,9 +150,9 @@ test('the refresh rate of idle frames', () => {
 });
 
 test('the report: per-frame steps of unthrottle are lifted and its costs higher, so it is a trade', () => {
-  const base = [pass('default', 'job 1'), pass('default', 'job 2', record({ extra: { total: 61 } }), { layout: 14, recalc: 21, frames: 600 })];
-  const cand = [pass('unthrottle', 'job 1', record({ every: 1 }), { layout: 300, recalc: 500, frames: 600 }),
-    pass('unthrottle', 'job 2', record({ every: 1 }), { layout: 310, recalc: 510, frames: 600 })];
+  const base = [pass('default', 'job 1'), pass('default', 'job 2', record({ extra: { total: 61 } }), { layout: 14, recalc: 21, frames: 600, counts: true })];
+  const cand = [pass('unthrottle', 'job 1', record({ every: 1 }), { layout: 300, recalc: 500, frames: 600, counts: true }),
+    pass('unthrottle', 'job 2', record({ every: 1 }), { layout: 310, recalc: 510, frames: 600, counts: true })];
   const k = flagRow('unthrottle', [...base, ...cand]);
   assert.equal(k.verdict, 'trade');
   assert.equal(k.cols.layout, 'higher');
@@ -186,12 +187,32 @@ function fakeClient(counts) {
 test('the window watcher opens at gesture 4, closes at gesture 5 and keeps the counts', async () => {
   const log = [];
   let clock = 0;
-  const tl = { stop: async () => [['Layout', 1, 2, null], ['Layout', 3, 4, null], ['RecalculateStyles', 5, 6, null], ['Paint', 7, 8, null]] };
+  const frames = Array.from({ length: 60 }, (_, i) => ['RenderingFrame', i, i + 1, null]);
+  const tl = { stop: async () => [['Layout', 1, 2, null], ['Layout', 3, 4, null], ['RecalculateStyles', 5, 6, null], ['Paint', 7, 8, null], ...frames] };
   const c = fakeClient([{ g: 2, nf: 10 }, { g: 4, nf: 100 }, { g: 4, nf: 130 }, { g: 5, nf: 160 }, { g: 5, nf: 160 }]);
   const w = windowWatcher(c, { log: (s) => log.push(s), tag: 't' }, { sleep: async () => { clock += 250; }, now: () => clock, startTimeline: async () => tl });
   await w.done;
   assert.deepEqual([w.state.cost.layout, w.state.cost.recalc, w.state.cost.frames], [2, 1, 60]);
   assert.equal(w.state.cost.why, 'next gesture');
+  assert.equal(w.state.cost.counts, true);
+  assert.equal(w.state.cost.g1, 5);
+});
+
+test('the window watcher flags a window whose span ran past twice the cap, and the pass drops its cost', async () => {
+  let clock = 0;
+  const tl = { stop: async () => [['Layout', 1, 2, null], ['RenderingFrame', 1, 2, null]] };
+  const c = fakeClient([{ g: 4, nf: 1 }, { g: 4, nf: 2 }]);
+  const w = windowWatcher(c, { log() {}, tag: 't' }, { sleep: async () => { clock += 30000; }, now: () => clock, startTimeline: async () => tl });
+  await w.done;
+  assert.equal(w.state.cost.counts, false);
+  assert.equal(w.state.cost.frames, 1);
+  const q = passOf({ ...pass('default', 'job 1'), cost: w.state.cost });
+  assert.deepEqual([q.layout, q.recalc, q.frames], [0, 0, 0]);
+  assert.equal(armRow([{ ...pass('default', 'job 1'), cost: { ...w.state.cost, rows: 2 } }]).overran, 1);
+});
+
+test('golden: a closed window counts only inside gesture 5 and twice the cap', () => {
+  for (const g of of('tb-wincount')) assert.equal(winCounts(g.g, g.spanMs), g.counts, JSON.stringify(g));
 });
 
 test('the window watcher keeps no counts when the stop fails, and misses a window it saw too late', async () => {

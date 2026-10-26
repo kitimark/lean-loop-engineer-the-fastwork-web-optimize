@@ -596,7 +596,7 @@ def consecutive : List Nat → List (Nat × Nat)
 
 def burstMaxCs : Nat := 50000
 
-def liftedBelowCs : Nat := 5000
+def throttleCs : Nat := 10000
 
 def stepGaps (t : List Int) (fs : List Nat) : List Nat :=
   (consecutive fs).filterMap fun p =>
@@ -614,7 +614,10 @@ def sortNat : List Nat → List Nat
 
 def medianCs (l : List Nat) : Nat := (sortNat l).getD (l.length / 2) 0
 
-def stepsLifted (gaps : List Nat) : Bool := !gaps.isEmpty && decide (medianCs gaps < liftedBelowCs)
+def frameGapCs (t : List Int) : Nat :=
+  medianCs ((t.zip t.tail).filterMap fun p => if 0 < p.2 - p.1 then some (p.2 - p.1).toNat else Option.none)
+
+def stepsLifted (frameCs : Nat) (gaps : List Nat) : Bool := !gaps.isEmpty && decide (2 * medianCs gaps < frameCs + throttleCs)
 
 theorem stepFramesFrom_const (v : Int) (n i : Nat) : stepFramesFrom v i (List.replicate n v) = [] := by
   induction n generalizing i with
@@ -644,15 +647,25 @@ theorem stepGaps_le (t : List Int) (fs : List Nat) : ∀ g ∈ stepGaps t fs, g 
   intro h1 h2 h3
   omega
 
-theorem stepsLifted_empty : stepsLifted [] = false := rfl
+theorem stepsLifted_empty (frameCs : Nat) : stepsLifted frameCs [] = false := rfl
 
-theorem stepsLifted_iff (gaps : List Nat) : stepsLifted gaps = true ↔ gaps ≠ [] ∧ medianCs gaps < liftedBelowCs := by
+theorem stepsLifted_iff (frameCs : Nat) (gaps : List Nat) :
+    stepsLifted frameCs gaps = true ↔ gaps ≠ [] ∧ 2 * medianCs gaps < frameCs + throttleCs := by
   unfold stepsLifted
   cases gaps <;> simp
 
-theorem stepsLifted_per_frame : stepsLifted [1667, 1667, 1666] = true := by decide
+theorem stepsLifted_per_frame : stepsLifted 1667 [1667, 1667, 1666] = true := by decide
 
-theorem stepsLifted_throttled : stepsLifted [10000, 10000, 9900] = false := by decide
+theorem stepsLifted_slow_frames : stepsLifted 5000 [5000, 5000, 6000] = true := by decide
+
+theorem stepsLifted_throttled : stepsLifted 1667 [10000, 10000, 9900] = false := by decide
+
+theorem stepsLifted_not_at_throttle (frameCs : Nat) (gaps : List Nat) (hf : frameCs ≤ throttleCs) (hm : throttleCs ≤ medianCs gaps) :
+    stepsLifted frameCs gaps = false := by
+  unfold stepsLifted
+  simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]
+  right
+  omega
 
 def gestureOf (g : List Int) (i : Nat) : Int := g.getD i 0
 
@@ -710,12 +723,13 @@ structure TbPass where
   layout : Nat
   recalc : Nat
   frames : Nat
+  frameCs : Nat
   deriving DecidableEq, Repr
 
 def tbPass (t vh r d g : List Int) (reversals layout recalc frames : Nat) : TbPass :=
   ⟨gestureCount g, reversals, (events r d).length, opens r,
    ((perGesture g (onsetFrames r)).filter (0 < ·)).length, stepGaps t (stepFrames vh),
-   (r.foldl max 0).toNat, decide (r.getLast?.getD 0 = 0), layout, recalc, frames⟩
+   (r.foldl max 0).toNat, decide (r.getLast?.getD 0 = 0), layout, recalc, frames, frameGapCs t⟩
 
 def cmpBy (num den : TbPass → Nat) (base cand : List TbPass) : Cmp :=
   cmp (rates (base.map fun p => (num p, den p))) (rates (cand.map fun p => (num p, den p)))
@@ -790,7 +804,7 @@ theorem sameLook_empty_cand (base : List TbPass) : sameLook base [] = false := b
   simp [sameLook, floorHolds]
 
 def liftedBy (base cand : List TbPass) : Bool :=
-  stepsLifted (cand.flatMap (·.gaps)) && !stepsLifted (base.flatMap (·.gaps))
+  stepsLifted (medianCs (cand.map (·.frameCs))) (cand.flatMap (·.gaps)) && !stepsLifted (medianCs (base.map (·.frameCs))) (base.flatMap (·.gaps))
 
 def flagVerdict (base cand : List TbPass) : Brick :=
   armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
@@ -850,6 +864,19 @@ theorem win_record_bounded (g ms : Nat) (h : winPhase g (some ms) = .record) : m
   simp only [winPhase] at h
   split at h <;> simp_all
 
+def winCounts (g spanMs : Nat) : Bool := decide (g ≤ winStart + 1) && decide (spanMs ≤ 2 * winCapMs)
+
+theorem winCounts_inside (g spanMs : Nat) (h1 : g ≤ winStart + 1) (h2 : spanMs ≤ 2 * winCapMs) : winCounts g spanMs = true := by
+  simp [winCounts, h1, h2]
+
+theorem winCounts_past_gesture (g spanMs : Nat) (h : winStart + 1 < g) : winCounts g spanMs = false := by
+  have : ¬ g ≤ winStart + 1 := by omega
+  simp [winCounts, this]
+
+theorem winCounts_overran (g spanMs : Nat) (h : 2 * winCapMs < spanMs) : winCounts g spanMs = false := by
+  have : ¬ spanMs ≤ 2 * winCapMs := by omega
+  simp [winCounts, this]
+
 
 private def tbIntsJ (l : List Int) : Json := Json.arr (l.map toJson).toArray
 
@@ -858,7 +885,7 @@ private def tbNatsJ (l : List Nat) : Json := Json.arr (l.map toJson).toArray
 def tbPassJ (p : TbPass) : Json :=
   Json.mkObj [("gestures", p.gestures), ("reversals", p.reversals), ("swaps", p.swaps), ("onsets", p.onsets),
     ("onsetGestures", p.onsetGestures), ("gaps", tbNatsJ p.gaps), ("peak", p.peak), ("settled", p.settled),
-    ("layout", p.layout), ("recalc", p.recalc), ("frames", p.frames)]
+    ("layout", p.layout), ("recalc", p.recalc), ("frames", p.frames), ("frameCs", p.frameCs)]
 
 private def evenly (n period : Nat) : List Int := (List.range n).map fun i => ((i * period : Nat) : Int)
 
@@ -874,6 +901,9 @@ private def tbStepCases (_ : Unit) : List (String × List Int × List Int) :=
    ("throttled, a step every 6 frames at 60 Hz", evenly 60 1667, stepped 60 6),
    ("unthrottled, a step every frame at 60 Hz", evenly 60 1667, stepped 60 1),
    ("unthrottled at 120 Hz", evenly 120 833, stepped 120 1),
+   ("unthrottled at 20 Hz, frames 50 ms apart", evenly 60 5000, stepped 60 1),
+   ("throttled at 20 Hz, a step every 2 frames", evenly 60 5000, stepped 60 2),
+   ("lifted at 40 Hz, a step every 2 frames", evenly 60 2500, stepped 60 2),
    ("a long hold between two bursts is no step gap", holdGap 60 1667 70000, stepped 60 6),
    ("vh shorter than t", evenly 10 1667, [7750, 7760, 7760]),
    ("t shorter than vh", evenly 3 1667, stepped 10 1)]
@@ -893,12 +923,17 @@ private def tbRecCases (_ : Unit) : List (String × List Int × List Int × List
    ("unthrottled pass, never opened", evenly 40 1667, stepped 40 1, List.replicate 40 0, List.replicate 40 0, gesturesOf 40 10, 0, 40, 41, 40),
    ("empty pass", [], [], [], [], [], 0, 0, 0, 0)]
 
-private def mkP (gestures reversals swaps onsets og : Nat) (gaps : List Nat) (peak : Nat) (settled : Bool) (layout recalc frames : Nat) : TbPass :=
-  ⟨gestures, reversals, swaps, onsets, og, gaps, peak, settled, layout, recalc, frames⟩
+private def mkP (gestures reversals swaps onsets og : Nat) (gaps : List Nat) (peak : Nat) (settled : Bool) (layout recalc frames : Nat)
+    (frameCs : Nat := 1667) : TbPass :=
+  ⟨gestures, reversals, swaps, onsets, og, gaps, peak, settled, layout, recalc, frames, frameCs⟩
 
 private def baseP : List TbPass :=
   [mkP 12 6 4 6 4 [10000, 10100, 9900] 1000 true 60 90 600, mkP 12 5 5 7 4 [10000, 9800] 1000 true 66 96 600,
    mkP 12 7 3 6 4 [10100, 10000] 1000 true 63 93 600]
+
+private def slowP (_ : Nat) : List TbPass :=
+  [mkP 12 6 4 6 4 [10000, 10100, 9900] 1000 true 60 90 600 5000, mkP 12 5 5 7 4 [10000, 9800] 1000 true 66 96 600 5000,
+   mkP 12 7 3 6 4 [10100, 10000] 1000 true 63 93 600 5000]
 
 private def tbVerdictCases (_ : Unit) : List (String × List TbPass × List TbPass) :=
   [("the same passes", baseP, baseP),
@@ -915,10 +950,16 @@ private def tbVerdictCases (_ : Unit) : List (String × List TbPass × List TbPa
     [mkP 12 0 0 1 1 [10000] 400 true 60 90 600, mkP 12 0 0 1 1 [10000] 450 true 66 96 600, mkP 12 0 0 1 1 [10000] 500 true 63 93 600]),
    ("the morph stays open at the end of the pass", baseP,
     [mkP 12 1 1 4 4 [10000] 1000 false 60 90 600, mkP 12 1 1 4 4 [10000] 1000 false 66 96 600, mkP 12 1 1 4 4 [10000] 1000 false 63 93 600]),
+   ("unthrottle at 20 Hz frames: a step every frame against every second frame", slowP 2,
+    [mkP 12 6 4 6 4 [5000, 5000, 6000] 1000 true 360 540 600 5000, mkP 12 5 5 7 4 [5000, 5500] 1000 true 372 558 600 5000,
+     mkP 12 7 3 6 4 [6000, 5000] 1000 true 366 546 600 5000]),
    ("no cost reading (no frames)", baseP, [mkP 12 6 4 6 4 [10000] 1000 true 0 0 0, mkP 12 6 4 6 4 [10000] 1000 true 0 0 0]),
    ("no candidate pass", baseP, []), ("no default pass", [], baseP)]
 
 private def tbHzCases (_ : Unit) : List Nat := [0, 833, 1667, 1666, 1700, 1000, 3334]
+
+private def tbCountCases (_ : Unit) : List (Nat × Nat) :=
+  [(4, 0), (4, 10000), (5, 20000), (5, 20001), (6, 100), (12, 141000), (4, 157000)]
 
 private def tbWinCases (_ : Unit) : List (Nat × Option Nat) :=
   [(0, none), (3, none), (4, none), (5, none), (9, none), (4, some 0), (4, some 9999), (4, some 10000), (4, some 20000), (5, some 100), (7, some 0)]
@@ -928,7 +969,7 @@ def tbGoldenLines (_ : Unit) : List String :=
     let fs := stepFrames vh
     let gaps := stepGaps t fs
     (Json.mkObj [("kind", "tb-steps"), ("name", name), ("t", tbIntsJ t), ("vh", tbIntsJ vh), ("frames", tbNatsJ fs), ("gaps", tbNatsJ gaps),
-      ("median", medianCs gaps), ("lifted", stepsLifted gaps)]).compress) ++
+      ("median", medianCs gaps), ("frameCs", frameGapCs t), ("lifted", stepsLifted (frameGapCs t) gaps)]).compress) ++
   ((tbGestureCases ()).map fun (name, g, frames) =>
     (Json.mkObj [("kind", "tb-gestures"), ("name", name), ("g", tbIntsJ g), ("frames", tbNatsJ frames), ("count", gestureCount g),
       ("per", tbNatsJ (perGesture g frames))]).compress) ++
@@ -946,7 +987,9 @@ def tbGoldenLines (_ : Unit) : List String :=
       ("entersLook", enters true (flagVerdict base cand))]).compress) ++
   ((tbHzCases ()).map fun (gap : Nat) => (Json.mkObj [("kind", "tb-hz"), ("gapCs", gap), ("hz", refreshHz gap), ("fold", foldOf (refreshHz gap))]).compress) ++
   ((tbWinCases ()).map fun (g, ms) =>
-    (Json.mkObj [("kind", "tb-win"), ("g", g), ("inMs", match ms with | none => Json.null | some m => toJson m), ("phase", (winPhase g ms).name)]).compress)
+    (Json.mkObj [("kind", "tb-win"), ("g", g), ("inMs", match ms with | none => Json.null | some m => toJson m), ("phase", (winPhase g ms).name)]).compress) ++
+  ((tbCountCases ()).map fun (g, span) =>
+    (Json.mkObj [("kind", "tb-wincount"), ("g", g), ("spanMs", span), ("counts", winCounts g span)]).compress)
 
 private def goldenLines (_ : Unit) : List String :=
   ((eventCases ()).map fun (name, r, d) =>

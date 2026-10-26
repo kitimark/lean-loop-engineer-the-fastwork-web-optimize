@@ -22,7 +22,7 @@ export const FLAG_OF = Object.freeze({
 });
 
 export const BURST_MAX_CS = 50000;
-export const LIFTED_BELOW_CS = 5000;
+export const THROTTLE_CS = 10000;
 export const WIN_START = 4;
 export const WIN_CAP_MS = 10000;
 
@@ -44,7 +44,13 @@ export function stepGaps(t, fs) {
 
 export const medianCs = (l) => [...l].sort((a, b) => a - b)[Math.floor(l.length / 2)] ?? 0;
 
-export const stepsLifted = (gaps) => gaps.length > 0 && medianCs(gaps) < LIFTED_BELOW_CS;
+export function frameGapCs(t) {
+  const out = [];
+  for (let i = 0; i + 1 < t.length; i++) if (t[i + 1] - t[i] > 0) out.push(t[i + 1] - t[i]);
+  return medianCs(out);
+}
+
+export const stepsLifted = (frameCs, gaps) => gaps.length > 0 && 2 * medianCs(gaps) < frameCs + THROTTLE_CS;
 
 export const gestureOf = (g, i) => g[i] ?? 0;
 export const gestureCount = (g) => Math.max(0, ...g);
@@ -65,6 +71,7 @@ export function tbPass(t, vh, r, d, g, reversals, layout, recalc, frames) {
     gestures: gestureCount(g), reversals, swaps: events(r, d).length, onsets: opens(r),
     onsetGestures: perGesture(g, onsetFrames(r)).filter((x) => x > 0).length,
     gaps: stepGaps(t, stepFrames(vh)), peak: Math.max(0, ...r), settled: (r[r.length - 1] ?? 0) === 0, layout, recalc, frames,
+    frameCs: frameGapCs(t),
   };
 }
 
@@ -89,7 +96,8 @@ export function armVerdict(rev, reopen, onset, layout, recalc, lifted, look) {
   return worseN(rev, reopen, onset, layout, recalc, look) === 0 ? 'win' : 'trade';
 }
 
-export const liftedBy = (base, cand) => stepsLifted(cand.flatMap((p) => p.gaps)) && !stepsLifted(base.flatMap((p) => p.gaps));
+export const liftedBy = (base, cand) =>
+  stepsLifted(medianCs(cand.map((p) => p.frameCs)), cand.flatMap((p) => p.gaps)) && !stepsLifted(medianCs(base.map((p) => p.frameCs)), base.flatMap((p) => p.gaps));
 
 export const columns = (base, cand) => ({
   reversals: cmpBy((p) => p.reversals, (p) => p.gestures, base, cand),
@@ -114,6 +122,9 @@ export function winPhase(g, inMs) {
   return g > WIN_START || inMs >= WIN_CAP_MS ? 'done' : 'record';
 }
 
+/** Whether a closed window may count: it ended within gesture 5 and its span stayed within twice the cap (Lean `winCounts`). */
+export const winCounts = (g, spanMs) => g <= WIN_START + 1 && spanMs <= 2 * WIN_CAP_MS;
+
 /** Why a pass cannot count, or null. */
 export function reasonOf(p) {
   return excludeReason(p) ?? (hasMorphReads(p.rec) && Array.isArray(p.rec.g) && p.rec.g.length === p.rec.y.length ? null : 'record has no gesture reads');
@@ -122,7 +133,7 @@ export function reasonOf(p) {
 /** The Lean pass record of a recorder record plus the window's Timeline counts ({layout, recalc, frames} or null). */
 export function passOf(p) {
   const { rec } = p;
-  const w = p.cost && p.cost.frames > 0 ? p.cost : { layout: 0, recalc: 0, frames: 0 };
+  const w = p.cost && p.cost.counts === true && p.cost.frames > 0 ? p.cost : { layout: 0, recalc: 0, frames: 0 };
   return tbPass(rec.t.map((x) => Math.round(x * 100)), rec.vh, rec.r, rec.d, rec.g, lockCounts(rec).reversals, w.layout, w.recalc, w.frames);
 }
 
