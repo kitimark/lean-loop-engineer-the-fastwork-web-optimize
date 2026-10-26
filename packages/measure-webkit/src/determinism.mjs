@@ -37,11 +37,10 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   const ys = resolveStates(states, info.maxY);
   const census = [];
   for (const y of ys) { const cen = await censusAt(c, y, { holdMs, paintWindowMs }); census.push(cen); log(`  census y=${cen.scrollY}: ${cen.layerCount} layers, ${(cen.memoryBytes / 1e6).toFixed(1)} MB, paint delta ${cen.paintDeltaTotal}`); }
-  // one retry from a fresh load: a Simulator evaluate occasionally stalls right after a heavy reload (seen once in 6 passes)
   let scroll;
   const gate = stepGate();
   for (let attempt = 1; ; attempt++) {
-    await ctx.check?.(); // a dead inspector ends the run (exit 4) instead of being retried
+    await ctx.check?.();
     try { await loadFresh(c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' }); scroll = await scrollRun(c, { step, framesPerStep, mode }); break; } catch (e) {
       if (!afterFailure(attempt, attempts(), gate.elapsedS(), SCROLL_RETRY_S, gate.boundS)) { log(`  scroll attempt ${attempt} failed and no retry fits (${attempt}/${attempts()} tries, ${gate.elapsedS()} s of ${gate.boundS ?? 'no'} s bound)`); throw e; }
       log(`  scroll attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
@@ -77,7 +76,6 @@ export async function onePassRetrying(ctx, opts) {
       await reconnect(ctx, { log: opts.log });
       continue;
     }
-    // a host past the load ceiling at the start or the end of the pass does not count it (Lean: SimHost.afterPass)
     const v = afterPass(centi(pass.load.start.load1), centi(pass.load.end.load1), attempt, attempts(), gate.elapsedS(), PASS_RETRY_S, gate.boundS);
     if (v === 'count') return pass;
     if (v === 'refuse') throw new Error(`host load1 ${pass.load.start.load1} -> ${pass.load.end.load1} is past the ceiling and no repeat fits: the pass is not counted`);

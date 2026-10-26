@@ -3,7 +3,7 @@ worktree: .claude/worktrees/wf_2b596ca9-a1d-1 (under the main checkout)
 last commit: 244f07890 (CI re-measure: 7 of 7 sim jobs green over three dispatches); lead finishes the dry land and review
 CI runs: webkit-sim dispatch 1 of 3: 40319007631 (1 VM by default inputs, complete, success, 54 m); dispatch 2 of 3: 40326012289 (vms=3, complete, 3 of 3 jobs success, 52 m); dispatch 3 of 3: 40333469218 (vms=3, complete, 3 of 3 success). 7 of 7 jobs green, no gate fired
 verified: check.sh green after merging main (sim-host golden up to date); plan lint 0 errors; Lean SimHost.lean and SimHostGolden.lean compile; measure-webkit tests 921 pass; tick and ci-paths tests pass; lake test fwtest passes
-open: dry land, fw review ready, report, failure-rate and failing-step report vs 19%/45%, dry land, review ready
+open: dry land, fw review ready, report, failure-rate and failing-step report vs 19%/45%
 
 ## State
 - Load source found (note `research/notes/2026/10-2x-wk-sim-hang.md`): Simulator runtime load on the runner image; our `top` spawnSync made it worse once (run 40282962088 sim-r1, 1399 s blocked loop).

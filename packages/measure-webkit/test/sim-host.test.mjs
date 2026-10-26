@@ -54,7 +54,6 @@ test('onePassRetrying: a failed pass is not repeated when the repeat would end p
   try {
     const log = [];
     const ctx = mkCtx();
-    // onePass reads location.href first: a page that throws stands for any failing pass
     ctx.c.evaluate = async () => { throw new Error('stalled'); };
     await assert.rejects(onePassRetrying(ctx, { log: (s) => log.push(s) }), /stalled/);
     assert.ok(log.some((l) => /no retry fits/.test(l)), log.join('\n'));

@@ -7,7 +7,7 @@ namespace Fw.Measure.SimBound
 
 /-! ## Time bounds -/
 
-/-- Minutes one determinism session may run; `SimHost.perSession_vs_step` checks it against the longest step seen. -/
+/-- Minutes one determinism session may run. -/
 def perSessionMin : Nat := 35
 
 /-- Minutes the quiet experiment may run: its length does not follow the session count. -/

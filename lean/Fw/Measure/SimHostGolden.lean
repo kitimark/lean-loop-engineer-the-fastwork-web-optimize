@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Measure.SimHost
 
-/-!
-Golden vectors for the Simulator retry gate and host gate.
--/
 namespace Fw.Measure.SimHostGolden
 open Fw.Measure.SimHost Lean
 
