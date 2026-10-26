@@ -69,10 +69,14 @@ type Probe = { ms: () => number; ph: WaitPhases };
 
 /** Seconds a queued or in-progress row stays trusted after its view. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.inflightS`). */
 export const INFLIGHT_S = 300;
-/** `uncovered` incidents of one run that end its wait, and the exit code. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.uncoveredMax`, `uncoveredCode`). */
+/** `uncovered` incidents of one run that end its wait, the lookback before the wait within which they count, and the exit code.
+ *  TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.uncoveredMax`, `uncoveredLookbackS`, `uncoveredCode`). */
 export const UNCOVERED_MAX = 2;
+export const UNCOVERED_LOOKBACK_S = 1200;
 export const UNCOVERED_CODE = 6;
-export const uncoveredExit = (n: number): boolean => UNCOVERED_MAX <= n;
+/** Lean `Fw.Ci.Attempt.uncoveredExit`: enough incidents in the lookback, at least one at or after `regAt`. */
+export const uncoveredExit = (regAt: number, times: number[]): boolean =>
+  UNCOVERED_MAX <= times.filter((x) => regAt <= x + UNCOVERED_LOOKBACK_S).length && times.some((x) => regAt <= x);
 
 /** Whether a cached row answers a wait. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.trusted`):
  *  a finished row by `fresh` (fwcore), an unfinished row only within `INFLIGHT_S` of its view. */
@@ -81,16 +85,16 @@ export function trustedRow(env: Env, completed: boolean, readAt: number | undefi
   return readAt !== undefined && env.now() <= readAt + INFLIGHT_S;
 }
 
-/** The `uncovered` incidents of one run logged at or after `since` (the poller writes them, `drainIncidents`). */
-export function uncoveredSince(env: Env, runId: number, since: number): number {
+/** The times of the `uncovered` incidents of one run logged at or after `since` (the poller writes them, `drainIncidents`). */
+export function uncoveredSince(env: Env, runId: number, since: number): number[] {
   let text: string;
-  try { text = readFileSync(paths(env.dir).incidents, "utf8"); } catch { return 0; }
-  let n = 0;
+  try { text = readFileSync(paths(env.dir).incidents, "utf8"); } catch { return []; }
+  const n: number[] = [];
   for (const l of text.split("\n")) {
     if (!l.includes('"uncovered"') || !l.includes(`"runId":${runId},`)) continue;
     try {
       const i = JSON.parse(l) as { runId?: number; time?: number; why?: string };
-      if (i.runId === runId && i.why === "uncovered" && (i.time ?? 0) >= since) n++;
+      if (i.runId === runId && i.why === "uncovered" && (i.time ?? 0) >= since) n.push(i.time ?? 0);
     } catch { /* a torn line */ }
   }
   return n;
@@ -465,8 +469,8 @@ async function waitRun(env: Env, t: Target, o: WaitOpts, pr: Probe): Promise<Wai
         reregAt = st.tickAt;
         if (ev.done.some((r) => floor.has(r.databaseId))) stepEvent(env, { register: { runId: id, createdAt } }); // the watch this waiter owns
       }
-      if (t.kind === "run" && uncoveredExit(uncoveredSince(env, id, regAt))) {
-        return { code: UNCOVERED_CODE, lines: [`wait: the poller's list does not cover run ${id} (logged uncovered ${UNCOVERED_MAX} times since this wait began); read it once with \`gh run view ${id}\``] };
+      if (t.kind === "run" && uncoveredExit(regAt, uncoveredSince(env, id, regAt - UNCOVERED_LOOKBACK_S))) {
+        return { code: UNCOVERED_CODE, lines: [`wait: the poller's list does not cover run ${id} (the poller dropped its watch as uncovered ${UNCOVERED_MAX} times within ${UNCOVERED_LOOKBACK_S} s); read it once with \`gh run view ${id}\``] };
       }
       const amb = ambiguousIds(st?.rows ?? [], t);
       if (amb) { return { code: 2, lines: [`wait: nonce ${t.kind === "branch" && t.want?.kind === "dispatch" ? t.want.nonce : ""} matches several runs (${amb.join(", ")}); not guessing (Lean Fw.Ci.Dispatch.selectOne)`] }; }

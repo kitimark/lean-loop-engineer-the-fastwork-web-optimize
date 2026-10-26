@@ -6,7 +6,7 @@ of a finished run, a run's list row) was read at one attempt. After a rerun, `fw
 of attempt 1 while attempt 2 was still running (run 39363764375). Here the verdict is keyed on the attempt: a recorded
 fact answers for a run only while the run is still on the attempt it was recorded at.
 
-Five rules, each decided here and called through fwcore's op `ci.attempt` (`Fw.Wire.Ci`):
+Seven rules, each decided here; all but the unfinished branch of `trusted` and `uncoveredExit` (TS stand-ins replaying golden ci/attempt-inflight.jsonl) are called through fwcore's op `ci.attempt` (`Fw.Wire.Ci`):
 - `reuse`: a cached fact is reused when it and the live run name the same attempt;
 - `settled`: jobs fetched for a listed row decide when the row names no attempt (a file written before the list carried
   it) or the same attempt as the jobs view;
@@ -83,15 +83,41 @@ def uncoveredMax : Nat := 2
 /-- The exit code of a wait ended by repeated `uncovered` incidents (3 is a timeout or a budget stop, 5 is gh unavailable for the land lanes). -/
 def uncoveredCode : Nat := 6
 
-/-- A wait ends when `n` `uncovered` incidents of its run were logged since the wait began. -/
-def uncoveredExit (n : Nat) : Bool := decide (uncoveredMax ≤ n)
+/-- Seconds before a wait began within which an `uncovered` incident still counts: more than two 540 s wait slices, so
+the incident of the previous slice is seen by the next one (MEASURED: gaps between incidents of one run, p50 567 s, p90 602 s). -/
+def uncoveredLookbackS : Nat := 1200
 
-/-- **One `uncovered` incident does not end a wait.** -/
-theorem uncovered_once_waits : uncoveredExit 1 = false := rfl
+/-- A wait that registered its watch at `regAt` ends when at least `uncoveredMax` `uncovered` incidents of its run
+(their `times`) lie in the lookback (`time >= regAt - uncoveredLookbackS`) and at least one is at or after `regAt`, so a
+run covered again after old incidents does not end a fresh wait by them alone. -/
+def uncoveredExit (regAt : Nat) (times : List Nat) : Bool :=
+  decide (uncoveredMax ≤ (times.filter fun x => regAt ≤ x + uncoveredLookbackS).length) && times.any fun x => decide (regAt ≤ x)
 
-/-- **A repeated `uncovered` incident ends the wait.** -/
-theorem uncovered_repeated_exits (n : Nat) (h : 2 ≤ n) : uncoveredExit n = true := by
-  exact decide_eq_true (by simpa [uncoveredMax] using h)
+/-- **No incident keeps waiting.** -/
+theorem uncovered_none_waits (regAt : Nat) : uncoveredExit regAt [] = false := rfl
+
+/-- **One incident does not end a wait.** -/
+theorem uncovered_once_waits (regAt x : Nat) : uncoveredExit regAt [x] = false := by
+  by_cases h : regAt ≤ x + uncoveredLookbackS <;> simp [uncoveredExit, uncoveredMax, h]
+
+/-- **Two incidents 567 s apart end the wait** (one wait slice later, inside the lookback; the later one at or after `regAt`). -/
+theorem uncovered_two_slices_exit (regAt a : Nat) (h : regAt ≤ a + 567) : uncoveredExit regAt [a, a + 567] = true := by
+  have h1 : regAt ≤ a + uncoveredLookbackS := by simp [uncoveredLookbackS]; omega
+  have h2 : regAt ≤ a + 567 + uncoveredLookbackS := by simp [uncoveredLookbackS]; omega
+  simp [uncoveredExit, uncoveredMax, h1, h2, h]
+
+/-- **An incident older than the lookback does not count**, so it does not make the pair with a later one. -/
+theorem uncovered_old_ignored (regAt a b : Nat) (h : a + uncoveredLookbackS < regAt) :
+    uncoveredExit regAt [a, b] = false := by
+  have h1 : ¬ regAt ≤ a + uncoveredLookbackS := by omega
+  have h2 : ¬ regAt ≤ a := by simp [uncoveredLookbackS] at *; omega
+  by_cases h3 : regAt ≤ b + uncoveredLookbackS <;> simp [uncoveredExit, uncoveredMax, h1, h2, h3]
+
+/-- **Incidents all before the wait began do not end it** (the poller must drop the watch again). -/
+theorem uncovered_all_before_waits (regAt a b : Nat) (ha : a < regAt) (hb : b < regAt) : uncoveredExit regAt [a, b] = false := by
+  have h2 : ¬ regAt ≤ a := by omega
+  have h3 : ¬ regAt ≤ b := by omega
+  simp [uncoveredExit, h2, h3]
 
 /-- **The exit code is neither the timeout code nor the gh-unavailable code**: a caller can tell them apart. -/
 theorem uncoveredCode_ne_timeout : uncoveredCode ≠ 3 ∧ uncoveredCode ≠ 5 := by decide
@@ -153,8 +179,8 @@ theorem stale_after_window (r t : Nat) (h : r + freshS < t) : fresh r t = false 
 #guard trusted false 100 401 == false
 #guard trusted true 100 130 == true
 #guard trusted true 100 131 == false
-#guard uncoveredExit 1 == false
-#guard uncoveredExit 2 == true
+#guard uncoveredExit 5000 [5000] == false
+#guard uncoveredExit 5000 [4433, 5000] == true
 
 #guard jobsSettled 0 0 == true
 #guard jobsSettled 1 0 == false

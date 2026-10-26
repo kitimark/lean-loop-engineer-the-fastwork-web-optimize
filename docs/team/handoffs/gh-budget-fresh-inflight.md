@@ -1,17 +1,15 @@
-# Handoff: gh-budget-fresh-inflight
+# Handoff: gh-budget-fresh-inflight (round 2)
 Branch: worktree-wf_b2422c29-dea-1. Worktree: .claude/worktrees/wf_b2422c29-dea-1. No CI push, no CI run ids (unit tests only).
-Verified: lean/scripts/check.sh green; @fw/gh-budget test 99/99; ci-paths 56/56; land-inputs 73/73; dry land `VERDICT dry gh-budget-fresh-inflight`.
+Verified (round 2): lake build + lake test green; @fw/gh-budget test 101/101; check.sh, ci-paths, land-inputs, dry land: see the report.
 
-What changed
-- lean/Fw/Ci/Attempt.lean: `inflightS` (300 s), `trusted` (completed -> `fresh`, unfinished -> within `inflightS`), theorems
-  trusted_completed / trusted_inflight_young / trusted_inflight_stale / trusted_old_never; `uncoveredMax` 2, `uncoveredCode` 6,
-  `uncoveredExit`, theorems uncovered_once_waits / uncovered_repeated_exits / uncoveredCode_ne_timeout.
-- lean/Fw/Ci/AttemptGolden.lean generates packages/contracts/golden/ci/attempt-inflight.jsonl; wired in lean/scripts/check.sh and
-  lean/Fw/Ci/Trigger.lean (+ regenerated triggers.jsonl).
-- packages/gh-budget/src/wait.ts: `trustedRow` (TS stand-in for the unfinished branch; the finished branch calls fwcore `ci.attempt`),
-  used by createdOf cached()/listed(); `uncoveredSince` + exit 6 in the run-wait loop. Exit 6 chosen because 5 means gh unavailable in land-remote.
-- packages/gh-budget/test/inflight.test.ts: golden replay, stale queued row of a completed run returns in 0 virtual seconds with 1 view,
-  bound edge, one view per wait, gh failure not retried, uncovered exit.
+Round 2 changes (review r1)
+- B: Lean `uncoveredLookbackS` (1200) and `uncoveredExit regAt times` (>= 2 incidents with time >= regAt - lookback, one at or after regAt);
+  theorems uncovered_none_waits / once_waits / two_slices_exit (567 s apart) / old_ignored / all_before_waits. Golden
+  attempt-inflight.jsonl now carries regAt, times, lookback. TS: wait.ts `uncoveredExit(regAt, times)`, `uncoveredSince(env, id, regAt - UNCOVERED_LOOKBACK_S)`.
+  Test: two consecutive 540 s waitFor calls, the poller logs one uncovered incident per wait, the second returns 6.
+- F1: merged main, took main's triggers.jsonl, regenerated with `lake test -- --write-ci-trigger-golden`.
+- F2/F3: AttemptGolden.lean module doc and Attempt.lean header text as the reviewer wrote.
 
-TS stand-ins (Lean replacement later): trustedRow unfinished branch and the uncovered constants (golden-checked; no fwcore Wire op was added, to stay inside the task's writes).
-Open: docs/team/tools mention of exit 6 not written (outside writes). The 47 moved rows stay moved.
+TS stand-ins (Lean replacement later): trustedRow unfinished branch, uncoveredExit and the constants (golden-checked).
+Open follow-ups: move `import Fw.Ci.AttemptGolden` out of Trigger.lean; fwcore Wire op for trusted/uncoveredExit; document exit 6 in
+docs/team/tools and map it in land-remote.ts. The 47 moved rows stay moved.

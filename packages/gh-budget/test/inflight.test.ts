@@ -5,8 +5,9 @@ import assert from "node:assert/strict";
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { INFLIGHT_S, UNCOVERED_CODE, trustedRow, uncoveredExit, uncoveredSince, waitFor } from "../src/wait.ts";
+import { INFLIGHT_S, UNCOVERED_CODE, UNCOVERED_LOOKBACK_S, trustedRow, uncoveredExit, uncoveredSince, waitFor } from "../src/wait.ts";
 import { paths } from "../src/state.ts";
+import { stepEvent } from "../src/state.ts";
 import { drive, goldenDir, mkWorld } from "./util.ts";
 
 const T0 = 1_800_000_000;
@@ -31,8 +32,9 @@ test("trustedRow and uncoveredExit replay golden ci/attempt-inflight.jsonl", () 
       const env = { ...w.env, now: () => c.now as number };
       assert.equal(trustedRow(env, c.completed as boolean, c.read as number), c.trusted, String(c.name));
     } else {
-      assert.equal(uncoveredExit(c.incidents as number), c.exit, String(c.name));
+      assert.equal(uncoveredExit(c.regAt as number, c.times as number[]), c.exit, String(c.name));
       assert.equal(UNCOVERED_CODE, c.code, String(c.name));
+      assert.equal(UNCOVERED_LOOKBACK_S, c.lookback, String(c.name));
     }
   }
   assert.equal(trustedRow(w.env, false, undefined), false, "a row with no read time is never trusted");
@@ -79,20 +81,42 @@ test("a gh failure of the refreshing view is exit 2 and is not retried (no retry
   assert.equal(viewsOf(w.calls(), 96).length, 1);
 });
 
-test("a repeated uncovered incident of the run ends the wait with exit 6, one incident does not", async () => {
+test("uncoveredSince lists the times of this run's uncovered incidents at or after the bound", () => {
+  const w = mkWorld(T0, { fastGh: true });
+  mkdirSync(w.stateDir, { recursive: true });
+  incident(w.stateDir, 77, T0 - 50);
+  incident(w.stateDir, 78, T0);
+  incident(w.stateDir, 77, T0, "orphan");
+  incident(w.stateDir, 77, T0);
+  assert.deepEqual(uncoveredSince(w.env, 77, T0 - 100), [T0 - 50, T0]);
+  assert.deepEqual(uncoveredSince(w.env, 77, T0), [T0]);
+});
+
+test("two incidents inside the lookback end a wait, two before it began do not", async () => {
   const w = mkWorld(T0, { fastGh: true });
   w.config({ start: T0, listCost: 2, runs: [run(77, { createdAt: T0 - 100, completeAt: 1e12 })] });
   metaRow(w.stateDir, 77, "in_progress", T0);
-  incident(w.stateDir, 77, T0 - 50); // before this wait began
-  incident(w.stateDir, 78, T0); // another run
-  incident(w.stateDir, 77, T0, "orphan"); // another reason
-  incident(w.stateDir, 77, T0);
-  assert.equal(uncoveredSince(w.env, 77, T0), 1);
+  incident(w.stateDir, 77, T0 - 100);
+  incident(w.stateDir, 77, T0 - 90);
   const [one] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 77 }, { timeoutS: 60 })]);
-  assert.equal(one!.code, 3, "one incident keeps waiting");
-  incident(w.stateDir, 77, w.sim.t);
+  assert.equal(one!.code, 3, "both incidents are before the wait: keep waiting");
+  incident(w.stateDir, 77, w.sim.t - 567);
   incident(w.stateDir, 77, w.sim.t);
   const [two] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 77 }, { timeoutS: 3600 })]);
   assert.equal(two!.code, 6);
   assert.match(two!.lines[0]!, /does not cover run 77/);
+});
+
+test("two consecutive 540 s waits: the poller logs one uncovered incident per wait, the second wait returns 6", async () => {
+  const w = mkWorld(T0, { fastGh: true });
+  const filler = Array.from({ length: 1_200 }, (_, i) => ({ databaseId: 1_000 + i, createdAt: T0 - 50, completeAt: T0 + 100_000 }));
+  w.config({ start: T0, listCost: 20, runs: [run(7, { createdAt: T0 - 100, completeAt: 1e12 }), ...filler] });
+  stepEvent(w.env, { pages: 11 }); // a list of 10 pages (1000 rows) is all the share affords: run 7 is older than every row
+  const logged = () => readFileSync(paths(w.stateDir).incidents, "utf8").split("\n").filter((l) => l.includes('"uncovered"') && l.includes('"runId":7,')).length;
+  const [first] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 7 }, { timeoutS: 540 })]);
+  assert.equal(first!.code, 3, first!.lines.join("\n"));
+  assert.equal(logged(), 1, "the poller itself logged one incident during the first wait");
+  const [second] = await drive(w.sim, [waitFor(w.env, { kind: "run", runId: 7 }, { timeoutS: 540 })]);
+  assert.equal(logged(), 2, "and one during the second");
+  assert.equal(second!.code, 6, second!.lines.join("\n"));
 });
