@@ -1,7 +1,7 @@
 export type Impl = 'mui' | 'plain';
 
 export interface VariantDef {
-  kind: 'faithful' | 'optimized' | 'ablation' | 'proposal';
+  kind: 'faithful' | 'optimized' | 'ablation' | 'proposal' | 'probe';
   tier?: string;
   diagnostic?: boolean;
   visClass?: 'E' | 'E-s' | 'Q' | 'L';

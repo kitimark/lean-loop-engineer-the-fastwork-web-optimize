@@ -4179,6 +4179,94 @@
    "lesson": "Removing the animated layer removes both the WebKit backing cost and the WebKit paint saving, and it shows dark where the original is still white; the backing-free arrangement is a look change, not a free win.",
    "next": "user look review (look-change candidate); not a v2-proved candidate",
    "evidence": "research/notes/2026/10-2x-pain-dark-scroll.md (arrangement tried: pain:dark-static); apps/site/src/parts/pain/part.json variants.dark-static"
+  },
+  {
+   "n": 81,
+   "id": "platform.sweep.probe-off",
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:probe-off: measurement-only arm that switches the sweep work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.sweep:probe-off"
+   ],
+   "chromium": "MEASURED mixed (run 40237508223, base 40203753344): finish 215 fewer raster tasks and 792 fewer PaintImage, Paint +1 per frame (counter artifact, INFERRED) so the Lean verdict is no-gain after the approach",
+   "webkit": "MEASURED gain (run 40237513521, 3 VMs, base 40203774734 + 40236531932): z5000 Paint 54-66 to 30-36, finish 166-222 to 80-143; other counts inside the base spread",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The sweep paint is the largest end-of-page platform cost on WebKit; its ceiling is this saving.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "n": 82,
+   "id": "platform.glint.probe-off",
+   "part": "platform.glint",
+   "candidate": "platform.glint:probe-off: measurement-only arm that switches the glint work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.glint:probe-off"
+   ],
+   "chromium": "MEASURED gain only in approach and end 0-19 (run 40236516819): 38 fewer raster tasks, 9 fewer style recalcs, nothing after end+20",
+   "webkit": "MEASURED gain in z5000, no-gain in finish (run 40236465002, 3 VMs): z5000 Paint 54-66 to 40-44",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The glint work is confined to the push approach and the first 20 end frames.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "n": 83,
+   "id": "platform.entries.probe-off",
+   "part": "platform.entries",
+   "candidate": "platform.entries:probe-off: measurement-only arm that switches the entries work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.entries:probe-off"
+   ],
+   "chromium": "MEASURED gain only in end 0-19 (Paint 335 to 330, RasterTask 517 to 512); approach no-gain (FireAnimationFrame 120 to 122); no-gain from end+20 (run 40236472868)",
+   "webkit": "UNDECIDED, n = 2 of 3 VMs (run 40236534457, VM r1 lost): would read ObserverCallback 14 to 6, FireAnimationFrame less",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The entries contain changes the approach layouts and a few counts in end 0-19 (INFERRED, under 10 counts, no same-commit base); it removes no work from end+20 on Chromium.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "n": 84,
+   "id": "platform.marquee.probe-off",
+   "part": "platform.marquee",
+   "candidate": "platform.marquee:probe-off: measurement-only arm that switches the marquee work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.marquee:probe-off"
+   ],
+   "chromium": "MEASURED no-gain in every window (run 40236462082)",
+   "webkit": "UNDECIDED, n = 2 of 3 VMs (run 40236475717, VM r3 lost): counts inside the base spread",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The marquee probe moves no count; the marquee is not an end-of-page cost.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
   }
  ],
  "notes": [
@@ -4799,6 +4887,24 @@
    "task": "push-cycle-lag",
    "field": "mechanism",
    "text": "push-cycle-lag (run 40242079617, WebKit Simulator real touches, 6 cycles, dwell 1 s, MEASURED): removing hero.countdown:strip (with it morph.countdown:strip) or morph.countdown:strip alone from the user composition leaves the rise of slow >50 ms frames with the cycle index in place (Lean Fw.Measure.PushCycle.trend rises for both; slow share k=0..2 21% and 22% against 23% for the composition, k=3..5 52% and 57% against 64%). The strips are therefore not the cause of the push-cycle lag. Without hero.countdown:strip the rise starts later (k=3 24% against 65%) and catches up at k=4 and k=5; one pass per arm position, so a delay is not separable from the pass clock (INFERRED). Note: research/notes/2026/10-2x-push-cycle-lag.md."
+  },
+  {
+   "entry": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "task": "platform-attribution",
+   "field": "mechanism",
+   "text": "platform-attribution (note research/notes/2026/10-2x-platform-attribution.md): the probe arm platform.sweep:probe-off (animation none) removes the sweep work. MEASURED WebKit Simulator run 40237513521 (3 VMs, 6 passes) against base 40203774734 and 40236531932: z5000 and finish Paint 54-66 to 30-36 and 166-222 to 80-143, Layout, RecalculateStyles and Composite inside the base spread. Chromium run 40237508223 against 40203753344: 215 fewer raster tasks and 792 fewer PaintImage in the finish window, Paint +1 per frame (counter artifact, INFERRED), so the Lean verdict reads no-gain after the approach. The ceiling of any pause variant is this saving; a pause that only holds while the section is off screen cannot exceed it."
+  },
+  {
+   "entry": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "task": "platform-attribution",
+   "field": "mechanism",
+   "text": "platform-attribution (note research/notes/2026/10-2x-platform-attribution.md): the probe arm platform.glint:probe-off. MEASURED WebKit run 40236465002 (3 VMs): z5000 gain (Paint 54-66 to 40-44, EventDispatch and FunctionCall less), finish no-gain. Chromium run 40236516819: 38 fewer raster tasks and 9 fewer style recalcs, all before end+20, nothing in end 20+. The glint work that a pause could remove is confined to the push approach and the first 20 end frames."
+  },
+  {
+   "entry": "covered pause (hero under the 0.999-opacity People card, KD#18 hero-covered-pause)",
+   "task": "platform-attribution",
+   "field": "mechanism",
+   "text": "platform-attribution (note research/notes/2026/10-2x-platform-attribution.md): the probe arm platform.marquee:probe-off has no effect. MEASURED Chromium run 40236462082 (3 runs): no-gain in every window (finish recalcs 319 to 320 is a cost). WebKit run 40236475717 is undecided: 2 of 3 VMs (VM r3 job failed, no rerun), counts inside the base spread. No no-win is claimed on WebKit."
   }
  ]
 }

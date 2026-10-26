@@ -21,6 +21,7 @@ inductive Kind where
   | optimized
   | ablation
   | proposal
+  | probe
 deriving DecidableEq, Repr
 
 /-- How a variant's look relates to the faithful one (`part.json` `visClass`, PLAN §4.7 classes): `e` exact, `eS` exact
@@ -316,6 +317,60 @@ theorem preset_registered {reg : List Reg} {links : List (Flag × List Key)} {le
   simp only [ok, isOpt, Bool.and_eq_true, List.any_eq_true, beq_iff_eq] at hq
   obtain ⟨⟨⟨⟨r, hr, hf, hk⟩, _⟩, _⟩, _⟩ := hq
   exact ⟨r, hr, hf, hk⟩
+
+def isProbe (reg : List Reg) (f : Flag) : Bool :=
+  reg.any fun r => r.flag == f && r.kind == .probe
+
+def probesClean (reg : List Reg) : Bool :=
+  reg.all fun r => r.kind != .probe || r.visClass.isNone
+
+def OnlyProbe (reg : List Reg) (f : Flag) : Prop := ∀ r ∈ reg, r.flag = f → r.kind = .probe
+
+theorem probe_not_isOpt {reg : List Reg} {f : Flag} (h : OnlyProbe reg f) : isOpt reg f = false := by
+  unfold isOpt
+  rw [Bool.eq_false_iff]
+  intro hc
+  obtain ⟨r, hr, hq⟩ := List.any_eq_true.1 hc
+  simp only [Bool.and_eq_true, beq_iff_eq] at hq
+  have := h r hr hq.1
+  rw [hq.2] at this
+  cases this
+
+theorem probe_not_ok {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored} {f : Flag}
+    (h : OnlyProbe reg f) : ok reg links ledger st f = false := by
+  simp [ok, probe_not_isOpt h]
+
+theorem eq_of_nodup_map {α β : Type} (g : α → β) : ∀ {l : List α}, (l.map g).Nodup → ∀ {a b : α}, a ∈ l → b ∈ l →
+    g a = g b → a = b
+  | [], _, _, _, ha, _, _ => by simp at ha
+  | x :: xs, hn, a, b, ha, hb, hab => by
+    rw [List.map_cons, List.nodup_cons] at hn
+    rcases List.mem_cons.1 ha with rfl | ha' <;> rcases List.mem_cons.1 hb with rfl | hb'
+    · rfl
+    · exact absurd (hab ▸ List.mem_map_of_mem hb') hn.1
+    · exact absurd (hab ▸ List.mem_map_of_mem ha') hn.1
+    · exact eq_of_nodup_map g hn.2 ha' hb' hab
+
+theorem onlyProbe_of_nodup {reg : List Reg} {f : Flag} (hnd : (reg.map (·.flag)).Nodup) (hp : isProbe reg f = true) :
+    OnlyProbe reg f := by
+  obtain ⟨r0, hr0, hq⟩ := List.any_eq_true.1 hp
+  simp only [Bool.and_eq_true, beq_iff_eq] at hq
+  intro r hr hf
+  have : r = r0 := eq_of_nodup_map _ hnd hr hr0 (hf.trans hq.1.symm)
+  rw [this]
+  exact hq.2
+
+theorem probe_not_mem {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored} {f : Flag}
+    (h : OnlyProbe reg f) : f ∉ preset reg links ledger st := by
+  intro hm
+  obtain ⟨r, hr, hf, hk⟩ := preset_registered hm
+  have := h r hr hf
+  rw [hk] at this
+  cases this
+
+theorem probe_not_mem_of_nodup {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored}
+    {f : Flag} (hnd : (reg.map (·.flag)).Nodup) (hp : isProbe reg f = true) : f ∉ preset reg links ledger st :=
+  probe_not_mem (onlyProbe_of_nodup hnd hp)
 
 /-- Every member of the preset is proved.
 
