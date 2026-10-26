@@ -22030,6 +22030,62 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/platform-sweep-layer.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-vm-upload",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "macos-vm-evidence"
+   ],
+   "title": "Phase 2 of macos-vm-evidence (landed ee0903758; trace in research/notes/2026/10-25-macos-vm-loss.md): make a lost or stalled macOS Simulator job leave evidence. In .github/workflows/webkit-sim.yml: upload each per-pass result file (out/$VM-session-$s.pass-*.part, written by session.mjs writePassFile) as soon as the pass ends, and upload the telemetry probes.jsonl periodically during the run (not only at job end), so a job killed by the runner or the 53-min cap still leaves passes and probes. Lean first for any decision (upload cadence as a function of the Lean job bound; theorem: at least one telemetry upload lands before the job cap), golden replayed by a test; the Lean ci trigger and ci-paths rows updated. Then one CI push of ci/macos-vm-upload ([ci:webkit-sim] in the head commit message) that shows the per-pass artifacts and at least two periodic probe uploads in one run. toolbar-throttle.yml gets the same edit after toolbar-sim-lane lands (it owns that file now): list it in open. Map exit 6 of the gh-budget waiter (uncovered run) in apps/runner/src/land-remote.ts and document it in docs/team/tools/ci-telemetry.md.",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "scripts/ci-telemetry/**",
+    "lean/Fw/Ci/Telemetry.lean",
+    "lean/scripts/TelemetryGolden.lean",
+    "packages/contracts/golden/ci/telemetry.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "docs/team/tools/ci-telemetry.md",
+    "docs/team/handoffs/macos-vm-upload.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "push-cycle-separate",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "push-cycle-lag",
+    "toolbar-sim-lane"
+   ],
+   "title": "Follow-ups of push-cycle-lag (landed 009846fc1; note research/notes/2026/10-2x-push-cycle-lag.md). MEASURED there: on the WebKit Simulator the share of slow (> 50 ms) frames rises with the pull-in/pull-out cycle index in every arm, and none of the three flag-off pages (hero.countdown:strip, morph.countdown:strip, engine.scroll:unthrottle) removes the rise; the rise cannot yet be separated from time in the pass (INFERRED). (1) Separate cycle index from pass clock: a 12-cycle pass and a pass with idle dwell between cycles, plus a WebKit layer count and backing-memory reading per cycle (census per cycle), on the toolbar-throttle Simulator lane; Lean rule that decides 'cycle-driven' vs 'clock-driven' from the two profiles, with theorem and golden. (2) Move the flag attribution into Lean: attributed (offTrend : Trend) : Bool := offTrend != .rises, golden row per flag-off page. (3) h1Verdict returns .open when framesFar <= 2 * slowFar (it cannot return holds there), with a theorem. (4) If the rise is cycle-driven, name the per-cycle growth (layers, memory, listeners) and the part that owns it, as the premise for a fix candidate. At most 3 CI pushes; lost jobs are named failures. The phone replay of the same profile belongs to phone-compose-counts.",
+   "writes": [
+    "packages/measure-webkit/src/throttle/push-cycle*.mjs",
+    "packages/measure-webkit/test/push-cycle*.test.mjs",
+    "lean/Fw/Measure/PushCycle.lean",
+    "packages/contracts/golden/measure/push-cycle*.jsonl",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-push-cycle-separate.md",
+    "results/push-cycle-separate/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/push-cycle-separate.md"
+   ]
   }
  ],
  "deadline": {
