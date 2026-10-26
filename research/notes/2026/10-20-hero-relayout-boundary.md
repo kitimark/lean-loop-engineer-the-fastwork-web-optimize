@@ -89,6 +89,18 @@ base run 40268899311, flag run 40268902395 (`--fw hero.exit:contain`). Hero-exit
 | whole run | base | 474.7 | 456,706 | 6,483 | 122.0 | 2,389 |
 | whole run | flag | 473.7 | 357,812 | 5,775 | 223.3 | 2,391 |
 
+Lean verdict for the hero-exit window (`cmp` and `judge` of `Fw.Measure.Offscreen`, slack 0, per-run min-max; usable:
+3 runs per arm, 103 frames in every run). The zone sums are read by `extract-chromium.mjs`, a TS stand-in: the
+committed window reader `offscreen-windows-cli.mjs` covers the push-end windows only, not scroll zones.
+
+| counter | base r1-r3 | flag r1-r3 | cmp |
+|---|---|---|---|
+| Layout (passes) | 122-123 | 121-122 | same |
+| RecalcStyle (UpdateLayoutTree) | 405 | 405 | same |
+| Paint | 897 | 897 | same |
+| Layout totalObjects | 108,371-108,596 | 70,064-70,231 | less |
+| verdict | | | gain |
+
 - The pass count stays the same: the flag makes passes smaller, it does not remove them. In the window 76 of 122 passes
   are partial with the flag; the other 46 are full, as the dirty-source condition predicts for frames with a source
   outside the hero.
