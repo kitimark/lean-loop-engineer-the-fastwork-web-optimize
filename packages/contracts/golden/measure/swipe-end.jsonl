@@ -1,0 +1,126 @@
+{"endWinFrames":40,"op":"consts","touchTail":30,"windowReach":120,"windowTail":160}
+{"idleFrames":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"tail","tail":165}
+{"idleFrames":6,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"tail","tail":160}
+{"idleFrames":36,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"tail","tail":160}
+{"idleFrames":170,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"tail","tail":173}
+{"idleFrames":284,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"tail","tail":345}
+{"end":575,"fired":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":740}
+{"end":575,"fired":739,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":740}
+{"end":575,"fired":700,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":740}
+{"end":575,"fired":740,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":741}
+{"end":575,"fired":800,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":801}
+{"end":671,"fired":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":836}
+{"end":0,"fired":0,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":165}
+{"end":0,"fired":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":165}
+{"end":10,"fired":300,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"op":"stopAt","stopAt":301}
+{"end":575,"fired":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":735}
+{"end":575,"fired":739,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":740}
+{"end":575,"fired":700,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":735}
+{"end":575,"fired":740,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":741}
+{"end":575,"fired":800,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":801}
+{"end":671,"fired":671,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":831}
+{"end":0,"fired":0,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":160}
+{"end":0,"fired":164,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":165}
+{"end":10,"fired":300,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"op":"stopAt","stopAt":301}
+{"end":575,"fired":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":735}
+{"end":575,"fired":739,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":740}
+{"end":575,"fired":700,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":735}
+{"end":575,"fired":740,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":741}
+{"end":575,"fired":800,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":801}
+{"end":671,"fired":671,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":831}
+{"end":0,"fired":0,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":160}
+{"end":0,"fired":164,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":165}
+{"end":10,"fired":300,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"op":"stopAt","stopAt":301}
+{"end":575,"fired":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":748}
+{"end":575,"fired":739,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":748}
+{"end":575,"fired":700,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":748}
+{"end":575,"fired":740,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":748}
+{"end":575,"fired":800,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":803}
+{"end":671,"fired":671,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":844}
+{"end":0,"fired":0,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":173}
+{"end":0,"fired":164,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":173}
+{"end":10,"fired":300,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"op":"stopAt","stopAt":303}
+{"end":575,"fired":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":920}
+{"end":575,"fired":739,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":920}
+{"end":575,"fired":700,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":920}
+{"end":575,"fired":740,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":920}
+{"end":575,"fired":800,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":920}
+{"end":671,"fired":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":1016}
+{"end":0,"fired":0,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":345}
+{"end":0,"fired":164,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":345}
+{"end":10,"fired":300,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"op":"stopAt","stopAt":361}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":574,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":739,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":740,"op":"stops","stops":true}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":739,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":740,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":741,"op":"stops","stops":true}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":835,"op":"stops","stops":false}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":836,"op":"stops","stops":true}
+{"done":false,"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"n":836,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":574,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":739,"op":"stops","stops":true}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":740,"op":"stops","stops":true}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":739,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":740,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":741,"op":"stops","stops":true}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":835,"op":"stops","stops":true}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":836,"op":"stops","stops":true}
+{"done":false,"end":671,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"n":836,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":574,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":739,"op":"stops","stops":true}
+{"done":true,"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":740,"op":"stops","stops":true}
+{"done":false,"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":739,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":740,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":741,"op":"stops","stops":true}
+{"done":true,"end":671,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":835,"op":"stops","stops":true}
+{"done":true,"end":671,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":836,"op":"stops","stops":true}
+{"done":false,"end":671,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"n":836,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":574,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":739,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":740,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":739,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":740,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":741,"op":"stops","stops":false}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":835,"op":"stops","stops":false}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":836,"op":"stops","stops":false}
+{"done":false,"end":671,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"n":836,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":574,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":739,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":740,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":739,"op":"stops","stops":false}
+{"done":false,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":740,"op":"stops","stops":false}
+{"done":true,"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":741,"op":"stops","stops":false}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":835,"op":"stops","stops":false}
+{"done":true,"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":836,"op":"stops","stops":false}
+{"done":false,"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"n":836,"op":"stops","stops":false}
+{"end":575,"idle":0,"n":575,"op":"endFrame"}
+{"end":575,"idle":164,"n":739,"op":"endFrame"}
+{"end":671,"idle":0,"n":671,"op":"endFrame"}
+{"end":0,"idle":10,"n":10,"op":"endFrame"}
+{"end":0,"idle":9,"n":5,"op":"endFrame"}
+{"limit":5346,"op":"reason","reason":"limit","y":5346}
+{"limit":5346,"op":"reason","reason":"limit","y":5400}
+{"limit":5346,"op":"reason","reason":"stalled","y":5342}
+{"limit":5346,"op":"reason","reason":"stalled","y":0}
+{"limit":0,"op":"reason","reason":"limit","y":0}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"last":741,"op":"windows","readerEnd":574,"total":771,"windows":[{"hi":574,"lo":540,"name":"approach"},{"hi":594,"lo":574,"name":"end 0-19"},{"hi":634,"lo":594,"name":"end 20-59"},{"hi":694,"lo":634,"name":"end 60-119"},{"hi":741,"lo":694,"name":"end 120+"},{"hi":741,"lo":540,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"last":736,"op":"windows","readerEnd":574,"total":766,"windows":[{"hi":574,"lo":540,"name":"approach"},{"hi":594,"lo":574,"name":"end 0-19"},{"hi":634,"lo":594,"name":"end 20-59"},{"hi":694,"lo":634,"name":"end 60-119"},{"hi":736,"lo":694,"name":"end 120+"},{"hi":736,"lo":540,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"last":736,"op":"windows","readerEnd":574,"total":766,"windows":[{"hi":574,"lo":540,"name":"approach"},{"hi":594,"lo":574,"name":"end 0-19"},{"hi":634,"lo":594,"name":"end 20-59"},{"hi":694,"lo":634,"name":"end 60-119"},{"hi":736,"lo":694,"name":"end 120+"},{"hi":736,"lo":540,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"last":749,"op":"windows","readerEnd":574,"total":779,"windows":[{"hi":574,"lo":540,"name":"approach"},{"hi":594,"lo":574,"name":"end 0-19"},{"hi":634,"lo":594,"name":"end 20-59"},{"hi":694,"lo":634,"name":"end 60-119"},{"hi":749,"lo":694,"name":"end 120+"},{"hi":749,"lo":540,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"last":921,"op":"windows","readerEnd":574,"total":951,"windows":[{"hi":574,"lo":540,"name":"approach"},{"hi":594,"lo":574,"name":"end 0-19"},{"hi":634,"lo":594,"name":"end 20-59"},{"hi":694,"lo":634,"name":"end 60-119"},{"hi":921,"lo":694,"name":"end 120+"},{"hi":921,"lo":540,"name":"finish"}]}
+{"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"last":837,"op":"windows","readerEnd":670,"total":867,"windows":[{"hi":670,"lo":636,"name":"approach"},{"hi":690,"lo":670,"name":"end 0-19"},{"hi":730,"lo":690,"name":"end 20-59"},{"hi":790,"lo":730,"name":"end 60-119"},{"hi":837,"lo":790,"name":"end 120+"},{"hi":837,"lo":636,"name":"finish"}]}
+{"end":671,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"last":832,"op":"windows","readerEnd":670,"total":862,"windows":[{"hi":670,"lo":636,"name":"approach"},{"hi":690,"lo":670,"name":"end 0-19"},{"hi":730,"lo":690,"name":"end 20-59"},{"hi":790,"lo":730,"name":"end 60-119"},{"hi":832,"lo":790,"name":"end 120+"},{"hi":832,"lo":636,"name":"finish"}]}
+{"end":671,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"last":832,"op":"windows","readerEnd":670,"total":862,"windows":[{"hi":670,"lo":636,"name":"approach"},{"hi":690,"lo":670,"name":"end 0-19"},{"hi":730,"lo":690,"name":"end 20-59"},{"hi":790,"lo":730,"name":"end 60-119"},{"hi":832,"lo":790,"name":"end 120+"},{"hi":832,"lo":636,"name":"finish"}]}
+{"end":671,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"last":845,"op":"windows","readerEnd":670,"total":875,"windows":[{"hi":670,"lo":636,"name":"approach"},{"hi":690,"lo":670,"name":"end 0-19"},{"hi":730,"lo":690,"name":"end 20-59"},{"hi":790,"lo":730,"name":"end 60-119"},{"hi":845,"lo":790,"name":"end 120+"},{"hi":845,"lo":636,"name":"finish"}]}
+{"end":671,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"last":1017,"op":"windows","readerEnd":670,"total":1047,"windows":[{"hi":670,"lo":636,"name":"approach"},{"hi":690,"lo":670,"name":"end 0-19"},{"hi":730,"lo":690,"name":"end 20-59"},{"hi":790,"lo":730,"name":"end 60-119"},{"hi":1017,"lo":790,"name":"end 120+"},{"hi":1017,"lo":636,"name":"finish"}]}
+{"end":100,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"last":266,"op":"windows","readerEnd":100,"total":296,"windows":[{"hi":100,"lo":66,"name":"approach"},{"hi":120,"lo":100,"name":"end 0-19"},{"hi":160,"lo":120,"name":"end 20-59"},{"hi":220,"lo":160,"name":"end 60-119"},{"hi":266,"lo":220,"name":"end 120+"},{"hi":266,"lo":66,"name":"finish"}]}
+{"end":100,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"last":261,"op":"windows","readerEnd":100,"total":291,"windows":[{"hi":100,"lo":66,"name":"approach"},{"hi":120,"lo":100,"name":"end 0-19"},{"hi":160,"lo":120,"name":"end 20-59"},{"hi":220,"lo":160,"name":"end 60-119"},{"hi":261,"lo":220,"name":"end 120+"},{"hi":261,"lo":66,"name":"finish"}]}
+{"end":100,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"last":261,"op":"windows","readerEnd":100,"total":291,"windows":[{"hi":100,"lo":66,"name":"approach"},{"hi":120,"lo":100,"name":"end 0-19"},{"hi":160,"lo":120,"name":"end 20-59"},{"hi":220,"lo":160,"name":"end 60-119"},{"hi":261,"lo":220,"name":"end 120+"},{"hi":261,"lo":66,"name":"finish"}]}
+{"end":100,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"last":274,"op":"windows","readerEnd":100,"total":304,"windows":[{"hi":100,"lo":66,"name":"approach"},{"hi":120,"lo":100,"name":"end 0-19"},{"hi":160,"lo":120,"name":"end 20-59"},{"hi":220,"lo":160,"name":"end 60-119"},{"hi":274,"lo":220,"name":"end 120+"},{"hi":274,"lo":66,"name":"finish"}]}
+{"end":100,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"last":446,"op":"windows","readerEnd":100,"total":476,"windows":[{"hi":100,"lo":66,"name":"approach"},{"hi":120,"lo":100,"name":"end 0-19"},{"hi":160,"lo":120,"name":"end 20-59"},{"hi":220,"lo":160,"name":"end 60-119"},{"hi":446,"lo":220,"name":"end 120+"},{"hi":446,"lo":66,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":0,"minY":100,"startY":880},"last":741,"op":"windows","readerEnd":40,"total":771,"windows":[{"hi":40,"lo":6,"name":"approach"},{"hi":60,"lo":40,"name":"end 0-19"},{"hi":100,"lo":60,"name":"end 20-59"},{"hi":160,"lo":100,"name":"end 60-119"},{"hi":741,"lo":160,"name":"end 120+"},{"hi":741,"lo":6,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":0,"holdFrames":0,"minY":0,"startY":10},"last":736,"op":"windows","readerEnd":40,"total":766,"windows":[{"hi":40,"lo":6,"name":"approach"},{"hi":60,"lo":40,"name":"end 0-19"},{"hi":100,"lo":60,"name":"end 20-59"},{"hi":160,"lo":100,"name":"end 60-119"},{"hi":736,"lo":160,"name":"end 120+"},{"hi":736,"lo":6,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":25,"gapFrames":0,"holdFrames":0,"minY":100,"startY":500},"last":736,"op":"windows","readerEnd":40,"total":766,"windows":[{"hi":40,"lo":6,"name":"approach"},{"hi":60,"lo":40,"name":"end 0-19"},{"hi":100,"lo":60,"name":"end 20-59"},{"hi":160,"lo":100,"name":"end 60-119"},{"hi":736,"lo":160,"name":"end 120+"},{"hi":736,"lo":6,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":3,"holdFrames":2,"minY":100,"startY":880},"last":749,"op":"windows","readerEnd":40,"total":779,"windows":[{"hi":40,"lo":6,"name":"approach"},{"hi":60,"lo":40,"name":"end 0-19"},{"hi":100,"lo":60,"name":"end 20-59"},{"hi":160,"lo":100,"name":"end 60-119"},{"hi":749,"lo":160,"name":"end 120+"},{"hi":749,"lo":6,"name":"finish"}]}
+{"end":575,"input":{"dyPerFrame":10,"gapFrames":2,"holdFrames":60,"minY":100,"startY":880},"last":921,"op":"windows","readerEnd":40,"total":951,"windows":[{"hi":40,"lo":6,"name":"approach"},{"hi":60,"lo":40,"name":"end 0-19"},{"hi":100,"lo":60,"name":"end 20-59"},{"hi":160,"lo":100,"name":"end 60-119"},{"hi":921,"lo":160,"name":"end 120+"},{"hi":921,"lo":6,"name":"finish"}]}

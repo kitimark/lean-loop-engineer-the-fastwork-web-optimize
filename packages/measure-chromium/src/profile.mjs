@@ -96,6 +96,14 @@ export const swipeBudget = (w, scroll) => (4 * swipeStrokes(w, scroll) + 1) * sw
 export const swipeBand = (w) => w.dyPerFrame;
 export const swipeIdleFrames = (w) => 2 * swipeStroke(w);
 export const swipeEnded = (w, limit, y, idle) => limit <= y || (limit <= y + swipeBand(w) && swipeIdleFrames(w) <= idle);
+export const SWIPE_WINDOW_REACH = 120;
+export const SWIPE_END_WIN_FRAMES = 40;
+export const swipeWindowTail = SWIPE_WINDOW_REACH + SWIPE_END_WIN_FRAMES;
+export const swipeTail = (w) => Math.max(swipeWindowTail, swipeIdleFrames(w) + w.holdFrames + 1);
+export const swipeEndFrame = (n, idle) => Math.max(0, n - idle);
+export const swipeEndReason = (limit, y) => (limit <= y ? 'limit' : 'stalled');
+export const swipeStopAt = (w, e, nf) => Math.max(e + swipeTail(w), nf + w.holdFrames + 1);
+export const swipeStops = (w, e, n, done) => done && e + swipeTail(w) <= n;
 
 export const wireOf = (profile, kind) => ({
   kind, mobile: !!profile.viewport.mobile, css: typeof profile.css === 'string' ? profile.css : null,
