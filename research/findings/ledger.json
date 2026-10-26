@@ -3798,7 +3798,11 @@
    "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
    "next": "Rejected by the user on the phone (userDecision); not a candidate. The end-of-page fix path is morph-stage (sticky end stage, no pin).",
    "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
-   "userDecision": {"date": "2026-10-27", "decision": "rejected 2026-10-27: the user tried ?fw=morph.end.release:on on the iPhone and said it raises the end-of-page scroll bug when pulling in and out at the end of the page (source: chat, user words: \"the morph.end.release:on raise the end-of-page scroll bug. when i do pull in/out of the end of page\")", "review": "user phone check through the Compose link; CI runs 40158609202, 40167641467, 40193540518 (task morph-end-remeasure) measured the page drifting away from the end after the first close (min scrollY 3513-4067 px against 4953 px or more on every other arm)"}
+   "userDecision": {
+    "date": "2026-10-27",
+    "decision": "rejected 2026-10-27: the user tried ?fw=morph.end.release:on on the iPhone and said it raises the end-of-page scroll bug when pulling in and out at the end of the page (source: chat, user words: \"the morph.end.release:on raise the end-of-page scroll bug. when i do pull in/out of the end of page\")",
+    "review": "user phone check through the Compose link; CI runs 40158609202, 40167641467, 40193540518 (task morph-end-remeasure) measured the page drifting away from the end after the first close (min scrollY 3513-4067 px against 4953 px or more on every other arm)"
+   }
   },
   {
    "id": "platform.sweep.offscreen-pause",
