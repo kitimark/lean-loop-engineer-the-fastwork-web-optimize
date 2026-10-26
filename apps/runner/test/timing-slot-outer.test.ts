@@ -1,6 +1,3 @@
-// The outer `fw slot run check ...` span keyed by the admitted width: the rows of .fw-console/timings.jsonl of
-// 2026-10-25T22:40Z to 2026-10-26T01:25Z (apps/runner/test/fixtures/slot-check-outer.jsonl, copied unchanged) are replayed
-// against the Lean cases `slot width outer: ...` of packages/contracts/golden/obs/timing.jsonl (Fw.Obs.Timing.slotCheckRun).
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +10,6 @@ type Case = { name: string; request: { samples: { durMs: number; load: number; e
 const golden = readFileSync(join(root, "packages/contracts/golden/obs/timing.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Case);
 const outer = golden.filter((g) => g.name.startsWith("slot width outer:"));
 const rows = readFileSync(join(here, "fixtures/slot-check-outer.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l) as Record<string, unknown>);
-/** Lean `slotCheckWidth`: the span carried no width then; width 1 took 175 s and up, width 2 under 130 s. INFERRED. */
 const inferred = (d: number): number => (d < 130000 ? 2 : 1);
 const text = (withWidth: boolean): string => rows.map((r) => JSON.stringify(withWidth ? { ...r, slot: { width: inferred(r.durMs as number) } } : r)).join("\n");
 const lastTwo = (g: Case): string[] => g.response.verdicts.slice(-2).map((v) => v.code);

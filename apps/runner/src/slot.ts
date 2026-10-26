@@ -401,7 +401,6 @@ export function describeBuild(v: BuildVerdict): string {
   }
 }
 
-/** The admission inputs of a grant: the memory the verdict saw and the MB charged to other holders (Lean `Adapt.room` = avail - floor - charged). */
 export type Inputs = { availMB: number; chargedMB: number };
 export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict; queue?: Queue; inputs?: Inputs };
 

@@ -1495,8 +1495,6 @@ theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s 
   rw [judgeQ_keyed p _ i s hs, judgeQ_keyed p _ i s hs]
   exact judgeQ0_other_work p hist others i s h
 
-/-- The outer `fw slot run check ...` span carries the admitted threads as its width (`slotWork`), so a sample of it is
-never judged against a baseline of another width: samples of other widths in the history leave its verdict unchanged. -/
 theorem judgeQ_other_width (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w : Nat) (j : Option Nat)
     (hs : s.work = slotWork (some w) j) (hm : s.mixed = false)
     (hl : unkeyedLate (hist ++ others) s = false) (hl' : unkeyedLate hist s = false)
@@ -1509,8 +1507,6 @@ theorem judgeQ_other_width (p : Params) (hist others : List Sample) (i : Nat) (s
       exact slotWork_width_ne w' w j' j hne
   simpa [judgeQ, judgeQ0, hm, hl, hl'] using e
 
-/-- A sample of the outer span with no recorded width (written before the span carried one) keeps the old key: its
-window is the one of the four fields, over the history that has no work either. -/
 theorem windowOf_no_width (p : Params) (hist : List Sample) (k : Key) (j : Option Nat) (hk : k.work = slotWork none j)
     (hh : ∀ x ∈ hist, x.work = slotWork none j) :
     windowOf p hist k = lastN p.window ((hist.filter (fun s =>
@@ -2939,15 +2935,10 @@ def groupMix : List Sample :=
 -/
 def groupRecorded : List Sample := [(99840, 3), (99658, 4), (108545, 2)].map fun (d, l) => group (some 1) l d
 
-/-- The outer span `fw slot run check sh lean/scripts/check.sh` of `.fw-console/timings.jsonl`, 2026-10-25T22:40Z to
-2026-10-26T01:25Z (commits b4de7bc to 401d607), as (ms, load, exit). The same nine rows are in
-`apps/runner/test/fixtures/slot-check-outer.jsonl`; the TS test checks the golden against them. -/
 def slotCheckData : List (Nat × Nat × Nat) :=
   [(179360, 3, 0), (99049, 7, 0), (189227, 7, 0), (92795, 4, 0), (95479, 8, 1), (90201, 3, 1), (99798, 5, 0),
    (180178, 4, 0), (177727, 4, 0)]
 
-/-- The width of each row, INFERRED from the duration (width 1 took 175 to 235 s, width 2 took 88 to 100 s; the span did
-not carry the width then). -/
 def slotCheckWidth (d : Nat) : Nat := if d < 130000 then 2 else 1
 
 def slotCheck (w : Option Nat) (d load e : Nat) : Sample :=
