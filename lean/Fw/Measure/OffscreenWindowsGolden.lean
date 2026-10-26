@@ -2,9 +2,7 @@ import Lean.Data.Json
 import Fw.Measure.OffscreenWindows
 
 /-!
-# Push-window golden vectors
-
-The cases the JS twin of the Chromium window reader replays: end frame, window bounds, window owner, run windows and the verdict of an arm.
+Golden vectors for the Chromium push windows.
 -/
 namespace Fw.Measure.OffscreenWindowsGolden
 open Fw.Measure.OffscreenWindows Fw.Measure.Offscreen Lean
@@ -42,25 +40,21 @@ def windowCases : List (String × Nat × Nat) := [
   ("end past the last frame", 800, 741),
   ("end on the last frame", 741, 741)]
 
-/-- The frames whose owner the golden lists: two before the finish window to two past it. -/
 def ownerFrom (e last : Nat) : Nat := (finishWin e last).lo - 2
 
 def ownerCount (e last : Nat) : Nat := last - ownerFrom e last + 2
 
-/-- A run of `total` frames: scroll climbs 10 px per frame to frame `e` and stays. -/
 def ramp (total e : Nat) : List Nat := (List.range total).map fun i => min i e * 10000
 
 def total : Nat := 204
 
 def colv (j i : Nat) : Nat := (i * (j + 3) + j) % 5
 
-/-- Counters of one run; `f key frame value` changes a value. -/
 def mkCols (f : String → Nat → Nat → Nat) (skip : List String := []) : List (String × List Nat) :=
   (wkeys.mapIdx fun j k => (k, (List.range total).map fun i => f k i (colv j i))).filter fun (k, _) => !skip.contains k
 
 def same : String → Nat → Nat → Nat := fun _ _ v => v
 
-/-- Run of an arm: end at frame `e`, `jit` extra recalcs on frame 80, and the changes `f`. -/
 def mkRun (e : Nat) (f : String → Nat → Nat → Nat) (jit : Nat) (skip : List String := []) : Run :=
   { ys := ramp total e,
     cols := mkCols (fun k i v => f k i v + (if k == "metric.RecalcStyleCount" && i == 80 then jit else 0)) skip,

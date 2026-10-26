@@ -1,8 +1,3 @@
-// Push windows of one Chromium touch-swipe run: counter sums over windows cut at the end frame, and the verdict of a flag arm per window.
-// The rules (end frame, window bounds, window owner, window sums, per-window verdict) are specified and proved in Lean
-// (lean/Fw/Measure/OffscreenWindows.lean); the functions up to `armVerdicts` are a copy of them, checked against the golden vectors
-// packages/contracts/golden/measure/offscreen-windows.jsonl by test/offscreen-windows.test.mjs. The comparison and the judge are
-// the ones of offscreen.mjs (Fw.Measure.Offscreen). Everything after them is glue: reading counts.json and the profile, the table.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { MIN_RUNS, SLACK, cmp, judge, sameWindow, reduction } from './offscreen.mjs';
@@ -14,8 +9,6 @@ export const APPROACH = 34;
 export const TOUCH_TAIL = 30;
 export const WINDOW_NAMES = ['approach', 'end 0-19', 'end 20-59', 'end 60-119', 'end 120+', 'finish'];
 
-// ---- copy of Fw.Measure.OffscreenWindows
-// First frame at the largest value; null for no frame.
 export function endFrame(ys) {
   if (ys.length === 0) return null;
   let best = 0;
@@ -47,7 +40,6 @@ export function owner(e, last, f) {
 
 export const sumRange = (xs, lo, hi) => xs.slice(lo, Math.max(lo, hi)).reduce((s, x) => s + x, 0);
 
-// run: { ys, cols: {key: [per-frame counts]}, tail }. Null when there is no frame or a column is not as long as ys.
 export function runWindows(run) {
   const e = endFrame(run.ys);
   if (e === null) return null;
@@ -70,7 +62,6 @@ export function usableOn(ks, base, flag) {
 
 const spread = (xs) => [Math.min(...xs), Math.max(...xs)];
 
-// [cmp, base spread, flag spread] of counter k, null if a run lacks it.
 export function cell(base, flag, k) {
   const bs = base.map((v) => v.vals[k]);
   const fs = flag.map((v) => v.vals[k]);
@@ -84,7 +75,6 @@ export function verdictOn(ks, base, flag) {
   return judge(ks.map((k) => cell(base, flag, k)).filter((c) => c).map((c) => c.cmp));
 }
 
-// base, flag: arrays of runWindows results.
 export function armVerdicts(base, flag) {
   return WINDOW_NAMES.map((n) => {
     const b = vecsOf(base, n), f = vecsOf(flag, n);
@@ -92,17 +82,14 @@ export function armVerdicts(base, flag) {
   });
 }
 
-// ---- glue: counts.json and the profile -> a run, directories of runs -> arms, the table
 export const PROFILE_ID = 'swipe-touch-v1';
 
-// Frames of the `tail` segment of a profile JSON.
 export function profileTail(profile) {
   const seg = (profile.segments ?? []).find((s) => s.name === 'tail');
   if (!seg || !Number.isInteger(seg.frames)) throw new Error(`profile ${profile.id}: no tail segment with a frame count`);
   return seg.frames;
 }
 
-// counts.json (profile swipe-touch-v1) -> run. A frame without a counter has none of it; a counter no frame has is an error.
 export function runFromCounts(counts, tail) {
   if (counts.profile?.id !== PROFILE_ID) throw new Error(`counts.json profile is ${counts.profile?.id}, only ${PROFILE_ID} windows are defined`);
   const frames = counts.frames;
@@ -140,13 +127,11 @@ export function readArm(dir, tail) {
 const fmt = (b) => (b[0] === b[1] ? `${b[0]}` : `${b[0]}..${b[1]}`);
 const shortKey = (k) => k.replace(/^(metric|trace)\./, '');
 
-// "RasterTask 236 to 61": the base end of the spread nearest the flag and the flag end nearest the base.
 export function cellText(c) {
   if (c.cmp === 'less') return `${shortKey(c.key)} ${c.base[0]} to ${c.flag[1]}`;
   return `${shortKey(c.key)} ${c.base[1]} to ${c.flag[0]}`;
 }
 
-// One flag arm: per window the verdict and the counters that are not the same.
 export function summarizeArm(baseRuns, flagRuns) {
   return armVerdicts(baseRuns, flagRuns).map((v) => ({
     window: v.window, verdict: v.verdict, usable: v.usable,

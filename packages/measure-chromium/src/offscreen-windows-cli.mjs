@@ -1,7 +1,3 @@
-// Push-window reader CLI: reads downloaded chromium-counts artifacts (swipe-touch-v1) and prints, per flag arm, the verdict of each push window
-// against the base and the counters that are less or more.
-//   node offscreen-windows-cli.mjs --base <dir> --flag <name>=<dir> [--flag <name>=<dir> ...] [--json out.json] [--md out.md]
-// <dir> is a directory holding the counts.json of each run of the arm, at any depth (a gh run download of chromium-counts-rewrite-r*).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';

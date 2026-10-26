@@ -1,6 +1,6 @@
 branch: worktree-wf_676fdfb3-77c-1
 worktree: .claude/worktrees/wf_676fdfb3-77c-1
-last commit: 15e25d9dc (last code change; the handoff commit follows it on the branch)
+last commit: 15e25d9dc (last code change)
 CI runs: none new; re-read of 40203753344 (base), 40237508223, 40236516819, 40236472868, 40236462082 artifacts
 verified: Lean module and golden build; JS twin replays golden; CLI reproduces the platform-attribution Chromium table
   (24 of 24 verdicts, 18 of 24 counter lists; see the research note)

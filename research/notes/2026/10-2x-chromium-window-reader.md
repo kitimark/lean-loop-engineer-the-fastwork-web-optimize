@@ -22,8 +22,7 @@ runs, 771 frames, last frame 741).
 
 ## The reader
 
-The original scratch reader was lost, so the window bounds were rebuilt from the note and then checked against it
-(CONFIRMED by the 24 verdicts above). With `e` the end frame (first frame at the largest `scrollY`) and `last` = total
+The window bounds are rebuilt from the note and checked against it (CONFIRMED by the 24 verdicts above). With `e` the end frame (first frame at the largest `scrollY`) and `last` = total
 frames minus the profile tail (30):
 
 | window | frames |
@@ -47,7 +46,7 @@ node packages/measure-chromium/src/offscreen-windows-cli.mjs --base <dir> --flag
 
 Exit code 2 names the failure: another profile than `swipe-touch-v1`, a tail that differs from 30, a counter in no frame.
 
-Reading `less` and `more`: `less` prints "base min to flag max" (the smallest gap), `more` prints "base max to flag min".
+Reading `less` and `more`: `less` prints "base min to flag max", `more` prints "base max to flag min".
 A counter absent from a frame counts 0 in that frame; a counter absent from every frame is an error.
 
 ## Table the CLI prints (MEASURED, the five runs above)

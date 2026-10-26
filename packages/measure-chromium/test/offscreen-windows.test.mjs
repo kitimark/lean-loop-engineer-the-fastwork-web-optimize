@@ -79,7 +79,6 @@ test('offscreen-windows: every arm case gets the golden verdict, usability and c
   }
 });
 
-// ---- glue
 const frame = (n, scrollY, counts, phase = 'swipe') => ({ n, phase, scrollY, counts });
 function fakeCounts(total, e, tail, over = {}) {
   const frames = [];
