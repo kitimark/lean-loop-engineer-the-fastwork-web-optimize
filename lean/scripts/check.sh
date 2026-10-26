@@ -128,6 +128,7 @@ run_group() {
   job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl
   job "flag-delta golden check" lake env lean --run scripts/GateFlagDeltaGolden.lean --check ../packages/contracts/golden/gate/flag-delta.jsonl
+  job "replaced golden check" lake env lean --run scripts/GateReplacedGolden.lean --check ../packages/contracts/golden/gate/replaced.jsonl
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"
   job "ci telemetry golden check" lake env lean --run scripts/TelemetryGolden.lean --check
   job "mac telemetry golden check" lake env lean --run scripts/MacTelemetryGolden.lean --check
