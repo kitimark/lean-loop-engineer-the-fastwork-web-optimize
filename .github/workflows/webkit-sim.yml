@@ -434,6 +434,8 @@ jobs:
           FW_WK_ATTEMPTS: '3'
           # stall watchdog: Lean's Fw.Measure.SimBound.stallMs via the plan; it is main's limit, checked against the silences in Fw.Measure.SimBound.Seen
           FW_WK_STALL_MS: ${{ needs.plan.outputs.stall_ms }}
+          # retry gate: the step bound in minutes (Lean: SimBound.stepMin via the plan); a retry that would end past it is not started (Fw.Measure.SimHost.retryFits)
+          FW_WK_STEP_MIN: ${{ needs.plan.outputs.step_min }}
           # fail-fast proof: the fault input, or the commit token of a ci/* push (a push carries no inputs); empty = no fault
           FW_WK_FAULT: ${{ inputs.fault || (contains(github.event.head_commit.message, '[fault:kill-safari]') && 'kill-safari') || (contains(github.event.head_commit.message, '[fault:kill-proxy]') && 'kill-proxy') || '' }}
         working-directory: packages/measure-webkit

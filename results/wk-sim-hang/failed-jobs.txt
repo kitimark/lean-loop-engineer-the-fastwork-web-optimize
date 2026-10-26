@@ -1,0 +1,26 @@
+40139511311 | 121008655962 | jobcancel | 
+40143379767 | 121020172386 | other | Error: setTypeOfService EINVAL
+40153917806 | 121051667510 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":3}
+40156388674 | 121060103784 | other | error: simctl list devices failed: ETIMEDOUT
+40156393010 | 121060093213 | jobcancel | 
+40170046006 | 121099368082 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":1}
+40170046006 | 121103388010 | jobcancel | 
+40171966460 | 121164906438 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":1}
+40174232514 | 121111948682 | jobcancel | 
+40233131521 | 121289553680 | other | error: lsof: ETIMEDOUT
+40236475717 | 121316098238 | stalled | error: stalled: no output for 742 s (limit 720 s); last line: "seek n=0: style/step free 0.00 seeked 0.00"; op
+40236534457 | 121300131042 | jobcancel | 
+40261059419 | 121395372076 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":2}
+40271367353 | 121405618462 | stalled | error: stalled: no output for 746 s (limit 720 s); last line: "no tab after 13 s: sending openurl again (extra
+40271370582 | 121412328205 | stepbound | 
+40277969074 | 121425770252 | blocked,stalled | error: stalled: no output for 728 s (limit 720 s); last line: "pass 2/2"; open: {"PipeWrap":4,"TCPServerWrap":
+40277969074 | 121425770289 | stepbound | 
+40277972324 | 121425683869 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":2}
+40277972324 | 121432092591 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":1}
+40282962088 | 121441017621 | blocked,stalled | error: stalled: no output for 1409 s (limit 720 s); last line: "pass 1/2"; open: {"PipeWrap":4,"TCPServerWrap"
+40282962088 | 121451030901 | stepbound | 
+40284460392 | 121446337566 | stepbound | 
+40284460392 | 121482146713 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":2}
+40284464262 | 121446606614 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":3}
+40284464262 | 121446606655 | blocked,stalled | error: stalled: no output for 775 s (limit 720 s); last line: "no tab after 148 s: sending openurl again (extr
+40284464262 | 121493479184 | other | error: forced exit: the command finished but 20 s later the process is alive; open: {"PipeWrap":2,"Timeout":3}
