@@ -437,7 +437,6 @@ def registry : List Premise := [
     testId := "prem.sweep.layer-pixels" }
 ]
 
-/-- The premise ids are pairwise distinct. -/
 theorem registry_ids_nodup : (registry.map (·.id)).Nodup := by decide
 
 /-- The page test ids are pairwise distinct: one test per page premise (lane premises share their workflow file). -/

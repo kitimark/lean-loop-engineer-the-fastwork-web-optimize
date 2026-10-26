@@ -14,7 +14,7 @@
 | breakpoint gate, both engines | layer-sweep | 40261067591 (FAIL, no FlagDelta tuples), 40264767557 (FAIL, one tuple missing), 40266919532 (PASS at 719a63dd0, ci/platform-sweep-layer-g2) | both engines |
 | look check (premise `sweep.layer-pixels`, ci/platform-sweep-layer-pix) | | 40261302718 (bound 12 failed: 33, 35), 40261606105 (bound 40 held), 40264170237 (padded layer, bound 12 failed: 33, 35), 40264978871 (mechanism probes, bound 40 held) | Chromium HS 156, WebKit 27.2 |
 
-The counts above are at fbc6ee4ff, the gate and look runs at the later commits 719a63dd0 and d4f8f292f; the site code and CSS are the same (later commits touch Lean goldens, the premise test and the handoff only).
+The counts above are at fbc6ee4ff, the gate and look runs at the later commits 719a63dd0 and d4f8f292f; the site code and CSS are the same.
 
 ## Chromium (MEASURED; Lean cmp/judge, slack 0; reader is a scratch TS stand-in)
 | window | frames | verdict | differs |
@@ -42,7 +42,7 @@ PASS. Run 40261067591 failed platform.sweep on exactly the intended computed-sty
 Premise `sweep.layer-pixels` (fixed progress 0, 0.5, 1.5, 2.5, 3.9 s, paused animations, no seeking), CI run 40264978871: worst channel difference per time Chromium 33, 5, 4, 2, 2; WebKit 35, 2, 2, 4, 3 of 255. At t=0, 9 pixels differ in Chromium (3 by more than 12) and 1 in WebKit. The Lean `same_look` theorem covers the gradient position over time (the colour at each point), not the pixels.
 
 Mechanism, from probes in the same premise (a row pair per probe):
-* The first hypothesis (INFERRED in the last round: glyph overhang beyond the layer edge) is refuted. A layer padded by 6px per side (image in the content box, translate +8px; run 40264170237) left the t=0 numbers unchanged at 33 and 35, so the layer edge is not the cause. That layer was dropped.
+* The first hypothesis (INFERRED: glyph overhang beyond the layer edge) is refuted. A layer padded by 6px per side (image in the content box, translate +8px; run 40264170237) left the t=0 numbers unchanged at 33 and 35, so the layer edge is not the cause. That layer was dropped.
 * WebKit (MEASURED): the original with `background-repeat: repeat` differs from the original with `no-repeat` by 35, and the layer word equals the no-repeat original exactly (0). The 35 is the original's own background tile seam at progress 0, where the tile's right edge lies on the word's right edge; the variant has no seam.
 * Chromium (MEASURED): repeat and no-repeat originals are identical (0), so it is not the tile seam; `will-change: auto` on the layer gives the same 33, and a delay of -1 ms gives 24. The differing pixels are 3 rows of the column at x = 526 (the word's box edge at 526.81): the original reads (63, 68, 76), the layer (96, 100, 106) (run 40264423344), a coverage difference on one edge column near progress 0. The mechanism inside Chromium's paint (INFERRED: the original's tile is pixel-snapped to end on the box edge at progress 0) is not shown by the engine source here; a reading of `background_image_geometry.cc` is the follow-up.
 The bound stays 40 of 255 and the registry statement says so. The variant stays in the look-change class for the user's visual review.

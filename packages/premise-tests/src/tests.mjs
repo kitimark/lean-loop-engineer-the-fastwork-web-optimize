@@ -491,7 +491,6 @@ export const TESTS = [
         return { a: r(d.querySelector('.a')), b: r(d.querySelector('.b')), i: r(d.querySelector('.b i')),
           times: document.getAnimations().slice(0, 4).map((x) => [x.playState, x.currentTime]), dpr: devicePixelRatio };
       });
-      // rows 0..4 are the five fixed progress times; the word as the original paints it is the first 60 px of a 120 px pair
       const o = await page.evaluate(async (b64) => {
         const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
         const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
@@ -511,8 +510,6 @@ export const TESTS = [
           }
           rows.push({ max, differing: n, over40: big, saturated: sat, saturatedLayer: satB });
         }
-        // mechanism probe (row 5 = time 0 with background-repeat:no-repeat on the original): worst channel difference of the
-        // original's repeating tile against its own no-repeat tile (the tile seam), and of the layer word against the no-repeat one
         const cmp = (ra, rb) => { let m = 0; for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) { const a = ((ra * 60 * scale + y) * bmp.width + x) * 4; const b = ((rb * 60 * scale + y) * bmp.width + x) * 4; for (let k = 0; k < 3; k++) m = Math.max(m, Math.abs(px[a + k] - px[b + k])); } return m; };
         const seam = { repeatVsNoRepeat: cmp(0, 10), layerVsNoRepeat: cmp(1, 10), layerVsRepeat: cmp(0, 1), delayMinus1ms: cmp(12, 13), noWillChange: cmp(14, 15) };
         const lit = (i) => { let m = 0; for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) { const a = ((i * 120 * scale + y) * bmp.width + x) * 4; m = Math.max(m, px[a], px[a + 1], px[a + 2]); } return m; };
