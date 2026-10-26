@@ -5,7 +5,7 @@ namespace Fw.Parts.FootprintData
 open Fw.Parts.Footprint
 
 /-- Part ids, one per folder of apps/site/src/parts, in byte order of the folder names. -/
-def partIds : List String := ["commission", "commission.typing", "engine.events", "engine.scene", "engine.scroll", "hero", "hero.accent", "hero.countdown", "hero.cue", "hero.deck", "hero.exit", "hero.orbit", "morph.columns", "morph.countdown", "morph.end.clamp", "morph.end.flip", "morph.end.nobounce", "morph.end.release", "morph.mount", "morph.panel", "morph.tween", "nav", "nav.hitTest", "nav.langMenu", "overlays.drawer", "overlays.signup", "pain", "pain.notes", "people", "people.card", "people.carousel", "people.deck", "people.o", "platform", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"]
+def partIds : List String := ["commission", "commission.typing", "engine.events", "engine.scene", "engine.scroll", "hero", "hero.accent", "hero.countdown", "hero.cue", "hero.deck", "hero.exit", "hero.orbit", "morph.columns", "morph.countdown", "morph.end.clamp", "morph.end.flip", "morph.end.nobounce", "morph.end.release", "morph.mount", "morph.panel", "morph.stage", "morph.tween", "nav", "nav.hitTest", "nav.langMenu", "overlays.drawer", "overlays.signup", "pain", "pain.notes", "people", "people.card", "people.carousel", "people.deck", "people.o", "platform", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"]
 
 /-- Every extracted access, in key order: (part, file, line, op, name, owner, callback, variants). -/
 def accesses : List Access := [
@@ -845,6 +845,36 @@ def accesses : List Access := [
   ⟨"morph.panel", "morph.panel/morph.module.css", 225, .cssVar, "--cb-x", "", "style", ["faithful", "const-bounds", "rest", "threaded"]⟩,
   ⟨"morph.panel", "morph.panel/morph.module.css", 226, .cssVar, "--cb-x", "", "style", ["faithful", "const-bounds", "rest", "threaded"]⟩,
   ⟨"morph.panel", "morph.panel/morph.module.css", 227, .cssVar, "--cb-y", "", "style", ["faithful", "const-bounds", "rest", "threaded"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 41, .rect, "offsetHeight", "morph.stage", "effect", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 42, .setVar, "--stage-h", "platform", "effect", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 42, .setVar, "--stage-h", "platform", "observer:ResizeObserver", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 43, .rect, "", "platform", "effect", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 47, .rect, "", "?", "observer:ResizeObserver", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 50, .rect, "", "morph.stage", "observer:ResizeObserver", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 51, .rect, "", "platform", "observer:ResizeObserver", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 64, .rect, "", "platform", "observer:IntersectionObserver", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 66, .scrollY, "scrollY", "", "scroll", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 66, .vh, "innerHeight", "", "scroll", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 69, .setAttr, "data-fw-morph", "nav", "callback", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 72, .setStyle, "pointer-events", "platform", "callback", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 75, .register, "110", "", "effect", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 80, .setVar, "--stage-h", "platform", "cleanup", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 81, .setStyle, "pointer-events", "platform", "cleanup", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 83, .attrRead, "data-fw-morph", "nav", "cleanup", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 5, .cssAttr, "data-fw-stage", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 5, .cssHas, ":global(html:has([data-fw-stage]))", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 9, .cssAttr, "data-fw-stage", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 9, .cssHas, ":global(html:has([data-fw-stage]))", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 14, .cssVar, "--stage-t", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 16, .cssAttr, "data-fw", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 16, .cssAttr, "data-fw-stage", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 16, .cssHas, ":global(html:has([data-fw-stage]))", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 18, .cssVar, "--stage-h", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 24, .cssVar, "--stage-t", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 27, .cssAttr, "data-fw", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 27, .cssAttr, "data-fw-stage", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 27, .cssHas, ":global(html:has([data-fw-stage]))", "", "style", ["faithful", "on"]⟩,
+  ⟨"morph.stage", "morph.stage/stage.module.css", 33, .cssVar, "--stage-t", "", "style", ["faithful", "on"]⟩,
   ⟨"morph.tween", "morph.mount/listen.ts", 112, .listen, "?", "document", "callback", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "band"]⟩,
   ⟨"morph.tween", "morph.mount/listen.ts", 112, .listen, "touchcancel", "document", "callback", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "band"]⟩,
   ⟨"morph.tween", "morph.mount/listen.ts", 112, .listen, "touchcancel", "document", "listener:touchcancel", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "band"]⟩,
@@ -2084,6 +2114,7 @@ def findings : List Finding := [
   ⟨"morph.mount", "morph.mount/listen.ts", 112, "dynamic-name", "listen"⟩,
   ⟨"morph.mount", "morph.mount/listen.ts", 116, "unresolved-target", "rect"⟩,
   ⟨"morph.panel", "morph.panel/media.ts", 13, "dynamic-name", "media"⟩,
+  ⟨"morph.stage", "morph.stage/index.tsx", 47, "unresolved-target", "rect"⟩,
   ⟨"morph.tween", "morph.mount/listen.ts", 112, "dynamic-name", "listen"⟩,
   ⟨"morph.tween", "morph.mount/listen.ts", 116, "unresolved-target", "rect"⟩,
   ⟨"morph.tween", "morph.tween/driver.ts", 77, "dynamic-name", "setStyle"⟩,
@@ -2212,6 +2243,8 @@ def variantFiles : List (String × String × List String) := [
   ("morph.panel", "const-bounds", ["content.ts", "driver.ts", "index.tsx", "logic.ts", "media.ts", "morph.module.css"]),
   ("morph.panel", "rest", ["content.ts", "driver.ts", "index.tsx", "logic.ts", "media.ts", "morph.module.css", "rest.logic.ts"]),
   ("morph.panel", "threaded", ["content.ts", "driver.ts", "index.tsx", "logic.ts", "media.ts", "morph.module.css", "threaded.logic.ts"]),
+  ("morph.stage", "faithful", []),
+  ("morph.stage", "on", []),
   ("morph.tween", "faithful", []),
   ("morph.tween", "waapi", []),
   ("morph.tween", "waapi-scoped", []),
