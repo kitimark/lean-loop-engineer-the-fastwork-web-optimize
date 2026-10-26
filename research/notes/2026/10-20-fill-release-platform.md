@@ -1,0 +1,104 @@
+---
+id: 2026-10-20-fill-release-platform
+kind: note
+title: "fill-release-platform: filling backwards and writing the end values as style drops about 22 Chromium layers per frame after the platform entries end (tail layer-frames 7140 to 6480, -9.2%); work stays noGain (Paint less, RasterTask more)"
+status: draft
+created: 2026-10-20
+topics: [chromium, webkit, animation-fill-mode, compositing, gpu-memory, platform.entries]
+---
+
+# Fill release for the platform entry animations
+
+## Answer
+
+- **Chromium memory: a win.** With `?fw=platform.entries:fill-release`, the census holds 216 layers per frame in the profile tail instead of 238. Tail layer-frames fall from 7140 to 6480 (-9.2%), drawing area falls by 7.7% and tiles fall by 10.9%. Base and flag come from the same run and commit (MEASURED, run 40280497740 at e133f74c8, 3 runs per arm, swipe-touch-v1).
+- **Chromium work: noGain in every window.** The Lean windows reader finds Paint lower and RasterTask higher in approach, end 0-19 and finish. Windows end 20-59, 60-119 and 120+ show no difference (MEASURED, same run, `results/fill-release-platform/windows.md`).
+- **Look: unchanged.** Lean `same_look` proves the shown value is the same at every time and in every `Env`, which includes every breakpoint width and both reduced-motion states (PROVED). `fill.test.ts` reads each of the 15 stylesheet rows back against the golden.
+- **WebKit: no layer change predicted.** WebKit holds the accelerated animation only in the active phase, whatever the fill mode, so the variant changes nothing there (PROVED `webkit_unchanged`, from source below). The Simulator counts were not run (they need lead dispatch).
+- **Breakpoint gate:** not run yet; it needs lead dispatch (fw input).
+
+## Mechanism
+
+- **Chromium.** An animation is in effect in the after phase when its fill is `forwards` or `both` (CONFIRMED, `third_party/blink/renderer/core/animation/timing_calculations.cc:103-130,141-161@f842f52`, `timing.cc:259,267-270`). CSS animations stay attached while they are current or in effect (CONFIRMED, `css/css_animations.cc:2225-2238,2267-2280@f842f52`). An element with such an animation on transform or opacity keeps its active-animation compositing reason, and therefore its own layer (CONFIRMED, `paint/compositing/compositing_reason_finder.cc:570-597@f842f52`). With `fill: backwards` the animation is not in effect after its end, so the reason goes away. The static rule then shows the same `to` values.
+- **WebKit.** Only the active phase affects the property and keeps the accelerated animation (CONFIRMED, `Source/WebCore/animation/AnimationEffectTiming.cpp:182-201,219-241`, `KeyframeEffect.cpp:1703-1715,2085-2089`, `rendering/RenderLayerCompositor.cpp:3841-3866@862f17d`).
+- **The work shift.** Each released element now paints into its parent's layer instead of its own. That trades composited quads for raster in the parent tiles. This fits the extra RasterTask together with less Paint (INFERRED from the counts; no trace of single tiles was taken).
+
+## Lean
+
+`lean/Fw/Engine/VisualTimed.lean`:
+
+| Theorem | Statement |
+|---|---|
+| `both_held` | under fill `both`, Chromium holds the layer in every phase |
+| `released_after_backwards` | under fill `backwards`, Chromium does not hold the layer in the after phase |
+| `release_no_held_after` | after the end, a released track is not held |
+| `release_held_before_end` | before the end, a released track is held |
+| `release_shown` | a released track of a `both` track that settles shows the same value at every time |
+| `release_saves` | the released track's held frames are those before the end, and never more than the `both` track's |
+| `webkit_same_fill` | WebKit's hold does not depend on the fill |
+
+`lean/Fw/Parts/PlatformEntries.lean`, section `FillRelease`:
+
+| Theorem | Statement |
+|---|---|
+| `same_look_motion` | same shown value under no-preference |
+| `same_look_reduce` | same shown value under reduce |
+| `same_look` | the two above together, for every `Env` |
+| `faithful_held` | the faithful track is held at every time |
+| `no_held_after` | the variant track is not held after `delay + dur` |
+| `held_saved` | the variant's held frames are at most the faithful's |
+| `webkit_unchanged` | the variant does not change WebKit's hold |
+| `rows_win` | every variant row has more classes than its strongest rival |
+| `rows_dur` | every row has a positive duration |
+
+The golden is `packages/contracts/golden/parts/platform-entries-fill.jsonl`. It is written by `lean/Fw/Parts/PlatformEntriesFillGolden.lean` and checked by `lean/scripts/check.sh`.
+
+## Runs
+
+| Run | Kind | Commit | Arms | State |
+|---|---|---|---|---|
+| 40280497740 | chromium-counts, swipe-touch-v1, 3 runs | e133f74c8 | base `rewrite`, flag `platform.entries:fill-release` | success |
+| 40280497901 | lean | e133f74c8 | none | success |
+| not run | breakpoint-gate, both engines | none | `platform.entries:fill-release` | needs dispatch |
+| not run | webkit-sim, 3 VMs | none | base and flag | needs dispatch |
+
+## Chromium windows
+
+The end frame is 574 in all six runs. The windows are taken from the end frame with slack 0. Numbers are base to flag, per the Lean reader.
+
+| Window | Verdict | Less | More |
+|---|---|---|---|
+| approach | noGain | Paint 114 to 109 | RasterTask 236 to 270, PaintImage 137 to 147 |
+| end 0-19 | noGain | Paint 336 to 312 | RasterTask 517 to 520 |
+| end 20-59 | noGain | none | none |
+| end 60-119 | noGain | none | none |
+| end 120+ | noGain | none | none |
+| finish | noGain | Paint 916 to 887 | RasterTask 1207 to 1244, PaintImage 1514 to 1524 |
+
+## Layer-frames
+
+Values are means over 3 runs, base to flag (MEASURED, `results/fill-release-platform/layer-frames.json`). The tail is the last 30 frames (771 frames, tail 741-771).
+
+| Span | Layers | Drawing layers | Drawing area | Tiles |
+|---|---|---|---|---|
+| approach | 5445 to 5006 (-8.1%) | 5214 to 4775 (-8.4%) | -4.0% | 5716 to 5450 (-4.6%) |
+| end 0-19 | 4508 to 4192 (-7.0%) | 4375 to 4059 (-7.2%) | -3.7% | 4688 to 4502 (-4.0%) |
+| end 20-59 | 9607 to 8779 (-8.6%) | 9327 to 8499 (-8.9%) | -6.2% | 10526 to 9667 (-8.2%) |
+| end 60-119 | 14280 to 12960 (-9.2%) | 13860 to 12540 (-9.5%) | -7.7% | 15480 to 13800 (-10.9%) |
+| end 120+ | 11186 to 10152 (-9.2%) | 10857 to 9823 (-9.5%) | -7.7% | 12126 to 10810 (-10.9%) |
+| finish | 45026 to 41089 (-8.7%) | 43633 to 39696 (-9.0%) | -6.4% | 48536 to 44229 (-8.9%) |
+| tail | 7140 to 6480 (-9.2%) | 6930 to 6270 (-9.5%) | -7.7% | 7740 to 6900 (-10.9%) |
+| whole | 125024 to 119450 (-4.5%) | 119046 to 113472 (-4.7%) | -3.3% | 141317 to 135853 (-3.9%) |
+
+The base runs agree to within 2 layer-frames. One flag run differs from the other two by at most 0.5%.
+
+## Limits
+
+- The same look holds only where each variant rule wins the cascade. `rows_win` counts classes, and `fill.test.ts` checks the rows against the stylesheet.
+- At the end, the release can repaint the element once into its parent layer. This is the INFERRED cause of the RasterTask rise.
+- The layer-frame sums come from a script with no Lean golden: `results/fill-release-platform/layer-frames.mjs` is a TS stand-in.
+- Preset promotion is left for later. The visual class is E, so no review by the user is needed.
+
+## Lesson
+
+To Chromium, a finished animation with fill `forwards` or `both` is still an animation, and it keeps its layer. Write the end values as static style and use fill `backwards` only.

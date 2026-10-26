@@ -1,0 +1,611 @@
+{
+ "arms": {
+  "fill-release": [
+   {
+    "window": "approach",
+    "verdict": "noGain",
+    "usable": true,
+    "less": [
+     "Paint 114 to 109"
+    ],
+    "more": [
+     "RasterTask 236 to 270",
+     "PaintImage 137 to 147"
+    ]
+   },
+   {
+    "window": "end 0-19",
+    "verdict": "noGain",
+    "usable": true,
+    "less": [
+     "Paint 336 to 312"
+    ],
+    "more": [
+     "RasterTask 517 to 520"
+    ]
+   },
+   {
+    "window": "end 20-59",
+    "verdict": "noGain",
+    "usable": true,
+    "less": [],
+    "more": []
+   },
+   {
+    "window": "end 60-119",
+    "verdict": "noGain",
+    "usable": true,
+    "less": [],
+    "more": []
+   },
+   {
+    "window": "end 120+",
+    "verdict": "noGain",
+    "usable": true,
+    "less": [],
+    "more": []
+   },
+   {
+    "window": "finish",
+    "verdict": "noGain",
+    "usable": true,
+    "less": [
+     "Paint 916 to 887"
+    ],
+    "more": [
+     "RasterTask 1207 to 1244",
+     "PaintImage 1514 to 1524"
+    ]
+   }
+  ]
+ },
+ "runs": {
+  "base": [
+   {
+    "path": "art-40280497740/base/chromium-counts-rewrite-r1/counts.json",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 130,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 114,
+        "trace.RasterTask": 236,
+        "trace.PaintImage": 137,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 44,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 336,
+        "trace.RasterTask": 517,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 142
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 56
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 40
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 321,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 916,
+        "trace.RasterTask": 1207,
+        "trace.PaintImage": 1514,
+        "trace.FireAnimationFrame": 401
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "art-40280497740/base/chromium-counts-rewrite-r2/counts.json",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 130,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 114,
+        "trace.RasterTask": 236,
+        "trace.PaintImage": 137,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 44,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 336,
+        "trace.RasterTask": 517,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 142
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 56
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 40
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 321,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 916,
+        "trace.RasterTask": 1207,
+        "trace.PaintImage": 1514,
+        "trace.FireAnimationFrame": 401
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "art-40280497740/base/chromium-counts-rewrite-r3/counts.json",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 129,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 114,
+        "trace.RasterTask": 236,
+        "trace.PaintImage": 137,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 44,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 336,
+        "trace.RasterTask": 517,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 141
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 57
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 39
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 320,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 916,
+        "trace.RasterTask": 1207,
+        "trace.PaintImage": 1514,
+        "trace.FireAnimationFrame": 400
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "fill-release": [
+   {
+    "path": "art-40280497740/flag/chromium-counts-f1-r1/counts.json",
+    "search": "?fw=platform.entries:fill-release",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 129,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 109,
+        "trace.RasterTask": 270,
+        "trace.PaintImage": 147,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 44,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 312,
+        "trace.RasterTask": 520,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 141
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 57
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 39
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 320,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 887,
+        "trace.RasterTask": 1244,
+        "trace.PaintImage": 1524,
+        "trace.FireAnimationFrame": 400
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "art-40280497740/flag/chromium-counts-f1-r2/counts.json",
+    "search": "?fw=platform.entries:fill-release",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 129,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 109,
+        "trace.RasterTask": 270,
+        "trace.PaintImage": 147,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 43,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 311,
+        "trace.RasterTask": 520,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 141
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 57
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 39
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 319,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 886,
+        "trace.RasterTask": 1244,
+        "trace.PaintImage": 1524,
+        "trace.FireAnimationFrame": 400
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "art-40280497740/flag/chromium-counts-f1-r3/counts.json",
+    "search": "?fw=platform.entries:fill-release",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 129,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 109,
+        "trace.RasterTask": 270,
+        "trace.PaintImage": 147,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 43,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 311,
+        "trace.RasterTask": 520,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 141
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 57
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 39
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 319,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 886,
+        "trace.RasterTask": 1244,
+        "trace.PaintImage": 1524,
+        "trace.FireAnimationFrame": 400
+       }
+      }
+     }
+    ]
+   }
+  ]
+ }
+}
