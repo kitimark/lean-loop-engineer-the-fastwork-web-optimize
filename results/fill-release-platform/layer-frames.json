@@ -1,15 +1,13 @@
 {
  "base": [
   {
-   "path": "art-40280497740/base/chromium-counts-rewrite-r1/counts.json",
+   "path": "base/chromium-counts-rewrite-r1/counts.json",
    "search": "",
    "end": 574,
    "frames": 771,
    "spans": [
     {
      "name": "approach",
-     "lo": 540,
-     "hi": 574,
      "census.layers": 5445,
      "census.drawingLayers": 5214,
      "census.drawingAreaPx": 476827287,
@@ -18,8 +16,6 @@
     },
     {
      "name": "end 0-19",
-     "lo": 574,
-     "hi": 594,
      "census.layers": 4508,
      "census.drawingLayers": 4375,
      "census.drawingAreaPx": 273429774,
@@ -28,8 +24,6 @@
     },
     {
      "name": "end 20-59",
-     "lo": 594,
-     "hi": 634,
      "census.layers": 9607,
      "census.drawingLayers": 9327,
      "census.drawingAreaPx": 606320030,
@@ -38,8 +32,6 @@
     },
     {
      "name": "end 60-119",
-     "lo": 634,
-     "hi": 694,
      "census.layers": 14280,
      "census.drawingLayers": 13860,
      "census.drawingAreaPx": 911225460,
@@ -48,8 +40,6 @@
     },
     {
      "name": "end 120+",
-     "lo": 694,
-     "hi": 741,
      "census.layers": 11186,
      "census.drawingLayers": 10857,
      "census.drawingAreaPx": 713793277,
@@ -58,8 +48,6 @@
     },
     {
      "name": "finish",
-     "lo": 540,
-     "hi": 741,
      "census.layers": 45026,
      "census.drawingLayers": 43633,
      "census.drawingAreaPx": 2981595828,
@@ -89,15 +77,13 @@
    ]
   },
   {
-   "path": "art-40280497740/base/chromium-counts-rewrite-r2/counts.json",
+   "path": "base/chromium-counts-rewrite-r2/counts.json",
    "search": "",
    "end": 574,
    "frames": 771,
    "spans": [
     {
      "name": "approach",
-     "lo": 540,
-     "hi": 574,
      "census.layers": 5445,
      "census.drawingLayers": 5214,
      "census.drawingAreaPx": 476827287,
@@ -106,8 +92,6 @@
     },
     {
      "name": "end 0-19",
-     "lo": 574,
-     "hi": 594,
      "census.layers": 4509,
      "census.drawingLayers": 4376,
      "census.drawingAreaPx": 273432480,
@@ -116,8 +100,6 @@
     },
     {
      "name": "end 20-59",
-     "lo": 594,
-     "hi": 634,
      "census.layers": 9607,
      "census.drawingLayers": 9327,
      "census.drawingAreaPx": 606320030,
@@ -126,8 +108,6 @@
     },
     {
      "name": "end 60-119",
-     "lo": 634,
-     "hi": 694,
      "census.layers": 14280,
      "census.drawingLayers": 13860,
      "census.drawingAreaPx": 911225460,
@@ -136,8 +116,6 @@
     },
     {
      "name": "end 120+",
-     "lo": 694,
-     "hi": 741,
      "census.layers": 11186,
      "census.drawingLayers": 10857,
      "census.drawingAreaPx": 713793277,
@@ -146,8 +124,6 @@
     },
     {
      "name": "finish",
-     "lo": 540,
-     "hi": 741,
      "census.layers": 45027,
      "census.drawingLayers": 43634,
      "census.drawingAreaPx": 2981598534,
@@ -177,15 +153,13 @@
    ]
   },
   {
-   "path": "art-40280497740/base/chromium-counts-rewrite-r3/counts.json",
+   "path": "base/chromium-counts-rewrite-r3/counts.json",
    "search": "",
    "end": 574,
    "frames": 771,
    "spans": [
     {
      "name": "approach",
-     "lo": 540,
-     "hi": 574,
      "census.layers": 5445,
      "census.drawingLayers": 5214,
      "census.drawingAreaPx": 476827287,
@@ -194,8 +168,6 @@
     },
     {
      "name": "end 0-19",
-     "lo": 574,
-     "hi": 594,
      "census.layers": 4508,
      "census.drawingLayers": 4375,
      "census.drawingAreaPx": 273429774,
@@ -204,8 +176,6 @@
     },
     {
      "name": "end 20-59",
-     "lo": 594,
-     "hi": 634,
      "census.layers": 9606,
      "census.drawingLayers": 9326,
      "census.drawingAreaPx": 606317324,
@@ -214,8 +184,6 @@
     },
     {
      "name": "end 60-119",
-     "lo": 634,
-     "hi": 694,
      "census.layers": 14280,
      "census.drawingLayers": 13860,
      "census.drawingAreaPx": 911225460,
@@ -224,8 +192,6 @@
     },
     {
      "name": "end 120+",
-     "lo": 694,
-     "hi": 741,
      "census.layers": 11186,
      "census.drawingLayers": 10857,
      "census.drawingAreaPx": 713793277,
@@ -234,8 +200,6 @@
     },
     {
      "name": "finish",
-     "lo": 540,
-     "hi": 741,
      "census.layers": 45025,
      "census.drawingLayers": 43632,
      "census.drawingAreaPx": 2981593122,
@@ -267,15 +231,13 @@
  ],
  "fill-release": [
   {
-   "path": "art-40280497740/flag/chromium-counts-f1-r1/counts.json",
+   "path": "flag/chromium-counts-f1-r1/counts.json",
    "search": "?fw=platform.entries:fill-release",
    "end": 574,
    "frames": 771,
    "spans": [
     {
      "name": "approach",
-     "lo": 540,
-     "hi": 574,
      "census.layers": 5004,
      "census.drawingLayers": 4773,
      "census.drawingAreaPx": 457725719,
@@ -284,8 +246,6 @@
     },
     {
      "name": "end 0-19",
-     "lo": 574,
-     "hi": 594,
      "census.layers": 4227,
      "census.drawingLayers": 4094,
      "census.drawingAreaPx": 265120370,
@@ -294,8 +254,6 @@
     },
     {
      "name": "end 20-59",
-     "lo": 594,
-     "hi": 634,
      "census.layers": 8859,
      "census.drawingLayers": 8579,
      "census.drawingAreaPx": 572607400,
@@ -304,8 +262,6 @@
     },
     {
      "name": "end 60-119",
-     "lo": 634,
-     "hi": 694,
      "census.layers": 13080,
      "census.drawingLayers": 12660,
      "census.drawingAreaPx": 846659100,
@@ -314,8 +270,6 @@
     },
     {
      "name": "end 120+",
-     "lo": 694,
-     "hi": 741,
      "census.layers": 10246,
      "census.drawingLayers": 9917,
      "census.drawingAreaPx": 663216295,
@@ -324,8 +278,6 @@
     },
     {
      "name": "finish",
-     "lo": 540,
-     "hi": 741,
      "census.layers": 41416,
      "census.drawingLayers": 40023,
      "census.drawingAreaPx": 2805328884,
@@ -355,15 +307,13 @@
    ]
   },
   {
-   "path": "art-40280497740/flag/chromium-counts-f1-r2/counts.json",
+   "path": "flag/chromium-counts-f1-r2/counts.json",
    "search": "?fw=platform.entries:fill-release",
    "end": 574,
    "frames": 771,
    "spans": [
     {
      "name": "approach",
-     "lo": 540,
-     "hi": 574,
      "census.layers": 5007,
      "census.drawingLayers": 4776,
      "census.drawingAreaPx": 457924955,
@@ -372,8 +322,6 @@
     },
     {
      "name": "end 0-19",
-     "lo": 574,
-     "hi": 594,
      "census.layers": 4174,
      "census.drawingLayers": 4041,
      "census.drawingAreaPx": 262549382,
@@ -382,8 +330,6 @@
     },
     {
      "name": "end 20-59",
-     "lo": 594,
-     "hi": 634,
      "census.layers": 8739,
      "census.drawingLayers": 8459,
      "census.drawingAreaPx": 566888080,
@@ -392,8 +338,6 @@
     },
     {
      "name": "end 60-119",
-     "lo": 634,
-     "hi": 694,
      "census.layers": 12900,
      "census.drawingLayers": 12480,
      "census.drawingAreaPx": 838080120,
@@ -402,8 +346,6 @@
     },
     {
      "name": "end 120+",
-     "lo": 694,
-     "hi": 741,
      "census.layers": 10105,
      "census.drawingLayers": 9776,
      "census.drawingAreaPx": 656496094,
@@ -412,8 +354,6 @@
     },
     {
      "name": "finish",
-     "lo": 540,
-     "hi": 741,
      "census.layers": 40925,
      "census.drawingLayers": 39532,
      "census.drawingAreaPx": 2781938631,
@@ -443,15 +383,13 @@
    ]
   },
   {
-   "path": "art-40280497740/flag/chromium-counts-f1-r3/counts.json",
+   "path": "flag/chromium-counts-f1-r3/counts.json",
    "search": "?fw=platform.entries:fill-release",
    "end": 574,
    "frames": 771,
    "spans": [
     {
      "name": "approach",
-     "lo": 540,
-     "hi": 574,
      "census.layers": 5007,
      "census.drawingLayers": 4776,
      "census.drawingAreaPx": 457924955,
@@ -460,8 +398,6 @@
     },
     {
      "name": "end 0-19",
-     "lo": 574,
-     "hi": 594,
      "census.layers": 4174,
      "census.drawingLayers": 4041,
      "census.drawingAreaPx": 262549382,
@@ -470,8 +406,6 @@
     },
     {
      "name": "end 20-59",
-     "lo": 594,
-     "hi": 634,
      "census.layers": 8739,
      "census.drawingLayers": 8459,
      "census.drawingAreaPx": 566888080,
@@ -480,8 +414,6 @@
     },
     {
      "name": "end 60-119",
-     "lo": 634,
-     "hi": 694,
      "census.layers": 12900,
      "census.drawingLayers": 12480,
      "census.drawingAreaPx": 838080120,
@@ -490,8 +422,6 @@
     },
     {
      "name": "end 120+",
-     "lo": 694,
-     "hi": 741,
      "census.layers": 10105,
      "census.drawingLayers": 9776,
      "census.drawingAreaPx": 656496094,
@@ -500,8 +430,6 @@
     },
     {
      "name": "finish",
-     "lo": 540,
-     "hi": 741,
      "census.layers": 40925,
      "census.drawingLayers": 39532,
      "census.drawingAreaPx": 2781938631,

@@ -1,13 +1,15 @@
 # fill-release-platform handoff
 
-- Branch `worktree-wf_1e215c74-cb5-1`, worktree `.claude/worktrees/wf_1e215c74-cb5-1`, work commit 92fa6652f, CI trigger e133f74c8, main merged at 5be7ecf19.
-- CI runs: chromium-counts 40280497740 (success: base `rewrite` and arm `f1` = platform.entries:fill-release, swipe-touch-v1, 3 runs); lean 40280497901 (success).
-- Verified: the tail layer-frames fall 7140 to 6480 (-9.2%), with drawing area -7.7% and tiles -10.9%. Work is noGain in every window (Paint less, RasterTask more). Results are in `results/fill-release-platform/` and the note `research/notes/2026/10-20-fill-release-platform.md`. The ledger row `platform.entries.fill-release` is updated.
-- Verified: Lean `Fw.Engine.VisualTimed` and the FillRelease section of `Fw.Parts.PlatformEntries` (same_look for every Env, no_held_after, held_saved, rows_win). The golden `platform-entries-fill.jsonl` is checked by check.sh and by `fill.test.ts` (18 tests).
-- Open (lead dispatch):
-  - `gh workflow run breakpoint-gate.yml --ref ci/fill-release-platform -f fw=platform.entries:fill-release`
-  - `gh workflow run webkit-sim.yml --ref ci/fill-release-platform -f target=rewrite -f vms=3`, then the same with `-f fw=platform.entries:fill-release`. Read with `packages/measure-webkit/src/offscreen-webkit-cli.mjs`.
-- TS stand-in: `results/fill-release-platform/layer-frames.mjs` sums the census keys per window. It has no Lean golden.
+- Branch `worktree-wf_1e215c74-cb5-1`, worktree `.claude/worktrees/wf_1e215c74-cb5-1`, CI branch `ci/fill-release-platform` at e133f74c8 (all runs below measure that commit). Last work commit: see `git log`.
+- CI runs (state when written):
+  - chromium-counts 40280497740, success (base `rewrite` vs `platform.entries:fill-release`, swipe-touch-v1, 3 runs).
+  - lean 40280497901, success.
+  - breakpoint-gate 40282885162 (both engines, fw=platform.entries:fill-release): running.
+  - webkit-sim base 40282962088 (target rewrite, vms 3): running. webkit-sim flag 40282951274 (fw=platform.entries:fill-release, vms 3): running.
+- Verified: tail layer-frames fall 7140 to 6480 (-9.2%), drawing area -7.7%, tiles -10.9%; work noGain in every window (Paint less, RasterTask more). Lean `Fw.Engine.VisualTimed` and the FillRelease section of `Fw.Parts.PlatformEntries` (same_look, no_held_after, held_saved, rows_win, webkit_unchanged); golden `platform-entries-fill.jsonl`; `fill.test.ts`.
+- Done this round: `results/fill-release-platform/layer-frames.mjs` now sums with `runWindows`/`sumRange` of `packages/measure-chromium/src/offscreen-windows.mjs` (Lean-golden-checked windows); output numbers equal the earlier TS stand-in's.
+- Open: read WebKit per zone (`packages/measure-webkit/src/offscreen-webkit-cli.mjs`, minVms 3), memory verdict (cite `Fw.Engine.Resource.verdict`, `budgetB`, `memory_cost_win`, `win_mono_budget`), note, ledger row, merge main, check.sh, dry land, `fw review ready`.
+- Fetch results: `pnpm -s fw ci <runId>`; gate tables via `gh run download <id>`.
 
-Conventions: the variant rules sit in `@media (prefers-reduced-motion: no-preference)` at the end of `@layer parts`, one per faithful entry rule. Each selector is the faithful selector plus `.fillRelease` on the stage root. `.order` is included.
-Read first: `lean/Fw/Engine/VisualTimed.lean`, then the FillRelease section at the end of `lean/Fw/Parts/PlatformEntries.lean`, then the note.
+Conventions: variant rules sit in `@media (prefers-reduced-motion: no-preference)` at the end of `@layer parts`; each selector is the faithful selector plus `.fillRelease` on the stage root; `.order` included.
+Read first: `lean/Fw/Engine/VisualTimed.lean`, the FillRelease section of `lean/Fw/Parts/PlatformEntries.lean`, then the note.

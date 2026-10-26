@@ -1,22 +1,29 @@
-// TS stand-in (no Lean golden): sums the census layer, drawing-area and tile counts per offscreen window (windows from
-// packages/measure-chromium/src/offscreen-windows.mjs), over the profile tail and over the whole run, per counts.json.
+// Census layer, drawing-area and tile sums per offscreen window. The windows and the range sum come from
+// packages/measure-chromium/src/offscreen-windows.mjs (runWindows, sumRange), which the Lean golden
+// lean/Fw/Measure/OffscreenWindowsGolden.lean checks; this file is I/O glue (read counts.json, print JSON).
 // usage: node layer-frames.mjs <label>=<dir> [<label>=<dir> ...]
 import { readFileSync } from 'node:fs';
-import { allWindows, endFrame, findCounts, lastFrame, TOUCH_TAIL } from '../../packages/measure-chromium/src/offscreen-windows.mjs';
+import { TOUCH_TAIL, findCounts, lastFrame, runWindows, sumRange } from '../../packages/measure-chromium/src/offscreen-windows.mjs';
 
 const KEYS = ['census.layers', 'census.drawingLayers', 'census.drawingAreaPx', 'census.tiles', 'census.activeTiles'];
 
 function runOf(path) {
   const c = JSON.parse(readFileSync(path, 'utf8'));
   const frames = c.frames;
-  const e = endFrame(frames.map((f) => Math.round(f.scrollY * 1000)));
+  const cols = Object.fromEntries(KEYS.map((k) => [k, frames.map((f) => f.counts[k] ?? 0)]));
+  const run = { ys: frames.map((f) => Math.round(f.scrollY * 1000)), cols, tail: TOUCH_TAIL };
+  const w = runWindows(run);
   const last = lastFrame(frames.length, TOUCH_TAIL);
-  const sum = (lo, hi, k) => frames.slice(lo, hi).reduce((s, f) => s + (f.counts[k] ?? 0), 0);
-  const spans = [...allWindows(e, last), { name: 'tail', lo: last, hi: frames.length }, { name: 'whole', lo: 0, hi: frames.length }];
-  return {
-    path, search: c.meta?.search ?? null, end: e, frames: frames.length,
-    spans: spans.map((w) => ({ name: w.name, lo: w.lo, hi: w.hi, ...Object.fromEntries(KEYS.map((k) => [k, sum(w.lo, w.hi, k)])) })),
-  };
+  const span = (name, lo, hi) => ({ name, lo, hi, ...Object.fromEntries(KEYS.map((k) => [k, sumRange(cols[k], lo, hi)])) });
+  const spans = [
+    ...w.windows.map((x) => {
+      const win = x.vec.vals;
+      return { name: x.name, ...Object.fromEntries(KEYS.map((k) => [k, win[k]])) };
+    }),
+    span('tail', last, frames.length),
+    span('whole', 0, frames.length),
+  ];
+  return { path, search: c.meta?.search ?? null, end: w.end, frames: frames.length, spans };
 }
 
 const out = {};
