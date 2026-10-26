@@ -22493,6 +22493,29 @@
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
     "packages/measure-webkit/test/watchdog.test.mjs"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-recount",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "wk-sim-hang",
+    "fill-release-platform"
+   ],
+   "title": "WebKit recount at one commit once wk-sim-hang lands: every flag left undecided below the Lean minVms 3 by lost VMs (platform.sweep:layer-sweep, platform.entries:fill-release, hero.exit:contain, platform entries and marquee probes), base and each arm 3 VMs on the webkit-sim lane, read with offscreen-webkit-cli.mjs; update each note's WebKit table and ledger webkit field.",
+   "writes": [
+    "research/notes/2026/10-2x-webkit-recount.md",
+    "research/notes/2026/10-2x-platform-sweep-layer.md",
+    "research/notes/2026/10-20-fill-release-platform.md",
+    "research/notes/2026/10-2x-platform-attribution.md",
+    "research/notes/2026/10-20-hero-relayout-boundary.md",
+    "research/findings/ledger.json",
+    "results/webkit-recount/**",
+    "docs/team/handoffs/webkit-recount.md"
+   ]
   }
  ],
  "deadline": {
