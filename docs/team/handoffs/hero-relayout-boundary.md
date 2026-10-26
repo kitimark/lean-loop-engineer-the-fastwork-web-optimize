@@ -10,15 +10,16 @@
 ## Verified
 - `lean/Fw/Parts/HeroContainOpt.lean` theorems, golden `hero-contain.jsonl`, FlagDelta allowlist (merged with main's
   platform.sweep rows; flag-delta and triggers goldens regenerated), gate-breakpoints tests 789 pass.
-- check.sh green after the main merge; ledger row chromium/webkit fields and a note filled.
+- check.sh green after the main merge, apps/runner tests 3663 pass; ledger row chromium/webkit fields and a note filled.
 - Chromium hero-exit window, Lean cmp/judge: Layout same, RecalcStyle same, Paint same, totalObjects less, verdict
   gain (`results/hero-relayout-boundary/chromium.json`, `extract-chromium.mjs` is a TS stand-in).
 
 ## Open
 - WebKit is undecided (n=2+2) in every window (`results/hero-relayout-boundary/webkit.json`, read by
   `read-webkit.mjs` over the committed reader's functions); a decided cell needs a 3-VM rerun of both arms (lead).
-- Writes outside the graph row: lean/Fw/Gate/FlagDelta.lean, packages/contracts/golden/gate/flag-delta.jsonl,
-  packages/gate-breakpoints/test/flag-delta.test.mjs, research/findings/ledger.json.
+- Dry land (main 659ff84): `VERDICT scope hero-relayout-boundary`; the graph row lacks lean/Fw/Gate/FlagDelta.lean,
+  packages/gate-breakpoints/test/flag-delta.test.mjs and research/findings/ledger.json (lead adds them). With
+  `--allow` for those three every other stage passes (`VERDICT dry`).
 
 ## Conventions
 - Flag CSS: `[data-fw-variant='contain'] > .hero { contain: size layout; }` at the end of hero.module.css.
