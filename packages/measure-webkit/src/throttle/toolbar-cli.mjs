@@ -3,7 +3,7 @@
 //   The toolbar lane (task toolbar-sim-lane): real touch drags past the page end on Mobile Safari in the booted Simulator, one pass per arm,
 //   the default first. Without --arms the arms of job --vm come from toolbar-plan.mjs (and --message, the head commit message).
 // node src/throttle/toolbar-cli.mjs build-driver --dir d   build the touch driver once, before the Simulator boots
-// node src/throttle/toolbar-cli.mjs report --in a.json,b.json [--md file]   the tables and the verdict per flag
+// node src/throttle/toolbar-cli.mjs report --in a.json,run2-job3=b.json [--md file]   (label=file keeps jobs of several runs apart)   the tables and the verdict per flag
 // node src/throttle/toolbar-cli.mjs plan [--message text]   print the arms of every job
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
@@ -71,8 +71,11 @@ async function main() {
     }
     case 'report': {
       if (!v.in) throw new Error('usage: report --in a.json,b.json [--md file]');
-      const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8')));
-      const md = reportMd(jobs.map((j, i) => ({ vm: `job ${j.vm ?? i + 1}`, passes: j.passes })));
+      const jobs = v.in.split(',').map((e) => {
+        const [label, file] = e.includes('=') ? e.split('=') : [null, e];
+        return { label, ...JSON.parse(readFileSync(resolve(file), 'utf8')) };
+      });
+      const md = reportMd(jobs.map((j, i) => ({ vm: j.label ?? `job ${j.vm ?? i + 1}`, passes: j.passes })));
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }
