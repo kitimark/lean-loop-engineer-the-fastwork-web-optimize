@@ -1,8 +1,8 @@
 # toolbar-sim-lane handoff
 Branch worktree-wf_bf9846c7-37b-1, worktree .claude/worktrees/wf_bf9846c7-37b-1; CI branch ci/toolbar-sim-lane at 02d957418 (3 of 3 pushes used).
 CI runs (toolbar-throttle.yml): 40236328441 (push 1, jobs 1-5 ok, rest cancelled by me), 40250249829 (push 2, jobs 1-3 ok, rest cancelled), 40257287239 (push 3, jobs 1-3 and 5-10 ok, job 4 lost VM, complete).
-Verified: package tests 883 pass, ci-paths 56, land-inputs 73; Lean MorphEndCount builds, golden 119 lines --check ok; main merged.
-Open: check.sh at the final commit, dry land (`VERDICT dry toolbar-sim-lane`), `fw review ready`; follow-ups: ledger row, part.json promotion of unthrottle, cost windows < 3 per arm (needs a new push budget).
+Verified: package tests 906 pass, ci-paths 56, land-inputs 73; check.sh green; dry land VERDICT dry toolbar-sim-lane; Lean MorphEndCount builds, golden 119 lines --check ok; main merged (3ef749b06).
+Open: `fw review ready` result; follow-ups: ledger row, part.json promotion of unthrottle, cost windows < 3 per arm (needs a new push budget).
 Result note: research/notes/2026/10-2x-toolbar-sim-lane.md (pooled report of the three runs; labels r1jN/r2jN/r3jN).
 
 ## State
