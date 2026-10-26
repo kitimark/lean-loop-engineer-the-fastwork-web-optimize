@@ -4,7 +4,7 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  WKEYS, APPROACH, TOUCH_TAIL, WINDOW_NAMES, endFrame, lastFrame, pushWindows, finishWin, owner, sumRange, runWindows, armVerdicts,
+  WKEYS, APPROACH, TOUCH_TAIL, WINDOW_NAMES, endFrame, lastFrame, pushWindows, finishWin, owner, sumRange, runWindows, armVerdicts, ownVerdicts,
   profileTail, runFromCounts, readArm, cellText, summarizeArm, markdown,
 } from '../src/offscreen-windows.mjs';
 import { MIN_RUNS, SLACK } from '../src/offscreen.mjs';
@@ -83,6 +83,43 @@ test('offscreen-windows: an arm with no or too few runs is no data in every wind
   for (const name of ['no base runs', 'no flag runs', 'two base runs', 'two flag runs']) {
     const g = ops('arm').find((x) => x.case === name);
     for (const v of armVerdicts(armOf(g.base), armOf(g.flag))) assert.equal(v.verdict, 'noData', `${name}: ${v.window}`);
+  }
+});
+
+test('offscreen-windows: every own-end case gets the golden frames, verdict, usability and cells per window', () => {
+  const owns = ops('own');
+  assert.ok(owns.length >= 10);
+  assert.deepEqual([...new Set(owns.flatMap((g) => g.verdicts.map((v) => v.verdict)))].sort(), ['gain', 'noData', 'noGain']);
+  for (const g of owns) {
+    const got = ownVerdicts(g.base, g.flag);
+    assert.deepEqual(got.map((v) => v.window), g.verdicts.map((v) => v.window), g.case);
+    for (const [i, v] of g.verdicts.entries()) {
+      assert.equal(got[i].frames, v.frames, `${g.case}: ${v.window} frames`);
+      assert.equal(got[i].verdict, v.verdict, `${g.case}: ${v.window}`);
+      assert.equal(got[i].usable, v.usable, `${g.case}: ${v.window} usable`);
+      assert.deepEqual(got[i].cells, v.cells, `${g.case}: ${v.window} cells`);
+      assert.equal(v.verdict === 'noData', !v.usable, `${g.case}: ${v.window}: no data exactly when not usable`);
+    }
+  }
+});
+
+test('offscreen-windows: the own-end verdicts equal the uncut ones when every run has the same end and length', () => {
+  const g = ops('own').find((x) => x.case.startsWith('same end frame and same length'));
+  const cut = ownVerdicts(g.base, g.flag);
+  const uncut = armVerdicts(g.base.map(runWindows), g.flag.map(runWindows));
+  assert.deepEqual(cut.map(({ frames, ...v }) => v), uncut);
+});
+
+test('offscreen-windows: a window with no frame in common, or with too few runs, is no data and never a gain', () => {
+  for (const g of ops('own').filter((x) => /^(two base runs|no flag runs|a flag run without frames|a counter column missing)/.test(x.case))) {
+    for (const v of g.verdicts) assert.equal(v.verdict, 'noData', `${g.case}: ${v.window}`);
+  }
+  const g = ops('own').find((x) => x.case.startsWith('the flag ends 125 frames later'));
+  const by = Object.fromEntries(g.verdicts.map((v) => [v.window, v]));
+  assert.equal(by['end 0-19'].frames, 3);
+  for (const n of ['end 20-59', 'end 60-119', 'end 120+']) {
+    assert.equal(by[n].frames, 0);
+    assert.equal(by[n].verdict, 'noData');
   }
 });
 

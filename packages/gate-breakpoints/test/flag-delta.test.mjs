@@ -5,6 +5,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flagsOfSearch, readingVerdict, excusedItems, loadDeltas, wireItem, FLAG_DELTA_GOLDEN } from '../src/flag-delta.mjs';
 import { applyFlagDeltas } from '../src/summary.mjs';
+import { loadReplaced } from '../src/replaced.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const path = resolve(here, '../../contracts/golden/gate/flag-delta.jsonl');
@@ -55,7 +56,14 @@ test('readingVerdict and excusedItems replay every Lean reading case', () => {
 
 test('wireItem keeps string values and nulls the others', () => {
   assert.deepEqual(wireItem({ cls: 'box', role: 'r', key: 'w', status: 'differ', a: 3, b: undefined, idx: 0 }),
-    { cls: 'box', role: 'r', key: 'w', status: 'differ', byRect: false, a: null, b: null });
+    { cls: 'box', role: 'r', key: 'w', status: 'differ', byRect: false, a: null, b: null, rewriteCount: null });
+  assert.deepEqual(wireItem({ cls: 'count', role: 'target', key: 'count', status: 'differ', a: 1, b: 0, idx: -1 }),
+    { cls: 'count', role: 'target', key: 'count', status: 'differ', byRect: false, a: null, b: null, rewriteCount: 0 });
+});
+
+test('the replaced-part list is the reviewed one (Lean Fw.Gate.FlagDelta.replacedParts)', () => {
+  assert.deepEqual(loadReplaced(), of('replaced'));
+  assert.deepEqual(of('replaced').map((e) => [e.flag, e.part, e.premise]), []);
 });
 
 const evOf = (rows, fails) => ({ rows: { ...rows }, fails: Object.fromEntries(Object.entries(fails).map(([k, v]) => [k, [...v]])) });
