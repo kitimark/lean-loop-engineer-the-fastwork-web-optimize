@@ -120,8 +120,8 @@ def Look.name : Look → String
 def look (faith cand : List Nat) : Look :=
   if faith.all (· = 0) && cand.all (· = 0) then .same else .change
 
-/-- Samples each side needs before `cmpKnown` or `lookKnown` decides. -/
-def minSamples : Nat := 1
+/-- Samples each side needs before `cmpKnown` or `lookKnown` decides: 3, like `Fw.Measure.Offscreen.minRuns`. -/
+def minSamples : Nat := 3
 
 def known (faith cand : List Nat) : Bool := decide (minSamples ≤ faith.length) && decide (minSamples ≤ cand.length)
 
@@ -294,8 +294,13 @@ theorem look_change_cand (faith cand : List Nat) (x : Nat) (hx : x ∈ cand) (h 
 theorem cmp_lower_nonempty (faith cand : List Nat) (h : cmp faith cand = .lower) : faith ≠ [] ∧ cand ≠ [] := by
   constructor <;> rintro rfl <;> simp [cmp_empty_faith, cmp_empty_cand] at h
 
-theorem known_iff (faith cand : List Nat) : known faith cand = true ↔ faith ≠ [] ∧ cand ≠ [] := by
-  simp [known, minSamples, Nat.one_le_iff_ne_zero, List.length_eq_zero_iff]
+theorem known_iff (faith cand : List Nat) :
+    known faith cand = true ↔ minSamples ≤ faith.length ∧ minSamples ≤ cand.length := by
+  simp [known]
+
+theorem known_ne_nil (faith cand : List Nat) (h : known faith cand = true) : faith ≠ [] ∧ cand ≠ [] := by
+  rw [known_iff] at h
+  constructor <;> rintro rfl <;> simp [minSamples] at h
 
 theorem cmpKnown_empty_faith (cand : List Nat) : cmpKnown [] cand = none := by simp [cmpKnown, known, minSamples]
 
@@ -304,6 +309,12 @@ theorem cmpKnown_empty_cand (faith : List Nat) : cmpKnown faith [] = none := by 
 theorem cmpKnown_short (faith cand : List Nat) (h : faith.length < minSamples ∨ cand.length < minSamples) :
     cmpKnown faith cand = none := by
   rcases h with h | h <;> simp [cmpKnown, known, Nat.not_le.mpr h]
+
+theorem cmpKnown_one_faith (x : Nat) (cand : List Nat) : cmpKnown [x] cand = none := by
+  apply cmpKnown_short; left; simp [minSamples]
+
+theorem cmpKnown_one_cand (faith : List Nat) (y : Nat) : cmpKnown faith [y] = none := by
+  apply cmpKnown_short; right; simp [minSamples]
 
 theorem cmpKnown_some_needs (faith cand : List Nat) (c : Cmp) (h : cmpKnown faith cand = some c) :
     minSamples ≤ faith.length ∧ minSamples ≤ cand.length := by
@@ -322,6 +333,12 @@ theorem lookKnown_empty_cand (faith : List Nat) : lookKnown faith [] = none := b
 theorem lookKnown_short (faith cand : List Nat) (h : faith.length < minSamples ∨ cand.length < minSamples) :
     lookKnown faith cand = none := by
   rcases h with h | h <;> simp [lookKnown, known, Nat.not_le.mpr h]
+
+theorem lookKnown_one_faith (x : Nat) (cand : List Nat) : lookKnown [x] cand = none := by
+  apply lookKnown_short; left; simp [minSamples]
+
+theorem lookKnown_one_cand (faith : List Nat) (y : Nat) : lookKnown faith [y] = none := by
+  apply lookKnown_short; right; simp [minSamples]
 
 theorem lookKnown_some_needs (faith cand : List Nat) (l : Look) (h : lookKnown faith cand = some l) :
     minSamples ≤ faith.length ∧ minSamples ≤ cand.length := by
@@ -459,6 +476,33 @@ def lookCases : List (String × List Nat × List Nat) := [
   ("no faithful run", ([], [0])),
   ("no candidate run", ([0], []))]
 
+/-- Rows for `cmpKnown`: complete rows hold `minSamples` values per side and keep the `cmp` word; short rows are undecided. -/
+def cmpKnownCases : List (String × List Nat × List Nat) := [
+  ("candidate below", ([2, 3, 5], [0, 0, 1])),
+  ("candidate above", ([0, 1, 1], [3, 4, 4])),
+  ("ranges overlap", ([0, 4, 2], [1, 2, 3])),
+  ("both zero", ([0, 0, 0], [0, 0, 0])),
+  ("touching ranges", ([2, 3, 3], [1, 2, 2])),
+  ("no faithful run", ([], [1, 1, 1])),
+  ("no candidate run", ([1, 1, 1], [])),
+  ("one faithful run", ([5], [0, 0, 1])),
+  ("one candidate run", ([5, 6, 7], [0])),
+  ("two runs each, separated", ([0, 1], [3, 4])),
+  ("two candidate runs, separated", ([5, 6, 7], [0, 1]))]
+
+/-- Rows for `lookKnown`, as for `cmpKnownCases`. -/
+def lookKnownCases : List (String × List Nat × List Nat) := [
+  ("both steady", ([0, 0, 0], [0, 0, 0])),
+  ("faithful displaced", ([0, 2, 0], [0, 0, 0])),
+  ("candidate displaced", ([0, 0, 0], [1, 0, 0])),
+  ("both displaced", ([3, 3, 3], [4, 4, 4])),
+  ("nothing measured", ([], [])),
+  ("no faithful run", ([], [0, 0, 0])),
+  ("no candidate run", ([0, 0, 0], [])),
+  ("one steady run each", ([0], [0])),
+  ("two steady runs each", ([0, 0], [0, 0])),
+  ("one candidate run, displaced", ([0, 0, 0], [1]))]
+
 open Lean in
 def sampleJson (s : Sample) : Json := Json.arr #[toJson s.y, toJson (if s.isOpen then 1 else 0)]
 
@@ -474,7 +518,7 @@ def resultJson (r : Result) : Json :=
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
-  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts)]).compress
+  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts), ("minSamples", toJson minSamples)]).compress
   let rs := runCases.map fun (name, r) =>
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("frames", samplesJson r.frames), ("events", samplesJson r.events), ("calls", samplesJson r.calls),
       ("refusal", match refusal r with | some f => Json.str f.name | none => Json.null),
@@ -485,10 +529,10 @@ def goldenLines (_ : Unit := ()) : List String :=
   let ls := lookCases.map fun (name, f, c) =>
     (Json.mkObj [("op", "look"), ("case", Json.str name), ("faith", toJson f), ("cand", toJson c),
       ("out", Json.str (look f c).name)]).compress
-  let cks := cmpCases.map fun (name, f, c) =>
+  let cks := cmpKnownCases.map fun (name, f, c) =>
     (Json.mkObj [("op", "cmpKnown"), ("case", Json.str name), ("faith", toJson f), ("cand", toJson c),
       ("out", Json.str (optName Cmp.name (cmpKnown f c)))]).compress
-  let lks := lookCases.map fun (name, f, c) =>
+  let lks := lookKnownCases.map fun (name, f, c) =>
     (Json.mkObj [("op", "lookKnown"), ("case", Json.str name), ("faith", toJson f), ("cand", toJson c),
       ("out", Json.str (optName Look.name (lookKnown f c)))]).compress
   let ts := [("two arms", [⟨steadyFrames, steadyFrames, mk []⟩, ⟨fightFrames, fightFrames, mk [(5000, true)]⟩, neverOpen, shortOpen])].map fun (name, l) =>
@@ -528,8 +572,10 @@ def run (args : List String) : IO UInt32 := do
 #guard (reduce ⟨monotoneFrames, monotoneFrames, mk []⟩).frameReversals == 0
 #guard cmp [2, 3, 5] [0, 0, 1] == .lower
 #guard cmpKnown [] [1] == none
+#guard cmpKnown [0, 1] [3, 4] == none
 #guard cmpKnown [2, 3, 5] [0, 0, 1] == some .lower
 #guard lookKnown [] [] == none
-#guard lookKnown [0] [0] == some .same
+#guard lookKnown [0] [0] == none
+#guard lookKnown [0, 0, 0] [0, 0, 0] == some .same
 
 end Fw.Measure.TouchLock
