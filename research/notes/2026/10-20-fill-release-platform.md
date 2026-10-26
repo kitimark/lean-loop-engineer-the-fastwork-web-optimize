@@ -15,7 +15,7 @@ topics: [chromium, webkit, animation-fill-mode, compositing, gpu-memory, platfor
 - **Chromium work: noGain in every window.** The Lean windows reader finds Paint lower and RasterTask higher in approach, end 0-19 and finish. Windows end 20-59, 60-119 and 120+ show no difference (MEASURED, same run, `results/fill-release-platform/windows.md`).
 - **Look: unchanged.** Lean `same_look` proves the shown value is the same at every time and in every `Env`, which includes every breakpoint width and both reduced-motion states (PROVED). `fill.test.ts` reads each of the 15 stylesheet rows back against the golden.
 - **Breakpoint gate: pass on both engines.** Run 40282885162 at e133f74c8 with `?fw=platform.entries:fill-release`: Chromium 7056 readings, 7049 pass and 7 excused as not comparable; Playwright WebKit 7056 readings, 6765 pass and 291 excused (unreachable cells and a cell without a vector), no FAIL (MEASURED).
-- **WebKit: no layer or memory change, verdict undecided on work.** Simulator run 40282951274 (flag, 3 VMs) shows the same layer count and backing memory as the base run's one good VM at every census stop (layers 141-145 at y 4500, 124-128 at the end; backing 149.3 MB and 105.8 MB; MEASURED). That matches `webkit_unchanged` (PROVED). The base run 40282962088 lost VMs r1 and r3 to the 2100 s bound of the determinism sessions on a slow runner, so every per-zone cell reads undecided (n=1+3 VMs); the retry is in the Runs table.
+- **WebKit: no layer or memory change, work verdict undecided in all four zones (z4500, z5000, finish, whole) with n=1+3 VMs.** Simulator run 40282951274 (flag, 3 VMs) shows the same layer count and backing memory as the base run's one good VM at every census stop (layers 141-145 at y 4500, 124-128 at the end; backing 149.3 MB and 105.8 MB; MEASURED). That matches `webkit_unchanged` (PROVED). The base run 40282962088 kept only VM r2 and the retry 40305413688 (same commit and inputs) kept only VM r1; r2 and r3 of the retry failed in their determinism sessions (host overload, task wk-sim-hang). Lean `minVms` is 3, so the reader (`offscreen-webkit-cli.mjs`) prints `undecided (n=1+3 VMs)` for every zone from the retry alone. Pooling is allowed by neither source in general: the reader takes the VM id from the artifact dir name `r<k>` and Lean `vmCount` counts distinct ids with no commit field, so two runs' `r1` would merge into one VM. Here the ids differ (retry r1, first run r2), so a pooled read is possible and gives n=2+3 VMs, still below 3: undecided. The pooled pass rule alone reads noGain in every zone and is not a verdict. This is an accepted limit; the follow-up is a WebKit recount after wk-sim-hang lands.
 - **Memory verdict: Chromium no-win, WebKit no-win (nothing to gain).** The memory budget is the existing `budgetB` (210 MiB, `Fw.Engine.Resource.budgetB_bytes`, `budgetB_quarter`). The flag only lowers memory, so `memoryWin_fits` holds at every budget with no measured peak. Chromium memory falls but RasterTask rises, so paint records are mixed and `work_change_not_memoryWin` rules out a memory-only win. WebKit memory and work do not change.
 
 ## Mechanism
@@ -73,7 +73,20 @@ The golden is `packages/contracts/golden/parts/platform-entries-fill.jsonl`. It 
 | 40282885162 | breakpoint-gate, both engines | e133f74c8 | `platform.entries:fill-release` | success, pass |
 | 40282951274 | webkit-sim, 3 VMs | e133f74c8 | flag `platform.entries:fill-release` | success |
 | 40282962088 | webkit-sim, 3 VMs | e133f74c8 | base `rewrite` | failed: VMs r1 and r3 hit the 2100 s determinism bound, r2 good |
-| 40305413688 | webkit-sim, 3 VMs (retry of the base) | e133f74c8 | base `rewrite` | running |
+| 40305413688 | webkit-sim, 3 VMs (retry of the base) | e133f74c8 | base `rewrite` | failed: r1 good, r2 and r3 lost in determinism sessions (host overload, wk-sim-hang) |
+
+## WebKit per-zone verdict
+
+Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs`, base from run 40305413688, flag from run 40282951274, Lean `minVms` 3 (MEASURED).
+
+| Zone | Steps | Passes base+flag | VMs base+flag | Verdict |
+|---|---|---|---|---|
+| z4500 | 10 | 2+6 | 1+3 | undecided (n=1+3 VMs) |
+| z5000 | 5 | 2+6 | 1+3 | undecided (n=1+3 VMs) |
+| finish | 15 | 2+6 | 1+3 | undecided (n=1+3 VMs) |
+| whole | 105 | 2+6 | 1+3 | undecided (n=1+3 VMs) |
+
+Pooling the retry's r1 with the first base run's r2 gives 2+3 VMs: still undecided in every zone. Follow-up: a WebKit recount after wk-sim-hang lands.
 
 ## Chromium windows
 
