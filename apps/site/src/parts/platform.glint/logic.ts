@@ -114,19 +114,20 @@ export const segOf = (u: number): number => Math.min(4, Math.floor(5 * u));
 
 /** The (x1, x2) of the one active piece per attribute `elapsed` ms after the anchor began (`elapsed` >= 0). */
 export function holdSample({ side, elapsed }: { side: Side; elapsed: number }): [number, number] {
-  const u = frac(elapsed / DUR_MS);
-  const k = segOf(u);
+  const r = ((elapsed % DUR_MS) + DUR_MS) % DUR_MS;
+  const k = Math.min(4, Math.floor(r / SEG_MS));
+  const w = (r - k * SEG_MS) / SEG_MS;
   const plan = holdPlan(side);
   const at = (attr: Attr): number => {
     const p = plan.find((q) => q.attr === attr && q.seg === k)!;
-    return p.kind === 'set' ? p.to : lerp(p.from, p.to, 5 * u - k);
+    return p.kind === 'set' ? p.to : lerp(p.from, p.to, w);
   };
   return [at('x1'), at('x2')];
 }
 
 /** Active non-`<set>` animations of one dash at `elapsed`: the ramp pieces among the active ones. */
 export function holdTicking({ side, elapsed }: { side: Side; elapsed: number }): number {
-  const k = segOf(frac(elapsed / DUR_MS));
+  const k = Math.min(4, Math.floor((((elapsed % DUR_MS) + DUR_MS) % DUR_MS) / SEG_MS));
   return holdPlan(side).filter((p) => p.seg === k && p.kind === 'ramp').length;
 }
 
@@ -170,3 +171,6 @@ export function holdElements(side: Side, idBase: string): HoldEl[] {
     return el;
   });
 }
+
+/** Segments where both attributes hold (only `<set>` pieces are active, nothing ticks). */
+export const holdSegments = (side: Side): number[] => [0, 1, 2, 3, 4].filter((k) => holdPlan(side).every((p) => p.seg !== k || p.kind === 'set'));
