@@ -1,7 +1,7 @@
 // One test per premise of lean/Fw/Ops/Premise.lean (`registry`). `id` is the registry's testId, `premise` its id; the
 // Lean lint (`premiseLint`, ported in apps/runner/src/premises.ts) fails when the two lists drift.
 // A test loads its tiny page from ../pages, drives the browser, and asserts with node:assert/strict. It returns what it
-// observed; the runner stores that next to the verdict. Nothing here seeks an animation and nothing replaces rAF.
+// observed; the runner stores that next to the verdict. Only prem.glint.hold-pixels seeks an animation (setCurrentTime on a paused SVG timeline); nothing replaces rAF.
 import assert from 'node:assert/strict';
 import { collectAlignFacts, alignEquiv, modeOf, contentFill, parseTracks } from '../../gate-breakpoints/src/align-equiv.mjs';
 
@@ -520,6 +520,67 @@ export const TESTS = [
       o.rows.slice(1, 4).forEach((r, i) => assert.ok(r.saturated > 100 && r.saturatedLayer > 100, `time ${i + 1}: both words show the colour band (${r.saturated}, ${r.saturatedLayer} saturated pixels)`));
       const worst = Math.max(...o.rows.map((r) => r.max));
       if (worst > 40) throw Object.assign(new Error(`a pixel differs by ${worst} of 255 (premise: within 40)`), { observed: o });
+      return o;
+    },
+  },
+  {
+    id: 'prem.glint.hold-pixels', premise: 'glint.hold-pixels', page: 'glint.hold-pixels.html',
+    async run({ page }) {
+      await page.setViewportSize({ width: 520, height: 130 });
+      await frames(page, 3);
+      await page.evaluate(() => window.start('paused-first'));
+      // Seconds after the begin, never decreasing (createPause seeks to read + paused time, so the container clock only moves
+      // forward): each key-time boundary of three cycles with a sample either side of the first ones; every third sample
+      // is a 'resume' (unpause, setCurrentTime, pause in one task: what createPause does on a reveal), the rest plain seeks.
+      // The last two, 'back', seek backward and are recorded, not judged (no flag path does that).
+      const plan = [0, 0.4, 0.999, 1, 1.001, 1.6, 2, 2.5, 2.999, 3, 3.6, 4, 4.5, 4.999, 5, 5.001, 6, 7.5, 9.999, 10, 11, 12, 14.5, 15, 16, 17.5, 19.99, 20, 21.2, 23]
+        .map((s, i) => ({ s, mode: i % 3 === 2 ? 'resume' : 'seek' }));
+      plan.push({ s: 3.3, mode: 'back' }, { s: 0.2, mode: 'back' });
+      const shots = [];
+      const anim = [];
+      for (const { s, mode } of plan) {
+        await page.evaluate(([t, m]) => {
+          for (const svg of document.querySelectorAll('svg')) {
+            if (m !== 'seek') svg.unpauseAnimations();
+            svg.setCurrentTime(10 + t);
+            if (m !== 'seek') svg.pauseAnimations();
+          }
+        }, [s, mode]);
+        await frames(page, 2);
+        anim.push(await page.evaluate(() => ['oL', 'hL', 'oR', 'hR'].map((id) => { const g = document.getElementById(`${id}-g`); return [g.x1.animVal.value, g.x2.animVal.value]; })));
+        shots.push((await page.screenshot({ clip: { x: 0, y: 0, width: 520, height: 130 } })).toString('base64'));
+      }
+      const rows = await page.evaluate(async (list) => {
+        const out = [];
+        for (const b64 of list) {
+          const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+          const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+          const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+          const px = g.getImageData(0, 0, c.width, c.height).data;
+          const k = bmp.width / 520;
+          const diff = (ra, rb) => {
+            let m = 0; let sat = 0;
+            for (let y = 2 * k; y < 18 * k; y++) for (let x = 0; x < bmp.width; x++) {
+              const a = ((ra * 30 * k + y) * bmp.width + x) * 4; const b = ((rb * 30 * k + y) * bmp.width + x) * 4;
+              for (let i = 0; i < 3; i++) m = Math.max(m, Math.abs(px[a + i] - px[b + i]));
+              if (Math.max(px[a], px[a + 1], px[a + 2]) - Math.min(px[a], px[a + 1], px[a + 2]) > 100) sat++;
+            }
+            return [m, sat];
+          };
+          const l = diff(0, 1); const r = diff(2, 3);
+          out.push({ left: l[0], right: r[0], satLeft: l[1], satRight: r[1] });
+        }
+        return out;
+      }, shots);
+      const o = { samples: plan.map((p, i) => ({ ...p, ...rows[i], anim: anim[i] })) };
+      assert.ok(o.samples.some((x) => x.satLeft > 100) && o.samples.some((x) => x.satRight > 100), 'the colour band is drawn in both dashes');
+      const moved = new Set(o.samples.map((x) => x.anim[0][0].toFixed(3))).size;
+      assert.ok(moved >= 5, `the original gradient moves over the samples (${moved} distinct x1)`);
+      const judged = o.samples.filter((x) => x.mode !== 'back');
+      const worst = Math.max(...judged.map((x) => Math.max(x.left, x.right)));
+      o.backWorst = Math.max(...o.samples.filter((x) => x.mode === 'back').map((x) => Math.max(x.left, x.right)));
+      o.worst = worst;
+      if (worst > 12) throw Object.assign(new Error(`a pixel differs by ${worst} of 255 (premise: within 12)`), { observed: o });
       return o;
     },
   },

@@ -152,7 +152,7 @@ export interface HoldEl {
  * the one before it (segment 0 after segment 4), so every instance time is known a whole segment ahead; `beginElement()`
  * on the two segment-0 pieces starts the rings. INFERRED from runs in both engines (task glint-hold-freeze): without
  * `fill="freeze"` or with offsets from a shared clock element, WebKit dropped pieces in the second cycle or lost the
- * first begin; Chromium parsed `a-b-0.begin` without an offset wrongly (ids carry no hyphen).
+ * first begin; a hyphen in an id (`a-b-X1S0.end`) left every piece after the first unresolved in both engines (premise glint.hold-pixels), so ids are letters and digits only.
  */
 export function holdElements(side: Side, idBase: string): HoldEl[] {
   const idOf = (attr: Attr, seg: number): string => `${idBase}${attr.toUpperCase()}S${seg}`;

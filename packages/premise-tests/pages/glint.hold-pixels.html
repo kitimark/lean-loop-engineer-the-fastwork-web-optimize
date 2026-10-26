@@ -1,0 +1,53 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>glint.hold-pixels</title>
+<style>
+  /* Four strips, 1 CSS px per user unit of the gradient (viewBox -200..320): the left dash as the original animates it
+     (two repeating <animate>), the left dash as platform.glint:hold-freeze animates it (a ring of five <animate>/<set> pieces
+     per attribute), then the same two for the right dash. Same stops and key values as platform/Visuals.tsx and logic.ts. */
+  body { margin: 0; background: #131922 }
+  svg { display: block; width: 520px; height: 20px; margin: 0 0 10px }
+</style>
+<svg id="oL" viewBox="-200 0 520 20"></svg>
+<svg id="hL" viewBox="-200 0 520 20"></svg>
+<svg id="oR" viewBox="-200 0 520 20"></svg>
+<svg id="hR" viewBox="-200 0 520 20"></svg>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const X1 = { left: [-200, 200, 200, 200, -200, -200], right: [-200, -200, 200, -200, -200, -200] };
+  const X2 = { left: [-80, 320, 320, 320, -80, -80], right: [-80, -80, 320, -80, -80, -80] };
+  const STOPS = [[0, '#84b5ff', 0], [20, '#84b5ff', 1], [40, '#0569ff', 1], [60, '#ae8eff', 1], [80, '#ffcca5', 1], [100, '#ffcca5', 0]];
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.append(e); return e; };
+  /* mode 'orig': the two repeating <animate>; mode 'hold': the ring (piece per key-time segment, begin = end of the piece before). */
+  window.build = (svgId, side, mode) => {
+    const svg = document.getElementById(svgId);
+    const g = el('linearGradient', { id: `${svgId}-g`, gradientUnits: 'userSpaceOnUse', x1: X1[side][0], x2: X2[side][0], y1: 0, y2: 0 }, el('defs', {}, svg));
+    for (const [o, c, a] of STOPS) el('stop', { offset: `${o}%`, 'stop-color': c, 'stop-opacity': a }, g);
+    el('rect', { x: -200, y: 0, width: 520, height: 20, fill: `url(#${svgId}-g)` }, svg);
+    const anchors = [];
+    for (const [attr, vals] of [['x1', X1[side]], ['x2', X2[side]]]) {
+      if (mode === 'orig') {
+        anchors.push(el('animate', { attributeName: attr, begin: 'indefinite', repeatCount: 'indefinite', keyTimes: '0;0.2;0.4;0.6;0.8;1', dur: '5s', values: vals.join(';') }, g));
+        continue;
+      }
+      const id = (k) => `${svgId}${attr.toUpperCase()}S${k}`;
+      for (let k = 0; k < 5; k++) {
+        const hold = vals[k] === vals[k + 1];
+        const a = { id: id(k), attributeName: attr, to: vals[k + 1], dur: '1s', fill: 'freeze', begin: k === 0 ? `indefinite;${id(4)}.end` : `${id(k - 1)}.end` };
+        if (!hold) a.from = vals[k];
+        const e = el(hold ? 'set' : 'animate', a, g);
+        if (k === 0) anchors.push(e);
+      }
+    }
+    return anchors;
+  };
+  window.armed = [];
+  window.start = (variant) => {
+    const strips = [['oL', 'left', 'orig'], ['hL', 'left', 'hold'], ['oR', 'right', 'orig'], ['hR', 'right', 'hold']];
+    for (const [id, side, mode] of strips) window.armed.push(...build(id, side, mode).map((a) => [id, a]));
+    const svgs = [...document.querySelectorAll('svg')];
+    if (variant === 'paused-first') for (const s of svgs) { s.pauseAnimations(); s.setCurrentTime(10); }
+    for (const [, a] of window.armed) a.beginElement();
+    if (variant !== 'paused-first') for (const s of svgs) s.pauseAnimations();
+  };
+</script>

@@ -434,7 +434,12 @@ def registry : List Premise := [
     statement := "at the fixed progress times 0, 0.5, 1.5, 2.5 and 3.9 s, every channel of a word drawn as a gradient child 3w wide moved by translateX under a static mask-clip:text mask is within 40 of 255 of the same word drawn with background-clip:text and background-position, and both show the colour band"
     theorems := ["Fw.Parts.PlatformSweepLayer.same_look"]
     engines := both
-    testId := "prem.sweep.layer-pixels" }
+    testId := "prem.sweep.layer-pixels" },
+  { id := "glint.hold-pixels"
+    statement := "for the left and the right dash, at 32 times after a beginElement on a paused SVG timeline (every key-time boundary of three 5 s cycles with a sample either side of the first ones, none earlier than the one before; every third reached by unpauseAnimations, setCurrentTime, pauseAnimations in one task), every channel of a strip filled by a gradient whose x1 and x2 are a ring of five animate and set pieces per attribute (fill freeze, each beginning at the end of the one before, the first also at indefinite) is within 12 of 255 of the strip filled by the two repeating animate of the original, and the colour band is drawn"
+    theorems := ["Fw.Parts.PlatformGlintHold.hold_eq_faithful"]
+    engines := both
+    testId := "prem.glint.hold-pixels" }
 ]
 
 theorem registry_ids_nodup : (registry.map (·.id)).Nodup := by decide

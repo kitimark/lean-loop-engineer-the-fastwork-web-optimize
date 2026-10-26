@@ -81,4 +81,14 @@ describe('platform.glint:hold-freeze', () => {
     expect(els.filter((x) => x.anchor).length).toBe(2);
     expect(els.every((x) => x.fill === 'freeze')).toBe(true);
   });
+
+  it('ids and begin references carry no hyphen (a hyphen in the id broke the begin chain in both engines)', () => {
+    for (const side of ['left', 'right'] as const) {
+      const els = L.holdElements(side, `fwglint${side}`);
+      for (const e of els) {
+        expect(e.id).toMatch(/^[A-Za-z0-9]+$/);
+        expect(e.begin.replace('indefinite;', '')).toMatch(/^[A-Za-z0-9]*(\.end)?$/);
+      }
+    }
+  });
 });

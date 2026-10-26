@@ -303,7 +303,7 @@ function Dash({ side, playing, hold }: { side: 'left' | 'right'; playing: boolea
             <stop offset="60%" stopColor="#ae8eff" stopOpacity="1" />
             <stop offset="80%" stopColor="#ffcca5" stopOpacity="1" />
             <stop offset="100%" stopColor="#ffcca5" stopOpacity="0" />
-            {playing && hold ? <HoldRing side={side} idBase={`${id}-`} /> : null}
+            {playing && hold ? <HoldRing side={side} idBase={`fwglint${side}`} /> : null}
             {playing && !hold ? (
               <>
                 <animate attributeName="x1" begin="indefinite" repeatCount="indefinite" keyTimes={KEYTIMES} dur="5s" values={X1[side].join(';')} />
