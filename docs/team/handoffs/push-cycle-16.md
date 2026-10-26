@@ -1,8 +1,8 @@
 branch: worktree-wf_cf598a19-7f5-1 (CI branch ci/push-cycle-16)
 worktree: .claude/worktrees/wf_cf598a19-7f5-1 (under the repo root)
 last commit: bf4a3244a (push 1 of at most 2)
-runs: push 1 of ci/push-cycle-16 (toolbar-throttle, run id read with fw ci wait): running
-verified: Lean file elaborates (lake env lean), golden regenerated and --check green, TS twin test push-cycle.test.mjs 20 of 20; check.sh and dry land not yet run
+runs: 40361916735 (push 1, ci/push-cycle-16 at bf4a3244a, toolbar-throttle): running at 31 min
+verified: Lean file elaborates (lake env lean), golden regenerated and --check green, TS twin test push-cycle.test.mjs 20 of 20; check.sh green (fw slot), measure-webkit test 928 pass; dry land not yet run
 open: CI result of push 1, verdict per arm, note 10-2x-push-cycle-16.md, ledger row, results, check.sh, dry land, review ready
 
 What was built
