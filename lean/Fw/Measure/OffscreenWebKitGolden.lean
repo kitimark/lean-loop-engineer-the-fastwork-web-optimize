@@ -25,7 +25,7 @@ def verdictName : Verdict → String
   | .noGain => "noGain"
   | .noData => "noData"
 
-def verdictCases : List (String × Nat × Nat × List Pass × List Pass) := [
+def verdictCases (_ : Unit := ()) : List (String × Nat × Nat × List Pass × List Pass) := [
   ("flag far below on Paint", 4500, 5200, three [(2, 40)], three [(2, 4)]),
   ("equal arms", 4500, 5200, three [(2, 40)], three [(2, 40)]),
   ("Paint down but Layout up", 4500, 5200, three [(2, 40)], three [(2, 4), (1, 9)]),
