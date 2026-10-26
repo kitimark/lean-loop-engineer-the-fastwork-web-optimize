@@ -14,7 +14,8 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   skipped?: true;
   /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
   runIds?: number[]; phases?: Record<string, number | string | boolean>;
-  slot?: { width: number; jobs: number };
+  /** `check.sh` parallel group: width and jobs. Outer `fw slot run check`: the admitted threads as width, with the availMB and chargedMB the verdict saw (the key is the width only). */
+  slot?: { width: number; jobs?: number; availMB?: number; chargedMB?: number };
   /** `fw polish commit` spans only: the checkmap commands of the commit (count and kinds). */
   checks?: { n: number; kinds: string[] };
   /** `fw polish commit` spans that ran lake build and `fw land dry lake` spans: the modules lake built. */

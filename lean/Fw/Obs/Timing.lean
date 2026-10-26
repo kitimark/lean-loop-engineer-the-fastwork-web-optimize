@@ -1495,6 +1495,29 @@ theorem judgeQ_other_work (p : Params) (hist others : List Sample) (i : Nat) (s 
   rw [judgeQ_keyed p _ i s hs, judgeQ_keyed p _ i s hs]
   exact judgeQ0_other_work p hist others i s h
 
+/-- The outer `fw slot run check ...` span carries the admitted threads as its width (`slotWork`), so a sample of it is
+never judged against a baseline of another width: samples of other widths in the history leave its verdict unchanged. -/
+theorem judgeQ_other_width (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w : Nat) (j : Option Nat)
+    (hs : s.work = slotWork (some w) j) (hm : s.mixed = false)
+    (hl : unkeyedLate (hist ++ others) s = false) (hl' : unkeyedLate hist s = false)
+    (h : ∀ x ∈ others, ∃ w' j', w' ≠ w ∧ x.work = slotWork (some w') j') :
+    judgeQ p (hist ++ others) i s = judgeQ p hist i s := by
+  have e : judgeQ0 p (hist ++ others) i s = judgeQ0 p hist i s :=
+    judgeQ0_other_work p hist others i s fun x hx => by
+      obtain ⟨w', j', hne, hx⟩ := h x hx
+      rw [hx, hs]
+      exact slotWork_width_ne w' w j' j hne
+  simpa [judgeQ, judgeQ0, hm, hl, hl'] using e
+
+/-- A sample of the outer span with no recorded width (written before the span carried one) keeps the old key: its
+window is the one of the four fields, over the history that has no work either. -/
+theorem windowOf_no_width (p : Params) (hist : List Sample) (k : Key) (j : Option Nat) (hk : k.work = slotWork none j)
+    (hh : ∀ x ∈ hist, x.work = slotWork none j) :
+    windowOf p hist k = lastN p.window ((hist.filter (fun s =>
+      decide (s.tool = k.tool ∧ s.step = k.step ∧ s.host = k.host ∧ s.kind = k.kind) && counts p s)).map (·.durMs)) := by
+  rw [slotWork_none] at hk hh
+  exact windowOf_unworked p hist k hk hh
+
 theorem spanWork_built_keyed (w j : Option Nat) (c : Option (List String)) (b : Nat) :
     ({ tool := "", step := "", durMs := 0, host := .ci, work := spanWork w j c (some b) } : Sample).unkeyed = false := by
   simp [Sample.unkeyed, spanWork, modsWork, modsDim]
@@ -2916,6 +2939,24 @@ def groupMix : List Sample :=
 -/
 def groupRecorded : List Sample := [(99840, 3), (99658, 4), (108545, 2)].map fun (d, l) => group (some 1) l d
 
+/-- The outer span `fw slot run check sh lean/scripts/check.sh` of `.fw-console/timings.jsonl`, 2026-10-25T22:40Z to
+2026-10-26T01:25Z (commits b4de7bc to 401d607), as (ms, load, exit). The same nine rows are in
+`apps/runner/test/fixtures/slot-check-outer.jsonl`; the TS test checks the golden against them. -/
+def slotCheckData : List (Nat × Nat × Nat) :=
+  [(179360, 3, 0), (99049, 7, 0), (189227, 7, 0), (92795, 4, 0), (95479, 8, 1), (90201, 3, 1), (99798, 5, 0),
+   (180178, 4, 0), (177727, 4, 0)]
+
+/-- The width of each row, INFERRED from the duration (width 1 took 175 to 235 s, width 2 took 88 to 100 s; the span did
+not carry the width then). -/
+def slotCheckWidth (d : Nat) : Nat := if d < 130000 then 2 else 1
+
+def slotCheck (w : Option Nat) (d load e : Nat) : Sample :=
+  { tool := "fw", step := "slot run check sh lean/scripts/check.sh", durMs := d, host := .«local», load,
+    exit := some (Int.ofNat e), work := slotWork w none }
+
+def slotCheckRun (keyed : Bool) : List Sample :=
+  slotCheckData.map fun (d, l, e) => slotCheck (if keyed then some (slotCheckWidth d) else none) d l e
+
 def polish (kinds : List String) (load d : Nat) : Sample :=
   { tool := "fw", step := "polish commit", durMs := d, host := .«local», load, exit := some 0,
     work := spanWork none none (some kinds) }
@@ -3150,6 +3191,13 @@ def cases (_ : Unit := ()) : List (String × Params × List Sample) :=
       {}, groupRecorded),
    ("slot width recorded after inferred: the nine spans with INFERRED widths, then the three recorded ones; 108.5 s against seven width-1 spans (p50 97.3 s) is ok",
       {}, groupView.map (fun (d, l, w) => group (some w) l d) ++ groupRecorded),
+   ("slot width outer: fw slot run check, 2026-10-26T00:16Z (180 s) and 01:25Z (178 s) without the width: both are slow after the width-2 runs before them (p50 about 99 s)",
+      {}, slotCheckRun false),
+   ("slot width outer: the same nine runs with their admitted width (INFERRED from the duration): the two width-1 runs have too few width-1 runs before them, noBaseline, not slow",
+      {}, slotCheckRun true),
+   ("slot width outer: a 330 s width-1 run after six width-1 runs near 185 s, width-2 runs between them, is still slow",
+      {}, [189227, 181464, 183210, 181173, 178339, 182020].flatMap (fun d => [slotCheck (some 1) d 4 0, slotCheck (some 2) 95000 4 0]) ++
+        [slotCheck (some 1) 330000 4 0]),
    ("polish commit by checks class: the 38.2 s lakeBuild commit of 2026-10-23T11:10Z is judged on the nine lakeBuild commits before it (p50 18.8 s): slow",
       {}, polishRun),
    ("polish commit without a checks class: the same 21 durations pooled with the light commits are slow",
@@ -3211,7 +3259,8 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
    some .slow, some .ok, some .queued,
    some .slow, some .ok, some .slow, some .ok, some .slow, some .noBaseline,
    some .slow, some .noBaseline, some .slow, some .ok, some .slow,
-   some .noBaseline, some .ok, some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
+   some .noBaseline, some .ok, some .slow, some .noBaseline, some .slow,
+   some .slow, some .slow, some .noBaseline, some .noBaseline, some .slow, some .ok,
    some .mixed, some .mixed, some .slow,
    some .unkeyed, some .ok, some .noBaseline, some .slow, some .noBaseline, some .slow,
    some .noBaseline, some .slow, some .noBaseline, some .ok, some .ok, some .ok]
@@ -3231,6 +3280,8 @@ def lastCode (p : Params) (ss : List Sample) : Option Code :=
   some "sample #6 took 27294 ms (our own time: the remote run's wait is not counted), against baseline 20570 ms (p50 of the 6 earlier samples of the same tool, step, host, run kind and work), budget 30000 ms"
 #guard (fullVerdicts {} (groupView.map (fun (d, l, w) => group (some w) l d) ++ groupRecorded)).getLast?.map
     (fun v => (v.n, v.baseline)) == some (7, 97284)
+#guard ((sampleVerdicts {} (slotCheckRun false)).drop 7).map (·.code) == [.slow, .slow]
+#guard ((sampleVerdicts {} (slotCheckRun true)).drop 7).map (·.code) == [.noBaseline, .noBaseline]
 #guard (fullVerdicts {} polishRun).getLast?.map (fun v => (v.n, v.baseline)) == some (9, 18826)
 #guard (fullVerdicts {} polishRunMods).getLast?.map (fun v => (v.n, v.code)) == some (4, .noBaseline)
 #guard (fullVerdicts {} (landDryRun true)).getLast?.map (fun v => (v.n, v.baseline, v.code)) == some (9, 50000, .ok)
