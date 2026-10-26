@@ -4604,6 +4604,34 @@
    "leanVerdict": "provable",
    "leanReason": "Whether a notes array holds at most one note per (entry, task) is a pure function of the array; that passing branches merge with no clash is distinct_notes_merge.",
    "hardening": "ledger-note-key-local"
+  },
+  {
+   "id": "inc-empty-evidence-win",
+   "at": "2026-10-26T13:20+07:00",
+   "title": "A Lean verdict read 'win' for engine.scroll:unthrottle on the Simulator toolbar lane although its base had no cost evidence",
+   "symptom": "toolbar-sim-lane r1 reported unthrottle as a win that enters a preset. The review replayed the pooled report from runs 40236328441, 40250249829 and 40257287239: the unthrottle base held 0 whole Layout/RecalcStyle windows and the candidate 2. The review refused (blocker).",
+   "cause": "CONFIRMED (review replay): TouchLock.cmp_empty_faith makes cmp [] cand = .overlap, so MorphEndCount worseN counted Layout and RecalcStyle as not higher, and armVerdict returned .win on the cadence column alone. Missing evidence read as 'no cost'.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "40257287239",
+     "note": "toolbar-sim-lane push 3: unthrottle base without a whole cost window"
+    },
+    {
+     "kind": "ci",
+     "ref": "40250249829",
+     "note": "toolbar-sim-lane push 2: same, pooled into the r1 report the review replayed"
+    }
+   ],
+   "repro": "Call MorphEndCount.flagVerdict with an empty Layout/RecalcStyle sample on the base side and a lifted cadence: it returns .win.",
+   "fix": {
+    "task": "toolbar-sim-lane"
+   },
+   "regression": "toolbar-sim-lane r2: costKnown + .undecided, theorem unthrottle_no_cost_undecided (an empty cost base is never .win), golden rows; verdict-evidence-audit extends the rule to every compare-based Lean verdict.",
+   "mistakeClass": "c-sample-validity",
+   "leanVerdict": "provable",
+   "leanReason": "Whether each side holds its minimum evidence is a pure function of the samples; 'an empty or short side is never a win' is a theorem per verdict function.",
+   "hardening": "verdict-evidence-audit"
   }
  ]
 }
