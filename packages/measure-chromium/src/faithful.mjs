@@ -16,8 +16,6 @@
 //        A verdict Lean leaves undecided (no zone, or a zone without evidence: Fw.Faithful.judged) prints `UNDECIDED: <p>: <reason>`
 //        and exits 1; the file records the verdict with its `undecided` reason.
 //   node src/faithful.mjs lean [--runs ...] [--out lean/Fw/Faithful/Measured.lean] [--check]
-//        writes the Lean file with the measured cells, the comparability of each pair and one theorem per profile and zone
-//        (decided by `decide`); the same refusals apply (exit 1)
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -79,13 +77,10 @@ const cellRows = (z) => Object.entries(z.cells)
   .filter(([, c]) => c.status === 'fail' || c.status === 'unbanded' && c.a !== c.r)
   .map(([type, c]) => ({ type, ...c }));
 
-/** The state of a `faithful.verdict` reply as printed: `PASS`, `UNDECIDED (<reason>)` or `FAIL <zones>`. */
 export const stateOf = (v) => (v.pass ? 'PASS' : v.undecided !== undefined ? `UNDECIDED (${v.undecided})` : `FAIL ${v.failedZones.join(',')}`);
 
-/** The zones Lean left undecided in a reply. */
 export const undecidedZones = (v) => v.zones.filter((z) => z.undecided).map((z) => z.id);
 
-/** The report of one verdict: per zone the shape, tally, failed cells and unbanded differences; `undecided` when Lean set it. */
 export function summarize(v) {
   return {
     pass: v.pass, failedZones: v.failedZones, undecided: v.undecided,
@@ -135,10 +130,8 @@ export function judge(p, runs) {
     (control ? `; control A'/A ${control.pass ? 'pass' : stateOf(control)}` : `; control: ${file.controlRefusal}`) };
 }
 
-/** The exit-1 lines of one profile's `judge` result: its refusal, and `UNDECIDED: <p>: <reason>` when Lean left R undecided. */
 export const namedLines = (p, j) => [...(j.refusal ? [j.refusal.text] : []), ...(j.undecided ? [`UNDECIDED: ${p}: ${j.undecided}`] : [])];
 
-/** Judge every profile; write (or `check`) <out>/<p>.verdict.json. Returns the report lines and the exit code (1 on any refusal, undecided verdict or difference). */
 export function verdictRun({ runs, out, profiles = PROFILES, check = false }) {
   const lines = [];
   let code = 0;

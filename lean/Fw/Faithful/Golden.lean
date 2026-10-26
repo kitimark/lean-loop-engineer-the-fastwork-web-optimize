@@ -106,7 +106,6 @@ def verdictCases : List (String × Json) := [
       [zone "y04000" 50 500 (rCells [("trace.cc.Draw", 51)]), zone "y04500" 14 136 (rCells []), zone "tail" 0 0 []]),
   ("classes missing is refused", Json.mkObj [("a", .arr #[]), ("r", .arr #[])])]
 
-/-- A baseline's meta: profile viewport 430 x 932 at dpr 3 (mobile, touch), `observed` the size the page reported. -/
 def mj (profile : String := "swipe-v1") (observed : Option (Nat × Nat) := some (430, 932)) (preset : String := "original")
     (browser : String := "HeadlessChrome/156.0.8078.4") (zoneHeightPx : Nat := 500) (width : Nat := 430) (touch : Bool := true) : Json :=
   Json.mkObj ([("profile", .str profile), ("preset", .str preset), ("browser", .str browser),

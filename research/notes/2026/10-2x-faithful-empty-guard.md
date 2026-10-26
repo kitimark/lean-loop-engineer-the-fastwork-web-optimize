@@ -1,4 +1,4 @@
-# faithful.verdict: no pass without evidence (task faithful-empty-guard)
+# faithful.verdict: no pass without evidence
 
 Follow-up 2 of `10-2x-verdict-evidence-audit.md`. Before: `faithful.verdict` passed a request with `zones: []` (no
 zone judged) and a zone with 0 frames and no cells in both arms (shape `0 = 0`, no cell to fail).
@@ -42,4 +42,4 @@ printed state of the undecided rows. The committed `results/faithful/*.verdict.j
 ## Open
 
 - `Fw.Parts.NavFixedCounts.armOf` partial-arm question (audit open 3): not in scope.
-- No CI measurement: the guard changes no complete-evidence verdict.
+- No CI measurement: no complete-evidence verdict changes.

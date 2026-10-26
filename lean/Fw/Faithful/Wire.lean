@@ -12,9 +12,6 @@ JSON glue for `Fw.Faithful.zoneVerdict` (namespace `Fw.Wire.Faithful`, so the ma
 | `faithful.comparable` | `a`, `r` (each `{profile, preset, browser, zoneHeightPx, viewport: {width, height, dpr, mobile, touch}, observed?: {width, height}}`) | `comparable` (`Fw.Faithful.comparable a r = none`), `field` (the first failing field, else `null`) |
 | `faithful.verdict` | `classes` (A's frozen class table `{type: {class, k, t, tBound?}}`), `a` and `r` (zone lists as in the `zones` of a `measure.zoneBaseline` reply or a stored baseline file: `{id, frames, scrolledPx, types: {type: {lo, hi, base}}}`), `zones`? (ids to judge, default the region `y04000`, `y04500`, `tail`) | `pass`, `failedZones`, `zones` `[{id, present, shape, pass, framesA, framesR, pxA, pxR, failed, tally, cells}]`, `cells` `{type: {family, status, lo, hi, a, r}}` |
 
-`a` supplies the envelope `lo`, `hi` and the median `base`; `r` supplies the median `base` only (its `lo`, `hi` are
-reported by the caller). A zone absent from `a` or `r` is `present: false`. A request with no zone, or a zone that
-passes without evidence (`Fw.Faithful.evidence`), does not pass and adds `undecided` (`Fw.Faithful.judged`).
 -/
 namespace Fw.Wire.Faithful
 open Lean Fw.Faithful Fw.Wire.Measure
@@ -36,7 +33,6 @@ def familyName : Family → String
 def statusName : Status → String
   | .pass => "pass" | .fail => "fail" | .skipped => "skipped" | .unbanded => "unbanded"
 
-/-- The reply fields of one zone verdict, with its pass bit `pass`. -/
 def zoneFields (a r : List ZBase) (v : ZoneVerdict) (pass : Bool) : List (String × Json) :=
   let za := findZ a v.id
   let zr := findZ r v.id
@@ -50,29 +46,24 @@ def zoneFields (a r : List ZBase) (v : ZoneVerdict) (pass : Bool) : List (String
       (c.type, Json.mkObj [("family", .str (familyName c.family)), ("status", .str (statusName c.status)),
         ("lo", toJson c.obs.lo), ("hi", toJson c.obs.hi), ("a", toJson c.obs.a), ("r", toJson c.obs.r)])))]
 
-/-- The reply of one zone judged `j`: it passes only when `j` is pass, and an undecided zone adds `undecided: true`. -/
 def zoneJson (a r : List ZBase) (v : ZoneVerdict) (j : Judged) : Json :=
   Json.mkObj (zoneFields a r v (j == .pass) ++ if j == .undecided then [("undecided", .bool true)] else [])
 
-/-- Why zones `zs` are undecided: none were asked for, or the zones listed have no evidence. -/
 def undecidedReason (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) : String :=
   if zs.isEmpty then "no zone to judge"
   else "no evidence: " ++ ", ".intercalate (zs.filter (zoneJudged tb a r · == .undecided))
 
-/-- The reply of `faithful.verdict` judging zones `zs`; an undecided request adds `undecided` with its reason. -/
 def verdictReply (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) : Reply :=
   let j := judged tb a r zs
   [("pass", .bool (j == .pass)), ("failedZones", strArr (zs.filter (zoneJudged tb a r · == .fail))),
     ("zones", .arr (zs.toArray.map fun Z => zoneJson a r (zoneVerdict tb a r Z) (zoneJudged tb a r Z)))] ++
     if j == .undecided then [("undecided", .str (undecidedReason tb a r zs))] else []
 
-/-- The reply of `faithful.verdict` before the evidence guard. -/
 def unguardedReply (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) : Reply :=
   let vs := zs.map (zoneVerdict tb a r)
   [("pass", .bool (vs.all (·.pass))), ("failedZones", strArr ((vs.filter (!·.pass)).map (·.id))),
     ("zones", .arr (vs.toArray.map fun v => Json.mkObj (zoneFields a r v v.pass)))]
 
-/-- `faithful.verdict`: see the table above. -/
 def opVerdict (req : Json) : Except String Reply := do
   let tb ← tableOf "classes" (← field req "classes")
   let a ← (← arr req "a").toList.mapM zbaseOf
@@ -82,7 +73,6 @@ def opVerdict (req : Json) : Except String Reply := do
     | some j => (← asArr "zones" j).toList.mapM (asStr "zones")
   pure (verdictReply tb a r zs)
 
-/-- **No pass without evidence.** A reply with `pass: true` judged one zone or more, each with evidence. -/
 theorem evidence_of_reply_pass (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String)
     (h : (verdictReply tb a r zs).lookup "pass" = some (.bool true)) :
     zs ≠ [] ∧ ∀ Z ∈ zs, evidence a r Z = true ∧ (zoneVerdict tb a r Z).pass = true := by
@@ -91,7 +81,6 @@ theorem evidence_of_reply_pass (tb : Fw.Measure.Freeze.Table) (a r : List ZBase)
     Json.bool.injEq, beq_iff_eq] at h
   exact h
 
-/-- **Complete evidence gives the old reply.** One zone or more, each with evidence, get the reply of before the guard. -/
 theorem verdictReply_eq_unguarded (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) (hne : zs ≠ [])
     (he : ∀ Z ∈ zs, evidence a r Z = true) : verdictReply tb a r zs = unguardedReply tb a r zs := by
   have hj := judged_eq_unguarded tb a r zs hne he
@@ -116,7 +105,6 @@ theorem verdictReply_eq_unguarded (tb : Fw.Measure.Freeze.Table) (a r : List ZBa
     List.all_map, List.filter_map, List.map_map, Function.comp_def, hfail, h2, List.map_toArray]
   rw [List.map_congr_left h3]
 
-/-- Decode the `Meta` of a baseline: `viewport` is the profile viewport, `observed` (optional) what the page reported. -/
 def metaOf (j : Json) : Except String Meta := do
   let vp ← field j "viewport"
   let bool (k : String) : Except String Bool := do
