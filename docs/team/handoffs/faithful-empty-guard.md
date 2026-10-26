@@ -15,7 +15,11 @@
 
 ## Verified
 - `node --test test/faithful.test.mjs`: 12/12 pass (committed verdict files and Measured.lean unchanged).
-- See the final report for check.sh, package test and dry-land results.
+- `sh lean/scripts/check.sh` (fw slot): all gates green, axiom check 0 failing.
+- Package tests `@fw/measure-chromium` (104 pass), `@fw/contracts` (11 pass); `scripts/ci-paths.test.mjs` (56 pass);
+  `apps/runner` `land-inputs.test.ts` (73 pass).
+- main merged (no new commits); `fw plan lint`: 0 errors, no writesClosure line for this task.
+- Dry land: `VERDICT dry faithful-empty-guard`.
 
 ## Open
 - NavFixedCounts partial-arm question (audit open 3) not in scope.
