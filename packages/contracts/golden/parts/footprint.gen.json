@@ -2098,7 +2098,7 @@
 {"part":"overlays.drawer","file":"overlays.drawer/media.ts","line":13,"kind":"dynamic-name","detail":"media"},
 {"part":"overlays.signup","file":"overlays.signup/index.tsx","line":51,"kind":"unresolved-target","detail":"rect"},
 {"part":"overlays.signup","file":"overlays.signup/index.tsx","line":76,"kind":"unmodelled-api","detail":"call el.focus"},
-{"part":"overlays.signup","file":"overlays.signup/index.tsx","line":87,"kind":"dynamic-match","detail":"[data-sb=\"layer\"] matches only dynamic or spread attributes of hero.countdown hero.orbit"},
+{"part":"overlays.signup","file":"overlays.signup/index.tsx","line":87,"kind":"dynamic-match","detail":"[data-sb=\"layer\"] matches only dynamic or spread attributes of app hero.countdown hero.orbit"},
 {"part":"pain","file":"pain/darkScroll.ts","line":39,"kind":"dynamic-name","detail":"media"},
 {"part":"pain.notes","file":"pain.notes/index.tsx","line":91,"kind":"templated-selector","detail":"[data-fw-note=\"*\"]"},
 {"part":"pain.notes","file":"pain.notes/media.ts","line":14,"kind":"dynamic-name","detail":"media"},

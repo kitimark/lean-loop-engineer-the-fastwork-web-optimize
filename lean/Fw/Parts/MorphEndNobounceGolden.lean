@@ -32,7 +32,7 @@ def caseLine (name : String) (bounce : Bool) (y : Rat) (t : List Ev) (c : Cfg) :
 
 def constLine : String :=
   (Json.mkObj [("fn", "morph.end.nobounce.const"), ("in", Json.mkObj []),
-    ("out", Json.mkObj [("id", .str flagId), ("css", .str css), ("on", .str onV), ("off", .str faithfulV)])]).compress
+    ("out", Json.mkObj [("id", .str flagId), ("css", .str css), ("attr", .str attr), ("on", .str onV), ("off", .str faithfulV)])]).compress
 
 def lines (_ : Unit) : List String :=
   constLine :: cases.flatMap fun (n, b, y, t) => Cfg.all.map (caseLine n b y t)

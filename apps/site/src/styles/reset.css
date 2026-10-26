@@ -95,6 +95,14 @@
   }
 }
 
+/* Flag morph.end.nobounce:on (Lean Fw.Parts.MorphEndNobounce): the page root carries data-fw-nobounce in the server HTML, so the
+   viewport has no bottom rubber band from first paint; the attribute is never toggled. Without the flag no element carries it. */
+@layer reset {
+  html:has([data-fw-nobounce]) {
+    overscroll-behavior-y: none;
+  }
+}
+
 @layer reset {
   [data-fw='page-root'] {
     min-width: 320px;

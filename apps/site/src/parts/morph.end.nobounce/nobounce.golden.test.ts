@@ -1,13 +1,12 @@
 // TS twin of Lean Fw.Parts.MorphEndNobounce: the golden replays through the real end reducer, and the
 // theorem's consequences are asserted on the replayed trace (no bounce: a push at the end writes nothing).
 import { readFileSync } from 'node:fs';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { cfgOf, hooksOf, type EndCfg } from '../morph.tween/end.hooks';
 import { initEnd, step, type EndEv } from '../morph.tween/end.logic';
 import { REST } from '../morph.tween/logic';
 import { resolveSearch } from '../../registry';
-import { EndNobounce, NOBOUNCE_CSS, NOBOUNCE_ID, NOBOUNCE_ON } from './index';
+import { NOBOUNCE_ATTR, NOBOUNCE_CSS, NOBOUNCE_ID, NOBOUNCE_ON, nobounceProps } from './index';
 
 type Num = number | { num: string; den: string };
 interface GoldEv {
@@ -64,8 +63,8 @@ function writes(row: Row): (number | null)[] {
 
 describe('morph.end.nobounce golden', () => {
   it('constants match the part', () => {
-    const c = rows.find((r) => r.fn === 'morph.end.nobounce.const')?.out as { id: string; css: string; on: string };
-    expect(c).toMatchObject({ id: NOBOUNCE_ID, css: NOBOUNCE_CSS, on: NOBOUNCE_ON });
+    const c = rows.find((r) => r.fn === 'morph.end.nobounce.const')?.out as { id: string; css: string; attr: string; on: string };
+    expect(c).toMatchObject({ id: NOBOUNCE_ID, css: NOBOUNCE_CSS, attr: NOBOUNCE_ATTR, on: NOBOUNCE_ON });
   });
   it('has the 3 cases under all 8 picks', () => {
     expect(cases).toHaveLength(24);
@@ -101,8 +100,10 @@ describe('morph.end.nobounce flag', () => {
     if (!off.ok) throw new Error(off.errors.join('; '));
     expect(off.config.variants[NOBOUNCE_ID]).toBe('faithful');
   });
-  it('renders the rule once with the flag on, nothing when off', () => {
-    expect(renderToStaticMarkup(<EndNobounce variant="on" />)).toContain(NOBOUNCE_CSS);
-    expect(renderToStaticMarkup(<EndNobounce variant="faithful" />)).toBe('');
+  it('the page root carries the attribute with the flag on, nothing when off, and reset.css holds the rule', () => {
+    expect(nobounceProps('on')).toEqual({ 'data-fw-nobounce': '' });
+    expect(nobounceProps('faithful')).toEqual({});
+    const css = readFileSync(new URL('../../styles/reset.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\s+/g, '');
+    expect(css).toContain(NOBOUNCE_CSS.replace('none}', 'none;}'));
   });
 });

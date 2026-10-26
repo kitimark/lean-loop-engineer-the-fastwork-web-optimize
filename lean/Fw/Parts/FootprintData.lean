@@ -2108,7 +2108,7 @@ def findings : List Finding := [
   ⟨"overlays.drawer", "overlays.drawer/media.ts", 13, "dynamic-name", "media"⟩,
   ⟨"overlays.signup", "overlays.signup/index.tsx", 51, "unresolved-target", "rect"⟩,
   ⟨"overlays.signup", "overlays.signup/index.tsx", 76, "unmodelled-api", "call el.focus"⟩,
-  ⟨"overlays.signup", "overlays.signup/index.tsx", 87, "dynamic-match", "[data-sb=\"layer\"] matches only dynamic or spread attributes of hero.countdown hero.orbit"⟩,
+  ⟨"overlays.signup", "overlays.signup/index.tsx", 87, "dynamic-match", "[data-sb=\"layer\"] matches only dynamic or spread attributes of app hero.countdown hero.orbit"⟩,
   ⟨"pain", "pain/darkScroll.ts", 39, "dynamic-name", "media"⟩,
   ⟨"pain.notes", "pain.notes/index.tsx", 91, "templated-selector", "[data-fw-note=\"*\"]"⟩,
   ⟨"pain.notes", "pain.notes/media.ts", 14, "dynamic-name", "media"⟩,

@@ -8,7 +8,9 @@ namespace Fw.Parts.MorphEndNobounce
 open Fw.Parts.MorphEnd
 
 def flagId : String := "morph.end.nobounce"
-def css : String := "html{overscroll-behavior-y:none}"
+/-- The one rule, in `apps/site/src/styles/reset.css`; the page root carries `data-fw-nobounce` when the flag is on. -/
+def css : String := "html:has([data-fw-nobounce]){overscroll-behavior-y:none}"
+def attr : String := "data-fw-nobounce"
 
 /-- No bounce: an event reads positions at most `m`, the real end of the page. -/
 def Within (m : Rat) : Ev → Prop
