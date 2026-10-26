@@ -98,20 +98,22 @@
 {"fold":10,"gapCs":1000,"hz":100,"kind":"tb-hz"}
 {"fold":3,"gapCs":3334,"hz":30,"kind":"tb-hz"}
 {"g":0,"inMs":null,"kind":"tb-win","phase":"wait"}
-{"g":3,"inMs":null,"kind":"tb-win","phase":"wait"}
-{"g":4,"inMs":null,"kind":"tb-win","phase":"record"}
+{"g":1,"inMs":null,"kind":"tb-win","phase":"wait"}
+{"g":2,"inMs":null,"kind":"tb-win","phase":"record"}
+{"g":3,"inMs":null,"kind":"tb-win","phase":"record"}
+{"g":4,"inMs":null,"kind":"tb-win","phase":"done"}
 {"g":5,"inMs":null,"kind":"tb-win","phase":"done"}
 {"g":9,"inMs":null,"kind":"tb-win","phase":"done"}
 {"g":4,"inMs":0,"kind":"tb-win","phase":"record"}
-{"g":4,"inMs":9999,"kind":"tb-win","phase":"record"}
-{"g":4,"inMs":10000,"kind":"tb-win","phase":"done"}
-{"g":4,"inMs":20000,"kind":"tb-win","phase":"done"}
+{"g":4,"inMs":149999,"kind":"tb-win","phase":"record"}
+{"g":4,"inMs":150000,"kind":"tb-win","phase":"done"}
+{"g":3,"inMs":20000,"kind":"tb-win","phase":"record"}
 {"g":5,"inMs":100,"kind":"tb-win","phase":"done"}
 {"g":7,"inMs":0,"kind":"tb-win","phase":"done"}
-{"counts":true,"g":4,"kind":"tb-wincount","spanMs":0}
-{"counts":true,"g":4,"kind":"tb-wincount","spanMs":10000}
-{"counts":true,"g":5,"kind":"tb-wincount","spanMs":20000}
-{"counts":false,"g":5,"kind":"tb-wincount","spanMs":20001}
-{"counts":false,"g":6,"kind":"tb-wincount","spanMs":100}
-{"counts":false,"g":12,"kind":"tb-wincount","spanMs":141000}
-{"counts":false,"g":4,"kind":"tb-wincount","spanMs":157000}
+{"cost":null,"g":4,"kind":"tb-cost","name":"no rows","rows":[]}
+{"cost":{"frames":2,"layout":2,"recalc":1},"g":4,"kind":"tb-cost","name":"whole gesture","rows":[["other",0],[{"mark":4},10],["layout",11],["frame",11],["recalc",12],["frame",13],["layout",14],[{"mark":5},20],["layout",21]]}
+{"cost":null,"g":4,"kind":"tb-cost","name":"recording began inside the gesture","rows":[["layout",1],[{"mark":5},20]]}
+{"cost":null,"g":4,"kind":"tb-cost","name":"stopped before the next gesture","rows":[[{"mark":4},10],["layout",11]]}
+{"cost":null,"g":4,"kind":"tb-cost","name":"marks out of order","rows":[[{"mark":5},5],[{"mark":4},10],["layout",11]]}
+{"cost":{"frames":0,"layout":0,"recalc":0},"g":4,"kind":"tb-cost","name":"a gesture with no cost","rows":[[{"mark":4},10],[{"mark":5},20]]}
+{"cost":{"frames":0,"layout":0,"recalc":2},"g":2,"kind":"tb-cost","name":"another gesture","rows":[[{"mark":2},0],["recalc",1],["recalc",2],[{"mark":3},3]]}

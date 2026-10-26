@@ -1,7 +1,8 @@
 // One toolbar pass in an open session (I/O glue): the finish pass of finish-probe.mjs (fresh load, near the page end, recorder, real touches,
-// fetch) with one bounded Timeline window around the first press of the second cycle (gesture 4, the drag past the end that opens the morph).
-// Why one short window and not the pass: a Timeline over a whole touch window held 20 to 40 thousand records and its stop timed out
-// (research/notes/2026/10-2x-sim-touch-reliable.md), so the window is bounded by Lean `winPhase` (closed at gesture 5 or after 10 s).
+// fetch) with one Timeline window around gesture 4, the first press of the second cycle (the drag past the end that opens the morph).
+// Why not a window closed on time: under touch every protocol round trip took 7 to 30 s (research/notes/2026/10-2x-toolbar-sim-lane.md), so a
+// window cannot be cut by polling. The page stamps `tbg<n>` at touchstart n and `tbf` at every frame, the window opens a gesture early
+// (Lean `winPhase`: from gesture 2, closed once gesture 5 began) and Lean `windowCost` counts only between the stamps of gesture 4 and 5.
 // Nothing is decided here beyond feeding `winPhase`; toolbar.mjs and toolbar-report.mjs reduce.
 import { readFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
@@ -9,11 +10,10 @@ import { loadFresh, pageInfo } from '../page.mjs';
 import { sleep } from '../sim.mjs';
 import { T } from '../timeouts.mjs';
 import { startTimeline } from '../timeline.mjs';
-import { tally } from '../reduce.mjs';
 import { dragPass } from './driver.mjs';
 import { START_TB_JS, FETCH_TB_JS, COUNT_TB_JS, nearEndJs } from './toolbar-page.mjs';
 import { GAP_PX, NEAR_END_SETTLE_MS } from './finish-probe.mjs';
-import { winPhase, winCounts } from './toolbar.mjs';
+import { winPhase, rowsOf, windowCost, WIN_START } from './toolbar.mjs';
 
 export const POLL_MS = 250;
 
@@ -43,12 +43,9 @@ export function windowWatcher(c, { log, tag }, deps = {}) {
       const spanMs = sent - at;
       try {
         const rows = await t.stop();
-        const k = tally(rows).counts;
-        state.cost = {
-          layout: k.Layout, recalc: k.RecalculateStyles, frames: k.RenderingFrame, rows: rows.length, spanMs, stopMs: d.now() - sent, startMs, g0, g1, why,
-          counts: g1 !== null && winCounts(g1, spanMs),
-        };
-        log(`${tag}: window ${why}: ${rows.length} records, ${k.RenderingFrame} frames, Layout ${k.Layout}, RecalculateStyles ${k.RecalculateStyles}, gestures ${g0} to ${g1}, span ${spanMs} ms, start ${startMs} ms, stop ${state.cost.stopMs} ms, ${state.cost.counts ? 'counts' : 'overran'}`);
+        const w = windowCost(WIN_START, rowsOf(rows));
+        state.cost = { ...(w ?? NO_COST), rows: rows.length, spanMs, stopMs: d.now() - sent, startMs, g0, g1, why, counts: w !== null };
+        log(`${tag}: window ${why}: ${rows.length} records, gesture ${WIN_START}: ${w ? `${w.frames} frames, Layout ${w.layout}, RecalculateStyles ${w.recalc}` : 'not whole (a stamp is missing)'}; gestures ${g0} to ${g1}, span ${spanMs} ms, start ${startMs} ms, stop ${state.cost.stopMs} ms`);
       } catch (e) {
         state.cost = { ...NO_COST, error: e.message, why, spanMs, startMs, g0, g1, counts: false };
         log(`${tag}: Timeline stop failed: ${e.message}`);
@@ -68,7 +65,7 @@ export function windowWatcher(c, { log, tag }, deps = {}) {
           at = d.now(); startMs = at - s0; g0 = cnt.g;
         } catch (e) { state.cost = { ...NO_COST, error: `Timeline start failed: ${e.message}` }; log(`${tag}: ${state.cost.error}`); return; }
       } else if (phase === 'done') {
-        if (tl) await close(cnt.g > 4 ? 'next gesture' : 'cap', cnt);
+        if (tl) await close(cnt.g > WIN_START ? 'next gesture' : 'cap', cnt);
         else state.cost = { ...NO_COST, note: 'window missed (gesture counter past the start)' };
         return;
       }

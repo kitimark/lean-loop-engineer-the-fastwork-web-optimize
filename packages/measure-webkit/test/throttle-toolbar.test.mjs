@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ARMS, ARM_ORDER, FLAG_ARMS, LOOK_CHANGE, stepFrames, stepGaps, medianCs, stepsLifted, frameGapCs, winCounts, gestureCount, perGesture, onsetFrames, refreshHz, foldOf, tbPass,
+  ARMS, ARM_ORDER, FLAG_ARMS, LOOK_CHANGE, stepFrames, stepGaps, medianCs, stepsLifted, frameGapCs, windowCost, rowsOf, gestureCount, perGesture, onsetFrames, refreshHz, foldOf, tbPass,
   columns, flagVerdict, enters, winPhase, reasonOf, passOf, facts, hzOf,
 } from '../src/throttle/toolbar.mjs';
 import { opens } from '../src/throttle/morph-end.mjs';
@@ -18,7 +18,7 @@ const gold = readFileSync(join(here, '../../contracts/golden/device/morph-end-co
 const of = (kind) => gold.filter((l) => l.kind === kind);
 
 test('golden: every toolbar kind has lines', () => {
-  for (const k of ['tb-steps', 'tb-gestures', 'tb-onsets', 'tb-pass', 'tb-verdict', 'tb-hz', 'tb-win', 'tb-wincount']) assert.ok(of(k).length > 0, k);
+  for (const k of ['tb-steps', 'tb-gestures', 'tb-onsets', 'tb-pass', 'tb-verdict', 'tb-hz', 'tb-win', 'tb-cost']) assert.ok(of(k).length > 0, k);
 });
 
 test('golden: vh steps, their burst gaps, the median and the lifted call', () => {
@@ -173,6 +173,8 @@ test('the report: a flag with no default pass beside it has no data, a look-chan
 });
 
 test('the page scripts name the counters the reducers read', () => {
+  assert.match(START_TB_JS, /st\.gc\+\+; console\.timeStamp\('tbg' \+ st\.gc\)/);
+  assert.match(START_TB_JS, /console\.timeStamp\('tbf'\)/);
   assert.match(START_TB_JS, /st\.gc\+\+/);
   assert.match(START_TB_JS, /st\.g\.push\(st\.gc\)/);
   assert.match(FETCH_TB_JS, /g: st\.g\.slice\(0, n\)/);
@@ -184,56 +186,70 @@ function fakeClient(counts) {
   return { evaluate: async () => JSON.stringify(counts[Math.min(i++, counts.length - 1)]) };
 }
 
-test('the window watcher opens at gesture 4, closes at gesture 5 and keeps the counts', async () => {
+const stampRows = () => [
+  ['Layout', 0.5, 0.6, null],
+  ['TimeStamp', 1, 1, 'tbg4'], ['TimeStamp', 1.1, 1.1, 'tbf'], ['Layout', 1.2, 1.3, null], ['Layout', 1.3, 1.4, null], ['TimeStamp', 1.4, 1.4, 'tbf'],
+  ['RecalculateStyles', 1.5, 1.6, null], ['Paint', 1.6, 1.7, null], ['TimeStamp', 2, 2, 'tbg5'], ['Layout', 2.1, 2.2, null],
+];
+
+test('Lean windowCost on the rows of a Timeline: stamps of gesture 4 and 5 bound the count', () => {
+  assert.deepEqual(windowCost(4, rowsOf(stampRows())), { layout: 2, recalc: 1, frames: 2 });
+  assert.equal(windowCost(4, rowsOf(stampRows().slice(0, 8))), null);
+  assert.equal(windowCost(4, rowsOf(stampRows().slice(3))), null);
+  assert.equal(windowCost(4, []), null);
+});
+
+test('golden: the cost between the stamps of a gesture', () => {
+  for (const g of of('tb-cost')) assert.deepEqual(windowCost(g.g, g.rows), g.cost, g.name);
+});
+
+test('the window watcher opens at gesture 2, closes at gesture 5 and keeps the counts of gesture 4', async () => {
   const log = [];
   let clock = 0;
-  const frames = Array.from({ length: 60 }, (_, i) => ['RenderingFrame', i, i + 1, null]);
-  const tl = { stop: async () => [['Layout', 1, 2, null], ['Layout', 3, 4, null], ['RecalculateStyles', 5, 6, null], ['Paint', 7, 8, null], ...frames] };
-  const c = fakeClient([{ g: 2, nf: 10 }, { g: 4, nf: 100 }, { g: 4, nf: 130 }, { g: 5, nf: 160 }, { g: 5, nf: 160 }]);
+  const tl = { stop: async () => stampRows() };
+  const c = fakeClient([{ g: 1, nf: 10 }, { g: 2, nf: 100 }, { g: 3, nf: 130 }, { g: 4, nf: 160 }, { g: 5, nf: 190 }, { g: 5, nf: 190 }]);
   const w = windowWatcher(c, { log: (s) => log.push(s), tag: 't' }, { sleep: async () => { clock += 250; }, now: () => clock, startTimeline: async () => tl });
   await w.done;
-  assert.deepEqual([w.state.cost.layout, w.state.cost.recalc, w.state.cost.frames], [2, 1, 60]);
+  assert.deepEqual([w.state.cost.layout, w.state.cost.recalc, w.state.cost.frames], [2, 1, 2]);
   assert.equal(w.state.cost.why, 'next gesture');
   assert.equal(w.state.cost.counts, true);
+  assert.equal(w.state.cost.g0, 2);
   assert.equal(w.state.cost.g1, 5);
 });
 
-test('the window watcher flags a window whose span ran past twice the cap, and the pass drops its cost', async () => {
+test('the window watcher flags a window whose stamps are missing, and the pass drops its cost', async () => {
   let clock = 0;
-  const tl = { stop: async () => [['Layout', 1, 2, null], ['RenderingFrame', 1, 2, null]] };
-  const c = fakeClient([{ g: 4, nf: 1 }, { g: 4, nf: 2 }]);
-  const w = windowWatcher(c, { log() {}, tag: 't' }, { sleep: async () => { clock += 30000; }, now: () => clock, startTimeline: async () => tl });
+  const tl = { stop: async () => stampRows().slice(0, 8) };
+  const c = fakeClient([{ g: 3, nf: 1 }, { g: 5, nf: 2 }]);
+  const w = windowWatcher(c, { log() {}, tag: 't' }, { sleep: async () => { clock += 250; }, now: () => clock, startTimeline: async () => tl });
   await w.done;
   assert.equal(w.state.cost.counts, false);
-  assert.equal(w.state.cost.frames, 1);
+  assert.equal(w.state.cost.frames, 0);
   const q = passOf({ ...pass('default', 'job 1'), cost: w.state.cost });
   assert.deepEqual([q.layout, q.recalc, q.frames], [0, 0, 0]);
-  assert.equal(armRow([{ ...pass('default', 'job 1'), cost: { ...w.state.cost, rows: 2 } }]).overran, 1);
-});
-
-test('golden: a closed window counts only inside gesture 5 and twice the cap', () => {
-  for (const g of of('tb-wincount')) assert.equal(winCounts(g.g, g.spanMs), g.counts, JSON.stringify(g));
+  assert.equal(armRow([{ ...pass('default', 'job 1'), cost: w.state.cost }]).overran, 1);
 });
 
 test('the window watcher keeps no counts when the stop fails, and misses a window it saw too late', async () => {
-  const bad = fakeClient([{ g: 4, nf: 1 }, { g: 5, nf: 2 }, { g: 5, nf: 2 }]);
+  const bad = fakeClient([{ g: 2, nf: 1 }, { g: 5, nf: 2 }, { g: 5, nf: 2 }]);
   const w = windowWatcher(bad, { log() {}, tag: 't' }, { sleep: async () => {}, now: () => 0, startTimeline: async () => ({ stop: async () => { throw new Error('Timeline.stop timed out'); } }) });
   await w.done;
   assert.equal(w.state.cost.frames, 0);
   assert.match(w.state.cost.error, /timed out/);
-  const late = fakeClient([{ g: 6, nf: 1 }]);
+  const late = fakeClient([{ g: 4, nf: 1 }]);
   const w2 = windowWatcher(late, { log() {}, tag: 't' }, { sleep: async () => {}, now: () => 0, startTimeline: async () => { throw new Error('must not start'); } });
   await w2.done;
   assert.match(w2.state.cost.note, /missed/);
 });
 
 test('the window watcher closes an open window when the touches end', async () => {
-  const c = fakeClient([{ g: 4, nf: 5 }, { g: 4, nf: 40 }]);
+  const c = fakeClient([{ g: 2, nf: 5 }, { g: 3, nf: 40 }]);
   let calls = 0;
   const w = windowWatcher(c, { log() {}, tag: 't' }, {
     sleep: async () => { if (++calls === 3) w.state.stop = true; }, now: () => 0, startTimeline: async () => ({ stop: async () => [['Layout', 1, 2, null]] }),
   });
   await w.done;
   assert.equal(w.state.cost.why, 'touches ended');
-  assert.equal(w.state.cost.layout, 1);
+  assert.equal(w.state.cost.rows, 1);
+  assert.equal(w.state.cost.counts, false);
 });

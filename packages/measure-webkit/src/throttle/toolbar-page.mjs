@@ -9,7 +9,7 @@ export const START_TB_JS = `(() => {
   st.start = { ih: innerHeight, vh: vv ? vv.height : innerHeight, y: scrollY, scale: vv ? vv.scale : 1 };
   addEventListener('scroll', () => { st.armed = true; }, { passive: true, once: true, capture: true });
   let nav = null, py = null, po = null, pr = null, fd = 0, ly = null;
-  addEventListener('touchstart', (e) => { st.gc++; fd = 0; ly = e.touches[0] ? e.touches[0].clientY : null; }, { capture: true, passive: true });
+  addEventListener('touchstart', (e) => { st.gc++; console.timeStamp('tbg' + st.gc); fd = 0; ly = e.touches[0] ? e.touches[0].clientY : null; }, { capture: true, passive: true });
   addEventListener('touchmove', (e) => {
     const t = e.touches[0];
     if (!t || ly === null) return;
@@ -34,6 +34,7 @@ export const START_TB_JS = `(() => {
   const f = (ts) => {
     if (st.stop) return;
     st.nf++;
+    console.timeStamp('tbf');
     if (st.hz.length < 40) st.hz.push(Math.round(ts * 100) / 100);
     if (st.armed || scrollY !== st.start.y) {
       st.armed = true;

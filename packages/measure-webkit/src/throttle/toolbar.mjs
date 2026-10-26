@@ -23,8 +23,9 @@ export const FLAG_OF = Object.freeze({
 
 export const BURST_MAX_CS = 50000;
 export const THROTTLE_CS = 10000;
+export const WIN_LEAD = 2;
 export const WIN_START = 4;
-export const WIN_CAP_MS = 10000;
+export const WIN_CAP_MS = 150000;
 
 export function stepFrames(vh) {
   const out = [];
@@ -118,12 +119,30 @@ export const enters = (lookChange, v) => !lookChange && v === 'win';
 
 /** The Timeline window: 'wait' | 'record' | 'done' from the gesture counter and the ms spent recording (null before it started). */
 export function winPhase(g, inMs) {
-  if (inMs === null) return g < WIN_START ? 'wait' : g === WIN_START ? 'record' : 'done';
+  if (inMs === null) return g < WIN_LEAD ? 'wait' : g < WIN_START ? 'record' : 'done';
   return g > WIN_START || inMs >= WIN_CAP_MS ? 'done' : 'record';
 }
 
-/** Whether a closed window may count: it ended within gesture 5 and its span stayed within twice the cap (Lean `winCounts`). */
-export const winCounts = (g, spanMs) => g <= WIN_START + 1 && spanMs <= 2 * WIN_CAP_MS;
+/** Lean `windowCost`: Layout, RecalculateStyles and frame stamps between the stamps of gesture g and g + 1, or null when either stamp is missing. */
+export function windowCost(g, rows) {
+  const markAt = (k) => rows.find((r) => r[0] !== null && typeof r[0] === 'object' && r[0].mark === k)?.[1];
+  const a = markAt(g), b = markAt(g + 1);
+  if (a === undefined || b === undefined || !(a < b)) return null;
+  const n = (kind) => rows.filter((r) => r[0] === kind && a <= r[1] && r[1] < b).length;
+  return { layout: n('layout'), recalc: n('recalc'), frames: n('frame') };
+}
+
+/** Raw Timeline rows ([type, start s, end s, message]) as Lean rows: start in hundredths of ms. The page stamps `tbg<n>` at touchstart n and `tbf` at every frame. */
+export function rowsOf(raw) {
+  return raw.map(([type, start, , msg]) => {
+    const at = Math.round(start * 100000);
+    if (type === 'Layout') return ['layout', at];
+    if (type === 'RecalculateStyles') return ['recalc', at];
+    if (type === 'TimeStamp' && msg === 'tbf') return ['frame', at];
+    const m = type === 'TimeStamp' && typeof msg === 'string' ? /^tbg(\d+)$/.exec(msg) : null;
+    return m ? [{ mark: Number(m[1]) }, at] : ['other', at];
+  });
+}
 
 /** Why a pass cannot count, or null. */
 export function reasonOf(p) {

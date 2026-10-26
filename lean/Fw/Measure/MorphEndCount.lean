@@ -835,23 +835,26 @@ def Win.name : Win → String
   | .record => "record"
   | .done => "done"
 
+def winLead : Nat := 2
+
 def winStart : Nat := 4
 
-def winCapMs : Nat := 10000
+def winCapMs : Nat := 150000
 
 def winPhase (g : Nat) : Option Nat → Win
-  | none => if g < winStart then .wait else if g = winStart then .record else .done
+  | none => if g < winLead then .wait else if g < winStart then .record else .done
   | some ms => if winStart < g ∨ winCapMs ≤ ms then .done else .record
 
-theorem win_waits_before_start (g : Nat) (h : g < winStart) : winPhase g none = .wait := by
+theorem win_waits_before_lead (g : Nat) (h : g < winLead) : winPhase g none = .wait := by
   simp [winPhase, h]
 
-theorem win_opens_at_start : winPhase winStart none = .record := by
-  simp [winPhase]
+theorem win_opens_in_lead (g : Nat) (h1 : winLead ≤ g) (h2 : g < winStart) : winPhase g none = .record := by
+  have : ¬ g < winLead := by omega
+  simp [winPhase, this, h2]
 
-theorem win_missed (g : Nat) (h : winStart < g) : winPhase g none = .done := by
+theorem win_missed (g : Nat) (h : winStart ≤ g) : winPhase g none = .done := by
+  have : ¬ g < winLead := by simp [winLead, winStart] at *; omega
   have : ¬ g < winStart := by omega
-  have : g ≠ winStart := by omega
   simp [winPhase, *]
 
 theorem win_next_gesture_ends (ms : Nat) (g : Nat) (h : winStart < g) : winPhase g (some ms) = .done := by
@@ -864,19 +867,37 @@ theorem win_record_bounded (g ms : Nat) (h : winPhase g (some ms) = .record) : m
   simp only [winPhase] at h
   split at h <;> simp_all
 
-def winCounts (g spanMs : Nat) : Bool := decide (g ≤ winStart + 1) && decide (spanMs ≤ 2 * winCapMs)
+inductive RowKind where
+  | layout | recalc | frame | mark (g : Nat) | other
+  deriving DecidableEq, Repr
 
-theorem winCounts_inside (g spanMs : Nat) (h1 : g ≤ winStart + 1) (h2 : spanMs ≤ 2 * winCapMs) : winCounts g spanMs = true := by
-  simp [winCounts, h1, h2]
+structure Row where
+  kind : RowKind
+  time : Int
+  deriving DecidableEq, Repr
 
-theorem winCounts_past_gesture (g spanMs : Nat) (h : winStart + 1 < g) : winCounts g spanMs = false := by
-  have : ¬ g ≤ winStart + 1 := by omega
-  simp [winCounts, this]
+def markAt (g : Nat) (rows : List Row) : Option Int := (rows.find? fun r => decide (r.kind = .mark g)).map (·.time)
 
-theorem winCounts_overran (g spanMs : Nat) (h : 2 * winCapMs < spanMs) : winCounts g spanMs = false := by
-  have : ¬ spanMs ≤ 2 * winCapMs := by omega
-  simp [winCounts, this]
+def countIn (k : RowKind) (a b : Int) (rows : List Row) : Nat := (rows.filter fun r => decide (r.kind = k ∧ a ≤ r.time ∧ r.time < b)).length
 
+def windowCost (g : Nat) (rows : List Row) : Option (Nat × Nat × Nat) :=
+  match markAt g rows, markAt (g + 1) rows with
+  | some a, some b => if a < b then some (countIn .layout a b rows, countIn .recalc a b rows, countIn .frame a b rows) else Option.none
+  | _, _ => Option.none
+
+theorem windowCost_no_start_mark (g : Nat) (rows : List Row) (h : markAt g rows = Option.none) : windowCost g rows = Option.none := by
+  simp [windowCost, h]
+
+theorem windowCost_no_end_mark (g : Nat) (rows : List Row) (h : markAt (g + 1) rows = Option.none) : windowCost g rows = Option.none := by
+  simp [windowCost, h]
+
+theorem windowCost_empty (g : Nat) : windowCost g [] = Option.none := rfl
+
+theorem windowCost_whole : windowCost 4
+    [⟨.mark 4, 0⟩, ⟨.layout, 1⟩, ⟨.frame, 1⟩, ⟨.recalc, 2⟩, ⟨.frame, 3⟩, ⟨.layout, 4⟩, ⟨.mark 5, 5⟩, ⟨.layout, 6⟩] = some (2, 1, 2) := by decide
+
+theorem windowCost_ignores_outside : windowCost 4
+    [⟨.layout, 0⟩, ⟨.mark 4, 10⟩, ⟨.layout, 11⟩, ⟨.mark 5, 20⟩, ⟨.layout, 21⟩, ⟨.mark 6, 30⟩] = some (1, 0, 0) := by decide
 
 private def tbIntsJ (l : List Int) : Json := Json.arr (l.map toJson).toArray
 
@@ -958,11 +979,21 @@ private def tbVerdictCases (_ : Unit) : List (String × List TbPass × List TbPa
 
 private def tbHzCases (_ : Unit) : List Nat := [0, 833, 1667, 1666, 1700, 1000, 3334]
 
-private def tbCountCases (_ : Unit) : List (Nat × Nat) :=
-  [(4, 0), (4, 10000), (5, 20000), (5, 20001), (6, 100), (12, 141000), (4, 157000)]
+private def kindJ : RowKind → Json
+  | .layout => "layout" | .recalc => "recalc" | .frame => "frame" | .mark g => Json.mkObj [("mark", g)] | .other => "other"
+
+private def rowJ (r : Row) : Json := Json.arr #[kindJ r.kind, toJson r.time]
+
+private def tbCostCases (_ : Unit) : List (String × Nat × List Row) :=
+  [("no rows", 4, []), ("whole gesture", 4, [⟨.other, 0⟩, ⟨.mark 4, 10⟩, ⟨.layout, 11⟩, ⟨.frame, 11⟩, ⟨.recalc, 12⟩, ⟨.frame, 13⟩, ⟨.layout, 14⟩, ⟨.mark 5, 20⟩, ⟨.layout, 21⟩]),
+   ("recording began inside the gesture", 4, [⟨.layout, 1⟩, ⟨.mark 5, 20⟩]),
+   ("stopped before the next gesture", 4, [⟨.mark 4, 10⟩, ⟨.layout, 11⟩]),
+   ("marks out of order", 4, [⟨.mark 5, 5⟩, ⟨.mark 4, 10⟩, ⟨.layout, 11⟩]),
+   ("a gesture with no cost", 4, [⟨.mark 4, 10⟩, ⟨.mark 5, 20⟩]),
+   ("another gesture", 2, [⟨.mark 2, 0⟩, ⟨.recalc, 1⟩, ⟨.recalc, 2⟩, ⟨.mark 3, 3⟩])]
 
 private def tbWinCases (_ : Unit) : List (Nat × Option Nat) :=
-  [(0, none), (3, none), (4, none), (5, none), (9, none), (4, some 0), (4, some 9999), (4, some 10000), (4, some 20000), (5, some 100), (7, some 0)]
+  [(0, none), (1, none), (2, none), (3, none), (4, none), (5, none), (9, none), (4, some 0), (4, some 149999), (4, some 150000), (3, some 20000), (5, some 100), (7, some 0)]
 
 def tbGoldenLines (_ : Unit) : List String :=
   ((tbStepCases ()).map fun (name, t, vh) =>
@@ -988,8 +1019,11 @@ def tbGoldenLines (_ : Unit) : List String :=
   ((tbHzCases ()).map fun (gap : Nat) => (Json.mkObj [("kind", "tb-hz"), ("gapCs", gap), ("hz", refreshHz gap), ("fold", foldOf (refreshHz gap))]).compress) ++
   ((tbWinCases ()).map fun (g, ms) =>
     (Json.mkObj [("kind", "tb-win"), ("g", g), ("inMs", match ms with | none => Json.null | some m => toJson m), ("phase", (winPhase g ms).name)]).compress) ++
-  ((tbCountCases ()).map fun (g, span) =>
-    (Json.mkObj [("kind", "tb-wincount"), ("g", g), ("spanMs", span), ("counts", winCounts g span)]).compress)
+  ((tbCostCases ()).map fun (name, g, rows) =>
+    (Json.mkObj [("kind", "tb-cost"), ("name", name), ("g", g), ("rows", Json.arr (rows.map rowJ).toArray),
+      ("cost", match windowCost g rows with
+        | some (l, r, f) => Json.mkObj [("layout", l), ("recalc", r), ("frames", f)]
+        | Option.none => Json.null)]).compress)
 
 private def goldenLines (_ : Unit) : List String :=
   ((eventCases ()).map fun (name, r, d) =>

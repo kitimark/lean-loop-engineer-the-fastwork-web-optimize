@@ -61,7 +61,7 @@ export function reportMd(vms) {
     const r = rows[a];
     return `| ${a} | ${r.gestures} | ${per(r.reversals, r.gestures)} | ${per(r.closes, r.gestures)} | ${per(r.reopens, r.gestures)} | ${per(r.onsets, r.gestures)} | ${r.onsetGestures} / ${r.gestures} | ${r.peaks.length ? Math.min(...r.peaks) : '-'} | ${r.unsettled} |`;
   });
-  const h3 = '| arm | passes with a counted Timeline window | windows past gesture 5 or 20 s (left out) | frames in the windows | Layout per frame | RecalcStyle per frame | Simulator refresh Hz (median of passes) | unthrottle cost model (fold of the throttle) |';
+  const h3 = '| arm | passes with a whole gesture-4 window | windows without both gesture stamps (left out) | frames in the windows | Layout per frame | RecalcStyle per frame | Simulator refresh Hz (median of passes) | unthrottle cost model (fold of the throttle) |';
   const t3 = arms.map((a) => {
     const r = rows[a];
     return `| ${a} | ${r.timed} | ${r.overran} | ${r.frames} | ${per(r.layout, r.frames, 3)} | ${per(r.recalc, r.frames, 3)} | ${r.hz ?? '-'} | ${r.hz ? `${foldOf(r.hz)}x` : '-'} |`;
