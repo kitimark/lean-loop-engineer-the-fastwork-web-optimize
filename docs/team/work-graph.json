@@ -22445,6 +22445,42 @@
     "docs/team/handoffs/faithful-empty-guard.md"
    ],
    "evidence": "f4369b9"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wk-sim-hang",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "webkit-sim loses VMs in Determinism sessions (19% of 134 sim jobs over 10-24..26, 45% on 10-26; diagnosis: scratchpad wk-sim-hang-diagnosis.json). Causes: (a) loadStamp spawnSync('top') blocks the node event loop up to 23 min, so the stall watchdog cannot fire; (b) VM load1 87-993 on 3 cores in every job (source unknown; check leaked lsof/simctl children); (c) nested retries (scroll x pass, FW_WK_ATTEMPTS 3) plus 480 s Safari-tab waits overrun the 35 min bound. Fix: non-blocking load stamp; find and remove the load source; Lean retryFits (both retry levels and the tab wait, worst-case end <= bound) and a host-load gate (hostOk) with golden replayed by determinism.mjs; Seen maxima with run ids. Re-measure the per-job failure rate on CI against the 19%/45% baseline.",
+   "writes": [
+    "packages/measure-webkit/src/load.mjs",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/src/guard.mjs",
+    "packages/measure-webkit/src/sim*.mjs",
+    "packages/measure-webkit/test/load*.test.mjs",
+    "packages/measure-webkit/test/determinism*.test.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/SimHost.lean",
+    "lean/Fw/Measure/SimHostGolden.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    ".github/workflows/webkit-sim.yml",
+    "scripts/ci-telemetry/tick.mjs",
+    "research/notes/2026/10-2x-wk-sim-hang.md",
+    "results/wk-sim-hang/**",
+    "docs/team/handoffs/wk-sim-hang.md",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "packages/measure-webkit/test/watchdog.test.mjs"
+   ]
   }
  ],
  "deadline": {
