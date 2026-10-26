@@ -21974,6 +21974,32 @@
     "docs/team/handoffs/gh-budget-fresh-inflight.md"
    ],
    "evidence": "47e8c19"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "slot-width-evidence",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Finding 2026-10-26 (checker, CONFIRMED sites): lean/scripts/check.sh's parallel group runs at the width Lean Fw.Sup.Adapt.leanThreads admits from free memory (threads = max 1 (min cores (room/700)), room = avail - 1024 MB floor - footprint of holders admitted in the last 60 s; Adapt.lean:462,477, mirror slot-core.ts:106-107, exported at slot.ts:610). MEASURED from .fw-console/timings.jsonl: width 1 runs take 175-186 s, width 2 runs 88-97 s; load does not separate them. Width 1 is intended (threads_fit). timing-slot-width (landed 6f313d5) keys the inner lean/check parallel-group span by slot width, but the outer span fw 'slot run check sh lean/scripts/check.sh' carries no width, so its timing.slow baseline is still the p50 of mixed-width samples (alerts 10-26 00:16 and 01:25: 178 s against a 100 s baseline, both width 1), and the admission inputs are not logged. Do: (1) log threads, availMB and the charged MB of other holders on the slot run span (or admit event) from the existing verdict fields; (2) the outer fw slot run span records the admitted threads, and Fw.Obs.Timing keys its baseline by them the same way as the inner span (reuse the timing-slot-width rule; theorem: an outer sample is never compared against a baseline of another width), golden regenerated and replayed by the TS collector test. Keep leanProcMB = 700 (memory margin stays; the user prefers no overload).",
+   "writes": [
+    "apps/runner/src/slot.ts",
+    "apps/runner/src/slot-span.ts",
+    "apps/runner/src/slot-core.ts",
+    "apps/runner/src/timing.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/test/slot*.test.ts",
+    "apps/runner/test/timing*.test.ts",
+    "apps/runner/test/watch-collect*.test.ts",
+    "lean/Fw/Obs/Timing.lean",
+    "lean/scripts/TimingGolden.lean",
+    "packages/contracts/golden/obs/timing*.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/handoffs/slot-width-evidence.md"
+   ]
   }
  ],
  "deadline": {
