@@ -108,7 +108,7 @@ def padG (e : Eng) (v : Vp) (a b : Rat) (k : Nat) : Rat :=
 /-- Earn box edges `[R - w0 + kL, R]`: the clip door over the laid-out button `[R - w0, R]`. -/
 def clipEdges (R w0 kL : Rat) : Rat × Rat := (max (R - w0) (R - w0 + kL), min R (R + kL))
 
-theorem earn_edges (R w0 w : Rat) (h0 : 0 ≤ w) (h1 : w ≤ w0) : clipEdges R w0 (w0 - w) = (R - w, R) := by
+theorem earn_edges (R w0 w : Rat) (h1 : w ≤ w0) : clipEdges R w0 (w0 - w) = (R - w, R) := by
   unfold clipEdges; simp only [Prod.mk.injEq]; constructor <;> grind
 
 theorem morphAt_mem (a b : Rat) (ha : 0 ≤ a ∧ a ≤ 1) (hb : 0 ≤ b ∧ b ≤ 1) (k : Nat) :
@@ -164,7 +164,7 @@ def langRightG (e : Eng) (v : Vp) (R lw w0 gL a b : Rat) (k : Nat) : Rat :=
 /-- On the 60 Hz grid the earn and language tracks equal the engine's run of the original: box edges, label
 padding, opacity, blur, shift and the language switch edge. -/
 theorem earn_eq (e : Eng) (v : Vp) (R lw w0 gL a b : Rat) (ha : 0 ≤ a ∧ a ≤ 1) (hb : 0 ≤ b ∧ b ≤ 1)
-    (k : Nat) (hk : k ≤ frames) (hw0 : 0 ≤ earnWF e v lw a b k) (hw1 : earnWF e v lw a b k ≤ w0) :
+    (k : Nat) (hk : k ≤ frames) (hw1 : earnWF e v lw a b k ≤ w0) :
     clipEdges R w0 (Track.eval (kLTrack e v lw w0 a b) (frameTime k)) = (R - earnWF e v lw a b k, R) ∧
       padG e v a b k = padF e v a b k ∧
       Track.eval (opTrack a b) (frameTime k) = opF a b k ∧
@@ -174,7 +174,7 @@ theorem earn_eq (e : Eng) (v : Vp) (R lw w0 gL a b : Rat) (ha : 0 ≤ a ∧ a �
   have hm := morphAt_mem a b ha hb k
   have ek : Track.eval (kLTrack e v lw w0 a b) (frameTime k) = w0 - earnWF e v lw a b k := by
     unfold kLTrack; exact timeTrack_eq _ k hk
-  refine ⟨by rw [ek]; exact earn_edges R w0 _ hw0 hw1, ?_, timeTrack_eq _ k hk, earnBlur_pw _ hm.1 hm.2,
+  refine ⟨by rw [ek]; exact earn_edges R w0 _ hw1, ?_, timeTrack_eq _ k hk, earnBlur_pw _ hm.1 hm.2,
     earnShift_pw _ hm.1 hm.2, ?_⟩
   · unfold padG
     split
