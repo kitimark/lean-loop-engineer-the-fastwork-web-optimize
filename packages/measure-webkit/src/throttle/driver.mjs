@@ -202,6 +202,8 @@ export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve', sui
     TEST_RUNNER_FW_HOLD_MS: String(push.holdMs), TEST_RUNNER_FW_MAX_S: String(maxS), TEST_RUNNER_FW_WAIT_SCALE: String(timeoutScale()) };
   const logFile = join(driver.dir, `${tag}.log`);
   const state = { ended: false, code: null, timedOut: false };
+  // xcodebuild refuses a result bundle path that exists (exit 64): a start that follows a failed one under the same tag would end at once (run 40297879483).
+  rmSync(join(driver.dir, `${tag}.xcresult`), { recursive: true, force: true });
   const exited = runGroup('xcodebuild', ['test-without-building', '-xctestrun', driver.xctestrun, '-destination', `id=${udid}`,
     `-only-testing:DriverUITests/${suite}/testServe`, '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs: (maxS + 120) * 1000, logFile })
     .then((r) => { Object.assign(state, { ended: true, code: r.code, timedOut: r.timedOut }); return r; });
