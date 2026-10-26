@@ -90,6 +90,20 @@ def verdictCases : List (String × Json) := [
   ("zones asks for one zone only", req (aZones aCells) (aZones (rCells [])) (some ["tail"])),
   ("A recorded no zones: every region zone is absent and fails", req [] (aZones (rCells []))),
   ("R recorded no zones: every region zone is absent and fails", req (aZones aCells) []),
+  ("zones asks for no zone: undecided, never a pass", req (aZones aCells) (aZones (rCells [])) (some [])),
+  ("no zones in either arm and none asked for: undecided", req [] [] (some [])),
+  ("tail has 0 frames and no cells in both arms: undecided, not a pass",
+    req [zone "y04000" 50 500 aCells, zone "y04500" 14 136 aCells, zone "tail" 0 0 []]
+      [zone "y04000" 50 500 (rCells []), zone "y04500" 14 136 (rCells []), zone "tail" 0 0 []]),
+  ("tail has 0 frames in both arms and equal cells: undecided",
+    req [zone "y04000" 50 500 aCells, zone "y04500" 14 136 aCells, zone "tail" 0 0 aCells]
+      [zone "y04000" 50 500 (rCells []), zone "y04500" 14 136 (rCells []), zone "tail" 0 0 (rCells [])]),
+  ("tail has frames but no count type in either arm: undecided",
+    req [zone "y04000" 50 500 aCells, zone "y04500" 14 136 aCells, zone "tail" 30 0 []]
+      [zone "y04000" 50 500 (rCells []), zone "y04500" 14 136 (rCells []), zone "tail" 30 0 []]),
+  ("a failing zone next to an empty zone: the request fails, the empty zone is undecided",
+    req [zone "y04000" 50 500 aCells, zone "y04500" 14 136 aCells, zone "tail" 0 0 []]
+      [zone "y04000" 50 500 (rCells [("trace.cc.Draw", 51)]), zone "y04500" 14 136 (rCells []), zone "tail" 0 0 []]),
   ("classes missing is refused", Json.mkObj [("a", .arr #[]), ("r", .arr #[])])]
 
 /-- A baseline's meta: profile viewport 430 x 932 at dpr 3 (mobile, touch), `observed` the size the page reported. -/

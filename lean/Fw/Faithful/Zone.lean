@@ -90,6 +90,43 @@ def regionZones : List String := ["y04000", "y04500", "tail"]
 def regionPass (tb : Freeze.Table) (as rs : List ZBase) : Bool :=
   regionZones.all fun Z => (zoneVerdict tb as rs Z).pass
 
+/-- Zone `Z` has evidence when it is present in both arms, has frames in both and lists at least one count type. -/
+def evidence (as rs : List ZBase) (Z : String) : Bool :=
+  match findZ as Z, findZ rs Z with
+  | some a, some r => a.frames != 0 && r.frames != 0 && !(typesOf a r).isEmpty
+  | _, _ => false
+
+/-- The outcome of a zone or of a request. -/
+inductive Judged where
+  | pass | fail | undecided
+deriving Repr, DecidableEq, Inhabited
+
+/-- A zone that passes without evidence is undecided; any other zone keeps its pass bit. -/
+def zoneJudged (tb : Freeze.Table) (as rs : List ZBase) (Z : String) : Judged :=
+  if (zoneVerdict tb as rs Z).pass then (if evidence as rs Z then .pass else .undecided) else .fail
+
+/-- Zones `zs` fail when one fails; else they are undecided when there are none or one is undecided; else they pass. -/
+def judged (tb : Freeze.Table) (as rs : List ZBase) (zs : List String) : Judged :=
+  let os := zs.map (zoneJudged tb as rs)
+  if os.contains .fail then .fail else if os.isEmpty || os.contains .undecided then .undecided else .pass
+
+/-- The verdict before the evidence guard: pass exactly when every zone of `zs` passes. -/
+def unguarded (tb : Freeze.Table) (as rs : List ZBase) (zs : List String) : Judged :=
+  if zs.all fun Z => (zoneVerdict tb as rs Z).pass then .pass else .fail
+
+#guard judged [] [] [] [] == .undecided
+#guard judged [] [⟨"tail", 0, 0, []⟩] [⟨"tail", 0, 0, []⟩] ["tail"] == .undecided
+#guard judged [] [⟨"tail", 0, 0, [⟨"x", 1, 1, 1⟩]⟩] [⟨"tail", 0, 0, [⟨"x", 1, 1, 1⟩]⟩] ["tail"] == .undecided
+#guard judged [] [⟨"tail", 3, 0, []⟩] [⟨"tail", 3, 0, []⟩] ["tail"] == .undecided
+#guard judged [] [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩] [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩] ["tail"] == .pass
+#guard judged [] [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩] [⟨"tail", 4, 0, [⟨"x", 1, 1, 1⟩]⟩] ["tail"] == .fail
+#guard judged [] [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩] [] ["tail"] == .fail
+#guard judged [] [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩, ⟨"y", 0, 0, []⟩] [⟨"tail", 4, 0, []⟩, ⟨"y", 0, 0, []⟩] ["y", "tail"] == .fail
+#guard evidence [⟨"tail", 3, 0, []⟩] [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩] "tail"
+#guard !evidence [⟨"tail", 3, 0, [⟨"x", 1, 1, 1⟩]⟩] [⟨"tail", 0, 0, [⟨"x", 1, 1, 1⟩]⟩] "tail"
+#guard zoneJudged [] [⟨"tail", 0, 0, []⟩] [⟨"tail", 0, 0, []⟩] "tail" == .undecided
+#guard unguarded [] [] [] [] == .pass
+
 /-! ## Theorems -/
 
 /-- **The pass condition.** A zone passes exactly when it is present, its shape agrees and no cell has status fail. -/
@@ -145,5 +182,121 @@ theorem cell_status (tb : Freeze.Table) (a r : ZBase) (ty : String) :
 theorem region_pass_iff (tb : Freeze.Table) (as rs : List ZBase) :
     regionPass tb as rs = true ↔ ∀ Z ∈ regionZones, (zoneVerdict tb as rs Z).pass = true := by
   simp [regionPass]
+
+/-- The verdict of zone `Z` carries the id `Z`. -/
+theorem zoneVerdict_id (tb : Freeze.Table) (as rs : List ZBase) (Z : String) : (zoneVerdict tb as rs Z).id = Z := by
+  unfold zoneVerdict; split <;> rfl
+
+/-- A zone absent in either arm has no evidence. -/
+theorem not_evidence_of_absent (as rs : List ZBase) (Z : String) (h : findZ as Z = none ∨ findZ rs Z = none) :
+    evidence as rs Z = false := by
+  rcases h with h | h <;> simp [evidence, h]
+
+/-- A zone with no frames in A has no evidence. -/
+theorem not_evidence_of_frames_a (as rs : List ZBase) (Z : String) {a : ZBase} (ha : findZ as Z = some a)
+    (h : a.frames = 0) : evidence as rs Z = false := by
+  simp only [evidence, ha]; split <;> simp_all
+
+/-- A zone with no frames in R has no evidence. -/
+theorem not_evidence_of_frames_r (as rs : List ZBase) (Z : String) {r : ZBase} (hr : findZ rs Z = some r)
+    (h : r.frames = 0) : evidence as rs Z = false := by
+  simp only [evidence, hr]; split <;> simp_all
+
+/-- A zone listing no count type in either arm has no evidence. -/
+theorem not_evidence_of_no_types (as rs : List ZBase) (Z : String) {a r : ZBase} (ha : findZ as Z = some a)
+    (hr : findZ rs Z = some r) (h : a.cells = [] ∧ r.cells = []) : evidence as rs Z = false := by
+  simp [evidence, ha, hr, typesOf, h.1, h.2]
+
+/-- A zone passes exactly when its verdict passes and it has evidence. -/
+theorem zoneJudged_pass_iff (tb : Freeze.Table) (as rs : List ZBase) (Z : String) :
+    zoneJudged tb as rs Z = .pass ↔ (zoneVerdict tb as rs Z).pass = true ∧ evidence as rs Z = true := by
+  unfold zoneJudged
+  cases (zoneVerdict tb as rs Z).pass <;> cases evidence as rs Z <;> simp
+
+/-- A zone fails exactly when its verdict fails. -/
+theorem zoneJudged_fail_iff (tb : Freeze.Table) (as rs : List ZBase) (Z : String) :
+    zoneJudged tb as rs Z = .fail ↔ (zoneVerdict tb as rs Z).pass = false := by
+  unfold zoneJudged
+  cases (zoneVerdict tb as rs Z).pass <;> cases evidence as rs Z <;> simp
+
+/-- A zone is undecided exactly when its verdict passes without evidence. -/
+theorem zoneJudged_undecided_iff (tb : Freeze.Table) (as rs : List ZBase) (Z : String) :
+    zoneJudged tb as rs Z = .undecided ↔ (zoneVerdict tb as rs Z).pass = true ∧ evidence as rs Z = false := by
+  unfold zoneJudged
+  cases (zoneVerdict tb as rs Z).pass <;> cases evidence as rs Z <;> simp
+
+/-- The three branches of `judged`. -/
+theorem judged_eq (tb : Freeze.Table) (as rs : List ZBase) (zs : List String) :
+    judged tb as rs zs =
+      if ∃ Z ∈ zs, zoneJudged tb as rs Z = .fail then .fail
+      else if zs = [] ∨ ∃ Z ∈ zs, zoneJudged tb as rs Z = .undecided then .undecided else .pass := by
+  simp [judged]
+
+/-- Zones fail exactly when one of them fails. -/
+theorem judged_fail_iff (tb : Freeze.Table) (as rs : List ZBase) (zs : List String) :
+    judged tb as rs zs = .fail ↔ ∃ Z ∈ zs, zoneJudged tb as rs Z = .fail := by
+  rw [judged_eq]
+  by_cases h1 : ∃ Z ∈ zs, zoneJudged tb as rs Z = .fail
+  · simp only [h1, ↓reduceIte]
+  · by_cases h2 : zs = [] ∨ ∃ Z ∈ zs, zoneJudged tb as rs Z = .undecided <;> simp only [h1, h2, ↓reduceIte] <;> simp
+
+/-- No zone to judge is undecided. -/
+theorem judged_nil (tb : Freeze.Table) (as rs : List ZBase) : judged tb as rs [] = .undecided := rfl
+
+/-- With no failing zone, an undecided zone makes the request undecided. -/
+theorem judged_undecided_of_zone (tb : Freeze.Table) (as rs : List ZBase) (zs : List String)
+    (hf : ∀ Z ∈ zs, zoneJudged tb as rs Z ≠ .fail) {Z : String} (hZ : Z ∈ zs) (hu : zoneJudged tb as rs Z = .undecided) :
+    judged tb as rs zs = .undecided := by
+  have h1 : ¬∃ Z ∈ zs, zoneJudged tb as rs Z = .fail := fun ⟨Y, hY, e⟩ => hf Y hY e
+  have h2 : zs = [] ∨ ∃ Z ∈ zs, zoneJudged tb as rs Z = .undecided := .inr ⟨Z, hZ, hu⟩
+  rw [judged_eq]; simp only [h1, h2, ↓reduceIte]
+
+/-- Zones pass exactly when there is one and every one passes. -/
+theorem judged_pass_iff (tb : Freeze.Table) (as rs : List ZBase) (zs : List String) :
+    judged tb as rs zs = .pass ↔ zs ≠ [] ∧ ∀ Z ∈ zs, zoneJudged tb as rs Z = .pass := by
+  rw [judged_eq]
+  by_cases h1 : ∃ Z ∈ zs, zoneJudged tb as rs Z = .fail
+  · obtain ⟨Z, hZ, e⟩ := h1
+    simp only [show ∃ Z ∈ zs, zoneJudged tb as rs Z = .fail from ⟨Z, hZ, e⟩, ↓reduceIte, reduceCtorEq, false_iff,
+      not_and]
+    exact fun _ hp => absurd (hp Z hZ) (by simp [e])
+  by_cases h2 : zs = [] ∨ ∃ Z ∈ zs, zoneJudged tb as rs Z = .undecided
+  · simp only [h1, h2, ↓reduceIte, reduceCtorEq, false_iff, not_and]
+    intro hne hp
+    rcases h2 with h2 | ⟨Z, hZ, e⟩
+    · exact absurd h2 hne
+    · exact absurd (hp Z hZ) (by simp [e])
+  · simp only [h1, h2, ↓reduceIte, true_iff]
+    simp only [not_or, not_exists, not_and] at h1 h2
+    refine ⟨h2.1, fun Z hZ => ?_⟩
+    cases e : zoneJudged tb as rs Z
+    · rfl
+    · exact absurd e (h1 Z hZ)
+    · exact absurd e (h2.2 Z hZ)
+
+/-- **No pass without evidence.** Passing zones are not empty and each has evidence and a passing verdict. -/
+theorem evidence_of_judged_pass (tb : Freeze.Table) (as rs : List ZBase) (zs : List String)
+    (h : judged tb as rs zs = .pass) :
+    zs ≠ [] ∧ ∀ Z ∈ zs, evidence as rs Z = true ∧ (zoneVerdict tb as rs Z).pass = true := by
+  obtain ⟨hne, hp⟩ := (judged_pass_iff tb as rs zs).1 h
+  exact ⟨hne, fun Z hZ => ((zoneJudged_pass_iff tb as rs Z).1 (hp Z hZ)).symm⟩
+
+/-- A zone with evidence keeps its pass bit. -/
+theorem zoneJudged_of_evidence (tb : Freeze.Table) (as rs : List ZBase) (Z : String) (h : evidence as rs Z = true) :
+    zoneJudged tb as rs Z = if (zoneVerdict tb as rs Z).pass then .pass else .fail := by
+  simp [zoneJudged, h]
+
+/-- **Complete evidence gives the old verdict.** One zone or more, each with evidence, are judged as before the guard. -/
+theorem judged_eq_unguarded (tb : Freeze.Table) (as rs : List ZBase) (zs : List String) (hne : zs ≠ [])
+    (he : ∀ Z ∈ zs, evidence as rs Z = true) : judged tb as rs zs = unguarded tb as rs zs := by
+  unfold unguarded
+  split
+  · next hp =>
+    refine (judged_pass_iff tb as rs zs).2 ⟨hne, fun Z hZ => ?_⟩
+    rw [zoneJudged_of_evidence tb as rs Z (he Z hZ)]
+    simp [List.all_eq_true.1 hp Z hZ]
+  · next hp =>
+    obtain ⟨Z, hZ, hf⟩ : ∃ Z ∈ zs, (zoneVerdict tb as rs Z).pass = false := by simpa using hp
+    exact (judged_fail_iff tb as rs zs).2 ⟨Z, hZ, (zoneJudged_fail_iff tb as rs Z).2 hf⟩
 
 end Fw.Faithful
