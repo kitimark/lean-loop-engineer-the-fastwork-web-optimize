@@ -93,7 +93,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : sub.sweep === 'probe-off' ? cx(sw.sweep, sw.still) : sweepLayer ? cx(sw.sweep, sw.layer) : undefined;
   const layerBg = sweepLayer ? <i className={sw.layerBg} aria-hidden="true" /> : null;
   const entriesFill = sub.entries === 'fill-release';
-  const subs: Subs = { entries: faithful(sub.entries) || entriesFill, entriesFill, glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
+  const subs: Subs = { entries: faithful(sub.entries) || entriesFill, entriesFill, glint: faithful(sub.glint) || sub.glint === 'offscreen-pause' || sub.glint === 'hold-freeze', glintPause: sub.glint === 'offscreen-pause', glintHold: sub.glint === 'hold-freeze', marquee: faithful(sub.marquee) };
 
   useEffect(() => {
     const sec = section.current;
