@@ -96,6 +96,16 @@ def deltas : List Delta :=
       reason := "the same element as the hero.exit hero role, read by the hero part",
       premise := ``Fw.Parts.HeroContainOpt.hero_same_box } ]
 
+structure ReplacedPart where
+  id : String
+  flag : String
+  part : String
+  reason : String
+  premise : Lean.Name
+
+/-- The parts a flag unmounts, each with the theorem that it is unmounted under the flag; `Fw.Gate.Replaced` decides. -/
+def replacedParts : List ReplacedPart := []
+
 structure DItem where
   cls : Cls
   role : String
@@ -104,6 +114,7 @@ structure DItem where
   byRect : Bool := false
   orig : Option String
   rewrite : Option String
+  rewriteCount : Option Nat := none
   deriving DecidableEq, Repr
 
 def Delta.matches (d : Delta) (flags : List String) (part : String) (it : DItem) : Bool :=
@@ -363,6 +374,10 @@ def deltaLine (d : Delta) : String :=
     ("property", .str d.property), ("orig", .str d.orig), ("rewrite", .str d.rewrite), ("look", .str (lookName d.look)),
     ("reason", .str d.reason), ("premise", .str d.premise.toString)]).compress
 
+def replacedLine (r : ReplacedPart) : String :=
+  (Json.mkObj [("kind", "replaced"), ("id", .str r.id), ("flag", .str r.flag), ("part", .str r.part),
+    ("reason", .str r.reason), ("premise", .str r.premise.toString)]).compress
+
 def searchLine (s : String) : String :=
   (Json.mkObj [("kind", "search"), ("search", .str s),
     ("flags", match flagsOfSearch s with | some fs => toJson fs | none => .null)]).compress
@@ -412,7 +427,7 @@ def readingCases : List (List String × String × Verdict × List DItem) :=
     (containOn, "hero.exit", .fail, [heroContain, styleItem "hero" "height" "900px" "0px"]) ]
 
 def goldenLines (_ : Unit := ()) : List String :=
-  deltas.map deltaLine ++ searchCases.map searchLine ++
+  deltas.map deltaLine ++ replacedParts.map replacedLine ++ searchCases.map searchLine ++
     readingCases.map fun (f, p, v, fs) => readingLine f p v fs
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
