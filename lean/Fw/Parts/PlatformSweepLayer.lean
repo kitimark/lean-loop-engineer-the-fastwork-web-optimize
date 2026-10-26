@@ -5,10 +5,8 @@ import Fw.Parts.PlatformSweep
 namespace Fw.Parts.PlatformSweepLayer
 open Fw.Parts.PlatformSweep
 
-/-- The keyframe start as a fraction of the layer width (`-33.33333333%` of the `6w` layer). -/
 def fromPct : Rat := 33333333 / 100000000
 
-/-- The exact start: a third of the `6w` layer is `2w`. -/
 def fromExact : Rat := 1 / 3
 
 def layerX (w t : Rat) : Rat := -(fromExact * (6 * w)) * (1 - phase t)
@@ -101,20 +99,10 @@ theorem memory_ok (w h r : Nat) (hw : w ≤ 300) (hh : h ≤ 60) (hr : r ≤ 3) 
   rw [e]
   omega
 
-/-! ## Tiling and the snapped width (revision `layer-tiled`)
-
-The original paints a `3w` tile with `background-repeat: repeat`, offset `layerX`. The layer now is two tiles (`6w`)
-wide with `background-size: 50% 100%` and `repeat-x`, at the same offset, so it repeats the tile exactly where the
-original does (the original's own seam at progress 0 is drawn too). `w` is the device-pixel-snapped word width. -/
-
-/-- Tile fraction under layer-local pixel `y` of the `6w` layer: the first tile, then the second one starting at `3w`. -/
 def layerU (w y : Rat) : Rat := if y < 3 * w then y / (3 * w) else (y - 3 * w) / (3 * w)
 
-/-- Tile fraction of the original with `repeat` at element pixel `x` when the background position is `p`: the image
-starts at `-2wp` and repeats every `3w`. -/
 def repU (w x p : Rat) : Rat := frac ((x + 2 * w * p) / (3 * w))
 
-/-- The fractional part of a value already in `[0, 1)` is itself. -/
 theorem frac_of_mem (x : Rat) (h0 : 0 ≤ x) (h1 : x < 1) : frac x = x := by
   have n1 : x.floor < 1 := Rat.floor_lt_iff.mpr (by exact_mod_cast h1)
   have n2 : (0 : Int) ≤ x.floor := by
@@ -127,7 +115,6 @@ theorem frac_of_mem (x : Rat) (h0 : 0 ≤ x) (h1 : x < 1) : frac x = x := by
   push_cast
   grind
 
-/-- Two tiles of `repeat-x` read the same tile fraction as a repeating image, on the whole `6w` layer. -/
 theorem layerU_eq_frac (w : Rat) (hw : 0 < w) (y : Rat) (h0 : 0 ≤ y) (h1 : y < 6 * w) :
     layerU w y = frac (y / (3 * w)) := by
   have h3 : (0 : Rat) < 3 * w := by grind
@@ -151,9 +138,6 @@ theorem layerU_eq_frac (w : Rat) (hw : 0 < w) (y : Rat) (h0 : 0 ≤ y) (h1 : y <
     have k := key (y - 3 * w) (by grind) (by grind)
     rw [e, frac_add_one, frac_of_mem _ k.1 k.2]
 
-/-- **tiled_same_look.** For every positive width, every element pixel from the left edge to just under `4w` (the box
-`[0, w]` and a right overhang of `3w`) and every time, the two-tile layer shows the colour of the original with
-`repeat`. -/
 theorem tiled_same_look (w : Rat) (hw : 0 < w) (x t : Rat) (h0 : 0 ≤ x) (h1 : x < 4 * w) :
     color (layerU w (x - layerX w t)) = color (repU w x (pos t)) := by
   have hp := pos_mem t
@@ -168,28 +152,16 @@ theorem tiled_same_look (w : Rat) (hw : 0 < w) (x t : Rat) (h0 : 0 ≤ x) (h1 : 
   rw [e, layerU_eq_frac w hw _ hy0 hy1]
   rfl
 
-/-- At progress 0 the original's tile ends on the word's right edge; the layer reads the second tile's first pixel
-there, as the original does (the seam the untiled layer lacked). -/
 theorem seam_at_start (w : Rat) (hw : 0 < w) : color (layerU w (w - layerX w 0)) = color (repU w w (pos 0)) :=
   tiled_same_look w hw w 0 (Rat.le_of_lt hw) (by grind)
 
-/-! ### Device-pixel snapping of the word width
-
-The engines snap the left and right edge of the box to whole device pixels separately (Chromium
-`ToPixelSnappedRect`, `physical_rect.h:228@f842f52`), so a box of width `width` at `left` is `snapPx` device pixels
-wide. `ResizeObserver` `devicePixelContentBoxSize` reports that count; where an engine lacks it the same count is
-computed from the rect. Rounding is half up; the 1/64 `LayoutUnit` step is not modelled. -/
-
-/-- One edge, snapped: `edge` css px at ratio `dpr` rounded half up to whole device pixels. -/
+-- Chromium ToPixelSnappedRect, physical_rect.h:228@f842f52
 def snapEdge (dpr edge : Rat) : Int := (edge * dpr + 1 / 2).floor
 
-/-- Snapped width in device pixels of a box at css `left` with css `width`. -/
 def snapPx (dpr left width : Rat) : Int := snapEdge dpr (left + width) - snapEdge dpr left
 
-/-- Snapped width in css px (a whole number of device pixels). -/
 def snapW (dpr left width : Rat) : Rat := (snapPx dpr left width : Rat) / dpr
 
-/-- **snap_box.** The snapped width is within one device pixel of the true width (strictly). -/
 theorem snap_box (dpr left width : Rat) :
     (snapPx dpr left width : Rat) - width * dpr < 1 ∧ width * dpr - (snapPx dpr left width : Rat) < 1 := by
   have a1 := Rat.floor_le (left * dpr + 1 / 2)
@@ -203,23 +175,19 @@ theorem snap_box (dpr left width : Rat) :
   push_cast at a1 a2 b1 b2
   grind
 
-/-- The snapped width lies on the device-pixel grid: `snapW * dpr` is the whole count. -/
 theorem snapW_grid (dpr left width : Rat) (hd : 0 < dpr) : snapW dpr left width * dpr = (snapPx dpr left width : Rat) := by
   unfold snapW
   have : dpr ≠ 0 := by grind
   grind
 
-/-- A box at least one device pixel wide stays at least one device pixel wide. -/
 theorem snapPx_pos (dpr left width : Rat) (h : 1 ≤ width * dpr) : 1 ≤ snapPx dpr left width := by
   have m := Rat.floor_monotone (a := (left * dpr + 1 / 2) + 1) (b := (left + width) * dpr + 1 / 2) (by grind)
   have f1 : ((left * dpr + 1 / 2) + 1).floor = (left * dpr + 1 / 2).floor + 1 := Rat.floor_add_one
   unfold snapPx snapEdge
   omega
 
-/-- The layer in device pixels: six times the snapped count, tiles of three times it (whole numbers). -/
 def layerPx (n : Int) : Int := 6 * n
 
-/-- The tile (`background-size: 50%`) is half the layer: a whole number of device pixels. -/
 theorem tile_grid (n : Int) : layerPx n / 2 = 3 * n := by unfold layerPx; omega
 
 

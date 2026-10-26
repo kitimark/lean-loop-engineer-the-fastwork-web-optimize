@@ -19,27 +19,17 @@ export const imageU = ({ v, p }: { v: number; p: number }): number => (v + 2 * p
 
 const frac = (x: number): number => x - Math.floor(x);
 
-/** Tile fraction under layer-local pixel y of the two-tile (6w) layer (Lean layerU). */
 export const layerU = ({ w, y }: { w: number; y: number }): number => (y < 3 * w ? y / (3 * w) : (y - 3 * w) / (3 * w));
 
-/** Tile fraction of the original with repeat at element pixel x, background position p (Lean repU). */
 export const repU = ({ w, x, p }: { w: number; x: number; p: number }): number => frac((x + 2 * w * p) / (3 * w));
 
-/** Snapped width in device pixels of a box at css left with css width: each edge rounded half up (Lean snapPx). */
 export const snapPx = ({ dpr, left, width }: { dpr: number; left: number; width: number }): number =>
   Math.floor((left + width) * dpr + 0.5) - Math.floor(left * dpr + 0.5);
 
-/** Snapped width in css px (Lean snapW). */
 export const snapW = ({ dpr, left, width }: { dpr: number; left: number; width: number }): number => snapPx({ dpr, left, width }) / dpr;
 
-/** The custom property carrying the layer width (6 snapped word widths, css px) to the stylesheet. */
 export const LAYER_WIDTH_VAR = '--sw6';
 
-/**
- * Sets LAYER_WIDTH_VAR on each word once per resize (no per-frame work). The count comes from ResizeObserver
- * devicePixelContentBoxSize; an engine without it gets the same count from the rect through snapPx.
- * TS stand-in: the observer wiring is glue; the arithmetic is checked against the Lean golden.
- */
 export function watchLayerWidth(words: readonly HTMLElement[]): () => void {
   if (typeof ResizeObserver === 'undefined') return () => undefined;
   const apply = (el: HTMLElement, px: number | null): void => {

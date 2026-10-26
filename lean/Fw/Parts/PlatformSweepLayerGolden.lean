@@ -32,7 +32,6 @@ def shownLine (w v t : Rat) : String :=
 
 def xvs : List Rat := [0, 1 / 4, 1 / 2, 1, 2, 7 / 2]
 
-/-- One two-tile sample: the layer's colour at `x = v * w` against the original with `repeat`. -/
 def tiledLine (w v t : Rat) : String :=
   (Json.mkObj [("fn", "tiled"), ("in", Json.mkObj [("w", numJ w), ("v", numJ v), ("t", numJ t)]),
     ("out", Json.mkObj [("layer", rgbJ (color (layerU w (v * w - layerX w t)))), ("orig", rgbJ (color (repU w (v * w) (pos t))))])]).compress
@@ -41,7 +40,6 @@ def dprs : List Rat := [1, 2, 3]
 def lefts : List Rat := [0, 102 / 5, 201 / 2, 149 / 4]
 def widths : List Rat := [52681 / 100, 90, 2303 / 10, 3 / 5]
 
-/-- One snap sample: the snapped device-pixel count and the snapped css width. -/
 def snapLine (dpr left width : Rat) : String :=
   (Json.mkObj [("fn", "snap"), ("in", Json.mkObj [("dpr", numJ dpr), ("left", numJ left), ("width", numJ width)]),
     ("out", Json.mkObj [("px", .num (snapPx dpr left width)), ("w", numJ (snapW dpr left width))])]).compress
