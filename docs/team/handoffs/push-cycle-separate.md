@@ -1,7 +1,7 @@
 branch: worktree-wf_99fed9ac-b8f-1 (CI branch ci/push-cycle-separate)
 worktree: .claude/worktrees/wf_99fed9ac-b8f-1 (under the repo root)
 last commit: see `git log -1` (updated after each run)
-runs: 40284577163 (push 1 of 3, branch ci/push-cycle-separate at fec40a04c, toolbar-throttle, 6 sim jobs, running)
+runs: 40284577163 (push 1 of 3, at fec40a04c, per-cycle xcodebuild dwell design, running); 40297879483 (push 2 of 3, at 61697a111, FinishServer dwell design, running)
 verified: Lean rule + golden (check.sh green), TS twin and report tests (measure-webkit 914 pass), ci-paths 56 pass, actionlint clean for the lane edit
 open: verdict per arm, H4 reading, note, ledger row, dry land, review gate
 
