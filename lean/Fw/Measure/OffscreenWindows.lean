@@ -317,4 +317,383 @@ theorem armVerdicts_of_usable (base flag : List (List (String × Vec))) (n : Str
     (armVerdicts base flag).lookup n = some (judge (wkeys.filterMap (cmpKey slack (vecsOf base n) (vecsOf flag n)))) := by
   rw [armVerdicts_get base flag n hn, verdictOn_of_usable wkeys _ _ hu]
 
+def Win.cap (m : Nat) (w : Win) : Win := { w with hi := min w.hi (w.lo + m) }
+
+theorem Win.cap_len (m : Nat) (w : Win) : (w.cap m).len = min w.len m := by
+  simp only [Win.cap, Win.len]; omega
+
+theorem Win.cap_name (m : Nat) (w : Win) : (w.cap m).name = w.name := rfl
+
+theorem Win.cap_of_len_le (m : Nat) (w : Win) (h : w.len ≤ m) : w.cap m = w := by
+  cases w with
+  | mk name lo hi =>
+    simp only [Win.len] at h
+    simp only [Win.cap, Win.mk.injEq, true_and]
+    omega
+
+def Run.plan (r : Run) : Option (Nat × List Win) :=
+  match endFrame r.ys with
+  | none => none
+  | some e =>
+    if r.cols.all (fun (_, xs) => xs.length == r.ys.length) then some (e, allWindows e (lastFrame r.ys.length r.tail))
+    else none
+
+theorem Run.windows_eq_plan (r : Run) :
+    r.windows = r.plan.map fun p => (p.1, p.2.map fun w => (w.name, sumVec r.cols w)) := by
+  unfold Run.windows Run.plan
+  split
+  · rfl
+  · split <;> rfl
+
+def lenOf (ws : List Win) (n : String) : Option Nat := (ws.find? (·.name == n)).map Win.len
+
+def commonLen (plans : List (Nat × List Win)) (n : String) : Nat :=
+  ((plans.filterMap fun p => lenOf p.2 n).min?).getD 0
+
+def Run.capped (r : Run) (cap : String → Nat) : Option (List (String × Vec)) :=
+  r.plan.map fun p => p.2.map fun w => (w.name, sumVec r.cols (w.cap (cap w.name)))
+
+def ownVerdicts (base flag : List Run) : List (String × Verdict) :=
+  let cap := commonLen ((base ++ flag).filterMap (·.plan))
+  armVerdicts (base.filterMap (·.capped cap)) (flag.filterMap (·.capped cap))
+
+def ownFrames (base flag : List Run) : List (String × Nat) :=
+  let cap := commonLen ((base ++ flag).filterMap (·.plan))
+  windowNames.map fun n => (n, cap n)
+
+theorem lookup_windows (ws : List Win) (f : Win → Vec) (n : String) :
+    (ws.map fun w => (w.name, f w)).lookup n = (ws.find? (·.name == n)).map f := by
+  induction ws with
+  | nil => rfl
+  | cons w ws ih =>
+    simp only [List.map_cons, List.lookup_cons, List.find?_cons]
+    by_cases h : (w.name == n) = true
+    · have h' : (n == w.name) = true := by simp only [beq_iff_eq] at h ⊢; exact h.symm
+      simp [h, h']
+    · have h1 : (w.name == n) = false := by simpa using h
+      have h' : (n == w.name) = false := by
+        simp only [Bool.eq_false_iff, ne_eq, beq_iff_eq] at h1 ⊢
+        exact fun e => h1 e.symm
+      simp [h1, h', ih]
+
+theorem lookup_capped (r : Run) (cap : String → Nat) (n : String)
+    (h : ∀ p, r.plan = some p → ∀ w, p.2.find? (·.name == n) = some w → w.len ≤ cap n) :
+    (r.capped cap).bind (List.lookup n) = (r.windows.map (·.2)).bind (List.lookup n) := by
+  rw [Run.windows_eq_plan]
+  unfold Run.capped
+  cases hp : r.plan with
+  | none => rfl
+  | some p =>
+    simp only [Option.map_some, Option.bind_some]
+    rw [lookup_windows p.2 (fun w => sumVec r.cols (w.cap (cap w.name))) n,
+      lookup_windows p.2 (fun w => sumVec r.cols w) n]
+    cases hf : p.2.find? (·.name == n) with
+    | none => rfl
+    | some w =>
+      have hw := h p hp w hf
+      have hn : w.name = n := by simpa using List.find?_some hf
+      simp only [Option.map_some]
+      rw [hn, Win.cap_of_len_le _ _ hw]
+
+theorem vecsOf_capped (rs : List Run) (cap : String → Nat) (n : String)
+    (h : ∀ r ∈ rs, ∀ p, r.plan = some p → ∀ w, p.2.find? (·.name == n) = some w → w.len ≤ cap n) :
+    vecsOf (rs.filterMap (·.capped cap)) n = vecsOf (rs.filterMap fun r => r.windows.map (·.2)) n := by
+  simp only [vecsOf, List.filterMap_filterMap]
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    rw [List.filterMap_cons, List.filterMap_cons, lookup_capped r cap n (h r (List.mem_cons_self ..)),
+      ih fun r' hr' => h r' (List.mem_cons_of_mem _ hr')]
+
+theorem lenOf_eq_some (ws : List Win) (n : String) (w : Win) (h : ws.find? (·.name == n) = some w) :
+    lenOf ws n = some w.len := by
+  simp [lenOf, h]
+
+theorem le_commonLen (plans : List (Nat × List Win)) (n : String) (c : Nat)
+    (hmem : c ∈ plans.filterMap fun p => lenOf p.2 n) (hall : ∀ x ∈ plans.filterMap (fun p => lenOf p.2 n), c ≤ x) :
+    c ≤ commonLen plans n := by
+  unfold commonLen
+  cases hm : (plans.filterMap fun p => lenOf p.2 n).min? with
+  | none =>
+    rw [List.min?_eq_none_iff] at hm
+    rw [hm] at hmem
+    cases hmem
+  | some a =>
+    exact hall a (List.min?_mem hm)
+
+theorem cap_ge_of_same_len (rs : List Run) (n : String) (c : Option Nat)
+    (h : ∀ r ∈ rs, ∀ p, r.plan = some p → lenOf p.2 n = c) :
+    ∀ r ∈ rs, ∀ p, r.plan = some p → ∀ w, p.2.find? (·.name == n) = some w →
+      w.len ≤ commonLen (rs.filterMap (·.plan)) n := by
+  intro r hr p hp w hw
+  have hc : c = some w.len := by rw [← h r hr p hp, lenOf_eq_some _ _ _ hw]
+  apply le_commonLen
+  · exact List.mem_filterMap.2 ⟨p, List.mem_filterMap.2 ⟨r, hr, hp⟩, by rw [h r hr p hp, hc]⟩
+  · intro x hx
+    obtain ⟨p', hp', hx⟩ := List.mem_filterMap.1 hx
+    obtain ⟨r', hr', hp''⟩ := List.mem_filterMap.1 hp'
+    have := h r' hr' p' hp''
+    rw [hx, hc] at this
+    simp only [Option.some.injEq] at this
+    omega
+
+theorem ownVecs_eq (base flag : List Run) (n : String) (c : Option Nat)
+    (h : ∀ r ∈ base ++ flag, ∀ p, r.plan = some p → lenOf p.2 n = c) :
+    vecsOf (base.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n =
+        vecsOf (base.filterMap fun r => r.windows.map (·.2)) n ∧
+      vecsOf (flag.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n =
+        vecsOf (flag.filterMap fun r => r.windows.map (·.2)) n := by
+  have hge := cap_ge_of_same_len (base ++ flag) n c h
+  constructor
+  · exact vecsOf_capped base _ n fun r hr => hge r (List.mem_append_left _ hr)
+  · exact vecsOf_capped flag _ n fun r hr => hge r (List.mem_append_right _ hr)
+
+theorem ownVerdicts_get (base flag : List Run) (n : String) (hn : n ∈ windowNames) :
+    (ownVerdicts base flag).lookup n =
+      some (verdictOn wkeys (vecsOf (base.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n)
+        (vecsOf (flag.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n)) :=
+  armVerdicts_get _ _ n hn
+
+theorem ownVerdicts_eq_window (base flag : List Run) (n : String) (hn : n ∈ windowNames) (c : Option Nat)
+    (h : ∀ r ∈ base ++ flag, ∀ p, r.plan = some p → lenOf p.2 n = c) :
+    (ownVerdicts base flag).lookup n =
+      (armVerdicts (base.filterMap fun r => r.windows.map (·.2)) (flag.filterMap fun r => r.windows.map (·.2))).lookup n := by
+  rw [ownVerdicts_get base flag n hn, armVerdicts_get _ _ n hn, (ownVecs_eq base flag n c h).1, (ownVecs_eq base flag n c h).2]
+
+theorem ownVerdicts_eq_of_same_end (base flag : List Run) (e last : Nat)
+    (h : ∀ r ∈ base ++ flag, r.plan = none ∨ r.plan = some (e, allWindows e last)) :
+    ownVerdicts base flag =
+      armVerdicts (base.filterMap fun r => r.windows.map (·.2)) (flag.filterMap fun r => r.windows.map (·.2)) := by
+  unfold ownVerdicts armVerdicts
+  simp only
+  apply List.map_congr_left
+  intro n hn
+  have hv := ownVecs_eq base flag n (lenOf (allWindows e last) n) fun r hr p hp => by
+    rcases h r hr with h | h
+    · rw [hp] at h; cases h
+    · rw [hp] at h; cases h; rfl
+  rw [hv.1, hv.2]
+
+theorem length_capped (rs : List Run) (cap : String → Nat) :
+    (rs.filterMap (·.capped cap)).length = (rs.filterMap (·.plan)).length := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    cases hp : r.plan with
+    | none =>
+      have h1 : r.capped cap = none := by simp [Run.capped, hp]
+      simp [h1, hp, ih]
+    | some p =>
+      have h1 : r.capped cap = some (p.2.map fun w => (w.name, sumVec r.cols (w.cap (cap w.name)))) := by
+        simp [Run.capped, hp]
+      simp [h1, hp, ih]
+
+theorem ownVerdicts_gain_needs_runs (base flag : List Run) (n : String) (h : (n, Verdict.gain) ∈ ownVerdicts base flag) :
+    minRuns ≤ (base.filterMap (·.plan)).length ∧ minRuns ≤ (flag.filterMap (·.plan)).length := by
+  have := armVerdicts_gain_needs_runs _ _ n h
+  rw [length_capped, length_capped] at this
+  exact this
+
+theorem ownVerdicts_noData_of_fewBase (base flag : List Run) (h : (base.filterMap (·.plan)).length < minRuns) :
+    ∀ q ∈ ownVerdicts base flag, q.2 = Verdict.noData := by
+  intro q hq
+  obtain ⟨n, -, rfl⟩ := List.mem_map.1 hq
+  apply noData_of_fewBase
+  have := vecsOf_length_le (base.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n
+  rw [length_capped] at this
+  omega
+
+theorem ownVerdicts_noData_of_fewFlag (base flag : List Run) (h : (flag.filterMap (·.plan)).length < minRuns) :
+    ∀ q ∈ ownVerdicts base flag, q.2 = Verdict.noData := by
+  intro q hq
+  obtain ⟨n, -, rfl⟩ := List.mem_map.1 hq
+  apply noData_of_fewFlag
+  have := vecsOf_length_le (flag.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n
+  rw [length_capped] at this
+  omega
+
+theorem vecsOf_capped_n_le (rs : List Run) (cap : String → Nat) (n : String) (v : Vec)
+    (hv : v ∈ vecsOf (rs.filterMap (·.capped cap)) n) : v.n ≤ cap n := by
+  simp only [vecsOf, List.filterMap_filterMap] at hv
+  obtain ⟨r, -, hr⟩ := List.mem_filterMap.1 hv
+  unfold Run.capped at hr
+  cases hp : r.plan with
+  | none => simp [hp] at hr
+  | some p =>
+    simp only [hp, Option.map_some, Option.bind_some] at hr
+    rw [lookup_windows p.2 (fun w => sumVec r.cols (w.cap (cap w.name))) n] at hr
+    cases hf : p.2.find? (·.name == n) with
+    | none => simp [hf] at hr
+    | some w =>
+      have hn : w.name = n := by simpa using List.find?_some hf
+      simp only [hf, Option.map_some, Option.some.injEq] at hr
+      rw [← hr, sumVec_n, Win.cap_len, hn]
+      exact Nat.min_le_right _ _
+
+theorem ownVerdicts_noData_of_noFrames (base flag : List Run) (n : String) (hn : n ∈ windowNames)
+    (h : commonLen ((base ++ flag).filterMap (·.plan)) n = 0) : (ownVerdicts base flag).lookup n = some Verdict.noData := by
+  rw [ownVerdicts_get base flag n hn]
+  apply congrArg some
+  apply noData_of_window
+  unfold sameWindow
+  cases hl : vecsOf (base.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n ++
+      vecsOf (flag.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n with
+  | nil => rfl
+  | cons v vs =>
+    have hv : v ∈ vecsOf (base.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n ++
+        vecsOf (flag.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n := by rw [hl]; simp
+    have hle : v.n ≤ 0 := by
+      rcases List.mem_append.1 hv with hv | hv
+      · have := vecsOf_capped_n_le _ _ n v hv; omega
+      · have := vecsOf_capped_n_le _ _ n v hv; omega
+    simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]
+    left; omega
+
+def minEnd120 : Nat := 20
+
+def wholeWindows : List Win := allWindows approachFrames (approachFrames + 120 + minEnd120)
+
+def minFrames (n : String) : Nat := (lenOf wholeWindows n).getD 0
+
+theorem minFrames_eq : windowNames.map minFrames = [34, 20, 40, 60, 20, 174] := by decide
+
+theorem minEnd120_eq_end0 : minEnd120 = minFrames "end 0-19" := by decide
+
+theorem minFrames_push : (pushWindows approachFrames (approachFrames + 120 + minEnd120)).map (minFrames ·.name) =
+    (pushWindows approachFrames (approachFrames + 120 + minEnd120)).map Win.len := by decide
+
+theorem minFrames_finish :
+    minFrames "finish" = ((pushWindows approachFrames (approachFrames + 120 + minEnd120)).map Win.len).sum := by decide
+
+def framesOk (plans : List (Nat × List Win)) (n : String) : Bool := decide (minFrames n ≤ commonLen plans n)
+
+def minVerdicts (base flag : List Run) : List (String × Verdict) :=
+  let plans := (base ++ flag).filterMap (·.plan)
+  (ownVerdicts base flag).map fun q => (q.1, if framesOk plans q.1 then q.2 else .noData)
+
+theorem lookup_map_snd (qs : List (String × Verdict)) (g : String → Verdict → Verdict) (n : String) :
+    (qs.map fun q => (q.1, g q.1 q.2)).lookup n = (qs.lookup n).map (g n) := by
+  induction qs with
+  | nil => rfl
+  | cons q qs ih =>
+    obtain ⟨k, v⟩ := q
+    simp only [List.map_cons, List.lookup_cons]
+    by_cases h : (n == k) = true
+    · have : n = k := beq_iff_eq.1 h
+      subst this
+      simp
+    · simp only [Bool.not_eq_true] at h
+      simp [h, ih]
+
+theorem minVerdicts_get (base flag : List Run) (n : String) :
+    (minVerdicts base flag).lookup n = ((ownVerdicts base flag).lookup n).map fun v =>
+      if framesOk ((base ++ flag).filterMap (·.plan)) n then v else .noData := by
+  unfold minVerdicts
+  exact lookup_map_snd (ownVerdicts base flag) (fun m v => if framesOk ((base ++ flag).filterMap (·.plan)) m then v else .noData) n
+
+theorem minVerdicts_needs_frames (base flag : List Run) (n : String) (v : Verdict) (h : (n, v) ∈ minVerdicts base flag)
+    (hv : v ≠ .noData) : minFrames n ≤ commonLen ((base ++ flag).filterMap (·.plan)) n := by
+  obtain ⟨q, -, hq⟩ := List.mem_map.1 h
+  simp only [Prod.mk.injEq] at hq
+  obtain ⟨rfl, hq⟩ := hq
+  by_cases hok : framesOk ((base ++ flag).filterMap (·.plan)) q.1 = true
+  · simpa [framesOk] using hok
+  · simp only [hok] at hq
+    exact absurd hq.symm hv
+
+theorem minVerdicts_eq_or_noData (base flag : List Run) (n : String) (v : Verdict) (h : (n, v) ∈ minVerdicts base flag) :
+    v = .noData ∨ (n, v) ∈ ownVerdicts base flag := by
+  obtain ⟨q, hq, he⟩ := List.mem_map.1 h
+  simp only [Prod.mk.injEq] at he
+  obtain ⟨rfl, he⟩ := he
+  split at he
+  · exact Or.inr (he ▸ hq)
+  · exact Or.inl he.symm
+
+theorem minVerdicts_gain_own (base flag : List Run) (n : String) (h : (n, Verdict.gain) ∈ minVerdicts base flag) :
+    (n, Verdict.gain) ∈ ownVerdicts base flag :=
+  (minVerdicts_eq_or_noData base flag n _ h).resolve_left (by simp)
+
+theorem commonLen_le (plans : List (Nat × List Win)) (n : String) (l : Nat)
+    (h : l ∈ plans.filterMap fun p => lenOf p.2 n) : commonLen plans n ≤ l := by
+  unfold commonLen
+  cases hm : (plans.filterMap fun p => lenOf p.2 n).min? with
+  | none => rw [List.min?_eq_none_iff] at hm; rw [hm] at h; cases h
+  | some a => exact (List.min?_eq_some_iff.1 hm).2 l h
+
+theorem minVerdicts_short_noData (base flag : List Run) (n : String) (hn : n ∈ windowNames) (r : Run) (p : Nat × List Win)
+    (l : Nat) (hr : r ∈ base ++ flag) (hp : r.plan = some p) (hl : lenOf p.2 n = some l) (hs : l < minFrames n) :
+    (minVerdicts base flag).lookup n = some .noData := by
+  have hc := commonLen_le ((base ++ flag).filterMap (·.plan)) n l
+    (List.mem_filterMap.2 ⟨p, List.mem_filterMap.2 ⟨r, hr, hp⟩, hl⟩)
+  have hok : framesOk ((base ++ flag).filterMap (·.plan)) n = false := by
+    simp only [framesOk, decide_eq_false_iff_not]; omega
+  rw [minVerdicts_get, ownVerdicts_get base flag n hn, hok]
+  rfl
+
+theorem minVerdicts_short_not_gain (base flag : List Run) (n : String) (hn : n ∈ windowNames) (r : Run)
+    (p : Nat × List Win) (l : Nat) (hr : r ∈ base ++ flag) (hp : r.plan = some p) (hl : lenOf p.2 n = some l)
+    (hs : l < minFrames n) : (minVerdicts base flag).lookup n ≠ some .gain := by
+  rw [minVerdicts_short_noData base flag n hn r p l hr hp hl hs]
+  simp
+
+theorem Run.plan_windows (r : Run) (p : Nat × List Win) (h : r.plan = some p) :
+    ∃ last, p.2 = allWindows p.1 last := by
+  unfold Run.plan at h
+  split at h
+  · cases h
+  · split at h
+    · cases h; exact ⟨_, rfl⟩
+    · cases h
+
+theorem lenOf_allWindows (e last : Nat) (n : String) (hn : n ∈ windowNames) : (lenOf (allWindows e last) n).isSome := by
+  rw [windowNames_eq] at hn
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hn
+  rcases hn with rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+
+theorem minVerdicts_eq_own (base flag : List Run)
+    (h : ∀ r ∈ base ++ flag, ∀ p, r.plan = some p → ∀ n l, lenOf p.2 n = some l → minFrames n ≤ l) :
+    minVerdicts base flag = ownVerdicts base flag := by
+  unfold minVerdicts
+  simp only
+  conv => rhs; rw [← List.map_id (ownVerdicts base flag)]
+  apply List.map_congr_left
+  rintro ⟨n, v⟩ hq
+  simp only [id]
+  by_cases hok : framesOk ((base ++ flag).filterMap (·.plan)) n = true
+  · simp only [hok, ↓reduceIte]
+  · have hn : n ∈ windowNames := by
+      obtain ⟨m, hm, he⟩ := List.mem_map.1 hq
+      simp only [Prod.mk.injEq] at he
+      exact he.1 ▸ hm
+    cases hps : (base ++ flag).filterMap (·.plan) with
+    | nil =>
+      have hb : (base.filterMap (·.plan)).length < minRuns := by
+        rw [List.filterMap_append, List.append_eq_nil_iff] at hps
+        rw [hps.1]; decide
+      have hv : v = .noData := ownVerdicts_noData_of_fewBase base flag hb _ hq
+      subst hv
+      split <;> rfl
+    | cons p ps =>
+      exfalso
+      obtain ⟨r, hr, hp⟩ := List.mem_filterMap.1 (hps ▸ List.mem_cons_self : p ∈ (base ++ flag).filterMap (·.plan))
+      obtain ⟨last, hw⟩ := Run.plan_windows r p hp
+      obtain ⟨l, hl⟩ := Option.isSome_iff_exists.1 (hw ▸ lenOf_allWindows p.1 last n hn)
+      cases hm : (((base ++ flag).filterMap (·.plan)).filterMap fun p => lenOf p.2 n).min? with
+      | none =>
+        rw [List.min?_eq_none_iff] at hm
+        have : l ∈ ((base ++ flag).filterMap (·.plan)).filterMap fun p => lenOf p.2 n :=
+          List.mem_filterMap.2 ⟨p, List.mem_filterMap.2 ⟨r, hr, hp⟩, hl⟩
+        rw [hm] at this
+        cases this
+      | some a =>
+        obtain ⟨ha, -⟩ := List.min?_eq_some_iff.1 hm
+        obtain ⟨p', hp', ha⟩ := List.mem_filterMap.1 ha
+        obtain ⟨r', hr', hp''⟩ := List.mem_filterMap.1 hp'
+        have h1 := h r' hr' p' hp'' n a ha
+        have h2 : commonLen ((base ++ flag).filterMap (·.plan)) n = a := by
+          unfold commonLen; rw [hm]; rfl
+        simp only [framesOk, h2, decide_eq_true_eq] at hok
+        omega
+
 end Fw.Measure.OffscreenWindows

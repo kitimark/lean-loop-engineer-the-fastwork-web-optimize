@@ -4,7 +4,8 @@ import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  WKEYS, APPROACH, TOUCH_TAIL, WINDOW_NAMES, endFrame, lastFrame, pushWindows, finishWin, owner, sumRange, runWindows, armVerdicts,
+  WKEYS, APPROACH, TOUCH_TAIL, WINDOW_NAMES, endFrame, lastFrame, pushWindows, finishWin, owner, sumRange, runWindows, armVerdicts, ownVerdicts,
+  MIN_FRAMES, minVerdicts,
   profileTail, runFromCounts, readArm, cellText, summarizeArm, markdown,
 } from '../src/offscreen-windows.mjs';
 import { MIN_RUNS, SLACK } from '../src/offscreen.mjs';
@@ -21,6 +22,7 @@ test('offscreen-windows: constants match Lean and the profile', () => {
   assert.equal(MIN_RUNS, c.minRuns);
   assert.equal(SLACK, c.slack);
   assert.deepEqual(WINDOW_NAMES, c.names);
+  assert.deepEqual(MIN_FRAMES, c.minFrames);
   assert.equal(profile.id, 'swipe-touch-v1');
   assert.equal(profileTail(profile), c.tail, 'the tail segment of the profile is the Lean constant');
 });
@@ -86,6 +88,74 @@ test('offscreen-windows: an arm with no or too few runs is no data in every wind
   }
 });
 
+test('offscreen-windows: every own-end case gets the golden frames, verdict, usability and cells per window', () => {
+  const owns = ops('own');
+  assert.ok(owns.length >= 10);
+  assert.deepEqual([...new Set(owns.flatMap((g) => g.verdicts.map((v) => v.verdict)))].sort(), ['gain', 'noData', 'noGain']);
+  for (const g of owns) {
+    const got = ownVerdicts(g.base, g.flag);
+    assert.deepEqual(got.map((v) => v.window), g.verdicts.map((v) => v.window), g.case);
+    for (const [i, v] of g.verdicts.entries()) {
+      assert.equal(got[i].frames, v.frames, `${g.case}: ${v.window} frames`);
+      assert.equal(got[i].verdict, v.verdict, `${g.case}: ${v.window}`);
+      assert.equal(got[i].usable, v.usable, `${g.case}: ${v.window} usable`);
+      assert.deepEqual(got[i].cells, v.cells, `${g.case}: ${v.window} cells`);
+      assert.equal(v.verdict === 'noData', !v.usable, `${g.case}: ${v.window}: no data exactly when not usable`);
+    }
+  }
+});
+
+test('offscreen-windows: the own-end verdicts equal the uncut ones when every run has the same end and length', () => {
+  const g = ops('own').find((x) => x.case.startsWith('same end frame and same length'));
+  const cut = ownVerdicts(g.base, g.flag);
+  const uncut = armVerdicts(g.base.map(runWindows), g.flag.map(runWindows));
+  assert.deepEqual(cut.map(({ frames, ...v }) => v), uncut);
+});
+
+test('offscreen-windows: a window with no frame in common, or with too few runs, is no data and never a gain', () => {
+  for (const g of ops('own').filter((x) => /^(two base runs|no flag runs|a flag run without frames|a counter column missing)/.test(x.case))) {
+    for (const v of g.verdicts) assert.equal(v.verdict, 'noData', `${g.case}: ${v.window}`);
+  }
+  const g = ops('own').find((x) => x.case.startsWith('the flag ends 125 frames later'));
+  const by = Object.fromEntries(g.verdicts.map((v) => [v.window, v]));
+  assert.equal(by['end 0-19'].frames, 3);
+  for (const n of ['end 20-59', 'end 60-119', 'end 120+']) {
+    assert.equal(by[n].frames, 0);
+    assert.equal(by[n].verdict, 'noData');
+  }
+});
+
+test('offscreen-windows: every min-frames case gets the golden frames, minimum, own-end verdict and verdict per window', () => {
+  const mins = ops('min');
+  assert.equal(mins.length, ops('own').length);
+  for (const g of mins) {
+    const o = ops('own').find((x) => x.case === g.case);
+    const got = minVerdicts(o.base, o.flag);
+    assert.deepEqual(got.map((v) => v.window), g.verdicts.map((v) => v.window), g.case);
+    for (const [i, v] of g.verdicts.entries()) {
+      assert.equal(got[i].frames, v.frames, `${g.case}: ${v.window} frames`);
+      assert.equal(got[i].minFrames, v.minFrames, `${g.case}: ${v.window} minFrames`);
+      assert.equal(got[i].enough, v.enough, `${g.case}: ${v.window} enough`);
+      assert.equal(got[i].own, v.own, `${g.case}: ${v.window} own-end verdict`);
+      assert.equal(got[i].verdict, v.verdict, `${g.case}: ${v.window}`);
+      assert.equal(v.verdict, v.enough ? v.own : 'noData', `${g.case}: ${v.window}: the own-end verdict when enough frames, noData below`);
+    }
+  }
+});
+
+test('offscreen-windows: the 3-frame end 0-19 of the morph.stage shape reads noData, whole windows keep the own-end verdict', () => {
+  const by = (name) => Object.fromEntries(ops('min').find((x) => x.case.startsWith(name)).verdicts.map((v) => [v.window, v]));
+  const late = by('the flag ends 125 frames later');
+  assert.equal(late['end 0-19'].frames, 3);
+  assert.equal(late['end 0-19'].own, 'gain');
+  assert.equal(late['end 0-19'].verdict, 'noData');
+  assert.equal(late.approach.verdict, 'gain');
+  const whole = ops('min').find((x) => x.case.startsWith('every run records 250 frames'));
+  for (const v of whole.verdicts) assert.equal(v.verdict, v.own, v.window);
+  assert.equal(by('one flag run has 19 frames')['end 0-19'].verdict, 'noData');
+  assert.equal(by('one flag run has 20 frames')['end 0-19'].verdict, 'gain');
+});
+
 const frame = (n, scrollY, counts, phase = 'swipe') => ({ n, phase, scrollY, counts });
 function fakeCounts(total, e, tail, over = {}) {
   const frames = [];
@@ -132,6 +202,7 @@ test('offscreen-windows: readArm reads counts.json at any depth and the table na
     const md = markdown({ f: s }, base);
     assert.match(md, /\| approach \| gain; less: RasterTask/);
     assert.match(md, /End frame per run: 40/);
+    assert.match(md, /\| end 120\+ \| noData \(below 20 frames, own-end rule: \w+\).*\[10 frames, min 20\]/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

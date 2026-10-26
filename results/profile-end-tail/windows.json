@@ -1,0 +1,40 @@
+[
+ {
+  "path": "/chromium-counts-rewrite-r1/counts.json",
+  "total": 771,
+  "readerEnd": 574,
+  "lastSwipeFrame": 740,
+  "afterEnd": 166,
+  "endReason": "stalled",
+  "endFrame": 575,
+  "tailFrames": 165,
+  "endGapPx": 4,
+  "windows": {
+   "approach": 34,
+   "end 0-19": 20,
+   "end 20-59": 40,
+   "end 60-119": 60,
+   "end 120+": 47,
+   "finish": 201
+  }
+ },
+ {
+  "path": "/chromium-counts-rewrite-r2/counts.json",
+  "total": 771,
+  "readerEnd": 574,
+  "lastSwipeFrame": 740,
+  "afterEnd": 166,
+  "endReason": "stalled",
+  "endFrame": 575,
+  "tailFrames": 165,
+  "endGapPx": 4,
+  "windows": {
+   "approach": 34,
+   "end 0-19": 20,
+   "end 20-59": 40,
+   "end 60-119": 60,
+   "end 120+": 47,
+   "finish": 201
+  }
+ }
+]

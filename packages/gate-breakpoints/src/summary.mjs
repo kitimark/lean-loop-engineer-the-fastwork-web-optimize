@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { loadAnchors, loadGen, expectFor, partJson, selectParts } from './spec.mjs';
 import { context, evaluate, tallies } from './verdict.mjs';
 import { cell as settleCell, report as settleReport, staleComparable } from './settle.mjs';
-import { flagsOfSearch, readingVerdict, excusedItems, wireItem } from './flag-delta.mjs';
+import { flagsOfSearch, wireItem } from './flag-delta.mjs';
+import { readingVerdict, excusedItems, loadReplaced } from './replaced.mjs';
 
 const ENGINES = ['chromium', 'playwright-webkit'];
 const TRUTH_ROWS = ['matchMedia orig=rewrite', 'matchMedia =Lean', 'matchMedia legacy text'];
@@ -117,18 +118,18 @@ export function maskNotRendered(state) {
   return { state: { ...state, orig: withRaw(state.orig, outO), rewrite: withRaw(state.rewrite, outR) }, masked };
 }
 
-export function applyFlagDeltas(flags, ev, partIds) {
+export function applyFlagDeltas(flags, ev, partIds, es = loadReplaced()) {
   const out = [];
   for (const pid of partIds) {
     if (ev.rows[pid] !== 'fail') continue;
     const items = ev.fails[pid] ?? [];
     const wires = items.map(wireItem);
-    const v = readingVerdict(flags, pid, 'fail', wires);
+    const v = readingVerdict(flags, pid, 'fail', wires, es);
     if (v === 'fail') continue;
-    const ex = excusedItems(flags, pid, 'fail', wires);
+    const ex = excusedItems(flags, pid, 'fail', wires, es);
     ev.rows[pid] = v;
     ev.fails[pid] = [];
-    ex.forEach(([w, d], n) => out.push({ part: pid, role: w.role, idx: items[n].idx ?? null, key: w.key, orig: w.a, rewrite: w.b, delta: d.id, look: d.look, premise: d.premise }));
+    ex.forEach(([w, x], n) => out.push({ part: pid, role: w.role, idx: items[n].idx ?? null, key: w.key, orig: w.a ?? items[n].a ?? null, rewrite: w.b ?? items[n].b ?? null, delta: x.id, by: x.by, look: x.entry.look ?? 'replaced', premise: x.entry.premise }));
   }
   return out;
 }
@@ -329,7 +330,7 @@ const staleText = (x) => (x.skipped ? `not compared (${x.skipped})` : `${x.diffe
 function renderFlagDelta(fd) {
   const readings = new Map();
   for (const x of fd.excused) { const k = `${x.at} ${x.part}`; readings.set(k, [...(readings.get(k) ?? []), x]); }
-  const out = ['', `Flag deltas (Lean Fw.Gate.FlagDelta; flags from header.flags.search ${JSON.stringify(fd.search)}: ${fd.flags === null ? 'unreadable, none applied' : fd.flags.length === 0 ? 'none' : fd.flags.join(', ')}): ${readings.size} part readings excused, ${fd.excused.length} items. A reading is excused only when every failing item is an allowlisted tuple of a flag of the run; class L tuples stay look changes for the user's visual review.`];
+  const out = ['', `Flag deltas (Lean Fw.Gate.Replaced over Fw.Gate.FlagDelta; flags from header.flags.search ${JSON.stringify(fd.search)}: ${fd.flags === null ? 'unreadable, none applied' : fd.flags.length === 0 ? 'none' : fd.flags.join(', ')}): ${readings.size} part readings excused, ${fd.excused.length} items. A reading is excused only when every failing item is an allowlisted style tuple of a flag of the run or an absent anchor (count 0 on the rewrite) of a part that flag replaces; class L tuples stay look changes for the user's visual review.`];
   if (fd.excused.length === 0) return out;
   const byDelta = new Map();
   for (const x of fd.excused) { const e = byDelta.get(x.delta) ?? { x, items: 0, readings: new Set() }; e.items++; e.readings.add(`${x.at} ${x.part}`); byDelta.set(x.delta, e); }
