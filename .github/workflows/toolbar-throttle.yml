@@ -18,6 +18,8 @@ name: toolbar-throttle
 # set a smaller top-up. Its table is throttle/toolbar-report.mjs (reducers in Lean Fw.Measure.MorphEndCount, twin throttle/toolbar.mjs).
 # A commit message with [throttle:push-cycle] (task push-cycle-lag; [throttle:push-cycle:1000] for a 1 s dwell) runs six drag-past-the-end cycles per
 # pass on three arms: original, rewrite, and the user's composition (throttle/push-cycle.mjs; the table is throttle/push-cycle-report.mjs).
+# A commit message with [throttle:push-cycle-separate] (task push-cycle-separate) runs, per arm (rewrite, user), a 12-cycle pass and a dwell pass (six one-cycle touch runs with a census
+# and a rest between them) in six jobs, and the report adds the Lean cycle-versus-clock verdict and the per-cycle layer and memory census.
 # Each VM is its own job (an independent sample) and uploads `toolbar-throttle-<vm>`; the report job builds the table from them.
 on:
   push:
@@ -104,7 +106,7 @@ jobs:
         env:
           MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
-          PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
+          PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && 'rewrite,user' || contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
         run: |
           set -euo pipefail
           extra=()
@@ -140,7 +142,7 @@ jobs:
       # 3 wide: the Lean widths table (Fw.Ci.Overflow.widths, toolbar-throttle 3) is the width the overflow lanes plan for; the other morph-end jobs start when one ends.
       max-parallel: 3
       matrix:
-        vm: ${{ fromJSON(contains(github.event.head_commit.message, '[throttle:toolbar]') && (contains(github.event.head_commit.message, '[toolbar-top:3]') && '[1,2,3]' || contains(github.event.head_commit.message, '[toolbar-top:4]') && '[1,2,3,4]' || contains(github.event.head_commit.message, '[toolbar-top:5]') && '[1,2,3,4,5]' || contains(github.event.head_commit.message, '[toolbar-top:6]') && '[1,2,3,4,5,6]' || '[1,2,3,4,5,6,7,8,9,10]') || contains(github.event.head_commit.message, '[throttle:morph-end]') && '[1,2,3,4,5,6,7,8,9,10]' || '[1,2,3]') }}
+        vm: ${{ fromJSON(contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && '[1,2,3,4,5,6]' || contains(github.event.head_commit.message, '[throttle:toolbar]') && (contains(github.event.head_commit.message, '[toolbar-top:3]') && '[1,2,3]' || contains(github.event.head_commit.message, '[toolbar-top:4]') && '[1,2,3,4]' || contains(github.event.head_commit.message, '[toolbar-top:5]') && '[1,2,3,4,5]' || contains(github.event.head_commit.message, '[toolbar-top:6]') && '[1,2,3,4,5,6]' || '[1,2,3,4,5,6,7,8,9,10]') || contains(github.event.head_commit.message, '[throttle:morph-end]') && '[1,2,3,4,5,6,7,8,9,10]' || '[1,2,3]') }}
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
@@ -251,8 +253,11 @@ jobs:
           # by the job number; the dwell after each press is 300 ms, or 1000 ms with [throttle:push-cycle:1000]. It runs push-cycle-cli.mjs.
           # With [throttle:push-cycle-off] the arms are the user's composition and three flag-off pages of it (hero.countdown:strip off takes morph.countdown:strip with it, which requires it).
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
-          DWELL_MS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle:1000]') && '1000' || '300' }}
-          PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
+          DWELL_MS: ${{ (contains(github.event.head_commit.message, '[throttle:push-cycle:1000]') || contains(github.event.head_commit.message, '[throttle:push-cycle-separate]')) && '1000' || '300' }}
+          # [throttle:push-cycle-separate] (task push-cycle-separate): per arm (rewrite, user) one 12-cycle pass and one dwell pass (six one-cycle touch runs with a census and a rest
+          # between them), 1 s hold, six jobs; the Lean rule (Fw.Measure.PushCycle.sepVerdict) says cycle-driven, clock-driven or undecided.
+          PC_SEPARATE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && '1' || '' }}
+          PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && 'rewrite,user' || contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
           FW_WK_STALL_MS: ${{ (contains(github.event.head_commit.message, '[throttle:morph-end]') || contains(github.event.head_commit.message, '[throttle:push-cycle') || contains(github.event.head_commit.message, '[throttle:toolbar]')) && '720000' || '300000' }}
         working-directory: packages/measure-webkit
         run: |
@@ -263,6 +268,8 @@ jobs:
           set -euo pipefail
           if [ -n "$TOOLBAR" ]; then
             node src/throttle/toolbar-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --vm "$VM" --message "$MESSAGE" --cycles 4 --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+          elif [ -n "$PC_SEPARATE" ]; then
+            node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$PC_ARMS" --rounds 1 --rotate "$((VM - 1))" --separate --cycles 12 --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           elif [ -n "$PUSH_CYCLE" ]; then
             node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$PC_ARMS" --rounds 1 --rotate "$((VM - 1))" --cycles 6 --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           elif [ -n "$MORPH_END" ]; then
