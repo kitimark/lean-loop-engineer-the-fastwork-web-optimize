@@ -10,13 +10,14 @@ export const ARMS = Object.freeze({
   'overscroll-lock': '?fw=morph.mount:overscroll-lock',
   threaded: '?fw=morph.panel:threaded',
   nobounce: '?fw=morph.end.nobounce:on',
+  stage: '?fw=morph.stage:on',
 });
 export const ARM_ORDER = Object.freeze(Object.keys(ARMS));
 export const FLAG_ARMS = Object.freeze(ARM_ORDER.filter((a) => a !== 'default'));
-export const LOOK_CHANGE = Object.freeze(new Set(['touch-first', 'open-once', 'overscroll-lock', 'nobounce']));
+export const LOOK_CHANGE = Object.freeze(new Set(['touch-first', 'open-once', 'overscroll-lock', 'nobounce', 'stage']));
 export const FLAG_OF = Object.freeze({
   'touch-first': 'morph.mount:touch-first', 'open-once': 'morph.mount:open-once', unthrottle: 'engine.scroll:unthrottle',
-  'overscroll-lock': 'morph.mount:overscroll-lock', threaded: 'morph.panel:threaded', nobounce: 'morph.end.nobounce:on',
+  'overscroll-lock': 'morph.mount:overscroll-lock', threaded: 'morph.panel:threaded', nobounce: 'morph.end.nobounce:on', stage: 'morph.stage:on',
 });
 
 export const BURST_MAX_CS = 50000;
