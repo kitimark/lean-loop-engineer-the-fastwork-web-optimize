@@ -4307,7 +4307,7 @@
    "n": 88,
    "id": "morph.end.nobounce",
    "part": "morph.end.nobounce",
-   "candidate": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the bottom rubber band never exists and a forward push at the end leaves scrollY at the pin",
+   "candidate": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the vertical rubber band (top and bottom) never exists and a forward push at the end leaves scrollY at the pin",
    "status": "look-change",
    "flag": "morph.end.nobounce:on",
    "visClass": "L",
@@ -5076,7 +5076,7 @@
    "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): WebKit Simulator runs 40271367353 and 40271370582 lost one VM per arm (Determinism sessions), so every hero-exit window is undecided with n=2+2; no WebKit win or no-win is claimed."
   },
   {
-   "entry": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the bottom rubber band never exists and a forward push at the end leaves scrollY at the pin",
+   "entry": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the vertical rubber band (top and bottom) never exists and a forward push at the end leaves scrollY at the pin",
    "task": "morph-end-nobounce",
    "field": "mechanism",
    "text": "morph-end-nobounce (note research/notes/2026/10-2x-morph-end-nobounce.md): MEASURED Chromium swipe-touch-v1, flag run 40283424333 against default run 40283428442 at 3c5ac115f, 3 runs each, Lean cmp/judge slack 0: every window noGain, no metric differs (end frame 574). Elastic overscroll on the root is off by default in cc (layer_tree_settings.h:114-115@f842f52), so Chromium has no rubber band to remove (INFERRED for the harness). MEASURED WebKit Simulator toolbar lane, run 40283405286, jobs 1-8 (sim 9 and 10 failed: toolbar-plan has no entry for them): nobounce 7 usable passes, default 5 of 8 usable; reversals per gesture 1.11 against 1.33, re-opens 0.25 and 0.25, onsets 0.33 and 0.33, all overlapping, Lean flagVerdict no-win; cost windows 2 default / 3 flag, 3 needed, so Layout and RecalcStyle are not read. Breakpoint gate both engines PASS in run 40283431992. CONFIRMED mechanism: WKWebViewIOS.mm:1084-1087 and ScrollingTreeScrollingNodeDelegateIOS.mm:352-362@862f17d map root overscroll-behavior to UIScrollView bouncesVertically. Lean: push_at_end_no_write, pin_writes_below, no_write_above_end. Class L (end feel changes), for the user's visual review, never a preset. The push-cycle replay is a follow-up."
