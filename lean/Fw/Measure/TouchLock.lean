@@ -120,7 +120,6 @@ def Look.name : Look → String
 def look (faith cand : List Nat) : Look :=
   if faith.all (· = 0) && cand.all (· = 0) then .same else .change
 
-/-- Samples each side needs before `cmpKnown` or `lookKnown` decides: 3, like `Fw.Measure.Offscreen.minRuns`. -/
 def minSamples : Nat := 3
 
 def known (faith cand : List Nat) : Bool := decide (minSamples ≤ faith.length) && decide (minSamples ≤ cand.length)
@@ -476,7 +475,6 @@ def lookCases : List (String × List Nat × List Nat) := [
   ("no faithful run", ([], [0])),
   ("no candidate run", ([0], []))]
 
-/-- Rows for `cmpKnown`: complete rows hold `minSamples` values per side and keep the `cmp` word; short rows are undecided. -/
 def cmpKnownCases : List (String × List Nat × List Nat) := [
   ("candidate below", ([2, 3, 5], [0, 0, 1])),
   ("candidate above", ([0, 1, 1], [3, 4, 4])),
@@ -490,7 +488,6 @@ def cmpKnownCases : List (String × List Nat × List Nat) := [
   ("two runs each, separated", ([0, 1], [3, 4])),
   ("two candidate runs, separated", ([5, 6, 7], [0, 1]))]
 
-/-- Rows for `lookKnown`, as for `cmpKnownCases`. -/
 def lookKnownCases : List (String × List Nat × List Nat) := [
   ("both steady", ([0, 0, 0], [0, 0, 0])),
   ("faithful displaced", ([0, 2, 0], [0, 0, 0])),

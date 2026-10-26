@@ -13,5 +13,5 @@ per-job touch-lock cells fall below (they printed overlap). The table of changed
 **Verified:** `lake build Fw.Measure.TouchLock` green; package tests `touchlock`, `throttle-toolbar`, `throttle-morph-end` pass.
 **Stand-ins / open:** `columns`/`columnsKnown` split stays until `MorphEndCount.cmpBy` moves to `cmpKnown` (needs MorphEndCount.lean
 and `morph-end-count.jsonl`, outside the writes). Faithful empty zones: task `faithful-empty-guard`.
-**Writes outside the graph writes:** none beyond the graph list (`throttle-morph-end.test.mjs`, `touchlock.test.mjs` are test files of listed sources; `throttle-morph-end.test.mjs` is not listed).
+**Writes outside the graph writes:** `throttle-morph-end.test.mjs` (not listed; test file of a listed source).
 **Read first:** the note, then `TouchLock.lean` section on `minSamples`.

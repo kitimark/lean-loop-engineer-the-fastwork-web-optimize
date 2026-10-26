@@ -74,7 +74,6 @@ export function tbPass(t, vh, r, d, g, reversals, layout, recalc, frames) {
 
 export const cmpBy = (num, den, base, cand) => cmp(rates(base.map((p) => [num(p), den(p)])), rates(cand.map((p) => [num(p), den(p)])));
 
-/** The printed twin of `cmpBy`: a side with no rate reads `undecided`, where `cmpBy` (the Lean twin) reads `overlap`. */
 export const cmpByKnown = (num, den, base, cand) => cmpKnown(rates(base.map((p) => [num(p), den(p)])), rates(cand.map((p) => [num(p), den(p)])));
 
 export const floorHolds = (base, cand) => base.length > 0 && cand.length > 0 && Math.min(...base) <= Math.min(...cand);
@@ -117,7 +116,6 @@ export const columns = (base, cand) => ({
   costKnown: costKnown(base, cand),
 });
 
-/** `columns` with the comparison cells of `cmpByKnown`; `undecided` is neither lower nor higher, so `armVerdict` reads it as `overlap`. */
 export const columnsKnown = (base, cand) => ({
   ...columns(base, cand),
   reversals: cmpByKnown((p) => p.reversals, (p) => p.gestures, base, cand),

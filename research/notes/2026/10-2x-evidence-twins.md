@@ -13,7 +13,7 @@ Question: the audit added `TouchLock.cmpKnown` and `lookKnown` in Lean only. Doe
 side as a verdict, and what floor do the callers' data support?
 
 Status: CONFIRMED by `lake build Fw.Measure.TouchLock`, the regenerated golden and the package tests; the re-read of the
-existing artifacts is MEASURED (no new CI run, the artifacts of the runs named below).
+existing artifacts is MEASURED (no new CI run).
 
 ## What changed
 
@@ -35,7 +35,7 @@ recomputed from the printed cells is the golden verdict.
 
 - `minSamples := 3`. `known_iff` now reads `minSamples <= faith.length /\ minSamples <= cand.length`; `known_ne_nil`
   keeps "known implies both sides non-empty".
-- Complete evidence unchanged: `cmpKnown_of_known`, `lookKnown_of_known` (kept as they were).
+- Complete evidence unchanged: `cmpKnown_of_known`, `lookKnown_of_known`.
 - Short but not empty: `cmpKnown_one_faith`, `cmpKnown_one_cand`, `lookKnown_one_faith`, `lookKnown_one_cand` (one value
   on a side is undecided whatever the other side holds), on top of `cmpKnown_short`, `lookKnown_short`.
 - Golden `touch-lock.jsonl`: `cmpKnownCases` and `lookKnownCases` (own lists) hold complete rows with 3 values per side
