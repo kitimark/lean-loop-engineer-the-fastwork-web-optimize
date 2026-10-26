@@ -16,7 +16,7 @@
 
 The counts above are at fbc6ee4ff, the gate and look runs at the later commits 719a63dd0 and d4f8f292f; the site code and CSS are the same.
 
-## Chromium (MEASURED; Lean cmp/judge, slack 0; reader is a scratch TS stand-in)
+## Chromium (MEASURED; Lean cmp/judge, slack 0; reader packages/measure-chromium/src/offscreen-windows-cli.mjs, Lean Fw.Measure.OffscreenWindows; it splits end 60+ into 60-119, Paint 120 to 180, and 120+, Paint 94 to 141)
 | window | frames | verdict | differs |
 |---|---|---|---|
 | approach | 34 | gain | RasterTask 236 to 63, PaintImage 137 to 1 |
@@ -44,8 +44,8 @@ Premise `sweep.layer-pixels` (fixed progress 0, 0.5, 1.5, 2.5, 3.9 s, paused ani
 Mechanism, from probes in the same premise (a row pair per probe):
 * The first hypothesis (INFERRED: glyph overhang beyond the layer edge) is refuted. A layer padded by 6px per side (image in the content box, translate +8px; run 40264170237) left the t=0 numbers unchanged at 33 and 35, so the layer edge is not the cause. That layer was dropped.
 * WebKit (MEASURED): the original with `background-repeat: repeat` differs from the original with `no-repeat` by 35, and the layer word equals the no-repeat original exactly (0). The 35 is the original's own background tile seam at progress 0, where the tile's right edge lies on the word's right edge; the variant has no seam.
-* Chromium (MEASURED): repeat and no-repeat originals are identical (0), so it is not the tile seam; `will-change: auto` on the layer gives the same 33, and a delay of -1 ms gives 24. The differing pixels are 3 rows of the column at x = 526 (the word's box edge at 526.81): the original reads (63, 68, 76), the layer (96, 100, 106) (run 40264423344), a coverage difference on one edge column near progress 0. The mechanism inside Chromium's paint (INFERRED: the original's tile is pixel-snapped to end on the box edge at progress 0) is not shown by the engine source here; a reading of `background_image_geometry.cc` is the follow-up.
+* Chromium (MEASURED): repeat and no-repeat originals are identical (0), so it is not the tile seam; `will-change: auto` on the layer gives the same 33, and a delay of -1 ms gives 24. The differing pixels are 3 rows of the column at x = 526 (the word's box edge at 526.81): the original reads (63, 68, 76), the layer (96, 100, 106) (run 40264423344, a failed probe run at bound 12), a coverage difference on one edge column near progress 0. The mechanism inside Chromium's paint (INFERRED: Chromium pixel-snaps the background dest rect and positioning area, background_image_geometry.cc:392-401,754@f842f52, so the original's fill ends on the snapped edge 527 while the box edge is 526.81; the layer path is not snapped; not traced to the column).
 The bound stays 40 of 255 and the registry statement says so. The variant stays in the look-change class for the user's visual review.
 
 ## Limits
-No phone pass (phone-compose-counts). Chromium reader is a TS stand-in. Memory is not measured, only bounded in Lean.
+No phone pass (phone-compose-counts). Memory is not measured, only bounded in Lean.
