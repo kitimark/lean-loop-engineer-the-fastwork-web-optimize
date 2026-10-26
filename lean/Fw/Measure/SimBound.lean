@@ -7,7 +7,7 @@ namespace Fw.Measure.SimBound
 
 /-! ## Time bounds -/
 
-/-- Minutes one determinism session may run (healthy: at most 31.1 min, MEASURED over 56 green jobs). -/
+/-- Minutes one determinism session may run. -/
 def perSessionMin : Nat := 35
 
 /-- Minutes the quiet experiment may run: its length does not follow the session count. -/

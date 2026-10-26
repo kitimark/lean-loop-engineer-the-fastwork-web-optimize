@@ -1,13 +1,24 @@
-// Host load stamp: written at the start and the end of every pass (outside the timed window) so a count that comes out
-// quarantined can be checked against how busy the Mac was. `idle` is the CPU idle percent over a 1 s `top` sample.
 import os from 'node:os';
-import { spawnSync } from 'node:child_process';
 
-export function loadStamp() {
-  const t0 = Date.now();
-  let idle = null;
-  const r = spawnSync('top', ['-l', '2', '-n', '0', '-s', '1'], { encoding: 'utf8', timeout: 15000 });
-  const m = [...String(r.stdout || '').matchAll(/CPU usage:.*?([\d.]+)% idle/g)].pop();
-  if (m) idle = Number(m[1]);
-  return { ts: new Date(t0).toISOString(), load1: Math.round(os.loadavg()[0] * 100) / 100, idle, cpus: os.cpus().length };
+export function cpuTimes(cpus = os.cpus()) {
+  let idle = 0, total = 0;
+  for (const c of cpus) { idle += c.times.idle; total += c.times.user + c.times.nice + c.times.sys + c.times.idle + c.times.irq; }
+  return { idle, total };
 }
+
+export function idlePct(a, b) {
+  const dt = b.total - a.total;
+  return dt > 0 ? Math.round(((b.idle - a.idle) / dt) * 1000) / 10 : null;
+}
+
+let last = null;
+
+export function loadStamp({ now = Date.now, loadavg = os.loadavg, cpus = os.cpus } = {}) {
+  const t0 = now();
+  const c = cpus(), cur = cpuTimes(c);
+  const idle = last ? idlePct(last, cur) : null;
+  last = cur;
+  return { ts: new Date(t0).toISOString(), load1: Math.round(loadavg()[0] * 100) / 100, idle, cpus: c.length };
+}
+
+export function resetLoadStamp() { last = null; }

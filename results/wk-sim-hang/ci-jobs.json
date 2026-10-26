@@ -1,0 +1,184 @@
+[
+{
+"job": "121560165456",
+"startS": 26,
+"warmS": 158,
+"pass1S": 428,
+"pass2S": 126,
+"stepS": 740,
+"retries": 0,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+847.0,
+779.43
+],
+[
+803.9,
+902.24
+]
+],
+"blockedTicks": 0,
+"blockedMaxS": 0,
+"run": "40319007631",
+"concl": "success"
+},
+{
+"job": "121584135598",
+"startS": 32,
+"warmS": 347,
+"pass1S": 319,
+"pass2S": 142,
+"stepS": 841,
+"retries": 1,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+843.58,
+806.97
+],
+[
+806.97,
+592.76
+]
+],
+"blockedTicks": 0,
+"blockedMaxS": 0,
+"run": "40326012289",
+"concl": "success"
+},
+{
+"job": "121584135679",
+"startS": 45,
+"warmS": 389,
+"pass1S": 255,
+"pass2S": 124,
+"stepS": 812,
+"retries": 0,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+958.24,
+754.22
+],
+[
+790.07,
+874.84
+]
+],
+"blockedTicks": 0,
+"blockedMaxS": 0,
+"run": "40326012289",
+"concl": "success"
+},
+{
+"job": "121596015906",
+"startS": 68,
+"warmS": 83,
+"pass1S": 616,
+"pass2S": 150,
+"stepS": 916,
+"retries": 1,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+655.9,
+800.61
+],
+[
+858.29,
+896.96
+]
+],
+"blockedTicks": 1,
+"blockedMaxS": 106,
+"run": "40326012289",
+"concl": "success"
+},
+{
+"job": "121610109246",
+"startS": 31,
+"warmS": 65,
+"pass1S": 293,
+"pass2S": 422,
+"stepS": 811,
+"retries": 1,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+597.83,
+858.07
+],
+[
+860.7,
+694.7
+]
+],
+"blockedTicks": 0,
+"blockedMaxS": 0,
+"run": "40333469218",
+"concl": "success"
+},
+{
+"job": "121610109475",
+"startS": 27,
+"warmS": 317,
+"pass1S": 527,
+"pass2S": 107,
+"stepS": 978,
+"retries": 0,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+902.7,
+913.28
+],
+[
+915.6,
+859.1
+]
+],
+"blockedTicks": 0,
+"blockedMaxS": 0,
+"run": "40333469218",
+"concl": "success"
+},
+{
+"job": "121621071650",
+"startS": 53,
+"warmS": 132,
+"pass1S": 196,
+"pass2S": 262,
+"stepS": 643,
+"retries": 0,
+"noRetryFits": 0,
+"hostRepeats": 0,
+"stalls": 0,
+"loads": [
+[
+623.66,
+728.25
+],
+[
+729.41,
+594.12
+]
+],
+"blockedTicks": 0,
+"blockedMaxS": 0,
+"run": "40333469218",
+"concl": "success"
+}
+]
