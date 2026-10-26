@@ -45,27 +45,17 @@ export interface TimedAnim {
 }
 
 export interface FadedHost {
-  /** The section's CSS animations. */
   animations(): readonly TimedAnim[];
-  /** Put the saved start times back on the section's live animations (first flushes style, so the scene value is applied). */
   restore(saved: ReadonlyMap<TimedAnim, CSSNumberish>): void;
-  /** The dash svgs' SMIL clock (platform.glint pause), or null. */
   svg: { away(): void; back(): void } | null;
 }
 
 export interface FadedPause {
   set(zero: boolean): void;
-  /** The scene writer's report of each value it wrote. */
   onScene(v: 'active' | 'paused'): void;
   dispose(): void;
 }
 
-/**
- * platform:faded-pause. While the morph fade is 0 the section is paused (the scene writer's faded input and the SMIL
- * clocks). The CSS animations' start times are saved at the pause and put back once the scene value is `active`
- * again, so every running animation reads the phase it would have had (Lean `visible_phase`); a finished animation
- * (settled entry) is left alone. The SMIL clock goes through the glint pause (Lean `glint_phase`).
- */
 export function createFadedPause(host: FadedHost, setFaded: (faded: boolean) => void): FadedPause {
   let faded = false;
   let saved = new Map<TimedAnim, CSSNumberish>();
@@ -104,7 +94,6 @@ export interface FadedBus {
   subscribe(fn: (zero: boolean) => void): () => void;
 }
 
-/** The tween's fade-zero edge to the platform section (the last value is replayed to a late subscriber). */
 export function createFadedBus(): FadedBus {
   let last = false;
   const subs = new Set<(zero: boolean) => void>();

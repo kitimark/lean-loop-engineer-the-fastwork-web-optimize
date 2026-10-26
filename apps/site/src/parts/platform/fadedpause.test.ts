@@ -14,7 +14,6 @@ interface Fr {
   m: number;
 }
 
-/** The CSS clock the controller drives, simulated: held while the scene value is paused, running otherwise. */
 function cssRig(off: number) {
   let now = 0;
   let paused = false;
@@ -29,7 +28,6 @@ function cssRig(off: number) {
   };
   const fin: TimedAnim = { playState: 'finished', startTime: 5 };
   const engine = (v: string) => {
-    // the engine's reaction to the attribute: hold at the pause, restart with the held time at the resume
     if (v === 'paused' && !paused) {
       hold = now - (anim.startTime as number);
       paused = true;
@@ -107,7 +105,7 @@ goldenConformance('platform-faded-pause', {
     };
     const p = createPause(() => [svg], () => now);
     return (i.frames as Fr[]).map((f) => {
-      now = f.d; // the golden's glint frames carry absolute times
+      now = f.d;
       seeks = [];
       if (fadedZero(f.m)) p.away();
       else p.back();

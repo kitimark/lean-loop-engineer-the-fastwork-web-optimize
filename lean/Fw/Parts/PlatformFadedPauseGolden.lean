@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.PlatformFadedPause
-/-!
-# Golden vectors for `platform:faded-pause`
-(`packages/contracts/golden/parts/platform-faded-pause.jsonl`)
--/
+/-! # Golden vectors for `platform:faded-pause` -/
 namespace Fw.Parts.PlatformFadedPauseGolden
 open Lean Fw.Parts.PlatformFadedPause
 open Fw.Parts.MorphTween (fade fadeEnd)
@@ -18,7 +15,6 @@ def numJ (q : Rat) : Json := if q.den = 1 then .num q.num else ratWire q
 def framesJ (tr : List (Rat × Rat)) : Json :=
   .arr (tr.map fun x => Json.mkObj [("d", numJ x.1), ("m", numJ x.2)]).toArray
 
-/-- CSS trace: per frame the seeked location, wrapped phase, ticks and paused flag. -/
 def cssOuts (o : Rat) (tr : List (Rat × Rat)) : List Json :=
   let rec go (s : Fw.Parts.PlatformSweepPause.St) : List (Rat × Rat) → List Json
     | [] => []
@@ -67,15 +63,12 @@ def constLine : String :=
   (Json.mkObj [("fn", "const"), ("in", Json.mkObj []),
     ("out", Json.mkObj [("fadeEnd", numJ fadeEnd), ("flag", "platform:faded-pause"), ("variant", "faded-pause")])]).compress
 
-/-- Open, fade out, pause, close back and see the section again. -/
 def openClose : Rat × List (Rat × Rat) :=
   (0, [(16, 0), (16, 1/10), (16, 3/10), (16, 11/20), (1000, 3/5), (3000, 1), (16, 1/2), (16, 1/4), (16, 0)])
 
-/-- Settled open for a long time, then a reverse. -/
 def longOpen : Rat × List (Rat × Rat) :=
   (1234, [(16, 1/2), (16, 11/20), (5000, 1), (16, 11/20), (7000, 1), (16, 2/5), (16, 0)])
 
-/-- The edge: m just below and exactly at the end. -/
 def edge : Rat × List (Rat × Rat) :=
   (777, [(16, 1099/2000), (16, 11/20), (16, 1099/2000), (16, 11/20), (16, 11/20), (16, 1/2)])
 
@@ -94,7 +87,6 @@ def lines (_ : Unit := ()) : List String :=
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
-/-- Every non-faded frame sits at the faithful location. -/
 def sameOnVisible (o : Rat) (tr : List (Rat × Rat)) : Bool :=
   (List.range tr.length).all fun k =>
     let x := tr.getD k (0, 0)

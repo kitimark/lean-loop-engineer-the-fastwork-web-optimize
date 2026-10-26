@@ -14,7 +14,6 @@ export interface SceneHost {
   removeAttribute(name: string): void;
 }
 
-/** Lean `PlatformFadedPause.scene`: paused when the observer says offscreen or the section is faded out. */
 export function sceneValue(active: boolean, faded: boolean): SceneValue {
   return active && !faded ? 'active' : 'paused';
 }
@@ -24,11 +23,6 @@ export interface SceneWriter {
   setFaded(faded: boolean): void;
 }
 
-/**
- * The one writer of `data-fw-scene` on the section: it ORs the observer's pause with the faded pause (Lean
- * `PlatformFadedPause.scene_*`). `onValue` runs after each write with the value written. Without a faded pause it
- * writes exactly what the observer says, as the original does.
- */
 export function createSceneWriter(el: SceneHost, onValue?: (v: SceneValue) => void): SceneWriter {
   let active = true;
   let faded = false;

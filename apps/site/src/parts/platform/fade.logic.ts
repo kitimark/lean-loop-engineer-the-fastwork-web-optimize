@@ -33,7 +33,6 @@ export function keyframes(from: number, to: number): Kf[] {
   return 0 < k && k < 1 ? [ends[0]!, at(k, 0), ends[1]!] : ends;
 }
 
-/** Lean `PlatformFadedPause.zero`: the section's fade is 0 (m at or past FADE_END). */
 export function fadedZero(m: number): boolean {
   return fade({ m }) === 0;
 }

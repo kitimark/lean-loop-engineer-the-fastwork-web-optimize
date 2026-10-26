@@ -1,4 +1,4 @@
-# platform:faded-pause (task platform-faded-pause)
+# platform:faded-pause
 
 Rank 3 of research/notes/2026/10-26-end-of-page-variants.md. Status: built; gate PASS on both engines; Chromium measured; WebKit not run (reason below).
 
@@ -22,10 +22,10 @@ Rank 3 of research/notes/2026/10-26-end-of-page-variants.md. Status: built; gate
 - `scene_offscreen`, `scene_faded`, `scene_neither`: one theorem per branch of the writer's OR.
 - Golden: packages/contracts/golden/parts/platform-faded-pause.jsonl (generated), replayed in fadedpause.test.ts.
 
-## Engine sources (read before citing)
+## Engine sources
 - Chromium paint_layer_painter.cc:168-191@f842f52 `PaintedOutputInvisible` (opacity below 0.0004, no opacity animation,
   no will-change opacity, no backdrop filter); used at :424, where it only wraps the recording in
-  `ScopedEffectivelyInvisible`. The layer is still recorded; the note's mechanism holds. A WAAPI opacity animation
+  `ScopedEffectivelyInvisible`. The layer is still recorded. A WAAPI opacity animation
   (fade-threaded) would defeat the predicate (`HasCurrentOpacityAnimation`).
 - WebKit RenderLayer.cpp:6147-6150@862f17d `isSubtreeVisibilityHiddenOrOpacityZero`, used at :1522 to clear the repaint
   rects. WebKit schedules no repaint for the subtree, but the background-position animation is not accelerated and
@@ -51,7 +51,7 @@ Why finish is noGain: the verdict rule reads any counter that rises as a cost, a
 RecalcStyle and one more Layout in every run (base max 320, flag min 321). INFERRED mechanism: the resume edge writes
 `data-fw-scene` and flushes style with `getAnimations` once; those are the two extra counts, and the same +1 shows in end
 0-19 (43 to 44, 21 to 22), the window where the edge falls. Paint and PaintImage fall in the finish window, so the flag
-saves work; the verdict is strict about the two counters. Not isolated by a run.
+saves work. Not isolated by a run.
 
 WebKit: not run. The WebKit Simulator lane only scrolls (packages/measure-webkit/src/scrollrun.mjs:35 and :69 issue
 `scrollTo` steps; cli.mjs:96 calls scrollRun), so the open morph is never reached there ("WebKit has no push-phase

@@ -41,7 +41,6 @@ export interface TweenEnv {
   onActivate?(): void;
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
-  /** platform:faded-pause: called with each frame's "fade is 0" (the receiver drops repeats). */
   faded?: (zero: boolean) => void;
   rest?: boolean;
   panel?: EffectSink;
