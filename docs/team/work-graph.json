@@ -22489,7 +22489,8 @@
     "results/wk-sim-hang/**",
     "docs/team/handoffs/wk-sim-hang.md",
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
-    "packages/measure-webkit/test/watchdog.test.mjs"
+    "packages/measure-webkit/test/watchdog.test.mjs",
+    "scripts/ci-telemetry/tick.test.mjs"
    ]
   },
   {
