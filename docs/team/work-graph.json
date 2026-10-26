@@ -22391,7 +22391,8 @@
     "lean/Fw/Parts/Bridge.lean",
     "apps/site/src/parts/platform/*.test.ts",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
-   ]
+   ],
+   "evidence": "90475ef"
   },
   {
    "devices": [

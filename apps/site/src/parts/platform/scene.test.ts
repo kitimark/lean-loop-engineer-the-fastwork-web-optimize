@@ -30,7 +30,8 @@ describe('platform section wiring (source level: the site tests have no DOM)', (
   it('the section root is the scene host, bound to watchActive, and its cleanup stops the scene', () => {
     expect(index).toMatch(/<section ref=\{section\}[^>]*data-fw="platform"/);
     expect(index).toMatch(/const sec = section\.current;/);
-    expect(index).toMatch(/const stopScene = bindScene\(sec, watchActive\);\s*return \(\) => \{\s*stopScene\(\);/);
+    expect(index).toMatch(/const stopScene = bindScene\(sec, watchActive, writer\);/);
+    expect(index).toMatch(/return \(\) => \{[^}]*stopScene\(\);/);
   });
 });
 

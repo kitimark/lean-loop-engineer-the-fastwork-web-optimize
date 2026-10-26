@@ -13,7 +13,7 @@ import { People } from './parts/people';
 import { Pain } from './parts/pain';
 import { Commission } from './parts/commission';
 import { Platform } from './parts/platform';
-import { FADE_THREADED } from './parts/platform/fade.logic';
+import { FADED_PAUSE, FADE_THREADED } from './parts/platform/fade.logic';
 import { MorphPanel, type PanelWriter } from './parts/morph.panel';
 import { OverlayDrawer, openDrawer } from './parts/overlays.drawer';
 import { OverlaySignup, openSignup } from './parts/overlays.signup';
@@ -49,7 +49,7 @@ export function App({ config }: { config: FwConfig }) {
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
       <MorphMount variant={mountVariant} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} onWake={() => setWoken(true)} />
-      <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} platformFade={config.variants['platform'] === FADE_THREADED} />
+      <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} platformFade={config.variants['platform'] === FADE_THREADED} platformFadedPause={config.variants['platform'] === FADED_PAUSE} />
       {/* engine.scene: the platform section is the scene it pauses while it paints nothing (hidden-pause) */}
       <EngineScene variant={config.variants['engine.scene'] ?? 'faithful'} selector='[data-fw="platform"]' />
       {/* The nav hosts the morph panel (as the original does): `--morph` reaches it by inheritance, columns sit in its backdrop. */}

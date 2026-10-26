@@ -215,6 +215,7 @@ run_group() {
   job "platform-sweep-pause golden check" lake env lean --run scripts/PlatformSweepPauseGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-pause.jsonl
   job "platform-sweep-layer golden check" lake env lean --run scripts/PlatformSweepLayerGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-layer.jsonl
   job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl
+  job "platform-faded-pause golden check" lake env lean --run scripts/PlatformFadedPauseGolden.lean --check ../packages/contracts/golden/parts/platform-faded-pause.jsonl
   job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check
