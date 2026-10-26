@@ -22361,7 +22361,14 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
-    "research/findings/ledger.json"
+    "research/findings/ledger.json",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "packages/premise-tests/**",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl"
    ]
   },
   {
@@ -22489,7 +22496,8 @@
     "results/wk-sim-hang/**",
     "docs/team/handoffs/wk-sim-hang.md",
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
-    "packages/measure-webkit/test/watchdog.test.mjs"
+    "packages/measure-webkit/test/watchdog.test.mjs",
+    "scripts/ci-telemetry/tick.test.mjs"
    ]
   },
   {
