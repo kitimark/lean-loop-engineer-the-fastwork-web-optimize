@@ -70,6 +70,10 @@ def deltas : List Delta :=
       property := "position", orig := "static", rewrite := "relative", look := .l,
       reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
       premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-position-reduced", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "position", orig := "relative", rewrite := "static", look := .l,
+      reason := "the original's first three title words are position:relative in every motion setting (no offsets, no pixel effect); the faithful rewrite never declared position, so only the variant, which declares it, exposes the difference; under reduced motion the variant rule is off and the words stay static; a look-change flag, listed for the visual review",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
     { id := "layer-sweep-mask-image", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "mask-image", orig := "none", rewrite := "linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))", look := .l,
       reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
@@ -297,6 +301,7 @@ def sweepItems : List DItem :=
    styleItem "word" "mask-clip" "border-box" "text"]
 
 #guard readingVerdict sweepOn "platform.sweep" .fail sweepItems == .pass
+#guard readingVerdict sweepOn "platform.sweep" .fail [styleItem "word" "position" "relative" "static"] == .pass
 #guard readingVerdict [] "platform.sweep" .fail sweepItems == .fail
 #guard readingVerdict sweepOn "platform" .fail sweepItems == .fail
 #guard readingVerdict sweepOn "platform.sweep" .fail (sweepItems ++ [styleItem "word" "width" "100px" "103px"]) == .fail
