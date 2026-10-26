@@ -1,0 +1,76 @@
+/* morph.geom:on. While `.is-flip` is on the nav, the nav and the panel are laid out at the final size (--morph is held at
+   1) and the pill is cut out of that box by four nested rounded clippers that move only by transform (design note
+   research/notes/2026/10-27-morph-compositor-geometry.md; Lean Fw.Parts.MorphGeom). The wrappers exist only while
+   `.is-flip` is on; the tracks are Web Animations (driver.ts). Sizes: --mg-w and --mg-h are the final nav box
+   (panel-w by panel-h), set by the driver. */
+@layer parts {
+  /* every flip layer is a wrapper with no transitions (Lean noTransition, the `flip` golden line) */
+  .is-flip [data-mg='nav'], .is-flip [data-mg='K0'], .is-flip [data-mg='K1'], .is-flip [data-mg='K2'], .is-flip [data-mg='K3'],
+  .is-flip [data-mg='U'], .is-flip [data-mg='G'], .is-flip [data-mg='D'], .is-flip [data-mg='bar'], .is-flip [data-mg='logo'],
+  .is-flip [data-mg='actions'], .is-flip [data-mg='lang'], .is-flip [data-mg='earn'], .is-flip [data-mg='earnClip'],
+  .is-flip [data-mg='earnLabel'], .is-flip [data-mg='panel'], .is-flip [data-mg='backdropClip'], .is-flip [data-mg='Kb'],
+  .is-flip [data-mg='Ub'], .is-flip [data-mg='column'], .is-flip [data-mg='image'], .is-flip [data-mg='veil'],
+  .is-flip [data-mg='centre'], .is-flip [data-mg='footer'], .is-flip [data-mg='footerGrad'], .is-flip [data-mg='footerEnd'],
+  .is-flip [data-mg='platform'] {
+    transition: none;
+  }
+  /* the box: final size, no fill, radius, backdrop or clip of its own */
+  .is-flip [data-fw='nav'] {
+    --morph: 1 !important;
+    --nav-expand: 1 !important;
+    background: none !important;
+    border-radius: 0 !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    overflow: visible !important;
+    will-change: auto !important;
+    transition: none !important;
+  }
+  [data-mg='K0'], [data-mg='K1'], [data-mg='K2'], [data-mg='K3'] {
+    box-sizing: border-box;
+    width: calc(var(--mg-w) * 2);
+    height: calc(var(--mg-h) * 2);
+    border-radius: 20px;
+    overflow: hidden;
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+  }
+  [data-mg='U'] {
+    width: var(--mg-w);
+    height: var(--mg-h);
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+  }
+  [data-mg='G'] {
+    background: #ffffff1a;
+    -webkit-backdrop-filter: blur(0);
+    backdrop-filter: blur(0);
+    position: absolute;
+    inset: 0;
+  }
+  [data-mg='G'][data-mg-up] {
+    top: -4px;
+  }
+  [data-mg='D'] {
+    background: #131922;
+    opacity: 1;
+    position: absolute;
+    inset: 0;
+  }
+  /* element-level base rules that clash with the track properties: the tracks own `translate` on these */
+  .is-flip [data-mg='actions'] {
+    translate: none;
+    top: calc(50% - 24px);
+  }
+  .is-flip [data-mg='logo'] {
+    translate: none;
+    margin-left: calc(var(--mg-logo-w, 0px) / -2);
+  }
+  [data-mg='image'], [data-mg='veil'], [data-mg='footerGrad'] {
+    transform-origin: 0 0;
+  }
+}

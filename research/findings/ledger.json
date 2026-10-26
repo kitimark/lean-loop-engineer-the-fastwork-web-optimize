@@ -4497,6 +4497,46 @@
    "next": "gh run rerun 40349930733 --failed (third base VM), then packages/measure-webkit/src/offscreen-webkit-cli.mjs for the z5000 verdict; then the user preset decision",
    "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md; runs 40345059212 (premise), 40345141093 (gate), 40345261186 and 40345253392 (Chromium counts)",
    "userDecision": "pending"
+  },
+  {
+   "id": "morph.geom:on",
+   "n": 91,
+   "part": "morph.geom",
+   "flags": [
+    "morph.geom:on"
+   ],
+   "flag": "morph.geom:on",
+   "visClass": "L",
+   "candidate": "morph.geom:on: the end-of-page morph as compositor-only layers: nav and panel stay laid out at the final size while a push runs, the pill is cut out by four nested rounded clippers moved by transform, every --morph read becomes a piecewise-linear track on transform, opacity or filter driven from today's tween by currentTime",
+   "status": "look-change",
+   "chromium": "unknown: not measured in this round (CI pushes not spent; open list in docs/team/handoffs/morph-geom.md)",
+   "webkit": "unknown: not measured in this round; INFERRED from WebKit 862f17d GraphicsLayerCA.cpp:1183-1215 that the tracks run as CA animations",
+   "visual": "look change (L), expected: end states E by construction (Lean end_eq), mid-morph text at fractional offsets, the desktop title wrap and the backdrop edge band differ (design note 10-27-morph-compositor-geometry.md); the per-band look premise is not run yet",
+   "mechanism": "INFERRED from the Lean spec (clip_eq, net_ok_bands, rect_eq, fill_eq, accelerable_bands, noTransition_bands) and WebKit source; the site half is built (parts/morph.geom: tracks.ts replays the Lean golden within 1e-6, the driver writes currentTime only). Memory finding: the Lean census is over the headroom on 10 of 12 bands; the net-bytes decision is in research/notes/2026/10-2x-morph-geom.md",
+   "leanFor": [
+    "Fw.Parts.MorphGeom.clip_eq",
+    "Fw.Parts.MorphGeom.net_ok_bands",
+    "Fw.Parts.MorphGeom.rect_eq",
+    "Fw.Parts.MorphGeom.fill_eq",
+    "Fw.Parts.MorphGeom.accelerable_bands",
+    "Fw.Parts.MorphGeom.noTransition_bands",
+    "Fw.Parts.MorphGeom.end_eq"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphGeom.mem_bands"
+   ],
+   "missingWhy": [
+    "look premise per band, breakpoint gate and counts not run; earn clip and label, backdrop clip and reversal time tracks not built"
+   ],
+   "premises": [
+    "CA applies the effect easing across all keyTimes: INFERRED, premise not written yet",
+    "nested cornerRadius clips intersect and a backdrop filter is clipped under masked ancestors: INFERRED"
+   ],
+   "v1Evidence": "",
+   "lesson": "A Lean golden of sample points is enough to check a track builder for the closed-form geometry, but the measured layout sizes (label, earn width) must enter the builder or the Lean context, or the tracks are right only for the sample layout.",
+   "next": "Run the premises, the per-band look report, the breakpoint gate and the Chromium and WebKit counts (open list in the handoff); decide the memory shrink order on net bytes.",
+   "evidence": "research/notes/2026/10-2x-morph-geom.md; apps/site/src/parts/morph.geom/tracks.golden.test.ts",
+   "userDecision": "pending"
   }
  ],
  "notes": [
