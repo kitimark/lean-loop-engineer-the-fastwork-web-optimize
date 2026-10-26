@@ -53,6 +53,10 @@ describe("the producer", () => {
     const r = spawnSync(process.execPath, ["--test", join(root, "scripts/ci-telemetry/cli.test.mjs")], { encoding: "utf8" });
     expect(r.status, (r.stdout ?? "").slice(-2000)).toBe(0);
   });
+  it("passes the upload tick tests (scripts/ci-telemetry/tick.test.mjs, node --test)", () => {
+    const r = spawnSync(process.execPath, ["--test", join(root, "scripts/ci-telemetry/tick.test.mjs")], { encoding: "utf8" });
+    expect(r.status, (r.stdout ?? "").slice(-2000)).toBe(0);
+  });
 });
 
 describe("arguments", () => {
