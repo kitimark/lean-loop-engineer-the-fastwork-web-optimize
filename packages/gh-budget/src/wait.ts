@@ -67,25 +67,18 @@ export type WaitPhases = {
 export type WaitOpts = { timeoutS: number; nowMs?: () => number; phases?: (p: WaitPhases) => void };
 type Probe = { ms: () => number; ph: WaitPhases };
 
-/** Seconds a queued or in-progress row stays trusted after its view. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.inflightS`). */
 export const INFLIGHT_S = 300;
-/** `uncovered` incidents of one run that end its wait, the lookback before the wait within which they count, and the exit code.
- *  TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.uncoveredMax`, `uncoveredLookbackS`, `uncoveredCode`). */
 export const UNCOVERED_MAX = 2;
 export const UNCOVERED_LOOKBACK_S = 1200;
 export const UNCOVERED_CODE = 6;
-/** Lean `Fw.Ci.Attempt.uncoveredExit`: enough incidents in the lookback, at least one at or after `regAt`. */
 export const uncoveredExit = (regAt: number, times: number[]): boolean =>
   UNCOVERED_MAX <= times.filter((x) => regAt <= x + UNCOVERED_LOOKBACK_S).length && times.some((x) => regAt <= x);
 
-/** Whether a cached row answers a wait. TS stand-in replaying golden ci/attempt-inflight.jsonl (Lean `Fw.Ci.Attempt.trusted`):
- *  a finished row by `fresh` (fwcore), an unfinished row only within `INFLIGHT_S` of its view. */
 export function trustedRow(env: Env, completed: boolean, readAt: number | undefined): boolean {
   if (completed) return freshRead(env, readAt);
   return readAt !== undefined && env.now() <= readAt + INFLIGHT_S;
 }
 
-/** The times of the `uncovered` incidents of one run logged at or after `since` (the poller writes them, `drainIncidents`). */
 export function uncoveredSince(env: Env, runId: number, since: number): number[] {
   let text: string;
   try { text = readFileSync(paths(env.dir).incidents, "utf8"); } catch { return []; }
@@ -338,9 +331,6 @@ export const cleanups = new Set<() => void>();
 
 // ---- the bootstrap of a run id: its creation time, from the poller's list or one charged view (cached) -----------------
 async function createdOf(env: Env, runId: number, deadline: number): Promise<{ row: Row } | { fail: Waited }> {
-  // a row (in the poller's file or the meta cache) answers only while the view that read it is recent (Lean
-  // `Fw.Ci.Attempt.trusted`): a finished row for `freshS`, an unfinished one for `inflightS`; a later wait reads the run
-  // again, since a rerun may have started or the run has finished since. One charged view refreshes a stale row.
   const listed = (): Row | undefined => {
     const st = readStatus(env.dir);
     const r = st?.rows.find((x) => x.databaseId === runId);

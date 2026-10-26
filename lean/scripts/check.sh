@@ -174,7 +174,7 @@ run_group() {
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check
   job "state-list golden check" lake env lean --run scripts/StateListGolden.lean --check
   job "ci-state golden check" lake env lean --run scripts/CiStateGolden.lean --check
-  job "attempt-inflight golden check" sh -c "printf 'import Fw.Ci.AttemptGolden\\n#eval Fw.Ci.AttemptGolden.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/ci/attempt-inflight.jsonl (Fw.Ci.Attempt.trusted, uncoveredExit)
+  job "attempt-inflight golden check" sh -c "printf 'import Fw.Ci.AttemptGolden\\n#eval Fw.Ci.AttemptGolden.gen [\"--check\"]\\n' | lake env lean --stdin"
   job "slot-key golden check" lake env lean --run scripts/SlotKeyGolden.lean --check
   job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check
