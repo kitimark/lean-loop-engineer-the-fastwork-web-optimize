@@ -12,8 +12,6 @@ JSON glue for `Fw.Faithful.zoneVerdict` (namespace `Fw.Wire.Faithful`, so the ma
 | `faithful.comparable` | `a`, `r` (each `{profile, preset, browser, zoneHeightPx, viewport: {width, height, dpr, mobile, touch}, observed?: {width, height}}`) | `comparable` (`Fw.Faithful.comparable a r = none`), `field` (the first failing field, else `null`) |
 | `faithful.verdict` | `classes` (A's frozen class table `{type: {class, k, t, tBound?}}`), `a` and `r` (zone lists as in the `zones` of a `measure.zoneBaseline` reply or a stored baseline file: `{id, frames, scrolledPx, types: {type: {lo, hi, base}}}`), `zones`? (ids to judge, default the region `y04000`, `y04500`, `tail`) | `pass`, `failedZones`, `zones` `[{id, present, shape, pass, framesA, framesR, pxA, pxR, failed, tally, cells}]`, `cells` `{type: {family, status, lo, hi, a, r}}` |
 
-`a` supplies the envelope `lo`, `hi` and the median `base`; `r` supplies the median `base` only (its `lo`, `hi` are
-reported by the caller). A zone absent from `a` or `r` is `present: false`.
 -/
 namespace Fw.Wire.Faithful
 open Lean Fw.Faithful Fw.Wire.Measure
@@ -35,12 +33,11 @@ def familyName : Family → String
 def statusName : Status → String
   | .pass => "pass" | .fail => "fail" | .skipped => "skipped" | .unbanded => "unbanded"
 
-/-- The reply fields of one zone verdict. -/
-def zoneJson (a r : List ZBase) (v : ZoneVerdict) : Json :=
+def zoneFields (a r : List ZBase) (v : ZoneVerdict) (pass : Bool) : List (String × Json) :=
   let za := findZ a v.id
   let zr := findZ r v.id
   let cnt (s : Status) : Json := toJson (v.cells.filter (·.status == s)).length
-  Json.mkObj [("id", .str v.id), ("present", .bool v.present), ("shape", .bool v.shape), ("pass", .bool v.pass),
+  [("id", .str v.id), ("present", .bool v.present), ("shape", .bool v.shape), ("pass", .bool pass),
     ("framesA", toJson (za.map (·.frames))), ("framesR", toJson (zr.map (·.frames))),
     ("pxA", toJson (za.map (·.scrolledPx))), ("pxR", toJson (zr.map (·.scrolledPx))),
     ("failed", strArr v.failed),
@@ -49,7 +46,24 @@ def zoneJson (a r : List ZBase) (v : ZoneVerdict) : Json :=
       (c.type, Json.mkObj [("family", .str (familyName c.family)), ("status", .str (statusName c.status)),
         ("lo", toJson c.obs.lo), ("hi", toJson c.obs.hi), ("a", toJson c.obs.a), ("r", toJson c.obs.r)])))]
 
-/-- `faithful.verdict`: see the table above. -/
+def zoneJson (a r : List ZBase) (v : ZoneVerdict) (j : Judged) : Json :=
+  Json.mkObj (zoneFields a r v (j == .pass) ++ if j == .undecided then [("undecided", .bool true)] else [])
+
+def undecidedReason (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) : String :=
+  if zs.isEmpty then "no zone to judge"
+  else "no evidence: " ++ ", ".intercalate (zs.filter (zoneJudged tb a r · == .undecided))
+
+def verdictReply (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) : Reply :=
+  let j := judged tb a r zs
+  [("pass", .bool (j == .pass)), ("failedZones", strArr (zs.filter (zoneJudged tb a r · == .fail))),
+    ("zones", .arr (zs.toArray.map fun Z => zoneJson a r (zoneVerdict tb a r Z) (zoneJudged tb a r Z)))] ++
+    if j == .undecided then [("undecided", .str (undecidedReason tb a r zs))] else []
+
+def unguardedReply (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) : Reply :=
+  let vs := zs.map (zoneVerdict tb a r)
+  [("pass", .bool (vs.all (·.pass))), ("failedZones", strArr ((vs.filter (!·.pass)).map (·.id))),
+    ("zones", .arr (vs.toArray.map fun v => Json.mkObj (zoneFields a r v v.pass)))]
+
 def opVerdict (req : Json) : Except String Reply := do
   let tb ← tableOf "classes" (← field req "classes")
   let a ← (← arr req "a").toList.mapM zbaseOf
@@ -57,11 +71,40 @@ def opVerdict (req : Json) : Except String Reply := do
   let zs ← match opt req "zones" with
     | none => pure regionZones
     | some j => (← asArr "zones" j).toList.mapM (asStr "zones")
-  let vs := zs.map (zoneVerdict tb a r)
-  pure [("pass", .bool (vs.all (·.pass))), ("failedZones", strArr ((vs.filter (!·.pass)).map (·.id))),
-        ("zones", .arr (vs.toArray.map (zoneJson a r)))]
+  pure (verdictReply tb a r zs)
 
-/-- Decode the `Meta` of a baseline: `viewport` is the profile viewport, `observed` (optional) what the page reported. -/
+theorem evidence_of_reply_pass (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String)
+    (h : (verdictReply tb a r zs).lookup "pass" = some (.bool true)) :
+    zs ≠ [] ∧ ∀ Z ∈ zs, evidence a r Z = true ∧ (zoneVerdict tb a r Z).pass = true := by
+  apply evidence_of_judged_pass tb a r zs
+  simp only [verdictReply, List.cons_append, List.lookup_cons, beq_self_eq_true, Option.some.injEq,
+    Json.bool.injEq, beq_iff_eq] at h
+  exact h
+
+theorem verdictReply_eq_unguarded (tb : Fw.Measure.Freeze.Table) (a r : List ZBase) (zs : List String) (hne : zs ≠ [])
+    (he : ∀ Z ∈ zs, evidence a r Z = true) : verdictReply tb a r zs = unguardedReply tb a r zs := by
+  have hj := judged_eq_unguarded tb a r zs hne he
+  have h1 : (unguarded tb a r zs == .pass) = zs.all fun Z => (zoneVerdict tb a r Z).pass := by
+    unfold unguarded; split
+    · next h => simp [h]
+    · next h => simp only [Bool.not_eq_true] at h; simp [h]
+  have h4 : (unguarded tb a r zs == .undecided) = false := by unfold unguarded; split <;> rfl
+  have hfail : ∀ Z, (zoneJudged tb a r Z == .fail) = !(zoneVerdict tb a r Z).pass := by
+    intro Z
+    cases h : (zoneVerdict tb a r Z).pass
+    · simp [(zoneJudged_fail_iff tb a r Z).2 h]
+    · have : zoneJudged tb a r Z ≠ .fail := fun e => by simp [(zoneJudged_fail_iff tb a r Z).1 e] at h
+      simp [this]
+  have h2 : ∀ l : List String, l.map (fun Z => (zoneVerdict tb a r Z).id) = l := fun l => by
+    simp [zoneVerdict_id]
+  have h3 : ∀ Z ∈ zs, zoneJson a r (zoneVerdict tb a r Z) (zoneJudged tb a r Z) =
+      Json.mkObj (zoneFields a r (zoneVerdict tb a r Z) (zoneVerdict tb a r Z).pass) := fun Z hZ => by
+    rw [zoneJson, zoneJudged_of_evidence tb a r Z (he Z hZ)]
+    cases (zoneVerdict tb a r Z).pass <;> rfl
+  simp only [verdictReply, unguardedReply, hj, h1, h4, Bool.false_eq_true, ↓reduceIte, List.append_nil,
+    List.all_map, List.filter_map, List.map_map, Function.comp_def, hfail, h2, List.map_toArray]
+  rw [List.map_congr_left h3]
+
 def metaOf (j : Json) : Except String Meta := do
   let vp ← field j "viewport"
   let bool (k : String) : Except String Bool := do
