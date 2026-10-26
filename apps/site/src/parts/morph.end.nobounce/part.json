@@ -1,0 +1,29 @@
+{
+  "id": "morph.end.nobounce",
+  "slot": "morph",
+  "anchors": [
+    "morph-end-nobounce"
+  ],
+  "experiment": true,
+  "impls": [],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": {
+        "original": "_app/immutable/nodes/2.DyWL8TcE.js:13017-13090"
+      }
+    },
+    "on": {
+      "kind": "proposal",
+      "visClass": "L",
+      "provenance": {
+        "lean": "Fw.Parts.MorphEndNobounce push_at_end_no_write, pin_writes_below, no_write_above_end, nb_target",
+        "limit": "look change (L): html { overscroll-behavior-y: none } from first paint, never toggled, so the bottom rubber band never exists on any page (WKWebViewIOS.mm:1084-1087, ScrollingTreeScrollingNodeDelegateIOS.mm:352-362@862f17d); a forward push at the end leaves scrollY at the pin and the pin write has nothing to correct; Safari toolbar reveal on a bottom bounce may differ; differs from morph.mount:overscroll-lock, which toggled it while armed or active; for the user's visual review, never into a preset"
+      }
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}

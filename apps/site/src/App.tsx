@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Hero } from './parts/hero';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
+import { nobounceProps } from './parts/morph.end.nobounce';
 import { MorphCountdown } from './parts/morph.countdown';
 import { NavHitTest } from './parts/nav.hitTest';
 import { Nav } from './parts/nav';
@@ -66,7 +67,7 @@ export function App({ config }: { config: FwConfig }) {
         )}
       </Nav>
 
-      <div data-fw="page-root">
+      <div data-fw="page-root" {...nobounceProps(config.variants['morph.end.nobounce'] ?? 'faithful')}>
       <main>
         <Hero variants={config.variants} />
         <People variants={config.variants} />

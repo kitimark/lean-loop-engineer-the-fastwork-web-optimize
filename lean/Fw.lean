@@ -95,6 +95,8 @@ import Fw.Parts.MorphPanelThreadedRun
 import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
+import Fw.Parts.MorphEndNobounce
+import Fw.Parts.MorphEndNobounceGolden
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause
