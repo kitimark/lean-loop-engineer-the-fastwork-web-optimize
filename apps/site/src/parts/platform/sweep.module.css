@@ -25,6 +25,45 @@
       animation: none;
     }
   }
+  /* platform.sweep:layer-sweep (look change): the word keeps its glyphs as a static mask and the same gradient, on a
+     child layer 3 times as wide, is moved by a compositor transform instead of repainting background-position.
+     The layer starts 2/3 of its width to the left (background-position 100%) and ends flush (0%); Lean PlatformSweepLayer. */
+  .layerBg {
+    display: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .sweep.sweep.layer {
+      display: inline-block;
+      position: relative;
+      animation: none;
+      background-image: none;
+      -webkit-background-clip: border-box;
+      background-clip: border-box;
+      -webkit-mask-image: linear-gradient(#000, #000);
+      mask-image: linear-gradient(#000, #000);
+      -webkit-mask-clip: text;
+      mask-clip: text;
+    }
+    .layerBg {
+      display: block;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 300%;
+      height: 100%;
+      background-image: linear-gradient(90deg, #fff 0 33.33%, #82bcff 40%, #2483ff 45%, #ff66f4 50%, #ff3029 55%, #fe7b02 60%, #fff 66.67% 100%);
+      animation: 4s linear infinite sweepLayerX;
+      will-change: transform;
+    }
+  }
+  @keyframes sweepLayerX {
+    0% {
+      transform: translateX(-66.6667%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
   @keyframes sweepDoc {
     0% {
       background-position: 100%;

@@ -11,6 +11,7 @@ import sw from './sweep.module.css';
 import st from './stage.module.css';
 import { Ask, Invoice, Profile, Secure, type Subs } from './Visuals';
 import { VARIANT as SWEEP_PAUSE, watchSweepPause } from '../platform.sweep/pause';
+import { VARIANT as SWEEP_LAYER } from '../platform.sweep/layer';
 
 export interface PlatformSubVariants {
   sweep?: string;
@@ -85,7 +86,9 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   const card = useRef<HTMLDivElement>(null);
   const faithful = (v: string | undefined) => (v ?? 'faithful') === 'faithful';
   const sweepPause = sub.sweep === SWEEP_PAUSE;
-  const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : sub.sweep === 'probe-off' ? cx(sw.sweep, sw.still) : undefined;
+  const sweepLayer = sub.sweep === SWEEP_LAYER;
+  const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : sub.sweep === 'probe-off' ? cx(sw.sweep, sw.still) : sweepLayer ? cx(sw.sweep, sw.layer) : undefined;
+  const layerBg = sweepLayer ? <i className={sw.layerBg} aria-hidden="true" /> : null;
   const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
 
   useEffect(() => {
@@ -144,7 +147,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
                 }
               >
                 <h3 className={css.rowTitle}>
-                  <span className={cx(css.word, sweep)} data-fw-sweep="">Document</span> <span className={css.rest}>your portfolio and reviews</span>
+                  <span className={cx(css.word, sweep)} data-fw-sweep="">Document{layerBg}</span> <span className={css.rest}>your portfolio and reviews</span>
                 </h3>
               </Row>
               <Row
@@ -157,7 +160,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
                 }
               >
                 <h3 className={css.rowTitle}>
-                  <span className={cx(css.rest, css.restBlock)}>Get discovered.</span> <span className={cx(css.word, sweep)} data-fw-sweep="">Earn</span> <span className={css.rest}>more</span>
+                  <span className={cx(css.rest, css.restBlock)}>Get discovered.</span> <span className={cx(css.word, sweep)} data-fw-sweep="">Earn{layerBg}</span> <span className={css.rest}>more</span>
                 </h3>
               </Row>
               <Row
@@ -169,7 +172,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
                 }
               >
                 <h3 className={css.rowTitle}>
-                  <span className={cx(css.word, sweep)} data-fw-sweep="">Secure</span> <span className={css.rest}>payment worldwide</span>
+                  <span className={cx(css.word, sweep)} data-fw-sweep="">Secure{layerBg}</span> <span className={css.rest}>payment worldwide</span>
                 </h3>
                 <ul className={css.rowChecks}>
                   <li className={css.rowCheck}>
@@ -191,10 +194,10 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
               >
                 <h3 className={css.rowTitle}>
                   <span className={css.titleF}>
-                    <span className={cx(css.word, sweep)}>Maintain</span> <span className={css.rest}>relationship with your clients</span>
+                    <span className={cx(css.word, sweep)}>Maintain{layerBg}</span> <span className={css.rest}>relationship with your clients</span>
                   </span>{' '}
                   <span className={css.titleI}>
-                    <span className={cx(css.rest, css.restBlock)}>Keep every order</span> <span className={cx(css.word, css.wordFree, sweep)} data-fw-sweep="">Organized</span>
+                    <span className={cx(css.rest, css.restBlock)}>Keep every order</span> <span className={cx(css.word, css.wordFree, sweep)} data-fw-sweep="">Organized{layerBg}</span>
                   </span>
                 </h3>
               </Row>
