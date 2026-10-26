@@ -427,7 +427,6 @@ theorem verdict_empty_base (flag : List Vec) : verdict [] flag = .noData := noDa
 
 theorem verdict_empty_flag (base : List Vec) : verdict base [] = .noData := noData_of_fewFlag base [] (by decide)
 
-/-- Frames of the section's hidden mask. -/
 def hiddenMask (rs : List Rec) : List Bool := rs.map Rec.hidden
 
 /-- One run's window: the steady frames after `k` settle frames and, per counter, its sum over them. -/

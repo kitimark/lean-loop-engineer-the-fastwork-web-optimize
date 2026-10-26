@@ -1,8 +1,5 @@
 import Fw.Measure.MorphEndCount
 import Fw.Faithful.Zone
-/-!
-# Fw.Measure.VerdictEvidence: an empty side is never a win, for verdicts whose modules this audit does not edit
--/
 namespace Fw.Measure.VerdictEvidence
 
 theorem morphEnd_win_needs_cost (base cand : List MorphEndCount.TbPass) (h : MorphEndCount.flagVerdict base cand = .win) :

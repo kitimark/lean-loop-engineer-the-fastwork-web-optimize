@@ -40,7 +40,6 @@ Not edited (outside this task's writes), audited:
    `lookKnown` replaying ops `cmpKnown`/`lookKnown` of `touch-lock.jsonl`, and let `summarize` use them; then
    `MorphEndCount.cmpBy` and `throttle/morph-end-report.mjs` can switch to `cmpKnown`.
 2. `Fw.Faithful.Wire.opVerdict` (outside the writes): a request with `zones: []` passes with no zone judged, and a
-   zone with 0 frames and no cells in both arms passes. Both are empty-evidence passes; the guard belongs in
-   `Fw/Faithful/Zone.lean` or `Wire.lean`.
+   zone with 0 frames and no cells in both arms passes. The guard belongs in `Fw/Faithful/Zone.lean` or `Wire.lean`.
 3. `Fw.Parts.NavFixedCounts.armOf` (outside the writes): a win needs one usable cell; unusable cells next to it do not
-   make the arm undecided. Whether a partly measured arm may win is a design question for that task.
+   make the arm undecided. Whether a partly measured arm may win is a design question.
