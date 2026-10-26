@@ -4179,6 +4179,90 @@
    "lesson": "Removing the animated layer removes both the WebKit backing cost and the WebKit paint saving, and it shows dark where the original is still white; the backing-free arrangement is a look change, not a free win.",
    "next": "user look review (look-change candidate); not a v2-proved candidate",
    "evidence": "research/notes/2026/10-2x-pain-dark-scroll.md (arrangement tried: pain:dark-static); apps/site/src/parts/pain/part.json variants.dark-static"
+  },
+  {
+   "id": "platform.sweep.probe-off",
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:probe-off: measurement-only arm that switches the sweep work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.sweep:probe-off"
+   ],
+   "chromium": "MEASURED mixed (run 40237508223, base 40203753344): finish 215 fewer raster tasks and 792 fewer PaintImage, Paint +1 per frame (counter artifact, INFERRED) so the Lean verdict is no-gain after the approach",
+   "webkit": "MEASURED gain (run 40237513521, 3 VMs, base 40203774734 + 40236531932): z5000 Paint 54-66 to 30-36, finish 166-222 to 80-143; other counts inside the base spread",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The sweep paint is the largest end-of-page platform cost on WebKit; its ceiling is this saving.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "id": "platform.glint.probe-off",
+   "part": "platform.glint",
+   "candidate": "platform.glint:probe-off: measurement-only arm that switches the glint work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.glint:probe-off"
+   ],
+   "chromium": "MEASURED gain only in approach and end 0-19 (run 40236516819): 38 fewer raster tasks, 9 fewer style recalcs, nothing after end+20",
+   "webkit": "MEASURED gain in z5000, no-gain in finish (run 40236465002, 3 VMs): z5000 Paint 54-66 to 40-44",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The glint work is confined to the push approach and the first 20 end frames.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "id": "platform.entries.probe-off",
+   "part": "platform.entries",
+   "candidate": "platform.entries:probe-off: measurement-only arm that switches the entries work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.entries:probe-off"
+   ],
+   "chromium": "MEASURED no-gain in the end phases (run 40236472868): 5 of 6 approach layouts gone (Layout 6 to 1), FireAnimationFrame 400 to 402 (cost), nothing after the end",
+   "webkit": "UNDECIDED, n = 2 of 3 VMs (run 40236534457, VM r1 lost): would read ObserverCallback 14 to 6, FireAnimationFrame less",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The entries contain only changes the approach layouts; it removes no end-phase work on Chromium.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "id": "platform.marquee.probe-off",
+   "part": "platform.marquee",
+   "candidate": "platform.marquee:probe-off: measurement-only arm that switches the marquee work off to attribute its cost (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "platform.marquee:probe-off"
+   ],
+   "chromium": "MEASURED no-gain in every window (run 40236462082)",
+   "webkit": "UNDECIDED, n = 2 of 3 VMs (run 40236475717, VM r3 lost): counts inside the base spread",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "The marquee probe moves no count; the marquee is not an end-of-page cost.",
+   "next": "step-2 variants are built in later tasks",
+   "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
   }
  ],
  "notes": [
