@@ -4757,6 +4757,18 @@
    "task": "toolbar-proof-morph",
    "field": "mechanism",
    "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
+  },
+  {
+   "entry": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "task": "push-cycle-lag",
+   "field": "mechanism",
+   "text": "push-cycle-lag (run 40242079617, WebKit Simulator real touches, 6 drag-past-the-end cycles, dwell 1 s, 3 jobs, MEASURED): the user composition without engine.scroll:unthrottle has a larger slow >50 ms frame share than the composition at every cycle index (34% against 23% over k=0..2, 81% against 64% over k=3..5), so removing the lift makes pull-in-and-out slower, consistent with the WebKit win; it does not remove the rise with the cycle index (Lean Fw.Measure.PushCycle.trend still rises), so the flag is not the cause of the push-cycle lag. One run set, arm order rotated but not balanced; the control itself spreads about 15 points between runs (INFERRED). Note: research/notes/2026/10-2x-push-cycle-lag.md."
+  },
+  {
+   "entry": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
+   "task": "push-cycle-lag",
+   "field": "mechanism",
+   "text": "push-cycle-lag (run 40242079617, WebKit Simulator real touches, 6 cycles, dwell 1 s, MEASURED): removing hero.countdown:strip (with it morph.countdown:strip) or morph.countdown:strip alone from the user composition leaves the rise of slow >50 ms frames with the cycle index in place (Lean Fw.Measure.PushCycle.trend rises for both; slow share k=0..2 21% and 22% against 23% for the composition, k=3..5 52% and 57% against 64%). The strips are therefore not the cause of the push-cycle lag. Without hero.countdown:strip the rise starts later (k=3 24% against 65%) and catches up at k=4 and k=5; one pass per arm position, so a delay is not separable from the pass clock (INFERRED). Note: research/notes/2026/10-2x-push-cycle-lag.md."
   }
  ]
 }
