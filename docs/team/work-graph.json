@@ -22067,7 +22067,8 @@
     "docs/team/tools/ci-telemetry.md",
     "docs/team/handoffs/macos-vm-upload.md",
     "apps/runner/test/ci-telemetry.test.ts"
-   ]
+   ],
+   "evidence": "20b25c6"
   },
   {
    "devices": [

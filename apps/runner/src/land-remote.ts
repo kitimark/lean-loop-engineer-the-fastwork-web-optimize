@@ -42,6 +42,7 @@ export function laneStateOf(call: FwCall, code: number, out = "", view: GhRunVie
   return laneRead(call, code, out, view).state;
 }
 export const SAID_FAIL = /-> fail\b/;
+export const WAIT_UNCOVERED = 6;
 
 export type JobRecord = { status: string; conclusion: string };
 export function legRecords(view: GhRunView | null): JobRecord[] | null {
@@ -169,7 +170,9 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
       let id: string | undefined;
       if (!going) {
         id = /\brun (\d+)\b/.exec(w.out)?.[1];
-        const hit = d.cache?.(h, id) ?? null;
+        const uncovered = w.code === WAIT_UNCOVERED;
+        if (uncovered) note = `run ${id ?? "?"}: the poller's list does not cover it (waiter exit ${WAIT_UNCOVERED}); its record is read with gh, the poller's file is not used`;
+        const hit = uncovered ? null : d.cache?.(h, id) ?? null;
         if (hit && (hit.conclusion === "failure" || (!partial && laneBind(hit) && (w.code === 0 || legRecords(hit) !== null)))) view = hit;
         else {
           const o = { deadline: Math.ceil((d.now?.() ?? Date.now()) / 1000 + sliceS), ...(signal ? { signal } : {}) };
@@ -184,7 +187,7 @@ export function githubAdapter(d: GithubDeps, push: Pusher = makePusher(d)): Adap
             }
           } catch (e) {
             view = hit;
-            note = `land run record not read (${e instanceof Error ? e.message : String(e)})`;
+            note = `${note ? `${note}; ` : ""}land run record not read (${e instanceof Error ? e.message : String(e)})`;
           }
         }
       }
