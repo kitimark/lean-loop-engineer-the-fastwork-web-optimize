@@ -1,8 +1,8 @@
 branch: worktree-wf_ad288bf9-c79-1
 worktree: .claude/worktrees/wf_ad288bf9-c79-1 (under the main checkout)
-last commit: see `git log -1` on the branch (note and replay at 434ed3c99)
+last commit: see `git log -1` on the branch (Lean cleanup at 2811d44f0, note and replay at 434ed3c99)
 CI runs: none (the replay used job logs only)
-verified: Lean SimHost/SimHostGolden build, golden regenerated and checked; measure-webkit sim-host and poll tests; ci-paths test; runner land-inputs test
+verified: Lean SimHost/SimHostGolden build, golden regenerated and checked; lean/scripts/check.sh and the measure-webkit tests through `fw slot`; ci-paths test; runner land-inputs test; plan lint 0 errors; dry land (see `fw land --dry` output in the report)
 open: lead decision on the price (14 of 98 green jobs refused by the derived gates against 1 with the shipped needs); wk-sim-hang note's Lean paragraph outdated (outside writes)
 
 ## State
