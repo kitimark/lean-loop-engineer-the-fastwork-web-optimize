@@ -318,20 +318,14 @@ theorem preset_registered {reg : List Reg} {links : List (Flag × List Key)} {le
   obtain ⟨⟨⟨⟨r, hr, hf, hk⟩, _⟩, _⟩, _⟩ := hq
   exact ⟨r, hr, hf, hk⟩
 
-/-- A flag is a probe when some registration of it has kind `probe`: a part-off variant that exists only so a lane can
-measure what the part does (`part.json` `kind: "probe"`). -/
 def isProbe (reg : List Reg) (f : Flag) : Bool :=
   reg.any fun r => r.flag == f && r.kind == .probe
 
-/-- A registry keeps probes clean when no probe carries a look class. -/
 def probesClean (reg : List Reg) : Bool :=
   reg.all fun r => r.kind != .probe || r.visClass.isNone
 
-/-- Every registration of `f` is a probe. -/
 def OnlyProbe (reg : List Reg) (f : Flag) : Prop := ∀ r ∈ reg, r.flag = f → r.kind = .probe
 
-/-- **A probe is never optimized**: when every registration of the flag is a probe, the flag does not qualify as an
-optimized variant. -/
 theorem probe_not_isOpt {reg : List Reg} {f : Flag} (h : OnlyProbe reg f) : isOpt reg f = false := by
   unfold isOpt
   rw [Bool.eq_false_iff]
@@ -342,8 +336,6 @@ theorem probe_not_isOpt {reg : List Reg} {f : Flag} (h : OnlyProbe reg f) : isOp
   rw [hq.2] at this
   cases this
 
-/-- **A probe never qualifies**: `ok` is false for a flag whose every registration is a probe, whatever the ledger and
-the stored runs say. -/
 theorem probe_not_ok {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored} {f : Flag}
     (h : OnlyProbe reg f) : ok reg links ledger st f = false := by
   simp [ok, probe_not_isOpt h]
@@ -359,7 +351,6 @@ theorem eq_of_nodup_map {α β : Type} (g : α → β) : ∀ {l : List α}, (l.m
     · exact absurd (hab ▸ List.mem_map_of_mem ha') hn.1
     · exact eq_of_nodup_map g hn.2 ha' hb' hab
 
-/-- **Unique flags**: in a registry with unique flags, a registered probe has only probe registrations. -/
 theorem onlyProbe_of_nodup {reg : List Reg} {f : Flag} (hnd : (reg.map (·.flag)).Nodup) (hp : isProbe reg f = true) :
     OnlyProbe reg f := by
   obtain ⟨r0, hr0, hq⟩ := List.any_eq_true.1 hp
@@ -369,8 +360,6 @@ theorem onlyProbe_of_nodup {reg : List Reg} {f : Flag} (hnd : (reg.map (·.flag)
   rw [this]
   exact hq.2
 
-/-- **A probe is never in the preset** (the pinned unit's rule): a flag whose every registration is a probe is not a
-member of the arm, whatever the links, the ledger and the stored runs say. -/
 theorem probe_not_mem {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored} {f : Flag}
     (h : OnlyProbe reg f) : f ∉ preset reg links ledger st := by
   intro hm
@@ -379,8 +368,6 @@ theorem probe_not_mem {reg : List Reg} {links : List (Flag × List Key)} {ledger
   rw [hk] at this
   cases this
 
-/-- The same for a registered probe of a registry with unique flags (what the registry reader builds: one entry per
-part and variant). -/
 theorem probe_not_mem_of_nodup {reg : List Reg} {links : List (Flag × List Key)} {ledger : List Row} {st : List Stored}
     {f : Flag} (hnd : (reg.map (·.flag)).Nodup) (hp : isProbe reg f = true) : f ∉ preset reg links ledger st :=
   probe_not_mem (onlyProbe_of_nodup hnd hp)

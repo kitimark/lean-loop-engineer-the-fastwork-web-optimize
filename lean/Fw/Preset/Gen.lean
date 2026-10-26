@@ -387,8 +387,6 @@ theorem mem_classDisagreements {reg : List Reg} {ledger : List Row} {r : Reg} {i
 def lookCandidates (reg : List Reg) : List Flag :=
   ((reg.filter fun r => r.visClass == some .l).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
 
-/-- **A probe is never a look-change candidate**: with probes clean (no look class on a probe), a flag whose every
-registration is a probe is not in `lookCandidates`, so it never reaches a look verdict. -/
 theorem probe_not_mem_lookCandidates {reg : List Reg} {f : Flag} (hc : probesClean reg = true) (h : OnlyProbe reg f) :
     f ∉ lookCandidates reg := by
   intro hm
@@ -715,12 +713,9 @@ def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) 
     ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray),
     ("userDecision", decisionOf f), ("entry", entryJson ledger st f)]
 
-/-- The registered probes in key order. -/
 def probeFlags (reg : List Reg) : List Flag :=
   ((reg.filter fun r => r.kind == .probe).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
 
-/-- One row per registered probe: whether the arm holds it and whether it is a look-change candidate (both false by
-`probe_not_mem` and `probe_not_mem_lookCandidates`). -/
 def probesText (reg : List Reg) (p : List Flag) : String :=
   String.join ((probeFlags reg).map fun f =>
     (Json.mkObj [("flag", .str f.key), ("kind", "probe"), ("member", .bool (p.contains f)),
@@ -757,7 +752,6 @@ def readRegistry : IO (List Reg) := do
       out := out ++ (← IO.ofExcept ((parsePart (← readJson pj)).mapError fun e => s!"{pj}: {e}"))
   return out
 
-/-- Write the five preset files, or with `--check` throw when any differs from the Lean output. -/
 def run (args : List String) : IO Unit := do
   let ledger ← IO.ofExcept ((parseLedger (← readJson ledgerPath)).mapError fun e => s!"{ledgerPath}: {e}")
   let reg ← readRegistry

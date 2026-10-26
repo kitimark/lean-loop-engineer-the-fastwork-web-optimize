@@ -1,14 +1,9 @@
-// Reads `webkit-sim-r*` artifact directories and prints the zone verdicts of each arm against the first arm (the base).
-//   node src/offscreen-webkit-cli.mjs --arm base=dirA,dirB --arm sweep=dirC ... [--json]
-// Each dir holds `r<n>-session-<m>.json` files; every `passes[]` entry is one pass. The decisions are the Lean twins in
-// offscreen-webkit.mjs; this file only reads files and formats (glue, no decision).
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { WK_KEYS, ZONES, cmpKeys, passOf, verdict, windowSteps, windowVec } from './offscreen-webkit.mjs';
 
 const range = (xs) => (xs.length === 0 ? '-' : Math.min(...xs) === Math.max(...xs) ? String(xs[0]) : `${Math.min(...xs)}-${Math.max(...xs)}`);
 
-/** The passes of every session file in `dir` (sorted by file name). */
 export function passesOfDir(dir) {
   return readdirSync(dir).filter((f) => /session-\d+\.json$/.test(f)).sort().flatMap((f) => {
     const j = JSON.parse(readFileSync(join(dir, f), 'utf8'));
@@ -16,7 +11,6 @@ export function passesOfDir(dir) {
   });
 }
 
-/** One row per zone and arm: step count, verdict, the counters that differ and the ranges of the shown counters. */
 export function report(arms, shown = ['Paint', 'Layout', 'RecalculateStyles', 'Composite', 'FireAnimationFrame', 'ObserverCallback']) {
   const [base, ...rest] = arms;
   const rows = [];

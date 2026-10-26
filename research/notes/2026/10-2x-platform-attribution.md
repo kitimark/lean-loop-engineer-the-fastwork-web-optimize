@@ -14,7 +14,7 @@
 | WebKit | marquee:probe-off | 40236475717 (063b150) | 2 VMs (r3 job failed; lost VM r3, no rerun) |
 | Chromium swipe-touch-v1 | base | 40203753344 | 3 runs |
 | Chromium | sweep / glint / entries / marquee | 40237508223 / 40236516819 / 40236472868 / 40236462082 | 3 runs each |
-The first sweep arm (run 40236459376 Chromium, 40236443781 WebKit) removed the class and made Paint a counter artifact; it is superseded by the animation-only arm above.
+Superseded: the first sweep arm (runs 40236459376 Chromium, 40236443781 WebKit) removed the class and made Paint a counter artifact.
 
 ## Rule
 * WebKit: Lean `Fw.Measure.OffscreenWebKit` (golden `packages/contracts/golden/measure/offscreen-webkit.jsonl`, replayed by `packages/measure-webkit/test/offscreen-webkit.test.mjs`). Base and arm are compared only on the same steps (`sameWindow` over equal step sets) with a common window y <= 5200 (the passes end at 5231 or 5267). Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<dirs> --arm name=<dirs>`. A cell with fewer than 3 VMs in an arm is reported undecided (n shown), never no-win.
