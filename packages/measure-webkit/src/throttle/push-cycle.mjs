@@ -204,12 +204,17 @@ export const uploadName = (name) => name.replace(/[:<>|*?"\\]/g, '_');
 export const searchesOf = (arms) => [...new Set(arms.filter((a) => a !== 'original' && a !== 'rewrite').map(searchOf))];
 
 export const SEP_MIN_PASSES = 3;
-export const SEP_FULL_CYCLES = 12;
 export const SEP_DWELL_CYCLES = 6;
 export const SEP_WINDOW = Object.freeze([3, 4, 5]);
+export const SEP_LAST_READ = 5;
+export const SEP_MEASURED_STRETCH = 2391;
+export const SEP_MARGIN_PCT = 25;
 
 export const stretch = (dwellMs, fullMs) => (fullMs === 0 ? 0 : Math.floor((dwellMs * 1000) / fullMs));
 export const clockIndex = (r, k) => Math.floor((k * r + 500) / 1000);
+export const fullCyclesFor = (r) => clockIndex(r, SEP_LAST_READ) + 1;
+export const SEP_STRETCH_BOUND = SEP_MEASURED_STRETCH + Math.floor((SEP_MEASURED_STRETCH * SEP_MARGIN_PCT) / 100);
+export const SEP_FULL_CYCLES = fullCyclesFor(SEP_STRETCH_BOUND);
 export const windowObs = (p, idx) => SEP_WINDOW.flatMap((k) => (idx(k) < p.length ? [p[idx(k)]] : []));
 export const sepWindowOf = (ps, idx) => ps.flatMap((p) => windowObs(p, idx));
 export const rate = (xs) => (xs.length === 0 ? 0 : Math.floor((sum(xs) * 1000) / xs.length));
@@ -281,5 +286,5 @@ export function sepArm(passes, thr = 50) {
   const trends = Object.fromEntries(['layers', 'bytes', 'created'].map((f) => [f, dwell.map((p) => trend(censusSeries(p, f)))]));
   const r = stretch(input.periodDwell, input.periodFull);
   const rates = { idx: rate(sepWindowOf(input.full, (k) => k)), clk: rate(sepWindowOf(input.full, (k) => clockIndex(r, k))), dwell: rate(sepWindowOf(input.dwell, (k) => k)) };
-  return { input, verdict: sepVerdict(input), r, rates, census, trends };
+  return { input, verdict: sepVerdict(input), r, fits: r <= SEP_STRETCH_BOUND, rates, census, trends };
 }

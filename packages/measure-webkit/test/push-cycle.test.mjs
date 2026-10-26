@@ -183,6 +183,20 @@ test('cycle versus clock: constants, clock index, rest and the census reading re
   assert.equal(P.SEP_FULL_CYCLES, c.sepFullCycles);
   assert.equal(P.SEP_DWELL_CYCLES, c.sepDwellCycles);
   assert.deepEqual([...P.SEP_WINDOW], c.sepWindow);
+  assert.equal(P.SEP_LAST_READ, c.sepLastRead);
+  assert.equal(P.SEP_MEASURED_STRETCH, c.sepMeasuredStretch);
+  assert.equal(P.SEP_MARGIN_PCT, c.sepMarginPct);
+  assert.equal(P.SEP_STRETCH_BOUND, c.sepStretchBound);
+  assert.equal(Math.max(...c.sepWindow), c.sepLastRead);
+  assert.ok(ops('fullCycles').length >= 8);
+  for (const g of ops('fullCycles')) {
+    assert.equal(P.fullCyclesFor(g.r), g.cycles, `r ${g.r}`);
+    assert.equal(P.clockIndex(g.r, 5) < P.SEP_FULL_CYCLES, g.fits, `r ${g.r}`);
+    assert.equal(g.r <= P.SEP_STRETCH_BOUND, g.withinBound, `r ${g.r}`);
+    if (g.withinBound) assert.ok(g.fits, `Lean sep_fits: r ${g.r} is inside the bound`);
+  }
+  for (let r = 0; r <= P.SEP_STRETCH_BOUND; r++) assert.ok(P.clockIndex(r, 5) < P.SEP_FULL_CYCLES, `window fits at r ${r}`);
+  for (let r = 0; r <= P.SEP_MEASURED_STRETCH; r += 7) assert.ok(P.fullCyclesFor(r) + 3 <= P.SEP_FULL_CYCLES, `margin at r ${r}`);
   assert.ok(ops('clock').length >= 5);
   for (const g of ops('clock')) assert.deepEqual(Array.from({ length: P.SEP_FULL_CYCLES }, (_, k) => P.clockIndex(g.r, k)), g.index, `r ${g.r}`);
   assert.equal(P.clockIndex(1000, 7), 7, 'a stretch of 1 is the identity (Lean clockIndex_id)');
@@ -277,6 +291,11 @@ test('the report names the verdict per arm, the census reading and the lost pass
   assert.equal(rows[0].dwell, 2, 'the lost pass is not counted');
   assert.deepEqual(rows[0].lost.dwell, ['a touch driver timed out']);
   assert.equal(rows[0].s50.verdict, 'undecided:fewDwell');
+  const withFailed = P_REPORT.sepTable([{ vm: 'job 5', passes: [ok('full', [1])], failed: ['rewrite-r1: done without a record', 'rewrite-r2: failed:touchesFailed'] }], ['job 5', 'job 6']);
+  assert.deepEqual(withFailed[0].lost.full, ['job 5 failed pass (done without a record)', 'job 6 no result file']);
+  assert.deepEqual(withFailed[0].lost.dwell, ['job 5 failed pass (failed:touchesFailed)', 'job 6 no result file'], 'a failed pass with no record is lost, a job without a file too');
+  const recorded = P_REPORT.sepTable([{ vm: 'job 5', passes: [{ ...lost, round: 2 }], failed: ['rewrite-r2: failed:touchesFailed'] }]);
+  assert.deepEqual(recorded[0].lost.dwell, ['job 5 touch driver timed out'], 'a failed pass that has a record is named once');
   const md = reportMd([{ vm: 'a', passes: [ok('full', [1]), ok('dwell', [1])] }]);
   assert.match(md, /Cycle versus clock/);
   assert.match(md, /Census after each cycle/);

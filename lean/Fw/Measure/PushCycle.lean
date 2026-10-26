@@ -452,7 +452,6 @@ theorem phoneSamples_length (ms : Nat) : (phoneSamples ms).length = 2 * legFrame
   simp [phoneSamples]; omega
 
 def sepMinPasses : Nat := 3
-def sepFullCycles : Nat := 12
 def sepDwellCycles : Nat := 6
 def sepWindow : List Nat := [3, 4, 5]
 
@@ -466,6 +465,65 @@ theorem clockIndex_id (k : Nat) : clockIndex 1000 k = k := by
 theorem clockIndex_mono (r : Nat) {a b : Nat} (h : a ≤ b) : clockIndex r a ≤ clockIndex r b := by
   simp only [clockIndex]
   exact Nat.div_le_div_right (by have := Nat.mul_le_mul_right r h; omega)
+
+theorem clockIndex_mono_r (k : Nat) {r r' : Nat} (h : r ≤ r') : clockIndex r k ≤ clockIndex r' k := by
+  simp only [clockIndex]
+  exact Nat.div_le_div_right (by have := Nat.mul_le_mul_left k h; omega)
+
+/-- The last cycle the window reads. -/
+def sepLastRead : Nat := 5
+
+theorem sepLastRead_ge : ∀ k ∈ sepWindow, k ≤ sepLastRead := by
+  intro k hk
+  simp only [sepWindow, List.mem_cons, List.not_mem_nil, or_false] at hk
+  simp only [sepLastRead]; omega
+
+/-- Fewest cycles of a full pass whose clock-matched window fits at stretch `r` (permille). -/
+def fullCyclesFor (r : Nat) : Nat := clockIndex r sepLastRead + 1
+
+/-- The largest stretch measured so far (permille): run 40315679172, rewrite arm, 2.39 times. -/
+def sepMeasuredStretch : Nat := 2391
+
+/-- The margin over the measured stretch, in percent. -/
+def sepMarginPct : Nat := 25
+
+/-- The largest stretch the full pass is planned for (permille). -/
+def sepStretchBound : Nat := sepMeasuredStretch + sepMeasuredStretch * sepMarginPct / 100
+
+/-- Cycles of the full pass: the length that fits every stretch up to `sepStretchBound`. -/
+def sepFullCycles : Nat := fullCyclesFor sepStretchBound
+
+theorem sepFullCycles_eq : sepFullCycles = 16 := by decide
+
+theorem fullCyclesFor_mono {r r' : Nat} (h : r ≤ r') : fullCyclesFor r ≤ fullCyclesFor r' := by
+  simp only [fullCyclesFor]
+  have := clockIndex_mono_r sepLastRead h
+  omega
+
+theorem fullCyclesFor_fits (r : Nat) : clockIndex r sepLastRead < fullCyclesFor r := by
+  simp only [fullCyclesFor]; omega
+
+/-- The window fits: for every stretch up to the bound, cycle 5 of the clock-matched index falls inside the pass. -/
+theorem sep_fits (r : Nat) (h : r ≤ sepStretchBound) : clockIndex r 5 < sepFullCycles := by
+  have h1 := fullCyclesFor_fits r
+  have h2 := fullCyclesFor_mono h
+  simp only [sepFullCycles]
+  simp only [sepLastRead] at h1
+  omega
+
+/-- Every cycle the window reads by index falls inside the pass. -/
+theorem sep_fits_index : ∀ k ∈ sepWindow, k < sepFullCycles := by
+  intro k hk
+  have := sepLastRead_ge k hk
+  have e := sepFullCycles_eq
+  simp only [sepLastRead] at this
+  omega
+
+/-- The margin: the cycle count measured stretch needs, plus three, is still inside the pass. -/
+theorem sep_margin (r : Nat) (h : r ≤ sepMeasuredStretch) : fullCyclesFor r + 3 ≤ sepFullCycles := by
+  have h1 := fullCyclesFor_mono h
+  have e : fullCyclesFor sepMeasuredStretch + 3 = sepFullCycles := by decide
+  omega
 
 def windowObs (p : List Nat) (idx : Nat → Nat) : List Nat := sepWindow.filterMap fun k => p[idx k]?
 
@@ -537,6 +595,20 @@ theorem sep_noRoom (s : SepIn) (h0 : ¬ s.full.length < sepMinPasses) (h1 : ¬ s
     (h2 : s.periodFull ≠ 0) (h3 : s.periodDwell ≠ 0) (h : sepFullCycles ≤ clockIndex s.r 5) :
     sepVerdict s = .undecided .noRoom := by
   simp [sepVerdict, h0, h1, h2, h3, h]
+
+theorem pick_ne_noRoom (i c d : Nat) : pick i c d ≠ .undecided .noRoom := by
+  unfold pick
+  repeat' split
+  all_goals simp
+
+/-- `noRoom` fires only for a stretch beyond the bound: within it the clock-matched window always fits. -/
+theorem sep_noRoom_only (s : SepIn) (h : sepVerdict s = .undecided .noRoom) : sepStretchBound < s.r := by
+  refine Nat.lt_of_not_le fun hr => ?_
+  have hn : ¬ sepFullCycles ≤ clockIndex s.r 5 := by have := sep_fits s.r (by omega); omega
+  unfold sepVerdict at h
+  dsimp only at h
+  repeat' split at h
+  all_goals first | exact absurd h (pick_ne_noRoom _ _ _) | (cases h) | exact absurd ‹_› hn
 
 theorem sep_noObs (s : SepIn) (h0 : ¬ s.full.length < sepMinPasses) (h1 : ¬ s.dwell.length < sepMinPasses)
     (h2 : s.periodFull ≠ 0) (h3 : s.periodDwell ≠ 0) (h4 : ¬ sepFullCycles ≤ clockIndex s.r 5)
@@ -824,7 +896,9 @@ def sepCases : List (String × SepIn) :=
 def restCases : List (Nat × Nat × Nat) :=
   [(200000, 90000, 120000), (200000, 250000, 120000), (200000, 20000, 120000), (200000, 80000, 120000), (0, 0, 0)]
 
-def clockRs : List Nat := [0, 500, 1000, 1500, 2000, 3333]
+def clockRs : List Nat := [0, 500, 1000, 1500, 2000, 2391, 2988, 3333]
+
+def fullRs : List Nat := [0, 1000, 1690, 2000, 2391, 2988, 2989, 3100, 3333]
 
 def censusCases : List (String × List (List Nat)) :=
   [("few", [[1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6]]),
@@ -842,7 +916,7 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("throttleMs", toJson throttleMs), ("iosPoolB", toJson (poolCap false)), ("macPoolB", toJson (poolCap true)),
     ("h1MinChanges", toJson h1MinChanges), ("h1MinSlow", toJson h1MinSlow), ("tick", toJson tick), ("liftGap", toJson liftGap),
     ("fingerX", toJson fingerX), ("startY", toJson startY), ("topY", toJson topY), ("sepMinPasses", toJson sepMinPasses),
-    ("sepFullCycles", toJson sepFullCycles), ("sepDwellCycles", toJson sepDwellCycles), ("sepWindow", toJson sepWindow)]).compress
+    ("sepFullCycles", toJson sepFullCycles), ("sepLastRead", toJson sepLastRead), ("sepMeasuredStretch", toJson sepMeasuredStretch), ("sepMarginPct", toJson sepMarginPct), ("sepStretchBound", toJson sepStretchBound), ("sepDwellCycles", toJson sepDwellCycles), ("sepWindow", toJson sepWindow)]).compress
   let model := costCases.map fun (name, c) =>
     (Json.mkObj [("op", "model"), ("case", Json.str name), ("cost", costJ c), ("single", toJson c.single),
       ("released", toJson (series c false cycles)), ("kept", toJson (series c true cycles)),
@@ -890,9 +964,12 @@ def goldenLines (_ : Unit := ()) : List String :=
   let censusOps := censusCases.map fun (name, ps) =>
     (Json.mkObj [("op", "census"), ("case", Json.str name), ("passes", toJson ps),
       ("trends", toJson (ps.map fun p => (trend p).name)), ("across", Json.str (readCensus ps).name)]).compress
+  let cyclesOps := fullRs.map fun r =>
+    (Json.mkObj [("op", "fullCycles"), ("r", toJson r), ("cycles", toJson (fullCyclesFor r)), ("fits", toJson (decide (clockIndex r 5 < sepFullCycles))),
+      ("withinBound", toJson (decide (r ≤ sepStretchBound)))]).compress
   let restOps := restCases.map fun (t, s, c) =>
     (Json.mkObj [("op", "rest"), ("target", toJson t), ("spent", toJson s), ("cap", toJson c), ("rest", toJson (restMs t s c))]).compress
-  [consts] ++ model ++ repaint ++ pool ++ upd ++ h1 ++ h2 ++ pix ++ tr ++ plan ++ phone ++ sepOps ++ clockOps ++ censusOps ++ restOps
+  [consts] ++ model ++ repaint ++ pool ++ upd ++ h1 ++ h2 ++ pix ++ tr ++ plan ++ phone ++ sepOps ++ clockOps ++ censusOps ++ restOps ++ cyclesOps
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
