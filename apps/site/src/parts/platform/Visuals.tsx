@@ -265,7 +265,6 @@ export function Ask({ subs }: { subs: Subs }) {
 
 const KEYTIMES = '0;0.2;0.4;0.6;0.8;1';
 
-/** platform.glint:hold-freeze: the ring of `<animate>` ramps and `<set>` holds (Lean PlatformGlintHold, logic.ts holdElements). */
 function HoldRing({ side, idBase }: { side: 'left' | 'right'; idBase: string }) {
   return (
     <>
@@ -283,7 +282,6 @@ function Dash({ side, playing, hold }: { side: 'left' | 'right'; playing: boolea
   useEffect(() => {
     if (!playing) return;
     // the original calls beginElement() on every <animate> right after they render: the SMIL clock restarts there
-    // hold-freeze: only the segment-0 piece of each attribute is started, the ring follows by its own begin chain
     for (const a of ref.current?.querySelectorAll(hold ? '[data-fw-anchor]' : 'animate') ?? []) {
       try {
         (a as SVGAnimationElement).beginElement();

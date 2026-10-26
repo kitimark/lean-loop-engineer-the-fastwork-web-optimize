@@ -78,11 +78,6 @@ export function view({ state, side, now }: { state: St; side: Side; now: number 
   return state.t0 !== null ? sample({ side, elapsed: now - state.t0 }) : [REST[side][0], REST[side][1]];
 }
 
-// ---- platform.glint:hold-freeze ------------------------------------------------------------------------------------
-// Spec and proofs: lean/Fw/Parts/PlatformGlintHold.lean. The two repeating `<animate>` per dash become one piece per
-// key-time segment and attribute: a ramp (`<animate>`, from to to over one segment) where the value moves, a `<set>`
-// where it holds. The pieces tile the 5 s cycle, so an active non-`<set>` animation exists only during a ramp.
-
 export type Attr = 'x1' | 'x2';
 export type Kind = 'set' | 'ramp';
 
@@ -94,12 +89,10 @@ export interface Piece {
   to: number;
 }
 
-/** Length of one key-time segment in ms (`dur` over five segments). */
 export const SEG_MS = DUR_MS / 5;
 
 const valuesOf = (attr: Attr, side: Side): readonly number[] => (attr === 'x1' ? X1[side] : X2[side]);
 
-/** Pieces of a side: x1 segments 0..4 then x2 segments 0..4. */
 export function holdPlan(side: Side): Piece[] {
   const out: Piece[] = [];
   for (const attr of ['x1', 'x2'] as const) {
@@ -109,10 +102,8 @@ export function holdPlan(side: Side): Piece[] {
   return out;
 }
 
-/** The segment (0..4) holding cycle fraction u. */
 export const segOf = (u: number): number => Math.min(4, Math.floor(5 * u));
 
-/** The (x1, x2) of the one active piece per attribute `elapsed` ms after the anchor began (`elapsed` >= 0). */
 export function holdSample({ side, elapsed }: { side: Side; elapsed: number }): [number, number] {
   const r = ((elapsed % DUR_MS) + DUR_MS) % DUR_MS;
   const k = Math.min(4, Math.floor(r / SEG_MS));
@@ -125,13 +116,11 @@ export function holdSample({ side, elapsed }: { side: Side; elapsed: number }): 
   return [at('x1'), at('x2')];
 }
 
-/** Active non-`<set>` animations of one dash at `elapsed`: the ramp pieces among the active ones. */
 export function holdTicking({ side, elapsed }: { side: Side; elapsed: number }): number {
   const k = Math.min(4, Math.floor((((elapsed % DUR_MS) + DUR_MS) % DUR_MS) / SEG_MS));
   return holdPlan(side).filter((p) => p.seg === k && p.kind === 'ramp').length;
 }
 
-/** The faithful pair: two repeating `<animate>` are active at every instant after the begin. */
 export const FAITHFUL_TICKING = 2;
 
 export interface HoldEl {
@@ -143,17 +132,9 @@ export interface HoldEl {
   dur: string;
   fill: 'freeze';
   begin: string;
-  /** `beginElement()` is called on it at the start: the segment-0 piece of each attribute */
   anchor: boolean;
 }
 
-/**
- * Markup descriptors of a side: per attribute a ring of five pieces with `fill="freeze"`, each beginning at the end of
- * the one before it (segment 0 after segment 4), so every instance time is known a whole segment ahead; `beginElement()`
- * on the two segment-0 pieces starts the rings. INFERRED from runs in both engines (task glint-hold-freeze): without
- * `fill="freeze"` or with offsets from a shared clock element, WebKit dropped pieces in the second cycle or lost the
- * first begin; a hyphen in an id (`a-b-X1S0.end`) left every piece after the first unresolved in both engines (premise glint.hold-pixels), so ids are letters and digits only.
- */
 export function holdElements(side: Side, idBase: string): HoldEl[] {
   const idOf = (attr: Attr, seg: number): string => `${idBase}${attr.toUpperCase()}S${seg}`;
   return holdPlan(side).map((p): HoldEl => {
@@ -172,5 +153,4 @@ export function holdElements(side: Side, idBase: string): HoldEl[] {
   });
 }
 
-/** Segments where both attributes hold (only `<set>` pieces are active, nothing ticks). */
 export const holdSegments = (side: Side): number[] => [0, 1, 2, 3, 4].filter((k) => holdPlan(side).every((p) => p.seg !== k || p.kind === 'set'));

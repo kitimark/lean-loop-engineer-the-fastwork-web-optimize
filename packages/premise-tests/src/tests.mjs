@@ -1,7 +1,7 @@
 // One test per premise of lean/Fw/Ops/Premise.lean (`registry`). `id` is the registry's testId, `premise` its id; the
 // Lean lint (`premiseLint`, ported in apps/runner/src/premises.ts) fails when the two lists drift.
 // A test loads its tiny page from ../pages, drives the browser, and asserts with node:assert/strict. It returns what it
-// observed; the runner stores that next to the verdict. Only prem.glint.hold-pixels seeks an animation (setCurrentTime on a paused SVG timeline); nothing replaces rAF.
+// observed; the runner stores that next to the verdict.
 import assert from 'node:assert/strict';
 import { collectAlignFacts, alignEquiv, modeOf, contentFill, parseTracks } from '../../gate-breakpoints/src/align-equiv.mjs';
 
@@ -532,10 +532,6 @@ export const TESTS = [
       await page.setViewportSize({ width: 520, height: 130 });
       await frames(page, 3);
       await page.evaluate(() => window.start('paused-first'));
-      // Seconds after the begin, never decreasing (createPause seeks to read + paused time, so the container clock only moves
-      // forward): each key-time boundary of three cycles with a sample either side of the first ones; every third sample
-      // is a 'resume' (unpause, setCurrentTime, pause in one task: what createPause does on a reveal), the rest plain seeks.
-      // The last two, 'back', seek backward and are recorded, not judged (no flag path does that).
       const plan = [0, 0.4, 0.999, 1, 1.001, 1.6, 2, 2.5, 2.999, 3, 3.6, 4, 4.5, 4.999, 5, 5.001, 6, 7.5, 9.999, 10, 11, 12, 14.5, 15, 16, 17.5, 19.99, 20, 21.2, 23]
         .map((s, i) => ({ s, mode: i % 3 === 2 ? 'resume' : 'seek' }));
       plan.push({ s: 3.3, mode: 'back' }, { s: 0.2, mode: 'back' });

@@ -3,7 +3,6 @@ import { goldenConformance } from '../../engine/golden.testutil';
 import * as L from './logic';
 import { createPause, type SvgClock } from './pause';
 
-/** The SVG container clock of the Lean model (`Cont` in PlatformGlintPause.lean): pause, resume, seek on a wall clock. */
 class FakeSvg implements SvgClock {
   accum = 0;
   last: number;
@@ -40,7 +39,6 @@ interface RunEv {
   frames: number[];
 }
 
-/** Drive the one clock writer (`createPause`) and read the hold pieces at each frame. */
 function run(side: L.Side, b: number, events: RunEv[]): [number, number][][] {
   const clock = { t: 0 };
   const svg = new FakeSvg(b, clock);

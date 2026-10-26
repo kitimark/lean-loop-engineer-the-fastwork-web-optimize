@@ -49,7 +49,7 @@ does on a reveal). Bound 12 of 255 per channel, and the colour band must be draw
 | Chromium | Chrome Headless Shell 156.0.8078.4 | 1 | 30 judged + 2 backward |
 | WebKit | Playwright WebKit 27.2 (Linux) | 0 | 30 judged + 2 backward |
 
-Two findings of the premise work. (1) Ring ids that carry a hyphen (`secure-network-dash-left-X1S0`, what the flag first
+Two findings. (1) Ring ids that carry a hyphen (`secure-network-dash-left-X1S0`, what the flag first
 used) leave every piece after the first unresolved in both engines: the dash never moved after segment 0. Ids are now letters
 and digits (`fwglintleftX1S0`); hold.test.ts asserts it. (2) A backward `setCurrentTime` into segment 0 after the first cycle
 shows the previous value in Chromium (diff 235, both locally and on CI) and is right in WebKit. No flag path seeks backward:

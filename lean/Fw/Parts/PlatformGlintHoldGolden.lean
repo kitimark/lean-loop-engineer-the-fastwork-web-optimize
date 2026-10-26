@@ -57,8 +57,6 @@ def obsT : Obs → Rat
   | .hide t => t
   | .reveal t => t
 
-/-- A pause and resume run: after each event the pairs at the listed frames (the container reads the uninterrupted clock
-whenever it runs; while paused it is frozen at the value read at the pause). -/
 def runLine (name : String) (s : Side) (b : Rat) (r : List (Obs × List Rat)) : String :=
   let res := r.foldl (fun (acc : P × List Json) (x : Obs × List Rat) =>
     let q := acc.1.step x.1
@@ -88,7 +86,6 @@ def lines (_ : Unit) : List String :=
 
 def goldenText (_ : Unit) : String := "\n".intercalate (lines ()) ++ "\n"
 
-/-- `--check` compares the file with the generated text; without it the file is written. -/
 def gen (args : List String) : IO Unit := do
   let path := "../packages/contracts/golden/parts/platform-glint-hold.jsonl"
   if args.contains "--check" then
