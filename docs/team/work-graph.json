@@ -22287,6 +22287,98 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/morph-stage.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-sweep-tiled",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "layer-sweep-webkit-n3"
+   ],
+   "title": "End-of-page variant rank 1 (research/notes/2026/10-26-end-of-page-variants.md): revise platform.sweep:layer-sweep (same flag) so the layer copies the original's repeat tiling (two tiles wide, background-size 50% 100%, repeat-x, translate -2w to 0) and uses the device-pixel-snapped word width (ResizeObserver devicePixelContentBoxSize once per resize, no per-frame JS). Lean first: tiled_same_look (colour equals the original with repeat for every x in the box plus overhang and every t) and snap_box; then the look premise sweep.layer-pixels back at bound 12 on both engines (moves the variant from L to E only if it passes), counts per engine (WebKit 3 VMs, Lean minVms; Chromium windows, Lean reader).",
+   "writes": [
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform/sweep.module.css",
+    "lean/Fw/Parts/PlatformSweepLayer*.lean",
+    "packages/contracts/golden/parts/platform-sweep-layer.jsonl",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "research/notes/2026/10-2x-layer-sweep-tiled.md",
+    "docs/team/handoffs/layer-sweep-tiled.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "glint-hold-freeze",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "fill-release-platform"
+   ],
+   "title": "End-of-page variant rank 2 (research/notes/2026/10-26-end-of-page-variants.md): flag platform.glint:hold-freeze, the two 5 s repeating SMIL <animate> per dash (Visuals.tsx:266-300) become ramp-only animates with fill=freeze between ramps plus initial <set> values, so the SMIL clock schedules nothing while the glint holds (3 of 5 segments per side). Both engines tick an active non-<set> SMIL animation every frame (WebKit SVGSMILElement.cpp:1074-1088@862f17d; Chromium svg_smil_element.cc:1285-1301@f842f52). Lean first: premise (3 of 5 hold segments per side, decided over X1/X2), hold_eq_faithful (value equal at every t >= begin) and the work claim; golden; then gate both engines, WebKit zones (3 VMs) with z5000 the target (glint-off: Paint 54-66 to 40-44), Chromium windows. Class E if pixels hold.",
+   "writes": [
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform/Visuals.tsx",
+    "lean/Fw/Parts/PlatformGlint*.lean",
+    "packages/contracts/golden/parts/platform-glint*.jsonl",
+    "research/notes/2026/10-2x-glint-hold-freeze.md",
+    "docs/team/handoffs/glint-hold-freeze.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-faded-pause",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "End-of-page variant rank 3 (research/notes/2026/10-26-end-of-page-variants.md): flag platform:faded-pause, when the morph fade of the platform section reaches 0 (m >= FADE_END 0.55, platform/fade.driver.ts:35) pause the section's animations (data-fw-scene=paused per platform.module.css:22-26, SMIL pauseAnimations on the dash svgs) and seek them on resume (reuse the platform.sweep pause seek and the glint pause helper). Chromium still records paint for an effectively invisible layer (paint_layer_painter.cc:168-191@f842f52); base end 60-119 PaintImage 240 disappears with the sweep off (run 40237508223). One writer for data-fw-scene that ORs offscreen-pause and faded-pause. Lean first: faded_same_pixels (fade 0 means no pixel from the subtree; no descendant escapes the opacity group, census check) and the resume phase theorems; golden; gate both engines; Chromium end 20-59 / 60-119 / 120+ windows (Lean reader); WebKit zones (3 VMs) where the push lane reaches the open morph, else stated. Class E if visibility:hidden is not needed.",
+   "writes": [
+    "apps/site/src/parts/platform/fade.driver.ts",
+    "apps/site/src/parts/platform/fade.logic.ts",
+    "apps/site/src/parts/platform/fade.test.ts",
+    "apps/site/src/parts/platform/platform.module.css",
+    "apps/site/src/parts/platform/part.json",
+    "apps/site/src/parts/platform/scene.ts",
+    "apps/site/src/parts/platform.sweep/pause.ts",
+    "apps/site/src/parts/platform.glint/pause.ts",
+    "lean/Fw/Parts/PlatformFaded*.lean",
+    "packages/contracts/golden/parts/platform-faded*.jsonl",
+    "research/notes/2026/10-2x-platform-faded-pause.md",
+    "docs/team/handoffs/platform-faded-pause.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "research/findings/ledger.json"
+   ]
   }
  ],
  "deadline": {
