@@ -22261,7 +22261,14 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "research/notes/2026/10-2x-morph-end-nobounce.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/morph-end-nobounce.md"
+    "docs/team/handoffs/morph-end-nobounce.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "apps/site/src/styles/reset.css",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/measure-webkit/src/throttle/toolbar-report.mjs",
+    "packages/measure-webkit/src/throttle/toolbar.mjs",
+    "packages/measure-webkit/test/throttle-toolbar.test.mjs"
    ]
   },
   {
