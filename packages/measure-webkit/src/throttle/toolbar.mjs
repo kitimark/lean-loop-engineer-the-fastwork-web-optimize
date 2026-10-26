@@ -9,13 +9,14 @@ export const ARMS = Object.freeze({
   unthrottle: '?fw=engine.scroll:unthrottle',
   'overscroll-lock': '?fw=morph.mount:overscroll-lock',
   threaded: '?fw=morph.panel:threaded',
+  nobounce: '?fw=morph.end.nobounce:on',
 });
 export const ARM_ORDER = Object.freeze(Object.keys(ARMS));
 export const FLAG_ARMS = Object.freeze(ARM_ORDER.filter((a) => a !== 'default'));
-export const LOOK_CHANGE = Object.freeze(new Set(['touch-first', 'open-once', 'overscroll-lock']));
+export const LOOK_CHANGE = Object.freeze(new Set(['touch-first', 'open-once', 'overscroll-lock', 'nobounce']));
 export const FLAG_OF = Object.freeze({
   'touch-first': 'morph.mount:touch-first', 'open-once': 'morph.mount:open-once', unthrottle: 'engine.scroll:unthrottle',
-  'overscroll-lock': 'morph.mount:overscroll-lock', threaded: 'morph.panel:threaded',
+  'overscroll-lock': 'morph.mount:overscroll-lock', threaded: 'morph.panel:threaded', nobounce: 'morph.end.nobounce:on',
 });
 
 export const BURST_MAX_CS = 50000;
@@ -166,7 +167,7 @@ export function reasonOf(p) {
 export function passOf(p) {
   const { rec } = p;
   const w = p.cost && p.cost.counts === true && p.cost.frames > 0 ? p.cost : { layout: 0, recalc: 0, frames: 0 };
-  return tbPass(rec.t.map((x) => Math.round(x * 100)), rec.vh, rec.r, rec.d, rec.g, lockCounts(rec).reversals, w.layout, w.recalc, w.frames);
+  return { ...tbPass(rec.t.map((x) => Math.round(x * 100)), rec.vh, rec.r, rec.d, rec.g, lockCounts(rec).reversals, w.layout, w.recalc, w.frames), pins: Array.isArray(rec.ca) ? rec.ca.length : 0 };
 }
 
 export function facts(p) {

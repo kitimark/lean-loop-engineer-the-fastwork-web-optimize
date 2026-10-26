@@ -1,6 +1,7 @@
 {"flag":"morph.columns:final-scale","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.end.clamp:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.end.flip:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
+{"flag":"morph.end.nobounce:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.end.release:on","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.mount:open-once","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"morph.mount:overscroll-lock","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
