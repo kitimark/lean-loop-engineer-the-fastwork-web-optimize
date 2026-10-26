@@ -1,8 +1,8 @@
 # macos-vm-upload (measure-engineer)
 Branch: worktree-wf_12081826-6bc-1
 Worktree: .claude/worktrees/wf_12081826-6bc-1 (under the repo root)
-Last code commit: 48684421e (merge of main into 4bdb08a56); CI branch ci/macos-vm-upload
-CI runs: none yet (push 1 of 2 about to be made; run id added below once listed). State: waiting for push 1.
+Last code commit: a52762158 (empty [ci:webkit-sim] commit on top of merge 48684421e); CI branch ci/macos-vm-upload
+CI runs: webkit-sim run 40259432097 on ci/macos-vm-upload at a52762158 (push 1 of 2), state running.
 
 Verified (local, through fw slot): check.sh green before and after the merge of main; apps/runner test 116 files /
 3662 tests green; node --test scripts/ci-paths.test.mjs + scripts/ci-telemetry/tick.test.mjs 68 pass; fw plan lint 0
