@@ -5,6 +5,7 @@ import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphColumnsScale
 import Fw.Parts.PlatformSweepLayer
 import Fw.Parts.HeroContainOpt
+import Fw.Parts.MorphStage
 namespace Fw.Gate.FlagDelta
 open Fw.Gate
 
@@ -49,44 +50,44 @@ def deltas : List Delta :=
       premise := ``Fw.Parts.MorphColumnsScale.layout_const },
     { id := "layer-sweep-background-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "background-clip", orig := "text", rewrite := "border-box", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-webkit-background-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "-webkit-background-clip", orig := "text", rewrite := "border-box", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-background-image-chromium", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "background-image", orig := "linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.33%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.67%, rgb(255, 255, 255) 100%)", rewrite := "none", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-background-image-webkit", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "background-image", orig := "linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.330002%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.669998%, rgb(255, 255, 255) 100%)", rewrite := "none", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-display", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "display", orig := "inline", rewrite := "inline-block", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-position", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "position", orig := "static", rewrite := "relative", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-position-reduced", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "position", orig := "relative", rewrite := "static", look := .l,
       reason := "the original's first three title words are position:relative in every motion setting (no offsets, no pixel effect); the faithful rewrite never declared position, so only the variant, which declares it, exposes the difference; under reduced motion the variant rule is off and the words stay static; a look-change flag, listed for the visual review",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-mask-image", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "mask-image", orig := "none", rewrite := "linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-mask-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "mask-clip", orig := "border-box", rewrite := "text", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "layer-sweep-webkit-mask-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "-webkit-mask-clip", orig := "border-box", rewrite := "text", look := .l,
-      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a two-tile child layer under a compositor transform; the colour at each point and time is the original's with repeat (tiled_same_look); the pixels differ at t=0 by up to 33 of 255 in Chromium (premise sweep.layer-pixels: the right edge column of the last glyph, 9 pixels) and by at most 3 at the other times; WebKit shows 2 inside the word (its 35 is one pixel at the page origin that only the original draws); a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.tiled_same_look },
     { id := "contain-hero-exit-hero", flag := "hero.exit:contain", part := "hero.exit", role := "hero",
       property := "contain", orig := "none", rewrite := "size layout", look := .e,
       reason := "the declared containment is the variant; the hero's box is unchanged at every probe (definite height, filled width)",
@@ -96,6 +97,21 @@ def deltas : List Delta :=
       reason := "the same element as the hero.exit hero role, read by the hero part",
       premise := ``Fw.Parts.HeroContainOpt.hero_same_box } ]
 
+structure ReplacedPart where
+  id : String
+  flag : String
+  part : String
+  reason : String
+  premise : Lean.Name
+
+def replacedParts : List ReplacedPart :=
+  [ { id := "stage-mount", flag := "morph.stage:on", part := "morph.mount",
+      reason := "the sticky stage replaces the scroll-jack; the morph-mount anchor is not mounted under the flag",
+      premise := ``Fw.Parts.MorphStage.stage_unmounts_anchors },
+    { id := "stage-tween", flag := "morph.stage:on", part := "morph.tween",
+      reason := "the sticky stage replaces the scroll-jack; the morph-tween anchor is not mounted under the flag",
+      premise := ``Fw.Parts.MorphStage.stage_unmounts_anchors } ]
+
 structure DItem where
   cls : Cls
   role : String
@@ -104,6 +120,7 @@ structure DItem where
   byRect : Bool := false
   orig : Option String
   rewrite : Option String
+  rewriteCount : Option Nat := none
   deriving DecidableEq, Repr
 
 def Delta.matches (d : Delta) (flags : List String) (part : String) (it : DItem) : Bool :=
@@ -363,6 +380,10 @@ def deltaLine (d : Delta) : String :=
     ("property", .str d.property), ("orig", .str d.orig), ("rewrite", .str d.rewrite), ("look", .str (lookName d.look)),
     ("reason", .str d.reason), ("premise", .str d.premise.toString)]).compress
 
+def replacedLine (r : ReplacedPart) : String :=
+  (Json.mkObj [("kind", "replaced"), ("id", .str r.id), ("flag", .str r.flag), ("part", .str r.part),
+    ("reason", .str r.reason), ("premise", .str r.premise.toString)]).compress
+
 def searchLine (s : String) : String :=
   (Json.mkObj [("kind", "search"), ("search", .str s),
     ("flags", match flagsOfSearch s with | some fs => toJson fs | none => .null)]).compress
@@ -412,7 +433,7 @@ def readingCases : List (List String × String × Verdict × List DItem) :=
     (containOn, "hero.exit", .fail, [heroContain, styleItem "hero" "height" "900px" "0px"]) ]
 
 def goldenLines (_ : Unit := ()) : List String :=
-  deltas.map deltaLine ++ searchCases.map searchLine ++
+  deltas.map deltaLine ++ replacedParts.map replacedLine ++ searchCases.map searchLine ++
     readingCases.map fun (f, p, v, fs) => readingLine f p v fs
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))

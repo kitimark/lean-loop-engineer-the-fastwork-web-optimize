@@ -15,6 +15,28 @@ def jackOn (v : String) : Bool := v != onV
 theorem jack_off_iff (v : String) : jackOn v = false ↔ v = onV := by
   simp [jackOn]
 
+/-- The part ids the stage unmounts, each with its anchor (`data-anchor`) in the gate's count items. -/
+def jackAnchors : List (String × String) :=
+  [("morph.mount", "morph-mount"), ("morph.tween", "morph-tween")]
+
+/-- An anchor is mounted unless the stage is on and the anchor belongs to a jack part. -/
+def anchorMounted (v anchor : String) : Bool :=
+  !(jackAnchors.any fun pa => pa.2 == anchor) || jackOn v
+
+/-- Premise of the gate's replaced-part entries: with the stage on, `morph-mount` and `morph-tween` are not mounted. -/
+theorem stage_unmounts_anchors :
+    anchorMounted onV "morph-mount" = false ∧ anchorMounted onV "morph-tween" = false := by
+  decide +kernel
+
+/-- With the stage off every jack anchor is mounted, and the stage never unmounts any other anchor. -/
+theorem stage_keeps_others (v anchor : String) (h : (jackAnchors.any fun pa => pa.2 == anchor) = false) :
+    anchorMounted v anchor = true := by
+  simp [anchorMounted, h]
+
+theorem faithful_mounts_anchors :
+    anchorMounted faithfulV "morph-mount" = true ∧ anchorMounted faithfulV "morph-tween" = true := by
+  decide +kernel
+
 theorem divmul (x t : Rat) (ht : 0 < t) : x / t * t = x := by grind
 
 theorem lt_div_iff' (x θ t : Rat) (ht : 0 < t) : θ < x / t ↔ θ * t < x := by

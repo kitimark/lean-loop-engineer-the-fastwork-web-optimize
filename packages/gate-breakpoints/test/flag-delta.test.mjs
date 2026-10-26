@@ -5,6 +5,7 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { flagsOfSearch, readingVerdict, excusedItems, loadDeltas, wireItem, FLAG_DELTA_GOLDEN } from '../src/flag-delta.mjs';
 import { applyFlagDeltas } from '../src/summary.mjs';
+import { loadReplaced } from '../src/replaced.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const path = resolve(here, '../../contracts/golden/gate/flag-delta.jsonl');
@@ -24,16 +25,16 @@ test('the allowlist holds the tuples of the reviewed flags with their premises',
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-basis', '0px', 'auto', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-grow', '1', '0', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-shrink', '1', '0', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-clip', 'text', 'border-box', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-background-clip', 'text', 'border-box', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-image', 'linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.33%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.67%, rgb(255, 255, 255) 100%)', 'none', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-image', 'linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.330002%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.669998%, rgb(255, 255, 255) 100%)', 'none', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'display', 'inline', 'inline-block', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'position', 'static', 'relative', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'position', 'relative', 'static', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-image', 'none', 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
-    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-clip', 'text', 'border-box', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-background-clip', 'text', 'border-box', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-image', 'linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.33%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.67%, rgb(255, 255, 255) 100%)', 'none', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-image', 'linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.330002%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.669998%, rgb(255, 255, 255) 100%)', 'none', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'display', 'inline', 'inline-block', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'position', 'static', 'relative', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'position', 'relative', 'static', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-image', 'none', 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.tiled_same_look'],
     ['hero.exit:contain', 'hero.exit', 'hero', 'contain', 'none', 'size layout', 'E', 'Fw.Parts.HeroContainOpt.hero_same_box'],
     ['hero.exit:contain', 'hero', 'stage', 'contain', 'none', 'size layout', 'E', 'Fw.Parts.HeroContainOpt.hero_same_box'],
   ]);
@@ -55,7 +56,17 @@ test('readingVerdict and excusedItems replay every Lean reading case', () => {
 
 test('wireItem keeps string values and nulls the others', () => {
   assert.deepEqual(wireItem({ cls: 'box', role: 'r', key: 'w', status: 'differ', a: 3, b: undefined, idx: 0 }),
-    { cls: 'box', role: 'r', key: 'w', status: 'differ', byRect: false, a: null, b: null });
+    { cls: 'box', role: 'r', key: 'w', status: 'differ', byRect: false, a: null, b: null, rewriteCount: null });
+  assert.deepEqual(wireItem({ cls: 'count', role: 'target', key: 'count', status: 'differ', a: 1, b: 0, idx: -1 }),
+    { cls: 'count', role: 'target', key: 'count', status: 'differ', byRect: false, a: null, b: null, rewriteCount: 0 });
+});
+
+test('the replaced-part list is the reviewed one (Lean Fw.Gate.FlagDelta.replacedParts)', () => {
+  assert.deepEqual(loadReplaced(), of('replaced'));
+  assert.deepEqual(of('replaced').map((e) => [e.flag, e.part, e.premise]), [
+    ['morph.stage:on', 'morph.mount', 'Fw.Parts.MorphStage.stage_unmounts_anchors'],
+    ['morph.stage:on', 'morph.tween', 'Fw.Parts.MorphStage.stage_unmounts_anchors'],
+  ]);
 });
 
 const evOf = (rows, fails) => ({ rows: { ...rows }, fails: Object.fromEntries(Object.entries(fails).map(([k, v]) => [k, [...v]])) });

@@ -122,10 +122,13 @@ run_group() {
   job "offscreen golden check" lake env lean --run scripts/OffscreenGolden.lean --check ../packages/contracts/golden/measure/offscreen.jsonl
   job "offscreen-webkit golden check" sh -c "printf 'import Fw.Measure.OffscreenWebKitGolden\\n#eval Fw.Measure.OffscreenWebKitGolden.checkRepo\\n' | lake env lean --stdin"
   job "offscreen-windows golden check" sh -c "printf 'import Fw.Measure.OffscreenWindowsGolden\\n#eval Fw.Measure.OffscreenWindowsGolden.checkRepo\\n' | lake env lean --stdin"
+  job "swipe-end golden check" sh -c "printf 'import Fw.Measure.SwipeEndGolden\\n#eval Fw.Measure.SwipeEndGolden.checkRepo\\n' | lake env lean --stdin"
+  job "sim-host golden check" sh -c "printf 'import Fw.Measure.SimHostGolden\\n#eval Fw.Measure.SimHostGolden.checkRepo\\n' | lake env lean --stdin"
   job "touchlock golden check" lake env lean --run scripts/TouchLockGolden.lean --check ../packages/contracts/golden/measure/touch-lock.jsonl
   job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl
   job "flag-delta golden check" lake env lean --run scripts/GateFlagDeltaGolden.lean --check ../packages/contracts/golden/gate/flag-delta.jsonl
+  job "replaced golden check" lake env lean --run scripts/GateReplacedGolden.lean --check ../packages/contracts/golden/gate/replaced.jsonl
   job "preset v2-proved check" sh -c "printf 'import Fw.Preset.Gen\\n#eval Fw.Preset.Gen.run [\"--check\"]\\n' | lake env lean --stdin"
   job "ci telemetry golden check" lake env lean --run scripts/TelemetryGolden.lean --check
   job "mac telemetry golden check" lake env lean --run scripts/MacTelemetryGolden.lean --check

@@ -10,7 +10,7 @@ import { traceToFrameCounts, TRACE_CATEGORIES } from './trace.mjs';
 import { accepts, gateSize, scrollRead, viewportGate } from './stage-mode.mjs';
 import { overflowExpr, formatOverflow } from './overflow.mjs';
 import { n0Windows, n0FrameCounts, byKind, N0_KEYS } from './n0.mjs';
-import { parseProfile, swipeEnded, replayEvents, keep, userAgent, runnable, fontsOk, cftPlatform, cftExe, cftUrl } from './profile.mjs';
+import { parseProfile, swipeEnded, swipeTail, swipeEndFrame, swipeEndReason, swipeStops, replayEvents, keep, userAgent, runnable, fontsOk, cftPlatform, cftExe, cftUrl } from './profile.mjs';
 import { collectCensus } from './census.mjs';
 import { pngRegionHash } from './png-region.mjs';
 
@@ -366,7 +366,7 @@ let prev = Object.fromEntries((await c.send('Performance.getMetrics')).metrics.m
 const n0Start = N0_ON ? JSON.parse(await ev('JSON.stringify(__fwN0.read())')) : null;
 await c.send('Tracing.start', { transferMode: 'ReturnAsStream', traceConfig: { recordMode: 'recordAsMuchAsPossible', includedCategories: [...TRACE_CATEGORIES, ...(process.env.FW_EXTRA_CATEGORIES ? process.env.FW_EXTRA_CATEGORIES.split(',') : [])], traceBufferSizeInKb: 1_000_000 } });
 const frames = [];
-let yMax = 0, endReason = null;
+let yMax = 0, endReason = null, endAt = null, tailFrames = null;
 const wallStart = Date.now();
 const record = (n, phase, scrollY, r) => {
   const m0 = r.metrics;
@@ -392,6 +392,7 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
   const touchNext = inputMode === 'wheel' ? (yNow, ended) => (ended ? null : { phase: 'swipe', touch: { type: 'wheel', y: inp.y } }) : touchPlanner(inp);
   let last = null, yCur = 0, idle = 0, n = 0, swipeFrames = 0, ended = false, finished = false;
   const endInp = inputMode === 'wheel' ? { startY: inp.dyPerFrame, minY: 0, dyPerFrame: inp.dyPerFrame, holdFrames: 0, gapFrames: 0 } : inp;
+  tailFrames = swipeTail(endInp);
   const runFrame = async (choose) => {
     let step = null;
     const r = await frame(vt, `var __fwStepResult = ${POS}; console.timeStamp('F${n}')`, async (yNow) => {
@@ -417,9 +418,9 @@ if (inputMode === 'scrollTo' || inputMode === 'page') {
     for (let guard = 0; !finished; guard++) {
       let stop = false;
       await runFrame((yNow) => {
-        if (!ended && swipeEnded(endInp, scrollLimit, Math.round(yNow), idle)) { ended = true; endReason = Math.round(yNow) >= scrollLimit ? 'limit' : 'stalled'; }
+        if (!ended && swipeEnded(endInp, scrollLimit, Math.round(yNow), idle)) { ended = true; endAt = swipeEndFrame(n, idle); endReason = swipeEndReason(scrollLimit, Math.round(yNow)); }
         const st = touchNext(yNow, ended);
-        if (!st) { stop = true; return { phase: 'settle', touch: null }; }
+        if (!st) { stop = swipeStops(endInp, endAt, n, true); return { phase: 'settle', touch: null }; }
         if (st.phase === 'swipe') swipeFrames++;
         return st;
       });
@@ -499,7 +500,7 @@ const result = {
     image: process.env.FW_IMAGE_ID ?? null, systemFonts: FONT_FAMILIES, snapshot: process.env.FW_SNAPSHOT_ID ?? null,
     servedFiles: Object.keys(served).length, servedSha256: servedSha, missing: srv.missing(),
     viewport: profile.viewport, hz: profile.hz, startVirtualMs: START_VT, pinnedDate: profile.pinnedDate, pageDateAtStart: geo.now, timezone: geo.tz,
-    target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent, scrollLimitPx: scrollLimit, ...(inputMode === 'scrollTo' || inputMode === 'page' ? {} : { endReason, endGapPx: scrollLimit - Math.round(yMax) }) }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
+    target: TARGET, search: SEARCH, rewrite, input: { mode: inputMode, touchEventsSent: touch.sent, scrollLimitPx: scrollLimit, ...(inputMode === 'scrollTo' || inputMode === 'page' ? {} : { endReason, endFrame: endAt, tailFrames, endGapPx: scrollLimit - Math.round(yMax) }) }, trajectorySha256: createHash('sha256').update(JSON.stringify(frames.map((f) => [f.phase, f.scrollY]))).digest('hex'),
     n0, docHeightPx: geo.docH, innerWidthPx: frame0.real.w, innerHeightPx: frame0.real.h, pinnedInnerWidthPx: geo.innerW, pinnedInnerHeightPx: geo.innerH, clientWidthPx: geo.clientW, clientHeightPx: geo.clientH, gateSize: gate, scrollRead: scrollRead(SEARCH), scrollWidthPx: geo.scrollW, visualViewportScale: geo.scale, maxScrollPx: maxScroll, elementCountAtStart: geo.el, threads, layerCensus,
   },
   frames,

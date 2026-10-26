@@ -22110,7 +22110,8 @@
     "results/push-cycle-separate/**",
     "research/findings/ledger.json",
     "docs/team/handoffs/push-cycle-separate.md"
-   ]
+   ],
+   "evidence": "9b60789"
   },
   {
    "devices": [
@@ -22172,7 +22173,8 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "toolbar-sim-lane"
+    "toolbar-sim-lane",
+    "push-cycle-16"
    ],
    "title": "Split from toolbar-sim-lane (review r1): measure Layout and RecalcStyle per frame on the Simulator toolbar lane with >= 3 whole gesture-4 cost windows per arm beside same-job default passes (default, engine.scroll:unthrottle, morph.panel:threaded; look-change arms optional), new push budget (at most 2 pushes, free GitHub macOS), Lean cost-evidence rule from toolbar-sim-lane (.undecided below 3 windows). Decides the cost of candidate f (unthrottle: steps ~95 ms to ~50 ms) and whether it may enter a preset.",
    "writes": [
@@ -22281,7 +22283,11 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [
-    "morph-end-nobounce"
+    "morph-end-nobounce",
+    "gate-replaced-parts",
+    "window-own-end",
+    "profile-end-tail",
+    "window-min-frames"
    ],
    "title": "End-of-page scroll design rank 1 (research/notes/2026/10-26-end-scroll-designs.md): flag morph.stage, replace the end-of-page scroll-jack (two non-passive touch/wheel capture pairs, the per-frame scrollTo pin, the 680 ms rAF tween with 3 MutationObservers) by a sticky stage: a track of T px after the platform with the scene position: sticky (UI-process scrolling-tree node), and --morph on animation-timeline: scroll(root) over [maxY-T, maxY]; discrete states (data-fw-morph classes, POINTER_CUT, ACTIVE_CUT, FADE_END) from the same progress. Look change L (the morph follows the finger over T px instead of a timed 680 ms play), user visual review, never a preset. Lean first: ranges, keyframes equal to the tween's end states, the state cuts as functions of progress, no scrollTo and no non-passive listener under the flag (theorems + golden). Measure: Simulator toolbar lane (reversals, re-opens, pin writes, slow-frame share by cycle), WebKit Simulator zones (3 VMs, Lean minVms), Chromium windows (Lean reader), breakpoint gate both engines; T chosen from the Lean model and the user's review.",
    "writes": [
@@ -22301,7 +22307,11 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "research/notes/2026/10-2x-morph-stage.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/morph-stage.md"
+    "docs/team/handoffs/morph-stage.md",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json"
    ]
   },
   {
@@ -22333,8 +22343,13 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
-    "research/findings/ledger.json"
-   ]
+    "research/findings/ledger.json",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json"
+   ],
+   "evidence": "9a29be0"
   },
   {
    "devices": [
@@ -22498,7 +22513,8 @@
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
     "packages/measure-webkit/test/watchdog.test.mjs",
     "scripts/ci-telemetry/tick.test.mjs"
-   ]
+   ],
+   "evidence": "36b98f8"
   },
   {
    "devices": [
@@ -22521,6 +22537,147 @@
     "research/findings/ledger.json",
     "results/webkit-recount/**",
     "docs/team/handoffs/webkit-recount.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-replaced-parts",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "Breakpoint gate support for a flag that replaces a part: morph.stage unmounts morph.mount and morph.tween, so their anchors are absent (count 0 vs 1) and the gate fails 28 Chromium and 24 WebKit cells (run 40339272935), while FlagDelta only excuses style properties. Add a Lean-decided replaced-part entry (flag, part, premise theorem that the part is unmounted under the flag, e.g. a jack_off_iff in the flag's own module) that excuses exactly the anchors of that part and nothing else; prove an entry never excuses another part's cell or a present anchor; golden; gate harness and tests.",
+   "writes": [
+    "lean/Fw/Gate/FlagDelta.lean",
+    "lean/Fw/Gate/Replaced*.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/contracts/golden/gate/replaced*.jsonl",
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-gate-replaced-parts.md",
+    "docs/team/handoffs/gate-replaced-parts.md"
+   ],
+   "evidence": "d8b781c"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "window-own-end",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Chromium window reader gives noData for every end window when a flag changes the page length: morph.stage runs end at frame 670 against 574 on base (runs 40339630528 base, 40339622735 flag). Find why in the Lean reader (Fw.Measure.OffscreenWindows, offscreen-windows.mjs; windows come from each run's end frame, so the refusal is elsewhere, e.g. a same-window rule) and fix it in Lean: compare each window relative to its own arm's end, proved to equal today's verdict when both arms end on the same frame; golden; TS reader replays it; re-read the morph.stage runs.",
+   "writes": [
+    "lean/Fw/Measure/OffscreenWindows*.lean",
+    "packages/contracts/golden/measure/offscreen-windows*.jsonl",
+    "packages/measure-chromium/src/offscreen-windows*.mjs",
+    "packages/measure-chromium/test/offscreen-windows*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-window-own-end.md",
+    "results/window-own-end/**",
+    "docs/team/handoffs/window-own-end.md"
+   ],
+   "evidence": "b60e2f0"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-retry-needs",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "wk-sim-hang review follow-up: the shipped retry needs (SCROLL_RETRY_S 589, PASS_RETRY_S 436) do not meet runPass_stop_le's premise (inner + recon + base <= outer; outer below Seen.passS 1123), so the two-level bound holds for the model only. Derive both needs from Lean (SimHost) so the theorem's premise holds for the deployed constants, golden replayed by determinism tests; gate the Safari tab wait (navigateTab 60 s) through retryFits; replay the gate over the green sample jobs (retry start times) and report how many it would have refused.",
+   "writes": [
+    "lean/Fw/Measure/SimHost.lean",
+    "lean/Fw/Measure/SimHostGolden.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/src/sim-host.mjs",
+    "packages/measure-webkit/src/wip.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "packages/measure-webkit/test/determinism*.test.mjs",
+    "research/notes/2026/10-2x-sim-retry-needs.md",
+    "results/sim-retry-needs/**",
+    "docs/team/handoffs/sim-retry-needs.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "profile-end-tail",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Chromium swipe profile: a fixed tail after the end frame. Today swipeEnded (packages/measure-chromium/src/profile.mjs:98, run.mjs:420, a TS rule with no Lean) ends a limit end at once but a stalled end only after 2 strokes of idle frames, so a flag that reaches the limit (morph.stage, run 40339622735: 3 frames after its end) has no end windows while base (stalled 4 px short, run 40339630528) has 164. Specify the swipe end in Lean with a tail of a fixed number of frames counted from the end frame for both end kinds (enough for every window of OffscreenWindows, end 120+ included), theorems (equal tail for limit and stalled ends; no window past the tail), golden replayed by profile tests; CI check on swipe-touch-v1 base vs morph.stage (morph-stage branch) showing frames in every end window.",
+   "writes": [
+    "packages/measure-chromium/src/profile.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/test/profile*.test.mjs",
+    "lean/Fw/Measure/SwipeEnd*.lean",
+    "packages/contracts/golden/measure/swipe-end.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-profile-end-tail.md",
+    "results/profile-end-tail/**",
+    "docs/team/handoffs/profile-end-tail.md"
+   ],
+   "evidence": "a7b9d53"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "window-min-frames",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "window-own-end review follow-up: the own-end rule compares a window on as few frames as exist (morph.stage end 0-19 read gain on 3 frames) and commonLen pools all runs of both arms, so one short run cuts every run's window. Add a Lean minFrames per window (noData below it) with a theorem that a gain needs commonLen >= minFrames, golden cases, TS reader replay; state how a short run is handled (drop it below minFrames, or cut, decided in Lean).",
+   "writes": [
+    "lean/Fw/Measure/OffscreenWindows*.lean",
+    "packages/contracts/golden/measure/offscreen-windows*.jsonl",
+    "packages/measure-chromium/src/offscreen-windows*.mjs",
+    "packages/measure-chromium/test/offscreen-windows*.test.mjs",
+    "research/notes/2026/10-2x-window-min-frames.md",
+    "docs/team/handoffs/window-min-frames.md"
+   ],
+   "evidence": "006e394"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "push-cycle-16",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "push-cycle-separate"
+   ],
+   "title": "push-cycle-separate left both arms undecided:noRoom (run 40315679172: the dwell stretch was 2.39 and 2.37, not 2, so the clock-matched cycle 5 fell at index 12, outside the 12-cycle pass). Rerun the separation on the toolbar-throttle lane with a full pass long enough for the measured stretch (16 cycles, or the length the Lean rule derives from the measured stretch with margin, decided in Lean) and give the cycle-driven / clock-driven verdict per arm with n and run ids.",
+   "writes": [
+    "lean/Fw/Measure/PushCycle.lean",
+    "packages/contracts/golden/measure/push-cycle.jsonl",
+    "packages/measure-webkit/src/throttle/push-cycle*.mjs",
+    "packages/measure-webkit/test/push-cycle*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-push-cycle-16.md",
+    "research/findings/ledger.json",
+    "results/push-cycle-16/**",
+    "docs/team/handoffs/push-cycle-16.md"
    ]
   }
  ],

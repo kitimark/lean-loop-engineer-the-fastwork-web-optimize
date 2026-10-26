@@ -5164,6 +5164,18 @@
    "task": "fill-release-platform",
    "field": "webkit",
    "text": "fill-release-platform (note research/notes/2026/10-20-fill-release-platform.md, WebKit per-zone verdict): WebKit Simulator flag run 40282951274 (3 VMs) against base runs 40282962088 (only r2 good) and 40305413688 (only r1 good; r2 and r3 lost in Determinism sessions, host overload, task wk-sim-hang), all at e133f74c8: every zone (z4500, z5000, finish, whole) is undecided with n=1+3 VMs under Lean minVms 3; pooling the two base runs' good VMs (distinct ids r1, r2) gives n=2+3, still below 3. No WebKit work win or no-win is claimed; layers and backing memory are equal at every census stop. Follow-up: WebKit recount after wk-sim-hang lands."
+  },
+  {
+   "entry": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
+   "task": "layer-sweep-tiled",
+   "field": "mechanism",
+   "text": "layer-sweep-tiled (MEASURED, CI; note research/notes/2026/10-2x-layer-sweep-tiled.md): the layer now copies the original repeat tiling (two tiles of 3 word widths, background-size 50% 100%, repeat-x, translate -2w to 0) at the device-pixel word width (Lean tiled_same_look, snap_box). Premise sweep.layer-pixels at bound 12 still fails (runs 40334403316, 40335144234): WebKit inside the word is within 2, its 35 is one pixel at the page origin that only the original draws (run 40336086853 corner split); Chromium keeps 33 at column x=526 (last glyph edge) at progress 0 only: it survives the tiling, snapped width, will-change auto, overflow clip, clip-path and a flat white gradient, and the original alpha ratio 0.57 equals the fraction of an unsnapped 3w tile end (INFERRED). Class stays L. Gate both engines pass (40335795674). Chromium counts unchanged (base 40335918249, arm 40335928775: approach gain, end windows no-gain by Paint +1). WebKit counts not run: waiting for wk-sim-hang."
+  },
+  {
+   "entry": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "task": "push-cycle-separate",
+   "field": "mechanism",
+   "text": "push-cycle-separate (note research/notes/2026/10-2x-push-cycle-separate.md; WebKit Simulator real touches, 12-cycle pass and dwell pass per arm, Lean Fw.Measure.PushCycle.sepVerdict, MEASURED): the cycle-versus-clock question is undecided for both arms. Run 40315679172 (6 VMs): rewrite 5 full and 6 dwell passes, user 4 and 6, both undecided:noRoom because the dwell period was 2.39 and 2.37 times the full period, so the clock-matched cycle 5 fell at index 12 outside the 12-cycle pass. Run 40297879483: rewrite undecided:inseparable (4 and 3 passes, stretch 1.69), user undecided:fewDwell (6 and 2); vm 3 failed, several touch passes lost. Run 40284577163 evidence only. Census (run 40315679172, Lean across): resting backing bytes show no rise above the trend threshold in either arm; layers no for rewrite, mixed for user (1 of 6 dwell passes rises; that pass also grows 101 to 123 MB). H4 (IOSurface re-allocation) stays open: this lane cannot count freed bytes. TS stand-ins: periodMs, activeQuiet/activeCycles, sepArm, censusSeries. CI only; the fix is a later task."
   }
  ]
 }

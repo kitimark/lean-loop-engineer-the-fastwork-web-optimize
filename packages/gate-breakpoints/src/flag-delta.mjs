@@ -47,4 +47,5 @@ export const excusedItems = (flags, part, v, fails, ds = loadDeltas()) =>
 export const wireItem = (it) => ({
   cls: it.cls, role: it.role, key: it.key, status: it.status, byRect: it.byRect === true,
   a: typeof it.a === 'string' ? it.a : null, b: typeof it.b === 'string' ? it.b : null,
+  rewriteCount: it.cls === 'count' && Number.isInteger(it.b) ? it.b : null,
 });

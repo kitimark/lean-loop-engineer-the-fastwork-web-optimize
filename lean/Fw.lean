@@ -144,6 +144,8 @@ import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
+import Fw.Measure.SimHost
+import Fw.Measure.SimHostGolden
 import Fw.Measure.Compose
 import Fw.Measure.ImageArm
 import Fw.Measure.TouchLock
@@ -156,6 +158,8 @@ import Fw.Measure.OffscreenWebKit
 import Fw.Measure.OffscreenWebKitGolden
 import Fw.Measure.OffscreenWindows
 import Fw.Measure.OffscreenWindowsGolden
+import Fw.Measure.SwipeEnd
+import Fw.Measure.SwipeEndGolden
 import Fw.Measure.VerdictEvidence
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
@@ -244,6 +248,7 @@ import Fw.Obs.MacTelemetry
 import Fw.Obs.MacTelemetryWire
 import Fw.Gate.Exit
 import Fw.Gate.FlagDelta
+import Fw.Gate.Replaced
 import Fw.Gate.WebkitScreen
 import Fw.Spec.AxReach
 import Fw.Spec.ConeMiss
