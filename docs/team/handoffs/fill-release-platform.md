@@ -5,7 +5,9 @@
   - chromium-counts 40280497740, success (base `rewrite` vs `platform.entries:fill-release`, swipe-touch-v1, 3 runs).
   - lean 40280497901, success.
   - breakpoint-gate 40282885162 (both engines, fw=platform.entries:fill-release): success, pass. Chromium 7056 readings, 7049 pass/pass, 7 excused not-comparable; playwright-webkit 7056 readings, 6765 pass/pass, 291 excused (unreachable or no vector), 0 FAIL.
-  - webkit-sim base 40282962088 (target rewrite, vms 3): VM r1 failed at step Determinism sessions, r2 success, r3 queued for 1 h (macOS runner contention). webkit-sim flag 40282951274 (fw=platform.entries:fill-release, vms 3): r1, r2 success, r3 queued.
+  - webkit-sim flag 40282951274 (fw=platform.entries:fill-release, vms 3): success, 3 VMs (6 passes).
+  - webkit-sim base 40282962088: failed, only VM r2 gave data (r1 and r3 hit the 2100 s Determinism sessions bound on a slow runner). Read against the flag run: every cell undecided (n=1+3 VMs). Census layers and memoryBytes are equal in base and flag at y 1500, 3000, 4500, end (layers 141-145 at 4500; memory 149.3 MB; 105.8 MB at the end) - no WebKit change, as `webkit_unchanged` predicts.
+  - webkit-sim base retry 40305413688 (same commit and inputs, vms 3): running; read it with `offscreen-webkit-cli.mjs --arm base=<dirs> --arm flag=<dirs>` against the flag run when done.
   - check.sh green at the memory-win commit (run through the slot).
 - Verified: tail layer-frames fall 7140 to 6480 (-9.2%), drawing area -7.7%, tiles -10.9%; work noGain in every window (Paint less, RasterTask more). Lean `Fw.Engine.VisualTimed` and the FillRelease section of `Fw.Parts.PlatformEntries` (same_look, no_held_after, held_saved, rows_win, webkit_unchanged); golden `platform-entries-fill.jsonl`; `fill.test.ts`.
 - Done this round: `results/fill-release-platform/layer-frames.mjs` now sums with `runWindows`/`sumRange` of `packages/measure-chromium/src/offscreen-windows.mjs` (Lean-golden-checked windows); output numbers equal the earlier TS stand-in's.
