@@ -81,7 +81,7 @@ def lowRaster : String → Nat → Nat → Nat := fun k i v => if k == "trace.Ra
 def highPaint : String → Nat → Nat → Nat := fun k i v =>
   if k == "trace.RasterTask" && 10 ≤ i && i < 40 then 0 else if k == "trace.Paint" && 100 ≤ i && i < 160 then v + 1 else v
 
-def armCases : List (String × List Run × List Run) := [
+def armCases (_ : Unit := ()) : List (String × List Run × List Run) := [
   ("raster tasks gone before and just after the end: approach and end 0-19 gain, finish gains", arm 40 same, arm 40 lowRaster),
   ("raster down in the approach but paint up in end 60-119: the finish is no gain", arm 40 same, arm 40 highPaint),
   ("identical arms", arm 40 same, arm 40 same),
