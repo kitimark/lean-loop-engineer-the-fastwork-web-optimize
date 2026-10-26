@@ -3,16 +3,17 @@
 <title>sweep.layer-pixels</title>
 <style>
   /* Row pairs at fixed progress (paused, negative delay: nothing is seeked). Pair i: the word as the original paints it
-     (background-clip:text, background-position animated) and as platform.sweep:layer-sweep paints it (a gradient child 3x
-     as wide moved by transform under a static mask-clip:text mask). Same declarations as sweep.module.css. */
+     (background-clip:text, background-position animated) and as platform.sweep:layer-sweep paints it (a gradient child two
+     tiles wide, background-size 50% 100% repeat-x, 6 snapped word widths, moved by transform under a static mask-clip:text
+     mask). Same declarations as sweep.module.css; the script sets --sw6 as the part does (once per resize). */
   body { margin: 0; background: #131922; color: #fff; font: 700 40px/1.15 sans-serif }
   p { margin: 0; height: 60px; padding: 7px 20px; box-sizing: border-box; width: 800px; white-space: nowrap }
   .g { background-image: linear-gradient(90deg, #fff 0 33.33%, #82bcff 40%, #2483ff 45%, #ff66f4 50%, #ff3029 55%, #fe7b02 60%, #fff 66.67% 100%) }
   .a { display: inline; vertical-align: top; background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: #0000; -webkit-text-fill-color: transparent; animation: 4s linear infinite paused sweepDoc }
   .b { display: inline-block; vertical-align: top; position: relative; color: #0000; -webkit-text-fill-color: transparent; -webkit-mask-image: linear-gradient(#000, #000); mask-image: linear-gradient(#000, #000); -webkit-mask-clip: text; mask-clip: text }
-  .b i { display: block; position: absolute; left: 0; top: 0; width: 300%; height: 100%; animation: 4s linear infinite paused sweepLayerX; will-change: transform }
+  .b i { display: block; position: absolute; left: 0; top: 0; width: var(--sw6, 600%); height: 100%; background-size: 50% 100%; background-repeat: repeat-x; animation: 4s linear infinite paused sweepLayerX; will-change: transform }
   @keyframes sweepDoc { 0% { background-position: 100% } to { background-position: 0% } }
-  @keyframes sweepLayerX { 0% { transform: translateX(-66.6667%) } to { transform: translateX(0) } }
+  @keyframes sweepLayerX { 0% { transform: translateX(-33.33333333%) } to { transform: translateX(0) } }
   div.t0 * { animation-delay: 0s }
   div.t1 * { animation-delay: -0.5s }
   div.t2 * { animation-delay: -1.5s }
@@ -23,6 +24,11 @@
   div.t6 * { animation-delay: -1ms }
   div.t7 * { animation-delay: 0s }
   div.t7 .b i { will-change: auto }
+  /* probes (not asserted): the word clips its layer to its snapped box */
+  div.t8 * { animation-delay: 0s }
+  div.t8 .b { overflow: clip }
+  div.t9 * { animation-delay: -1ms }
+  div.t9 .b { overflow: clip }
 </style>
 <div class="t0"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
 <div class="t1"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
@@ -32,3 +38,17 @@
 <div class="t5"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
 <div class="t6"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
 <div class="t7"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<div class="t8"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<div class="t9"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<script>
+  // the part's watchLayerWidth: device-pixel word width (or the rect snapped half up), layer = 6 of it, once per resize
+  const dpr = devicePixelRatio || 1;
+  const set = (el, n) => el.style.setProperty('--sw6', (6 * n / dpr) + 'px');
+  const ro = new ResizeObserver((es) => es.forEach((e) => {
+    const d = e.devicePixelContentBoxSize && e.devicePixelContentBoxSize[0];
+    if (d) return set(e.target, d.inlineSize);
+    const r = e.target.getBoundingClientRect();
+    set(e.target, Math.floor((r.left + r.width) * dpr + 0.5) - Math.floor(r.left * dpr + 0.5));
+  }));
+  document.querySelectorAll('.b').forEach((el) => { try { ro.observe(el, { box: 'device-pixel-content-box' }); } catch (_) { ro.observe(el); } });
+</script>
