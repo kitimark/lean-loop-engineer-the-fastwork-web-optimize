@@ -14,6 +14,8 @@ import v from './visuals.module.css';
 /** Which sub-parts are the faithful ones (anything else leaves the visual static, the hook for later variants). */
 export interface Subs {
   entries: boolean;
+  /** platform.entries:fill-release: the stage roots carry `fillRelease` (fill backwards, end values static). */
+  entriesFill?: boolean;
   glint: boolean;
   glintPause?: boolean;
   marquee: boolean;
@@ -82,7 +84,7 @@ export function Profile({ subs }: { subs: Subs }) {
     nums.current[i] = n;
   };
   return (
-    <div ref={root} className={v.profile} data-fw-visual="profile" aria-hidden="true">
+    <div ref={root} className={cx(v.profile, subs.entriesFill && v.fillRelease)} data-fw-visual="profile" aria-hidden="true">
       <div className={v.phone}>
         <div className={v.profileHead}>
           <div className={v.profileId}>
@@ -233,7 +235,7 @@ export function Ask({ subs }: { subs: Subs }) {
   const shown = TOPICS[view.shown]!.services;
   const out = TOPICS[(view.shown + TOPICS.length - 1) % TOPICS.length]!.services;
   return (
-    <div ref={root} className={cx(v.ask, isStatic && v.isStatic, enter && v.isEnter, view.results && v.isResults, view.leaving && v.isLeaving)} data-fw-visual="ask" aria-hidden="true">
+    <div ref={root} className={cx(v.ask, subs.entriesFill && v.fillRelease, isStatic && v.isStatic, enter && v.isEnter, view.results && v.isResults, view.leaving && v.isLeaving)} data-fw-visual="ask" aria-hidden="true">
       <div className={v.askBox}>
         <div className={v.askHero}>
           <p className={v.askTitle}>{ASK_TITLE}</p>
@@ -351,7 +353,7 @@ export function Secure({ subs }: { subs: Subs }) {
     };
   }, [subs.entries, subs.glint, subs.glintPause]);
   return (
-    <div ref={root} className={v.secure} data-fw-visual="secure" aria-hidden="true">
+    <div ref={root} className={cx(v.secure, subs.entriesFill && v.fillRelease)} data-fw-visual="secure" aria-hidden="true">
       <img className={v.rings} loading="lazy" decoding="async" src={`${NETWORK}/hex-rings.svg`} alt="" width="542" height="600" draggable={false} />
       <Dash side="left" playing={playing} />
       <Dash side="right" playing={playing} />
@@ -437,7 +439,7 @@ export function Invoice({ subs }: { subs: Subs }) {
     };
   }, [subs.entries]);
   return (
-    <div ref={root} className={v.invoice} data-fw-visual="invoice" aria-hidden="true">
+    <div ref={root} className={cx(v.invoice, subs.entriesFill && v.fillRelease)} data-fw-visual="invoice" aria-hidden="true">
       <div className={v.sheet}>
         <ul className={v.orderList}>
           {ORDERS.map((o, i) => (

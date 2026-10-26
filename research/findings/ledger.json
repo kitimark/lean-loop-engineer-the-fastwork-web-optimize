@@ -4302,6 +4302,40 @@
    "next": "the user's visual review; counts in the note",
    "evidence": "research/notes/2026/10-2x-platform-sweep-layer.md (task platform-sweep-layer)",
    "n": 85
+  },
+  {
+   "id": "platform.entries.fill-release",
+   "part": "platform.entries",
+   "candidate": "platform.entries:fill-release: the 15 platform entry animations fill backwards only and their keyframe end values are written as static style, so no animation stays in effect after its end",
+   "status": "partly-proved",
+   "flags": [
+    "platform.entries:fill-release"
+   ],
+   "flag": "platform.entries:fill-release",
+   "visClass": "E",
+   "chromium": "pending: swipe-touch-v1 counts, base and flag at one commit",
+   "webkit": "predicted no layer change (webkit_unchanged); Simulator counts pending",
+   "visual": "E: Lean same_look (every Env, every time) from release_shown; the stylesheet rows are checked against the golden by fill.test.ts",
+   "mechanism": "CONFIRMED by source: Chromium keeps an active-animation compositing reason while an animation is current or in effect, and fill both keeps it in effect after the end (timing_calculations.cc:141-161, css_animations.cc:2267-2280, compositing_reason_finder.cc:570-597 @f842f52); WebKit affects the property and keeps the accelerated animation only in the active phase (KeyframeEffect.cpp:1703-1715, 2085-2089 @862f17d). PROVED in Lean: no_held_after, held_saved, same_look.",
+   "leanFor": [
+    "Fw.Parts.PlatformEntries.same_look",
+    "Fw.Parts.PlatformEntries.no_held_after",
+    "Fw.Parts.PlatformEntries.held_saved",
+    "Fw.Parts.PlatformEntries.webkit_unchanged",
+    "Fw.Parts.PlatformEntries.rows_win",
+    "Fw.Engine.VisualTimed.release_shown"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Per-engine counts: see the note research/notes/2026/10-20-fill-release-platform.md"
+   ],
+   "premises": [
+    "the census layer count follows the compositing reasons of the entry elements: INFERRED, read from the counts"
+   ],
+   "v1Evidence": "none",
+   "lesson": "A finished animation with fill forwards is still an animation to Chromium; write its end values as style and fill backwards only.",
+   "next": "counts in the note",
+   "evidence": "research/notes/2026/10-20-fill-release-platform.md (task fill-release-platform)"
   }
  ],
  "notes": [
