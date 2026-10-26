@@ -5125,6 +5125,12 @@
    "task": "layer-sweep-webkit-n3",
    "field": "webkit",
    "text": "layer-sweep-webkit-n3 (note research/notes/2026/10-2x-platform-sweep-layer.md, re-run section): MEASURED WebKit Simulator at 9493a5ddb, base runs 40277969074 and 40284460392, layer-sweep runs 40277972324 and 40284464262, 3 VMs requested per run; 9 of 12 VM jobs lost (base r1,r2 and r2,r3; arm r2,r3 and r1,r2,r3). Reader offscreen-webkit-cli.mjs (minVms 3): complete sessions base 2 VMs, arm 1 VM, every zone (z4500, z5000, finish, whole) UNDECIDED; with kept lost-VM passes base 5 VMs, arm 2 VMs, UNDECIDED. Harness cause INFERRED: in 8 of 9 lost jobs the first inspector call times out at 120 s (the 9th never opened a tab), reconnect finds no page target, host load average 157-965 on 3 CPUs; no variant effect (base lost 4 of 6, arm 5 of 6). Chromium t=0 x=526 (premise sweep.layer-pixels, run 40264978871): original path CONFIRMED in background_image_geometry.cc:392-401,754@f842f52 and box_painter_base.cc:1492-1497,1569@f842f52; variant path CONFIRMED in compositing_reasons.h:116@f842f52 and paint_property_tree_builder.cc:731-735,763-805@f842f52; the pixel-level column mechanism stays INFERRED (the will-change:auto probe gave the same 33). Class L, for the user's visual review, never a preset."
+  },
+  {
+   "entry": "platform.entries:fill-release: the 15 platform entry animations fill backwards only and their keyframe end values are written as static style, so no animation stays in effect after its end",
+   "task": "fill-release-platform",
+   "field": "webkit",
+   "text": "fill-release-platform (note research/notes/2026/10-20-fill-release-platform.md, WebKit per-zone verdict): WebKit Simulator flag run 40282951274 (3 VMs) against base runs 40282962088 (only r2 good) and 40305413688 (only r1 good; r2 and r3 lost in Determinism sessions, host overload, task wk-sim-hang), all at e133f74c8: every zone (z4500, z5000, finish, whole) is undecided with n=1+3 VMs under Lean minVms 3; pooling the two base runs' good VMs (distinct ids r1, r2) gives n=2+3, still below 3. No WebKit work win or no-win is claimed; layers and backing memory are equal at every census stop. Follow-up: WebKit recount after wk-sim-hang lands."
   }
  ]
 }
