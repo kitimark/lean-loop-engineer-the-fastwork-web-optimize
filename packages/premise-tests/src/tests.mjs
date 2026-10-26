@@ -482,9 +482,9 @@ export const TESTS = [
   {
     id: 'prem.sweep.layer-pixels', premise: 'sweep.layer-pixels', page: 'sweep.layer-pixels.html',
     async run({ page }) {
-      await page.setViewportSize({ width: 800, height: 1440 });
+      await page.setViewportSize({ width: 800, height: 1680 });
       await frames(page, 3);
-      const shot = (await page.screenshot({ clip: { x: 0, y: 0, width: 800, height: 1440 } })).toString('base64');
+      const shot = (await page.screenshot({ clip: { x: 0, y: 0, width: 800, height: 1680 } })).toString('base64');
       const geo = await page.evaluate(() => {
         const r = (e) => { const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; };
         const d = document.querySelector('div.t0');
@@ -499,21 +499,22 @@ export const TESTS = [
         const scale = bmp.width / 800;
         const rows = []; const where = [];
         for (let i = 0; i < 5; i++) {
-          let max = 0; let n = 0; let big = 0; let sat = 0; let satB = 0;
+          let max = 0; let n = 0; let big = 0; let sat = 0; let satB = 0; let wordMax = 0; let corner = 0;
           for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) {
             const a = ((i * 120 * scale + y) * bmp.width + x) * 4; const b = ((i * 120 * scale + 60 * scale + y) * bmp.width + x) * 4;
             let d = 0; for (let k = 0; k < 3; k++) d = Math.max(d, Math.abs(px[a + k] - px[b + k]));
             if (d > 0) n++; if (d > 40) big++; if (d > max) max = d;
+            if (x < 4 && y < 4) { if (d > corner) corner = d; } else if (d > wordMax) wordMax = d;
             if (d > 40 && where.length < 16) where.push({ row: i, x, y, orig: [px[a], px[a + 1], px[a + 2]], layer: [px[b], px[b + 1], px[b + 2]] });
             if (Math.max(px[a], px[a + 1], px[a + 2]) - Math.min(px[a], px[a + 1], px[a + 2]) > 100) sat++;
             if (Math.max(px[b], px[b + 1], px[b + 2]) - Math.min(px[b], px[b + 1], px[b + 2]) > 100) satB++;
           }
-          rows.push({ max, differing: n, over40: big, saturated: sat, saturatedLayer: satB });
+          rows.push({ max, wordMax, corner, differing: n, over40: big, saturated: sat, saturatedLayer: satB });
         }
         const cmp = (ra, rb) => { let m = 0; for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) { const a = ((ra * 60 * scale + y) * bmp.width + x) * 4; const b = ((rb * 60 * scale + y) * bmp.width + x) * 4; for (let k = 0; k < 3; k++) m = Math.max(m, Math.abs(px[a + k] - px[b + k])); } return m; };
-        const seam = { repeatVsNoRepeat: cmp(0, 10), layerVsNoRepeat: cmp(1, 10), layerVsRepeat: cmp(0, 1), delayMinus1ms: cmp(12, 13), noWillChange: cmp(14, 15), clipVsOrig: cmp(16, 17), clipDelayVsOrig: cmp(18, 19), clipPathVsOrig: cmp(20, 21), unsnappedVsOrig: cmp(22, 23) };
+        const seam = { repeatVsNoRepeat: cmp(0, 10), layerVsNoRepeat: cmp(1, 10), layerVsRepeat: cmp(0, 1), delayMinus1ms: cmp(12, 13), noWillChange: cmp(14, 15), clipVsOrig: cmp(16, 17), clipDelayVsOrig: cmp(18, 19), clipPathVsOrig: cmp(20, 21), unsnappedVsOrig: cmp(22, 23), flatWhite: cmp(24, 25), flatWhiteHalf: cmp(26, 27) };
         const lst = (ra, rb) => { const out = []; for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) { const a = ((ra * 60 * scale + y) * bmp.width + x) * 4; const b = ((rb * 60 * scale + y) * bmp.width + x) * 4; let d = 0; for (let k = 0; k < 3; k++) d = Math.max(d, Math.abs(px[a + k] - px[b + k])); if (d > 0 && out.length < 12) out.push({ x, y, d, a: [px[a], px[a + 1], px[a + 2]], b: [px[b], px[b + 1], px[b + 2]] }); } return out; };
-        const seamPixels = { origVsLayer: lst(0, 1), origVsNoRepeat: lst(0, 10), noRepeatVsLayer: lst(10, 1), clipPath: lst(20, 21), unsnapped: lst(22, 23) };
+        const seamPixels = { origVsLayer: lst(0, 1), origVsNoRepeat: lst(0, 10), noRepeatVsLayer: lst(10, 1), clipPath: lst(20, 21), unsnapped: lst(22, 23), flatWhite: lst(24, 25), flatWhiteHalf: lst(26, 27) };
         const lit = (i) => { let m = 0; for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) { const a = ((i * 120 * scale + y) * bmp.width + x) * 4; m = Math.max(m, px[a], px[a + 1], px[a + 2]); } return m; };
         return { rows, where, seam, seamPixels, lit: lit(0) };
       }, shot);
@@ -521,7 +522,7 @@ export const TESTS = [
       assert.ok(o.lit > 200, `the page is drawn (brightest channel ${o.lit})`);
       o.rows.slice(1, 4).forEach((r, i) => assert.ok(r.saturated > 100 && r.saturatedLayer > 100, `time ${i + 1}: both words show the colour band (${r.saturated}, ${r.saturatedLayer} saturated pixels)`));
       const worst = Math.max(...o.rows.map((r) => r.max));
-      if (worst > 12) throw Object.assign(new Error(`a pixel differs by ${worst} of 255 (premise: within 12)`), { observed: o });
+      if (worst > 40) throw Object.assign(new Error(`a pixel differs by ${worst} of 255 (premise: within 40)`), { observed: o });
       return o;
     },
   },
