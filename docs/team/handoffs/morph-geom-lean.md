@@ -1,12 +1,12 @@
 branch: worktree-wf_f89668d1-656-1; worktree: .claude/worktrees/wf_f89668d1-656-1
-last commit: this handoff's commit, on top of f4deda24b (main merged at 52f0a1894)
+last commit: this handoff's commit, on top of fe1b83537 (main merged at 52f0a1894)
 CI runs: none (Lean only; the accepted limits rule out CI)
 verified:
 - check.sh green via `fw slot run --kind check` (4:28), including the `morph-geom golden check` job.
 - plan lint: 0 errors, no writesClosure finding for this task.
 - Tests pass: ci-paths 56/56, contracts 11/11, runner land-inputs 73/73.
 - `#print axioms` standard on every main theorem.
-done: every statement of the design note's Lean list. See research/notes/2026/10-27-morph-geom-lean.md for the table.
+done: every statement of the design note's Lean list. See research/notes/2026/10-2x-morph-geom-lean.md for the table.
 - MorphGeom.lean: tracks, chords, sizes, clip doors, net_err.
 - MorphGeomRect.lean: rect_eq, fill_eq, panel_eq, fade_eq, logo_err.
 - MorphGeomEarn.lean: earn_eq for WebKit and Chromium.
