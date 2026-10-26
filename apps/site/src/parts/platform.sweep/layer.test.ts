@@ -56,7 +56,8 @@ describe('watchLayerWidth', () => {
     }
     vi.stubGlobal('ResizeObserver', RO);
     vi.stubGlobal('window', { devicePixelRatio: 2 });
-    return (target: HTMLElement, size?: number) => cb([{ target, devicePixelContentBoxSize: size === undefined ? undefined : [{ inlineSize: size }] } as unknown as ResizeObserverEntry], {} as ResizeObserver);
+    return (target: HTMLElement, size?: number, css?: number) =>
+      cb([{ target, devicePixelContentBoxSize: size === undefined ? undefined : [{ inlineSize: size }], contentBoxSize: css === undefined ? undefined : [{ inlineSize: css }] } as unknown as ResizeObserverEntry], {} as ResizeObserver);
   };
   it('uses the device-pixel count when the engine reports it', () => {
     const fire = stub(true);
@@ -71,5 +72,12 @@ describe('watchLayerWidth', () => {
     L.watchLayerWidth([w]);
     fire(w);
     expect(w.props.get(L.LAYER_WIDTH_VAR)).toBe(`${(6 * L.snapPx({ dpr: 2, left: 20.4, width: 526.81 })) / 2}px`);
+  });
+  it('takes the untransformed content-box width when an ancestor scale shrinks the rect (WebKit has no device-pixel box)', () => {
+    const fire = stub(false);
+    const w = el();
+    L.watchLayerWidth([w]);
+    fire(w, undefined, 526.81 / 0.917);
+    expect(w.props.get(L.LAYER_WIDTH_VAR)).toBe(`${(6 * L.snapPx({ dpr: 2, left: 20.4, width: 526.81 / 0.917 })) / 2}px`);
   });
 });

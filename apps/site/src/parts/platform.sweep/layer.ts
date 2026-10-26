@@ -32,17 +32,17 @@ export const LAYER_WIDTH_VAR = '--sw6';
 
 export function watchLayerWidth(words: readonly HTMLElement[]): () => void {
   if (typeof ResizeObserver === 'undefined') return () => undefined;
-  const apply = (el: HTMLElement, px: number | null): void => {
+  const apply = (el: HTMLElement, px: number | null, cssW?: number): void => {
     const dpr = window.devicePixelRatio || 1;
     let n = px;
     if (n === null) {
       const r = el.getBoundingClientRect();
-      n = snapPx({ dpr, left: r.left, width: r.width });
+      n = snapPx({ dpr, left: r.left, width: cssW ?? r.width });
     }
     el.style.setProperty(LAYER_WIDTH_VAR, `${(6 * n) / dpr}px`);
   };
   const onResize = (entries: ResizeObserverEntry[]): void => {
-    for (const e of entries) apply(e.target as HTMLElement, e.devicePixelContentBoxSize?.[0]?.inlineSize ?? null);
+    for (const e of entries) apply(e.target as HTMLElement, e.devicePixelContentBoxSize?.[0]?.inlineSize ?? null, e.contentBoxSize?.[0]?.inlineSize);
   };
   let ro = new ResizeObserver(onResize);
   try {
