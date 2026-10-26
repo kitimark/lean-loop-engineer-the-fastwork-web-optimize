@@ -36,11 +36,21 @@ export function sameSteps(lo, hi, ps) {
   });
 }
 
-export function usable(lo, hi, base, flag) {
+export const MIN_VMS = 3;
+
+export const vmCount = (ps) => new Set(ps.map((p) => p.vm)).size;
+
+const enoughVms = (ps) => vmCount(ps) >= MIN_VMS;
+
+export const undecided = (base, flag) => !(enoughVms(base) && enoughVms(flag));
+
+export function passUsable(lo, hi, base, flag) {
   const all = [...base, ...flag];
   return base.length >= MIN_RUNS && flag.length >= MIN_RUNS && all.every(shaped) && sameSteps(lo, hi, all) &&
     sameWindow(all.map((p) => windowVec(lo, hi, p)));
 }
+
+export const usable = (lo, hi, base, flag) => !undecided(base, flag) && passUsable(lo, hi, base, flag);
 
 const spread = (xs) => [Math.min(...xs), Math.max(...xs)];
 
@@ -50,11 +60,12 @@ export function cmpKeys(lo, hi, base, flag) {
   return Object.fromEntries(WK_KEYS.map((k) => [k, cmp(SLACK, spread(bv.map((v) => v.vals[k])), spread(fv.map((v) => v.vals[k])))]));
 }
 
-export function verdict(lo, hi, base, flag) {
-  if (!usable(lo, hi, base, flag)) return 'noData';
-  return judge(Object.values(cmpKeys(lo, hi, base, flag)));
-}
+const judged = (lo, hi, base, flag) => judge(Object.values(cmpKeys(lo, hi, base, flag)));
+
+export const passVerdict = (lo, hi, base, flag) => (passUsable(lo, hi, base, flag) ? judged(lo, hi, base, flag) : 'noData');
+
+export const verdict = (lo, hi, base, flag) => (usable(lo, hi, base, flag) ? judged(lo, hi, base, flag) : 'noData');
 
 export const zoneVerdicts = (base, flag) => ZONES.map((z) => [z.name, verdict(z.lo, z.hi, base, flag)]);
 
-export const passOf = (pass) => ({ ys: pass.scroll.ys, rows: pass.scroll.reduced.perStep });
+export const passOf = (pass, vm) => ({ vm, ys: pass.scroll.ys, rows: pass.scroll.reduced.perStep });
