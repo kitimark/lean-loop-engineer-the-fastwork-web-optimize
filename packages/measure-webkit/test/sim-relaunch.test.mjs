@@ -186,12 +186,12 @@ const calls = () => readFileSync(fake.log, 'utf8').trim().split('\n').filter(Boo
 test('deviceBooted: Booted is up, Shutdown is down, no answer is down, no device known is up', async () => {
   await withFake(async () => {
     writeFileSync(fake.json, fake.devices('Booted'));
-    assert.equal(deviceBooted('U1'), true);
+    assert.equal(await deviceBooted('U1'), true);
     writeFileSync(fake.json, fake.devices('Shutdown'));
-    assert.equal(deviceBooted('U1'), false);
-    assert.equal(deviceBooted(null), true);
+    assert.equal(await deviceBooted('U1'), false);
+    assert.equal(await deviceBooted(null), true);
     fake.env({ FAKE_LIST_FAIL: 'permanent failure' });
-    assert.equal(deviceBooted('U1'), false);
+    assert.equal(await deviceBooted('U1'), false);
   });
 });
 

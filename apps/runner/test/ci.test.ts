@@ -202,3 +202,15 @@ describe("fw ci state <run id> (review-flow-v2-followups: the gate agent reads r
     expect(out).toEqual(["1 unknown (older than the newest 100 runs; pass --branch or --workflow)"]);
   });
 });
+
+describe("fw ci state cm:<build id>", () => {
+  const id = "cm:0123456789abcdef01234567";
+  const run = async (w: "running" | "complete" | "failed" | null, i = id) => { const out: string[] = []; const code = await ciState(i, { gh: async () => "[]", log: (l) => out.push(l), cm: async () => w }); return { code, out }; };
+  it("prints the same three words as a GitHub run", async () => {
+    for (const w of ["running", "complete", "failed"] as const) expect(await run(w)).toEqual({ code: 0, out: [`${id} ${w}`] });
+  });
+  it("an unreadable build is unknown (exit 2); a malformed id is a usage error", async () => {
+    expect(await run(null)).toEqual({ code: 2, out: [`${id} unknown`] });
+    await expect(run("complete", "cm:xyz")).rejects.toThrow(/usage/);
+  });
+});

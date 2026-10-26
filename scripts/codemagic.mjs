@@ -47,6 +47,11 @@ export function poolRefusals(c, used, cap) {
 }
 export const poolOk = (c, used, cap) => poolRefusals(c, used, cap).length === 0;
 
+export function stateWord(status) {
+  const code = exitOf(status);
+  return code === null ? 'running' : code === 0 ? 'complete' : 'failed';
+}
+
 export function exitOf(status) {
   if (status === 'finished') return 0;
   if (status === 'failed' || status === 'timeout') return 1;
@@ -230,7 +235,7 @@ export function classRows(md) {
   const rows = {};
   for (const line of md.split('\n')) {
     const c = line.split('|').map((x) => x.trim());
-    if (c.length < 8 || c[1] === 'family' || /^-+$/.test(c[1])) continue;
+    if (c.length < 7 || c[1] === 'family' || /^-+$/.test(c[1])) continue;
     rows[`${c[1]}|${c[2]}|${c[3]}`] = c[4].replaceAll('*', '');
   }
   return rows;
@@ -268,6 +273,7 @@ const USAGE = [
   '  check                                            the token works and the app id is one of the apps (needs FW_CODEMAGIC_APP_ID or .local/codemagic.json)',
   '  trigger --branch ci/<name> [--workflow webkit-sim] [--pool] [--vars JSON] [--dry]   (--vars: FW_TARGET FW_PRESET FW_FW FW_VM FW_SESSIONS FW_SEARCH; cap = codemagic.yaml max_build_duration; --pool: no build count)',
   '  facts                                            {month, used, busy} for the macOS pool (fw ci pool dispatch)',
+  '  state --build ID                                 one line, cm:ID running|complete|failed (fw ci state cm:ID); no ledger write',
   '  wait --build ID [--timeout S] [--interval S>=120] [--out DIR]     fetch --build ID --out DIR',
   '  compare --github DIR --codemagic DIR [--vm v1|r1] [--site-github DIR --site-codemagic FILE] [--json]    ledger    digest FILE.md    site-digest DIR    dry-run',
 ].join('\n');
@@ -328,6 +334,12 @@ export async function main(argv, { root = ROOT, env = process.env, ctx: ctx0 = {
       }
       if (r.site) log(`site digest: github ${r.site.github ?? 'none'}, codemagic ${r.site.codemagic ?? 'none'}: ${r.site.equal ? 'equal' : 'DIFFERENT (the cell is not routable)'}`);
       return !r.comparable ? 2 : r.site && !r.site.equal ? 3 : r.equal ? 0 : 1;
+    }
+    if (sub === 'state') {
+      const o = flags(rest, { build: 'v' });
+      if (!/^[0-9a-f]{24}$/.test(o.build ?? '')) throw new Usage('give --build ID (24 hex digits)');
+      log(`cm:${o.build} ${stateWord(normBuild(await call(ctx, 'GET', urls.build(o.build))).status)}`);
+      return 0;
     }
     if (sub === 'facts') { flags(rest, {}); log(JSON.stringify(poolFacts(ctx.ledgerPath, ctx.now()))); return 0; }
     if (sub === 'dry-run' || (sub === 'trigger' && rest.includes('--dry'))) {
