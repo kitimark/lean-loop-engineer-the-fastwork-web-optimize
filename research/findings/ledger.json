@@ -4302,6 +4302,36 @@
    "next": "the user's visual review; counts in the note",
    "evidence": "research/notes/2026/10-2x-platform-sweep-layer.md (task platform-sweep-layer)",
    "n": 85
+  },
+  {
+   "id": "morph.end.nobounce",
+   "part": "morph.end.nobounce",
+   "candidate": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the bottom rubber band never exists and a forward push at the end leaves scrollY at the pin",
+   "status": "look-change",
+   "flag": "morph.end.nobounce:on",
+   "visClass": "L",
+   "flags": [
+    "morph.end.nobounce:on"
+   ],
+   "chromium": "unknown: see the note",
+   "webkit": "unknown: see the note",
+   "visual": "look change (L): no rubber band at the bottom of any page; Safari's toolbar reveal on a bottom bounce may differ. The user's visual review decides; never a preset.",
+   "mechanism": "CONFIRMED from source: root overscroll-behavior maps onto UIScrollView bounce in the UI process (WKWebViewIOS.mm:1084-1087, ScrollingTreeScrollingNodeDelegateIOS.mm:352-362@862f17d). Lean push_at_end_no_write, pin_writes_below, no_write_above_end (Fw.Parts.MorphEndNobounce): with no bounce the pin write has nothing to correct above the end. Differs from morph.mount:overscroll-lock, which toggled bounce while armed or active.",
+   "leanFor": [
+    "Fw.Parts.MorphEndNobounce.push_at_end_no_write",
+    "Fw.Parts.MorphEndNobounce.pin_writes_below",
+    "Fw.Parts.MorphEndNobounce.no_write_above_end"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A static CSS rule removes the rubber-band side of the pin fight with no JS; whether the fight drove the slow frames is the measured part (note).",
+   "next": "Out of v2-proved (look change, class L). See research/notes/2026/10-2x-morph-end-nobounce.md for the measured result; the user reviews it on the phone.",
+   "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean",
+   "userDecision": "pending"
   }
  ],
  "notes": [

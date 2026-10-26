@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Hero } from './parts/hero';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
+import { EndNobounce } from './parts/morph.end.nobounce';
 import { MorphCountdown } from './parts/morph.countdown';
 import { NavHitTest } from './parts/nav.hitTest';
 import { Nav } from './parts/nav';
@@ -47,6 +48,7 @@ export function App({ config }: { config: FwConfig }) {
   return (
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
+      <EndNobounce variant={config.variants['morph.end.nobounce'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
       <MorphMount variant={mountVariant} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} onWake={() => setWoken(true)} />
       <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} platformFade={config.variants['platform'] === FADE_THREADED} />

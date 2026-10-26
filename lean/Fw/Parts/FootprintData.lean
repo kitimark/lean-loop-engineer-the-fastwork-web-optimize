@@ -5,7 +5,7 @@ namespace Fw.Parts.FootprintData
 open Fw.Parts.Footprint
 
 /-- Part ids, one per folder of apps/site/src/parts, in byte order of the folder names. -/
-def partIds : List String := ["commission", "commission.typing", "engine.events", "engine.scene", "engine.scroll", "hero", "hero.accent", "hero.countdown", "hero.cue", "hero.deck", "hero.exit", "hero.orbit", "morph.columns", "morph.countdown", "morph.end.clamp", "morph.end.flip", "morph.end.release", "morph.mount", "morph.panel", "morph.tween", "nav", "nav.hitTest", "nav.langMenu", "overlays.drawer", "overlays.signup", "pain", "pain.notes", "people", "people.card", "people.carousel", "people.deck", "people.o", "platform", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"]
+def partIds : List String := ["commission", "commission.typing", "engine.events", "engine.scene", "engine.scroll", "hero", "hero.accent", "hero.countdown", "hero.cue", "hero.deck", "hero.exit", "hero.orbit", "morph.columns", "morph.countdown", "morph.end.clamp", "morph.end.flip", "morph.end.nobounce", "morph.end.release", "morph.mount", "morph.panel", "morph.tween", "nav", "nav.hitTest", "nav.langMenu", "overlays.drawer", "overlays.signup", "pain", "pain.notes", "people", "people.card", "people.carousel", "people.deck", "people.o", "platform", "platform.entries", "platform.glint", "platform.marquee", "platform.stageBg", "platform.sweep"]
 
 /-- Every extracted access, in key order: (part, file, line, op, name, owner, callback, variants). -/
 def accesses : List Access := [
@@ -2184,6 +2184,8 @@ def variantFiles : List (String × String × List String) := [
   ("morph.end.clamp", "on", []),
   ("morph.end.flip", "faithful", []),
   ("morph.end.flip", "on", []),
+  ("morph.end.nobounce", "faithful", []),
+  ("morph.end.nobounce", "on", []),
   ("morph.end.release", "faithful", []),
   ("morph.end.release", "on", []),
   ("morph.mount", "faithful", []),
