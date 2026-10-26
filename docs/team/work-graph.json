@@ -22098,6 +22098,56 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/push-cycle-separate.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "offscreen-vm-count",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "platform-attribution"
+   ],
+   "title": "platform-attribution review follow-up: the WebKit undecided label is a prose stand-in. Give OffscreenWebKit Pass a VM id and make usable require at least 3 distinct VMs per arm (today minRuns counts passes, 2 per VM, so 2 VMs read as gain). Lean theorem: an arm with fewer than 3 distinct VMs is undecided in every zone; golden replayed by offscreen-webkit.test.mjs; the CLI reads the VM id from the artifact dir (webkit-sim-r<k>) and prints undecided with n. Re-run the reader on the platform-attribution artifacts (entries 40236534457, marquee 40236475717) and confirm undecided; note in research/notes/2026/10-2x-platform-attribution.md is updated by the lead only if a cell changes.",
+   "writes": [
+    "lean/Fw/Measure/OffscreenWebKit.lean",
+    "lean/Fw/Measure/OffscreenWebKitGolden.lean",
+    "packages/contracts/golden/measure/offscreen-webkit.jsonl",
+    "packages/measure-webkit/src/offscreen-webkit.mjs",
+    "packages/measure-webkit/src/offscreen-webkit-cli.mjs",
+    "packages/measure-webkit/test/offscreen-webkit.test.mjs",
+    "research/notes/2026/10-2x-offscreen-vm-count.md",
+    "docs/team/handoffs/offscreen-vm-count.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "chromium-window-reader",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "platform-attribution"
+   ],
+   "title": "platform-attribution review follow-up: the Chromium push-window cells (approach, end 0-19, end 20-59, end 60+, finish) come from an uncommitted scratch reader (TS stand-in). Commit the reader in packages/measure-chromium (per-run sums of counts.json frames, end = first frame at max scrollY, finish = frames 540-740, keys RecalcStyleCount, LayoutCount, Paint, RasterTask, PaintImage, FireAnimationFrame) with the window bounds and the cmp/judge decided in Lean (extend Fw.Measure.Offscreen or a new module, theorems on window partition and judge monotonicity), golden replayed by a test, and a CLI. Re-read the platform-attribution Chromium runs (base 40203753344; sweep 40237508223, glint 40236516819, entries 40236472868, marquee 40236462082) and show the committed reader reproduces the note's cells.",
+   "writes": [
+    "lean/Fw/Measure/Offscreen.lean",
+    "lean/Fw/Measure/OffscreenWindows*.lean",
+    "packages/contracts/golden/measure/offscreen.jsonl",
+    "packages/contracts/golden/measure/offscreen-windows.jsonl",
+    "packages/measure-chromium/src/offscreen.mjs",
+    "packages/measure-chromium/src/offscreen-windows*.mjs",
+    "packages/measure-chromium/test/offscreen*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-chromium-window-reader.md",
+    "docs/team/handoffs/chromium-window-reader.md",
+    "lean/Fw/Measure/OffscreenGolden.lean"
+   ]
   }
  ],
  "deadline": {
