@@ -5043,6 +5043,12 @@
    "task": "hero-relayout-boundary",
    "field": "webkit",
    "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): WebKit Simulator runs 40271367353 and 40271370582 lost one VM per arm (Determinism sessions), so every hero-exit window is undecided with n=2+2; no WebKit win or no-win is claimed."
+  },
+  {
+   "entry": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "task": "push-cycle-separate",
+   "field": "mechanism",
+   "text": "push-cycle-separate (note research/notes/2026/10-2x-push-cycle-separate.md; WebKit Simulator real touches, 12-cycle pass and dwell pass per arm, Lean Fw.Measure.PushCycle.sepVerdict, MEASURED): the cycle-versus-clock question is undecided for both arms. Run 40315679172 (6 VMs): rewrite 5 full and 6 dwell passes, user 4 and 6, both undecided:noRoom because the dwell period was 2.39 and 2.37 times the full period, so the clock-matched cycle 5 fell at index 12 outside the 12-cycle pass. Run 40297879483: rewrite undecided:inseparable (4 and 3 passes, stretch 1.69), user undecided:fewDwell (6 and 2); vm 3 failed, several touch passes lost. Run 40284577163 evidence only. H4: layers and backing bytes are flat per cycle in both arms (run 40315679172), so the rise is not growing layer or backing memory. TS stand-ins: periodMs, activeQuiet/activeCycles, sepArm, censusSeries. CI only; the fix is a later task."
   }
  ]
 }
