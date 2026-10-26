@@ -549,4 +549,153 @@ theorem ownVerdicts_noData_of_noFrames (base flag : List Run) (n : String) (hn :
     simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]
     left; omega
 
+/-- Frames `end 120+` needs in every run: the span of `end 0-19`, the shortest fixed end window. -/
+def minEnd120 : Nat := 20
+
+def wholeWindows : List Win := allWindows approachFrames (approachFrames + 120 + minEnd120)
+
+/-- Frames window `n` needs in every run: its whole span for the fixed windows, `minEnd120` for `end 120+`, their sum for `finish`. -/
+def minFrames (n : String) : Nat := (lenOf wholeWindows n).getD 0
+
+theorem minFrames_eq : windowNames.map minFrames = [34, 20, 40, 60, 20, 174] := by decide
+
+theorem minEnd120_eq_end0 : minEnd120 = minFrames "end 0-19" := by decide
+
+theorem minFrames_push : (pushWindows approachFrames (approachFrames + 120 + minEnd120)).map (minFrames ·.name) =
+    (pushWindows approachFrames (approachFrames + 120 + minEnd120)).map Win.len := by decide
+
+theorem minFrames_finish :
+    minFrames "finish" = ((pushWindows approachFrames (approachFrames + 120 + minEnd120)).map Win.len).sum := by decide
+
+def framesOk (plans : List (Nat × List Win)) (n : String) : Bool := decide (minFrames n ≤ commonLen plans n)
+
+def minVerdicts (base flag : List Run) : List (String × Verdict) :=
+  let plans := (base ++ flag).filterMap (·.plan)
+  (ownVerdicts base flag).map fun q => (q.1, if framesOk plans q.1 then q.2 else .noData)
+
+theorem lookup_map_snd (qs : List (String × Verdict)) (g : String → Verdict → Verdict) (n : String) :
+    (qs.map fun q => (q.1, g q.1 q.2)).lookup n = (qs.lookup n).map (g n) := by
+  induction qs with
+  | nil => rfl
+  | cons q qs ih =>
+    obtain ⟨k, v⟩ := q
+    simp only [List.map_cons, List.lookup_cons]
+    by_cases h : (n == k) = true
+    · have : n = k := beq_iff_eq.1 h
+      subst this
+      simp
+    · simp only [Bool.not_eq_true] at h
+      simp [h, ih]
+
+theorem minVerdicts_get (base flag : List Run) (n : String) :
+    (minVerdicts base flag).lookup n = ((ownVerdicts base flag).lookup n).map fun v =>
+      if framesOk ((base ++ flag).filterMap (·.plan)) n then v else .noData := by
+  unfold minVerdicts
+  exact lookup_map_snd (ownVerdicts base flag) (fun m v => if framesOk ((base ++ flag).filterMap (·.plan)) m then v else .noData) n
+
+theorem minVerdicts_needs_frames (base flag : List Run) (n : String) (v : Verdict) (h : (n, v) ∈ minVerdicts base flag)
+    (hv : v ≠ .noData) : minFrames n ≤ commonLen ((base ++ flag).filterMap (·.plan)) n := by
+  obtain ⟨q, -, hq⟩ := List.mem_map.1 h
+  simp only [Prod.mk.injEq] at hq
+  obtain ⟨rfl, hq⟩ := hq
+  by_cases hok : framesOk ((base ++ flag).filterMap (·.plan)) q.1 = true
+  · simpa [framesOk] using hok
+  · simp only [hok] at hq
+    exact absurd hq.symm hv
+
+theorem minVerdicts_eq_or_noData (base flag : List Run) (n : String) (v : Verdict) (h : (n, v) ∈ minVerdicts base flag) :
+    v = .noData ∨ (n, v) ∈ ownVerdicts base flag := by
+  obtain ⟨q, hq, he⟩ := List.mem_map.1 h
+  simp only [Prod.mk.injEq] at he
+  obtain ⟨rfl, he⟩ := he
+  split at he
+  · exact Or.inr (he ▸ hq)
+  · exact Or.inl he.symm
+
+theorem minVerdicts_gain_own (base flag : List Run) (n : String) (h : (n, Verdict.gain) ∈ minVerdicts base flag) :
+    (n, Verdict.gain) ∈ ownVerdicts base flag :=
+  (minVerdicts_eq_or_noData base flag n _ h).resolve_left (by simp)
+
+theorem commonLen_le (plans : List (Nat × List Win)) (n : String) (l : Nat)
+    (h : l ∈ plans.filterMap fun p => lenOf p.2 n) : commonLen plans n ≤ l := by
+  unfold commonLen
+  cases hm : (plans.filterMap fun p => lenOf p.2 n).min? with
+  | none => rw [List.min?_eq_none_iff] at hm; rw [hm] at h; cases h
+  | some a => exact (List.min?_eq_some_iff.1 hm).2 l h
+
+theorem minVerdicts_short_noData (base flag : List Run) (n : String) (hn : n ∈ windowNames) (r : Run) (p : Nat × List Win)
+    (l : Nat) (hr : r ∈ base ++ flag) (hp : r.plan = some p) (hl : lenOf p.2 n = some l) (hs : l < minFrames n) :
+    (minVerdicts base flag).lookup n = some .noData := by
+  have hc := commonLen_le ((base ++ flag).filterMap (·.plan)) n l
+    (List.mem_filterMap.2 ⟨p, List.mem_filterMap.2 ⟨r, hr, hp⟩, hl⟩)
+  have hok : framesOk ((base ++ flag).filterMap (·.plan)) n = false := by
+    simp only [framesOk, decide_eq_false_iff_not]; omega
+  rw [minVerdicts_get, ownVerdicts_get base flag n hn, hok]
+  rfl
+
+theorem minVerdicts_short_not_gain (base flag : List Run) (n : String) (hn : n ∈ windowNames) (r : Run)
+    (p : Nat × List Win) (l : Nat) (hr : r ∈ base ++ flag) (hp : r.plan = some p) (hl : lenOf p.2 n = some l)
+    (hs : l < minFrames n) : (minVerdicts base flag).lookup n ≠ some .gain := by
+  rw [minVerdicts_short_noData base flag n hn r p l hr hp hl hs]
+  simp
+
+theorem Run.plan_windows (r : Run) (p : Nat × List Win) (h : r.plan = some p) :
+    ∃ last, p.2 = allWindows p.1 last := by
+  unfold Run.plan at h
+  split at h
+  · cases h
+  · split at h
+    · cases h; exact ⟨_, rfl⟩
+    · cases h
+
+theorem lenOf_allWindows (e last : Nat) (n : String) (hn : n ∈ windowNames) : (lenOf (allWindows e last) n).isSome := by
+  rw [windowNames_eq] at hn
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hn
+  rcases hn with rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+
+theorem minVerdicts_eq_own (base flag : List Run)
+    (h : ∀ r ∈ base ++ flag, ∀ p, r.plan = some p → ∀ n l, lenOf p.2 n = some l → minFrames n ≤ l) :
+    minVerdicts base flag = ownVerdicts base flag := by
+  unfold minVerdicts
+  simp only
+  conv => rhs; rw [← List.map_id (ownVerdicts base flag)]
+  apply List.map_congr_left
+  rintro ⟨n, v⟩ hq
+  simp only [id]
+  by_cases hok : framesOk ((base ++ flag).filterMap (·.plan)) n = true
+  · simp only [hok, ↓reduceIte]
+  · have hn : n ∈ windowNames := by
+      obtain ⟨m, hm, he⟩ := List.mem_map.1 hq
+      simp only [Prod.mk.injEq] at he
+      exact he.1 ▸ hm
+    cases hps : (base ++ flag).filterMap (·.plan) with
+    | nil =>
+      have hb : (base.filterMap (·.plan)).length < minRuns := by
+        rw [List.filterMap_append, List.append_eq_nil_iff] at hps
+        rw [hps.1]; decide
+      have hv : v = .noData := ownVerdicts_noData_of_fewBase base flag hb _ hq
+      subst hv
+      split <;> rfl
+    | cons p ps =>
+      exfalso
+      obtain ⟨r, hr, hp⟩ := List.mem_filterMap.1 (hps ▸ List.mem_cons_self : p ∈ (base ++ flag).filterMap (·.plan))
+      obtain ⟨last, hw⟩ := Run.plan_windows r p hp
+      obtain ⟨l, hl⟩ := Option.isSome_iff_exists.1 (hw ▸ lenOf_allWindows p.1 last n hn)
+      cases hm : (((base ++ flag).filterMap (·.plan)).filterMap fun p => lenOf p.2 n).min? with
+      | none =>
+        rw [List.min?_eq_none_iff] at hm
+        have : l ∈ ((base ++ flag).filterMap (·.plan)).filterMap fun p => lenOf p.2 n :=
+          List.mem_filterMap.2 ⟨p, List.mem_filterMap.2 ⟨r, hr, hp⟩, hl⟩
+        rw [hm] at this
+        cases this
+      | some a =>
+        obtain ⟨ha, -⟩ := List.min?_eq_some_iff.1 hm
+        obtain ⟨p', hp', ha⟩ := List.mem_filterMap.1 ha
+        obtain ⟨r', hr', hp''⟩ := List.mem_filterMap.1 hp'
+        have h1 := h r' hr' p' hp'' n a ha
+        have h2 : commonLen ((base ++ flag).filterMap (·.plan)) n = a := by
+          unfold commonLen; rw [hm]; rfl
+        simp only [framesOk, h2, decide_eq_true_eq] at hok
+        omega
+
 end Fw.Measure.OffscreenWindows

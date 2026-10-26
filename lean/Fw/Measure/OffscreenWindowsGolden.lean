@@ -123,7 +123,15 @@ def ownCases (_ : Unit := ()) : List (String × List Run × List Run) := [
   ("a counter column missing in one flag run", arm 40 same,
     [mkRun 165 lateRaster 0 [] 198, mkRun 165 lateRaster 1 [] 198, mkRun 165 lateRaster 2 ["trace.FireAnimationFrame"] 198]),
   ("two base runs", (arm 40 same).take 2, arm 165 lateRaster [0, 1, 2] 198),
-  ("no flag runs", arm 40 same, [])]
+  ("no flag runs", arm 40 same, []),
+  ("every run records 250 frames and ends at 40: every window is whole", arm 40 same [0, 1, 2] 250,
+    arm 40 lowRaster [0, 1, 2] 250),
+  ("one base run records 50 frames less: end 120+ holds 10 frames", [mkRun 40 same 0 [] 250, mkRun 40 same 1 [] 250,
+    mkRun 40 same 2 [] 200], arm 40 lowRaster [0, 1, 2] 250),
+  ("one flag run has 19 frames after its end", arm 40 same [0, 1, 2] 250,
+    [mkRun 40 lowRaster 0 [] 250, mkRun 40 lowRaster 1 [] 250, mkRun 40 lowRaster 2 [] 89]),
+  ("one flag run has 20 frames after its end", arm 40 same [0, 1, 2] 250,
+    [mkRun 40 lowRaster 0 [] 250, mkRun 40 lowRaster 1 [] 250, mkRun 40 lowRaster 2 [] 90])]
 
 def ownJson (name : String) (base flag : List Run) : Json :=
   let cap := commonLen ((base ++ flag).filterMap (·.plan))
@@ -136,9 +144,31 @@ def ownJson (name : String) (base flag : List Run) : Json :=
         ("usable", .bool (usableOn wkeys (vecsOf bw n) (vecsOf fw n))),
         ("cells", Json.arr (wkeys.toArray.map (cellJson (vecsOf bw n) (vecsOf fw n))))]))]
 
+def minJson (name : String) (base flag : List Run) : Json :=
+  let plans := (base ++ flag).filterMap (·.plan)
+  let own := ownVerdicts base flag
+  Json.mkObj [("op", "min"), ("case", Json.str name),
+    ("verdicts", Json.arr ((minVerdicts base flag).toArray.map fun (n, v) =>
+      Json.mkObj [("window", Json.str n), ("frames", toJson (commonLen plans n)), ("minFrames", toJson (minFrames n)),
+        ("enough", .bool (framesOk plans n)), ("own", Json.str (verdictName ((own.lookup n).getD .noData))),
+        ("verdict", Json.str (verdictName v))]))]
+
+def dropShort (n : String) (rs : List Run) : List Run :=
+  rs.filter fun r => r.plan.any fun p => decide (minFrames n ≤ (lenOf p.2 n).getD 0)
+
+def dropVerdicts (base flag : List Run) : List (String × Verdict) :=
+  windowNames.map fun n => (n, ((ownVerdicts (dropShort n base) (dropShort n flag)).lookup n).getD .noData)
+
+def noRaster : String → Nat → Nat → Nat := fun k _ v => if k == "trace.RasterTask" then 0 else v
+
+def dropBase : List Run := arm 40 same [0, 1, 2] 250 ++ [mkRun 40 noRaster 3 [] 200]
+
+def dropFlag : List Run := arm 40 lateRaster [0, 1, 2] 250
+
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("keys", toJson wkeys), ("approach", toJson approachFrames),
-    ("tail", toJson touchTail), ("minRuns", toJson minRuns), ("slack", toJson slack), ("names", toJson windowNames)]).compress
+    ("tail", toJson touchTail), ("minRuns", toJson minRuns), ("slack", toJson slack), ("names", toJson windowNames),
+    ("minFrames", Json.mkObj (windowNames.map fun n => (n, toJson (minFrames n))))]).compress
   let es := endCases.map fun (name, ys) =>
     (Json.mkObj [("op", "end"), ("case", Json.str name), ("ys", toJson ys), ("end", toJson (endFrame ys))]).compress
   let ws := windowCases.map fun (name, e, last) =>
@@ -154,7 +184,8 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("run", runJson r), ("result", runWindowsJson r)]).compress
   let as := armCases.map fun (name, b, f) => (armJson name b f).compress
   let os := ownCases.map fun (name, b, f) => (ownJson name b f).compress
-  [consts] ++ es ++ ws ++ rs ++ as ++ os
+  let ms := ownCases.map fun (name, b, f) => (minJson name b f).compress
+  [consts] ++ es ++ ws ++ rs ++ as ++ os ++ ms
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -186,5 +217,13 @@ def write (path : System.FilePath) : IO Unit := IO.FS.writeFile path goldenText
 #guard (armVerdicts ((arm 40 same).filterMap fun r => r.windows.map (·.2))
   ((arm 165 lateRaster [0, 1, 2] 198).filterMap fun r => r.windows.map (·.2))).map (·.2) == [.gain, .noData, .noData, .noData, .noData, .noData]
 #guard (ownVerdicts (arm 40 same) (arm 165 latePaint [0, 1, 2] 198)).map (·.2) == [.gain, .noGain, .noData, .noData, .noData, .noGain]
+#guard (minVerdicts (arm 40 same) (arm 165 lateRaster [0, 1, 2] 198)).map (·.2) == [.gain, .noData, .noData, .noData, .noData, .noData]
+#guard minVerdicts (arm 40 same [0, 1, 2] 250) (arm 40 lowRaster [0, 1, 2] 250) == ownVerdicts (arm 40 same [0, 1, 2] 250) (arm 40 lowRaster [0, 1, 2] 250)
+#guard (minVerdicts (arm 40 same [0, 1, 2] 250) (arm 40 lowRaster [0, 1, 2] 250)).map (·.2) == [.gain, .gain, .noGain, .noGain, .noGain, .gain]
+#guard (minVerdicts (arm 40 same [0, 1, 2] 250)
+  [mkRun 40 lowRaster 0 [] 250, mkRun 40 lowRaster 1 [] 250, mkRun 40 lowRaster 2 [] 89]).map (·.2) == [.gain, .noData, .noData, .noData, .noData, .noData]
+#guard (ownVerdicts dropBase dropFlag).lookup "end 120+" == some .noGain
+#guard (minVerdicts dropBase dropFlag).lookup "end 120+" == some .noData
+#guard (dropVerdicts dropBase dropFlag).lookup "end 120+" == some .gain
 
 end Fw.Measure.OffscreenWindowsGolden
