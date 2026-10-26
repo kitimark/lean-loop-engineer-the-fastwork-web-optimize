@@ -22719,7 +22719,9 @@
    "id": "morph-geom",
    "owner": "part-builder",
    "stream": "site",
-   "deps": [],
+   "deps": [
+    "morph-geom-lean"
+   ],
    "title": "Compositor-only end-of-page morph geometry as new part morph.geom:on (design research/notes/2026/10-27-morph-compositor-geometry.md: corner-door FLIP; nav and panel laid out at the final size during a push, the pill cut out by nested rounded clippers moved only by transform; every --morph reader becomes a Lean-generated piecewise-linear track on transform, opacity or filter, driven from today's tween via currentTime). Lean spec first (exact or bounded per track, accelerable-only allowlist), golden keyframes, premises (CA timing across keyTimes, nested cornerRadius clips, backdrop under masked ancestors, every geom element accelerated), look premise per band at the listed m values (class L expected, E at m=0 and 1), breakpoint gate, Chromium and WebKit Simulator counts per morph frame on CI.",
    "writes": [
     "lean/Fw/Parts/MorphGeom*.lean",
@@ -22778,6 +22780,28 @@
     "research/notes/2026/10-2x-morph-timed.md",
     "results/morph-timed/**",
     "docs/team/handoffs/morph-timed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-geom-lean",
+   "owner": "lean-prover",
+   "stream": "site",
+   "deps": [],
+   "title": "Lean half of morph-geom (split after the first builder hit 255k context): finish Fw.Parts.MorphGeom per the design note's Lean list (AnimProp allowlist, layers/anims, rect_eq, fill_eq, panel_eq, fade_eq, earn_eq per engine, logo_err, end_eq, accelerable, noTransition, memBytes budget) and the generators (knot JSON, .is-flip and goal CSS, golden vectors for the TS track builder) with the golden check wired in check.sh and Trigger.lean.",
+   "writes": [
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/contracts/golden/morph-geom/**",
+    "research/notes/2026/10-2x-morph-geom-lean.md",
+    "docs/team/handoffs/morph-geom-lean.md"
    ]
   }
  ],
