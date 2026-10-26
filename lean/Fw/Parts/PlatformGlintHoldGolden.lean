@@ -86,16 +86,16 @@ def lines (_ : Unit) : List String :=
 
 #guard (lines ()).length == 1 + 2 + 2 * elapsedSamples.length + 2 * elapsedSamples.length + 4
 
-def goldenText : String := "\n".intercalate (lines ()) ++ "\n"
+def goldenText (_ : Unit) : String := "\n".intercalate (lines ()) ++ "\n"
 
 /-- `--check` compares the file with the generated text; without it the file is written. -/
 def gen (args : List String) : IO Unit := do
   let path := "../packages/contracts/golden/parts/platform-glint-hold.jsonl"
   if args.contains "--check" then
     let disk ← IO.FS.readFile path
-    if disk != goldenText then throw (IO.userError s!"platform-glint-hold: {path} is stale; regenerate with Fw.Parts.PlatformGlintHoldGolden.gen []")
+    if disk != goldenText () then throw (IO.userError s!"platform-glint-hold: {path} is stale; regenerate with Fw.Parts.PlatformGlintHoldGolden.gen []")
     IO.println s!"platform-glint-hold: {path} equals the Lean output, {(lines ()).length} lines"
   else
-    IO.FS.writeFile path goldenText
+    IO.FS.writeFile path (goldenText ())
 
 end Fw.Parts.PlatformGlintHoldGolden
