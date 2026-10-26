@@ -1,9 +1,9 @@
 branch: worktree-wf_2b596ca9-a1d-1 (CI branch ci/wk-sim-hang, pushed at a4202a8d8)
 worktree: .claude/worktrees/wf_2b596ca9-a1d-1 (under the main checkout)
-last commit: 244f07890 (CI re-measure: 7 of 7 sim jobs green over three dispatches); lead finishes the dry land and review
+last commit: 2aa49e5ea (main merged, triggers golden regenerated); dry land VERDICT dry wk-sim-hang; review fixes by the lead on top
 CI runs: webkit-sim dispatch 1 of 3: 40319007631 (1 VM by default inputs, complete, success, 54 m); dispatch 2 of 3: 40326012289 (vms=3, complete, 3 of 3 jobs success, 52 m); dispatch 3 of 3: 40333469218 (vms=3, complete, 3 of 3 success). 7 of 7 jobs green, no gate fired
 verified: check.sh green after merging main (sim-host golden up to date); plan lint 0 errors; Lean SimHost.lean and SimHostGolden.lean compile; measure-webkit tests 921 pass; tick and ci-paths tests pass; lake test fwtest passes
-open: dry land, fw review ready, report, failure-rate and failing-step report vs 19%/45%
+open: lead review and land; follow-ups: deployed retry needs meeting runPass_stop_le (outer >= inner + recon + base), gate replay over green jobs, Safari tab wait not gated (navigateTab 60 s), idle field meaning in perstep logs
 
 ## State
 - Load source found (note `research/notes/2026/10-2x-wk-sim-hang.md`): Simulator runtime load on the runner image; our `top` spawnSync made it worse once (run 40282962088 sim-r1, 1399 s blocked loop).
