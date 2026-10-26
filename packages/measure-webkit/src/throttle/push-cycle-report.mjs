@@ -38,7 +38,6 @@ export function armTable(jobs) {
   });
 }
 
-/** Per base arm: the Lean cycle-vs-clock verdict over the usable full and dwell passes of every job, and the census reading of the dwell passes. */
 export function sepTable(jobs) {
   const all = jobs.flatMap((j) => (j.passes ?? []).map((p) => ({ ...p, vm: p.vm ?? j.vm }))).filter((p) => p.profile);
   const arms = [...new Set(all.map((p) => p.arm))];

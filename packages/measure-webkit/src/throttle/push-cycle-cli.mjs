@@ -1,12 +1,6 @@
 #!/usr/bin/env node
 // node src/throttle/push-cycle-cli.mjs run --site dir --driver d [--arms original,rewrite,user] [--rounds 1] [--cycles 6] [--hold 600] [--vm n] [--out file]
-//   Real touches on Mobile Safari in the booted Simulator: the page is scrolled to 300 px above its end, then N back-and-forth cycles (drag past
-//   the end, drag back, shorter drag so the toolbar returns), dwell --hold ms after each press. One pass per arm and round, the order rotated by
-//   --rotate. original = the read-only snapshot; rewrite = the default prerendered build; user = the user's composition; off-<flag> = it minus one flag.
-//   --separate (task push-cycle-separate): per arm one `full` pass (--cycles cycles, one continuous touch run) and one `dwell` pass (6 touch runs, a census and a
-//   rest between them that fills the period to --ratio times the full pass's measured period); each finished pass is also written as <out>.pass-N.part.
-// node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file]   the per-cycle table, the trend and the H1/H2 verdicts; with separate passes the
-//   cycle-vs-clock verdict (Lean Fw.Measure.PushCycle.sepVerdict) and the census reading
+// node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file]
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -61,7 +55,7 @@ async function main() {
       let written = 0;
       const save = () => {
         writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed, machine }) + '\n');
-        for (; written < passes.length; written++) writeFileSync(passFile(file, written + 1), JSON.stringify(passes[written]) + '\n'); // one file per finished pass, for the tick uploads
+        for (; written < passes.length; written++) writeFileSync(passFile(file, written + 1), JSON.stringify(passes[written]) + '\n');
       };
       const plan = { profile: 'full', targetMs: 0 };
       const runner = (profile) => makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
@@ -76,7 +70,6 @@ async function main() {
             const rd = dwell ? 2 * round : round;
             await full.runArm(arm, rd);
             if (!dwell) continue;
-            // the dwell pass fills each cycle's period to `ratio` times the full pass's measured one (150 s when that pass left no period)
             const last = passes.filter((p) => p.arm === arm && p.profile === 'full').at(-1);
             const period = last?.rec ? periodMs(last.rec) : 0;
             plan.targetMs = period > 0 ? Math.round(period * Number(v.ratio)) : 40000;

@@ -203,7 +203,6 @@ export const uploadName = (name) => name.replace(/[:<>|*?"\\]/g, '_');
 
 export const searchesOf = (arms) => [...new Set(arms.filter((a) => a !== 'original' && a !== 'rewrite').map(searchOf))];
 
-// Cycle versus clock (task push-cycle-separate): TS twin of Fw.Measure.PushCycle `stretch` to `readCensus`, replayed against the golden.
 export const SEP_MIN_PASSES = 3;
 export const SEP_FULL_CYCLES = 12;
 export const SEP_DWELL_CYCLES = 6;
@@ -224,7 +223,6 @@ export function pick(i, c, d) {
   return 'undecided:between';
 }
 
-/** s = {full, dwell: lists of per-cycle counts per pass, periodFull, periodDwell: ms}; Lean `sepVerdict`. */
 export function sepVerdict(s) {
   const r = stretch(s.periodDwell, s.periodFull);
   if (s.full.length < SEP_MIN_PASSES) return 'undecided:fewFull';
@@ -245,17 +243,13 @@ export const across = (ts) => {
 export const readCensus = (passes) => across(passes.map(trend));
 export const restMs = (target, spent, cap) => Math.min(Math.max(target - spent, 0), cap);
 
-// TS stand-ins without a Lean golden (glue over the recorded frames): the mean spacing of the first six opens, in ms.
 export function periodMs(rec) {
   const st = stretches(rec.o);
   return st.length > 5 ? Math.round((rec.t[st[5][0]] - rec.t[st[0][0]]) / 5) : 0;
 }
 
-/** Per-pass slow (> thr ms) frames of each cycle, the quiet ranges masked: the list the verdict reads. */
 export const slowCounts = (rec, thr = 50) => recordCycles(rec).map((c) => (thr === 50 ? c.slow50 : c.slow34));
 
-// The counted window of a cycle (TS stand-in, glue over the recorded frames): from the start of an open stretch to POST_MS after its end, but not into the next
-// stretch. Every other gap is quiet in both profiles, so the idle time between the dwell pass's touch runs never adds a slow frame.
 export const POST_MS = 8000;
 
 export function activeQuiet(rec, postMs = POST_MS) {
@@ -276,7 +270,6 @@ export const censusSeries = (pass, field) => (pass.census ?? []).filter((c) => c
 
 const meanInt = (xs) => (xs.length ? Math.round(sum(xs) / xs.length) : 0);
 
-/** One arm's passes (usable ones, with .profile and .rec) to the Lean rule's input and the census reading. */
 export function sepArm(passes, thr = 50) {
   const full = passes.filter((p) => p.profile === 'full'), dwell = passes.filter((p) => p.profile === 'dwell');
   const key = thr === 50 ? 'slow50' : 'slow34';

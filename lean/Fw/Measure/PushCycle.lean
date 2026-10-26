@@ -451,8 +451,6 @@ theorem phoneSamples_head (ms : Nat) : (phoneSamples ms).head? = some ⟨0, fing
 theorem phoneSamples_length (ms : Nat) : (phoneSamples ms).length = 2 * legFrames + 2 := by
   simp [phoneSamples]; omega
 
-/-! Cycle versus clock. A full pass and a dwell pass run the same cycles; they differ in how much time passes between cycles. -/
-
 def sepMinPasses : Nat := 3
 def sepFullCycles : Nat := 12
 def sepDwellCycles : Nat := 6
@@ -663,7 +661,6 @@ theorem pure_clock_window (s : SepIn) (hm : s.dwell = s.full.map (clockDwell s.r
   have : k < sepDwellCycles := by simp only [sepDwellCycles]; omega
   simp [clockDwell, this]
 
-/-- Cycle-driven: every dwell pass shows what its own first six cycles showed in the full pass. -/
 theorem pure_cycle (s : SepIn) (hm : s.dwell = s.full.map (fun p => p.take sepDwellCycles))
     (hl : ∀ p ∈ s.full, sepDwellCycles ≤ p.length)
     (h0 : ¬ s.full.length < sepMinPasses) (h1 : ¬ s.dwell.length < sepMinPasses)
@@ -675,7 +672,6 @@ theorem pure_cycle (s : SepIn) (hm : s.dwell = s.full.map (fun p => p.take sepDw
   rw [sep_pick s h0 h1 h2 h3 h4 h5 h6 h7, pure_cycle_window s hm hl]
   exact pick_cycle _ _ hs
 
-/-- Clock-driven: every dwell pass shows what the full pass showed at the same elapsed time. -/
 theorem pure_clock (s : SepIn) (hm : s.dwell = s.full.map (clockDwell s.r))
     (hl : ∀ p ∈ s.full, clockIndex s.r 5 < p.length)
     (h0 : ¬ s.full.length < sepMinPasses) (h1 : ¬ s.dwell.length < sepMinPasses)
@@ -687,8 +683,6 @@ theorem pure_clock (s : SepIn) (hm : s.dwell = s.full.map (clockDwell s.r))
   rw [sep_pick s h0 h1 h2 h3 h4 h5 h6 h7, pure_clock_window s hm hl]
   exact pick_clock _ _ hs
 
-
-/-! Census reading: one trend per pass, then the passes are compared, never pooled. -/
 
 inductive Across where
   | few | yes | no | mixed
@@ -747,7 +741,6 @@ theorem trend_replicate (n x : Nat) : trend (List.replicate (n + 1) x) = .flat :
   have n1 : ¬ 6 * (n * x) < 5 * (n * x) := by omega
   simp [this, h2, n1]
 
-/-- A pool that holds the same number of bytes after every cycle never reads as growth. -/
 theorem across_constant (passes : List (List Nat)) (h0 : ¬ passes.length < sepMinPasses)
     (h : ∀ p ∈ passes, ∃ n x, p = List.replicate (n + 1) x) : readCensus passes = .no := by
   unfold readCensus
@@ -758,7 +751,6 @@ theorem across_constant (passes : List (List Nat)) (h0 : ¬ passes.length < sepM
     obtain ⟨n, x, rfl⟩ := h p hp
     rw [trend_replicate]; intro e; cases e
 
-/-- The rest after one dwell-pass cycle: what is left of the target period once the cycle and its census took their time, at most `cap`. -/
 def restMs (target spent cap : Nat) : Nat := min (target - spent) cap
 
 theorem rest_le_cap (target spent cap : Nat) : restMs target spent cap ≤ cap := by

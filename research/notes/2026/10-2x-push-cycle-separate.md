@@ -18,7 +18,7 @@ Task push-cycle-separate, follow-up of `10-2x-push-cycle-lag.md` (the slow share
 - Run 40297879483 (push 2): rewrite 4 full, 3 dwell, `undecided:inseparable` (stretch 1.69: rate by cycle index 152166 and by clock 163666 per 1000 frames are too close, Lean `separable`); user 6 full, 2 dwell, `undecided:fewDwell`. Vm 3 job failed; lost passes: rewrite full vm 1 and 5, dwell vm 1, 3 and 4; user dwell vm 1, 2 and 5.
 - Runs 2 and 3 pooled (not planned; same code design except the bundle removal, evidence only): rewrite 9 and 9 `undecided:inseparable`, user 10 and 8 `undecided:noRoom`.
 - Run 40284577163 (push 1, per-cycle xcodebuild design, evidence only): sims 2 and 3 failed, 1 cancelled stale; not read.
-- INFERRED, no verdict: in run 3 the dwell passes (one cycle per touch run, census and rest between) read fewer slow frames over cycles 3 to 5 (rewrite 84666, user 98200 per 1000 frames) than the full pass by index (184533, 129333) and by clock (154700, 111000). So the continuous touch run costs more than the same cycles spread over a longer time; that points away from a pure clock effect, but the rule needs a clock-matched window inside the pass and the harness did not give one. A fix for the rise is a later task.
+- INFERRED, no verdict: in run 3 the dwell passes (one cycle per touch run, census and rest between) read fewer slow frames over cycles 3 to 5 (rewrite 84666, user 98200 per 1000 frames) than the full pass by index (184533, 129333) and by clock (154700, 111000). The continuous touch run costs more than the same cycles spread over a longer time, which points away from a pure clock effect, but the rule needs a clock-matched window inside the pass and the harness did not give one. A fix for the rise is a later task.
 
 ## H4: layers and backing memory per cycle
 
@@ -32,5 +32,5 @@ Per arm (rewrite, user) per VM: one `full` pass (12 cycles, one continuous touch
 
 - CI only: Simulator on GitHub macOS, not the iPhone. Three pushes are used.
 - TS stand-ins with no Lean golden (decision parts stay in TS): `periodMs`, `activeQuiet`/`activeCycles`, `sepArm` (arm grouping and exclusions), `censusSeries`. The verdict itself and the census reading (`across`) are Lean.
-- Follow-up: hold the stretch near 2 (the full pass period is measured per VM, the dwell touch time adds to it) or run 16 cycles so the clock-matched window fits; then re-run.
+- Follow-up: hold the stretch near 2 or run 16 cycles so the clock-matched window fits; then re-run.
 - `ci-steps-lint` fails on `path-pix.yml: uncovered:sim-draw`; that file and `Steps.lean` are unchanged by this branch.
