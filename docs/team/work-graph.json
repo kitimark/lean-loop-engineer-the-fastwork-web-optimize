@@ -22711,6 +22711,74 @@
     "results/wk-loop-freeze/**",
     "docs/team/handoffs/wk-loop-freeze.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-geom",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [],
+   "title": "Compositor-only end-of-page morph geometry as new part morph.geom:on (design research/notes/2026/10-27-morph-compositor-geometry.md: corner-door FLIP; nav and panel laid out at the final size during a push, the pill cut out by nested rounded clippers moved only by transform; every --morph reader becomes a Lean-generated piecewise-linear track on transform, opacity or filter, driven from today's tween via currentTime). Lean spec first (exact or bounded per track, accelerable-only allowlist), golden keyframes, premises (CA timing across keyTimes, nested cornerRadius clips, backdrop under masked ancestors, every geom element accelerated), look premise per band at the listed m values (class L expected, E at m=0 and 1), breakpoint gate, Chromium and WebKit Simulator counts per morph frame on CI.",
+   "writes": [
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "apps/site/src/parts/morph.geom/**",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    ".github/workflows/wktr-fixtures.yml",
+    "packages/gate-breakpoints/src/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-morph-geom.md",
+    "results/morph-geom/**",
+    "docs/team/handoffs/morph-geom.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-timed",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "morph-geom"
+   ],
+   "title": "Timed driver morph.tween:geom-timed on the morph-geom layers (design note 10-27-morph-compositor-geometry.md, Timed variant): keep today's push trigger; per push start one Web Animation per track on a shared start time, 680 ms, cubic-bezier(1/3,1,2/3,1); reversal rebased in closed form; end commit leaves base equal to the last keyframe. Lean MorphGeomTimed (timed_eq_ideal, reversal, end commit) with push-sequence golden; premises for shared start and the reversal jump; WebKit Simulator count shows no morph style, layout, paint or rAF between push and end.",
+   "writes": [
+    "lean/Fw/Parts/MorphGeomTimed*.lean",
+    "lean/scripts/MorphGeomTimedGolden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/morph-geom-timed*.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.geom/**",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-morph-timed.md",
+    "results/morph-timed/**",
+    "docs/team/handoffs/morph-timed.md"
+   ]
   }
  ],
  "deadline": {
