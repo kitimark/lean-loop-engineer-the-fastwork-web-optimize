@@ -57,7 +57,7 @@ function sepMd(rows) {
   out.push('| Arm | Full passes | Dwell passes | Period full ms | Period dwell ms | Stretch r (permille) | Rate by cycle index | Rate by clock-matched index | Rate of dwell passes | Verdict (> 50 ms) | Verdict (> 34 ms) |', '|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of rows) out.push(`| ${r.arm} | ${r.full} | ${r.dwell} | ${r.s50.input.periodFull} | ${r.s50.input.periodDwell} | ${r.s50.r} | ${r.s50.rates.idx} | ${r.s50.rates.clk} | ${r.s50.rates.dwell} | ${r.s50.verdict} | ${r.s34.verdict} |`);
   out.push('', `Minimum ${SEP_MIN_PASSES} usable passes per side; a side below it is undecided, never a win. Lost passes: ${rows.map((r) => `${r.arm} full [${r.lost.full.join('; ') || 'none'}] dwell [${r.lost.dwell.join('; ') || 'none'}]`).join(', ')}.`, '');
-  out.push('### Census after each cycle of the dwell passes (H4: does memory grow per cycle)', '', '| Arm | Layers | Backing bytes | Layers created | Trend per dwell pass: layers / bytes / created | Mean bytes before / after (full pass) | Mean bytes after (dwell pass) |', '|---|---|---|---|---|---|---|');
+  out.push('### Census after each cycle of the dwell passes (H4: does memory grow per cycle)', '', '| Arm | Layers | Backing bytes | Layers created | Trend per dwell pass: layers / bytes / created | Mean bytes after (full pass) | Mean bytes after (dwell pass) |', '|---|---|---|---|---|---|---|');
   const mean = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 'n/a');
   for (const r of rows) {
     const t = r.s50.trends;
