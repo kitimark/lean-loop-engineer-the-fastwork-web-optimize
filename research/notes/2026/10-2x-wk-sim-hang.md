@@ -59,7 +59,21 @@ Pass and step times exist only for the 18 green jobs whose log has `pass k/2` ma
 
 ## CI re-measure
 
-Pending: see the section added after the runs.
+Code under test: commit a4202a8d8 on `ci/wk-sim-hang` (the load stamp without `top`, both gates, `FW_MEASURE_T0_MS`, `FW_WK_STEP_MIN`). Three dispatches of webkit-sim, one at a time, free runners, target original (dispatch 1 took the default 1 VM, dispatches 2 and 3 `vms=3`). Data: `results/wk-sim-hang/ci-jobs.json`.
+
+| Run | Jobs | Green | Failed | Steps (s) | Retries | Gate fired |
+|---|---|---|---|---|---|---|
+| 40319007631 | 1 | 1 | 0 | 740 | 0 | no |
+| 40326012289 | 3 | 3 | 0 | 841, 812, 916 | 1, 0, 1 | no |
+| 40333469218 | 3 | 3 | 0 | 811, 978, 643 | 1, 0, 0 | no |
+| Total | 7 | 7 | 0 | 643..978 | 3 retries | 0 refusals, 0 host repeats |
+
+- Per-job failure rate: 0 of 7 (0%), against 19% (26 of 134) and 45% (14 of 31 on 10-26). MEASURED.
+- Failing-step split: none, no job failed in any step. MEASURED.
+- What this shows is little: seven green jobs at a true rate of 19% or 45% have probability 0.23 and 0.015. The data does not rule out 19%, it makes 45% unlikely. INFERRED (binomial on 7 jobs).
+- The gates did not act: no `no retry fits` line, no `past the ceiling` line, no stall exit, no step past 978 s. So the CI runs do not show the gates working; they show that the lane ran clean with the non-blocking load stamp. Host load was as before (load1 594..958 in the stamps), so the VM was not lighter. The `top` stall (run 40282962088) did not recur, and one tick came 106 s late with no host call running (job 121596015906 of run 40326012289, 13:30:12Z), a block of unknown cause that the old code could also show.
+- Steps ran 643..978 s against 1413..1734 s in the earlier green jobs of the sample: shorter, so a start-of-day host difference is a candidate. INFERRED.
+- The correctness of the gates rests on the Lean theorems and the golden replay, not on these runs.
 
 ## Open
 
