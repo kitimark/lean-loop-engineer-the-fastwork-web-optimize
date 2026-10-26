@@ -150,6 +150,10 @@ theorem unthrottle_costs_six_fold : updates frameMs 600 = 6 * updates throttleMs
   unfold updates frameMs throttleMs
   decide +kernel
 
+theorem unthrottle_costs_twelve_fold_120hz : updates (1000 / 120) 600 = 12 * updates throttleMs 600 := by
+  unfold updates throttleMs
+  decide +kernel
+
 inductive Timeline where
   | timeBased | mainThreadProgress | threadedProgress
   deriving DecidableEq, Repr
