@@ -7,7 +7,6 @@ theorem eval01 (f : Rat → Rat) (a b : Rat) (hf : ∀ x, f x = a + b * x) (m : 
     Track.eval (mk f [0, 1]) m = f m :=
   exact_of_aff f [1] 0 m ⟨by grind, ⟨a, b, fun x _ _ => hf x⟩, trivial⟩ h0 (by simpa [lastOf] using h1)
 
-/-- A two-knot track on `[0, 1]`: every affine track of the variant. -/
 def ev (f : Rat → Rat) (m : Rat) : Rat := Track.eval (mk f [0, 1]) m
 
 def Aff (f : Rat → Rat) : Prop := ∃ a b, ∀ x, f x = a + b * x
@@ -35,30 +34,21 @@ theorem wp_pos (v : Vp) (hv : Valid v) : 0 < wp v := by have := pill_le v hv; gr
 theorem hp_pos (v : Vp) (hv : Valid v) : 0 < hp v := by have := pill_le v hv; grind
 theorem wp_split (v : Vp) (m : Rat) : wp v = 2 * x0 v m + wd v m := by unfold x0; grind
 
-/-! ## Panel scale centre, columns and images -/
 
-/-- `translate: 0 d` on `.panel` and on `.center`: the gap between the pill's and the final box's vertical centres. -/
 def dP (v : Vp) (m : Rat) : Rat := y0 v m + ht v m / 2 - hp v / 2
 
-/-- `.panel` scale `0.96 + 0.04 m`. -/
 def pS (m : Rat) : Rat := 24 / 25 + 1 / 25 * m
 
-/-- Backdrop columns: 3 on phone, 5 above. -/
 def nCols (v : Vp) : Rat := if phone v.w then 3 else 5
 
-/-- Backdrop column gap: 8 on phone, 12 above. -/
 def colGap (v : Vp) : Rat := if phone v.w then 8 else 12
 
-/-- Column width inside the 106 % backdrop of a box `wd v m` wide. -/
 def cw (v : Vp) (m : Rat) : Rat := (53 / 50 * wd v m - (nCols v - 1) * colGap v) / nCols v
 
-/-- Image scale `cw(m) / cw(1)`. -/
 def sImg (v : Vp) (m : Rat) : Rat := cw v m / cw v 1
 
-/-- Column `i` x translate `i (cw(m) - cw(1))`. -/
 def colTx (v : Vp) (i : Nat) (m : Rat) : Rat := (i : Rat) * (cw v m - cw v 1)
 
-/-- Image y translate `(s - 1) (Y - j gv)`: `Y` its final top, `j` images and gaps `gv` above it. -/
 def imgTy (v : Vp) (j : Nat) (Y gv : Rat) (m : Rat) : Rat := (sImg v m - 1) * (Y - (j : Rat) * gv)
 
 theorem cw1_pos (v : Vp) (hv : Valid v) : 0 < cw v 1 := by
@@ -92,10 +82,7 @@ theorem aff_imgTy (v : Vp) (j : Nat) (Y gv : Rat) : Aff (imgTy v j Y gv) := by
   obtain ⟨a, b, h⟩ := aff_sImg v
   exact ⟨(a - 1) * (Y - (j : Rat) * gv), b * (Y - (j : Rat) * gv), fun x => by unfold imgTy; rw [h x]; grind⟩
 
-/-! ## Rectangles -/
 
-/-- An item whose drawn rectangle the variant moves. Coordinates: the final box, panel children before the panel
-transform; columns and images in the backdrop's content frame. -/
 inductive Item where
   | bar
   | actions
@@ -109,7 +96,6 @@ inductive Item where
   | backdropClip
   | panelCentre
 
-/-- The coordinates the original draws at `m`, restated from nav.module.css and morph.module.css. -/
 def faithful (v : Vp) (m : Rat) : Item → List Rat
   | .bar => [y0 v m, y0 v m + pillH v]
   | .actions => [x0 v m + wd v m - 8, y0 v m + pillH v / 2]
@@ -125,7 +111,6 @@ def faithful (v : Vp) (m : Rat) : Item → List Rat
   | .backdropClip => [x0 v m - 3 / 100 * wd v m, y0 v m, x0 v m + 103 / 100 * wd v m, y0 v m + ht v m]
   | .panelCentre => [x0 v m + wd v m / 2, y0 v m + ht v m / 2]
 
-/-- The coordinates the flip layers draw at `m`: the final layout moved by the generated tracks. -/
 def composed (v : Vp) (m : Rat) : Item → List Rat
   | .bar => [0 + ev (y0 v) m, pillH v + ev (y0 v) m]
   | .actions => [wp v - 8 + ev (fun x => -x0 v x) m, pillH v / 2 + ev (y0 v) m]
@@ -170,7 +155,6 @@ theorem aff_htd (v : Vp) : Aff (fun x => ht v x - hp v) := by
   obtain ⟨c, d, k⟩ := aff_ht v
   exact ⟨c - hp v, d, fun x => by simp only [k x]; grind⟩
 
-/-- Each item's composed coordinates equal the original's, for every `m` in `[0, 1]`. -/
 theorem rect_eq (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) (e : Item) :
     composed v m e = faithful v m e := by
   have hw := wp_pos v hv
@@ -220,17 +204,12 @@ theorem rect_eq (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) 
   | backdropClip => simp only [composed, faithful, ebx, ebk, ey0, ehd]; grind
   | panelCentre => simp only [composed, faithful, edp]; unfold dP; grind
 
-/-! ## Fill, panel and platform -/
 
-/-- One channel of `color-mix(in srgb, c1 p, c2 (1 - p))` in premultiplied form over an opaque `bg`. -/
 def mixOver (c1 a1 c2 a2 p bg : Rat) : Rat :=
   (p * a1 * c1 + (1 - p) * a2 * c2) + (1 - (p * a1 + (1 - p) * a2)) * bg
 
-/-- A colour `c` at alpha `a` over `bg`. -/
 def over (c a bg : Rat) : Rat := a * c + (1 - a) * bg
 
-/-- D (`#131922`, opacity `m`) over G (`#ffffff1a`) over the page equals the original's premultiplied
-`color-mix(#ffffff1a (1-m), #131922 m)` over the page, per channel. -/
 theorem fill_eq (cG aG cD bg m : Rat) :
     over cD m (over cG aG bg) = mixOver cG aG cD 1 (1 - m) bg := by
   unfold over mixOver; grind
@@ -241,10 +220,8 @@ theorem fill_ev (cG aG cD bg m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
   rw [ev_eq _ aff_id m h0 h1, ev_eq _ ⟨20, -20, fun x => by unfold navBlur; grind⟩ m h0 h1]
   exact ⟨fill_eq cG aG cD bg m, rfl⟩
 
-/-- `.panel` opacity: `clamp((m - 0.08) / 0.72)`. -/
 def panelO (m : Rat) : Rat := clamp01 ((m - 2 / 25) / (18 / 25))
 
-/-- `.panel` blur in px, `12 (1 - o)`; none at 720 px and below (morph.module.css `@media (width<=720px)`). -/
 def panelBlur (v : Vp) (m : Rat) : Rat := if v.w ≤ 720 then 0 else 12 * (1 - panelO m)
 
 def panelKnots : List Rat := [0, 2 / 25, 4 / 5, 1]
@@ -262,7 +239,6 @@ theorem pw_aff2 (f : Rat → Rat) (k1 : Rat) (hk : 0 < k1 ∧ k1 < 1)
     (m : Rat) (hm0 : 0 ≤ m) (hm1 : m ≤ 1) : Track.eval (mk f [0, k1, 1]) m = f m :=
   exact_of_aff f [k1, 1] 0 m ⟨hk.1, h1, hk.2, h2, trivial⟩ hm0 (by simpa [lastOf] using hm1)
 
-/-- The panel's opacity and blur tracks on knots `0, 0.08, 0.8, 1` equal `clamp((m - 0.08) / 0.72)` and its blur. -/
 theorem panel_eq (v : Vp) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     Track.eval (mk panelO panelKnots) m = panelO m ∧ Track.eval (mk (panelBlur v) panelKnots) m = panelBlur v m := by
   have k : (0 : Rat) < 2 / 25 ∧ (2 / 25 : Rat) < 4 / 5 ∧ (4 / 5 : Rat) < 1 := by grind
@@ -285,10 +261,8 @@ theorem panel_eq (v : Vp) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
       ⟨12 - 12 * a2, -12 * b2, fun x p q => by rw [e2 x p q]; grind⟩
       ⟨12 - 12 * a3, -12 * b3, fun x p q => by rw [e3 x p q]; grind⟩ m h0 h1
 
-/-- Platform section blur in px, `12 (1 - fade)`. -/
 def fadeBlur (m : Rat) : Rat := 12 * (1 - fade m)
 
-/-- The platform tracks on knots `0, 0.55, 1` equal `MorphTween.fade` and its blur. -/
 theorem fade_eq (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     Track.eval (mk fade fadeKnots) m = fade m ∧ Track.eval (mk fadeBlur fadeKnots) m = fadeBlur m := by
   have k : (0 : Rat) < 11 / 20 ∧ (11 / 20 : Rat) < 1 := by grind
@@ -301,10 +275,7 @@ theorem fade_eq (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
   exact pw_aff2 _ _ k ⟨12 - 12 * a1, -12 * b1, fun x p q => by unfold fadeBlur; rw [e1 x p q]; grind⟩
     ⟨12 - 12 * a2, -12 * b2, fun x p q => by unfold fadeBlur; rw [e2 x p q]; grind⟩ m h0 h1
 
-/-! ## Logo -/
 
-/-- Logo x translate from its final place (`left: 50%`, `translate: -50%`) to the original's
-`left: inset + (50% - inset) m`, `translate: -50% m`, for a logo `lw` wide. -/
 def logoT (v : Vp) (inset lw m : Rat) : Rat :=
   x0 v m + logoLeft inset (wd v m) m - m * lw / 2 - (wp v / 2 - lw / 2)
 
@@ -312,7 +283,6 @@ theorem logo_exact (v : Vp) (inset lw m : Rat) :
     wp v / 2 - lw / 2 + logoT v inset lw m = x0 v m + logoLeft inset (wd v m) m - m * lw / 2 := by
   unfold logoT; grind
 
-/-- `dW`: the pill's width growth `wp - pillW`, the logo track's curvature. -/
 def dW (v : Vp) : Rat := wp v - pillW v
 
 theorem logoT_quad (v : Vp) (inset lw m : Rat) :
@@ -384,17 +354,14 @@ theorem knots_within (v : Vp) (hv : Valid v) (F : Rat → Rat) (B : Rat) (hB0 : 
     rw [hk, lastL_gridFrom]
     grind
 
-/-- The largest knot step of `v`'s table. -/
 def hMax (v : Vp) : Rat := if phone v.w then max (stepA v) (stepB v) else 1 / nMain
 
-/-- Logo bound `dW h^2 / 8` for the knot table of `v`. -/
 def logoB (v : Vp) : Rat := dW v * hMax v ^ 2 / 8
 
 theorem sq_mono (a b : Rat) (h0 : 0 ≤ a) (h : a ≤ b) : a ^ 2 ≤ b ^ 2 := by
   have := mulLe a b a b h0 h h0 h
   grind
 
-/-- The logo track on the knot table stays within `dW h^2 / 8` of the exact quadratic. -/
 theorem logo_err (v : Vp) (hv : Valid v) (inset lw m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     Within (Track.eval (mk (logoT v inset lw) (knots v)) m - logoT v inset lw m) (logoB v) := by
   have pl := pill_le v hv
@@ -429,7 +396,6 @@ theorem logo_err (v : Vp) (hv : Valid v) (inset lw m : Rat) (h0 : 0 ≤ m) (h1 :
     refine chordOk_mono _ _ _ ?_ _ (chordOk_grid_quad _ _ _ (1 / nMain) ha hs nMain 0)
     rw [hB]; unfold hMax; simp [hph]
 
-/-- Every band viewport keeps the logo within 1/64 css px. -/
 theorem logo_ok_bands : bandVps.all (fun v => decide (logoB v ≤ 1 / 64)) = true := by decide +kernel
 
 end Fw.Parts.MorphGeom

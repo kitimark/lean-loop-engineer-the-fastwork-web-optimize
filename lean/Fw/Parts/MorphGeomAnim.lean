@@ -15,7 +15,6 @@ def AnimProp.css : AnimProp → String
   | .translate => "translate" | .scale => "scale" | .transformList => "transform" | .opacity => "opacity"
   | .blur => "filter" | .backdropBlur => "backdrop-filter"
 
-/-- Numbers per keyframe: `translate: x y`, `scale: sx sy`, `transform: translate(x, y) scale(sx, sy)`, one for the rest. -/
 def AnimProp.arity : AnimProp → Nat
   | .translate => 2 | .scale => 2 | .transformList => 4 | .opacity => 1 | .blur => 1 | .backdropBlur => 1
 
@@ -32,7 +31,6 @@ inductive PlayDir where
   | normal | reverse | alternate
   deriving DecidableEq, Repr
 
-/-- Knot sets: the rational grid, `[0, 1]`, the earn knot 0.2, the panel knots, the fade knot, the 60 Hz time grid. -/
 inductive Ks where
   | grid | unit | earn | panel | fade | time
   deriving DecidableEq, Repr
@@ -41,13 +39,10 @@ def Ks.list (v : Vp) : Ks → List Rat
   | .grid => knots v | .unit => [0, 1] | .earn => earnKnots | .panel => panelKnots | .fade => fadeKnots
   | .time => gridFrom 0 frameMs frames
 
-/-- End of the time grid in ms. -/
 def timeEnd : Rat := (frames : Rat) * frameMs
 
-/-- Keyframe offsets of a knot set: `m` itself, or time over `timeEnd`. -/
 def Ks.offsets (v : Vp) (k : Ks) : List Rat := if k = .time then (k.list v).map (· / timeEnd) else k.list v
 
-/-- One effect: element, index (column, image), property, knot set and one function per keyframe number. -/
 structure Anim where
   el : String
   key : Nat × Nat
@@ -65,8 +60,6 @@ def anim (el : String) (prop : AnimProp) (ks : Ks) (fns : List (Rat → Rat)) (k
 
 def Anim.tracks (v : Vp) (a : Anim) : List Track := a.fns.map fun f => MorphGeom.mk f (a.ks.list v)
 
-/-- Inputs the layout fixes: push, engine, logo, label, button and gap widths, centre, footer and platform heights,
-and per column the images as (final top less the gaps above, height). -/
 structure Ctx where
   eng : Eng
   a : Rat
@@ -83,9 +76,7 @@ structure Ctx where
   platH : Rat
   imgs : List (List (Rat × Rat))
 
-/-! ## The flip tree -/
 
-/-- One layer of the flip tree: laid-out size in css px and whether WebKit gives it a backing store. -/
 structure Lyr where
   name : String
   parent : String
@@ -94,7 +85,6 @@ structure Lyr where
   backed : Bool
   deriving Repr
 
-/-- Rows of a column's images: `(key, final top, height)`. -/
 def imgRows (c : Ctx) : List ((Nat × Nat) × Rat × Rat) :=
   (c.imgs.zipIdx).flatMap fun (col, i) => (col.zipIdx).map fun ((y, h), j) => ((i, j), y, h)
 
@@ -116,7 +106,6 @@ def layers (v : Vp) (c : Ctx) : List Lyr :=
     ⟨"footerGrad", "footer", W, c.footH, true⟩, ⟨"footerEnd", "footer", W, c.footH, true⟩,
     ⟨"platform", "", v.w, c.platH, true⟩]
 
-/-- Every effect of the variant for viewport `v`. -/
 def anims (v : Vp) (c : Ctx) : List Anim :=
   [anim "K0" .transformList .grid [x0 v, y0 v, kk v, kk v],
     anim "K1" .translate .grid [tauX v, fun _ => 0],
@@ -157,16 +146,13 @@ def anims (v : Vp) (c : Ctx) : List Anim :=
     anim "platform" .opacity .fade [fade],
     anim "platform" .blur .fade [fadeBlur]]
 
-/-! ## Acceleration -/
 
 def sortedB : List Rat → Bool
   | p :: q :: rest => decide (p < q) && sortedB (q :: rest)
   | _ => true
 
-/-- Offsets 0 and 1 present and sorted. -/
 def offsetsOk (os : List Rat) : Bool := sortedB os && os.head? == some 0 && os.getLast? == some 1
 
-/-- Effect easing CA can run: linear, or a cubic with control points in `[0, 1]` (`GraphicsLayerCA.cpp:1192-1198`). -/
 def easingOk : Easing → Bool
   | .linear => true
   | .cubic x1 y1 x2 y2 => decide (0 ≤ x1 ∧ x1 ≤ 1 ∧ 0 ≤ x2 ∧ x2 ≤ 1 ∧ 0 ≤ y1 ∧ y1 ≤ 1 ∧ 0 ≤ y2 ∧ y2 ≤ 1)
@@ -178,11 +164,9 @@ def accelOne (a : Anim) : Bool :=
 
 def keysOf (as : List Anim) : List (String × (Nat × Nat) × AnimProp) := as.map fun a => (a.el, a.key, a.prop)
 
-/-- Every effect accelerable, one effect per (element, index, property), every knot set's offsets sorted from 0 to 1. -/
 def accelerable (v : Vp) (as : List Anim) : Bool :=
   as.all accelOne && (keysOf as).Nodup && [Ks.grid, .unit, .earn, .panel, .fade, .time].all (offsetsOk ∘ Ks.offsets v)
 
-/-- Elements the generated `.is-flip` rule sets to `transition: none`. -/
 def flipEls : List String :=
   ["nav", "K0", "K1", "K2", "K3", "U", "G", "D", "bar", "logo", "actions", "lang", "earn", "earnClip", "earnLabel",
     "panel", "backdropClip", "Kb", "Ub", "column", "image", "veil", "centre", "footer", "footerGrad", "footerEnd",
@@ -190,7 +174,6 @@ def flipEls : List String :=
 
 def noTransition (as : List Anim) : Bool := as.all fun a => flipEls.contains a.el
 
-/-- Sample layout inputs for the band check: three images per column. -/
 def Ctx.sample (v : Vp) (e : Eng) : Ctx :=
   let ph := phone v.w
   ⟨e, 0, 1, if ph then 16 else 24, if ph then 120 else 160, if ph then 32 else 40, 100,
@@ -218,24 +201,19 @@ theorem layers_cover_anims :
 #guard accelOne (anim "D" .opacity .unit [fun x => x]) && !accelOne (anim "D" .translate .unit [fun x => x])
 #guard noTransition [anim "veil" .opacity .unit [fun x => x]] && !noTransition [anim "title" .opacity .unit [fun x => x]]
 
-/-! ## Backing bytes -/
 
-/-- Device pixel ratio of the band: 3 on phone widths, 2 above. -/
 def dprOf (v : Vp) : Nat := if phone v.w then 3 else 2
 
 def Lyr.toLayer (l : Lyr) : Fw.Engine.Resource.Layer := ⟨l.w.ceil.toNat, l.h.ceil.toNat, l.backed, true⟩
 
-/-- Backing bytes of the flip tree under the iOS formula (`Resource.layerBytes`). -/
 def memBytes (v : Vp) (c : Ctx) : Nat := Fw.Engine.Resource.gpuBytes (dprOf v) ((layers v c).map Lyr.toLayer)
 
-/-- Headroom over the measured base peak: `budgetB - basePeak`. -/
 def memBudget : Nat := Fw.Engine.Resource.budgetB - Fw.Engine.Resource.Flags.basePeak
 
 def memOk (v : Vp) (c : Ctx) : Bool := decide (memBytes v c ≤ memBudget)
 
 theorem memBudget_eq : memBudget = 23055555 := by decide
 
-/-- The census verdict per band: only 320×568 and 641×700 fit the headroom; veil and platform backings dominate. -/
 theorem mem_bands :
     bandVps.map (fun v => memOk v (Ctx.sample v .webkit)) =
       [true, false, false, false, false, false, true, false, false, false, false, false] := by
@@ -246,7 +224,6 @@ theorem mem_phone_390 : memBytes ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webk
 #guard dprOf ⟨390, 844⟩ == 3 && dprOf ⟨1280, 800⟩ == 2
 #guard memOk ⟨320, 568⟩ (Ctx.sample ⟨320, 568⟩ .webkit) && !memOk ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webkit)
 
-/-! ## End states -/
 
 theorem eval_start (f : Rat → Rat) (p : Rat) (ks : List Rat) (h : sortedB (p :: ks) = true) :
     Track.eval (mk f (p :: ks)) p = f p := by
@@ -289,12 +266,10 @@ theorem eval_end (f : Rat → Rat) (ks : List Rat) : ∀ p : Rat, sortedB (p :: 
       simp only [Rat.not_le.mpr hlt, ite_false]
       exact ih q hs.2
 
-/-- Last keyframe of a knot set: `m = 1`, or `timeEnd` on the time grid. -/
 def Ks.last (k : Ks) : Rat := if k = .time then timeEnd else 1
 
 def allKs : List Ks := [.grid, .unit, .earn, .panel, .fade, .time]
 
-/-- Knots sorted, first 0, last `Ks.last`. -/
 def endsOk (v : Vp) (k : Ks) : Bool := sortedB (k.list v) && (k.list v).head? == some 0 && lastL (k.list v) == k.last
 
 theorem ends_bands : bandVps.all (fun v => allKs.all (endsOk v)) = true := by decide +kernel
@@ -313,7 +288,6 @@ theorem track_ends (v : Vp) (hv : v ∈ bandVps) (k : Ks) (f : Rat → Rat) :
     obtain ⟨⟨hs, rfl⟩, hl⟩ := h
     exact ⟨eval_start f 0 ps hs, hl ▸ eval_end f ps 0 hs⟩
 
-/-- The net K0..U map is the identity at `m = 0` and `m = 1`. -/
 theorem nav_ends (v : Vp) (hv : v ∈ bandVps) (m u : Rat) (hm : m = 0 ∨ m = 1) :
     navX v m u = u ∧ navY v m u = u := by
   have hV : 320 ≤ v.w ∧ 300 ≤ v.h := of_decide_eq_true (List.all_eq_true.mp valid_bands v hv)
@@ -330,7 +304,6 @@ theorem nav_ends (v : Vp) (hv : v ∈ bandVps) (m u : Rat) (hm : m = 0 ∨ m = 1
   simp only [ev]
   constructor <;> grind
 
-/-- At `m = 1` every content transform is the identity and the panel shows at full opacity, unblurred. -/
 theorem content_end (v : Vp) (hv : Valid v) (i j : Nat) (Y inset lw : Rat) :
     x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧ imgTy v j Y 0 1 = 0 ∧
       wd v 1 / wp v = 1 ∧ ht v 1 / hp v = 1 ∧ ht v 1 - hp v = 0 ∧ logoT v inset lw 1 = 0 ∧ panelO 1 = 1 ∧
@@ -347,8 +320,6 @@ theorem content_end (v : Vp) (hv : Valid v) (i j : Nat) (Y inset lw : Rat) :
   have : panelO 1 = 1 := by decide +kernel
   unfold panelBlur; split <;> grind
 
-/-- `end_eq`: on every band, each track sits on its function at its first and last keyframe, the net nav map is the
-identity at both ends, and the content transforms are the identity at `m = 1`. -/
 theorem end_eq (v : Vp) (hv : v ∈ bandVps) :
     (∀ a ∈ anims v (Ctx.sample v .webkit) ++ anims v (Ctx.sample v .chromium), ∀ f ∈ a.fns,
       Track.eval (mk f (a.ks.list v)) 0 = f 0 ∧ Track.eval (mk f (a.ks.list v)) a.ks.last = f a.ks.last) ∧

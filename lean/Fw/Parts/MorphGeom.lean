@@ -3,7 +3,6 @@ import Fw.Parts.Nav
 namespace Fw.Parts.MorphGeom
 open Fw.Parts.Nav Fw.Parts.MorphTween
 
-/-- Knots `(m, value)` of a piecewise-linear track, sorted by `m`. -/
 abbrev Track := List (Rat × Rat)
 
 def Track.eval : Track → Rat → Rat
@@ -86,12 +85,9 @@ theorem exact_of_aff (f : Rat → Rat) (ps : List Rat) (p m : Rat) (h : AffPiece
   grind
 
 
-/-! ## Rational tracks and the chord identity -/
 
-/-- `κ + (α + β m) / (ρ0 + ρ1 m)`: the shape of every clip and counter track. -/
 def ratFn (κ α β ρ0 ρ1 m : Rat) : Rat := κ + (α + β * m) / (ρ0 + ρ1 * m)
 
-/-- `(a + b m) / (1 - c m)`. -/
 def mobius (a b c x : Rat) : Rat := (a + b * x) / (1 - c * x)
 
 theorem chord_sub_eq (a b c p q m : Rat) (hc : c ≠ 0) (hp : 1 - c * p ≠ 0) (hq : 1 - c * q ≠ 0)
@@ -148,7 +144,6 @@ theorem within_div (N D c r3 : Rat) (hr : 0 < r3) (hD : r3 ≤ D) (hc : -c ≤ N
     have := Rat.mul_lt_mul_of_pos_right h' hD0
     grind
 
-/-- Chord error of a rational track on one segment, with `K = (α ρ1 - β ρ0) ρ1`, `r ≥ rmin > 0` and `|K| ≤ Kb`. -/
 theorem chord_rat_within (κ α β ρ0 ρ1 p q m rmin Kb : Rat) (hrmin : 0 < rmin)
     (hp : rmin ≤ ρ0 + ρ1 * p) (hq : rmin ≤ ρ0 + ρ1 * q) (hm : rmin ≤ ρ0 + ρ1 * m)
     (hKb : Within ((α * ρ1 - β * ρ0) * ρ1) Kb) (hpq : p < q) (h1 : p ≤ m) (h2 : m ≤ q) :
@@ -176,36 +171,25 @@ theorem chord_rat_within (κ α β ρ0 ρ1 p q m rmin Kb : Rat) (hrmin : 0 < rmi
     constructor <;> grind
   exact within_div _ _ _ _ hr3 hD hc
 
-/-! ## The final box, the pill inside it and the clip doors -/
 
-/-- Viewports the geometry is stated for. -/
 def Valid (v : Vp) : Prop := 320 ≤ v.w ∧ 300 ≤ v.h
 
-/-- Final (m = 1) nav width. -/
 def wp (v : Vp) : Rat := panelW v
 
-/-- Final (m = 1) nav height. -/
 def hp (v : Vp) : Rat := panelH v
 
-/-- Pill width at `m`. -/
 def wd (v : Vp) (m : Rat) : Rat := navWidth v false m
 
-/-- Pill height at `m`. -/
 def ht (v : Vp) (m : Rat) : Rat := navHeight v m
 
-/-- Pill left edge in the final box. -/
 def x0 (v : Vp) (m : Rat) : Rat := (wp v - wd v m) / 2
 
-/-- Pill top edge in the final box. -/
 def y0 (v : Vp) (m : Rat) : Rat := navTop v m - navTop v 1
 
-/-- Used corner radius: the 52 px phone pill clamps 32 to 26. -/
 def rad (v : Vp) (m : Rat) : Rat := min (navRadius m) (min (ht v m / 2) (wd v m / 2))
 
-/-- Scale of the first clipper, whose corner has radius 20. -/
 def kk (v : Vp) (m : Rat) : Rat := rad v m / 20
 
-/-- The phone radius knot `12 / (vh - 52)`. -/
 def mKnot (v : Vp) : Rat := 12 / (v.h - 52)
 
 theorem wd_eq (v : Vp) (m : Rat) : wd v m = pillW v + (wp v - pillW v) * m := by
@@ -217,7 +201,6 @@ theorem ht_eq (v : Vp) (m : Rat) : ht v m = pillH v + (hp v - pillH v) * m := by
 theorem y0_eq (v : Vp) (m : Rat) : y0 v m = (navTop v 1 - 16) * (m - 1) := by
   unfold y0 navTop; grind
 
-/-- Sizes of the pill and the final box that every proof below needs. -/
 theorem sizes (v : Vp) :
     (phone v.w = true → pillW v = v.w - 32 ∧ pillH v = 52 ∧ wp v = v.w - 24 ∧ hp v = v.h - 24 ∧ navTop v 1 = 12) ∧
     (phone v.w = false → pillW v = min 984 (v.w - 48) ∧ pillH v = 64 ∧ wp v = min 1398 (v.w - 40) ∧
@@ -250,14 +233,11 @@ theorem rad_facts (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1
   have a4 : (hp v - pillH v) * m ≤ (hp v - pillH v) * 1 := Rat.mul_le_mul_of_nonneg_left h1 (by grind)
   grind
 
-/-! ## Knot grids -/
 
-/-- `P, P+h, ..., P+k h`. -/
 def gridFrom (P h : Rat) : Nat → List Rat
   | 0 => [P]
   | k + 1 => P :: gridFrom (P + h) h k
 
-/-- `P, P+h, ..., P+(k-1) h`. -/
 def gridInit (P h : Rat) : Nat → List Rat
   | 0 => []
   | k + 1 => P :: gridInit (P + h) h k
@@ -354,9 +334,7 @@ theorem chordOk_grid_rat (F : Rat → Rat) (κ α β ρ0 ρ1 L U rmin Kb h : Rat
     | zero => exact ⟨by grind, seg P hP hU', by simp [ChordOk]⟩
     | succ k' => exact ⟨by grind, seg P hP hU', ih'⟩
 
-/-! ## Clip doors -/
 
-/-- A rounded rectangle by its edges and corner radius. -/
 structure RR where
   l : Rat
   t : Rat
@@ -369,7 +347,6 @@ def cTR (x y r p q : Rat) : Prop := x - r < p ∧ q < y + r ∧ r * r < (p - (x 
 def cBL (x y r p q : Rat) : Prop := p < x + r ∧ y - r < q ∧ r * r < (p - (x + r)) ^ 2 + (q - (y - r)) ^ 2
 def cBR (x y r p q : Rat) : Prop := x - r < p ∧ y - r < q ∧ r * r < (p - (x - r)) ^ 2 + (q - (y - r)) ^ 2
 
-/-- Membership in a rounded rectangle: inside the box and outside the four corner cut-outs. -/
 def inRR (k : RR) (p q : Rat) : Prop :=
   k.l ≤ p ∧ p ≤ k.rt ∧ k.t ≤ q ∧ q ≤ k.b ∧
   ¬ cTL k.l k.t k.r p q ∧ ¬ cTR k.rt k.t k.r p q ∧ ¬ cBL k.l k.b k.r p q ∧ ¬ cBR k.rt k.b k.r p q
@@ -379,7 +356,6 @@ theorem vTR (x y r p q : Rat) (h : p ≤ x - r ∨ y + r ≤ q) : ¬ cTR x y r p
 theorem vBL (x y r p q : Rat) (h : x + r ≤ p ∨ q ≤ y - r) : ¬ cBL x y r p q := by unfold cBL; grind
 theorem vBR (x y r p q : Rat) (h : p ≤ x - r ∨ q ≤ y - r) : ¬ cBR x y r p q := by unfold cBR; grind
 
-/-- The four clippers, each cutting one corner of the pill: top-left, top-right, bottom-left, bottom-right. -/
 def door (x0 y0 W H r E F : Rat) (i : Nat) : RR :=
   match i with
   | 0 => ⟨x0, y0, x0 + E, y0 + F, r⟩
@@ -403,13 +379,10 @@ theorem clip_eq (x0 y0 W H r E F p q : Rat) (hr : 0 ≤ r) (hW : W + r ≤ E) (h
       ⟨?_, ?_, ?_, ?_, vTL _ _ _ _ _ ?_, vTR _ _ _ _ _ ?_, h7, vBR _ _ _ _ _ ?_⟩,
       ⟨?_, ?_, ?_, ?_, vTL _ _ _ _ _ ?_, vTR _ _ _ _ _ ?_, vBL _ _ _ _ _ ?_, h8⟩⟩ <;> grind
 
-/-- The pill as a rounded rectangle in the final box. -/
 def boxAt (v : Vp) (m : Rat) : RR := ⟨x0 v m, y0 v m, x0 v m + wd v m, y0 v m + ht v m, rad v m⟩
 
-/-- Door width in the final box (2 Wp scaled by the first clipper). -/
 def ex (v : Vp) (m : Rat) : Rat := 2 * wp v * kk v m
 
-/-- Door height in the final box. -/
 def ey (v : Vp) (m : Rat) : Rat := 2 * hp v * kk v m
 
 theorem cover (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
@@ -429,17 +402,14 @@ theorem clip_pill (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1
       inRR (boxAt v m) p q :=
   clip_eq _ _ _ _ _ _ _ p q (by have := (rad_facts v hv m h0 h1).1; grind) (cover v hv m h0 h1).1 (cover v hv m h0 h1).2
 
-/-- Translation of the top-right and bottom-right doors in the first clipper's frame (x). -/
 def tauX (v : Vp) (m : Rat) : Rat := 20 * wd v m / rad v m - 2 * wp v
 
-/-- Translation of the bottom-left door in the first clipper's frame (y). -/
 def tauY (v : Vp) (m : Rat) : Rat := 20 * ht v m / rad v m - 2 * hp v
 
 theorem rad_ne (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) : rad v m ≠ 0 := by
   have := (rad_facts v hv m h0 h1).1
   grind
 
-/-- Door origins from the translate chain equal the origins of `door`. -/
 theorem chain_eq (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     x0 v m + kk v m * tauX v m = x0 v m + wd v m - ex v m ∧
     (x0 v m + kk v m * tauX v m) + kk v m * (-tauX v m) = x0 v m ∧
@@ -448,13 +418,10 @@ theorem chain_eq (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1)
   unfold ex ey kk tauX tauY
   refine ⟨?_, ?_, ?_⟩ <;> grind
 
-/-- The counter layer's scale. -/
 def sU (v : Vp) (m : Rat) : Rat := 20 / rad v m
 
-/-- The counter layer's translation (x). -/
 def tUx (v : Vp) (m : Rat) : Rat := 2 * wp v - 20 * (x0 v m + wd v m) / rad v m
 
-/-- The counter layer's translation (y). -/
 def tUy (v : Vp) (m : Rat) : Rat := 2 * hp v - 20 * (y0 v m + ht v m) / rad v m
 
 theorem sU_exact (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) : kk v m * sU v m = 1 := by
@@ -471,7 +438,6 @@ theorem tUy_exact (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1
   have := rad_ne v hv m h0 h1
   unfold kk tUy tauY; grind
 
-/-! ## Error algebra -/
 
 theorem within_mul (a b A B : Rat) (ha : Within a A) (hb : Within b B) :
     Within (a * b) (A * B) := by
@@ -485,7 +451,6 @@ theorem within_mul (a b A B : Rat) (ha : Within a A) (hb : Within b B) :
 theorem within_mono (e B1 B2 : Rat) (h : Within e B1) (hB : B1 ≤ B2) : Within e B2 := by
   unfold Within at *; grind
 
-/-- One axis of the counter layer: the content offset error is `k es u + k et + k eT`. -/
 theorem net_axis (o k s t T u es et eT Bs Bt BT R kmax : Rat) (hks : k * s = 1) (hot : o + k * (t + T) = 0)
     (hk0 : 0 ≤ k) (hk : k ≤ kmax)
     (hes : Within es Bs) (het : Within et Bt) (heT : Within eT BT) (hu : Within u R) :
@@ -501,33 +466,25 @@ theorem net_axis (o k s t T u es et eT Bs Bt BT R kmax : Rat) (hks : k * s = 1) 
   have h4 := within_mul k (et + eT) kmax (Bt + BT) hk' h2
   unfold Within at *; grind
 
-/-! ## Rational tracks on the radius segments -/
 
-/-- Chord error bound of `ratFn κ α β ρ0 ρ1` on a segment with knot step `h` and `r ≥ rmin`. -/
 def segB (h ρ0 ρ1 rmin α β : Rat) : Rat :=
   h ^ 2 / 4 * max ((α * ρ1 - β * ρ0) * ρ1) (-((α * ρ1 - β * ρ0) * ρ1)) / rmin ^ 3
 
 theorem within_abs (K : Rat) : Within K (max K (-K)) := by unfold Within; grind
 
-/-- Main knot count, and the factor by which the short phone segment below the radius knot is refined. -/
 def nMain : Nat := 320
 def nFirst : Nat := 16
 
-/-- Knot count of the phone segment `[0, mKnot]`. -/
 def n1 (v : Vp) : Nat := (mKnot v * nMain * nFirst).floor.toNat + 1
 
-/-- Knot step of the phone segment below the radius knot. -/
 def stepA (v : Vp) : Rat := mKnot v / (n1 v : Rat)
 
-/-- Knot step of the phone segment above the radius knot. -/
 def stepB (v : Vp) : Rat := (1 - mKnot v) / (nMain : Rat)
 
-/-- Knots of every rational track: one uniform grid on desktop, two grids meeting at the radius knot on phone. -/
 def knots (v : Vp) : List Rat :=
   if phone v.w then gridInit 0 (stepA v) (n1 v) ++ gridFrom (mKnot v) (stepB v) nMain
   else gridFrom 0 (1 / nMain) nMain
 
-/-- Error bound of a rational track `κ + (α + β m) / r(m)` over the knot table. -/
 def bndRat (v : Vp) (α β : Rat) : Rat :=
   if phone v.w then
     max (segB (stepA v) (pillH v / 2) ((hp v - pillH v) / 2) 26 α β) (segB (stepB v) 32 (-12) 20 α β)
@@ -583,7 +540,6 @@ theorem segB_nonneg (h ρ0 ρ1 rmin α β : Rat) (hr : 0 < rmin) : 0 ≤ segB h 
     grind
   exact div_nonneg' _ _ (Rat.mul_nonneg h1 h2) h3
 
-/-! ## The radius on the two phone segments -/
 
 theorem mKnot_mul (v : Vp) (hv : Valid v) : mKnot v * (v.h - 52) = 12 := by
   have : v.h - 52 ≠ 0 := by unfold Valid at hv; grind
@@ -677,7 +633,6 @@ theorem eval_knots (F : Rat → Rat) (B : Rat) (hB : 0 ≤ B) (ks : List Rat) (p
   subst hks
   exact eval_mk_within F B hB ps p m hok h1 (by rw [lastOf_eq]; exact h2)
 
-/-- A rational track `κ + (α + β m) / r(m)` evaluated on the knot table stays within `bndRat` of the exact value. -/
 theorem ratTrack_within (v : Vp) (hv : Valid v) (F : Rat → Rat) (κ α β : Rat)
     (hF : ∀ x, 0 ≤ x → x ≤ 1 → F x = κ + (α + β * x) / rad v x) :
     ∀ m, 0 ≤ m → m ≤ 1 → Within (Track.eval (mk F (knots v)) m - F m) (bndRat v α β) := by
@@ -757,7 +712,6 @@ theorem ratTrack_within (v : Vp) (hv : Valid v) (F : Rat → Rat) (κ α β : Ra
     rw [hk, lastL_gridFrom]
     grind
 
-/-! ## The five rational tracks and the net error of the counter layer -/
 
 theorem sU_within (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     Within (Track.eval (mk (sU v) (knots v)) m - sU v m) (bndRat v 20 0) :=
@@ -804,22 +758,18 @@ theorem eval_mk_neg (f : Rat → Rat) : ∀ (ks : List Rat) (m : Rat),
       · simp only [h, ↓reduceIte]
         exact ih m
 
-/-- The worst content offset of the counter layer, x axis, in css px. -/
 def netBoundX (v : Vp) : Rat :=
   8 / 5 * (bndRat v 20 0 * (wp v + hp v)) +
     8 / 5 * (bndRat v (-10 * (wp v + pillW v)) (-10 * (wp v - pillW v)) +
       bndRat v (20 * pillW v) (20 * (wp v - pillW v)))
 
-/-- The worst content offset of the counter layer, y axis, in css px. -/
 def netBoundY (v : Vp) : Rat :=
   8 / 5 * (bndRat v 20 0 * (wp v + hp v)) +
     8 / 5 * (bndRat v (-20 * (16 - navTop v 1 + pillH v)) (-20 * (navTop v 1 - 16 + (hp v - pillH v))) +
       bndRat v (20 * pillH v) (20 * (hp v - pillH v)))
 
-/-- The knot table of `v` keeps the content within 1/64 css px. -/
 def netOk (v : Vp) : Bool := decide (netBoundX v ≤ 1 / 64 ∧ netBoundY v ≤ 1 / 64)
 
-/-- Content position of a point `u` of the counter layer along x, through the generated tracks. -/
 def navX (v : Vp) (m u : Rat) : Rat :=
   x0 v m + kk v m * (Track.eval (mk (sU v) (knots v)) m * u + Track.eval (mk (tUx v) (knots v)) m +
     (Track.eval (mk (tauX v) (knots v)) m + Track.eval (mk (fun x => -tauX v x) (knots v)) m +
@@ -845,7 +795,6 @@ theorem net_err_x (v : Vp) (hv : Valid v) (hok : netOk v = true) (m u : Rat) (h0
   rw [eq]
   exact within_mono _ _ _ e (by unfold netBoundX at hok'; grind)
 
-/-- Content position of a point `u` of the counter layer along y, through the generated tracks. -/
 def navY (v : Vp) (m u : Rat) : Rat :=
   y0 v m + kk v m * (Track.eval (mk (sU v) (knots v)) m * u + Track.eval (mk (tUy v) (knots v)) m +
     (0 + Track.eval (mk (tauY v) (knots v)) m + 0))
@@ -869,7 +818,6 @@ theorem net_err_y (v : Vp) (hv : Valid v) (hok : netOk v = true) (m u : Rat) (h0
   rw [eq]
   exact within_mono _ _ _ e (by unfold netBoundY at hok'; grind)
 
-/-- Viewports whose knot table is proved: phones, tablets and desktops of the breakpoint gate. -/
 def bandVps : List Vp :=
   [⟨320, 568⟩, ⟨360, 640⟩, ⟨390, 844⟩, ⟨430, 932⟩, ⟨640, 360⟩, ⟨640, 1000⟩, ⟨641, 700⟩, ⟨768, 1024⟩, ⟨1024, 768⟩,
     ⟨1280, 800⟩, ⟨1440, 900⟩, ⟨1920, 1080⟩]

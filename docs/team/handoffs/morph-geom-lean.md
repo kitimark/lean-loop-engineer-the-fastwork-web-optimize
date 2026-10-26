@@ -10,17 +10,8 @@ done: every statement of the design note's Lean list. See research/notes/2026/10
 - MorphGeom.lean: tracks, chords, sizes, clip doors, net_err.
 - MorphGeomRect.lean: rect_eq, fill_eq, panel_eq, fade_eq, logo_err.
 - MorphGeomEarn.lean: earn_eq for WebKit and Chromium.
-- MorphGeomAnim.lean:
-  - AnimProp, Anim, layers, anims;
-  - accelerable_bands, noTransition_bands;
-  - end_eq;
-  - mem_bands.
-- MorphGeomGen.lean writes packages/contracts/golden/morph-geom.jsonl. Its fn kinds:
-  - knots;
-  - time;
-  - sample: eval at 11 m points, rounded to 6 decimals;
-  - flip;
-  - goal.
+- MorphGeomAnim.lean: AnimProp, Anim, layers, anims; accelerable_bands, noTransition_bands; end_eq; mem_bands.
+- MorphGeomGen.lean writes packages/contracts/golden/morph-geom.jsonl. Its fn kinds: knots; time; sample (eval at 11 m points, rounded to 6 decimals); flip; goal.
 - check.sh job; Trigger.lean lean.yml row; triggers.jsonl regenerated.
 finding:
 - mem_bands: the census fits the 23,055,555 B headroom only on 320×568 and 641×700.

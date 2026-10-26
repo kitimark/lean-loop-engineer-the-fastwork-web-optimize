@@ -45,7 +45,6 @@ theorem eval_grid (f : Rat → Rat) (h : Rat) (hh : 0 < h) :
         rw [e2] at this
         exact this
 
-/-- Frame index of a time on the 60 Hz grid. -/
 def idx (t : Rat) : Nat := (t / frameMs).floor.toNat
 
 theorem idx_frame (k : Nat) : idx (frameTime k) = k := by
@@ -54,7 +53,6 @@ theorem idx_frame (k : Nat) : idx (frameTime k) = k := by
   rw [this, ← Rat.intCast_natCast, Rat.floor_intCast]
   simp
 
-/-- Time track of a per-frame sequence `g`, knots every frame of the 60 Hz grid. -/
 def timeTrack (g : Nat → Rat) : Track := mk (fun t => g (idx t)) (gridFrom 0 frameMs frames)
 
 theorem timeTrack_eq (g : Nat → Rat) (k : Nat) (hk : k ≤ frames) :
@@ -64,48 +62,35 @@ theorem timeTrack_eq (g : Nat → Rat) (k : Nat) (hk : k ≤ frames) :
   have e : frameTime k = 0 + (k : Rat) * frameMs := by unfold frameTime; grind
   rw [e, eval_grid _ frameMs hh frames 0 k hk, ← e, idx_frame]
 
-/-! ## The original, frame by frame -/
-
-/-- Whether the engine starts the earn button's padding transition (`NavEarnWebkit.hero_exit_webkit`). -/
 def padRuns (e : Eng) : Bool := (startedSet e .ltr faithfulBase flipChanged).contains .paddingLeft
 
 theorem padRuns_webkit : padRuns .webkit = false := by decide
 theorem padRuns_chromium : padRuns .chromium = true := by decide
 
-/-- Shown `max-width` at frame `k` of a push from `a` to `b`. -/
 def maxWF (v : Vp) (a b : Rat) (k : Nat) : Rat :=
   shown maxWTr frameTime (fun j => earnMaxW v false (morphAt a b j)) faithfulOn k
 
-/-- Shown `padding-inline` at frame `k`: transitioned where the engine starts it, else the computed value. -/
 def padF (e : Eng) (v : Vp) (a b : Rat) (k : Nat) : Rat :=
   if padRuns e then shown padTr frameTime (fun j => earnPad v false (morphAt a b j)) faithfulOn k
   else earnPad v false (morphAt a b k)
 
-/-- Shown opacity at frame `k`. -/
 def opF (a b : Rat) (k : Nat) : Rat :=
   shown opacityTr frameTime (fun j => earnOpacity false (morphAt a b j)) faithfulOn k
 
-/-- Border-box width of the earn button with a label `lw` wide: padding is never squeezed. -/
 def boxW (maxW pad lw : Rat) : Rat := max (2 * pad) (min maxW (lw + 2 * pad))
 
 def earnWF (e : Eng) (v : Vp) (lw a b : Rat) (k : Nat) : Rat := boxW (maxWF v a b k) (padF e v a b k) lw
 
-/-! ## The flip layers -/
-
-/-- Knots of the tracks that follow `earnOut` (`darkCut` = 0.2). -/
 def earnKnots : List Rat := [0, 1 / 5, 1]
 
-/-- Earn clip door: x translate `w0 - w(t)` over a button laid out `w0` wide. -/
 def kLTrack (e : Eng) (v : Vp) (lw w0 a b : Rat) : Track := timeTrack fun k => w0 - earnWF e v lw a b k
 
 def opTrack (a b : Rat) : Track := timeTrack (opF a b)
 
-/-- Label padding term: a time track where the engine runs the padding transition, an m-track where it does not. -/
 def padG (e : Eng) (v : Vp) (a b : Rat) (k : Nat) : Rat :=
   if padRuns e then Track.eval (timeTrack (padF e v a b)) (frameTime k)
   else Track.eval (mk (earnPad v false) earnKnots) (morphAt a b k)
 
-/-- Earn box edges `[R - w0 + kL, R]`: the clip door over the laid-out button `[R - w0, R]`. -/
 def clipEdges (R w0 kL : Rat) : Rat × Rat := (max (R - w0) (R - w0 + kL), min R (R + kL))
 
 theorem earn_edges (R w0 w : Rat) (h1 : w ≤ w0) : clipEdges R w0 (w0 - w) = (R - w, R) := by
@@ -151,18 +136,13 @@ theorem actionsGap_pw (v : Vp) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     · grind⟩
     ⟨0, 0, fun x _ _ => by rw [hc]; unfold clamp01 darkCut; grind⟩ m h0 h1
 
-/-- Language switch right edge in the original: left of the earn box and the gap. -/
 def langRightF (e : Eng) (v : Vp) (R lw a b : Rat) (k : Nat) : Rat :=
   R - earnWF e v lw a b k - actionsGap v false (morphAt a b k)
 
-/-- Language switch right edge under the flip: laid out next to a `w0` button with gap `gL`, moved by the
-`transform` (earn width) and `translate` (gap) tracks. -/
 def langRightG (e : Eng) (v : Vp) (R lw w0 gL a b : Rat) (k : Nat) : Rat :=
   R - w0 - gL + Track.eval (kLTrack e v lw w0 a b) (frameTime k) +
     (gL - Track.eval (mk (actionsGap v false) earnKnots) (morphAt a b k))
 
-/-- On the 60 Hz grid the earn and language tracks equal the engine's run of the original: box edges, label
-padding, opacity, blur, shift and the language switch edge. -/
 theorem earn_eq (e : Eng) (v : Vp) (R lw w0 gL a b : Rat) (ha : 0 ≤ a ∧ a ≤ 1) (hb : 0 ≤ b ∧ b ≤ 1)
     (k : Nat) (hk : k ≤ frames) (hw1 : earnWF e v lw a b k ≤ w0) :
     clipEdges R w0 (Track.eval (kLTrack e v lw w0 a b) (frameTime k)) = (R - earnWF e v lw a b k, R) ∧

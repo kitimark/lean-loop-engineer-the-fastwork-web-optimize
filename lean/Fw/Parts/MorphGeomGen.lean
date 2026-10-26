@@ -6,12 +6,10 @@ namespace Fw.Parts.MorphGeom
 open Lean Fw.Parts.Nav Fw.Engine.TransitionStart
 open Fw.Parts.NavEarnOpt (frameMs frames)
 
-/-- `q` rounded half up to `d` decimals. -/
 def roundTo (d : Nat) (q : Rat) : Int := (q * (10 ^ d : Nat) + 1 / 2).floor
 
 def jdec (d : Nat) (q : Rat) : Json := .num ⟨roundTo d q, d⟩
 
-/-- CSS number with at most 4 decimals and no trailing zeros. -/
 def cssNum (q : Rat) : String :=
   let z := roundTo 4 q
   let a := z.natAbs
@@ -29,12 +27,10 @@ def Ks.name : Ks → String
 def engTag : Eng → String
   | .webkit => "webkit" | .chromium => "chromium"
 
-/-- Sample points in `m`; a time track is sampled at `m · timeEnd`. -/
 def samples : List Rat := [0, 1 / 100, 1 / 20, 2 / 25, 3 / 20, 1 / 5, 8 / 25, 1 / 2, 11 / 20, 4 / 5, 1]
 
 def Ks.at (k : Ks) (m : Rat) : Rat := if k = .time then m * timeEnd else m
 
-/-- Effects whose tracks depend on the engine. -/
 def engDep (a : Anim) : Bool := ["lang", "earn", "earnClip", "earnLabel"].contains a.el
 
 def selector (a : Anim) : String :=
@@ -44,7 +40,6 @@ def selector (a : Anim) : String :=
   | "image" => base ++ s!"[data-i=\"{a.key.1}\"][data-j=\"{a.key.2}\"]"
   | _ => base
 
-/-- The declaration an effect writes for keyframe numbers `xs`. -/
 def decl (p : AnimProp) (xs : List Rat) : String :=
   let n := fun i => cssNum (xs.getD i 0)
   match p with
@@ -55,11 +50,9 @@ def decl (p : AnimProp) (xs : List Rat) : String :=
   | .blur => s!"filter: blur({n 0}px)"
   | .backdropBlur => s!"backdrop-filter: blur({n 0}px)"
 
-/-- The generated rule that keeps CSS transitions off every flip element. -/
 def flipCss : String :=
   ", ".intercalate (flipEls.map fun e => s!".is-flip [data-mg=\"{e}\"]") ++ " { transition: none; }"
 
-/-- Goal state: each effect's last keyframe as CSS. -/
 def goalCss (v : Vp) (c : Ctx) : List String :=
   (anims v c).map fun a => s!"{selector a} \{ {decl a.prop (a.fns.map fun f => f a.ks.last)}; }"
 
