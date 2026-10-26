@@ -4349,6 +4349,44 @@
    "next": "the user's visual review; counts in the note",
    "evidence": "research/notes/2026/10-2x-platform-sweep-layer.md (task platform-sweep-layer)",
    "n": 85
+  },
+  {
+   "id": "platform.faded-pause",
+   "n": 87,
+   "part": "platform",
+   "flags": [
+    "platform:faded-pause"
+   ],
+   "flag": "platform:faded-pause",
+   "visClass": "E",
+   "candidate": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "status": "pending",
+   "chromium": "pending (CI)",
+   "webkit": "pending (CI)",
+   "visual": "E (Lean PlatformFadedPause.faded_same_pixels: at fade 0 the page pixel is the backdrop for every subtree colour, assuming no descendant escapes the opacity group, census-tested; visible_phase, glint_phase: every visible frame reads the uninterrupted phase)",
+   "mechanism": "CONFIRMED by source: Chromium records an effectively invisible layer (paint_layer_painter.cc:168-191,424@f842f52, ScopedEffectivelyInvisible); WebKit clears the repaint rects of an opacity-0 subtree (RenderLayer.cpp:1522,6147-6150@862f17d) but the main-thread background-position animation still resolves style each frame. INFERRED: pausing removes the per-frame invalidation and decode work.",
+   "leanFor": [
+    "Fw.Parts.PlatformFadedPause.faded_same_pixels",
+    "Fw.Parts.PlatformFadedPause.frame_same",
+    "Fw.Parts.PlatformFadedPause.visible_phase",
+    "Fw.Parts.PlatformFadedPause.faded_no_tick",
+    "Fw.Parts.PlatformFadedPause.glint_phase",
+    "Fw.Parts.PlatformFadedPause.scene_offscreen",
+    "Fw.Parts.PlatformFadedPause.scene_faded",
+    "Fw.Parts.PlatformFadedPause.scene_neither"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Per-engine counts: see the note research/notes/2026/10-2x-platform-faded-pause.md"
+   ],
+   "premises": [
+    "setting startTime on a CSSAnimation after the style flush keeps the CSS play state: INFERRED",
+    "no descendant escapes the section's opacity group: census test over the platform sources"
+   ],
+   "v1Evidence": "",
+   "lesson": "",
+   "next": "CI gate and counts (task platform-faded-pause)",
+   "evidence": "research/notes/2026/10-2x-platform-faded-pause.md (task platform-faded-pause)"
   }
  ],
  "notes": [

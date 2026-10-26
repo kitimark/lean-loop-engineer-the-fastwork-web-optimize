@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { getClock } from '../../engine/clock';
 import { registerScroll } from '../../engine/scroll';
-import { createThreadedFade, type FadeEl } from '../platform/fade.driver';
+import { createThreadedFade, fadedBus, type FadeEl } from '../platform/fade.driver';
 import { isBand } from '../morph.mount/listen.logic';
 import { touchHub, type TouchClient, type TouchHub } from '../morph.mount/listen';
 import { REST_VARIANT, setRest } from '../morph.panel/rest.logic';
@@ -22,9 +22,10 @@ export interface MorphTweenProps {
   platformSelector?: string;
   navSelector?: string;
   platformFade?: boolean;
+  platformFadedPause?: boolean;
 }
 
-export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false }: MorphTweenProps) {
+export function MorphTween({ variant, platformSelector = '.start-selling-platform, [data-fw="platform"]', navSelector = '[data-fw="nav"]', platformFade = false, platformFadedPause = false }: MorphTweenProps) {
   useEffect(() => {
     const root = document.documentElement;
     const platformRest = window.__fw?.config.variants['morph.panel'] === REST_VARIANT;
@@ -51,6 +52,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       },
       lock: scrollLockOf(variant, root),
       rest: platformRest,
+      faded: platformFadedPause ? (zero) => fadedBus.set(zero) : undefined,
       fade: platformFade ? createThreadedFade(() => platform() as unknown as FadeEl | null) : undefined,
       panel:
         window.__fw?.config.variants['morph.panel'] === THREADED
@@ -76,7 +78,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       unband?.();
       root.removeAttribute('data-fw-morph-tween');
     };
-  }, [variant, platformSelector, navSelector, platformFade]);
+  }, [variant, platformSelector, navSelector, platformFade, platformFadedPause]);
   return null;
 }
 

@@ -1,4 +1,5 @@
 import { EASING_CSS as PANEL_EASING_CSS, effects as panelEffects } from '../morph.panel/threaded.logic';
+import { fadedZero } from '../platform/fade.logic';
 import { active, armed, DURATION_MS, fade, frame, pointerNone, REST, type St } from './logic';
 import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
@@ -40,6 +41,8 @@ export interface TweenEnv {
   onActivate?(): void;
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
+  /** platform:faded-pause: called with each frame's "fade is 0" (the receiver drops repeats). */
+  faded?: (zero: boolean) => void;
   rest?: boolean;
   panel?: EffectSink;
   hooks?: Hooks;
@@ -113,6 +116,7 @@ export function createTweenDriver(env: TweenEnv) {
     const p = env.platform();
     if (!p) return;
     if (!env.fade) p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
+    env.faded?.(fadedZero(st.value));
     p.style.pointerEvents = pointerNone({ m: st.value }) ? 'none' : '';
     if (env.rest && p.hasAttribute && p.toggleAttribute) setRest(p as RestEl, st.value);
   };

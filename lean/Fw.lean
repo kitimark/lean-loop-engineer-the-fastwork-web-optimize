@@ -101,6 +101,8 @@ import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
 import Fw.Parts.PlatformSweepPause
 import Fw.Parts.PlatformSweepPauseGolden
+import Fw.Parts.PlatformFadedPause
+import Fw.Parts.PlatformFadedPauseGolden
 import Fw.Parts.PlatformSweepLayer
 import Fw.Parts.PlatformSweepLayerGolden
 import Fw.Parts.NavClipBox
