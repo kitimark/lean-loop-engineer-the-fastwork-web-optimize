@@ -22065,7 +22065,8 @@
     "apps/runner/src/land-remote.ts",
     "apps/runner/test/land-remote*.test.ts",
     "docs/team/tools/ci-telemetry.md",
-    "docs/team/handoffs/macos-vm-upload.md"
+    "docs/team/handoffs/macos-vm-upload.md",
+    "apps/runner/test/ci-telemetry.test.ts"
    ]
   },
   {
