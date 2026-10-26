@@ -36,6 +36,9 @@ Every theorem below is PROVED with no `sorry`. `#print axioms` shows only `prope
   (logo, label and image sizes).
 * `accelerable` reads only the effect fields. That the generated keyframes repeat one function-list shape is a fact
   about `Anim.tracks`, not a separate check.
+* `end_eq`: part (1) says each track sits on its own function at its first and last keyframe; that the function is the
+  faithful value is carried by `rect_eq`, `fill_ev`, `panel_eq`, `fade_eq` and `earn_eq` (all m in [0, 1]). Part (3),
+  content transforms the identity, is stated at m = 1 only.
 
 ## Finding: the backing census is over budget on 10 of 12 bands
 
