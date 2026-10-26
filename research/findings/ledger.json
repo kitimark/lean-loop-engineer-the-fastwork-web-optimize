@@ -3777,7 +3777,7 @@
     "morph.end.release:on"
    ],
    "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
-   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "webkit": "worse on the iPhone (user phone review 2026-10-27): pull in and out at the end of the page raises the scroll bug; INFERRED mechanism: after a close the pin is dropped and the drag moves the page (Lean release_close_free), so the next pull re-opens away from the end and the morph fights a page that is not at the end (morph-end-remeasure: min scrollY 3513-4067 px)",
    "visual": "look change (L), behaviour change at the end of the page: a drag back while the morph closes moves the page under the finger instead of being held at the pin. Lean release_starts, release_close_free, release_quiet, release_after_close, release_open_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
    "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
    "leanFor": [
@@ -3796,9 +3796,9 @@
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
-   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "next": "Rejected by the user on the phone (userDecision); not a candidate. The end-of-page fix path is morph-stage (sticky end stage, no pin).",
    "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
-   "userDecision": "pending"
+   "userDecision": {"date": "2026-10-27", "decision": "rejected 2026-10-27: the user tried ?fw=morph.end.release:on on the iPhone and said it raises the end-of-page scroll bug when pulling in and out at the end of the page (source: chat, user words: \"the morph.end.release:on raise the end-of-page scroll bug. when i do pull in/out of the end of page\")", "review": "user phone check through the Compose link; CI runs 40158609202, 40167641467, 40193540518 (task morph-end-remeasure) measured the page drifting away from the end after the first close (min scrollY 3513-4067 px against 4953 px or more on every other arm)"}
   },
   {
    "id": "platform.sweep.offscreen-pause",
