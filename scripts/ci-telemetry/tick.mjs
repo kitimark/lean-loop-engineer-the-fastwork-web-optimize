@@ -59,9 +59,10 @@ function echoNew(file, offset, write) {
 export function launch(dir, cmd, { now = Date.now } = {}) {
   mkdirSync(dir, { recursive: true });
   const log = openSync(join(dir, "console.log"), "a");
-  writeFileSync(join(dir, "t0"), String(now()));
+  const t0 = now();
+  writeFileSync(join(dir, "t0"), String(t0));
   const exitFile = join(dir, "exit");
-  const child = spawn("/bin/bash", ["-c", 'f=$1; shift; "$@"; rc=$?; echo $rc > "$f.tmp"; mv "$f.tmp" "$f"', "bash", exitFile, ...cmd], { detached: true, stdio: ["ignore", log, log] });
+  const child = spawn("/bin/bash", ["-c", 'f=$1; shift; "$@"; rc=$?; echo $rc > "$f.tmp"; mv "$f.tmp" "$f"', "bash", exitFile, ...cmd], { detached: true, stdio: ["ignore", log, log], env: { ...process.env, FW_MEASURE_T0_MS: String(t0) } });
   child.unref();
   closeSync(log);
   writeFileSync(join(dir, "pid"), String(child.pid));
