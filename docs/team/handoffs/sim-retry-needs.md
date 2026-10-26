@@ -1,8 +1,8 @@
 branch: worktree-wf_ad288bf9-c79-1
 worktree: .claude/worktrees/wf_ad288bf9-c79-1 (under the main checkout)
-last commit: see `git log -1` on the branch (Lean choice at 1322fd5dc, note at 1cc49e174)
+last commit: 042fc7850 (main merged at 400007d01); this handoff commit follows it
 CI runs: none (the replay used job logs only)
-verified: see the task report for check.sh, measure-webkit tests and the dry land at the final commit
+verified at 042fc7850: lean/scripts/check.sh green through `fw slot` (533 s), measure-webkit tests 924/924, ci-paths test, runner land-inputs test, plan lint without writesClosure errors; dry land runs after this commit (verdict in the task report, not here)
 open: tab gate at 480 s refuses 9 green jobs (deployed 10 of 98, 1 without it), lead decision; wk-sim-hang note's Lean paragraph outdated (outside writes)
 
 ## State
