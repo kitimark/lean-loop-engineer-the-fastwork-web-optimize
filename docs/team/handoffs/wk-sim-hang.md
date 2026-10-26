@@ -1,9 +1,9 @@
-branch: worktree-wf_2b596ca9-a1d-1 (CI branch ci/wk-sim-hang, not yet pushed)
+branch: worktree-wf_2b596ca9-a1d-1 (CI branch ci/wk-sim-hang, pushed at a4202a8d8)
 worktree: .claude/worktrees/wf_2b596ca9-a1d-1 (under the main checkout)
-last commit: pending (first commit of the task follows start fff591625)
-CI runs: none yet
-verified: Lean SimHost.lean and SimHostGolden.lean compile; measure-webkit tests 921 pass; tick and ci-paths tests pass; lake test fwtest passes
-open: merge main, check.sh via slot, push ci/wk-sim-hang, up to 3 webkit-sim dispatches, failure-rate report, dry land, review ready
+last commit: a4202a8d8 (merge of main into 38cdadc6d, the task's code commit)
+CI runs: webkit-sim dispatch 1 of 3: 40319007631 (running, started 11:58Z)
+verified: check.sh green after merging main (sim-host golden up to date); plan lint 0 errors; Lean SimHost.lean and SimHostGolden.lean compile; measure-webkit tests 921 pass; tick and ci-paths tests pass; lake test fwtest passes
+open: wait for run 40319007631, dispatch 2 and 3 one at a time, failure-rate and failing-step report vs 19%/45%, dry land, review ready
 
 ## State
 - Load source found (note `research/notes/2026/10-2x-wk-sim-hang.md`): Simulator runtime load on the runner image; our `top` spawnSync made it worse once (run 40282962088 sim-r1, 1399 s blocked loop).
