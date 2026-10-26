@@ -50,7 +50,7 @@ A pass attempt is reconnect, tab wait, load and census (the head), then the scro
 
 - `sim-host.mjs` reads every constant (`endMarginS`, `loadCeilCenti`, `scrollNeedS`, `passNeedS`, `navWaitMs`) from `packages/contracts/golden/measure/sim-host.jsonl`; no need is typed in TS. `tabNeedS`, `tabFits` replay the golden's `tab` vectors (`test/sim-host.test.mjs`); no code calls them.
 - `wip.mjs` `navigateTab` has no tab gate (deployed tab need 0): a tab wait is started at any point of the step.
-- TS stand-ins: none. `replay.mjs` is an analysis script.
+- `replay.mjs` is an analysis script.
 
 ## Replay (`results/sim-retry-needs/scripts/`)
 
@@ -68,6 +68,6 @@ Refused by the shipped needs with a tab gate, arm `deployed` (job, run, gate, se
 
 ## Open
 
-- Lead decision: the tab gate is dropped (it would refuse 9 green jobs, more than the step-bound kill it replaces). A tab wait capped to the time left is a follow-up.
+- Lead decision: the tab gate is dropped (it would refuse 9 green jobs). A tab wait capped to the time left is a follow-up.
 - The wk-sim-hang note's Lean paragraph is outside this task's writes (follow-up).
 - `perSessionMin` unchanged.

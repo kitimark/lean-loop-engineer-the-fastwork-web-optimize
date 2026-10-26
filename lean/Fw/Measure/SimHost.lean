@@ -17,7 +17,6 @@ def pass2S : Nat := 896
 
 def stepS : Nat := 1734
 
-/-- Longest wait from a failed scroll attempt to the end of its retried step, seconds. -/
 def scrollRetryS : Nat := 589
 
 def passRetryS : Nat := 436
@@ -298,7 +297,6 @@ def Needs.of (c : Needs) : Kind → Nat
 
 def tabWaitS : Nat := tabNeedS (navWaitMs * ciScale)
 
-/-- runPass_stop_le's premise at the seen maxima (inner, outer), plus tab cover for tab_started_le. -/
 def Premise (c : Needs) : Prop := Seen.tryS ≤ c.scroll ∧ Seen.headS + c.scroll ≤ c.pass ∧ tabWaitS ≤ c.tab
 
 instance (c : Needs) : Decidable (Premise c) := by unfold Premise; infer_instance
