@@ -1,6 +1,11 @@
-# morph-stage handoff (lead, after stopping the first builder near its context limit)
-state: work in progress, uncommitted work committed as-is by the lead (WIP commit on branch worktree-wf_f50338a2-351-1); no CI push yet.
-on disk: lean/Fw/Parts/MorphStage.lean (348 lines), MorphStageGolden.lean, lean/scripts/MorphStageGolden.lean, golden packages/contracts/golden/parts/morph-stage.jsonl; apps/site/src/parts/morph.stage/ (driver.ts, index.tsx, logic.ts, part.json, track.tsx, stage.module.css, stage.component.test.ts, stage.golden.test.ts); edits to App.tsx, registry/index.ts, Fw.lean, Trigger.lean, check.sh.
-last activity: a local Playwright debug script (scratchpad dbg.mjs, not in the repo) showed in Chromium 1280x800 with ?fw=morph.stage:on a sticky track of 696-768 px, --morph reaching 1 and the nav expanded at the end (y 8490); the builder was about to run the same check in WebKit (Playwright) when stopped.
-not verified: lake build of MorphStage*, check.sh, site tests, golden replay, gate, Chromium counts, WebKit runs.
-read first: the task row in docs/team/work-graph.json, research/notes/2026/10-26-end-scroll-designs.md, then the files above.
+branch: worktree-wf_f50338a2-351-1 (CI branch ci/morph-stage)
+worktree: .claude/worktrees/wf_f50338a2-351-1
+last commit: 13b09467c (ci request; code at b877a0454). Push 1 of 3 done.
+CI runs at 13b09467c (state when written: all running/queued):
+- lean 40339107915 completed (push)
+- breakpoint-gate push (default flags) 40339108228; dispatch fw=morph.stage:on both engines 40339272935
+- chromium-counts push (swipe-v1, no flag) 40339108179; dispatches swipe-touch-v1 x3: 40339622735 and 40339630528 (flag / base, see run-flag.log, run-base.log in scratchpad/morph-stage)
+Verified: lake build MorphStage*; Lean theorems (trackT_ge/least, progress_*, range_*, scene_held, armed_from_range_start, keyframes_end, key_eq_tween, stage_start/end_eq_tween, write_at_crossing, no_scrollTo, no_nonpassive, jack_off_iff); goldens regenerated from Lean (morph-stage, ci triggers, footprint, footprint-diff); site vitest morph.stage 41 pass; local Playwright WebKit (not a result): ?fw=morph.stage:on, ScrollTimeline present, --morph 0.93 at maxY-50, 1 at maxY, nav width 1240 (1280) and 366 (390).
+Open: gate verdicts, Chromium base vs flag (Lean reader offscreen-windows-cli.mjs), WebKit Simulator lanes WAIT for wk-sim-hang (not on main at start): dispatch afterwards: pnpm -s fw run --target rewrite --fw morph.stage:on --engines webkit ... (zones 3 VMs) and the toolbar-throttle lane; user look review + T choice; no preset.
+Ledger row n 90 morph.stage (look-change, L, pending). Note research/notes/2026/10-2x-morph-stage.md.
+Read first: the note, then lean/Fw/Parts/MorphStage.lean.
