@@ -19,6 +19,12 @@
       display: inline;
     }
   }
+  /* platform.sweep:probe-off (measurement only): the same word and gradient with the animation stopped */
+  @media (prefers-reduced-motion: no-preference) {
+    .sweep.sweep.still {
+      animation: none;
+    }
+  }
   @keyframes sweepDoc {
     0% {
       background-position: 100%;

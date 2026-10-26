@@ -23,3 +23,16 @@
 {"name":"lag: a 174 s gap on a 30 s tick (a blocked bootstatus) is blocked with 144 s lost","request":{"op":"ci.telemetry","sinceMs":174000,"tickMs":30000,"what":"lag"},"response":{"blocked":true,"lagMs":144000}}
 {"name":"lag: no tick period is never blocked","request":{"op":"ci.telemetry","sinceMs":100,"tickMs":0,"what":"lag"},"response":{"blocked":false,"lagMs":100}}
 {"name":"an unknown what is refused","request":{"op":"ci.telemetry","what":"nope"},"response":{"error":"unknown what nope"}}
+{"name":"upload period: one session (35 min) ticks every 7 min","request":{"op":"ci.telemetry","stepMin":35,"upload":"period"},"response":{"atMin":[7,14,21,28],"periodMin":7,"periodS":420,"tickSteps":8}}
+{"name":"upload period: two sessions (70 min) ticks every 14 min","request":{"op":"ci.telemetry","stepMin":70,"upload":"period"},"response":{"atMin":[14,28,42,56],"periodMin":14,"periodS":840,"tickSteps":8}}
+{"name":"upload period: the quiet experiment (50 min) ticks every 10 min","request":{"op":"ci.telemetry","stepMin":50,"upload":"period"},"response":{"atMin":[10,20,30,40],"periodMin":10,"periodS":600,"tickSteps":8}}
+{"name":"upload period: a 4-minute step has no whole minute period","request":{"op":"ci.telemetry","stepMin":4,"upload":"period"},"response":{"atMin":[0,0,0,0],"periodMin":0,"periodS":0,"tickSteps":8}}
+{"name":"upload wake: nothing new and the period not over keeps waiting","request":{"done":false,"elapsedS":100,"fresh":0,"op":"ci.telemetry","periodS":420,"sinceS":100,"stepS":2100,"upload":"wake"},"response":{"wake":false,"why":"none"}}
+{"name":"upload wake: the period over wakes","request":{"done":false,"elapsedS":420,"fresh":0,"op":"ci.telemetry","periodS":420,"sinceS":420,"stepS":2100,"upload":"wake"},"response":{"wake":true,"why":"period"}}
+{"name":"upload wake: one second short of the period keeps waiting","request":{"done":false,"elapsedS":419,"fresh":0,"op":"ci.telemetry","periodS":420,"sinceS":419,"stepS":2100,"upload":"wake"},"response":{"wake":false,"why":"none"}}
+{"name":"upload wake: a new pass file wakes before the period","request":{"done":false,"elapsedS":100,"fresh":1,"op":"ci.telemetry","periodS":420,"sinceS":100,"stepS":2100,"upload":"wake"},"response":{"wake":true,"why":"pass"}}
+{"name":"upload wake: the measurement ended wakes","request":{"done":true,"elapsedS":100,"fresh":0,"op":"ci.telemetry","periodS":420,"sinceS":100,"stepS":2100,"upload":"wake"},"response":{"wake":true,"why":"done"}}
+{"name":"upload wake: the end wins over a new pass","request":{"done":true,"elapsedS":100,"fresh":2,"op":"ci.telemetry","periodS":420,"sinceS":100,"stepS":2100,"upload":"wake"},"response":{"wake":true,"why":"done"}}
+{"name":"upload wake: the step bound wakes a waiting tick","request":{"done":false,"elapsedS":2100,"fresh":0,"op":"ci.telemetry","periodS":420,"sinceS":0,"stepS":2100,"upload":"wake"},"response":{"wake":true,"why":"deadline"}}
+{"name":"upload wake: the step bound wins over a new pass","request":{"done":false,"elapsedS":2100,"fresh":1,"op":"ci.telemetry","periodS":420,"sinceS":0,"stepS":2100,"upload":"wake"},"response":{"wake":true,"why":"deadline"}}
+{"name":"upload: an unknown kind is refused","request":{"op":"ci.telemetry","upload":"nope"},"response":{"error":"unknown upload nope"}}

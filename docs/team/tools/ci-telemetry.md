@@ -10,8 +10,8 @@ history. Slow or not is Lean; the producer and the collector only measure and ca
 | piece | where | decides |
 |---|---|---|
 | record schema, JSON round trip, span names, slow verdict | `lean/Fw/Ci/Telemetry.lean` (op `ci.telemetry`) | everything |
-| goldens (9 cases, generated) | `packages/contracts/golden/ci/telemetry.jsonl`, `lean/scripts/TelemetryGolden.lean --check` in `check.sh` | |
-| producer (node, no dependencies) | `scripts/ci-telemetry/` (`cli.mjs`, `lib.mjs`, `sampler.mjs`) | nothing |
+| goldens (generated) | `packages/contracts/golden/ci/telemetry.jsonl`, `lean/scripts/TelemetryGolden.lean --check` in `check.sh` | |
+| producer (node, no dependencies) | `scripts/ci-telemetry/` (`cli.mjs`, `lib.mjs`, `sampler.mjs`, `tick.mjs`) | nothing |
 | GitHub composite action | `.github/actions/telemetry` (`mode: start`, `cache`, `finish`) | nothing |
 | collector | `apps/runner/src/ci-telemetry.ts`, `fw ci telemetry` | nothing |
 | store | `<main checkout>/.fw-console/telemetry/records.jsonl` (gitignored; one line per job record) | |
@@ -54,7 +54,7 @@ does this for `check.sh`). Every command but `step` exits 0 on any internal erro
 - Sampler: Linux reads `/proc/stat` and `/proc/meminfo`; macOS `vm_stat` (memory) and `os.cpus()` (CPU), machine name
   from `sysctl`. The Linux CPU model is the cpuinfo `model name`; arm64 runners have none, so `lscpu` "Model name" (for
   example `Neoverse-N2`), else the cpuinfo implementer and part (`arm 0x41 part 0xd49`) (`parseCpuModel`). Load is `os.loadavg()`, disk is `statfs` of the telemetry directory. At most 360 probes are kept.
-- Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (arch not repeated when ImageOS ends with it) (for example `ubuntu24-arm64-4c`), `<os>-<arch>-<cores>c`
+- Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (for example `ubuntu24-arm64-4c`; arch not repeated when ImageOS ends with it), `<os>-<arch>-<cores>c`
   elsewhere, `FW_RUNNER_CLASS` overrides.
 - GitHub: `finish` makes one best-effort call to the jobs API (`GITHUB_TOKEN`, 15 s cap) and takes this job's step
   list (all steps, `uses:` steps included) and the true queue time (`created_at` to `started_at`). If the call fails the
@@ -79,6 +79,27 @@ does this for `check.sh`). Every command but `step` exits 0 on any internal erro
 
 Each lane's row in `Fw.Ci.Trigger.table` lists `.github/actions/telemetry/**` and `scripts/ci-telemetry/**`, so a change to
 the producer runs those lanes. The workflows keep `permissions: contents: read`.
+
+## Uploads during a Simulator job (task `macos-vm-upload`)
+
+A macOS job lost mid-run leaves nothing from steps that never ran. `webkit-sim` job `sim` therefore starts its measuring
+step in the background (`tick.mjs launch`: own process group, console log, exit file) and runs 8 tick steps
+(`tick.mjs wait <n>`, then an upload of `sim-tick-<vm>-<n>`, 7 days) before the step named `Determinism sessions`, which
+is `tick.mjs await`: it prints the log, stops the process group at the step bound (TERM, 20 s, KILL, exit 124) and
+returns the measurement's exit code. A tick stops waiting by Lean `Fw.Ci.Telemetry.wakeWhy`, first reason wins:
+`done` (the measurement ended), `deadline` (the step bound passed), `pass` (a new `out/<vm>-session-<s>.pass-<n>.part`
+exists), `period` (`tickPeriodMin` = step minutes / 5 since the last upload: 7 min for the default 35). It stages the new
+pass files, a copy of `probes.jsonl`, the console tail and `tick.json` (why, time, passes). Ticks after the end upload
+nothing new. Theorems: `first_upload_before_cap` (the first periodic upload ends before the job timeout, any experiment and
+session count), `last_upload_before_step_end`, `two_periodic_ticks`, `ticks_cover_one_session` (4 periodic wakes, 2 passes
+and the end fit the 8 steps). Golden cases (`upload` field of `ci.telemetry`) are replayed by `tick.test.mjs`, which also
+checks the workflow has `tickSteps` tick steps. The artifact is not named `webkit-sim-*`, so the merge jobs do not read it.
+
+- Limits: more than one session can use up the 8 steps before the end (later passes then reach only the end-of-job
+  artifact); `toolbar-throttle.yml` has no ticks yet (toolbar-sim-lane owns it); the cause of lost VMs stays UNKNOWN until
+  a lost job leaves these artifacts. The sampler runs from `start`, so `probes.jsonl` exists only in jobs that start it.
+- Read a lost job: `gh run download <id> --pattern 'sim-tick-*'`; each directory has `probes.jsonl` (up to that tick),
+  the pass files finished so far, `console-tail.txt` and `tick.json`.
 
 ## Collector
 
@@ -139,4 +160,13 @@ step to measure is wrapped with `step`. Network bytes are recorded only where a 
 - Cache `savedBytes` is the growth of the directory during the job, an upper bound of what the post step saves.
 - Simulator boot time only in `webkit-sim` job `sim`, in whole seconds.
 - Wrapper steps (`step`) can nest inside a GitHub step of the API list; names differ, so each is judged on its own.
-- A job that dies before `finish` (runner lost, timeout) writes no record.
+- A job that dies before `finish` (runner lost, timeout) writes no record; `webkit-sim` `sim` leaves its `sim-tick-*` artifacts (above).
+
+## `fw land` and exit 6 of the waiter
+
+`fw ci wait` exits 6 when the poller dropped its watch of a run as `uncovered` twice within 1200 s (Lean `Fw.Ci.Attempt.uncoveredCode`;
+the poller's list never reaches the run). `apps/runner/src/land-remote.ts` (`WAIT_UNCOVERED`) then does not use the poller's
+cached run file: it reads the run record with `gh run view <id>` (the id is in the waiter's message) and Lean `laneState`
+decides from the record (`laneState_of_jobsDecide`: the record's jobs decide; a run still going stays `running`). When the
+record cannot be read the lane is `unavailable` (`laneState_wait_error`: any code outside 0 to 4) and the pending note
+names both reasons. Test: `apps/runner/test/land-remote-uncovered.test.ts`.

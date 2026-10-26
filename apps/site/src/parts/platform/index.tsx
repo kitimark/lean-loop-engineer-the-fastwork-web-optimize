@@ -85,7 +85,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   const card = useRef<HTMLDivElement>(null);
   const faithful = (v: string | undefined) => (v ?? 'faithful') === 'faithful';
   const sweepPause = sub.sweep === SWEEP_PAUSE;
-  const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : undefined;
+  const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : sub.sweep === 'probe-off' ? cx(sw.sweep, sw.still) : undefined;
   const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
 
   useEffect(() => {
