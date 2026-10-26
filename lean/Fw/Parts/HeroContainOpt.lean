@@ -470,7 +470,7 @@ def lines (_ : Unit := ()) : List String :=
   matrix.map fun p =>
     line "box" [("probe", .str p.id)] (Json.mkObj
       [("height", jr (usedHeight (heroSpec p) true 0)), ("overflow", jr (Fw.Parts.HeroScenePause.overflowOf p)),
-       ("track", jr (2 * Fw.Parts.HeroScenePause.vhOf p))])
+       ("track", jr (trackOf p))])
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
