@@ -1,13 +1,13 @@
-# platform-attribution: sweep and glint work is real but small and early, entries moves layouts only in the approach, marquee does nothing; WebKit entries and marquee are undecided (2 of 3 VMs)
+# platform-attribution: sweep and glint work is real but small and early, entries moves layouts in the approach and a few counts in end 0-19, marquee does nothing; WebKit entries and marquee are undecided (2 of 3 VMs)
 
-* Answer (MEASURED, CI only). Premise (a) sweep holds on WebKit (finish Paint 166-222 down to 80-143) and holds in part on Chromium (215 fewer raster tasks and 792 fewer PaintImage over the finish window, but Paint +1 per frame, so the Lean verdict reads no-gain after the approach). Premise (b) glint holds only in the push approach and the first 20 end frames (Chromium 38 fewer raster tasks, 9 fewer style recalcs, nothing after end+20; WebKit z5000 Paint 54-66 down to 40-44, finish no-gain). Premise (c) entries is refuted for the end phases on Chromium (5 of 6 approach layouts gone, nothing after the end) and undecided on WebKit (n = 2 of 3 VMs). Marquee: no effect on Chromium; WebKit undecided (n = 2).
+* Answer (MEASURED, CI only). Premise (a) sweep holds on WebKit (finish Paint 166-222 down to 80-143) and holds in part on Chromium (215 fewer raster tasks and 792 fewer PaintImage over the finish window, but Paint +1 per frame, so the Lean verdict reads no-gain after the approach). Premise (b) glint holds only in the push approach and the first 20 end frames (Chromium 38 fewer raster tasks, 9 fewer style recalcs, nothing after end+20; WebKit z5000 Paint 54-66 down to 40-44, finish no-gain). Premise (c) entries holds on Chromium only in the approach layouts and end 0-19 (Paint 335 to 330, RasterTask 517 to 512), no-gain from end+20 on and undecided on WebKit (n = 2 of 3 VMs). Marquee: no effect on Chromium; WebKit undecided (n = 2).
 * Recommendation (INFERRED from the cells): build (a) the sweep variant that removes per-frame paint, first on WebKit where the finish saving is largest; build (b) glint only as an approach-bounded variant, expected gain small; do not build (c) entries until a 3-VM WebKit rerun exists; build nothing for marquee. Step-2 variants are built in later tasks.
 * Probe arms are measurement-only flags (`platform.<part>:probe-off`, Lean `Kind.probe`, theorems `probe_not_mem`, `probe_not_mem_lookCandidates`, `probe_not_isOpt`; golden `packages/contracts/golden/preset/probes.jsonl`); they are never promoted into a preset or a look verdict. The sweep arm stops only its animation (`animation: none`, class and gradient kept) so it removes the animated work and nothing else.
 
-## Runs (all at ci/platform-attribution; base = main-era base runs)
+## Runs (arms at ci/platform-attribution; base: Chromium and WebKit r2/r3 at main 5c8ccccf6, WebKit r1 at 063b150; between them the site differs only by morph.mount proposal variants not selected (INFERRED inert))
 | engine | arm | run | VMs / runs |
 |---|---|---|---|
-| WebKit Simulator | base | 40203774734 (r2, r3), 40236531932 (r1 rerun, r2 extra) | 3 VMs, 6 passes |
+| WebKit Simulator | base | 40203774734 (r2, r3), 40236531932 (r1); r2 of 40236531932 not used (with it: 8 passes, z4500 Paint 105-162, finish 166-228, same verdicts) | 3 VMs, 6 passes |
 | WebKit | sweep:probe-off | 40237513521 (86b876b) | 3 VMs, 6 passes |
 | WebKit | glint:probe-off | 40236465002 (063b150) | 3 VMs, 6 passes |
 | WebKit | entries:probe-off | 40236534457 (063b150) | 2 VMs (r1 job failed; lost VM r1, no rerun) |
@@ -17,8 +17,8 @@
 Superseded: the first sweep arm (runs 40236459376 Chromium, 40236443781 WebKit) removed the class and made Paint a counter artifact.
 
 ## Rule
-* WebKit: Lean `Fw.Measure.OffscreenWebKit` (golden `packages/contracts/golden/measure/offscreen-webkit.jsonl`, replayed by `packages/measure-webkit/test/offscreen-webkit.test.mjs`). Base and arm are compared only on the same steps (`sameWindow` over equal step sets) with a common window y <= 5200 (the passes end at 5231 or 5267). Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<dirs> --arm name=<dirs>`. A cell with fewer than 3 VMs in an arm is reported undecided (n shown), never no-win.
-* Chromium: the same Lean cmp/judge per window, 3 runs per arm, windows approach (34 frames), end 0-19 (20), end 20-59 (40), end 60-119 and 120+ (both shown as end 60+), finish (all 201).
+* WebKit: Lean `Fw.Measure.OffscreenWebKit` (golden `packages/contracts/golden/measure/offscreen-webkit.jsonl`, replayed by `packages/measure-webkit/test/offscreen-webkit.test.mjs`). Base and arm are compared only on the same steps (`sameWindow` over equal step sets) with a common window y <= 5200 (the passes end at 5231 or 5267). Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<dirs> --arm name=<dirs>`. A cell with fewer than 3 VMs in an arm is reported undecided (n shown), never no-win. The undecided label is a manual reading on top of the Lean verdict: Lean minRuns counts passes, so the reader prints gain for entries at 4 passes from 2 VMs (prose stand-in; follow-up: count VMs in Lean).
+* Chromium: the same Lean cmp/judge per window, 3 runs per arm, windows approach (34 frames), end 0-19 (20), end 20-59 (40), end 60-119 and 120+ (both shown as end 60+), finish (all 201). Reader: scratch script (TS stand-in, not committed): per-run sums of counts.json frames, end = first frame at max scrollY (574 in all runs), finish = frames 540-740, keys RecalcStyleCount, LayoutCount, Paint, RasterTask, PaintImage, FireAnimationFrame; Offscreen cmp/judge, slack 0.
 
 ## WebKit (MEASURED; counts summed per zone, min-max over passes; base 6 passes)
 | zone (steps) | arm | passes | verdict | counts that differ | Paint base / arm |
@@ -46,8 +46,9 @@ Layout, RecalculateStyles and Composite are inside the base spread for every arm
 | end 60+ | no-gain (Paint 120 to 180, PaintImage 240 to 0) | no-gain | no-gain | no-gain |
 | finish (201) | no-gain: RasterTask 1207 to 992, PaintImage 1514 to 722, Paint 915 to 1079 (cost) | gain: RasterTask 1207 to 1169, recalcs 319 to 310 | no-gain: Layout 52 to 47, recalcs 319 to 310, FireAnimationFrame 400 to 402 (cost) | no-gain (recalc 319 to 320, cost) |
 Sweep Paint +1 per frame is a counter artifact of `animation: none` (INFERRED: the paint of the static band is counted once per frame while the raster and PaintImage tasks vanish); the Lean verdict reads it as a cost, so the sweep Chromium cell is not a certified gain.
+Cells that differ by under 10 counts (glint and entries end 0-19) are INFERRED: no same-commit Chromium base was run.
 
 ## Premises
 * (a) sweep layer: holds on WebKit (z5000 and finish Paint down 40-50 percent, 3 VMs, run 40237513521 against base 40203774734 and 40236531932); holds on Chromium for raster work (run 40237508223 against 40203753344) but the Paint counter reads a cost.
-* (b) glint transform: holds in the approach and end 0-19 on both engines (Chromium 40236516819, WebKit 40236465002); refuted for end 20+ on Chromium and for the WebKit finish zone.
-* (c) entries contain: Chromium run 40236472868 removes 5 of 6 approach layouts (252 of 69851 layout objects) and nothing after the end, so the premise for end phases is refuted; WebKit run 40236534457 is undecided (2 of 3 VMs, VM r1 lost, no rerun).
+* (b) glint transform: holds on Chromium in the approach, end 0-19 and the finish window (40236516819); on WebKit in z5000 only, finish no-gain (40236465002); WebKit has no push-phase windows.
+* (c) entries contain: Chromium run 40236472868 removes 5 of 6 approach layouts (252 of 69851 layout objects) and gains in end 0-19 (Paint 335 to 330, RasterTask 517 to 512), no-gain from end+20 on, so the premise holds on Chromium only in the approach layouts and end 0-19; WebKit run 40236534457 is undecided (2 of 3 VMs, VM r1 lost, no rerun).

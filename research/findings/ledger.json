@@ -4230,7 +4230,7 @@
    "flags": [
     "platform.entries:probe-off"
    ],
-   "chromium": "MEASURED no-gain in the end phases (run 40236472868): 5 of 6 approach layouts gone (Layout 6 to 1), FireAnimationFrame 400 to 402 (cost), nothing after the end",
+   "chromium": "MEASURED gain only in end 0-19 (Paint 335 to 330, RasterTask 517 to 512); approach no-gain (FireAnimationFrame 120 to 122); no-gain from end+20 (run 40236472868)",
    "webkit": "UNDECIDED, n = 2 of 3 VMs (run 40236534457, VM r1 lost): would read ObserverCallback 14 to 6, FireAnimationFrame less",
    "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
    "mechanism": "MEASURED attribution of the part work at the page end; method and per-zone cells in research/notes/2026/10-2x-platform-attribution.md (Lean Fw.Measure.OffscreenWebKit zone verdict with sameWindow over equal step sets, WebKit common window y <= 5200).",
@@ -4239,7 +4239,7 @@
    "missingWhy": [],
    "premises": [],
    "v1Evidence": "none",
-   "lesson": "The entries contain only changes the approach layouts; it removes no end-phase work on Chromium.",
+   "lesson": "The entries contain changes the approach layouts and a few counts in end 0-19 (INFERRED, under 10 counts, no same-commit base); it removes no work from end+20 on Chromium.",
    "next": "step-2 variants are built in later tasks",
    "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
   },
