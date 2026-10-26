@@ -4,6 +4,7 @@ import Fw.Gate.Settle
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphColumnsScale
 import Fw.Parts.PlatformSweepLayer
+import Fw.Parts.HeroContainOpt
 namespace Fw.Gate.FlagDelta
 open Fw.Gate
 
@@ -85,7 +86,15 @@ def deltas : List Delta :=
     { id := "layer-sweep-webkit-mask-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
       property := "-webkit-mask-clip", orig := "border-box", rewrite := "text", look := .l,
       reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ at t=0 by up to 35 of 255 (premise sweep.layer-pixels; WebKit: the original's tile seam; Chromium: one edge column, INFERRED); a look change",
-      premise := ``Fw.Parts.PlatformSweepLayer.same_look } ]
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "contain-hero-exit-hero", flag := "hero.exit:contain", part := "hero.exit", role := "hero",
+      property := "contain", orig := "none", rewrite := "size layout", look := .e,
+      reason := "the declared containment is the variant; the hero's box is unchanged at every probe (definite height, filled width)",
+      premise := ``Fw.Parts.HeroContainOpt.hero_same_box },
+    { id := "contain-hero-stage", flag := "hero.exit:contain", part := "hero", role := "stage",
+      property := "contain", orig := "none", rewrite := "size layout", look := .e,
+      reason := "the same element as the hero.exit hero role, read by the hero part",
+      premise := ``Fw.Parts.HeroContainOpt.hero_same_box } ]
 
 structure DItem where
   cls : Cls
@@ -306,6 +315,12 @@ def sweepItems : List DItem :=
 #guard readingVerdict sweepOn "platform" .fail sweepItems == .fail
 #guard readingVerdict sweepOn "platform.sweep" .fail (sweepItems ++ [styleItem "word" "width" "100px" "103px"]) == .fail
 
+def containOn : List String := ["hero.exit:contain"]
+
+def heroContain : DItem := styleItem "hero" "contain" "none" "size layout"
+
+def stageContain : DItem := styleItem "stage" "contain" "none" "size layout"
+
 #guard readingVerdict restOn "platform" .fail [sectionFilter] == .pass
 #guard readingVerdict restOn "engine.scene" .fail [sceneFilter] == .pass
 #guard readingVerdict [] "platform" .fail [sectionFilter] == .fail
@@ -323,6 +338,11 @@ def sweepItems : List DItem :=
 #guard readingVerdict (restOn ++ scaleOn) "morph.columns" .fail flexItems == .pass
 #guard (excusedItems restOn "platform" .fail [sectionFilter]).map (·.2) == ["panel-rest-section-filter"]
 #guard excusedItems restOn "platform" .fail [sectionFilter, styleItem "section" "opacity" "1" "0.5"] == []
+#guard readingVerdict containOn "hero.exit" .fail [heroContain] == .pass
+#guard readingVerdict containOn "hero" .fail [stageContain] == .pass
+#guard readingVerdict [] "hero.exit" .fail [heroContain] == .fail
+#guard readingVerdict containOn "hero" .fail [heroContain] == .fail
+#guard readingVerdict containOn "hero.exit" .fail [heroContain, styleItem "hero" "height" "900px" "0px"] == .fail
 
 open Lean (Json toJson)
 
@@ -386,7 +406,10 @@ def readingCases : List (List String × String × Verdict × List DItem) :=
     (sweepOn, "platform.sweep", .fail, sweepItems),
     ([], "platform.sweep", .fail, sweepItems),
     (sweepOn, "platform", .fail, sweepItems),
-    (sweepOn, "platform.sweep", .fail, sweepItems ++ [styleItem "word" "width" "100px" "103px"]) ]
+    (sweepOn, "platform.sweep", .fail, sweepItems ++ [styleItem "word" "width" "100px" "103px"]),
+    (containOn, "hero.exit", .fail, [heroContain]),
+    (containOn, "hero", .fail, [stageContain]),
+    (containOn, "hero.exit", .fail, [heroContain, styleItem "hero" "height" "900px" "0px"]) ]
 
 def goldenLines (_ : Unit := ()) : List String :=
   deltas.map deltaLine ++ searchCases.map searchLine ++

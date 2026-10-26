@@ -34,6 +34,8 @@ test('the allowlist holds the tuples of the reviewed flags with their premises',
     ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-image', 'none', 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
     ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
     ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['hero.exit:contain', 'hero.exit', 'hero', 'contain', 'none', 'size layout', 'E', 'Fw.Parts.HeroContainOpt.hero_same_box'],
+    ['hero.exit:contain', 'hero', 'stage', 'contain', 'none', 'size layout', 'E', 'Fw.Parts.HeroContainOpt.hero_same_box'],
   ]);
 });
 

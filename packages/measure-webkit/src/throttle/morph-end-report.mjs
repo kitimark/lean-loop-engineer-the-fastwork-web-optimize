@@ -1,6 +1,6 @@
 import { excludeReason } from './finish-report.mjs';
 import { ARM_ORDER, armRow, passCounts, verdicts, hasMorphReads, verdictOf, rates, dirTotal, firstStretch, perStretch, stillWorseOf } from './morph-end.mjs';
-import { cmp } from '../touchlock.mjs';
+import { cmpKnown } from '../touchlock.mjs';
 
 export function reasonOf(p) {
   return excludeReason(p) ?? (hasMorphReads(p.rec) ? null : 'record has no morph reads');
@@ -28,11 +28,11 @@ export function brickRow(arm, passes) {
   const ok = c.usable && b.usable;
   return {
     arm, n: c.usable, jobs: jobs.size, baseN: b.usable, c, b, still, stillWorse: stillWorseOf(stillJobs), stillJobs,
-    rev: cmp(rates(b.revRates), rates(c.revRates)), fight: cmp(rates(b.fightRates), rates(c.fightRates)),
+    rev: cmpKnown(rates(b.revRates), rates(c.revRates)), fight: cmpKnown(rates(b.fightRates), rates(c.fightRates)),
     wholePass: ok ? verdictOf(b.revRates, c.revRates, b.fightRates, c.fightRates, stillJobs, still) : 'no-data',
     firstN: cf.length, firstBaseN: bf.length,
-    firstRev: cmp(rates(perStretch(bf.map((x) => x.reversals))), rates(perStretch(cf.map((x) => x.reversals)))),
-    firstFight: cmp(rates(perStretch(bf.map((x) => x.fights))), rates(perStretch(cf.map((x) => x.fights)))),
+    firstRev: cmpKnown(rates(perStretch(bf.map((x) => x.reversals))), rates(perStretch(cf.map((x) => x.reversals)))),
+    firstFight: cmpKnown(rates(perStretch(bf.map((x) => x.fights))), rates(perStretch(cf.map((x) => x.fights)))),
     firstRevMean: mean(cf.map((x) => x.reversals)), firstFightMean: mean(cf.map((x) => x.fights)),
     firstBaseRevMean: mean(bf.map((x) => x.reversals)), firstBaseFightMean: mean(bf.map((x) => x.fights)),
     verdict: cf.length && bf.length

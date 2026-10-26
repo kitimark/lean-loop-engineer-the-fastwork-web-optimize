@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { cmp, look, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
+import { cmp, look, cmpKnown, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
 import { restartServer } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
@@ -15,6 +15,7 @@ const runOf = (g) => ({ frames: g.frames, events: g.events, calls: g.calls });
 test('constants match the golden', () => {
   assert.equal(ops('constants')[0].minOpenFrames, MIN_OPEN_FRAMES);
   assert.equal(ops('constants')[0].maxRestarts, MAX_RESTARTS);
+  assert.equal(ops('constants')[0].minSamples, MIN_SAMPLES);
 });
 
 test('run cases: refusal and reduction replay the golden', () => {
@@ -30,6 +31,28 @@ test('cmp and look cases replay the golden', () => {
   for (const g of ops('look')) assert.equal(look(g.faith, g.cand), g.out, g.case);
 });
 
+test('cmpKnown and lookKnown replay the golden: a side below the floor is undecided, never a win', () => {
+  assert.ok(ops('cmpKnown').length >= 7 && ops('lookKnown').length >= 7);
+  for (const g of ops('cmpKnown')) assert.equal(cmpKnown(g.faith, g.cand), g.out, g.case);
+  for (const g of ops('lookKnown')) assert.equal(lookKnown(g.faith, g.cand), g.out, g.case);
+});
+
+test('with complete evidence cmpKnown and lookKnown equal cmp and look (cmpKnown_of_known, lookKnown_of_known)', () => {
+  for (const g of [...ops('cmp'), ...ops('look'), ...ops('cmpKnown'), ...ops('lookKnown')].filter((x) => known(x.faith, x.cand))) {
+    assert.equal(cmpKnown(g.faith, g.cand), cmp(g.faith, g.cand), g.case);
+    assert.equal(lookKnown(g.faith, g.cand), look(g.faith, g.cand), g.case);
+  }
+});
+
+test('a side shorter than the floor reads undecided in cmpKnown and lookKnown', () => {
+  const xs = (n) => Array.from({ length: n }, () => 0);
+  for (let a = 0; a <= MIN_SAMPLES + 1; a++) for (let b = 0; b <= MIN_SAMPLES + 1; b++) {
+    const short = a < MIN_SAMPLES || b < MIN_SAMPLES;
+    assert.equal(cmpKnown(xs(a), xs(b)) === 'undecided', short, `${a} ${b}`);
+    assert.equal(lookKnown(xs(a), xs(b)) === 'undecided', short, `${a} ${b}`);
+  }
+});
+
 test('tally replays the golden', () => {
   for (const g of ops('tally')) assert.deepEqual(tally(g.runs), { accepted: g.accepted, jitter: g.jitter }, g.case);
 });
@@ -43,11 +66,11 @@ const steady = ops('run').find((g) => g.case === 'steady open phase');
 const rowOf = (arm, g) => ({ arm, frames: g.frames.map((f) => [...f, 0]), events: g.events.map((f) => [...f, 0]), calls: g.calls.map((f) => [...f, 0]) });
 
 test('summarize: a lock arm that never leaves the lock is lower; the look class is change while the base is displaced', () => {
-  const rows = [rowOf('orig', fight), rowOf('base', fight), rowOf('base', fight), rowOf('lock', steady), rowOf('lock', steady), { arm: 'lock', status: 'push:beginLate' }];
+  const rows = [...Array(3).fill(0).flatMap(() => [rowOf('orig', fight), rowOf('base', fight), rowOf('lock', steady)]), { arm: 'lock', status: 'push:beginLate' }];
   const s = summarize(rows);
-  assert.equal(s.arms.base.jitterRuns, 2);
+  assert.equal(s.arms.base.jitterRuns, 3);
   assert.equal(s.arms.lock.jitterRuns, 0);
-  assert.equal(s.arms.lock.windows, 3);
+  assert.equal(s.arms.lock.windows, 4);
   assert.equal(s.arms.lock.failed, 1);
   assert.equal(s.verdicts.lockVsBase.fights, 'lower');
   assert.equal(s.verdicts.baseVsOrig.fights, 'overlap');
@@ -56,9 +79,17 @@ test('summarize: a lock arm that never leaves the lock is lower; the look class 
 });
 
 test('summarize: no fights anywhere is overlap and the same look', () => {
-  const s = summarize(ARMS.map((a) => rowOf(a, steady)));
+  const s = summarize([0, 1, 2].flatMap(() => ARMS.map((a) => rowOf(a, steady))));
   assert.equal(s.verdicts.lockVsBase.fights, 'overlap');
   assert.equal(s.verdicts.look, 'same');
+});
+
+test('summarize: an arm with no accepted run is undecided, not overlap or the same look', () => {
+  const s = summarize([rowOf('base', fight), rowOf('base', fight), { arm: 'lock', status: 'push:beginLate' }]);
+  assert.deepEqual(s.verdicts.lockVsBase, { fights: 'undecided', restores: 'undecided', eventFights: 'undecided' });
+  assert.deepEqual(s.verdicts.baseVsOrig, { fights: 'undecided', restores: 'undecided' });
+  assert.equal(s.verdicts.look, 'undecided');
+  assert.match(markdown(s), /fights undecided, restores undecided, event fights undecided; base vs orig: fights undecided, restores undecided; look class of the candidate: undecided/);
 });
 
 test('page scripts parse', () => {

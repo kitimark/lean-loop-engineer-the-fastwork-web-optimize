@@ -9874,7 +9874,8 @@
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "28422ff"
   },
   {
    "devices": [
@@ -22211,7 +22212,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-verdict-evidence-audit.md",
     "docs/team/handoffs/verdict-evidence-audit.md"
-   ]
+   ],
+   "evidence": "7c64f53"
   },
   {
    "devices": [
@@ -22360,7 +22362,6 @@
    "writes": [
     "apps/site/src/parts/platform/fade.driver.ts",
     "apps/site/src/parts/platform/fade.logic.ts",
-    "apps/site/src/parts/platform/fade.test.ts",
     "apps/site/src/parts/platform/platform.module.css",
     "apps/site/src/parts/platform/part.json",
     "apps/site/src/parts/platform/scene.ts",
@@ -22377,8 +22378,69 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
-    "research/findings/ledger.json"
-   ]
+    "research/findings/ledger.json",
+    "apps/site/src/parts/morph.tween/driver.ts",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "apps/site/src/App.tsx",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/PlatformFadedPause*.lean",
+    "packages/contracts/golden/parts/platform-faded-pause.jsonl",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "apps/site/src/parts/platform/*.test.ts",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
+   ],
+   "evidence": "90475ef"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "evidence-twins",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "verdict-evidence-audit"
+   ],
+   "title": "verdict-evidence-audit review follow-up 1: TouchLock cmpKnown/lookKnown exist only in Lean and golden (touch-lock.jsonl ops cmpKnown, lookKnown); TS summarize still reads look([]) = same and cmp([]) = overlap. Add TS cmpKnown/lookKnown in packages/measure-webkit/src/touchlock.mjs replaying those golden ops, switch summarize, MorphEndCount.cmpBy users and throttle/morph-end-report.mjs to them; raise TouchLock.minSamples to a real floor (3, like Offscreen.minRuns) with a short-but-not-empty golden row if the switch needs it (prove complete-evidence equality still holds).",
+   "writes": [
+    "packages/measure-webkit/src/touchlock.mjs",
+    "packages/measure-webkit/test/touchlock.test.mjs",
+    "packages/measure-webkit/src/throttle/morph-end-report.mjs",
+    "packages/measure-webkit/src/throttle/toolbar*.mjs",
+    "packages/measure-webkit/test/throttle-toolbar.test.mjs",
+    "lean/Fw/Measure/TouchLock.lean",
+    "packages/contracts/golden/measure/touch-lock.jsonl",
+    "research/notes/2026/10-2x-evidence-twins.md",
+    "docs/team/handoffs/evidence-twins.md",
+    "packages/measure-webkit/test/throttle-morph-end.test.mjs"
+   ],
+   "evidence": "a0caed7"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faithful-empty-guard",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "verdict-evidence-audit"
+   ],
+   "title": "verdict-evidence-audit review follow-up 2: faithful.verdict passes with no evidence for a request with zones: [] and for a 0-frame zone with no cells in both arms (lean/Fw/Faithful/Zone.lean, Wire.lean opVerdict). Add a guard (an empty zone set, or an absent or empty zone, is undecided or fails), prove it (no pass without evidence; complete evidence unchanged), golden rows, TS caller check.",
+   "writes": [
+    "lean/Fw/Faithful/Zone.lean",
+    "lean/Fw/Faithful/Wire.lean",
+    "lean/Fw/Faithful/Golden.lean",
+    "packages/contracts/golden/faithful/faithful.verdict.jsonl",
+    "packages/measure-chromium/src/faithful.mjs",
+    "packages/measure-chromium/test/faithful.test.mjs",
+    "research/notes/2026/10-2x-faithful-empty-guard.md",
+    "docs/team/handoffs/faithful-empty-guard.md"
+   ],
+   "evidence": "f4369b9"
   }
  ],
  "deadline": {

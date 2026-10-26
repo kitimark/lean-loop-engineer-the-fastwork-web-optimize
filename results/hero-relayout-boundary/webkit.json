@@ -1,0 +1,348 @@
+{
+ "schema": "hero-relayout-boundary-webkit/1",
+ "rows": [
+  {
+   "window": "hero-exit",
+   "lo": 0,
+   "hi": 1000,
+   "steps": [
+    21,
+    21
+   ],
+   "passes": [
+    4,
+    4
+   ],
+   "vms": [
+    2,
+    2
+   ],
+   "undecided": true,
+   "verdict": "noData",
+   "passVerdict": "noGain",
+   "cmp": {
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "Composite": "same",
+    "RenderingFrame": "same",
+    "FireAnimationFrame": "same",
+    "TimerFire": "same",
+    "ObserverCallback": "same",
+    "EventDispatch": "same",
+    "FunctionCall": "same",
+    "ScheduleStyleRecalculation": "same",
+    "InvalidateLayout": "same"
+   },
+   "counts": {
+    "Layout": {
+     "base": [
+      153,
+      157,
+      138,
+      142
+     ],
+     "flag": [
+      149,
+      152,
+      146,
+      156
+     ]
+    },
+    "RecalculateStyles": {
+     "base": [
+      149,
+      151,
+      135,
+      137
+     ],
+     "flag": [
+      144,
+      145,
+      144,
+      151
+     ]
+    },
+    "Paint": {
+     "base": [
+      327,
+      344,
+      385,
+      393
+     ],
+     "flag": [
+      397,
+      399,
+      422,
+      387
+     ]
+    },
+    "InvalidateLayout": {
+     "base": [
+      157,
+      145,
+      132,
+      139
+     ],
+     "flag": [
+      149,
+      142,
+      143,
+      165
+     ]
+    },
+    "Composite": {
+     "base": [
+      41,
+      41,
+      41,
+      41
+     ],
+     "flag": [
+      41,
+      41,
+      41,
+      41
+     ]
+    }
+   }
+  },
+  {
+   "window": "after-exit",
+   "lo": 1001,
+   "hi": 2500,
+   "steps": [
+    30,
+    30
+   ],
+   "passes": [
+    4,
+    4
+   ],
+   "vms": [
+    2,
+    2
+   ],
+   "undecided": true,
+   "verdict": "noData",
+   "passVerdict": "noGain",
+   "cmp": {
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "Composite": "same",
+    "RenderingFrame": "same",
+    "FireAnimationFrame": "same",
+    "TimerFire": "same",
+    "ObserverCallback": "same",
+    "EventDispatch": "same",
+    "FunctionCall": "same",
+    "ScheduleStyleRecalculation": "same",
+    "InvalidateLayout": "same"
+   },
+   "counts": {
+    "Layout": {
+     "base": [
+      193,
+      199,
+      183,
+      179
+     ],
+     "flag": [
+      173,
+      199,
+      179,
+      204
+     ]
+    },
+    "RecalculateStyles": {
+     "base": [
+      163,
+      170,
+      158,
+      160
+     ],
+     "flag": [
+      157,
+      168,
+      159,
+      169
+     ]
+    },
+    "Paint": {
+     "base": [
+      286,
+      269,
+      388,
+      388
+     ],
+     "flag": [
+      375,
+      336,
+      311,
+      313
+     ]
+    },
+    "InvalidateLayout": {
+     "base": [
+      157,
+      162,
+      136,
+      133
+     ],
+     "flag": [
+      121,
+      164,
+      120,
+      163
+     ]
+    },
+    "Composite": {
+     "base": [
+      60,
+      60,
+      60,
+      60
+     ],
+     "flag": [
+      60,
+      60,
+      60,
+      60
+     ]
+    }
+   }
+  },
+  {
+   "window": "whole",
+   "lo": 0,
+   "hi": 5200,
+   "steps": [
+    105,
+    105
+   ],
+   "passes": [
+    4,
+    4
+   ],
+   "vms": [
+    2,
+    2
+   ],
+   "undecided": true,
+   "verdict": "noData",
+   "passVerdict": "noGain",
+   "cmp": {
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "Composite": "same",
+    "RenderingFrame": "same",
+    "FireAnimationFrame": "same",
+    "TimerFire": "same",
+    "ObserverCallback": "same",
+    "EventDispatch": "same",
+    "FunctionCall": "same",
+    "ScheduleStyleRecalculation": "same",
+    "InvalidateLayout": "same"
+   },
+   "counts": {
+    "Layout": {
+     "base": [
+      638,
+      657,
+      608,
+      629
+     ],
+     "flag": [
+      630,
+      644,
+      633,
+      634
+     ]
+    },
+    "RecalculateStyles": {
+     "base": [
+      667,
+      687,
+      635,
+      656
+     ],
+     "flag": [
+      657,
+      674,
+      659,
+      674
+     ]
+    },
+    "Paint": {
+     "base": [
+      1172,
+      1172,
+      1344,
+      1377
+     ],
+     "flag": [
+      1350,
+      1326,
+      1314,
+      1267
+     ]
+    },
+    "InvalidateLayout": {
+     "base": [
+      549,
+      556,
+      460,
+      511
+     ],
+     "flag": [
+      510,
+      548,
+      505,
+      534
+     ]
+    },
+    "Composite": {
+     "base": [
+      209,
+      209,
+      209,
+      209
+     ],
+     "flag": [
+      209,
+      209,
+      209,
+      209
+     ]
+    }
+   }
+  }
+ ],
+ "runs": {
+  "base": {
+   "run": 40271367353,
+   "sha": "26bd7b1",
+   "vmsRead": [
+    "r2",
+    "r3"
+   ],
+   "vmLost": {
+    "r1": "sim job failed at Determinism sessions: stalled, no session json"
+   }
+  },
+  "flag": {
+   "run": 40271370582,
+   "sha": "26bd7b1",
+   "vmsRead": [
+    "r1",
+    "r2"
+   ],
+   "vmLost": {
+    "r3": "sim job failed at Determinism sessions: Simulator reboot, no session json"
+   }
+  }
+ },
+ "reader": "node results/hero-relayout-boundary/read-webkit.mjs <out> base=<webkit-sim-r1..r3 dirs> flag=<webkit-sim-r1..r3 dirs>"
+}

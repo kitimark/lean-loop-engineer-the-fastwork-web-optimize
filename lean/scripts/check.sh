@@ -195,9 +195,10 @@ run_group() {
   job "sup-route golden check" sh -c "printf 'import Fw.Sup.Route\\n#eval Fw.Sup.Route.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/route.jsonl (Fw.Sup.Route.routeOf)
   job "sup-adapt golden check" sh -c "printf 'import Fw.Sup.AdaptGolden\\n#eval Fw.Sup.Adapt.gen [\"--check\"]\\n' | lake env lean --stdin"  # golden/sup/adapt.jsonl (Fw.Sup.Adapt)
   job "sup-measure golden check" sh -c "printf 'import Fw.Sup.Measure\\n#eval Fw.Sup.Measure.gen [\"--check\"]\\n' | lake env lean --stdin"
-  job "node-budget golden check" lake env lean --run scripts/NodeBudgetGolden.lean --check  # golden/sched/node-budget.gen.json (read by the vitest configs, the package node --test scripts and fw land) + node-budget.jsonl (Fw.Sched.NodeBudget)
+  job "node-budget golden check" lake env lean --run scripts/NodeBudgetGolden.lean --check
   job "tap golden check" lake env lean --run scripts/MorphTapGolden.lean --check ../packages/contracts/golden/parts/morph-mount-tap.jsonl
   job "hero-scene-pause golden check" lake env lean --run scripts/HeroScenePauseGolden.lean --check ../packages/contracts/golden/parts/hero-scene-pause.jsonl
+  job "hero-contain golden check" lake env lean --run scripts/HeroContainGolden.lean --check ../packages/contracts/golden/parts/hero-contain.jsonl
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl
   job "nav-earn-webkit golden check" lake env lean --run scripts/NavEarnWebkitGolden.lean --check ../packages/contracts/golden/parts/nav.earn.webkit.jsonl
   job "nav-earn-curve golden check" lake env lean --run scripts/NavEarnCurveGolden.lean --check ../packages/contracts/golden/parts/nav.earn.curve.jsonl
@@ -215,6 +216,7 @@ run_group() {
   job "platform-sweep-layer golden check" lake env lean --run scripts/PlatformSweepLayerGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-layer.jsonl
   job "platform-entries-fill golden check" lake env lean --run scripts/PlatformEntriesFillGolden.lean --check ../packages/contracts/golden/parts/platform-entries-fill.jsonl
   job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl
+  job "platform-faded-pause golden check" lake env lean --run scripts/PlatformFadedPauseGolden.lean --check ../packages/contracts/golden/parts/platform-faded-pause.jsonl
   job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl
   job "steps golden check" lake env lean --run scripts/StepsGolden.lean --check

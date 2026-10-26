@@ -58,8 +58,16 @@ test('offscreen-webkit: an arm with fewer than 3 VMs is undecided even when its 
   for (const g of ops('verdict').filter((x) => !x.undecided)) assert.equal(g.verdict, g.passVerdict, g.case);
 });
 
+test('offscreen-webkit: an empty or short side is no data in the verdict and the pass rule', () => {
+  for (const name of ['no base passes', 'no flag passes', 'flag one pass short', 'one pass short']) {
+    const g = ops('verdict').find((x) => x.case === name);
+    assert.equal(verdict(g.lo, g.hi, g.base, g.flag), 'noData', name);
+    assert.equal(passVerdict(g.lo, g.hi, g.base, g.flag), 'noData', name);
+  }
+});
+
 test('offscreen-webkit: zones are judged one by one', () => {
-  assert.equal(ops('zones').length, 4);
+  assert.equal(ops('zones').length, 5);
   for (const g of ops('zones')) {
     assert.deepEqual([vmCount(g.base), vmCount(g.flag)], g.vms, `${g.case}: VMs`);
     assert.equal(undecided(g.base, g.flag), g.undecided, `${g.case}: undecided`);

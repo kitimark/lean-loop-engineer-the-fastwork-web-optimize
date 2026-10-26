@@ -166,6 +166,9 @@ test('the verdict of a composition is made against the faithful passes of the jo
   const row = brickRow('clamp', [mk('rewrite', 'job 1', pin), mk('rewrite', 'job 2', pin), mk('clamp', 'job 1', pin)]);
   assert.deepEqual([row.n, row.jobs, row.baseN], [1, 1, 1]);
   assert.equal(brickRow('release', [mk('rewrite', 'job 1', [])]).verdict, 'no-data');
+  assert.deepEqual([row.rev, row.fight, row.firstRev, row.firstFight], Array(4).fill('undecided'), 'one pass per side is below TouchLock.minSamples');
+  const none = brickRow('release', [mk('rewrite', 'job 1', pin)]);
+  assert.deepEqual([none.rev, none.fight, none.firstRev, none.firstFight], Array(4).fill('undecided'), 'no brick pass');
 });
 
 test('the first stretch of a pass: its reversals and fights, or null without an open stretch', () => {
