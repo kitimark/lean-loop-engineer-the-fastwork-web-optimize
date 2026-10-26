@@ -2,7 +2,7 @@
 id: 2026-10-20-hero-relayout-boundary
 kind: note
 title: "contain: size layout on the sticky hero scopes its own layout passes (hero.exit:contain)"
-status: draft
+status: review
 created: 2026-10-26
 topics: [layout, containment, hero, accent, chromium, webkit]
 ---
@@ -12,7 +12,8 @@ dirty objects all sit inside the hero (accent width transition, countdown digits
 subtree. A frame with any dirty source outside the hero (people cards, the fixed nav) or on the hero box itself stays
 a full layout, in either order. The hero's box does not change at any of the 124 breakpoint probes. Chromium swipe-touch-v1
 (3 runs per arm, same commit): Layout totalObjects in the hero-exit window 108,446 to 70,122 (-35.3%), whole run
-456,706 to 357,812 (-21.7%), with the same number of Layout passes. WebKit is source-only (see WebKit). Lean:
+456,706 to 357,812 (-21.7%), with the same number of Layout passes; Lean verdict gain. WebKit Simulator (runs
+40271367353, 40271370582) is undecided: one VM per arm was lost, n=2+2. Lean:
 `Fw.Parts.HeroContainOpt`; golden `packages/contracts/golden/parts/hero-contain.jsonl`.
 
 ## Why the hero becomes a boundary (CONFIRMED from source)
@@ -109,15 +110,30 @@ committed window reader `offscreen-windows-cli.mjs` covers the push-end windows 
 - dirtyObjects falls too (-24% in the window): a partial pass counts only the hero subtree's dirty objects
   (local_frame_view.cc:685-698), INFERRED.
 
-## WebKit
+## WebKit (MEASURED, undecided)
 
-Source-only. When the counts ran, the macOS queue was full (two webkit-sim runs of `ci/platform-sweep-layer` and a
-toolbar-throttle run in progress), so no WebKit Simulator counts were dispatched. The source shows the same
-boundary (RenderObject.cpp:530-531) and single-root scheduling, so the draw-in frames with only hero sources would
-root at the hero; that is INFERRED until counted.
+webkit-sim, sha 26bd7b1 (same CSS as 0537be1), 3 VMs per arm requested: base run 40271367353, flag run 40271370582
+(`--fw hero.exit:contain`). One VM per arm was lost at the Determinism sessions step with no session file (base r1:
+stalled; flag r3: Simulator reboot), so each arm has 2 VMs, 2 passes each. The window rule, the VM rule (Lean `minVms`
+3) and the verdict are the committed reader's (`offscreen-webkit.mjs`, `Fw.Measure.OffscreenWebKit`); the hero-exit
+windows are scroll ranges passed to it by `results/hero-relayout-boundary/read-webkit.mjs`. Per-pass values in
+`results/hero-relayout-boundary/webkit.json`.
+
+| window (scroll y) | steps | VMs | verdict | pass rule only | Layout base / flag | RecalculateStyles | Paint |
+|---|---|---|---|---|---|---|---|
+| hero-exit (0-1000) | 21 | 2+2 | undecided (n=2+2) | noGain (all same) | 138-157 / 146-156 | 135-151 / 144-151 | 327-393 / 387-422 |
+| after-exit (1001-2500) | 30 | 2+2 | undecided (n=2+2) | noGain (all same) | 179-199 / 173-204 | 158-170 / 157-169 | 269-388 / 311-375 |
+| whole (0-5200) | 105 | 2+2 | undecided (n=2+2) | noGain (all same) | 608-657 / 630-644 | 635-687 / 657-674 | 1172-1377 / 1267-1350 |
+
+- No WebKit claim is made: with 2 VMs per arm every window is undecided. Read by the pass rule alone, every counter
+  overlaps the base spread.
+- The WebKit timeline counts layout passes, not laid-out objects, so even a decided run could not show the effect the
+  model predicts (the same passes, each over the hero subtree only; Chromium shows the pass count unchanged too).
+  The source shows the same boundary (RenderObject.cpp:530-531) and single-root scheduling, so draw-in frames with
+  only hero sources root at the hero; that stays INFERRED.
 
 ## Limits
 
-- CI only, no phone pass. WebKit source-only.
+- CI only, no phone pass. WebKit undecided (2 of 3 VMs per arm); its timeline has no laid-out object count.
 - The gain needs frames without outside sources; frames with the people reveal or the nav stay full.
 - Preset promotion is a later task.
