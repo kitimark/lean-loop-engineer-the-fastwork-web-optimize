@@ -50,17 +50,18 @@ def total : Nat := 204
 
 def colv (j i : Nat) : Nat := (i * (j + 3) + j) % 5
 
-def mkCols (f : String → Nat → Nat → Nat) (skip : List String := []) : List (String × List Nat) :=
-  (wkeys.mapIdx fun j k => (k, (List.range total).map fun i => f k i (colv j i))).filter fun (k, _) => !skip.contains k
+def mkCols (f : String → Nat → Nat → Nat) (skip : List String := []) (tot : Nat := total) : List (String × List Nat) :=
+  (wkeys.mapIdx fun j k => (k, (List.range tot).map fun i => f k i (colv j i))).filter fun (k, _) => !skip.contains k
 
 def same : String → Nat → Nat → Nat := fun _ _ v => v
 
-def mkRun (e : Nat) (f : String → Nat → Nat → Nat) (jit : Nat) (skip : List String := []) : Run :=
-  { ys := ramp total e,
-    cols := mkCols (fun k i v => f k i v + (if k == "metric.RecalcStyleCount" && i == 80 then jit else 0)) skip,
+def mkRun (e : Nat) (f : String → Nat → Nat → Nat) (jit : Nat) (skip : List String := []) (tot : Nat := total) : Run :=
+  { ys := ramp tot e,
+    cols := mkCols (fun k i v => f k i v + (if k == "metric.RecalcStyleCount" && i == 80 then jit else 0)) skip tot,
     tail := touchTail }
 
-def arm (e : Nat) (f : String → Nat → Nat → Nat) (jits : List Nat := [0, 1, 2]) : List Run := jits.map (mkRun e f)
+def arm (e : Nat) (f : String → Nat → Nat → Nat) (jits : List Nat := [0, 1, 2]) (tot : Nat := total) : List Run :=
+  jits.map fun j => mkRun e f j [] tot
 
 def runJson (r : Run) : Json :=
   Json.mkObj [("ys", toJson r.ys), ("cols", Json.mkObj (r.cols.map fun (k, xs) => (k, toJson xs))), ("tail", toJson r.tail)]
@@ -104,6 +105,37 @@ def armJson (name : String) (base flag : List Run) : Json :=
         ("usable", .bool (usableOn wkeys (vecsOf bw n) (vecsOf fw n))),
         ("cells", Json.arr (wkeys.toArray.map (cellJson (vecsOf bw n) (vecsOf fw n))))]))]
 
+def lateRaster : String → Nat → Nat → Nat := fun k i v => if k == "trace.RasterTask" && 100 ≤ i then 0 else v
+def latePaint : String → Nat → Nat → Nat := fun k i v =>
+  if k == "trace.RasterTask" && 100 ≤ i then 0 else if k == "trace.Paint" && 165 ≤ i then v + 3 else v
+
+def ownCases (_ : Unit := ()) : List (String × List Run × List Run) := [
+  ("the flag ends 125 frames later with 3 frames after its end: end 0-19 compares 3 frames, later end windows are empty",
+    arm 40 same, arm 165 lateRaster [0, 1, 2] 198),
+  ("same end frame and same length: the verdicts are today's", arm 40 same, arm 40 lowRaster),
+  ("same end frame, the flag recorded 46 frames longer: the long windows compare their common frames", arm 40 same, arm 40 lowRaster [0, 1, 2] 250),
+  ("the flag ends earlier than the base", arm 165 same [0, 1, 2] 198, arm 40 lowRaster),
+  ("paint rises in the 3 frames after the flag end: end 0-19 is no gain", arm 40 same, arm 165 latePaint [0, 1, 2] 198),
+  ("one flag run reaches its page end in the tail: its empty end windows empty every end window", arm 40 same,
+    [mkRun 165 lateRaster 0 [] 198, mkRun 165 lateRaster 1 [] 198, mkRun 203 lateRaster 2]),
+  ("a flag run without frames is dropped, two runs are left", arm 40 same,
+    [mkRun 165 lateRaster 0 [] 198, mkRun 165 lateRaster 1 [] 198, { ys := [], cols := [], tail := touchTail }]),
+  ("a counter column missing in one flag run", arm 40 same,
+    [mkRun 165 lateRaster 0 [] 198, mkRun 165 lateRaster 1 [] 198, mkRun 165 lateRaster 2 ["trace.FireAnimationFrame"] 198]),
+  ("two base runs", (arm 40 same).take 2, arm 165 lateRaster [0, 1, 2] 198),
+  ("no flag runs", arm 40 same, [])]
+
+def ownJson (name : String) (base flag : List Run) : Json :=
+  let cap := commonLen ((base ++ flag).filterMap (·.plan))
+  let bw := base.filterMap (·.capped cap)
+  let fw := flag.filterMap (·.capped cap)
+  Json.mkObj [("op", "own"), ("case", Json.str name), ("base", Json.arr (base.toArray.map runJson)),
+    ("flag", Json.arr (flag.toArray.map runJson)),
+    ("verdicts", Json.arr ((ownVerdicts base flag).toArray.map fun (n, v) =>
+      Json.mkObj [("window", Json.str n), ("frames", toJson (cap n)), ("verdict", Json.str (verdictName v)),
+        ("usable", .bool (usableOn wkeys (vecsOf bw n) (vecsOf fw n))),
+        ("cells", Json.arr (wkeys.toArray.map (cellJson (vecsOf bw n) (vecsOf fw n))))]))]
+
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("keys", toJson wkeys), ("approach", toJson approachFrames),
     ("tail", toJson touchTail), ("minRuns", toJson minRuns), ("slack", toJson slack), ("names", toJson windowNames)]).compress
@@ -121,7 +153,8 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("no frames", { ys := [], cols := [], tail := touchTail : Run })].map fun (name, r) =>
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("run", runJson r), ("result", runWindowsJson r)]).compress
   let as := armCases.map fun (name, b, f) => (armJson name b f).compress
-  [consts] ++ es ++ ws ++ rs ++ as
+  let os := ownCases.map fun (name, b, f) => (ownJson name b f).compress
+  [consts] ++ es ++ ws ++ rs ++ as ++ os
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -146,5 +179,12 @@ def write (path : System.FilePath) : IO Unit := IO.FS.writeFile path goldenText
   ((arm 40 lowRaster).filterMap fun r => r.windows.map (·.2))).map (·.2) == [.gain, .gain, .noGain, .noGain, .noGain, .gain]
 #guard (armVerdicts ((arm 40 same).filterMap fun r => r.windows.map (·.2))
   ((arm 40 highPaint).filterMap fun r => r.windows.map (·.2))).map (·.2) == [.gain, .noGain, .noGain, .noGain, .noGain, .noGain]
+#guard (ownVerdicts (arm 40 same) (arm 40 lowRaster)).map (·.2) == [.gain, .gain, .noGain, .noGain, .noGain, .gain]
+#guard ownVerdicts (arm 40 same) (arm 40 lowRaster) ==
+  armVerdicts ((arm 40 same).filterMap fun r => r.windows.map (·.2)) ((arm 40 lowRaster).filterMap fun r => r.windows.map (·.2))
+#guard (ownVerdicts (arm 40 same) (arm 165 lateRaster [0, 1, 2] 198)).map (·.2) == [.gain, .gain, .noData, .noData, .noData, .gain]
+#guard (armVerdicts ((arm 40 same).filterMap fun r => r.windows.map (·.2))
+  ((arm 165 lateRaster [0, 1, 2] 198).filterMap fun r => r.windows.map (·.2))).map (·.2) == [.gain, .noData, .noData, .noData, .noData, .noData]
+#guard (ownVerdicts (arm 40 same) (arm 165 latePaint [0, 1, 2] 198)).map (·.2) == [.gain, .noGain, .noData, .noData, .noData, .noGain]
 
 end Fw.Measure.OffscreenWindowsGolden

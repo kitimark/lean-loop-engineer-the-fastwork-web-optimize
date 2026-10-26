@@ -34,7 +34,8 @@ try {
     arms[name] = summarizeArm(base, flag);
     runs[name] = flag.map((r) => ({ path: r.path, search: r.search, end: r.end, windows: r.windows }));
   }
-  const md = markdown(arms, base);
+  const { base: _b, ...flagRuns } = runs;
+  const md = markdown(arms, base, flagRuns);
   if (a.json) writeFileSync(a.json, JSON.stringify({ arms, runs }, null, 1) + '\n');
   if (a.md) writeFileSync(a.md, md);
   process.stdout.write(md);
