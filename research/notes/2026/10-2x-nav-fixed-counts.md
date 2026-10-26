@@ -3,7 +3,7 @@
 * Verdict (MEASURED, Lean `Fw.Parts.NavFixedCounts`, golden `packages/contracts/golden/parts/nav-fixed-counts.jsonl`): no-win for nav:bar-fixed and nav:logo-3d on WebKit and for all three flags on Chromium, in the hero, rest and finish zones; nav:clip-box on WebKit is not decided (2 of 3 VMs, run 40196217959): Lean reports `undecided` with n = 2 in all three zones. No look-review step is posted, because the rule posts one only for a count win.
 * The three flags are look-change class L and stay out of presets until the user's visual review.
 * WebKit: no cell is certified in either direction. `nav:clip-box` has 2 of 3 VMs, so none of its cells is decided (n < 3). The other two arms have 3 VMs and 22 cells each (work, layer and byte cells): `nav:bar-fixed` has 12 same and 10 quarantined, `nav:logo-3d` 9 same and 13 quarantined. A quarantined cell is beyond the lane's tolerance in the base or the arm, so it cannot decide.
-* Chromium: Layout, UpdateLayoutTree, FunctionCall and cc.Draw equal the base in every zone. The sum of the layer census over the zone's frames is a certified cost in the hero and finish zones (table below). That is a cost cell, not a win, so the Lean rule still reads no-win.
+* Chromium: Layout, UpdateLayoutTree, FunctionCall and cc.Draw equal the base in every zone, except nav:bar-fixed rest FunctionCall, a certified cost (3920..3925 vs 3916). The sum of the layer census over the zone's frames is a certified cost in the hero and finish zones (table below). That is a cost cell, not a win, so the Lean rule still reads no-win.
 
 ## Runs
 * WebKit Simulator at main cb4bec8, 3 VMs x 2 passes: base 40196215217, `nav:bar-fixed` 40196221086, `nav:logo-3d` 40196212618 (6 passes each), `nav:clip-box` 40196217959 (4 passes: VMs r1 and r2).
@@ -47,13 +47,13 @@
 | census.layers | finish | 49453..49456 | cost (49492) | cost (49490..49492) | cost (49676..49678) |
 
 * The finish zone has 221 frames, so the census cost is +36 to +39 layer-frames for `nav:clip-box`, +34 to +39 for `nav:bar-fixed` and +220 to +225 for `nav:logo-3d`: `nav:logo-3d` holds about one extra layer in every finish frame (INFERRED from the sum; the per-frame census is not in the files).
-* The `nav:bar-fixed` rest FunctionCall cost is 4 to 9 calls on 3916 (0.1 to 0.2 %). The rule certifies it because the 3 runs of the arm are all above the 3 of the base. It is not a mechanism claim.
+* The `nav:bar-fixed` rest FunctionCall cost is 4 to 9 calls on 3916 (0.1 to 0.2 %). The rule certifies it because the 3 runs of the arm are all above the 3 of the base.
 * The earlier Chromium swipe-v1 runs (research/notes/2026/10-2x-nav-fixed-size.md) found every zone equal; this run agrees on all work counts.
 
 ## Mechanism and Lean why (INFERRED: proved in the Lean model, whose pass rule is assumed, not read from engine source)
 * The flags remove layout units, not layout passes. `units_fall_normal`: under Normal compositing the layout units per morph frame are 3 for `nav:clip-box`, 2 for `nav:bar-fixed` and 1 for `nav:logo-3d` (the bar and logo layout units are the ones `NavBarFixedWork.bar_layout_normal` and `logo3d_layout_normal` remove).
 * The panel stays placed by insets in every arm, so one layout pass is queued in every morph frame of every arm and under both compositing policies (`pass_every_arm`, `units_fall_passes_equal`). A `Layout` record is one per pass, so the record count cannot see the units fall. INFERRED: this is why Layout stays inside the spread. The earlier note research/notes/2026/10-2x-nav-fixed-size.md reached the same reading: no count moves on Chromium swipe-v1.
-* The morph writes the same `--morph` values in every arm (`NavBarFixed` writer theorems), so RecalculateStyles and FunctionCall are predicted equal. MEASURED: equal wherever the cell is decided.
+* The morph writes the same `--morph` values in every arm (`NavBarFixed` writer theorems), so RecalculateStyles and FunctionCall are predicted equal. MEASURED: equal in every decided cell except Chromium nav:bar-fixed rest FunctionCall (cost, next bullet).
 * The flags add layers while the morph class is on: at most 1, 2 and 3 (`addedLayers_arms`, from `NavBarFixedWork.layer_budget`). WebKit cannot show them: the end-state layer census varies by 4 between passes in the base (`endSpread`, guarded `3 <= endSpread`), and `shift_not_above` proves that a shift of at most the spread is never read as a cost. Chromium shows them (table above).
 * The model is refuted by any certified win or cost cell of the four work counts (`refutes_iff`). Chromium nav:bar-fixed rest FunctionCall is such a cost (3920..3925 vs 3916, 0.1 to 0.2 %), so the FunctionCall-equal prediction is refuted there (cause unknown); the layer-census costs are allowed by `addedLayers_arms`. No cell is a win.
 
