@@ -9565,7 +9565,8 @@
     "apps/site/src/parts/platform/index.tsx",
     "lean/Fw/Parts/PlatformEntriesFillGolden.lean",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "2997bc3"
   },
   {
    "devices": [
@@ -22269,7 +22270,8 @@
     "packages/measure-webkit/src/throttle/toolbar-report.mjs",
     "packages/measure-webkit/src/throttle/toolbar.mjs",
     "packages/measure-webkit/test/throttle-toolbar.test.mjs"
-   ]
+   ],
+   "evidence": "697fb32"
   },
   {
    "devices": [
@@ -22279,8 +22281,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [
-    "morph-end-nobounce",
-    "wk-sim-hang"
+    "morph-end-nobounce"
    ],
    "title": "End-of-page scroll design rank 1 (research/notes/2026/10-26-end-scroll-designs.md): flag morph.stage, replace the end-of-page scroll-jack (two non-passive touch/wheel capture pairs, the per-frame scrollTo pin, the 680 ms rAF tween with 3 MutationObservers) by a sticky stage: a track of T px after the platform with the scene position: sticky (UI-process scrolling-tree node), and --morph on animation-timeline: scroll(root) over [maxY-T, maxY]; discrete states (data-fw-morph classes, POINTER_CUT, ACTIVE_CUT, FADE_END) from the same progress. Look change L (the morph follows the finger over T px instead of a timed 680 ms play), user visual review, never a preset. Lean first: ranges, keyframes equal to the tween's end states, the state cuts as functions of progress, no scrollTo and no non-passive listener under the flag (theorems + golden). Measure: Simulator toolbar lane (reversals, re-opens, pin writes, slow-frame share by cycle), WebKit Simulator zones (3 VMs, Lean minVms), Chromium windows (Lean reader), breakpoint gate both engines; T chosen from the Lean model and the user's review.",
    "writes": [
@@ -22311,8 +22312,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [
-    "layer-sweep-webkit-n3",
-    "wk-sim-hang"
+    "layer-sweep-webkit-n3"
    ],
    "title": "End-of-page variant rank 1 (research/notes/2026/10-26-end-of-page-variants.md): revise platform.sweep:layer-sweep (same flag) so the layer copies the original's repeat tiling (two tiles wide, background-size 50% 100%, repeat-x, translate -2w to 0) and uses the device-pixel-snapped word width (ResizeObserver devicePixelContentBoxSize once per resize, no per-frame JS). Lean first: tiled_same_look (colour equals the original with repeat for every x in the box plus overhang and every t) and snap_box; then the look premise sweep.layer-pixels back at bound 12 on both engines (moves the variant from L to E only if it passes), counts per engine (WebKit 3 VMs, Lean minVms; Chromium windows, Lean reader).",
    "writes": [
@@ -22344,8 +22344,7 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [
-    "fill-release-platform",
-    "wk-sim-hang"
+    "fill-release-platform"
    ],
    "title": "End-of-page variant rank 2 (research/notes/2026/10-26-end-of-page-variants.md): flag platform.glint:hold-freeze, the two 5 s repeating SMIL <animate> per dash (Visuals.tsx:266-300) become ramp-only animates with fill=freeze between ramps plus initial <set> values, so the SMIL clock schedules nothing while the glint holds (3 of 5 segments per side). Both engines tick an active non-<set> SMIL animation every frame (WebKit SVGSMILElement.cpp:1074-1088@862f17d; Chromium svg_smil_element.cc:1285-1301@f842f52). Lean first: premise (3 of 5 hold segments per side, decided over X1/X2), hold_eq_faithful (value equal at every t >= begin) and the work claim; golden; then gate both engines, WebKit zones (3 VMs) with z5000 the target (glint-off: Paint 54-66 to 40-44), Chromium windows. Class E if pixels hold.",
    "writes": [
@@ -22491,6 +22490,29 @@
     "docs/team/handoffs/wk-sim-hang.md",
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
     "packages/measure-webkit/test/watchdog.test.mjs"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-recount",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "wk-sim-hang",
+    "fill-release-platform"
+   ],
+   "title": "WebKit recount at one commit once wk-sim-hang lands: every flag left undecided below the Lean minVms 3 by lost VMs (platform.sweep:layer-sweep, platform.entries:fill-release, hero.exit:contain, platform entries and marquee probes), base and each arm 3 VMs on the webkit-sim lane, read with offscreen-webkit-cli.mjs; update each note's WebKit table and ledger webkit field.",
+   "writes": [
+    "research/notes/2026/10-2x-webkit-recount.md",
+    "research/notes/2026/10-2x-platform-sweep-layer.md",
+    "research/notes/2026/10-20-fill-release-platform.md",
+    "research/notes/2026/10-2x-platform-attribution.md",
+    "research/notes/2026/10-20-hero-relayout-boundary.md",
+    "research/findings/ledger.json",
+    "results/webkit-recount/**",
+    "docs/team/handoffs/webkit-recount.md"
    ]
   }
  ],

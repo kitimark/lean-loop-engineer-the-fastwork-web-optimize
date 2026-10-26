@@ -95,6 +95,8 @@ import Fw.Parts.MorphPanelThreadedRun
 import Fw.Parts.MorphPanelThreadedGolden
 import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
+import Fw.Parts.MorphEndNobounce
+import Fw.Parts.MorphEndNobounceGolden
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause
@@ -105,6 +107,8 @@ import Fw.Parts.PlatformFadedPause
 import Fw.Parts.PlatformFadedPauseGolden
 import Fw.Parts.PlatformSweepLayer
 import Fw.Parts.PlatformSweepLayerGolden
+import Fw.Engine.VisualTimed
+import Fw.Parts.PlatformEntriesFillGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork

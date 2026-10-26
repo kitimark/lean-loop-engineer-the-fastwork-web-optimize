@@ -212,9 +212,11 @@ run_group() {
   job "const-bounds-counts golden check" lake env lean --run scripts/ConstBoundsCountsGolden.lean --check ../packages/contracts/golden/parts/const-bounds-counts.jsonl ../results/const-bounds-counts/tables.md
   job "morph-columns-scale golden check" lake env lean --run scripts/MorphColumnsScaleGolden.lean --check ../packages/contracts/golden/parts/morph.columns.final-scale.jsonl
   job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
+  job "morph-end-nobounce golden check" lake env lean --run scripts/MorphEndNobounceGolden.lean --check ../packages/contracts/golden/parts/morph-end-nobounce.jsonl
   job "combo-scroll golden check" lake env lean --run scripts/ComboScrollGolden.lean --check ../packages/contracts/golden/parts/combo-scroll.jsonl
   job "platform-sweep-pause golden check" lake env lean --run scripts/PlatformSweepPauseGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-pause.jsonl
   job "platform-sweep-layer golden check" lake env lean --run scripts/PlatformSweepLayerGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-layer.jsonl
+  job "platform-entries-fill golden check" lake env lean --run scripts/PlatformEntriesFillGolden.lean --check ../packages/contracts/golden/parts/platform-entries-fill.jsonl
   job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl
   job "platform-faded-pause golden check" lake env lean --run scripts/PlatformFadedPauseGolden.lean --check ../packages/contracts/golden/parts/platform-faded-pause.jsonl
   job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
