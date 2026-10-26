@@ -4458,6 +4458,41 @@
    "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
    "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
    "userDecision": "pending"
+  },
+  {
+   "id": "platform.glint:hold-freeze",
+   "n": 90,
+   "part": "platform.glint",
+   "flags": [
+    "platform.glint:hold-freeze"
+   ],
+   "flag": "platform.glint:hold-freeze",
+   "visClass": "E",
+   "candidate": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
+   "status": "partly-proved",
+   "chromium": "swipe-touch-v1, 3 runs, same commit a5e170b94: base run 40345261186, flag run 40345253392. Lean window reader: approach gain (RasterTask 236 to 225), finish gain (RasterTask 1207 to 1196), end 0-19, 20-59, 60-119, 120+ noGain (no counter differs). MEASURED",
+   "webkit": "Simulator at cf69a9052: flag run 40349914211 (3 VMs), base run 40349930733 (2 VMs, r2 lost twice). Every zone (z4500, z5000, finish, whole) undecided, n=2+3 VMs; the pass rule alone reads z5000 as gain (Paint less, InvalidateLayout less). MEASURED",
+   "visual": "E (Lean PlatformGlintHold.hold_eq_faithful; look premise glint.hold-pixels run 40345059212: worst channel diff 1 on Chromium 156, 0 on WebKit 27.2, bound 12; breakpoint gate run 40345141093 pass on both engines, 0 failing items (box only, SMIL values excluded))",
+   "mechanism": "INFERRED: both engines tick every active non-<set> animation on each SMIL frame; a <set> in its hold segment changes nothing, so the 3 of 5 hold segments per side spend no animated-value writes (Lean ticking_hold, ticking_le). Engine citations in the note.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintHold.hold_premise",
+    "Fw.Parts.PlatformGlintHold.hold_eq_faithful",
+    "Fw.Parts.PlatformGlintHold.ticking_hold",
+    "Fw.Parts.PlatformGlintHold.ticking_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit per-zone counts (see webkit); a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), no flag path seeks backward (createPause seeks forward)"
+   ],
+   "premises": [
+    "the begin chain of the ring keeps one piece active at every instant in both engines: MEASURED by the look premise glint.hold-pixels (run 40345059212), ids without a hyphen",
+    "one SMIL clock writer (createPause) as for platform:faded-pause"
+   ],
+   "v1Evidence": "",
+   "lesson": "A held value costs a per-frame animated-value write only while a non-<set> animation covers it; tiling the cycle with <set> pieces removes the writes without changing a pixel.",
+   "next": "gh run rerun 40349930733 --failed (third base VM), then packages/measure-webkit/src/offscreen-webkit-cli.mjs for the z5000 verdict; then the user preset decision",
+   "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md; runs 40345059212 (premise), 40345141093 (gate), 40345261186 and 40345253392 (Chromium counts)",
+   "userDecision": "pending"
   }
  ],
  "notes": [
@@ -5144,6 +5179,12 @@
    "task": "push-cycle-separate",
    "field": "mechanism",
    "text": "push-cycle-separate (note research/notes/2026/10-2x-push-cycle-separate.md; WebKit Simulator real touches, 12-cycle pass and dwell pass per arm, Lean Fw.Measure.PushCycle.sepVerdict, MEASURED): the cycle-versus-clock question is undecided for both arms. Run 40315679172 (6 VMs): rewrite 5 full and 6 dwell passes, user 4 and 6, both undecided:noRoom because the dwell period was 2.39 and 2.37 times the full period, so the clock-matched cycle 5 fell at index 12 outside the 12-cycle pass. Run 40297879483: rewrite undecided:inseparable (4 and 3 passes, stretch 1.69), user undecided:fewDwell (6 and 2); vm 3 failed, several touch passes lost. Run 40284577163 evidence only. Census (run 40315679172, Lean across): resting backing bytes show no rise above the trend threshold in either arm; layers no for rewrite, mixed for user (1 of 6 dwell passes rises; that pass also grows 101 to 123 MB). H4 (IOSurface re-allocation) stays open: this lane cannot count freed bytes. TS stand-ins: periodMs, activeQuiet/activeCycles, sepArm, censusSeries. CI only; the fix is a later task."
+  },
+  {
+   "entry": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
+   "task": "glint-hold-freeze",
+   "field": "mechanism",
+   "text": "glint-hold-freeze (MEASURED, CI; note research/notes/2026/10-2x-glint-hold-freeze.md): the look premise glint.hold-pixels (run 40345059212) found that ring ids with a hyphen leave every piece after the first unresolved in both engines (the dash never moved after segment 0); ids are now letters and digits. With them the ring is within 1 of 255 of the original on Chromium and 0 on WebKit at 30 forward-seeked times. A backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235) and right in WebKit; no flag path seeks backward (createPause seeks to read plus paused time). Gate both engines pass (40345141093). Chromium counts (base 40345261186, flag 40345253392): approach gains RasterTask 236 to 225 (about 5 percent), finish 1207 to 1196 (under 1 percent), end windows noGain."
   }
  ]
 }

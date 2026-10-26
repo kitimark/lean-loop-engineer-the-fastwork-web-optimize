@@ -22384,7 +22384,8 @@
     "packages/premise-tests/**",
     "lean/Fw/Ops/Premise.lean",
     "packages/contracts/golden/ops/premise.jsonl"
-   ]
+   ],
+   "evidence": "71104d4"
   },
   {
    "devices": [

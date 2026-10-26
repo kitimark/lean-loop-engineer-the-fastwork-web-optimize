@@ -101,6 +101,8 @@ import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
+import Fw.Parts.PlatformGlintHold
+import Fw.Parts.PlatformGlintHoldGolden
 import Fw.Parts.PlatformSweepPause
 import Fw.Parts.PlatformSweepPauseGolden
 import Fw.Parts.PlatformFadedPause
