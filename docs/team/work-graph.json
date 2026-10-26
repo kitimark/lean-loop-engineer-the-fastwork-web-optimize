@@ -21948,7 +21948,8 @@
     "docs/team/handoffs/platform-attribution.md",
     "lean/Fw/Preset/**",
     "packages/contracts/golden/preset/**",
-    "apps/site/src/registry/**"
+    "apps/site/src/registry/**",
+    "apps/runner/src/land.ts"
    ]
   },
   {
