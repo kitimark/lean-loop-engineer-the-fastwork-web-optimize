@@ -13,7 +13,7 @@
 | Sampler (own process, `scripts/ci-telemetry/sampler.mjs`) | one gap of 549 s at 17:21:43, another of 153 s at 17:30:52 | MEASURED |
 | Swap-outs around the gaps | +109712 pages across the 153 s gap; 591699 pages at the end of the 549 s gap; free memory 10% then 7% | MEASURED |
 
-A node loop blocked in-process would stop only our process; the sampler is a separate process and stopped for the same span. Cause: the VM held every process. In-process block: refuted. Runner log timestamps are receive times, so lines arrive in bursts after the freeze.
+A node loop blocked in-process would stop only our process; the sampler, a separate process, has gaps of 549 s and 153 s (17:21:43 to 17:33:25, one sample at 17:30:52) covering the 705 s in which node did not tick; both processes stalled, so the cause is outside our process. Cause: the VM held every process. In-process block: refuted. Runner log timestamps are receive times, so lines arrive in bursts after the freeze.
 
 The 731 s of silence is 675 s of freeze plus 56 s of real silence. Lean theorem `run40364461242`: raw silence 731000 ms is stalled, silence with the freeze credited is 56000 ms and not stalled.
 
@@ -21,13 +21,13 @@ The 731 s of silence is 675 s of freeze plus 56 s of real silence. Lean theorem 
 
 | Attempt | What the log shows | Status |
 |---|---|---|
-| 1 | ticks 62 s and 89 s late with no host call; sampler gaps 91 s, 95 s, 74 s; swap-outs +94836 and +47268 in the gaps | MEASURED |
+| 1 | page target lost, reboot (bootstatus 60 s), then terminate Safari done in 10 s of 20 s on the fresh boot; exit 1 later | MEASURED |
 | 2 | stalled 747 s, exit 130, no `blocked` warning, no tick data kept | MEASURED; cause not found, follow-up |
-| 3 | 18:54:25 tick 46 s late; `2 failed in a row`; `the device is not booted`; reboot: shutdown 1 s, boot 6 s, bootstatus 86 s; then `terminate Safari took longer than 20 s`, exit 4 | MEASURED |
+| 3 | ticks 62 s (18:50:15) and 89 s (18:54:08) late with no host call; sampler gaps 91 s, 95 s, 74 s with swap-outs +94836 and +47268; 18:54:25 tick 46 s late (lsof running); socket gone, device not booted; reboot: shutdown 1 s, boot 6 s, bootstatus 86 s; then terminate Safari took longer than 20 s, exit 4 | MEASURED |
 
-Why `terminate Safari` overran: the reboot builds a fresh device, so Safari is not running and the step has nothing to do. `simctl terminate` on a freshly booted, still loaded device waited past its bound. It took 10 s of 20 s in attempt 1 (MEASURED). That the call waits on the booting launchd of a loaded device is INFERRED. Removing the step removes the failure and 20 s of the recover budget (`plan_fresh`: 300000 ms against 320000 ms).
+Why `terminate Safari` overran: the reboot builds a fresh device, so Safari is not running and the step has nothing to do. `simctl terminate` on a freshly booted, still loaded device waited past its bound. It took 10 s of 20 s in attempt 1 (MEASURED). That the call waits on the booting launchd of a loaded device is INFERRED. Removing the step removes its 20 s and its overrun (`plan_fresh`: 300000 ms against 320000 ms). The next simctl call (launch Safari, bound 90 s) runs on the same loaded device, and no run shows it passes there (INFERRED).
 
-The guard also counted "2 failed in a row" across a freeze: the first failed probe was from before it. With the rule, a tick the host held starts the streak again. This tick had a host call (`lsof`) just started, so the rule does not count it as held (accepted limit: no host call running is the unit, cpu ratio is logged only).
+The 18:54:25 probe came after a frozen tick (89 s at 18:54:08, no host call), so `failsIn` drops the streak to 1, but the socket was gone and the device not booted, so the inspector is dead either way (Lean `frozen_not_dead` needs socket = true). For loss 2 the streak rule does nothing; the fresh relaunch is the rule that applies.
 
 ## Lean rule (`lean/Fw/Measure/SimHost.lean`, `Freeze`)
 
@@ -54,7 +54,7 @@ The rate did not fall, and the two base losses are not the two classes fixed abo
 | base r2 (121811602882, exit 4 after 31 min) | no `blocked` or `stalled` line; warm-up `Runtime.evaluate` timed out after 120 s, no page target after 484 s, relaunch failed at `terminate Safari` (20 s), then `simctl shutdown` ETIMEDOUT; sampler gaps at most 34 s, swap-outs 26180 | Simulator wedged under load, not a VM freeze |
 | base r1 (121811602912, cancelled after 58 min, log not kept; the job limit is INFERRED to be the cause) | last sampler row 22:26:27, then nothing for 34 min: sampler and tick uploads stopped together, so the whole VM or runner went away; free memory 70% at the last row | VM lost, nothing in-process can end it |
 
-What worked: the stall limit and the guard ended base r2 in 31 min with exit 4 and named causes instead of the 50 min step limit. The `terminate Safari` overrun now shows up in the first (non-fresh) relaunch too: the freeze fix does not cover a wedged device. The flag arm ran 3 of 3 with sampler gaps of at most 74 s, a freeze that the new rule would credit.
+What worked: the stall limit and the guard ended base r2 in 31 min with exit 4 and named causes instead of the 50 min step limit. The `terminate Safari` overrun now shows up in the first (non-fresh) relaunch too: the freeze fix does not cover a wedged device. No kept re-measure job logged a late tick: the freeze rule and the stale-streak rule never fired on CI (the 74 s sampler gap of flag r1 at 21:22:11 was before the measure process started). The re-measure does not test the fix; it shows only that the 4 kept jobs still pass with it. MEASURED.
 
 Host load1 was 800 to 920 at the last row of every job, successes included (cpu 100%), so it does not separate lost from kept jobs.
 
