@@ -1,6 +1,7 @@
 # offscreen-vm-count handoff
 * Branch: worktree-wf_92b98b26-109-1; worktree: .claude/worktrees/wf_92b98b26-109-1 (repo-relative).
-* Last commit: see `git log -1` on the branch (this file is committed with the work).
+* Last code commit: 707f67e75 (this handoff is committed after it). check.sh green, measure-webkit 883/883, contracts, ci-paths 56/56,
+  runner land-inputs 73/73; dry land `VERDICT dry offscreen-vm-count`; review ready `VERDICT review-ready offscreen-vm-count review`.
 * CI runs: none started (task reads existing artifacts only).
 * Verified: the Lean VM-count rule in `lean/Fw/Measure/OffscreenWebKit.lean` (`vmCount`, `enoughVms`, `undecided`, `passUsable`,
   `passVerdict`; theorems `noData_of_fewVms*`, `zones_noData_of_*`, `verdict_eq_passVerdict`, `zoneVerdicts_eq_pass`,
