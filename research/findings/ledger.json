@@ -4269,6 +4269,53 @@
    "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
   },
   {
+   "n": 86,
+   "id": "hero.exit.contain",
+   "part": "hero.exit",
+   "candidate": "hero.exit:contain: contain: size layout on the sticky .hero, so it is a relayout boundary in both engines and a frame whose dirty objects all sit inside the hero (accent width, countdown digits) lays out only the hero subtree",
+   "status": "proved",
+   "flag": "hero.exit:contain",
+   "flags": [
+    "hero.exit:contain"
+   ],
+   "visClass": "E",
+   "chromium": "win (MEASURED, chromium-counts swipe-touch-v1, sha 0537be1, 3 runs per arm, base run 40268899311, flag run 40268902395): hero-exit window (zones y00000 and y00500, 103 frames in every run), Lean cmp/judge (Fw.Measure.Offscreen, slack 0): Layout passes 122-123 to 121-122 same, RecalcStyle (UpdateLayoutTree) 405 same, Paint 897 same, Layout totalObjects 108,371-108,596 to 70,064-70,231 less, verdict gain; means: totalObjects 108,446 to 70,122 (-35.3%), dirtyObjects 1,466 to 1,112, partial passes 25.7 to 76.3; whole run totalObjects 456,706 to 357,812 (-21.7%); zones y01500 and y02000 drop too (the countdown keeps ticking), y02500 on unchanged. results/hero-relayout-boundary/chromium.json (zone sums by extract-chromium.mjs, a TS stand-in)",
+   "webkit": "undecided (n=2+2 VMs; MEASURED, webkit-sim sha 26bd7b1, base run 40271367353, flag run 40271370582; base r1 and flag r3 lost at Determinism sessions with no session file): hero-exit (scroll y 0-1000), after-exit (1001-2500) and whole windows all undecided by the Lean VM rule (minVms 3); by the pass rule alone every counter is same (Layout 138-157 / 146-156, RecalculateStyles 135-151 / 144-151, Paint 327-393 / 387-422 in the hero-exit window). The WebKit timeline has no laid-out object count, so the predicted smaller passes are not observable there; source: the same boundary (RenderObject.cpp:530-531@862f17d) and one-root scheduling (INFERRED). results/hero-relayout-boundary/webkit.json",
+   "visual": "same look, class E (Lean hero_same_box, extent_same; breakpoint gate run 40271199102 at sha 26bd7b1 passes on Chromium and WebKit with only the declared contain style excused by Fw.Gate.FlagDelta; gate run 40268905824 at 0537be1 had equal geometry at every probe and failed only on that declared style)",
+   "mechanism": "CONFIRMED (source, Lean Fw.Parts.HeroContainOpt): Chromium ObjectIsRelayoutBoundary returns true for layout plus size containment once the guards pass (layout_object.cc:1535-1538@f842f52; guards :1441-1531, the hero is a block-track child, a flex container, self-painting, with no out-of-flow descendant escaping it); WebKit isLayoutBoundary returns true for layout plus size containment (RenderObject.cpp:530-531@862f17d) and false for the base hero (overflow visible, :536-539). The marking walk starts at the container, so a dirty hero box roots at the view (outside_view). Chromium keeps a list of subtree roots and a walk reaching the view makes a full layout (local_frame_view.cc:1676-1723); WebKit keeps one root and two disjoint roots make a full layout (LocalFrameViewLayoutContext.cpp:701-753). So a frame with only hero-internal sources lays out the hero subtree (drawIn_flag_hero), any outside source or the hero box itself gives a full layout (drawIn_outside_full, cr_outside_full, wk_outside_full). Same box: the hero's height is definite and its auto width fills the block track (hero_same_box); layout containment moves its content overflow to ink overflow, at most 453.2 px below the track (excess_lt_454), and the page extent stays when at least that much content follows (extent_same).",
+   "leanFor": [
+    "Fw.Parts.HeroContainOpt.hero_cr_flag",
+    "Fw.Parts.HeroContainOpt.hero_wk_flag",
+    "Fw.Parts.HeroContainOpt.drawIn_flag_hero",
+    "Fw.Parts.HeroContainOpt.objects_flag",
+    "Fw.Parts.HeroContainOpt.hero_same_box",
+    "Fw.Parts.HeroContainOpt.hero_height_stage",
+    "Fw.Parts.HeroContainOpt.excess_lt_vh",
+    "Fw.Parts.HeroContainOpt.excess_lt_454",
+    "Fw.Parts.HeroContainOpt.extent_same",
+    "Fw.Parts.HeroContainOpt.effects_same"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroContainOpt.hero_cr_base",
+    "Fw.Parts.HeroContainOpt.hero_wk_base",
+    "Fw.Parts.HeroContainOpt.drawIn_outside_full",
+    "Fw.Parts.HeroContainOpt.outside_view",
+    "Fw.Parts.HeroContainOpt.height_auto_differs"
+   ],
+   "missingWhy": [
+    "A per-frame dirty-source trace (which frames of the hero exit carry an outside source): the counts give partial and full passes per zone, not their sources.",
+    "A phone pass: CI only, so whether the smaller passes are felt on the iPhone is not measured."
+   ],
+   "premises": [
+    "At least 453.2 px of content follows the hero track at every breakpoint (MEASURED at least 3902.75 px in gate run 40268905824, extent_same_matrix restMin); a page with less content below would grow shorter.",
+    "svh equals vh for the height cases (as in HeroScenePause)."
+   ],
+   "v1Evidence": "",
+   "lesson": "Containment scopes layout only when every dirty source of a frame is inside the boundary and the boundary box itself stays clean; it shrinks passes (objects per pass) and does not remove them. An in-flow box with a definite height and a fill width keeps its box under size containment; an auto-height box would collapse.",
+   "next": "Preset promotion is a later task (trajectory cells and a why link pending in v2-proved). A phone pass would show whether the smaller passes are felt.",
+   "evidence": "chromium-counts runs 40268899311 (base) and 40268902395 (flag) at 0537be1; webkit-sim runs 40271367353 (base) and 40271370582 (flag) at 26bd7b1; breakpoint-gate runs 40268905824 and 40271199102; note research/notes/2026/10-20-hero-relayout-boundary.md"
+  },
+  {
    "id": "platform.sweep.layer-sweep",
    "part": "platform.sweep",
    "candidate": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
@@ -4942,10 +4989,22 @@
    "text": "platform-attribution (note research/notes/2026/10-2x-platform-attribution.md): the probe arm platform.marquee:probe-off has no effect. MEASURED Chromium run 40236462082 (3 runs): no-gain in every window (finish recalcs 319 to 320 is a cost). WebKit run 40236475717 is undecided: 2 of 3 VMs (VM r3 job failed, no rerun), counts inside the base spread. No no-win is claimed on WebKit."
   },
   {
+   "entry": "contain the fixed nav's relayout with a containment boundary (nav-oof-root-finding)",
+   "task": "hero-relayout-boundary",
+   "field": "mechanism",
+   "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): the same containment on the in-flow sticky hero is a boundary in both engines (Fw.Parts.HeroContainOpt.hero_cr_flag, hero_wk_flag) and scopes the frames whose dirty sources are all inside it; a frame that also dirties the fixed nav stays full (drawIn_outside_full), as nav.oofRoot.containment predicts. MEASURED Chromium runs 40268899311 and 40268902395: hero-exit Layout totalObjects -35.3%."
+  },
+  {
    "entry": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
    "task": "platform-sweep-layer",
    "field": "mechanism",
    "text": "platform-sweep-layer (note research/notes/2026/10-2x-platform-sweep-layer.md): MEASURED Chromium swipe-touch-v1, runs 40261037706 (base) and 40261040439 (layer-sweep) at fbc6ee4ff, 3 runs each, Lean cmp/judge slack 0. Approach: gain (RasterTask 236 to 63, PaintImage 137 to 1). Finish window: no-gain by the rule because Paint is +1 per frame (915 to 1087, a cost) although RasterTask falls 1207 to 984 and PaintImage 1514 to 718. Breakpoint gate PASS in run 40266919532 with the class-L FlagDelta tuples. MEASURED WebKit Simulator iOS 27, runs 40261071388 (base, 3 VMs) and 40261059419 (layer-sweep, 2 VMs: job r2 failed twice with a dead Simulator inspector), offscreen-webkit reader, sameWindow, y <= 5200. UNDECIDED by the 3-VM rule (n = 3 base, 2 arm). The reader reads Paint less in every zone: z4500 113-147 to 93-106, z5000 59-69 to 36-38, finish 172-214 to 129-142, whole 1197-1379 to 1051-1160; Layout, RecalculateStyles, Composite and FireAnimationFrame inside the slack. the variant is NOT same-look at the pixel level. MEASURED CI premise sweep.layer-pixels (run 40264978871, Chromium 156, WebKit 27.2): worst channel difference at progress 0, 0.5, 1.5, 2.5, 3.9 s is 33, 5, 4, 2, 2 (Chromium) and 35, 2, 2, 4, 3 (WebKit) of 255; at t=0 9 pixels (Chromium) and 1 pixel (WebKit) differ. Lean same_look covers the gradient position over time only. WebKit t=0: the original's own background tile seam (repeat vs no-repeat original 35, layer vs no-repeat 0). Chromium t=0: one edge column at the word's box edge, not the tile seam, not will-change, not the layer edge (a padded layer gave the same 33); INFERRED dest-rect snapping. Class L, for the user's visual review, never a preset."
+  },
+  {
+   "entry": "hero.exit:contain: contain: size layout on the sticky .hero, so it is a relayout boundary in both engines and a frame whose dirty objects all sit inside the hero (accent width, countdown digits) lays out only the hero subtree",
+   "task": "hero-relayout-boundary",
+   "field": "webkit",
+   "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): WebKit Simulator runs 40271367353 and 40271370582 lost one VM per arm (Determinism sessions), so every hero-exit window is undecided with n=2+2; no WebKit win or no-win is claimed."
   }
  ]
 }

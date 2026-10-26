@@ -9874,7 +9874,8 @@
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "28422ff"
   },
   {
    "devices": [
