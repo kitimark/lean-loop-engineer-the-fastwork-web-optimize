@@ -23,10 +23,10 @@ def scrollRetryS : Nat := 589
 /-- Longest wait from a failed pass attempt to the end of the repeated pass, seconds. -/
 def passRetryS : Nat := 436
 
-/-- Longest pass head, seconds: from the start of a pass attempt (or the failure before it) to the start of its scroll step or to its failure (reconnect, tab wait, load, census). -/
+/-- Longest pass head, seconds: attempt start (or the failure before it) to its scroll step or its failure. -/
 def headS : Nat := 687
 
-/-- Longest scroll try, seconds: from the start of the scroll step (or the failure before it) to the try's end, and for a try that ends the step on to the end of the pass (seek, load stamp). -/
+/-- Longest scroll try, seconds, with the rest of the pass for the try that ends the step. -/
 def tryS : Nat := 876
 
 def loadAnyCenti : Nat := 101592
@@ -119,7 +119,6 @@ structure PassTry where
   baseS : Nat
   scroll : List Try
 
-/-- Pass attempts: a navigating attempt whose tab wait (need `tab`) does not fit fails at the wait's start. -/
 def runPass (n m inner outer tab b : Nat) : Nat → Nat → List PassTry → Out
   | _, e, [] => ⟨e, false, false⟩
   | k, e, p :: rest =>
@@ -188,29 +187,24 @@ theorem runPass_stop_le (n m inner outer tab b : Nat) (ps : List PassTry)
       · simp only [h1', h2, Bool.false_eq_true, ite_false]
         exact ⟨by omega, hr⟩
 
-/-- A navigating attempt whose tab wait does not fit stops failed at the wait's start, before any scroll try. -/
 theorem runPass_tab_refused (n m inner outer tab b k e : Nat) (p : PassTry) (rest : List PassTry)
     (hn : p.nav = true) (hf : retryFits (e + p.reconS) tab (some b) = false) :
     runPass n m inner outer tab b k e (p :: rest) = ⟨e + p.reconS, false, false⟩ := by
   simp [runPass, hn, hf]
 
-/-- A started tab wait within its need ends within the bound. -/
 theorem tab_started_le {e r t tab b : Nat} (h : retryFits (e + r) tab (some b) = true) (ht : t ≤ tab) : e + r + t ≤ b := by
   simp [retryFits] at h; omega
 
-/-- With the tab need within the pass need, a refused tab wait leaves no pass retry, as the model's stop says. -/
 theorem tab_refused_no_pass_retry {x w b : Nat} (t mt : Nat) (hw : tabNeedS w ≤ passNeedS) (h : tabFits x w (some b) = false) :
     afterFailure t mt x passNeedS (some b) = false := by
   simp only [tabFits, retryFits, decide_eq_false_iff_not, Nat.not_le] at h
   simp only [afterFailure, retryFits, Bool.and_eq_false_iff, decide_eq_false_iff_not, Nat.not_le]
   right; omega
 
-/-- The deployed needs meet `runPass_stop_le`'s premise for every pass head within the longest seen. -/
 theorem needs_meet_premise (p : PassTry) (h : p.reconS + p.tabS + p.baseS ≤ Seen.headS) :
     p.reconS + p.tabS + p.baseS + scrollNeedS ≤ passNeedS := by
   unfold passNeedS; omega
 
-/-- The two-level bound for the deployed needs, for tries and heads within the longest seen. -/
 theorem deployed_stop_le (n m tab b : Nat) (ps : List PassTry)
     (hin : ∀ p ∈ ps, ∀ t ∈ p.scroll, t.reconS + t.runS ≤ Seen.tryS)
     (hhead : ∀ p ∈ ps, p.reconS + p.tabS + p.baseS ≤ Seen.headS) :
@@ -218,7 +212,6 @@ theorem deployed_stop_le (n m tab b : Nat) (ps : List PassTry)
       ((runPass n m scrollNeedS passNeedS tab b k e ps).retried = true → (runPass n m scrollNeedS passNeedS tab b k e ps).stop ≤ b) :=
   runPass_stop_le n m scrollNeedS passNeedS tab b ps hin (fun p hp => needs_meet_premise p (hhead p hp))
 
-/-- The shipped needs of wk-sim-hang (589, 436) met the premise for no pass attempt. -/
 theorem shipped_needs_missed (p : PassTry) : ¬ (p.reconS + p.tabS + p.baseS + Seen.scrollRetryS ≤ Seen.passRetryS) := by
   unfold Seen.scrollRetryS Seen.passRetryS; omega
 
@@ -271,15 +264,12 @@ theorem ceil_above_seen : Seen.loadAnyCenti < loadCeilCenti := by decide
 
 theorem stepS_lt_gate : Seen.stepS < gateBoundS SimBound.perSessionMin := by decide
 
-/-- The measured retry segments lie within the derived needs. -/
 theorem seen_retries_within_needs : Seen.scrollRetryS ≤ scrollNeedS ∧ Seen.passRetryS ≤ passNeedS := by decide
 
-/-- After the longest start and warm-up a scroll retry fits and a pass retry does not. -/
 theorem retry_after_warm :
     retryFits (Seen.startS + Seen.warmS) scrollNeedS (some (gateBoundS SimBound.perSessionMin)) = true ∧
     retryFits (Seen.startS + Seen.warmS) passNeedS (some (gateBoundS SimBound.perSessionMin)) = false := by decide
 
-/-- The last admitted decision times in one 35 min session: 1164 s for a scroll retry, 477 s for a pass retry. -/
 theorem last_admitted :
     gateBoundS SimBound.perSessionMin - scrollNeedS = 1164 ∧ gateBoundS SimBound.perSessionMin - passNeedS = 477 := by decide
 
@@ -288,7 +278,6 @@ theorem late_retry_refused :
 
 theorem ciScale_stall : SimBound.stallMs = ciScale * 90000 := by decide
 
-/-- On the CI lane the tab wait needs 480 s, within the pass need, so a refused tab wait is never followed by a pass retry. -/
 theorem ci_tab_need : tabNeedS (navWaitMs * ciScale) = 480 ∧ tabNeedS (navWaitMs * ciScale) ≤ passNeedS := by decide
 
 theorem perSession_vs_step :
