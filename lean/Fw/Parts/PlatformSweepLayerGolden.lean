@@ -30,18 +30,35 @@ def shownLine (w v t : Rat) : String :=
   (Json.mkObj [("fn", "shown"), ("in", Json.mkObj [("w", numJ w), ("v", numJ v), ("t", numJ t)]),
     ("out", Json.mkObj [("layer", rgbJ (color (bandU w (layerX w t) v))), ("orig", rgbJ (color (imageU v (pos t))))])]).compress
 
+def xvs : List Rat := [0, 1 / 4, 1 / 2, 1, 2, 7 / 2]
+
+def tiledLine (w v t : Rat) : String :=
+  (Json.mkObj [("fn", "tiled"), ("in", Json.mkObj [("w", numJ w), ("v", numJ v), ("t", numJ t)]),
+    ("out", Json.mkObj [("layer", rgbJ (color (layerU w (v * w - layerX w t)))), ("orig", rgbJ (color (repU w (v * w) (pos t))))])]).compress
+
+def dprs : List Rat := [1, 2, 3]
+def lefts : List Rat := [0, 102 / 5, 201 / 2, 149 / 4]
+def widths : List Rat := [52681 / 100, 90, 2303 / 10, 3 / 5]
+
+def snapLine (dpr left width : Rat) : String :=
+  (Json.mkObj [("fn", "snap"), ("in", Json.mkObj [("dpr", numJ dpr), ("left", numJ left), ("width", numJ width)]),
+    ("out", Json.mkObj [("px", .num (snapPx dpr left width)), ("w", numJ (snapW dpr left width))])]).compress
+
 def workLine (n : Nat) : String :=
   (Json.mkObj [("fn", "work"), ("in", Json.mkObj [("words", .num n)]),
     ("out", Json.mkObj [("orig", .num (textRepaints (page origWord n))), ("layer", .num (textRepaints (page layerWord n)))])]).compress
 
 def lines (_ : Unit := ()) : List String :=
   constLine :: (ws.flatMap fun w => ts.map (xLine w)) ++
-    (ws.flatMap fun w => ts.flatMap fun t => vs.map fun v => shownLine w v t) ++ [workLine 1, workLine 4]
+    (ws.flatMap fun w => ts.flatMap fun t => vs.map fun v => shownLine w v t) ++ [workLine 1, workLine 4] ++
+    (ws.flatMap fun w => ts.flatMap fun t => xvs.map fun v => tiledLine w v t) ++
+    (dprs.flatMap fun d => lefts.flatMap fun l => widths.map fun w => snapLine d l w)
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
 #guard ws.all fun w => ts.all fun t => vs.all fun v => color (bandU w (layerX w t) v) == color (imageU v (pos t))
-#guard (lines ()).length == 1 + 12 + 48 + 2
+#guard ws.all fun w => ts.all fun t => xvs.all fun v => color (layerU w (v * w - layerX w t)) == color (repU w (v * w) (pos t))
+#guard (lines ()).length == 1 + 12 + 48 + 2 + 72 + 48
 
 def run' (args : List String) : IO UInt32 := do
   match args with
