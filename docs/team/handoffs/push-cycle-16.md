@@ -1,7 +1,7 @@
 branch: worktree-wf_cf598a19-7f5-1 (CI branch ci/push-cycle-16)
 worktree: .claude/worktrees/wf_cf598a19-7f5-1 (under the repo root)
 last commit: bf4a3244a (push 1 of at most 2)
-runs: 40361916735 (push 1, bf4a3244a, complete: failure because sim 2 and 5 failed; 6 result files): rewrite 2 full 4 dwell undecided:fewFull (stretch 3934, beyond the bound), user 5 full 5 dwell undecided:inseparable (stretch 2126). Push 2 follows (same measurement code, report code changed: lostOf names every lost pass).
+runs: 40361916735 (push 1, bf4a3244a, complete: failure because sim 2 and 5 failed; 6 result files): rewrite 2 full 4 dwell undecided:fewFull (stretch 3934, beyond the bound), user 5 full 5 dwell undecided:inseparable (stretch 2126). Push 2 follows (same measurement code, report code changed: lostOf names every lost pass). Push 2 = run 40412970956 (ci/push-cycle-16 at dcc008d97), started 22:30 UTC, expect ~5.5 h; if you restart: wait with fw ci wait --branch ci/push-cycle-16 --workflow toolbar-throttle, download with gh run download <id> -p toolbar-throttle-*, pool both runs with push-cycle-cli.mjs report --in a,b --expect.
 verified: Lean file elaborates (lake env lean), golden regenerated and --check green, TS twin test push-cycle.test.mjs 20 of 20; check.sh green (fw slot), measure-webkit test 928 pass; dry land not yet run
 open: push 2 result and pooled table, note 10-2x-push-cycle-16.md, ledger row, results, dry land, review ready
 
