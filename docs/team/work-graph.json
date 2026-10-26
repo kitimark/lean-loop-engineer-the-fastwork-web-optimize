@@ -22415,7 +22415,8 @@
     "research/notes/2026/10-2x-evidence-twins.md",
     "docs/team/handoffs/evidence-twins.md",
     "packages/measure-webkit/test/throttle-morph-end.test.mjs"
-   ]
+   ],
+   "evidence": "a0caed7"
   },
   {
    "devices": [
