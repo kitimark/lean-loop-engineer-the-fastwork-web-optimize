@@ -1,51 +1,73 @@
-# sim-retry-needs: retry needs that meet runPass_stop_le's premise, the tab wait gate, and the replay over green jobs
+# sim-retry-needs: the retry and tab needs chosen in Lean over the green jobs
 
 Date: 2026-10-26. Task `sim-retry-needs` (follow-up of `wk-sim-hang`, note `10-2x-wk-sim-hang.md`). Data: `results/sim-retry-needs/` (`pieces.json`, `replay.json`, `scripts/`). Source of every number: the logs of the 98 green jobs of the wk-sim-hang sample (`results/wk-sim-hang/jobs.json`), downloaded with `gh run view --job <id> --log`. No CI run.
 
 ## Answer
 
-- The derived needs are 876 s for a scroll retry and 1563 s for a pass retry (Lean `SimHost.scrollNeedS`, `passNeedS`). They meet `runPass_stop_le`'s premise for every pass head within the longest seen (`needs_meet_premise`, `deployed_stop_le`). The shipped 589 s and 436 s met it for no pass attempt (`shipped_needs_missed`).
-- Cost: replayed over the 98 green jobs, the derived gates would have refused 14 jobs (14%): 7 pass retries, 2 scroll retries and 5 tab waits. The shipped needs refuse 1 (job 121060093155, scroll retry at 1467 s). MEASURED (`results/sim-retry-needs/replay.json`, arm `derived` against arm `shipped`).
-- In one 35 min session a scroll retry is admitted until 1164 s into the step and a pass retry until 477 s (`last_admitted`). After the longest start and warm-up seen (1021 s) a pass retry never fits (`retry_after_warm`), so on this host the pass retry is close to disabled. That is the price of a bound that holds for the shipped constants. A lower price needs shorter passes (the seek tail is up to 825 s) or a longer step, not a different need.
-- The tab wait (`navigateTab`, 60 s times `FW_WK_TIMEOUT_SCALE` 8 = 480 s on CI) is now gated by `SimHost.tabFits`: a wait that would end past the step bound is not started. It has its own term in the model (`PassTry.nav`, `tabS`, the need `tab` of `runPass`). On CI it needs 480 s, so a navigation after 1560 s is refused; 5 green jobs navigated later than that (seek fixtures of pass 2).
+- The needs (scroll, pass, tab) are a choice, decided in Lean (`lean/Fw/Measure/SimRetryChoice.lean`) over the gate decisions of the 98 green jobs (`SimRetryData.jobs`, generated from `pieces.json`).
+- Among all needs that meet `runPass_stop_le`'s premise, the fewest green jobs are refused by `best` = (876, 1563, 480): 14 of 98. PROVED: `best_premise`, `best_fewest` (no premise-meeting needs refuse fewer, over all of ℕ³, so over any grid too: `grid_fewest`), `premise_best_le` (every premise-meeting needs are at least `best` in each component, so a tie goes to `best`), `best_refused`.
+- That is more than the shipped needs refuse, so the shipped needs stay deployed: scroll 589 s, pass 436 s (`SimHost.scrollNeedS`, `passNeedS`), tab need 480 s on CI. PROVED: `pick_fallback`, `deployed_is_pick` (the decision `pick best shipped jobs` returns the deployed needs).
+- For the deployed needs the premise is unmet (`deployed_premise_unmet`, `SimHost.deployed_needs_missed`, `deployed_scroll_below_try`: 589 < the longest scroll try with its pass rest, 876). Model limit: a retry can still reach the step bound and be killed there.
+- Price of the tab gate: with the deployed needs, the gate at 480 s refuses 9 green jobs (navigations later than 1560 s into the step), so the deployed gates refuse 10 of 98 (`shipped_refused`); without the tab gate 1 (`shipped_untabbed_refused`). The lead's figure of 1 is the ungated arm. Open below.
 
-## Model and needs (Lean `lean/Fw/Measure/SimHost.lean`)
+## Premise and the theorem's condition
 
-A pass attempt is reconnect, tab wait, load and census (the head), then the scroll step (tries, each with its reconnect), then for the try that ends the step the rest of the pass (seek with its four navigations, load stamp). The rest of the pass counts towards the try that ends the step: a scroll retry is followed by the seek, so its need must cover the seek too. Before this task it did not.
+`Premise c`: `Seen.tryS ≤ c.scroll` (inner level: every scroll try, and for the try that ends the step the rest of its pass, fits the scroll need), `Seen.headS + c.scroll ≤ c.pass` (outer level: reconnect, tab wait and load of a pass head, then a scroll need, fit the pass need; the tab wait is the `tabS` term of the head), and `tabWaitS ≤ c.tab` (the tab need covers the CI tab wait, 60 s × 8 = 480 s, so an admitted wait ends within the bound: `tab_started_le`).
+
+`best_stop_le` is `runPass_stop_le` at `best`. Its condition, plainly: every scroll try lasts at most 876 s and every pass head at most 687 s, the maxima seen in the 98 green jobs. A retry whose real duration exceeds its need can still reach the step bound. The bound holds per pass, not per step.
+
+## Frontier (Lean `grid`, `#guard` in `SimRetryChoice.lean`; TS replay agrees)
+
+| Scroll need (s) | Pass need (s) | Tab need (s) | Refused green jobs (of 98) | Scroll | Pass | Tab | Premise |
+|---|---|---|---|---|---|---|---|
+| 589 | 436 | 0 | 1 | 1 | 0 | 0 | no |
+| 589 | 436 | 480 | 10 (deployed) | 1 | 0 | 9 | no |
+| 589 | 1563 | 0 | 8 | 1 | 7 | 0 | no |
+| 589 | 1563 | 480 | 13 | 1 | 7 | 5 | no |
+| 876 | 436 | 0 | 3 | 3 | 0 | 0 | no |
+| 876 | 436 | 480 | 11 | 3 | 0 | 8 | no |
+| 876 | 1563 | 0 | 9 | 2 | 7 | 0 | no |
+| 876 | 1563 | 480 | 14 (`best`) | 2 | 7 | 5 | yes |
+
+The split by gate counts the first refused decision of a job (`replay.mjs`); the totals are Lean's `refusedCount`. Refusals only grow with each need (`refusedCount_mono`), so `best`, the least premise-meeting needs, is the optimum and no grid point is needed for the proof.
+
+## Model and seen pieces (Lean `lean/Fw/Measure/SimHost.lean`)
+
+A pass attempt is reconnect, tab wait, load and census (the head), then the scroll step (tries, each with its reconnect), then for the try that ends the step the rest of the pass (seek with its four navigations, load stamp).
 
 | Piece (green jobs, from the step start) | Seen max (s) | Job (run) | n |
 |---|---|---|---|
 | head: attempt start (or the failure before it) to the scroll step, or to the attempt's failure | 687 | 121416196352 (40271367353) | 204 attempts, 6 failed in the head |
 | scroll try (reconnect included for a retry), and for the try that ends the step, on to the pass end | 876 (51 + seek 825) | 121314777043 (40236465002) | 198 ended steps, 12 failed tries |
-| wk-sim-hang scroll retry (failure to retried step end) | 589 | 121153604305 | 13 |
-| wk-sim-hang pass retry (failure to repeated pass end) | 436 | 121416196352 | 3 |
+| wk-sim-hang scroll retry (failure to retried step end), the deployed scroll need | 589 | 121153604305 | 13 |
+| wk-sim-hang pass retry (failure to repeated pass end), the deployed pass need | 436 | 121416196352 | 3 |
 
-- `scrollNeedS = Seen.tryS` (876), `passNeedS = Seen.headS + scrollNeedS` (1563). The reconnects are inside the measured pieces (the reconnect itself is not logged on its own); the hard reconnect bound of `SimBound` (480 + 320 + 90 s) is not used, since already the Seen-based pass need leaves 477 s.
-- `runPass_stop_le` now carries the tab gate: premise `p.reconS + p.tabS + p.baseS + inner ≤ outer`; a navigating attempt whose tab wait does not fit stops failed at the end of its reconnect (`runPass_tab_refused`); `tab_refused_no_pass_retry` shows that, with the tab need within the pass need (`ci_tab_need`: 480 ≤ 1563), the code's pass retry after such a refusal is refused too, as the model's stop says.
-- `seen_retries_within_needs`: the wk-sim-hang segments (589, 436) are within the new needs.
-- The bound is per pass (one level), not per step: pass 2 after a retried pass 1 can still reach the step bound. The premise holds by construction only for pieces within the Seen maxima; a piece past them (a slower host) leaves the bound, as before.
+- `runPass` carries the tab gate: a navigating attempt whose tab wait does not fit stops failed at the end of its reconnect (`runPass_tab_refused`).
+- With the deployed needs the pass need is below the tab need (`ci_tab_need`: 436 < 480), so `tab_refused_no_pass_retry` does not apply: after a tab refusal between 1560 s and 1604 s the code may admit a pass retry that the model stops; that retry's own tab wait is refused again. Model limit.
+- In one 35 min session a scroll retry is admitted until 1451 s into the step and a pass retry until 1604 s (`last_admitted`); after the longest start and warm-up seen (1021 s) both fit (`retry_after_warm`).
 
 ## TS
 
 - `sim-host.mjs` reads every constant (`endMarginS`, `loadCeilCenti`, `scrollNeedS`, `passNeedS`, `navWaitMs`) from `packages/contracts/golden/measure/sim-host.jsonl`; no need is typed in TS. `tabNeedS`, `tabFits` replay the golden's `tab` vectors (`test/sim-host.test.mjs`).
-- `determinism.mjs` uses `SCROLL_NEED_S`, `PASS_NEED_S`; `wip.mjs` `navigateTab` waits `T(NAV_WAIT_MS)` and refuses a wait that does not fit the step clock (`stepGate`, so the seek's navigations are gated too). Without `FW_MEASURE_T0_MS` and `FW_WK_STEP_MIN` (local, phone) nothing is refused.
-- TS stand-ins: none.
+- `wip.mjs` `navigateTab` refuses a tab wait that does not fit the step clock (`stepGate`). Without `FW_MEASURE_T0_MS` and `FW_WK_STEP_MIN` (local, phone) nothing is refused.
+- TS stand-ins: none. `replay.mjs` is an analysis script.
 
 ## Replay (`results/sim-retry-needs/scripts/`)
 
-`fetch.py` downloads the logs, `pieces.py` extracts per job the pass attempts and every gate decision (scroll retry, pass retry, tab wait) with its time from the step start (the `##[group]Run` line of the measure step; `tick.mjs launch` sets `FW_MEASURE_T0_MS` a few seconds later), `replay.mjs` runs the package's `afterFailure` and `tabFits` on them. Decisions found: 12 scroll retries, 8 pass retries (18 jobs), 889 tab waits. Every job ran one session (bound 2040 s).
+`fetch.py` downloads the logs, `pieces.py` extracts per job the pass attempts and every gate decision (scroll retry, pass retry, tab wait) with its time from the step start, `lean_data.py` writes `SimRetryData.lean` from `pieces.json` (`--check` compares), `replay.mjs` runs the package's `afterFailure` and `tabFits` on the decisions. Decisions: 12 scroll retries, 8 pass retries (18 jobs), 889 tab waits. Every job ran one session (bound 2040 s).
 
-| Arm | Refused green jobs | Scroll | Pass | Tab |
+| Arm (`replay.json`) | Refused | Scroll | Pass | Tab |
 |---|---|---|---|---|
-| derived needs and tab gate (deployed) | 14 | 2 | 7 | 5 |
-| derived needs, no tab gate | 9 | 2 | 7 | 0 |
-| shipped needs 589, 436 | 1 | 1 | 0 | 0 |
-| deployed, clock from the "serving" line (latest possible start) | 13 | 1 | 7 | 5 |
+| deployed (589, 436, tab gate) | 10 | 1 | 0 | 9 |
+| deployed, no tab gate | 1 | 1 | 0 | 0 |
+| best (876, 1563, tab gate) | 14 | 2 | 7 | 5 |
+| best, no tab gate | 9 | 2 | 7 | 0 |
+| best, clock from the "serving" line | 13 | 1 | 7 | 5 |
 
-Refused by the deployed gates (job, run, gate, seconds into the step): 120992312974 (40134016822, tab, 1618), 121051706071 (40153925235, tab, 1696), 121058900267 (40153925235, pass, 1092), 121060093155 (40156393010, scroll, 1467), 121082316538 (40162251194, pass, 873), 121153583929 (40171953359, pass, 984), 121153590507 (40171955521, tab, 1575), 121153604305 (40171941566, tab, 1648), 121277247653 (40229095163, pass, 733), 121279958654 (40196209240, pass, 1090), 121279959618 (40196209240, tab, 1561), 121416196352 (40271367353, pass, 1203), 121425683979 (40277972324, scroll, 1167), 121440938424 (40282951274, pass, 624). Job 121425683979 is 3 s past the 1164 s limit and is admitted with the later clock; the other 13 are refused on both clocks.
+Refused by the deployed gates (job, run, gate, seconds into the step): 120992312974 (40134016822, tab, 1618), 121051706071 (40153925235, tab, 1696), 121058900267 (40153925235, tab, 1680), 121060093155 (40156393010, scroll, 1467), 121153583929 (40171953359, tab, 1847), 121153590507 (40171955521, tab, 1575), 121153604305 (40171941566, tab, 1648), 121279958654 (40196209240, tab, 1582), 121279959618 (40196209240, tab, 1561), 121416196352 (40271367353, tab, 1566).
 
 ## Open
 
-- Whether 14% refused green jobs is an acceptable price for the bound is a lead decision. Cheaper options, not built: cap the tab wait to the time left instead of refusing it (the 5 tab refusals were navigations that took seconds); shorten the seek tail; gate per step instead of per pass.
-- The wk-sim-hang note's Lean paragraph ("The deployed needs do not meet runPass_stop_le's premise") is outdated by this task; that note is outside this task's writes.
-- `perSessionMin` unchanged: no theorem here needs it.
+- The tab gate at 480 s refuses 9 green jobs (their navigations took seconds). By the lead's rule for the needs it costs more than it saves. Choices for the lead: drop the tab gate (1 refused, the tab wait then has no model term in the gate), or cap the wait to the time left instead of refusing it (new mechanism, not built).
+- The wk-sim-hang note's Lean paragraph is outside this task's writes (follow-up).
+- `perSessionMin` unchanged.
