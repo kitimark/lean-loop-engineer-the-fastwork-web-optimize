@@ -1,8 +1,5 @@
-// Host load stamp: written at the start and the end of every pass (outside the timed window) so a count that comes out
-// quarantined can be checked against how busy the Mac was, and so the host gate (sim-host.mjs `hostOk`) can refuse a pass.
-// It reads the kernel's counters in process and starts no child: the `top -l 2` sample it replaced was a spawnSync, and on a
-// CI Simulator VM (load1 87-993 on 3 cores) `top` did not exit, so the whole event loop, the stall watchdog included, stood
-// still for 18-23 minutes (run 40282962088, jobs sim-r1 and sim-r3; research/notes/2026/10-2x-wk-sim-hang.md).
+// Host load stamp at the start and end of every pass; the host gate (sim-host.mjs) reads it. It reads kernel counters in
+// process and starts no child: the `top` call it replaced stopped the event loop for 1399 s on a loaded CI VM (research/notes/2026/10-2x-wk-sim-hang.md).
 import os from 'node:os';
 
 /** Idle and total CPU time (ms, summed over cores) since boot. */
