@@ -335,6 +335,104 @@ theorem tickBlocked_late {tick since : Nat} (hp : 0 < tick) (h : 2 * tick ≤ si
 theorem tickBlocked_no_tick (since : Nat) : tickBlocked 0 since = false := by
   unfold tickBlocked; simp
 
+/-! ## Upload cadence of a Simulator job (task `macos-vm-upload`) -/
+
+/-- Upload tick steps in `webkit-sim.yml`. -/
+def tickSteps : Nat := 8
+
+/-- Periodic ticks that fit inside one measuring step. -/
+def periodicTicks : Nat := 4
+
+/-- Passes one determinism session writes (`--runs 2`). -/
+def passesPerSession : Nat := 2
+
+/-- Minutes one tick upload may take. -/
+def tickUploadMin : Nat := 2
+
+/-- Minutes between two periodic probe uploads for a measuring step of `step` minutes. -/
+def tickPeriodMin (step : Nat) : Nat := step / (periodicTicks + 1)
+
+/-- Seconds between two periodic probe uploads. -/
+def tickPeriodS (step : Nat) : Nat := 60 * tickPeriodMin step
+
+/-- Why a tick step stops waiting. -/
+inductive Why where
+  | done
+  | deadline
+  | pass
+  | period
+deriving DecidableEq, Repr
+
+/-- The wire name of a wake reason. -/
+def Why.name : Why → String
+  | .done => "done"
+  | .deadline => "deadline"
+  | .pass => "pass"
+  | .period => "period"
+
+/-- A tick step wakes when the measurement ended, its step bound is reached, a pass file is new, or the period since the last upload passed; the first
+reason in this order wins. -/
+def wakeWhy (elapsedS sinceS periodS stepS fresh : Nat) (done : Bool) : Option Why :=
+  if done then some .done
+  else if stepS ≤ elapsedS then some .deadline
+  else if 0 < fresh then some .pass
+  else if periodS ≤ sinceS then some .period
+  else none
+
+theorem wakeWhy_done (e s p t f : Nat) : wakeWhy e s p t f true = some .done := by
+  simp [wakeWhy]
+
+theorem wakeWhy_deadline {e s p t f : Nat} (h : t ≤ e) : wakeWhy e s p t f false = some .deadline := by
+  simp [wakeWhy, h]
+
+theorem wakeWhy_pass {e s p t f : Nat} (h : e < t) (hf : 0 < f) : wakeWhy e s p t f false = some .pass := by
+  simp [wakeWhy, Nat.not_le.2 h, hf]
+
+theorem wakeWhy_period {e s p t : Nat} (h : e < t) (hs : p ≤ s) : wakeWhy e s p t 0 false = some .period := by
+  simp [wakeWhy, Nat.not_le.2 h, hs]
+
+theorem wakeWhy_none {e s p t : Nat} (h : e < t) (hs : s < p) : wakeWhy e s p t 0 false = none := by
+  simp [wakeWhy, Nat.not_le.2 h, Nat.not_le.2 hs]
+
+theorem tickPeriod_le (step : Nat) : tickPeriodMin step ≤ step := by
+  unfold tickPeriodMin periodicTicks; omega
+
+theorem periodic_ticks_inside {step : Nat} (h : 1 ≤ step) : periodicTicks * tickPeriodMin step < step := by
+  unfold tickPeriodMin periodicTicks; omega
+
+theorem last_tick_lands_in_step {step : Nat} (h : 10 ≤ step) :
+    periodicTicks * tickPeriodMin step + tickUploadMin ≤ step := by
+  unfold tickPeriodMin periodicTicks tickUploadMin; omega
+
+theorem two_periodic_ticks {step : Nat} (h : 5 ≤ step) :
+    0 < tickPeriodMin step ∧ tickPeriodMin step < 2 * tickPeriodMin step ∧ 2 * tickPeriodMin step < step ∧ 2 ≤ periodicTicks := by
+  unfold tickPeriodMin periodicTicks; omega
+
+/-- **A telemetry upload lands before the job cap.** The first periodic upload of any measuring step ends before the job's timeout, with the tail still ahead. -/
+theorem first_upload_before_cap (e : String) (k : Nat) :
+    Fw.Measure.SimBound.setupMin + tickPeriodMin (Fw.Measure.SimBound.stepMin e k) + tickUploadMin <
+      Fw.Measure.SimBound.jobMin e k := by
+  have := tickPeriod_le (Fw.Measure.SimBound.stepMin e k)
+  unfold Fw.Measure.SimBound.jobMin Fw.Measure.SimBound.tailMin tickUploadMin
+  omega
+
+/-- **The last periodic upload also ends inside the measuring step** for every allowed session count and for the quiet experiment. -/
+theorem last_upload_before_step_end (k : Nat) (h : 1 ≤ k) :
+    periodicTicks * tickPeriodMin (Fw.Measure.SimBound.stepMin "determinism" k) + tickUploadMin ≤ Fw.Measure.SimBound.stepMin "determinism" k := by
+  apply last_tick_lands_in_step
+  rw [Fw.Measure.SimBound.stepMin_determinism]
+  unfold Fw.Measure.SimBound.perSessionMin; omega
+
+theorem last_upload_before_quiet_end :
+    periodicTicks * tickPeriodMin (Fw.Measure.SimBound.stepMin "quiet" 1) + tickUploadMin ≤ Fw.Measure.SimBound.stepMin "quiet" 1 := by
+  decide
+
+/-- **One session fits its ticks.** The periodic ticks, one wake per pass and the wake at the end need no more steps than the workflow has. -/
+theorem ticks_cover_one_session : periodicTicks + passesPerSession + 1 ≤ tickSteps := by decide
+
+#guard tickPeriodMin 35 == 7 && tickPeriodS 35 == 420 && tickPeriodMin 70 == 14 && tickPeriodMin 50 == 10
+#guard (wakeWhy 0 0 420 2100 0 false).isNone && wakeWhy 420 420 420 2100 0 false == some .period
+
 end Fw.Ci.Telemetry
 
 namespace Fw.Wire.Ci.Telemetry
@@ -563,11 +661,26 @@ def opHostCall (req : Json) : Except String Reply := do
     pure [("lagMs", toJson (lagMs t s)), ("blocked", Json.bool (tickBlocked t s))]
   | w => throw s!"unknown what {w}"
 
+def opUpload (req : Json) : Except String Reply := do
+  match ← str req "upload" with
+  | "period" =>
+    let step ← nat req "stepMin"
+    let p := tickPeriodMin step
+    pure [("periodMin", toJson p), ("periodS", toJson (tickPeriodS step)), ("tickSteps", toJson tickSteps),
+      ("atMin", toJson ((List.range periodicTicks).map fun i => (i + 1) * p))]
+  | "wake" =>
+    let w := wakeWhy (← nat req "elapsedS") (← nat req "sinceS") (← nat req "periodS") (← nat req "stepS") (← nat req "fresh") (← asBool "done" (← field req "done"))
+    pure [("wake", Json.bool w.isSome), ("why", Json.str (match w with | some y => y.name | none => "none"))]
+  | w => throw s!"unknown upload {w}"
+
 def ops : List String := ["ci.telemetry"]
 
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
-  | "ci.telemetry" => some (match opt req "what" with | some _ => opHostCall req | none => opTelemetry req)
+  | "ci.telemetry" => some (match opt req "what", opt req "upload" with
+      | some _, _ => opHostCall req
+      | none, some _ => opUpload req
+      | none, none => opTelemetry req)
   | _ => none
 
 
@@ -670,13 +783,41 @@ def hostCases (_ : Unit := ()) : List (String × Json) :=
    ("lag: no tick period is never blocked", hostReq "lag" [("tickMs", 0), ("sinceMs", 100)]),
    ("an unknown what is refused", Json.mkObj [("op", Json.str "ci.telemetry"), ("what", Json.str "nope")])]
 
+def uploadReq (kind : String) (fs : List (String × Json)) : Json :=
+  Json.mkObj ([("op", Json.str "ci.telemetry"), ("upload", Json.str kind)] ++ fs)
+
+def wakeReq (elapsed since period step fresh : Nat) (done : Bool) : Json :=
+  uploadReq "wake" [("elapsedS", toJson elapsed), ("sinceS", toJson since), ("periodS", toJson period), ("stepS", toJson step),
+    ("fresh", toJson fresh), ("done", Json.bool done)]
+
+def uploadCases (_ : Unit := ()) : List (String × Json) :=
+  [("upload period: one session (35 min) ticks every 7 min", uploadReq "period" [("stepMin", toJson 35)]),
+   ("upload period: two sessions (70 min) ticks every 14 min", uploadReq "period" [("stepMin", toJson 70)]),
+   ("upload period: the quiet experiment (50 min) ticks every 10 min", uploadReq "period" [("stepMin", toJson 50)]),
+   ("upload period: a 4-minute step has no whole minute period", uploadReq "period" [("stepMin", toJson 4)]),
+   ("upload wake: nothing new and the period not over keeps waiting", wakeReq 100 100 420 2100 0 false),
+   ("upload wake: the period over wakes", wakeReq 420 420 420 2100 0 false),
+   ("upload wake: one second short of the period keeps waiting", wakeReq 419 419 420 2100 0 false),
+   ("upload wake: a new pass file wakes before the period", wakeReq 100 100 420 2100 1 false),
+   ("upload wake: the measurement ended wakes", wakeReq 100 100 420 2100 0 true),
+   ("upload wake: the end wins over a new pass", wakeReq 100 100 420 2100 2 true),
+   ("upload wake: the step bound wakes a waiting tick", wakeReq 2100 0 420 2100 0 false),
+   ("upload wake: the step bound wins over a new pass", wakeReq 2100 0 420 2100 1 false),
+   ("upload: an unknown kind is refused", uploadReq "nope" [])]
+
+def replyOf (req : Json) : Except String Reply :=
+  match opt req "what", opt req "upload" with
+  | some _, _ => opHostCall req
+  | none, some _ => opUpload req
+  | none, none => opTelemetry req
+
 def replyJson (req : Json) : Json :=
-  match (match opt req "what" with | some _ => opHostCall req | none => opTelemetry req) with
+  match replyOf req with
   | .ok f => Json.mkObj f
   | .error e => Json.mkObj [("error", .str e)]
 
 def goldenText (_ : Unit := ()) : String :=
-  String.join ((cases ++ hostCases).map fun (n, rq) => (Json.mkObj [("name", .str n), ("request", rq), ("response", replyJson rq)]).compress ++ "\n")
+  String.join ((cases ++ hostCases ++ uploadCases).map fun (n, rq) => (Json.mkObj [("name", .str n), ("request", rq), ("response", replyJson rq)]).compress ++ "\n")
 
 def goldenPath : System.FilePath := "../packages/contracts/golden/ci/telemetry.jsonl"
 

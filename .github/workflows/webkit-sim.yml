@@ -282,6 +282,8 @@ jobs:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
       FW_SIM_NAME: fw-iphone-27
+      # the measuring step's bound in minutes (Lean Fw.Measure.SimBound.stepMin via the plan): the tick steps' period and deadline
+      FW_TICK_STEP_MIN: ${{ needs.plan.outputs.step_min }}
     steps:
       - name: 'tip re-check'
         id: tip
@@ -396,8 +398,9 @@ jobs:
           # telemetry (task ci-telemetry): the boot time of this Simulator, whole seconds
           node scripts/ci-telemetry/cli.mjs sim-boot-ms $(( ($(date +%s) - boot_from) * 1000 )) || true
 
-      - name: Determinism sessions
-        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}   # Lean: Fw.Measure.SimBound.stepMin, via the plan
+      # The measuring step runs in the background (own process group) so that tick steps can upload while it runs: a job lost or stopped at its cap
+      # then still leaves every finished pass and the telemetry probes (task macos-vm-upload; Lean Fw.Ci.Telemetry.wakeWhy, tickPeriodMin).
+      - name: Determinism sessions (start in the background)
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           SESSIONS: ${{ inputs.sessions || '1' }}
@@ -437,6 +440,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out
+          body="$RUNNER_TEMP/measure-body.sh"
+          cat > "$body" <<'BODY'
+          set -euo pipefail
           # rewrite arm: --site serves the prerendered build at the planned query (empty = default config) instead of the snapshot
           site=()
           if [ "$ARM" = rewrite ]; then site=(--site "$SITE_DIR" --search "$SEARCH"); fi
@@ -458,6 +464,117 @@ jobs:
             node src/cli.mjs determinism --runs 2 $keep ${site[@]+"${site[@]}"} --out "out/$VM-session-$s.json" 2> >(tee "out/$VM-session-$s.log" >&2) | tee "out/$VM-session-$s.md"
           done
           ls -l out
+          BODY
+          node ../../scripts/ci-telemetry/tick.mjs launch -- bash "$body"
+
+      - name: 'Upload tick 1: wait for a new pass, the period or the end'
+        id: tick1
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick1.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-1
+          path: ${{ runner.temp }}/fw-measure/tick/1
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 2: wait for a new pass, the period or the end'
+        id: tick2
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick2.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-2
+          path: ${{ runner.temp }}/fw-measure/tick/2
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 3: wait for a new pass, the period or the end'
+        id: tick3
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 3
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick3.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-3
+          path: ${{ runner.temp }}/fw-measure/tick/3
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 4: wait for a new pass, the period or the end'
+        id: tick4
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick4.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-4
+          path: ${{ runner.temp }}/fw-measure/tick/4
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 5: wait for a new pass, the period or the end'
+        id: tick5
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 5
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick5.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-5
+          path: ${{ runner.temp }}/fw-measure/tick/5
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 6: wait for a new pass, the period or the end'
+        id: tick6
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick6.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-6
+          path: ${{ runner.temp }}/fw-measure/tick/6
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 7: wait for a new pass, the period or the end'
+        id: tick7
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick7.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-7
+          path: ${{ runner.temp }}/fw-measure/tick/7
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: 'Upload tick 8: wait for a new pass, the period or the end'
+        id: tick8
+        continue-on-error: true
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}
+        run: node scripts/ci-telemetry/tick.mjs wait 8
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ steps.tick8.outputs.stage == 'yes' }}
+        continue-on-error: true
+        with:
+          name: sim-tick-${{ matrix.vm }}-8
+          path: ${{ runner.temp }}/fw-measure/tick/8
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Determinism sessions
+        timeout-minutes: ${{ fromJSON(needs.plan.outputs.step_min) }}   # Lean: Fw.Measure.SimBound.stepMin, via the plan
+        run: node scripts/ci-telemetry/tick.mjs await
 
       # The within-VM class tables are made by the merge job: pairing rows is fwcore's (Lean) and this job has no Linux binary.
 
