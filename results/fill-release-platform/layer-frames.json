@@ -1,0 +1,462 @@
+{
+ "base": [
+  {
+   "path": "base/chromium-counts-rewrite-r1/counts.json",
+   "search": "",
+   "end": 574,
+   "frames": 771,
+   "spans": [
+    {
+     "name": "approach",
+     "census.layers": 5445,
+     "census.drawingLayers": 5214,
+     "census.drawingAreaPx": 476827287,
+     "census.tiles": 5716,
+     "census.activeTiles": 4525
+    },
+    {
+     "name": "end 0-19",
+     "census.layers": 4508,
+     "census.drawingLayers": 4375,
+     "census.drawingAreaPx": 273429774,
+     "census.tiles": 4688,
+     "census.activeTiles": 3374
+    },
+    {
+     "name": "end 20-59",
+     "census.layers": 9607,
+     "census.drawingLayers": 9327,
+     "census.drawingAreaPx": 606320030,
+     "census.tiles": 10526,
+     "census.activeTiles": 6766
+    },
+    {
+     "name": "end 60-119",
+     "census.layers": 14280,
+     "census.drawingLayers": 13860,
+     "census.drawingAreaPx": 911225460,
+     "census.tiles": 15480,
+     "census.activeTiles": 9840
+    },
+    {
+     "name": "end 120+",
+     "census.layers": 11186,
+     "census.drawingLayers": 10857,
+     "census.drawingAreaPx": 713793277,
+     "census.tiles": 12126,
+     "census.activeTiles": 7708
+    },
+    {
+     "name": "finish",
+     "census.layers": 45026,
+     "census.drawingLayers": 43633,
+     "census.drawingAreaPx": 2981595828,
+     "census.tiles": 48536,
+     "census.activeTiles": 32213
+    },
+    {
+     "name": "tail",
+     "lo": 741,
+     "hi": 771,
+     "census.layers": 7140,
+     "census.drawingLayers": 6930,
+     "census.drawingAreaPx": 455612730,
+     "census.tiles": 7740,
+     "census.activeTiles": 4920
+    },
+    {
+     "name": "whole",
+     "lo": 0,
+     "hi": 771,
+     "census.layers": 125024,
+     "census.drawingLayers": 119045,
+     "census.drawingAreaPx": 9197428258,
+     "census.tiles": 141317,
+     "census.activeTiles": 93415
+    }
+   ]
+  },
+  {
+   "path": "base/chromium-counts-rewrite-r2/counts.json",
+   "search": "",
+   "end": 574,
+   "frames": 771,
+   "spans": [
+    {
+     "name": "approach",
+     "census.layers": 5445,
+     "census.drawingLayers": 5214,
+     "census.drawingAreaPx": 476827287,
+     "census.tiles": 5716,
+     "census.activeTiles": 4525
+    },
+    {
+     "name": "end 0-19",
+     "census.layers": 4509,
+     "census.drawingLayers": 4376,
+     "census.drawingAreaPx": 273432480,
+     "census.tiles": 4688,
+     "census.activeTiles": 3374
+    },
+    {
+     "name": "end 20-59",
+     "census.layers": 9607,
+     "census.drawingLayers": 9327,
+     "census.drawingAreaPx": 606320030,
+     "census.tiles": 10526,
+     "census.activeTiles": 6766
+    },
+    {
+     "name": "end 60-119",
+     "census.layers": 14280,
+     "census.drawingLayers": 13860,
+     "census.drawingAreaPx": 911225460,
+     "census.tiles": 15480,
+     "census.activeTiles": 9840
+    },
+    {
+     "name": "end 120+",
+     "census.layers": 11186,
+     "census.drawingLayers": 10857,
+     "census.drawingAreaPx": 713793277,
+     "census.tiles": 12126,
+     "census.activeTiles": 7708
+    },
+    {
+     "name": "finish",
+     "census.layers": 45027,
+     "census.drawingLayers": 43634,
+     "census.drawingAreaPx": 2981598534,
+     "census.tiles": 48536,
+     "census.activeTiles": 32213
+    },
+    {
+     "name": "tail",
+     "lo": 741,
+     "hi": 771,
+     "census.layers": 7140,
+     "census.drawingLayers": 6930,
+     "census.drawingAreaPx": 455612730,
+     "census.tiles": 7740,
+     "census.activeTiles": 4920
+    },
+    {
+     "name": "whole",
+     "lo": 0,
+     "hi": 771,
+     "census.layers": 125025,
+     "census.drawingLayers": 119047,
+     "census.drawingAreaPx": 9199475096,
+     "census.tiles": 141322,
+     "census.activeTiles": 93420
+    }
+   ]
+  },
+  {
+   "path": "base/chromium-counts-rewrite-r3/counts.json",
+   "search": "",
+   "end": 574,
+   "frames": 771,
+   "spans": [
+    {
+     "name": "approach",
+     "census.layers": 5445,
+     "census.drawingLayers": 5214,
+     "census.drawingAreaPx": 476827287,
+     "census.tiles": 5716,
+     "census.activeTiles": 4525
+    },
+    {
+     "name": "end 0-19",
+     "census.layers": 4508,
+     "census.drawingLayers": 4375,
+     "census.drawingAreaPx": 273429774,
+     "census.tiles": 4688,
+     "census.activeTiles": 3374
+    },
+    {
+     "name": "end 20-59",
+     "census.layers": 9606,
+     "census.drawingLayers": 9326,
+     "census.drawingAreaPx": 606317324,
+     "census.tiles": 10526,
+     "census.activeTiles": 6766
+    },
+    {
+     "name": "end 60-119",
+     "census.layers": 14280,
+     "census.drawingLayers": 13860,
+     "census.drawingAreaPx": 911225460,
+     "census.tiles": 15480,
+     "census.activeTiles": 9840
+    },
+    {
+     "name": "end 120+",
+     "census.layers": 11186,
+     "census.drawingLayers": 10857,
+     "census.drawingAreaPx": 713793277,
+     "census.tiles": 12126,
+     "census.activeTiles": 7708
+    },
+    {
+     "name": "finish",
+     "census.layers": 45025,
+     "census.drawingLayers": 43632,
+     "census.drawingAreaPx": 2981593122,
+     "census.tiles": 48536,
+     "census.activeTiles": 32213
+    },
+    {
+     "name": "tail",
+     "lo": 741,
+     "hi": 771,
+     "census.layers": 7140,
+     "census.drawingLayers": 6930,
+     "census.drawingAreaPx": 455612730,
+     "census.tiles": 7740,
+     "census.activeTiles": 4920
+    },
+    {
+     "name": "whole",
+     "lo": 0,
+     "hi": 771,
+     "census.layers": 125023,
+     "census.drawingLayers": 119045,
+     "census.drawingAreaPx": 9199469684,
+     "census.tiles": 141312,
+     "census.activeTiles": 93412
+    }
+   ]
+  }
+ ],
+ "fill-release": [
+  {
+   "path": "flag/chromium-counts-f1-r1/counts.json",
+   "search": "?fw=platform.entries:fill-release",
+   "end": 574,
+   "frames": 771,
+   "spans": [
+    {
+     "name": "approach",
+     "census.layers": 5004,
+     "census.drawingLayers": 4773,
+     "census.drawingAreaPx": 457725719,
+     "census.tiles": 5445,
+     "census.activeTiles": 4248
+    },
+    {
+     "name": "end 0-19",
+     "census.layers": 4227,
+     "census.drawingLayers": 4094,
+     "census.drawingAreaPx": 265120370,
+     "census.tiles": 4502,
+     "census.activeTiles": 3268
+    },
+    {
+     "name": "end 20-59",
+     "census.layers": 8859,
+     "census.drawingLayers": 8579,
+     "census.drawingAreaPx": 572607400,
+     "census.tiles": 9667,
+     "census.activeTiles": 6766
+    },
+    {
+     "name": "end 60-119",
+     "census.layers": 13080,
+     "census.drawingLayers": 12660,
+     "census.drawingAreaPx": 846659100,
+     "census.tiles": 13800,
+     "census.activeTiles": 9840
+    },
+    {
+     "name": "end 120+",
+     "census.layers": 10246,
+     "census.drawingLayers": 9917,
+     "census.drawingAreaPx": 663216295,
+     "census.tiles": 10810,
+     "census.activeTiles": 7708
+    },
+    {
+     "name": "finish",
+     "census.layers": 41416,
+     "census.drawingLayers": 40023,
+     "census.drawingAreaPx": 2805328884,
+     "census.tiles": 44224,
+     "census.activeTiles": 31830
+    },
+    {
+     "name": "tail",
+     "lo": 741,
+     "hi": 771,
+     "census.layers": 6540,
+     "census.drawingLayers": 6330,
+     "census.drawingAreaPx": 423329550,
+     "census.tiles": 6900,
+     "census.activeTiles": 4920
+    },
+    {
+     "name": "whole",
+     "lo": 0,
+     "hi": 771,
+     "census.layers": 119840,
+     "census.drawingLayers": 113861,
+     "census.drawingAreaPx": 8909185348,
+     "census.tiles": 135847,
+     "census.activeTiles": 92716
+    }
+   ]
+  },
+  {
+   "path": "flag/chromium-counts-f1-r2/counts.json",
+   "search": "?fw=platform.entries:fill-release",
+   "end": 574,
+   "frames": 771,
+   "spans": [
+    {
+     "name": "approach",
+     "census.layers": 5007,
+     "census.drawingLayers": 4776,
+     "census.drawingAreaPx": 457924955,
+     "census.tiles": 5453,
+     "census.activeTiles": 4256
+    },
+    {
+     "name": "end 0-19",
+     "census.layers": 4174,
+     "census.drawingLayers": 4041,
+     "census.drawingAreaPx": 262549382,
+     "census.tiles": 4502,
+     "census.activeTiles": 3268
+    },
+    {
+     "name": "end 20-59",
+     "census.layers": 8739,
+     "census.drawingLayers": 8459,
+     "census.drawingAreaPx": 566888080,
+     "census.tiles": 9667,
+     "census.activeTiles": 6766
+    },
+    {
+     "name": "end 60-119",
+     "census.layers": 12900,
+     "census.drawingLayers": 12480,
+     "census.drawingAreaPx": 838080120,
+     "census.tiles": 13800,
+     "census.activeTiles": 9840
+    },
+    {
+     "name": "end 120+",
+     "census.layers": 10105,
+     "census.drawingLayers": 9776,
+     "census.drawingAreaPx": 656496094,
+     "census.tiles": 10810,
+     "census.activeTiles": 7708
+    },
+    {
+     "name": "finish",
+     "census.layers": 40925,
+     "census.drawingLayers": 39532,
+     "census.drawingAreaPx": 2781938631,
+     "census.tiles": 44232,
+     "census.activeTiles": 31838
+    },
+    {
+     "name": "tail",
+     "lo": 741,
+     "hi": 771,
+     "census.layers": 6450,
+     "census.drawingLayers": 6240,
+     "census.drawingAreaPx": 419040060,
+     "census.tiles": 6900,
+     "census.activeTiles": 4920
+    },
+    {
+     "name": "whole",
+     "lo": 0,
+     "hi": 771,
+     "census.layers": 119259,
+     "census.drawingLayers": 113280,
+     "census.drawingAreaPx": 8881505605,
+     "census.tiles": 135855,
+     "census.activeTiles": 92724
+    }
+   ]
+  },
+  {
+   "path": "flag/chromium-counts-f1-r3/counts.json",
+   "search": "?fw=platform.entries:fill-release",
+   "end": 574,
+   "frames": 771,
+   "spans": [
+    {
+     "name": "approach",
+     "census.layers": 5007,
+     "census.drawingLayers": 4776,
+     "census.drawingAreaPx": 457924955,
+     "census.tiles": 5453,
+     "census.activeTiles": 4256
+    },
+    {
+     "name": "end 0-19",
+     "census.layers": 4174,
+     "census.drawingLayers": 4041,
+     "census.drawingAreaPx": 262549382,
+     "census.tiles": 4502,
+     "census.activeTiles": 3268
+    },
+    {
+     "name": "end 20-59",
+     "census.layers": 8739,
+     "census.drawingLayers": 8459,
+     "census.drawingAreaPx": 566888080,
+     "census.tiles": 9667,
+     "census.activeTiles": 6766
+    },
+    {
+     "name": "end 60-119",
+     "census.layers": 12900,
+     "census.drawingLayers": 12480,
+     "census.drawingAreaPx": 838080120,
+     "census.tiles": 13800,
+     "census.activeTiles": 9840
+    },
+    {
+     "name": "end 120+",
+     "census.layers": 10105,
+     "census.drawingLayers": 9776,
+     "census.drawingAreaPx": 656496094,
+     "census.tiles": 10810,
+     "census.activeTiles": 7708
+    },
+    {
+     "name": "finish",
+     "census.layers": 40925,
+     "census.drawingLayers": 39532,
+     "census.drawingAreaPx": 2781938631,
+     "census.tiles": 44232,
+     "census.activeTiles": 31838
+    },
+    {
+     "name": "tail",
+     "lo": 741,
+     "hi": 771,
+     "census.layers": 6450,
+     "census.drawingLayers": 6240,
+     "census.drawingAreaPx": 419040060,
+     "census.tiles": 6900,
+     "census.activeTiles": 4920
+    },
+    {
+     "name": "whole",
+     "lo": 0,
+     "hi": 771,
+     "census.layers": 119252,
+     "census.drawingLayers": 113275,
+     "census.drawingAreaPx": 8882885685,
+     "census.tiles": 135856,
+     "census.activeTiles": 92725
+    }
+   ]
+  }
+ ]
+}

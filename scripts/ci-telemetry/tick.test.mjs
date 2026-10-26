@@ -122,6 +122,15 @@ test("launch runs the command in the background, records its exit code and conso
   assert.match(text, /oops/);
 });
 
+test("launch gives the child the launch time as FW_MEASURE_T0_MS, the clock of the retry gate", async () => {
+  const dir = scratch();
+  launch(dir, ["sh", "-c", 'echo "t0=$FW_MEASURE_T0_MS"']);
+  const lines = [];
+  await awaitRun({ dir, stepS: 60, pollMs: 50, write: (s) => lines.push(s) });
+  const t0 = Number(/t0=(\d+)/.exec(lines.join(""))?.[1]);
+  assert.equal(t0, Number(readFileSync(join(dir, "t0"), "utf8")));
+});
+
 test("awaitRun stops the process group at the step bound and returns 124", async () => {
   const dir = scratch();
   launch(dir, ["sh", "-c", "sleep 30"]);

@@ -14,7 +14,7 @@ import sw from './sweep.module.css';
 import st from './stage.module.css';
 import { Ask, Invoice, Profile, Secure, type Subs } from './Visuals';
 import { VARIANT as SWEEP_PAUSE, watchSweepPause } from '../platform.sweep/pause';
-import { VARIANT as SWEEP_LAYER } from '../platform.sweep/layer';
+import { VARIANT as SWEEP_LAYER, watchLayerWidth } from '../platform.sweep/layer';
 
 export interface PlatformSubVariants {
   sweep?: string;
@@ -92,7 +92,8 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   const sweepLayer = sub.sweep === SWEEP_LAYER;
   const sweep = faithful(sub.sweep) || sweepPause ? sw.sweep : sub.sweep === 'probe-off' ? cx(sw.sweep, sw.still) : sweepLayer ? cx(sw.sweep, sw.layer) : undefined;
   const layerBg = sweepLayer ? <i className={sw.layerBg} aria-hidden="true" /> : null;
-  const subs: Subs = { entries: faithful(sub.entries), glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
+  const entriesFill = sub.entries === 'fill-release';
+  const subs: Subs = { entries: faithful(sub.entries) || entriesFill, entriesFill, glint: faithful(sub.glint) || sub.glint === 'offscreen-pause', glintPause: sub.glint === 'offscreen-pause', marquee: faithful(sub.marquee) };
 
   useEffect(() => {
     const sec = section.current;
@@ -149,6 +150,12 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
     if (!sweepPause || !sec) return;
     return watchSweepPause([...sec.querySelectorAll(`.${sw.sweep}`)]);
   }, [sweepPause]);
+
+  useEffect(() => {
+    const sec = section.current;
+    if (!sweepLayer || !sec) return;
+    return watchLayerWidth([...sec.querySelectorAll<HTMLElement>(`.${sw.layer}`)]);
+  }, [sweepLayer]);
 
   return (
     <section ref={section} id="platform" className={css.section} data-fw="platform" data-fw-variant={variant} aria-labelledby="built-heading">

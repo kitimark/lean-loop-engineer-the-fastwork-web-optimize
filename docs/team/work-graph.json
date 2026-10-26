@@ -9560,8 +9560,13 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
-   ]
+    ".github/workflows/lean.yml",
+    "apps/site/src/parts/platform.entries/fill.test.ts",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/PlatformEntriesFillGolden.lean",
+    "research/findings/ledger.json"
+   ],
+   "evidence": "2997bc3"
   },
   {
    "devices": [
@@ -22230,7 +22235,8 @@
     "research/notes/2026/10-2x-platform-sweep-layer.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/layer-sweep-webkit-n3.md"
-   ]
+   ],
+   "evidence": "24e016e"
   },
   {
    "devices": [
@@ -22256,8 +22262,16 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "research/notes/2026/10-2x-morph-end-nobounce.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/morph-end-nobounce.md"
-   ]
+    "docs/team/handoffs/morph-end-nobounce.md",
+    "apps/site/src/App.tsx",
+    "apps/site/src/registry/index.ts",
+    "apps/site/src/styles/reset.css",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/measure-webkit/src/throttle/toolbar-report.mjs",
+    "packages/measure-webkit/src/throttle/toolbar.mjs",
+    "packages/measure-webkit/test/throttle-toolbar.test.mjs"
+   ],
+   "evidence": "697fb32"
   },
   {
    "devices": [
@@ -22267,7 +22281,9 @@
    "owner": "part-builder",
    "stream": "parts",
    "deps": [
-    "morph-end-nobounce"
+    "morph-end-nobounce",
+    "gate-replaced-parts",
+    "window-own-end"
    ],
    "title": "End-of-page scroll design rank 1 (research/notes/2026/10-26-end-scroll-designs.md): flag morph.stage, replace the end-of-page scroll-jack (two non-passive touch/wheel capture pairs, the per-frame scrollTo pin, the 680 ms rAF tween with 3 MutationObservers) by a sticky stage: a track of T px after the platform with the scene position: sticky (UI-process scrolling-tree node), and --morph on animation-timeline: scroll(root) over [maxY-T, maxY]; discrete states (data-fw-morph classes, POINTER_CUT, ACTIVE_CUT, FADE_END) from the same progress. Look change L (the morph follows the finger over T px instead of a timed 680 ms play), user visual review, never a preset. Lean first: ranges, keyframes equal to the tween's end states, the state cuts as functions of progress, no scrollTo and no non-passive listener under the flag (theorems + golden). Measure: Simulator toolbar lane (reversals, re-opens, pin writes, slow-frame share by cycle), WebKit Simulator zones (3 VMs, Lean minVms), Chromium windows (Lean reader), breakpoint gate both engines; T chosen from the Lean model and the user's review.",
    "writes": [
@@ -22287,7 +22303,11 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "research/notes/2026/10-2x-morph-stage.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/morph-stage.md"
+    "docs/team/handoffs/morph-stage.md",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json"
    ]
   },
   {
@@ -22319,8 +22339,13 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
-    "research/findings/ledger.json"
-   ]
+    "research/findings/ledger.json",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json"
+   ],
+   "evidence": "9a29be0"
   },
   {
    "devices": [
@@ -22347,7 +22372,14 @@
     "lean/Fw/Gate/FlagDelta.lean",
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs",
-    "research/findings/ledger.json"
+    "research/findings/ledger.json",
+    "apps/site/src/parts/platform/index.tsx",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "packages/premise-tests/**",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl"
    ]
   },
   {
@@ -22441,6 +22473,138 @@
     "docs/team/handoffs/faithful-empty-guard.md"
    ],
    "evidence": "f4369b9"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wk-sim-hang",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "webkit-sim loses VMs in Determinism sessions (19% of 134 sim jobs over 10-24..26, 45% on 10-26; diagnosis: scratchpad wk-sim-hang-diagnosis.json). Causes: (a) loadStamp spawnSync('top') blocks the node event loop up to 23 min, so the stall watchdog cannot fire; (b) VM load1 87-993 on 3 cores in every job (source unknown; check leaked lsof/simctl children); (c) nested retries (scroll x pass, FW_WK_ATTEMPTS 3) plus 480 s Safari-tab waits overrun the 35 min bound. Fix: non-blocking load stamp; find and remove the load source; Lean retryFits (both retry levels and the tab wait, worst-case end <= bound) and a host-load gate (hostOk) with golden replayed by determinism.mjs; Seen maxima with run ids. Re-measure the per-job failure rate on CI against the 19%/45% baseline.",
+   "writes": [
+    "packages/measure-webkit/src/load.mjs",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/src/guard.mjs",
+    "packages/measure-webkit/src/sim*.mjs",
+    "packages/measure-webkit/test/load*.test.mjs",
+    "packages/measure-webkit/test/determinism*.test.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/SimHost.lean",
+    "lean/Fw/Measure/SimHostGolden.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    ".github/workflows/webkit-sim.yml",
+    "scripts/ci-telemetry/tick.mjs",
+    "research/notes/2026/10-2x-wk-sim-hang.md",
+    "results/wk-sim-hang/**",
+    "docs/team/handoffs/wk-sim-hang.md",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "packages/measure-webkit/test/watchdog.test.mjs",
+    "scripts/ci-telemetry/tick.test.mjs"
+   ],
+   "evidence": "36b98f8"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "webkit-recount",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "wk-sim-hang",
+    "fill-release-platform"
+   ],
+   "title": "WebKit recount at one commit once wk-sim-hang lands: every flag left undecided below the Lean minVms 3 by lost VMs (platform.sweep:layer-sweep, platform.entries:fill-release, hero.exit:contain, platform entries and marquee probes), base and each arm 3 VMs on the webkit-sim lane, read with offscreen-webkit-cli.mjs; update each note's WebKit table and ledger webkit field.",
+   "writes": [
+    "research/notes/2026/10-2x-webkit-recount.md",
+    "research/notes/2026/10-2x-platform-sweep-layer.md",
+    "research/notes/2026/10-20-fill-release-platform.md",
+    "research/notes/2026/10-2x-platform-attribution.md",
+    "research/notes/2026/10-20-hero-relayout-boundary.md",
+    "research/findings/ledger.json",
+    "results/webkit-recount/**",
+    "docs/team/handoffs/webkit-recount.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gate-replaced-parts",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "Breakpoint gate support for a flag that replaces a part: morph.stage unmounts morph.mount and morph.tween, so their anchors are absent (count 0 vs 1) and the gate fails 28 Chromium and 24 WebKit cells (run 40339272935), while FlagDelta only excuses style properties. Add a Lean-decided replaced-part entry (flag, part, premise theorem that the part is unmounted under the flag, e.g. a jack_off_iff in the flag's own module) that excuses exactly the anchors of that part and nothing else; prove an entry never excuses another part's cell or a present anchor; golden; gate harness and tests.",
+   "writes": [
+    "lean/Fw/Gate/FlagDelta.lean",
+    "lean/Fw/Gate/Replaced*.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/contracts/golden/gate/replaced*.jsonl",
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-gate-replaced-parts.md",
+    "docs/team/handoffs/gate-replaced-parts.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "window-own-end",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Chromium window reader gives noData for every end window when a flag changes the page length: morph.stage runs end at frame 670 against 574 on base (runs 40339630528 base, 40339622735 flag). Find why in the Lean reader (Fw.Measure.OffscreenWindows, offscreen-windows.mjs; windows come from each run's end frame, so the refusal is elsewhere, e.g. a same-window rule) and fix it in Lean: compare each window relative to its own arm's end, proved to equal today's verdict when both arms end on the same frame; golden; TS reader replays it; re-read the morph.stage runs.",
+   "writes": [
+    "lean/Fw/Measure/OffscreenWindows*.lean",
+    "packages/contracts/golden/measure/offscreen-windows*.jsonl",
+    "packages/measure-chromium/src/offscreen-windows*.mjs",
+    "packages/measure-chromium/test/offscreen-windows*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-window-own-end.md",
+    "results/window-own-end/**",
+    "docs/team/handoffs/window-own-end.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-retry-needs",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "wk-sim-hang review follow-up: the shipped retry needs (SCROLL_RETRY_S 589, PASS_RETRY_S 436) do not meet runPass_stop_le's premise (inner + recon + base <= outer; outer below Seen.passS 1123), so the two-level bound holds for the model only. Derive both needs from Lean (SimHost) so the theorem's premise holds for the deployed constants, golden replayed by determinism tests; gate the Safari tab wait (navigateTab 60 s) through retryFits; replay the gate over the green sample jobs (retry start times) and report how many it would have refused.",
+   "writes": [
+    "lean/Fw/Measure/SimHost.lean",
+    "lean/Fw/Measure/SimHostGolden.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/src/sim-host.mjs",
+    "packages/measure-webkit/src/wip.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "packages/measure-webkit/test/determinism*.test.mjs",
+    "research/notes/2026/10-2x-sim-retry-needs.md",
+    "results/sim-retry-needs/**",
+    "docs/team/handoffs/sim-retry-needs.md"
+   ]
   }
  ],
  "deadline": {
