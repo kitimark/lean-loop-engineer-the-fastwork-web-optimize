@@ -24,7 +24,7 @@ export function armRow(passes) {
     total: passes.length, usable: us.length, moved,
     gestures: sum(recs.map((r) => r.gestures)), reversals: sum(recs.map((r) => r.reversals)),
     closes: sum(fs.map((f) => f.closes)), reopens: sum(fs.map((f) => f.reopens)), swaps: sum(recs.map((r) => r.swaps)),
-    onsets: sum(recs.map((r) => r.onsets)), onsetGestures: sum(recs.map((r) => r.onsetGestures)),
+    onsets: sum(recs.map((r) => r.onsets)), pins: sum(recs.map((r) => r.pins ?? 0)), onsetGestures: sum(recs.map((r) => r.onsetGestures)),
     steps: sum(fs.map((f) => f.steps)), gaps: gaps.length, medianGapCs: gaps.length ? medianCs(gaps) : null, frameCs: medianCs(recs.map((r) => r.frameCs)), lifted: stepsLifted(medianCs(recs.map((r) => r.frameCs)), gaps),
     vhMin: fs.length ? Math.min(...fs.map((f) => f.vhMin)) : null, vhMax: fs.length ? Math.max(...fs.map((f) => f.vhMax)) : null,
     peaks: recs.map((r) => r.peak), unsettled: recs.filter((r) => !r.settled).length,
@@ -52,10 +52,10 @@ export function reportMd(vms) {
     const r = rows[a];
     return `| ${a} | ${r.total} (${r.usable}) | ${r.moved} | ${r.steps} | ${per(r.steps, r.usable, 1)} | ${r.medianGapCs === null ? '-' : (r.medianGapCs / 100).toFixed(1)} | ${r.frameCs ? (r.frameCs / 100).toFixed(1) : '-'} | ${r.gaps === 0 ? '-' : r.lifted ? 'per frame' : 'throttled'} | ${r.vhMin === null ? '-' : `${px(r.vhMin)} to ${px(r.vhMax)}`} |`;
   });
-  const h2 = '| arm | gestures | reversals per gesture | closes per gesture | re-opens per gesture | fade onsets per gesture | gestures with an onset | lowest peak (of 1000) | passes open at the end |';
+  const h2 = '| arm | gestures | reversals per gesture | closes per gesture | re-opens per gesture | fade onsets per gesture | pin writes per gesture | gestures with an onset | lowest peak (of 1000) | passes open at the end |';
   const t2 = arms.map((a) => {
     const r = rows[a];
-    return `| ${a} | ${r.gestures} | ${per(r.reversals, r.gestures)} | ${per(r.closes, r.gestures)} | ${per(r.reopens, r.gestures)} | ${per(r.onsets, r.gestures)} | ${r.onsetGestures} / ${r.gestures} | ${r.peaks.length ? Math.min(...r.peaks) : '-'} | ${r.unsettled} |`;
+    return `| ${a} | ${r.gestures} | ${per(r.reversals, r.gestures)} | ${per(r.closes, r.gestures)} | ${per(r.reopens, r.gestures)} | ${per(r.onsets, r.gestures)} | ${per(r.pins, r.gestures)} | ${r.onsetGestures} / ${r.gestures} | ${r.peaks.length ? Math.min(...r.peaks) : '-'} | ${r.unsettled} |`;
   });
   const h3 = '| arm | passes with a whole gesture-4 window | windows without both gesture stamps (left out) | frames in the windows | Layout per frame | RecalcStyle per frame | idle requestAnimationFrame Hz (median of passes) | cost fold derived from that cadence |';
   const t3 = arms.map((a) => {
