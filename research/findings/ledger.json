@@ -4470,9 +4470,9 @@
    "visClass": "E",
    "candidate": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
    "status": "partly-proved",
-   "chromium": "not yet measured (task glint-hold-freeze, CI run ids in research/notes/2026/10-2x-glint-hold-freeze.md)",
-   "webkit": "not yet measured; WebKit Simulator runs wait for task wk-sim-hang",
-   "visual": "E (Lean PlatformGlintHold.hold_eq_faithful: the hold sample equals the original at every elapsed time)",
+   "chromium": "swipe-touch-v1, 3 runs, same commit a5e170b94: base run 40345261186, flag run 40345253392. Lean window reader: approach gain (RasterTask 236 to 225), finish gain (RasterTask 1207 to 1196), end 0-19, 20-59, 60-119, 120+ noGain (no counter differs). MEASURED",
+   "webkit": "WEBKIT_LEDGER",
+   "visual": "E (Lean PlatformGlintHold.hold_eq_faithful; look premise glint.hold-pixels run 40345059212: worst channel diff 1 on Chromium 156, 0 on WebKit 27.2, bound 12; breakpoint gate run 40345141093 pass on both engines, 0 failing items)",
    "mechanism": "INFERRED: both engines tick every active non-<set> animation on each SMIL frame; a <set> in its hold segment changes nothing, so the 3 of 5 hold segments per side spend no animated-value writes (Lean ticking_hold, ticking_le). Engine citations in the note.",
    "leanFor": [
     "Fw.Parts.PlatformGlintHold.hold_premise",
@@ -4482,16 +4482,16 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Chromium and WebKit counts; both engines' parse of the begin chain (INFERRED from probe runs)"
+    "WebKit per-zone counts (see webkit); a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), no flag path seeks backward (createPause seeks forward)"
    ],
    "premises": [
-    "the begin chain of the ring keeps one piece active at every instant in both engines: INFERRED, tested in the look premise",
+    "the begin chain of the ring keeps one piece active at every instant in both engines: MEASURED by the look premise glint.hold-pixels (run 40345059212), ids without a hyphen",
     "one SMIL clock writer (createPause) as for platform:faded-pause"
    ],
    "v1Evidence": "",
    "lesson": "A held value costs a per-frame animated-value write only while a non-<set> animation covers it; tiling the cycle with <set> pieces removes the writes without changing a pixel.",
-   "next": "counts in the task note; the user's preset decision",
-   "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md (task glint-hold-freeze)",
+   "next": "WebKit z5000 verdict in the note; the user's preset decision",
+   "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md; runs 40345059212 (premise), 40345141093 (gate), 40345261186 and 40345253392 (Chromium counts)",
    "userDecision": "pending"
   }
  ],
@@ -5173,6 +5173,11 @@
    "task": "layer-sweep-tiled",
    "field": "mechanism",
    "text": "layer-sweep-tiled (MEASURED, CI; note research/notes/2026/10-2x-layer-sweep-tiled.md): the layer now copies the original repeat tiling (two tiles of 3 word widths, background-size 50% 100%, repeat-x, translate -2w to 0) at the device-pixel word width (Lean tiled_same_look, snap_box). Premise sweep.layer-pixels at bound 12 still fails (runs 40334403316, 40335144234): WebKit inside the word is within 2, its 35 is one pixel at the page origin that only the original draws (run 40336086853 corner split); Chromium keeps 33 at column x=526 (last glyph edge) at progress 0 only: it survives the tiling, snapped width, will-change auto, overflow clip, clip-path and a flat white gradient, and the original alpha ratio 0.57 equals the fraction of an unsnapped 3w tile end (INFERRED). Class stays L. Gate both engines pass (40335795674). Chromium counts unchanged (base 40335918249, arm 40335928775: approach gain, end windows no-gain by Paint +1). WebKit counts not run: waiting for wk-sim-hang."
+  },
+  {
+   "task": "glint-hold-freeze",
+   "field": "mechanism",
+   "text": "glint-hold-freeze (MEASURED, CI; note research/notes/2026/10-2x-glint-hold-freeze.md): the look premise glint.hold-pixels (run 40345059212) found that ring ids with a hyphen leave every piece after the first unresolved in both engines (the dash never moved after segment 0); ids are now letters and digits. With them the ring is within 1 of 255 of the original on Chromium and 0 on WebKit at 30 forward-seeked times. A backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235) and right in WebKit; no flag path seeks backward (createPause seeks to read plus paused time). Gate both engines pass (40345141093). Chromium counts (base 40345261186, flag 40345253392): approach and finish gain by RasterTask about 5 percent, end windows noGain."
   }
  ]
 }

@@ -1,7 +1,8 @@
-branch: worktree-wf_8596d321-474-1; worktree: .claude/worktrees/wf_8596d321-474-1; last commit a5e170b94 (pushed to ci/glint-hold-freeze, push 1 of 2 this session, message carries [ci:premise-tests])
-runs: premise-tests (push run of a5e170b94): id pending; gate, chromium base, chromium flag: being dispatched (ids below when filed)
-verified: look premise glint.hold-pixels passes locally on Chromium 155 (worst 1) and WebKit 27.2 (worst 0), debug only (not a result). Found and fixed: ring ids with hyphens (secure-network-dash-left-X1S0) left every piece after the first unresolved in both engines; ids are now fwglint<side>X1S0. Backward seek into segment 0 after the first cycle is wrong in Chromium (diff 235); no flag path seeks backward (createPause seeks to read + paused time), so recorded, not judged.
-open: CI ids; WebKit z5000 waits for wk-sim-hang (not on main at a5e170b94).
+branch: worktree-wf_8596d321-474-1; worktree: .claude/worktrees/wf_8596d321-474-1; code commit cf69a9052 (pushed to ci/glint-hold-freeze; push 2 of 2 used, main merged incl. wk-sim-hang)
+runs (all at a5e170b94 unless noted): premise-tests 40345059212 success (webkit job re-run once after a 20 min setup-pnpm hang); breakpoint-gate 40345141093 success; chromium-counts base 40345261186, flag 40345253392 success.
+webkit-sim at cf69a9052 (3 VMs each, ~1 h): base and flag dispatched in background by the builder; ids in note once filed. If this file still says waiting: run the two commands under dispatch below with --ref ci/glint-hold-freeze and read with packages/measure-webkit/src/offscreen-webkit-cli.mjs.
+verified: look premise glint.hold-pixels class E (Chromium worst 1, WebKit 0, bound 12); gate pass both engines; Chromium windows approach/finish gain (RasterTask about 5 percent), end windows noGain. Found and fixed: ring ids with hyphens left the begin chain unresolved in both engines (now fwglint<side>X1S0). Backward seek into segment 0 after the first cycle wrong in Chromium (235), no flag path seeks backward.
+open: WebKit z5000 verdict (n VMs); check.sh at the final commit; dry land.
 ---
 branch: worktree-wf_8596d321-474-1; worktree: .claude/worktrees/wf_8596d321-474-1; CI branch ci/glint-hold-freeze (one push, lean lane only)
 state: built and proved; waiting on lead dispatches (no gate, look, counts run exists yet) and on wk-sim-hang (not on main).
