@@ -16,7 +16,7 @@ test('the golden is the file the gate reads', () => {
   assert.deepEqual(loadDeltas(), of('delta'));
 });
 
-test('the allowlist holds the five tuples of the two runs with their premises', () => {
+test('the allowlist holds the seven tuples of the three flags with their premises', () => {
   const ds = of('delta').map((d) => [d.flag, d.part, d.role, d.property, d.orig, d.rewrite, d.look, d.premise]);
   assert.deepEqual(ds, [
     ['morph.panel:rest', 'platform', 'section', 'filter', 'blur(0px)', 'none', 'E', 'Fw.Parts.MorphPanelOpt.rest_visSame_E'],
@@ -24,6 +24,8 @@ test('the allowlist holds the five tuples of the two runs with their premises', 
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-basis', '0px', 'auto', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-grow', '1', '0', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-shrink', '1', '0', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
+    ['hero.exit:contain', 'hero.exit', 'hero', 'contain', 'none', 'size layout', 'E', 'Fw.Parts.HeroContainOpt.hero_same_box'],
+    ['hero.exit:contain', 'hero', 'stage', 'contain', 'none', 'size layout', 'E', 'Fw.Parts.HeroContainOpt.hero_same_box'],
   ]);
 });
 

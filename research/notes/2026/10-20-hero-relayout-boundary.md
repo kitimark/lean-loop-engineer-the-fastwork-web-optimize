@@ -68,6 +68,13 @@ root (:533-534); overflow visible returns false (:536-539), which is the base he
   (`extent_same`, `extent_same_matrix`); `page-root` clips x. MEASURED premise: in gate run 40268905824 (Chromium) the
   part boxes reach at least 3902.75 px below the track bottom at every probe (least at `desk-641`).
 
+## Breakpoint gate (MEASURED)
+
+- Run 40268905824 (sha 0537be1, both engines): geometry equal at every probe; it failed only on the declared style
+  `contain` (hero.exit/hero and hero/stage, `none` against `size layout`; 196 Chromium probes, 188 WebKit).
+- That tuple is now allowlisted as class E with premise `hero_same_box` (`Fw.Gate.FlagDelta`, `contain-hero-exit-hero`,
+  `contain-hero-stage`). Run 40271199102 (sha 26bd7b1, same CSS): pass on Chromium and WebKit. Class E in `part.json`.
+
 ## Measurements (MEASURED)
 
 Chromium `chromium-counts`, profile swipe-touch-v1, sha 0537be1 (ref `ci/hero-relayout-boundary`), 3 runs per arm:

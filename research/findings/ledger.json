@@ -4267,6 +4267,52 @@
    "lesson": "The marquee probe moves no count; the marquee is not an end-of-page cost.",
    "next": "step-2 variants are built in later tasks",
    "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "id": "hero.exit.contain",
+   "part": "hero.exit",
+   "candidate": "hero.exit:contain: contain: size layout on the sticky .hero, so it is a relayout boundary in both engines and a frame whose dirty objects all sit inside the hero (accent width, countdown digits) lays out only the hero subtree",
+   "status": "proved",
+   "flag": "hero.exit:contain",
+   "flags": [
+    "hero.exit:contain"
+   ],
+   "visClass": "E",
+   "chromium": "win (MEASURED, chromium-counts swipe-touch-v1, sha 0537be1, 3 runs per arm, base run 40268899311, flag run 40268902395): hero-exit window (zones y00000 and y00500) Layout totalObjects 108,446 to 70,122 (-35.3%), dirtyObjects 1,466 to 1,112, partial passes 25.7 to 76.3 of about 122 (same pass count, 122.3 and 121.7); whole run totalObjects 456,706 to 357,812 (-21.7%); zones y01500 and y02000 drop too (the countdown keeps ticking), y02500 on unchanged. results/hero-relayout-boundary/chromium.json",
+   "webkit": "pending (webkit-sim base run 40271367353 and flag run 40271370582 at sha 26bd7b1, 3 VMs each, dispatched); source: the same boundary (RenderObject.cpp:530-531@862f17d) and one-root scheduling, so draw-in frames with only hero sources root at the hero (INFERRED until counted)",
+   "visual": "same look, class E (Lean hero_same_box, extent_same; breakpoint gate run 40271199102 at sha 26bd7b1 passes on Chromium and WebKit with only the declared contain style excused by Fw.Gate.FlagDelta; gate run 40268905824 at 0537be1 had equal geometry at every probe and failed only on that declared style)",
+   "mechanism": "CONFIRMED (source, Lean Fw.Parts.HeroContainOpt): Chromium ObjectIsRelayoutBoundary returns true for layout plus size containment once the guards pass (layout_object.cc:1535-1538@f842f52; guards :1441-1531, the hero is a block-track child, a flex container, self-painting, with no out-of-flow descendant escaping it); WebKit isLayoutBoundary returns true for layout plus size containment (RenderObject.cpp:530-531@862f17d) and false for the base hero (overflow visible, :536-539). The marking walk starts at the container, so a dirty hero box roots at the view (outside_view). Chromium keeps a list of subtree roots and a walk reaching the view makes a full layout (local_frame_view.cc:1676-1723); WebKit keeps one root and two disjoint roots make a full layout (LocalFrameViewLayoutContext.cpp:701-753). So a frame with only hero-internal sources lays out the hero subtree (drawIn_flag_hero), any outside source or the hero box itself gives a full layout (drawIn_outside_full, cr_outside_full, wk_outside_full). Same box: the hero's height is definite and its auto width fills the block track (hero_same_box); layout containment moves its content overflow to ink overflow, at most 453.2 px below the track (excess_lt_454), and the page extent stays when at least that much content follows (extent_same).",
+   "leanFor": [
+    "Fw.Parts.HeroContainOpt.hero_cr_flag",
+    "Fw.Parts.HeroContainOpt.hero_wk_flag",
+    "Fw.Parts.HeroContainOpt.drawIn_flag_hero",
+    "Fw.Parts.HeroContainOpt.objects_flag",
+    "Fw.Parts.HeroContainOpt.hero_same_box",
+    "Fw.Parts.HeroContainOpt.hero_height_stage",
+    "Fw.Parts.HeroContainOpt.excess_lt_vh",
+    "Fw.Parts.HeroContainOpt.excess_lt_454",
+    "Fw.Parts.HeroContainOpt.extent_same",
+    "Fw.Parts.HeroContainOpt.effects_same"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroContainOpt.hero_cr_base",
+    "Fw.Parts.HeroContainOpt.hero_wk_base",
+    "Fw.Parts.HeroContainOpt.drawIn_outside_full",
+    "Fw.Parts.HeroContainOpt.outside_view",
+    "Fw.Parts.HeroContainOpt.height_auto_differs"
+   ],
+   "missingWhy": [
+    "A per-frame dirty-source trace (which frames of the hero exit carry an outside source): the counts give partial and full passes per zone, not their sources.",
+    "A phone pass: CI only, so whether the smaller passes are felt on the iPhone is not measured."
+   ],
+   "premises": [
+    "At least 453.2 px of content follows the hero track at every breakpoint (MEASURED at least 3902.75 px in gate run 40268905824, extent_same_matrix restMin); a page with less content below would grow shorter.",
+    "svh equals vh for the height cases (as in HeroScenePause)."
+   ],
+   "v1Evidence": "",
+   "lesson": "Containment scopes layout only when every dirty source of a frame is inside the boundary and the boundary box itself stays clean; it shrinks passes (objects per pass) and does not remove them. An in-flow box with a definite height and a fill width keeps its box under size containment; an auto-height box would collapse.",
+   "next": "Preset promotion is a later task (trajectory cells and a why link pending in v2-proved). A phone pass would show whether the smaller passes are felt.",
+   "evidence": "chromium-counts runs 40268899311 (base) and 40268902395 (flag) at 0537be1; breakpoint-gate runs 40268905824 and 40271199102; note research/notes/2026/10-20-hero-relayout-boundary.md"
   }
  ],
  "notes": [
@@ -4905,6 +4951,12 @@
    "task": "platform-attribution",
    "field": "mechanism",
    "text": "platform-attribution (note research/notes/2026/10-2x-platform-attribution.md): the probe arm platform.marquee:probe-off has no effect. MEASURED Chromium run 40236462082 (3 runs): no-gain in every window (finish recalcs 319 to 320 is a cost). WebKit run 40236475717 is undecided: 2 of 3 VMs (VM r3 job failed, no rerun), counts inside the base spread. No no-win is claimed on WebKit."
+  },
+  {
+   "entry": "contain the fixed nav's relayout with a containment boundary (nav-oof-root-finding)",
+   "task": "hero-relayout-boundary",
+   "field": "mechanism",
+   "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): the same containment on the in-flow sticky hero is a boundary in both engines (Fw.Parts.HeroContainOpt.hero_cr_flag, hero_wk_flag) and scopes the frames whose dirty sources are all inside it; a frame that also dirties the fixed nav stays full (drawIn_outside_full), as nav.oofRoot.containment predicts. MEASURED Chromium runs 40268899311 and 40268902395: hero-exit Layout totalObjects -35.3%."
   }
  ]
 }
