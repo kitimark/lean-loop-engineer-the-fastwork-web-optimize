@@ -14,7 +14,7 @@ import sw from './sweep.module.css';
 import st from './stage.module.css';
 import { Ask, Invoice, Profile, Secure, type Subs } from './Visuals';
 import { VARIANT as SWEEP_PAUSE, watchSweepPause } from '../platform.sweep/pause';
-import { VARIANT as SWEEP_LAYER } from '../platform.sweep/layer';
+import { VARIANT as SWEEP_LAYER, watchLayerWidth } from '../platform.sweep/layer';
 
 export interface PlatformSubVariants {
   sweep?: string;
@@ -150,6 +150,12 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
     if (!sweepPause || !sec) return;
     return watchSweepPause([...sec.querySelectorAll(`.${sw.sweep}`)]);
   }, [sweepPause]);
+
+  useEffect(() => {
+    const sec = section.current;
+    if (!sweepLayer || !sec) return;
+    return watchLayerWidth([...sec.querySelectorAll<HTMLElement>(`.${sw.layer}`)]);
+  }, [sweepLayer]);
 
   return (
     <section ref={section} id="platform" className={css.section} data-fw="platform" data-fw-variant={variant} aria-labelledby="built-heading">

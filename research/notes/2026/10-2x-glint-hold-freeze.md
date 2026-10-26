@@ -35,7 +35,51 @@ on both engines is the check.
 - Not shown by these lines: the cost of a frame the container still runs for another element. That stays INFERRED; the
   counts decide.
 
-## Results
-Not delivered in this builder run: the breakpoint gate, the look premise and Chromium base vs flag runs need workflow
-inputs only the lead dispatches (commands in the handoff). WebKit z5000 waits for task wk-sim-hang (not landed on main).
-Premise and TS replay: hold.test.ts passes locally (unit tests, not a measurement).
+## Results (all runs on ci/glint-hold-freeze at a5e170b94, CI only, no phone pass)
+
+### Look premise glint.hold-pixels: class E (MEASURED, run 40345059212)
+Page packages/premise-tests/pages/glint.hold-pixels.html, test prem.glint.hold-pixels, Lean registry entry (theorem
+`PlatformGlintHold.hold_eq_faithful`). Four strips (left and right dash, original pair against the ring), a paused SVG
+timeline, `beginElement` at 10 s, then 30 judged times that never decrease: every key-time boundary of three cycles with a
+sample either side of the first ones, every third one reached by unpause, `setCurrentTime`, pause in one task (what `createPause`
+does on a reveal). Bound 12 of 255 per channel, and the colour band must be drawn.
+
+| engine | browser | worst channel diff | samples |
+|---|---|---|---|
+| Chromium | Chrome Headless Shell 156.0.8078.4 | 1 | 30 judged + 2 backward |
+| WebKit | Playwright WebKit 27.2 (Linux) | 0 | 30 judged + 2 backward |
+
+Two findings of the premise work. (1) Ring ids that carry a hyphen (`secure-network-dash-left-X1S0`, what the flag first
+used) leave every piece after the first unresolved in both engines: the dash never moved after segment 0. Ids are now letters
+and digits (`fwglintleftX1S0`); hold.test.ts asserts it. (2) A backward `setCurrentTime` into segment 0 after the first cycle
+shows the previous value in Chromium (diff 235, both locally and on CI) and is right in WebKit. No flag path seeks backward:
+`createPause` seeks to the read time plus the paused time, so the container clock only moves forward; the two backward samples
+are recorded as `backWorst` and not judged. The page restates the stops and key values (it does not import logic.ts), so the
+flag's markup itself is exercised by the breakpoint gate below.
+
+### Breakpoint gate: pass on both engines (run 40345141093, `?fw=platform.glint:hold-freeze`)
+Chromium 156.0.8078.4: 124 probes, 4604 pass, 4 not comparable, 0 failing items, 0 unsettled. Playwright WebKit 27.2: 124 probes,
+4320 pass, 288 unreachable (primary-pair 144, whole-width 144), 0 failing items, 0 unsettled. No flag delta excused.
+
+### Chromium base against flag (swipe-touch-v1, 3 runs each, MEASURED)
+Base `rewrite` run 40345261186, flag run 40345253392, same commit, read with `packages/measure-chromium/src/offscreen-windows-cli.mjs`
+(Lean window functions, slack 0, end frame 574).
+
+| window | verdict | less |
+|---|---|---|
+| approach | gain | RasterTask 236 to 225 |
+| end 0-19 | noGain | none |
+| end 20-59 | noGain | none |
+| end 60-119 | noGain | none |
+| end 120+ | noGain | none |
+| finish | gain | RasterTask 1207 to 1196 |
+
+The gain is one counter, RasterTask, about 5 percent in two windows and no counter more. The hold segments are not what the touch
+profile spends its end windows on, so the window verdict there is no change.
+
+### WebKit z5000
+WEBKIT_PLACEHOLDER
+
+### Engine tick rules
+Unchanged from the section above: the citations are CONFIRMED, the per-frame cost of a frame the container still runs stays INFERRED
+and is what the counts above test.

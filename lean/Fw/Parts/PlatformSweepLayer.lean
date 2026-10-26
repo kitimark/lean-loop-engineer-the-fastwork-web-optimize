@@ -5,13 +5,13 @@ import Fw.Parts.PlatformSweep
 namespace Fw.Parts.PlatformSweepLayer
 open Fw.Parts.PlatformSweep
 
-def fromPct : Rat := 666667 / 1000000
+def fromPct : Rat := 33333333 / 100000000
 
-def fromExact : Rat := 2 / 3
+def fromExact : Rat := 1 / 3
 
-def layerX (w t : Rat) : Rat := -(fromExact * (3 * w)) * (1 - phase t)
+def layerX (w t : Rat) : Rat := -(fromExact * (6 * w)) * (1 - phase t)
 
-def layerXCss (w t : Rat) : Rat := -(fromPct * (3 * w)) * (1 - phase t)
+def layerXCss (w t : Rat) : Rat := -(fromPct * (6 * w)) * (1 - phase t)
 
 theorem layerX_eq (w t : Rat) : layerX w t = -2 * w * pos t := by
   unfold layerX fromExact pos
@@ -83,11 +83,11 @@ theorem run_work (frames n : Nat) :
     frames * textRepaints (page layerWord n) = 0 ∧ frames * textRepaints (page origWord n) = frames * n := by
   rw [layer_no_text_repaint, orig_repaints]; simp
 
-def layerBytes (w h r : Nat) : Nat := 3 * w * h * r * r * 4
+def layerBytes (w h r : Nat) : Nat := 6 * w * h * r * r * 4
 
 def pageLayers : Nat := 4
 
-def budgetBytes : Nat := 8 * 1024 * 1024
+def budgetBytes : Nat := 16 * 1024 * 1024
 
 theorem memory_ok (w h r : Nat) (hw : w ≤ 300) (hh : h ≤ 60) (hr : r ≤ 3) :
     pageLayers * layerBytes w h r ≤ budgetBytes := by
@@ -95,8 +95,100 @@ theorem memory_ok (w h r : Nat) (hw : w ≤ 300) (hh : h ≤ 60) (hr : r ≤ 3) 
   have h1 : w * h ≤ 300 * 60 := Nat.mul_le_mul hw hh
   have h2 : r * r ≤ 3 * 3 := Nat.mul_le_mul hr hr
   have h3 : w * h * (r * r) ≤ 300 * 60 * (3 * 3) := Nat.mul_le_mul h1 h2
-  have e : 4 * (3 * w * h * r * r * 4) = 48 * (w * h * (r * r)) := by grind
+  have e : 4 * (6 * w * h * r * r * 4) = 96 * (w * h * (r * r)) := by grind
   rw [e]
   omega
+
+def layerU (w y : Rat) : Rat := if y < 3 * w then y / (3 * w) else (y - 3 * w) / (3 * w)
+
+def repU (w x p : Rat) : Rat := frac ((x + 2 * w * p) / (3 * w))
+
+theorem frac_of_mem (x : Rat) (h0 : 0 ≤ x) (h1 : x < 1) : frac x = x := by
+  have n1 : x.floor < 1 := Rat.floor_lt_iff.mpr (by exact_mod_cast h1)
+  have n2 : (0 : Int) ≤ x.floor := by
+    have := Rat.floor_monotone h0
+    have z : (0 : Rat).floor = 0 := Rat.floor_intCast 0
+    omega
+  have n0 : x.floor = 0 := by omega
+  unfold frac
+  rw [n0]
+  push_cast
+  grind
+
+theorem layerU_eq_frac (w : Rat) (hw : 0 < w) (y : Rat) (h0 : 0 ≤ y) (h1 : y < 6 * w) :
+    layerU w y = frac (y / (3 * w)) := by
+  have h3 : (0 : Rat) < 3 * w := by grind
+  have hne : (3 * w) ≠ 0 := by grind
+  have key : ∀ z : Rat, 0 ≤ z → z < 3 * w → 0 ≤ z / (3 * w) ∧ z / (3 * w) < 1 := by
+    intro z hz0 hz1
+    have hq : z / (3 * w) * (3 * w) = z := by grind
+    constructor
+    · refine Classical.byContradiction fun hn => ?_
+      have : z / (3 * w) * (3 * w) < 0 * (3 * w) := Rat.mul_lt_mul_of_pos_right (by grind) h3
+      grind
+    · refine Classical.byContradiction fun hn => ?_
+      have : 1 * (3 * w) ≤ z / (3 * w) * (3 * w) := Rat.mul_le_mul_of_nonneg_right (by grind) (Rat.le_of_lt h3)
+      grind
+  unfold layerU
+  by_cases h : y < 3 * w
+  · simp only [h, ite_true]
+    rw [frac_of_mem _ (key y h0 h).1 (key y h0 h).2]
+  · simp only [h, ite_false]
+    have e : y / (3 * w) = (y - 3 * w) / (3 * w) + 1 := by grind
+    have k := key (y - 3 * w) (by grind) (by grind)
+    rw [e, frac_add_one, frac_of_mem _ k.1 k.2]
+
+theorem tiled_same_look (w : Rat) (hw : 0 < w) (x t : Rat) (h0 : 0 ≤ x) (h1 : x < 4 * w) :
+    color (layerU w (x - layerX w t)) = color (repU w x (pos t)) := by
+  have hp := pos_mem t
+  rw [layerX_eq]
+  have e : x - -2 * w * pos t = x + 2 * w * pos t := by grind
+  have hy0 : 0 ≤ x + 2 * w * pos t := by
+    have := Rat.mul_nonneg (Rat.le_of_lt hw) (Rat.le_of_lt hp.1)
+    grind
+  have hy1 : x + 2 * w * pos t < 6 * w := by
+    have := Rat.mul_le_mul_of_nonneg_left hp.2 (Rat.le_of_lt hw)
+    grind
+  rw [e, layerU_eq_frac w hw _ hy0 hy1]
+  rfl
+
+theorem seam_at_start (w : Rat) (hw : 0 < w) : color (layerU w (w - layerX w 0)) = color (repU w w (pos 0)) :=
+  tiled_same_look w hw w 0 (Rat.le_of_lt hw) (by grind)
+
+-- Chromium ToPixelSnappedRect, physical_rect.h:228@f842f52
+def snapEdge (dpr edge : Rat) : Int := (edge * dpr + 1 / 2).floor
+
+def snapPx (dpr left width : Rat) : Int := snapEdge dpr (left + width) - snapEdge dpr left
+
+def snapW (dpr left width : Rat) : Rat := (snapPx dpr left width : Rat) / dpr
+
+theorem snap_box (dpr left width : Rat) :
+    (snapPx dpr left width : Rat) - width * dpr < 1 ∧ width * dpr - (snapPx dpr left width : Rat) < 1 := by
+  have a1 := Rat.floor_le (left * dpr + 1 / 2)
+  have a2 := Rat.lt_floor_add_one (left * dpr + 1 / 2)
+  have b1 := Rat.floor_le ((left + width) * dpr + 1 / 2)
+  have b2 := Rat.lt_floor_add_one ((left + width) * dpr + 1 / 2)
+  unfold snapPx snapEdge
+  push_cast
+  have e : (left + width) * dpr = left * dpr + width * dpr := by grind
+  rw [e] at b1 b2 ⊢
+  push_cast at a1 a2 b1 b2
+  grind
+
+theorem snapW_grid (dpr left width : Rat) (hd : 0 < dpr) : snapW dpr left width * dpr = (snapPx dpr left width : Rat) := by
+  unfold snapW
+  have : dpr ≠ 0 := by grind
+  grind
+
+theorem snapPx_pos (dpr left width : Rat) (h : 1 ≤ width * dpr) : 1 ≤ snapPx dpr left width := by
+  have m := Rat.floor_monotone (a := (left * dpr + 1 / 2) + 1) (b := (left + width) * dpr + 1 / 2) (by grind)
+  have f1 : ((left * dpr + 1 / 2) + 1).floor = (left * dpr + 1 / 2).floor + 1 := Rat.floor_add_one
+  unfold snapPx snapEdge
+  omega
+
+def layerPx (n : Int) : Int := 6 * n
+
+theorem tile_grid (n : Int) : layerPx n / 2 = 3 * n := by unfold layerPx; omega
+
 
 end Fw.Parts.PlatformSweepLayer

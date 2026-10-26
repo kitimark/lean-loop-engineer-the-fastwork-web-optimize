@@ -22344,7 +22344,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Parts/FootprintRows.lean",
     "packages/contracts/golden/parts/footprint*.gen.json"
-   ]
+   ],
+   "evidence": "9a29be0"
   },
   {
    "devices": [
@@ -22508,7 +22509,8 @@
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
     "packages/measure-webkit/test/watchdog.test.mjs",
     "scripts/ci-telemetry/tick.test.mjs"
-   ]
+   ],
+   "evidence": "36b98f8"
   },
   {
    "devices": [
@@ -22579,6 +22581,29 @@
     "research/notes/2026/10-2x-window-own-end.md",
     "results/window-own-end/**",
     "docs/team/handoffs/window-own-end.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-retry-needs",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "wk-sim-hang review follow-up: the shipped retry needs (SCROLL_RETRY_S 589, PASS_RETRY_S 436) do not meet runPass_stop_le's premise (inner + recon + base <= outer; outer below Seen.passS 1123), so the two-level bound holds for the model only. Derive both needs from Lean (SimHost) so the theorem's premise holds for the deployed constants, golden replayed by determinism tests; gate the Safari tab wait (navigateTab 60 s) through retryFits; replay the gate over the green sample jobs (retry start times) and report how many it would have refused.",
+   "writes": [
+    "lean/Fw/Measure/SimHost.lean",
+    "lean/Fw/Measure/SimHostGolden.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "packages/measure-webkit/src/determinism.mjs",
+    "packages/measure-webkit/src/sim-host.mjs",
+    "packages/measure-webkit/src/wip.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "packages/measure-webkit/test/determinism*.test.mjs",
+    "research/notes/2026/10-2x-sim-retry-needs.md",
+    "results/sim-retry-needs/**",
+    "docs/team/handoffs/sim-retry-needs.md"
    ]
   }
  ],
