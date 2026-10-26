@@ -22030,7 +22030,13 @@
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-platform-sweep-layer.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/platform-sweep-layer.md"
+    "docs/team/handoffs/platform-sweep-layer.md",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl"
    ]
   },
   {
@@ -22059,7 +22065,8 @@
     "apps/runner/src/land-remote.ts",
     "apps/runner/test/land-remote*.test.ts",
     "docs/team/tools/ci-telemetry.md",
-    "docs/team/handoffs/macos-vm-upload.md"
+    "docs/team/handoffs/macos-vm-upload.md",
+    "apps/runner/test/ci-telemetry.test.ts"
    ]
   },
   {
