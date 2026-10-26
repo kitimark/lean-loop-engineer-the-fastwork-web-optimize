@@ -22001,6 +22001,34 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/handoffs/slot-width-evidence.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-sweep-layer",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "platform-attribution"
+   ],
+   "title": "Step 2(a) of the platform end-of-page work, premise MEASURED by platform-attribution (WebKit Simulator run 40237513521, 3 VMs: switching the sweep animation off drops z5000 Paint 54-66 to 30-36 and finish-zone Paint 166-222 to 80-143; Chromium run 40237508223: 215 fewer raster tasks and 792 fewer PaintImage in the finish window). Build platform.sweep:layer-sweep: the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor-driven transform (a gradient layer translated under a text mask, or an equivalent the engines composite without repainting the text) with identical pixels at every frame and breakpoint, or prove it impossible on an engine from source (WebKit and Chromium at the pinned commits) and record the negative result. Lean first: the same-look premise (gradient position as a function of time equals the original, both engines) and the work claim (no text repaint per frame) with theorems and golden; the variant is its own flag. Then the breakpoint gate (both engines), counts per engine and zone against the base on CI (WebKit Simulator 3 VMs, Chromium swipe-touch-v1 3 runs), and a look check (frame hashes or pixel diff at fixed times); a look change goes to the look-change class for the user's visual review and never into a preset. GPU/layer memory may rise (accepted under a Lean memory budget). Negative results are findings (mechanism + Lean why). Builders that edit research/findings/ledger.json append notes at the end and run the apps/runner ledger-merge test; builders that merge main run lake build before any golden check.",
+   "writes": [
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform/**",
+    "lean/Fw/Parts/PlatformSweep*.lean",
+    "lean/Fw/Parts/Platform*/**",
+    "packages/contracts/golden/parts/platform*.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-platform-sweep-layer.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/platform-sweep-layer.md"
+   ]
   }
  ],
  "deadline": {
