@@ -77,3 +77,96 @@ export function step({ state, now, event }: { state: St; now: number; event: Ev 
 export function view({ state, side, now }: { state: St; side: Side; now: number }): [number, number] {
   return state.t0 !== null ? sample({ side, elapsed: now - state.t0 }) : [REST[side][0], REST[side][1]];
 }
+
+// ---- platform.glint:hold-freeze ------------------------------------------------------------------------------------
+// Spec and proofs: lean/Fw/Parts/PlatformGlintHold.lean. The two repeating `<animate>` per dash become one piece per
+// key-time segment and attribute: a ramp (`<animate>`, from to to over one segment) where the value moves, a `<set>`
+// where it holds. The pieces tile the 5 s cycle, so an active non-`<set>` animation exists only during a ramp.
+
+export type Attr = 'x1' | 'x2';
+export type Kind = 'set' | 'ramp';
+
+export interface Piece {
+  attr: Attr;
+  seg: number;
+  kind: Kind;
+  from: number;
+  to: number;
+}
+
+/** Length of one key-time segment in ms (`dur` over five segments). */
+export const SEG_MS = DUR_MS / 5;
+
+const valuesOf = (attr: Attr, side: Side): readonly number[] => (attr === 'x1' ? X1[side] : X2[side]);
+
+/** Pieces of a side: x1 segments 0..4 then x2 segments 0..4. */
+export function holdPlan(side: Side): Piece[] {
+  const out: Piece[] = [];
+  for (const attr of ['x1', 'x2'] as const) {
+    const v = valuesOf(attr, side);
+    for (let seg = 0; seg < 5; seg++) out.push({ attr, seg, kind: v[seg] === v[seg + 1] ? 'set' : 'ramp', from: v[seg]!, to: v[seg + 1]! });
+  }
+  return out;
+}
+
+/** The segment (0..4) holding cycle fraction u. */
+export const segOf = (u: number): number => Math.min(4, Math.floor(5 * u));
+
+/** The (x1, x2) of the one active piece per attribute `elapsed` ms after the anchor began (`elapsed` >= 0). */
+export function holdSample({ side, elapsed }: { side: Side; elapsed: number }): [number, number] {
+  const u = frac(elapsed / DUR_MS);
+  const k = segOf(u);
+  const plan = holdPlan(side);
+  const at = (attr: Attr): number => {
+    const p = plan.find((q) => q.attr === attr && q.seg === k)!;
+    return p.kind === 'set' ? p.to : lerp(p.from, p.to, 5 * u - k);
+  };
+  return [at('x1'), at('x2')];
+}
+
+/** Active non-`<set>` animations of one dash at `elapsed`: the ramp pieces among the active ones. */
+export function holdTicking({ side, elapsed }: { side: Side; elapsed: number }): number {
+  const k = segOf(frac(elapsed / DUR_MS));
+  return holdPlan(side).filter((p) => p.seg === k && p.kind === 'ramp').length;
+}
+
+/** The faithful pair: two repeating `<animate>` are active at every instant after the begin. */
+export const FAITHFUL_TICKING = 2;
+
+export interface HoldEl {
+  tag: 'set' | 'animate';
+  id: string;
+  attributeName: Attr;
+  from?: number;
+  to: number;
+  dur: string;
+  fill: 'freeze';
+  begin: string;
+  /** `beginElement()` is called on it at the start: the segment-0 piece of each attribute */
+  anchor: boolean;
+}
+
+/**
+ * Markup descriptors of a side: per attribute a ring of five pieces with `fill="freeze"`, each beginning at the end of
+ * the one before it (segment 0 after segment 4), so every instance time is known a whole segment ahead; `beginElement()`
+ * on the two segment-0 pieces starts the rings. INFERRED from runs in both engines (task glint-hold-freeze): without
+ * `fill="freeze"` or with offsets from a shared clock element, WebKit dropped pieces in the second cycle or lost the
+ * first begin; Chromium parsed `a-b-0.begin` without an offset wrongly (ids carry no hyphen).
+ */
+export function holdElements(side: Side, idBase: string): HoldEl[] {
+  const idOf = (attr: Attr, seg: number): string => `${idBase}${attr.toUpperCase()}S${seg}`;
+  return holdPlan(side).map((p): HoldEl => {
+    const el: HoldEl = {
+      tag: p.kind === 'set' ? 'set' : 'animate',
+      id: idOf(p.attr, p.seg),
+      attributeName: p.attr,
+      to: p.to,
+      dur: `${SEG_MS / 1000}s`,
+      fill: 'freeze',
+      begin: p.seg === 0 ? `indefinite;${idOf(p.attr, 4)}.end` : `${idOf(p.attr, p.seg - 1)}.end`,
+      anchor: p.seg === 0,
+    };
+    if (p.kind === 'ramp') el.from = p.from;
+    return el;
+  });
+}
