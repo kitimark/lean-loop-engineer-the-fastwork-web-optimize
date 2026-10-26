@@ -2040,14 +2040,14 @@ def accesses : List Access := [
   ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "clock", ["faithful", "offscreen-pause", "probe-off"]⟩,
   ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "listener:media-change", ["faithful", "offscreen-pause", "probe-off"]⟩,
   ⟨"platform.glint", "platform.glint/driver.ts", 23, .clock, "subscribe", "", "observer:IntersectionObserver", ["faithful", "offscreen-pause", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 49, .rect, "", "?", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 52, .setVar, "--sw6", "?", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 59, .rect, "", "hero.accent", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 59, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 59, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 63, .rect, "", "hero.accent", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 63, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 63, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 39, .rect, "", "?", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 42, .setVar, "--sw6", "?", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 49, .rect, "", "hero.accent", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 49, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 49, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "hero.accent", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 45, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 45, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
 
@@ -2160,8 +2160,8 @@ def findings : List Finding := [
   ⟨"platform.glint", "platform.glint/pause.ts", 41, "unmodelled-api", "call el.pauseAnimations"⟩,
   ⟨"platform.glint", "platform.glint/pause.ts", 43, "unmodelled-api", "call el.unpauseAnimations"⟩,
   ⟨"platform.glint", "platform.glint/pause.ts", 44, "unmodelled-api", "call el.setCurrentTime"⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 49, "unresolved-target", "rect"⟩,
-  ⟨"platform.sweep", "platform.sweep/layer.ts", 52, "unresolved-target", "setVar --sw6"⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 39, "unresolved-target", "rect"⟩,
+  ⟨"platform.sweep", "platform.sweep/layer.ts", 42, "unresolved-target", "setVar --sw6"⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 45, "dynamic-name", "setStyle"⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 45, "unresolved-target", "setStyle ?"⟩]
 
