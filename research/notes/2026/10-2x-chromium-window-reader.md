@@ -5,7 +5,7 @@ Tags: MEASURED (CI run id named), CONFIRMED (Lean theorem or source cited), INFE
 ## Answer
 
 Yes. The committed reader gives the same verdict as `10-2x-platform-attribution.md` in all 24 cells (6 windows x 4 flag
-arms), MEASURED on the five existing runs (no new CI run). 18 cells list the same counters with the same numbers. The
+arms), MEASURED on the five existing runs (no new CI run). The note's one end 60+ row is matched to both end 60-119 and end 120+. 18 cells list the same counters with the same numbers. The
 other 6 cells differ only in which counters are listed, never in a verdict. The note needs no change for a verdict; the
 lead decides whether to fix the listed counters (follow-up below).
 
