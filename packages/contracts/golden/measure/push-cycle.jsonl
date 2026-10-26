@@ -72,3 +72,8 @@
 {"across":"mixed","case":"mixed","op":"census","passes":[[10,12,14,16,18,20],[5,5,5,5,5,5],[10,12,14,16,18,20]],"trends":["rises","flat","rises"]}
 {"across":"no","case":"fall","op":"census","passes":[[20,10,10,10,10,10],[20,10,10,10,10,10],[20,10,10,10,10,10]],"trends":["falls","falls","falls"]}
 {"across":"no","case":"empty","op":"census","passes":[[],[],[]],"trends":["flat","flat","flat"]}
+{"cap":120000,"op":"rest","rest":110000,"spent":90000,"target":200000}
+{"cap":120000,"op":"rest","rest":0,"spent":250000,"target":200000}
+{"cap":120000,"op":"rest","rest":120000,"spent":20000,"target":200000}
+{"cap":120000,"op":"rest","rest":120000,"spent":80000,"target":200000}
+{"cap":0,"op":"rest","rest":0,"spent":0,"target":0}

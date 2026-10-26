@@ -758,6 +758,22 @@ theorem across_constant (passes : List (List Nat)) (h0 : ¬ passes.length < sepM
     obtain ⟨n, x, rfl⟩ := h p hp
     rw [trend_replicate]; intro e; cases e
 
+/-- The rest after one dwell-pass cycle: what is left of the target period once the cycle and its census took their time, at most `cap`. -/
+def restMs (target spent cap : Nat) : Nat := min (target - spent) cap
+
+theorem rest_le_cap (target spent cap : Nat) : restMs target spent cap ≤ cap := by
+  simp only [restMs]; omega
+
+theorem rest_late (target spent cap : Nat) (h : target ≤ spent) : restMs target spent cap = 0 := by
+  simp only [restMs]; omega
+
+theorem rest_fills (target spent cap : Nat) (h : spent ≤ target) (hc : target - spent ≤ cap) :
+    spent + restMs target spent cap = target := by
+  simp only [restMs]; omega
+
+theorem rest_capped (target spent cap : Nat) (h : cap < target - spent) : restMs target spent cap = cap := by
+  simp only [restMs]; omega
+
 private def pairJ (p : Int × Int) : Json := toJson [p.1, p.2]
 
 private def sampleJ (e : Sample) : Json := toJson [e.t, e.x, e.y]
@@ -812,6 +828,9 @@ def sepCases : List (String × SepIn) :=
    ("no-period-dwell", ⟨sepFull3, sepFull3.map (fun p => p.take sepDwellCycles), 30000, 0⟩),
    ("no-room", ⟨sepFull3, sepFull3.map (fun p => p.take sepDwellCycles), 10000, 60000⟩),
    ("no-obs", ⟨[[1, 2], [1, 2], [1, 2]], [[1, 2], [1, 2], [1, 2]], 30000, 30000⟩)]
+
+def restCases : List (Nat × Nat × Nat) :=
+  [(200000, 90000, 120000), (200000, 250000, 120000), (200000, 20000, 120000), (200000, 80000, 120000), (0, 0, 0)]
 
 def clockRs : List Nat := [0, 500, 1000, 1500, 2000, 3333]
 
@@ -879,7 +898,9 @@ def goldenLines (_ : Unit := ()) : List String :=
   let censusOps := censusCases.map fun (name, ps) =>
     (Json.mkObj [("op", "census"), ("case", Json.str name), ("passes", toJson ps),
       ("trends", toJson (ps.map fun p => (trend p).name)), ("across", Json.str (readCensus ps).name)]).compress
-  [consts] ++ model ++ repaint ++ pool ++ upd ++ h1 ++ h2 ++ pix ++ tr ++ plan ++ phone ++ sepOps ++ clockOps ++ censusOps
+  let restOps := restCases.map fun (t, s, c) =>
+    (Json.mkObj [("op", "rest"), ("target", toJson t), ("spent", toJson s), ("cap", toJson c), ("rest", toJson (restMs t s c))]).compress
+  [consts] ++ model ++ repaint ++ pool ++ upd ++ h1 ++ h2 ++ pix ++ tr ++ plan ++ phone ++ sepOps ++ clockOps ++ censusOps ++ restOps
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 

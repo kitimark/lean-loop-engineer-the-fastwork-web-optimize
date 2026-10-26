@@ -130,16 +130,20 @@ function lockOf(rec, a, b) {
   return { reversals: k.frameReversals, fights: k.frameFights, displaced: k.displacedFrames };
 }
 
+/** True when the gap that ends at frame i overlaps a quiet range (a census or a rest, in page ms): it is not a cycle's frame. */
+export const maskedGap = (rec, i) => (rec.quiet ?? []).some(([a, b]) => rec.t[i - 1] < b && rec.t[i] > a);
+
 export function recordCycles(rec) {
   const near = nearMask(rec);
   const st = stretches(rec.o);
   const evAt = (xs, a, b) => (xs ?? []).filter((f) => f >= a && f <= b).length;
   return cycleRanges(rec).map(([a, b], k) => {
     const gaps = [];
-    for (let i = a + 1; i <= b; i++) gaps.push(rec.t[i] - rec.t[i - 1]);
+    for (let i = a + 1; i <= b; i++) if (!maskedGap(rec, i)) gaps.push(rec.t[i] - rec.t[i - 1]);
     const [oa, ob] = st[k];
     let nearFrames = 0, slowNear34 = 0, slowNear50 = 0, slowFar34 = 0, slowFar50 = 0;
     for (let i = a + 1; i <= b; i++) {
+      if (maskedGap(rec, i)) continue;
       const g = rec.t[i] - rec.t[i - 1];
       if (near[i]) { nearFrames++; slowNear34 += g > 34; slowNear50 += g > 50; } else { slowFar34 += g > 34; slowFar50 += g > 50; }
     }
@@ -198,3 +202,54 @@ export function searchOf(arm) {
 export const uploadName = (name) => name.replace(/[:<>|*?"\\]/g, '_');
 
 export const searchesOf = (arms) => [...new Set(arms.filter((a) => a !== 'original' && a !== 'rewrite').map(searchOf))];
+
+// Cycle versus clock (task push-cycle-separate): TS twin of Fw.Measure.PushCycle `stretch` to `readCensus`, replayed against the golden.
+export const SEP_MIN_PASSES = 3;
+export const SEP_FULL_CYCLES = 12;
+export const SEP_DWELL_CYCLES = 6;
+export const SEP_WINDOW = Object.freeze([3, 4, 5]);
+
+export const stretch = (dwellMs, fullMs) => (fullMs === 0 ? 0 : Math.floor((dwellMs * 1000) / fullMs));
+export const clockIndex = (r, k) => Math.floor((k * r + 500) / 1000);
+export const windowObs = (p, idx) => SEP_WINDOW.flatMap((k) => (idx(k) < p.length ? [p[idx(k)]] : []));
+export const sepWindowOf = (ps, idx) => ps.flatMap((p) => windowObs(p, idx));
+export const rate = (xs) => (xs.length === 0 ? 0 : Math.floor((sum(xs) * 1000) / xs.length));
+const absDiff = (a, b) => Math.abs(a - b);
+export const separable = (i, c) => Math.max(i, c) > 0 && Math.max(i, c) <= 2 * absDiff(i, c);
+
+export function pick(i, c, d) {
+  if (!separable(i, c)) return 'undecided:inseparable';
+  if (3 * absDiff(d, i) <= absDiff(d, c)) return 'cycleDriven';
+  if (3 * absDiff(d, c) <= absDiff(d, i)) return 'clockDriven';
+  return 'undecided:between';
+}
+
+/** s = {full, dwell: lists of per-cycle counts per pass, periodFull, periodDwell: ms}; Lean `sepVerdict`. */
+export function sepVerdict(s) {
+  const r = stretch(s.periodDwell, s.periodFull);
+  if (s.full.length < SEP_MIN_PASSES) return 'undecided:fewFull';
+  if (s.dwell.length < SEP_MIN_PASSES) return 'undecided:fewDwell';
+  if (s.periodFull === 0 || s.periodDwell === 0) return 'undecided:noPeriod';
+  if (SEP_FULL_CYCLES <= clockIndex(r, 5)) return 'undecided:noRoom';
+  const idx = sepWindowOf(s.full, (k) => k), clk = sepWindowOf(s.full, (k) => clockIndex(r, k)), dw = sepWindowOf(s.dwell, (k) => k);
+  if (!idx.length || !clk.length || !dw.length) return 'undecided:noObs';
+  return pick(rate(idx), rate(clk), rate(dw));
+}
+
+export const across = (ts) => {
+  if (ts.length < SEP_MIN_PASSES) return 'few';
+  if (ts.every((t) => t === 'rises')) return 'yes';
+  if (ts.every((t) => t !== 'rises')) return 'no';
+  return 'mixed';
+};
+export const readCensus = (passes) => across(passes.map(trend));
+export const restMs = (target, spent, cap) => Math.min(Math.max(target - spent, 0), cap);
+
+// TS stand-ins without a Lean golden (glue over the recorded frames): the mean spacing of the first six opens, in ms.
+export function periodMs(rec) {
+  const st = stretches(rec.o);
+  return st.length > 5 ? Math.round((rec.t[st[5][0]] - rec.t[st[0][0]]) / 5) : 0;
+}
+
+/** Per-pass slow (> thr ms) frames of each cycle, the quiet ranges masked: the list the verdict reads. */
+export const slowCounts = (rec, thr = 50) => recordCycles(rec).map((c) => (thr === 50 ? c.slow50 : c.slow34));
