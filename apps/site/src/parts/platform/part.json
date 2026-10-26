@@ -29,8 +29,22 @@
         "lean": "Fw.Parts.PlatformFade threaded_eq, frame_blur_eq, ca_accepts, webkit_not_exact",
         "limit": "one opacity and blur effect per push replaces the per-frame --morph-fade write; equal values under the WAAPI premises, but CA's blur is not the software blur (pixels at best Q on WebKit); the section's blur layer is tiled above 1280 px; Chromium keeps the blur on the main thread"
       }
+    },
+    "faded-pause": {
+      "kind": "optimized",
+      "tier": "T0",
+      "visClass": "E",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformFadedPause faded_same_pixels, frame_same, visible_phase, faded_no_tick, glint_phase, scene_offscreen, scene_faded, scene_neither",
+        "chromium": "third_party/blink/renderer/core/paint/paint_layer_painter.cc:168-191,424 @f842f52 (PaintedOutputInvisible only marks the chunks effectively invisible via ScopedEffectivelyInvisible; the layer is still recorded)",
+        "webkit": "Source/WebCore/rendering/RenderLayer.cpp:1522,6147-6150 @862f17d (repaint rects of an opacity-0 subtree are cleared, so no repaint is scheduled; the animation still resolves style every frame)",
+        "limit": "same look: while the fade is 0 the section is composited to nothing (faded_same_pixels, assuming no descendant escapes the opacity group, which a census test pins), and whenever it is above 0 the CSS animations read the uninterrupted phase (start times restored after the scene value returns to active) and the dash SMIL clocks are seeked (glint pause). The scene attribute has one writer that ORs the observer and the faded pause; the paused rule also drops will-change, so the card and stage layers are released while faded and rebuilt on the way back. Premises: the animations are CSS animations on the section's subtree (a finished one is left alone); an svg mounted while paused is not paused; setting startTime on a CSSAnimation after the style flush keeps the CSS play state (INFERRED, both engines)"
+      }
     }
   },
   "requires": {},
-  "conflicts": { "platform:fade-threaded": ["morph.tween:waapi", "morph.tween:waapi-scoped"] }
+  "conflicts": {
+    "platform:fade-threaded": ["morph.tween:waapi", "morph.tween:waapi-scoped"],
+    "platform:faded-pause": ["morph.tween:waapi", "morph.tween:waapi-scoped", "platform.sweep:offscreen-pause", "platform.glint:offscreen-pause"]
+  }
 }

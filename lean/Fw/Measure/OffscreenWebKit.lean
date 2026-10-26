@@ -191,6 +191,33 @@ theorem decided_of_not_undecided (base flag : List Pass) (h : undecided base fla
   simp only [undecided, enoughVms, Bool.not_eq_false', Bool.and_eq_true, decide_eq_true_eq] at h
   exact zoneVerdicts_eq_pass base flag h.1 h.2
 
+theorem gain_needs_evidence (lo hi : Nat) (base flag : List Pass) (h : verdict lo hi base flag = .gain) :
+    minRuns ≤ base.length ∧ minRuns ≤ flag.length ∧ minVms ≤ vmCount base ∧ minVms ≤ vmCount flag := by
+  refine ⟨Nat.not_lt.mp fun hb => ?_, Nat.not_lt.mp fun hf => ?_, Nat.not_lt.mp fun hb => ?_, Nat.not_lt.mp fun hf => ?_⟩
+  · rw [noData_of_fewBase lo hi base flag hb] at h; cases h
+  · rw [noData_of_fewFlag lo hi base flag hf] at h; cases h
+  · rw [noData_of_fewVmsBase lo hi base flag hb] at h; cases h
+  · rw [noData_of_fewVmsFlag lo hi base flag hf] at h; cases h
+
+theorem passVerdict_gain_needs_runs (lo hi : Nat) (base flag : List Pass) (h : passVerdict lo hi base flag = .gain) :
+    minRuns ≤ base.length ∧ minRuns ≤ flag.length := by
+  unfold passVerdict passUsable at h
+  split at h
+  · rename_i hu; simp only [Bool.and_eq_true, decide_eq_true_eq] at hu; exact ⟨hu.1.1.1.1, hu.1.1.1.2⟩
+  · cases h
+
+theorem zoneVerdicts_gain_needs_evidence (base flag : List Pass) (z : String) (h : (z, Verdict.gain) ∈ zoneVerdicts base flag) :
+    minRuns ≤ base.length ∧ minRuns ≤ flag.length ∧ minVms ≤ vmCount base ∧ minVms ≤ vmCount flag := by
+  obtain ⟨zn, -, hz⟩ := List.mem_map.1 h
+  simp only [Prod.mk.injEq] at hz
+  exact gain_needs_evidence _ _ _ _ hz.2
+
+theorem verdict_empty_base (lo hi : Nat) (flag : List Pass) : verdict lo hi [] flag = .noData :=
+  noData_of_fewBase lo hi [] flag (by decide)
+
+theorem verdict_empty_flag (lo hi : Nat) (base : List Pass) : verdict lo hi base [] = .noData :=
+  noData_of_fewFlag lo hi base [] (by decide)
+
 theorem not_mem_windowSteps_of_gt (lo hi y : Nat) (p : Pass) (h : hi < y) : y ∉ windowSteps lo hi p := by
   intro hm
   have := (List.mem_filter.1 hm).2

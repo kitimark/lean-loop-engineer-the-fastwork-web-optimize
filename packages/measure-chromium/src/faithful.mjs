@@ -13,9 +13,9 @@
 //        after Lean (`faithful.comparable`, Fw.Faithful.comparable) accepted the pair. A profile with no rewrite baseline prints
 //        `NO DATA: <p>`, a pair Lean refuses prints `not comparable: <field>`; either is a named refusal, the file records it
 //        (`verdict: null`) and the exit code is 1. The verdict is Lean's, the refusal is Lean's or a missing file, never silence.
+//        A verdict Lean leaves undecided (no zone, or a zone without evidence: Fw.Faithful.judged) prints `UNDECIDED: <p>: <reason>`
+//        and exits 1; the file records the verdict with its `undecided` reason.
 //   node src/faithful.mjs lean [--runs ...] [--out lean/Fw/Faithful/Measured.lean] [--check]
-//        writes the Lean file with the measured cells, the comparability of each pair and one theorem per profile and zone
-//        (decided by `decide`); the same refusals apply (exit 1)
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -77,11 +77,14 @@ const cellRows = (z) => Object.entries(z.cells)
   .filter(([, c]) => c.status === 'fail' || c.status === 'unbanded' && c.a !== c.r)
   .map(([type, c]) => ({ type, ...c }));
 
-/** The report of one verdict: per zone the shape, tally, failed cells and unbanded differences. */
+export const stateOf = (v) => (v.pass ? 'PASS' : v.undecided !== undefined ? `UNDECIDED (${v.undecided})` : `FAIL ${v.failedZones.join(',')}`);
+
+export const undecidedZones = (v) => v.zones.filter((z) => z.undecided).map((z) => z.id);
+
 export function summarize(v) {
   return {
-    pass: v.pass, failedZones: v.failedZones,
-    zones: v.zones.map((z) => ({ id: z.id, present: z.present, shape: z.shape, pass: z.pass, framesA: z.framesA, framesR: z.framesR,
+    pass: v.pass, failedZones: v.failedZones, undecided: v.undecided,
+    zones: v.zones.map((z) => ({ id: z.id, present: z.present, shape: z.shape, pass: z.pass, undecided: z.undecided, framesA: z.framesA, framesR: z.framesR,
       pxA: z.pxA, pxR: z.pxR, tally: z.tally, failed: z.failed,
       offBand: cellRows(z).filter((c) => c.status === 'fail').map(({ type, family, lo, hi, a, r }) => ({ type, family, loA: lo, hiA: hi, a, r })),
       unbandedDiffs: cellRows(z).filter((c) => c.status === 'unbanded').map(({ type, a, r }) => ({ type, a, r })) })),
@@ -123,11 +126,12 @@ export function judge(p, runs) {
     controlRefusal: d.C === null ? 'no control baseline' : cmpC.comparable ? null : `not comparable: ${cmpC.field}`,
     reply: verdict, controlReply: control,
   };
-  return { refusal: null, file, summary: `R ${verdict.pass ? 'PASS' : 'FAIL ' + verdict.failedZones.join(',')}` +
-    (control ? `; control A'/A ${control.pass ? 'pass' : 'FAIL ' + control.failedZones.join(',')}` : `; control: ${file.controlRefusal}`) };
+  return { refusal: null, file, undecided: verdict.undecided ?? null, summary: `R ${stateOf(verdict)}` +
+    (control ? `; control A'/A ${control.pass ? 'pass' : stateOf(control)}` : `; control: ${file.controlRefusal}`) };
 }
 
-/** Judge every profile; write (or `check`) <out>/<p>.verdict.json. Returns the report lines and the exit code (1 on any refusal or difference). */
+export const namedLines = (p, j) => [...(j.refusal ? [j.refusal.text] : []), ...(j.undecided ? [`UNDECIDED: ${p}: ${j.undecided}`] : [])];
+
 export function verdictRun({ runs, out, profiles = PROFILES, check = false }) {
   const lines = [];
   let code = 0;
@@ -135,7 +139,9 @@ export function verdictRun({ runs, out, profiles = PROFILES, check = false }) {
     const j = judge(p, runs);
     const path = join(out, `${p}.verdict.json`);
     const text = JSON.stringify(j.file, null, 1) + '\n';
-    if (j.refusal) { lines.push(j.refusal.text); code = 1; }
+    const named = namedLines(p, j);
+    lines.push(...named);
+    if (named.length > 0) code = 1;
     if (check) {
       if (!existsSync(path) || readFileSync(path, 'utf8') !== text) { lines.push(`DIFFERS: ${path}`); code = 1; }
       else if (!j.refusal) lines.push(`identical: ${path}`);
@@ -152,7 +158,7 @@ function verdictMode() {
   const runs = resolve(arg('--runs', join(ROOT, 'results/faithful/runs')));
   const out = resolve(arg('--out', join(ROOT, 'results/faithful')));
   const { lines, code } = verdictRun({ runs, out, profiles: arg('--profile') ? [arg('--profile')] : PROFILES, check: args.includes('--check') });
-  for (const l of lines) (/^(NO DATA|not comparable|DIFFERS)/.test(l) ? console.error : console.log)(l);
+  for (const l of lines) (/^(NO DATA|not comparable|DIFFERS|UNDECIDED)/.test(l) ? console.error : console.log)(l);
   process.exit(code);
 }
 
@@ -174,6 +180,9 @@ export function leanSource(runsDir) {
     const { d, metas, cmpC } = q;
     const verdict = verdictOf(d.classes, d.A, d.R);
     const control = d.C && cmpC?.comparable ? verdictOf(d.classes, d.A, d.C) : null;
+    for (const v of [verdict, control]) {
+      if (v && (v.undecided !== undefined || undecidedZones(v).length > 0)) throw new Error(`UNDECIDED: ${p}: ${stateOf(v)}`);
+    }
     const P = ident(p);
     const entries = Object.keys(d.classes).sort().map((t) => {
       const e = d.classes[t];

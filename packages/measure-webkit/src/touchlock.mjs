@@ -67,6 +67,14 @@ export function cmp(faith, cand) {
 
 export const look = (faith, cand) => (faith.every((x) => x === 0) && cand.every((x) => x === 0) ? 'same' : 'change');
 
+export const MIN_SAMPLES = 3;
+
+export const known = (faith, cand) => faith.length >= MIN_SAMPLES && cand.length >= MIN_SAMPLES;
+
+export const cmpKnown = (faith, cand) => (known(faith, cand) ? cmp(faith, cand) : 'undecided');
+
+export const lookKnown = (faith, cand) => (known(faith, cand) ? look(faith, cand) : 'undecided');
+
 export function tally(rs) {
   const ok = rs.filter((r) => refusal(r) === null);
   return { accepted: ok.length, jitter: ok.filter((r) => reduce(r).jitter).length };
@@ -135,9 +143,9 @@ export function summarize(rows) {
     arms,
     windows: windowsOf(rows),
     verdicts: {
-      lockVsBase: { fights: cmp(base.fights, lock.fights), restores: cmp(base.restores, lock.restores), eventFights: cmp(base.eventFights, lock.eventFights) },
-      baseVsOrig: { fights: cmp(orig.fights, base.fights), restores: cmp(orig.restores, base.restores) },
-      look: look(base.displaced, lock.displaced),
+      lockVsBase: { fights: cmpKnown(base.fights, lock.fights), restores: cmpKnown(base.restores, lock.restores), eventFights: cmpKnown(base.eventFights, lock.eventFights) },
+      baseVsOrig: { fights: cmpKnown(orig.fights, base.fights), restores: cmpKnown(orig.restores, base.restores) },
+      look: lookKnown(base.displaced, lock.displaced),
     },
   };
 }
@@ -156,6 +164,6 @@ export function markdown(s) {
       wins.map((w) => `| ${w.n} | ${w.arm} | ${w.rep ?? ''} | ${w.state} | ${w.reason ?? ''} | ${w.openFrames ?? ''} | ${w.reversals ?? ''} | ${w.fights ?? ''} | ${w.displaced ?? ''} | ${w.restores ?? ''} | ${w.state === 'open' ? (w.lock ?? 'none') : ''} |`)));
   }
   const v = s.verdicts;
-  lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${v.look === 'same' ? 'same look' : 'look change'}`);
+  lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${v.look === 'same' ? 'same look' : v.look === 'change' ? 'look change' : 'undecided'}`);
   return lines.join('\n');
 }

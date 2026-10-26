@@ -262,6 +262,15 @@ theorem gain_sound (ks : List String) (base flag : List Vec) (h : verdictOn ks b
   obtain ⟨k, hk, hkm⟩ := List.mem_filterMap.1 hl
   exact ⟨k, hk, hkm⟩
 
+theorem verdictOn_gain_needs_runs (ks : List String) (base flag : List Vec) (h : verdictOn ks base flag = .gain) :
+    minRuns ≤ base.length ∧ minRuns ≤ flag.length := by
+  refine ⟨Nat.not_lt.mp fun hb => ?_, Nat.not_lt.mp fun hf => ?_⟩
+  · rw [noData_of_fewBase ks base flag hb] at h; cases h
+  · rw [noData_of_fewFlag ks base flag hf] at h; cases h
+
+theorem vecsOf_length_le (runs : List (List (String × Vec))) (name : String) : (vecsOf runs name).length ≤ runs.length :=
+  List.length_filterMap_le _ _
+
 def cell (base flag : List Vec) (k : String) : Option (Cmp × (Nat × Nat) × (Nat × Nat)) := do
   let b ← spread (← values base k)
   let f ← spread (← values flag k)
@@ -294,5 +303,18 @@ private theorem lookup_map_pair (g : String → Verdict) (ns : List String) (n :
 theorem armVerdicts_get (base flag : List (List (String × Vec))) (n : String) (hn : n ∈ windowNames) :
     (armVerdicts base flag).lookup n = some (verdictOn wkeys (vecsOf base n) (vecsOf flag n)) :=
   lookup_map_pair (fun m => verdictOn wkeys (vecsOf base m) (vecsOf flag m)) windowNames n hn
+
+theorem armVerdicts_gain_needs_runs (base flag : List (List (String × Vec))) (n : String)
+    (h : (n, Verdict.gain) ∈ armVerdicts base flag) : minRuns ≤ base.length ∧ minRuns ≤ flag.length := by
+  obtain ⟨m, -, hm⟩ := List.mem_map.1 h
+  simp only [Prod.mk.injEq] at hm
+  obtain ⟨-, hv⟩ := hm
+  have := verdictOn_gain_needs_runs wkeys _ _ hv
+  exact ⟨Nat.le_trans this.1 (vecsOf_length_le base m), Nat.le_trans this.2 (vecsOf_length_le flag m)⟩
+
+theorem armVerdicts_of_usable (base flag : List (List (String × Vec))) (n : String) (hn : n ∈ windowNames)
+    (hu : usableOn wkeys (vecsOf base n) (vecsOf flag n) = true) :
+    (armVerdicts base flag).lookup n = some (judge (wkeys.filterMap (cmpKey slack (vecsOf base n) (vecsOf flag n)))) := by
+  rw [armVerdicts_get base flag n hn, verdictOn_of_usable wkeys _ _ hu]
 
 end Fw.Measure.OffscreenWindows

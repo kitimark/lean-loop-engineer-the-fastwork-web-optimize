@@ -2,6 +2,10 @@ import { DURATION_MS, FADE_END, fade } from '../morph.tween/logic';
 
 export const FADE_THREADED = 'fade-threaded';
 
+export const FADED_PAUSE = 'faded-pause';
+
+export const FADED_PAUSE_FLAG = 'platform:faded-pause';
+
 export const BLUR_MAX = 12;
 
 export const EASING = [1 / 3, 1, 2 / 3, 1] as const;
@@ -27,6 +31,10 @@ export function keyframes(from: number, to: number): Kf[] {
   const k = kink(from, to);
   const ends = [at(0, fade({ m: from })), at(1, fade({ m: to }))];
   return 0 < k && k < 1 ? [ends[0]!, at(k, 0), ends[1]!] : ends;
+}
+
+export function fadedZero(m: number): boolean {
+  return fade({ m }) === 0;
 }
 
 export function constants() {

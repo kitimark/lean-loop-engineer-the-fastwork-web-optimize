@@ -75,7 +75,9 @@ def verdictCases : List (String × List Vec × List Vec) := [
   ("counter missing", run3 100 [(tick, 98, 100, 102)],
     [full 100 [(tick, 0)], full 100 [(tick, 0)], { full 100 [] with vals := (full 100 []).vals.drop 1 }]),
   ("one below by one", run3 100 [(lay, 11, 11, 11)], run3 100 [(lay, 10, 10, 10)]),
-  ("equal", run3 100 [(lay, 10, 10, 10)], run3 100 [(lay, 10, 10, 10)])]
+  ("equal", run3 100 [(lay, 10, 10, 10)], run3 100 [(lay, 10, 10, 10)]),
+  ("no base runs", [], run3 100 [(tick, 0, 0, 0)]),
+  ("no flag runs", run3 100 [(tick, 98, 100, 102)], [])]
 
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("settle", toJson settle), ("minRuns", toJson minRuns), ("slack", toJson slack),

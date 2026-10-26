@@ -79,6 +79,13 @@ test('offscreen-windows: every arm case gets the golden verdict, usability and c
   }
 });
 
+test('offscreen-windows: an arm with no or too few runs is no data in every window', () => {
+  for (const name of ['no base runs', 'no flag runs', 'two base runs', 'two flag runs']) {
+    const g = ops('arm').find((x) => x.case === name);
+    for (const v of armVerdicts(armOf(g.base), armOf(g.flag))) assert.equal(v.verdict, 'noData', `${name}: ${v.window}`);
+  }
+});
+
 const frame = (n, scrollY, counts, phase = 'swipe') => ({ n, phase, scrollY, counts });
 function fakeCounts(total, e, tail, over = {}) {
   const frames = [];

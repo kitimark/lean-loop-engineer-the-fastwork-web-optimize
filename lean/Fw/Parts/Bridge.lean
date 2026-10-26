@@ -456,7 +456,7 @@ def codeAdj : List (List Nat) :=
    [],
    [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 16, 17, 20, 21, 22, 24, 25, 27, 28, 29, 30, 33],
    [3, 24],
-   [0, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 21, 22, 24, 29],
+   [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22, 24, 26, 27, 29],
    [],
    [],
    [],
@@ -589,7 +589,7 @@ theorem chainPairs_code_iff (p q : Nat) :
     have hp : p < 34 := hlen ▸ (List.getElem?_eq_some_iff.mp hP).1
     exact ⟨p, hp, q, ⟨(reach_code_iff hp q).mp hr, fun h => hne h.symm, (indepAt_iff _ _ _).mpr hind⟩, rfl, rfl⟩
 
-theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 294 := by decide +kernel
+theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 289 := by decide +kernel
 
 
 theorem chainTargets_code :
@@ -621,8 +621,8 @@ theorem chainTargets_code :
         [0, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
         [],
         [8, 14, 18, 31, 32],
-        [0, 9, 16, 17, 21, 22, 28, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
-        [1, 6, 20, 25, 27, 30, 31, 32],
+        [0, 9, 16, 17, 21, 22, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
+        [25, 30, 31, 32],
         [],
         [],
         [],

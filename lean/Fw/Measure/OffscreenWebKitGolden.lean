@@ -40,7 +40,10 @@ def verdictCases (_ : Unit := ()) : List (String × Nat × Nat × List Pass × L
   ("base four passes from two VMs", 4500, 5200, onVms [1, 1, 2, 2] [(2, 40)], three [(2, 4)]),
   ("three passes on one VM", 4500, 5200, three [(2, 40)], onVms [1, 1, 1] [(2, 4)]),
   ("six passes from three VMs", 4500, 5200, onVms [1, 1, 2, 2, 3, 3] [(2, 40)], onVms [4, 4, 5, 5, 6, 6] [(2, 4)]),
-  ("two VMs, equal arms", 4500, 5200, three [(2, 40)], onVms [1, 1, 2, 2] [(2, 40)])]
+  ("two VMs, equal arms", 4500, 5200, three [(2, 40)], onVms [1, 1, 2, 2] [(2, 40)]),
+  ("no base passes", 4500, 5200, [], three [(2, 4)]),
+  ("no flag passes", 4500, 5200, three [(2, 40)], []),
+  ("flag one pass short", 4500, 5200, three [(2, 40)], (three [(2, 4)]).take 2)]
 
 def shifted : List Pass :=
   let p := mk 5231 [(2, 4)]
@@ -72,7 +75,8 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("jitter only: no zone gains", three [] [0, 2, 4], three [] [1, 3, 5]),
     ("pass ending at 5231 or 5267 stays comparable", [mk 5231 [] 0 1, mk 5231 [] 0 2, mk 5267 [] 0 3],
       [mk 5231 [(3, 0)] 0 1, mk 5267 [(3, 0)] 0 2, mk 5231 [(3, 0)] 0 3]),
-    ("Paint down on two flag VMs: every zone undecided", three [(2, 40)], onVms [1, 1, 2, 2] [(2, 4)])].map fun (name, b, f) =>
+    ("Paint down on two flag VMs: every zone undecided", three [(2, 40)], onVms [1, 1, 2, 2] [(2, 4)]),
+    ("no flag passes: every zone undecided", three [(2, 40)], [])].map fun (name, b, f) =>
     (Json.mkObj [("op", "zones"), ("case", Json.str name), ("base", passesJson b), ("flag", passesJson f),
       ("vms", toJson [vmCount b, vmCount f]), ("undecided", .bool (undecided b f)),
       ("zones", Json.arr ((zoneVerdicts b f).toArray.map fun (z, v) =>
