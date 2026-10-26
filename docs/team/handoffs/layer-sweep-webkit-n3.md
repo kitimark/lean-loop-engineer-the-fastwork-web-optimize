@@ -1,5 +1,5 @@
 branch: worktree-wf_84149416-e5b-1 | worktree: .claude/worktrees/wf_84149416-e5b-1 | last commit: see git log (handoff commits) | CI branch: ci/layer-sweep-webkit-n3 @9493a5ddb (push 1 of 2 used; dispatches need no push)
-State: all four CI runs finished; WebKit stays UNDECIDED in every zone (minVms 3). Note, ledger row and notes entry are updated; dry land and review ready are the last steps.
+State: all four CI runs finished; WebKit stays UNDECIDED in every zone (minVms 3).
 CI runs (webkit-sim via `pnpm -s fw run --target rewrite --engines webkit --ref ci/layer-sweep-webkit-n3 --runs 3 --no-route [--fw platform.sweep:layer-sweep]`; --no-route because the Codemagic cell has no app id):
 - round 1 base 40277969074: jobs r1, r2 lost (partial pass-1 kept), r3 ok
 - round 1 arm  40277972324: jobs r2, r3 lost (no pass), r1 ok
