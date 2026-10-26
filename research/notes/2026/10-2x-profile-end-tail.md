@@ -40,7 +40,7 @@ frame is read at the next frame), so `e <= eRun` is the hypothesis the window th
 Run 40355794611 (`chromium-counts`, push of `ci/profile-end-tail`, profile swipe-touch-v1, target rewrite = base, 2 runs: the workflow
 refuses fewer than 2). Table and per-run json: `results/profile-end-tail/windows.json`; script `results/profile-end-tail/windows.mjs`.
 
-| run | endReason | run end frame | reader end | last swipe frame | frames after the end | total | frames per window (approach / 0-19 / 20-59 / 60-119 / 120+ / finish) |
+| run | endReason | run end frame | reader end | last swipe frame | frames after the reader end (stop - reader end + 1) | total | frames per window (approach / 0-19 / 20-59 / 60-119 / 120+ / finish) |
 |---|---|---|---|---|---|---|---|
 | r1 | stalled | 575 | 574 | 740 | 166 | 771 | 34 / 20 / 40 / 60 / 47 / 201 |
 | r2 | stalled | 575 | 574 | 740 | 166 | 771 | 34 / 20 / 40 / 60 / 47 / 201 |
@@ -60,7 +60,7 @@ end + 165, so end 120+ gets 47 frames as in the base run (INFERRED from the theo
   end windows; approach and finish windows change in length (finish gets the extra frames). Same-commit comparisons stay valid
   because both arms use the same rule and the windows read the common frames (`ownVerdicts`).
 * A profile whose stall wait plus hold exceeds 160 (a larger stroke) keeps its stall tail; a wheel profile (stroke 3) gets the
-  window tail 160 where it had none.
+  window tail 160 where it had 0 (limit end) or 6 (stalled end) frames.
 * Replay profiles (`input.mode` replay, `until: script`) have no end rule and are unchanged.
 
 ## TS stand-ins
