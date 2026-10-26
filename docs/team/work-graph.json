@@ -21697,7 +21697,8 @@
     "results/push-cycle-lag/**",
     "docs/team/handoffs/push-cycle-lag.md"
    ],
-   "title": "User 2026-10-25 (phone feel): 'when I pull in and pull out the end-of-page, it is quite more lag than when I open the end-of-page at once'. Earlier work covered only the scroll fight on close-then-reopen (10-2x-combo-scroll-fight, release hold rule landed) and reversals/spring-back per open stretch (10-2x-morph-end-measure, thin data; morph-end-remeasure running); no task measured the frame cost per push cycle. Do: Lean first, a push-cycle model (open, close, re-open within a dwell d) predicting which work repeats per cycle and which is paid once per open: layer promotion and re-attach repaint of the tweened parts (Fw.Engine resource tween_repaint/promote_tween), countdown faces (about 80 layers), column re-layout, panel and platform blur, scroll throttle re-entry; theorem shapes: per-cycle work is >= the single-open work when promotion repeats, and the k-th cycle's work does not fall unless layers are kept. Measure: N = 6 back-and-forth cycles (dwell 0.3 s, 1 s) vs one open, on CI (Chromium swipe-touch with a cycle profile, CDP Input touch; WebKit Simulator touch lane with XCUITest real touches), per cycle index: slow frames (>34, >50 ms), Layout, RecalculateStyles, Paint, Composite, layer count and backing per cycle; base, rewrite, and the user's composition ?fw=nav:earn-logical,hero.countdown:strip,platform:fade-threaded,platform.glint:offscreen-pause,platform.sweep:offscreen-pause,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle. Name the part and engine stage that make cycle k cost more than the single open (attribution by toggling each flag of the composition off in turn where the data points there). Then propose same-look fixes (e.g. keep the promoted layers alive across a cycle, will-change held while the finger is near the end) as follow-up variants with their premise. Added 2026-10-25 (user): 'it does not lag on Safari on macOS, it lags only on Safari on the real iPhone'. Same WebKit, so the cause is iOS-specific. Rank and test these iOS-only mechanisms first (Lean premise per hypothesis, cite WebKit/UIKit source at the pinned commit): (H1) a direction reversal shows or hides the Safari toolbar on iOS, which resizes the visual viewport (innerHeight, dvh, resize and visualViewport events) and throttles visible-rect updates to 100 ms while it animates (WKWebViewIOS.mm:3256-3268@862f17d); code that reads innerHeight (e.g. commission vh) or sizes fixed elements (the nav) then re-lays out; macOS Safari has no dynamic toolbar; (H2) iOS async scrolling: the UI process owns the scroll position and the web process sees it late, so the morph's rAF and scroll re-pin fight a scroll the page does not see yet; (H3) DPR 3 (vs 2 on the Mac): every re-raster of a re-promoted layer costs 2.25x the Mac pixels, and iOS layers are UIView-backed (countdown 80-160 UIViews at morph start); (H4) the iPhone GPU and memory limits (tile size, IOSurface pool 64 MB) under repeated promotion. Scripted scrollTo does not move the toolbar, so measure with real touches: the WebKit Simulator touch lane (XCUITest), and on the phone the Lean device replay (Fw.Device.Replay, 10-2x-device-replay: W3C touch actions through WebKit's SimulatedInputDispatcher) in phone-compose-counts. Report per hypothesis: holds / refuted / open, with the measured part and stage."
+   "title": "User 2026-10-25 (phone feel): 'when I pull in and pull out the end-of-page, it is quite more lag than when I open the end-of-page at once'. Earlier work covered only the scroll fight on close-then-reopen (10-2x-combo-scroll-fight, release hold rule landed) and reversals/spring-back per open stretch (10-2x-morph-end-measure, thin data; morph-end-remeasure running); no task measured the frame cost per push cycle. Do: Lean first, a push-cycle model (open, close, re-open within a dwell d) predicting which work repeats per cycle and which is paid once per open: layer promotion and re-attach repaint of the tweened parts (Fw.Engine resource tween_repaint/promote_tween), countdown faces (about 80 layers), column re-layout, panel and platform blur, scroll throttle re-entry; theorem shapes: per-cycle work is >= the single-open work when promotion repeats, and the k-th cycle's work does not fall unless layers are kept. Measure: N = 6 back-and-forth cycles (dwell 0.3 s, 1 s) vs one open, on CI (Chromium swipe-touch with a cycle profile, CDP Input touch; WebKit Simulator touch lane with XCUITest real touches), per cycle index: slow frames (>34, >50 ms), Layout, RecalculateStyles, Paint, Composite, layer count and backing per cycle; base, rewrite, and the user's composition ?fw=nav:earn-logical,hero.countdown:strip,platform:fade-threaded,platform.glint:offscreen-pause,platform.sweep:offscreen-pause,morph.columns:idle-none,morph.countdown:strip,engine.events:quiet,engine.scroll:unthrottle. Name the part and engine stage that make cycle k cost more than the single open (attribution by toggling each flag of the composition off in turn where the data points there). Then propose same-look fixes (e.g. keep the promoted layers alive across a cycle, will-change held while the finger is near the end) as follow-up variants with their premise. Added 2026-10-25 (user): 'it does not lag on Safari on macOS, it lags only on Safari on the real iPhone'. Same WebKit, so the cause is iOS-specific. Rank and test these iOS-only mechanisms first (Lean premise per hypothesis, cite WebKit/UIKit source at the pinned commit): (H1) a direction reversal shows or hides the Safari toolbar on iOS, which resizes the visual viewport (innerHeight, dvh, resize and visualViewport events) and throttles visible-rect updates to 100 ms while it animates (WKWebViewIOS.mm:3256-3268@862f17d); code that reads innerHeight (e.g. commission vh) or sizes fixed elements (the nav) then re-lays out; macOS Safari has no dynamic toolbar; (H2) iOS async scrolling: the UI process owns the scroll position and the web process sees it late, so the morph's rAF and scroll re-pin fight a scroll the page does not see yet; (H3) DPR 3 (vs 2 on the Mac): every re-raster of a re-promoted layer costs 2.25x the Mac pixels, and iOS layers are UIView-backed (countdown 80-160 UIViews at morph start); (H4) the iPhone GPU and memory limits (tile size, IOSurface pool 64 MB) under repeated promotion. Scripted scrollTo does not move the toolbar, so measure with real touches: the WebKit Simulator touch lane (XCUITest), and on the phone the Lean device replay (Fw.Device.Replay, 10-2x-device-replay: W3C touch actions through WebKit's SimulatedInputDispatcher) in phone-compose-counts. Report per hypothesis: holds / refuted / open, with the measured part and stage.",
+   "evidence": "162fc43"
   },
   {
    "devices": [
@@ -22000,6 +22001,90 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/handoffs/slot-width-evidence.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-sweep-layer",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "platform-attribution"
+   ],
+   "title": "Step 2(a) of the platform end-of-page work, premise MEASURED by platform-attribution (WebKit Simulator run 40237513521, 3 VMs: switching the sweep animation off drops z5000 Paint 54-66 to 30-36 and finish-zone Paint 166-222 to 80-143; Chromium run 40237508223: 215 fewer raster tasks and 792 fewer PaintImage in the finish window). Build platform.sweep:layer-sweep: the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor-driven transform (a gradient layer translated under a text mask, or an equivalent the engines composite without repainting the text) with identical pixels at every frame and breakpoint, or prove it impossible on an engine from source (WebKit and Chromium at the pinned commits) and record the negative result. Lean first: the same-look premise (gradient position as a function of time equals the original, both engines) and the work claim (no text repaint per frame) with theorems and golden; the variant is its own flag. Then the breakpoint gate (both engines), counts per engine and zone against the base on CI (WebKit Simulator 3 VMs, Chromium swipe-touch-v1 3 runs), and a look check (frame hashes or pixel diff at fixed times); a look change goes to the look-change class for the user's visual review and never into a preset. GPU/layer memory may rise (accepted under a Lean memory budget). Negative results are findings (mechanism + Lean why). Builders that edit research/findings/ledger.json append notes at the end and run the apps/runner ledger-merge test; builders that merge main run lake build before any golden check.",
+   "writes": [
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform/**",
+    "lean/Fw/Parts/PlatformSweep*.lean",
+    "lean/Fw/Parts/Platform*/**",
+    "packages/contracts/golden/parts/platform*.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-platform-sweep-layer.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/platform-sweep-layer.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "macos-vm-upload",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "macos-vm-evidence"
+   ],
+   "title": "Phase 2 of macos-vm-evidence (landed ee0903758; trace in research/notes/2026/10-25-macos-vm-loss.md): make a lost or stalled macOS Simulator job leave evidence. In .github/workflows/webkit-sim.yml: upload each per-pass result file (out/$VM-session-$s.pass-*.part, written by session.mjs writePassFile) as soon as the pass ends, and upload the telemetry probes.jsonl periodically during the run (not only at job end), so a job killed by the runner or the 53-min cap still leaves passes and probes. Lean first for any decision (upload cadence as a function of the Lean job bound; theorem: at least one telemetry upload lands before the job cap), golden replayed by a test; the Lean ci trigger and ci-paths rows updated. Then one CI push of ci/macos-vm-upload ([ci:webkit-sim] in the head commit message) that shows the per-pass artifacts and at least two periodic probe uploads in one run. toolbar-throttle.yml gets the same edit after toolbar-sim-lane lands (it owns that file now): list it in open. Map exit 6 of the gh-budget waiter (uncovered run) in apps/runner/src/land-remote.ts and document it in docs/team/tools/ci-telemetry.md.",
+   "writes": [
+    ".github/workflows/webkit-sim.yml",
+    "scripts/ci-telemetry/**",
+    "lean/Fw/Ci/Telemetry.lean",
+    "lean/scripts/TelemetryGolden.lean",
+    "packages/contracts/golden/ci/telemetry.jsonl",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Ci/Intent.lean",
+    "lean/Fw/Ci/Overflow.lean",
+    "scripts/ci-paths.mjs",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/land-remote.ts",
+    "apps/runner/test/land-remote*.test.ts",
+    "docs/team/tools/ci-telemetry.md",
+    "docs/team/handoffs/macos-vm-upload.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "push-cycle-separate",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "push-cycle-lag",
+    "toolbar-sim-lane"
+   ],
+   "title": "Follow-ups of push-cycle-lag (landed 009846fc1; note research/notes/2026/10-2x-push-cycle-lag.md). MEASURED there: on the WebKit Simulator the share of slow (> 50 ms) frames rises with the pull-in/pull-out cycle index in every arm, and none of the three flag-off pages (hero.countdown:strip, morph.countdown:strip, engine.scroll:unthrottle) removes the rise; the rise cannot yet be separated from time in the pass (INFERRED). (1) Separate cycle index from pass clock: a 12-cycle pass and a pass with idle dwell between cycles, plus a WebKit layer count and backing-memory reading per cycle (census per cycle), on the toolbar-throttle Simulator lane; Lean rule that decides 'cycle-driven' vs 'clock-driven' from the two profiles, with theorem and golden. (2) Move the flag attribution into Lean: attributed (offTrend : Trend) : Bool := offTrend != .rises, golden row per flag-off page. (3) h1Verdict returns .open when framesFar <= 2 * slowFar (it cannot return holds there), with a theorem. (4) If the rise is cycle-driven, name the per-cycle growth (layers, memory, listeners) and the part that owns it, as the premise for a fix candidate. At most 3 CI pushes; lost jobs are named failures. The phone replay of the same profile belongs to phone-compose-counts.",
+   "writes": [
+    "packages/measure-webkit/src/throttle/push-cycle*.mjs",
+    "packages/measure-webkit/test/push-cycle*.test.mjs",
+    "lean/Fw/Measure/PushCycle.lean",
+    "packages/contracts/golden/measure/push-cycle*.jsonl",
+    ".github/workflows/toolbar-throttle.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-push-cycle-separate.md",
+    "results/push-cycle-separate/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/push-cycle-separate.md"
    ]
   }
  ],
