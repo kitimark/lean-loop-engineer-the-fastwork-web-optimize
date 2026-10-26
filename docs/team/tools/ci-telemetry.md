@@ -54,7 +54,7 @@ does this for `check.sh`). Every command but `step` exits 0 on any internal erro
 - Sampler: Linux reads `/proc/stat` and `/proc/meminfo`; macOS `vm_stat` (memory) and `os.cpus()` (CPU), machine name
   from `sysctl`. The Linux CPU model is the cpuinfo `model name`; arm64 runners have none, so `lscpu` "Model name" (for
   example `Neoverse-N2`), else the cpuinfo implementer and part (`arm 0x41 part 0xd49`) (`parseCpuModel`). Load is `os.loadavg()`, disk is `statfs` of the telemetry directory. At most 360 probes are kept.
-- Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (arch not repeated when ImageOS ends with it) (for example `ubuntu24-arm64-4c`), `<os>-<arch>-<cores>c`
+- Runner class: `ImageOS-RUNNER_ARCH-<cores>c` on GitHub (for example `ubuntu24-arm64-4c`; arch not repeated when ImageOS ends with it), `<os>-<arch>-<cores>c`
   elsewhere, `FW_RUNNER_CLASS` overrides.
 - GitHub: `finish` makes one best-effort call to the jobs API (`GITHUB_TOKEN`, 15 s cap) and takes this job's step
   list (all steps, `uses:` steps included) and the true queue time (`created_at` to `started_at`). If the call fails the
@@ -85,7 +85,7 @@ the producer runs those lanes. The workflows keep `permissions: contents: read`.
 A macOS job lost mid-run leaves nothing from steps that never ran. `webkit-sim` job `sim` therefore starts its measuring
 step in the background (`tick.mjs launch`: own process group, console log, exit file) and runs 8 tick steps
 (`tick.mjs wait <n>`, then an upload of `sim-tick-<vm>-<n>`, 7 days) before the step named `Determinism sessions`, which
-is now `tick.mjs await`: it prints the log, stops the process group at the step bound (TERM, 20 s, KILL, exit 124) and
+is `tick.mjs await`: it prints the log, stops the process group at the step bound (TERM, 20 s, KILL, exit 124) and
 returns the measurement's exit code. A tick stops waiting by Lean `Fw.Ci.Telemetry.wakeWhy`, first reason wins:
 `done` (the measurement ended), `deadline` (the step bound passed), `pass` (a new `out/<vm>-session-<s>.pass-<n>.part`
 exists), `period` (`tickPeriodMin` = step minutes / 5 since the last upload: 7 min for the default 35). It stages the new

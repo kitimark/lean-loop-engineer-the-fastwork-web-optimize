@@ -335,18 +335,12 @@ theorem tickBlocked_late {tick since : Nat} (hp : 0 < tick) (h : 2 * tick ≤ si
 theorem tickBlocked_no_tick (since : Nat) : tickBlocked 0 since = false := by
   unfold tickBlocked; simp
 
-/-! ## Upload cadence of a Simulator job (task `macos-vm-upload`) -/
-
-/-- Upload tick steps in `webkit-sim.yml`. -/
 def tickSteps : Nat := 8
 
-/-- Periodic ticks that fit inside one measuring step. -/
 def periodicTicks : Nat := 4
 
-/-- Passes one determinism session writes (`--runs 2`). -/
 def passesPerSession : Nat := 2
 
-/-- Minutes one tick upload may take. -/
 def tickUploadMin : Nat := 2
 
 /-- Minutes between two periodic probe uploads for a measuring step of `step` minutes. -/
@@ -355,7 +349,6 @@ def tickPeriodMin (step : Nat) : Nat := step / (periodicTicks + 1)
 /-- Seconds between two periodic probe uploads. -/
 def tickPeriodS (step : Nat) : Nat := 60 * tickPeriodMin step
 
-/-- Why a tick step stops waiting. -/
 inductive Why where
   | done
   | deadline
@@ -363,15 +356,13 @@ inductive Why where
   | period
 deriving DecidableEq, Repr
 
-/-- The wire name of a wake reason. -/
 def Why.name : Why → String
   | .done => "done"
   | .deadline => "deadline"
   | .pass => "pass"
   | .period => "period"
 
-/-- A tick step wakes when the measurement ended, its step bound is reached, a pass file is new, or the period since the last upload passed; the first
-reason in this order wins. -/
+/-- The first reason in the order done, deadline, pass, period; none keeps the tick waiting. -/
 def wakeWhy (elapsedS sinceS periodS stepS fresh : Nat) (done : Bool) : Option Why :=
   if done then some .done
   else if stepS ≤ elapsedS then some .deadline
@@ -408,7 +399,6 @@ theorem two_periodic_ticks {step : Nat} (h : 5 ≤ step) :
     0 < tickPeriodMin step ∧ tickPeriodMin step < 2 * tickPeriodMin step ∧ 2 * tickPeriodMin step < step ∧ 2 ≤ periodicTicks := by
   unfold tickPeriodMin periodicTicks; omega
 
-/-- **A telemetry upload lands before the job cap.** The first periodic upload of any measuring step ends before the job's timeout, with the tail still ahead. -/
 theorem first_upload_before_cap (e : String) (k : Nat) :
     Fw.Measure.SimBound.setupMin + tickPeriodMin (Fw.Measure.SimBound.stepMin e k) + tickUploadMin <
       Fw.Measure.SimBound.jobMin e k := by
@@ -416,7 +406,6 @@ theorem first_upload_before_cap (e : String) (k : Nat) :
   unfold Fw.Measure.SimBound.jobMin Fw.Measure.SimBound.tailMin tickUploadMin
   omega
 
-/-- **The last periodic upload also ends inside the measuring step** for every allowed session count and for the quiet experiment. -/
 theorem last_upload_before_step_end (k : Nat) (h : 1 ≤ k) :
     periodicTicks * tickPeriodMin (Fw.Measure.SimBound.stepMin "determinism" k) + tickUploadMin ≤ Fw.Measure.SimBound.stepMin "determinism" k := by
   apply last_tick_lands_in_step
@@ -427,7 +416,6 @@ theorem last_upload_before_quiet_end :
     periodicTicks * tickPeriodMin (Fw.Measure.SimBound.stepMin "quiet" 1) + tickUploadMin ≤ Fw.Measure.SimBound.stepMin "quiet" 1 := by
   decide
 
-/-- **One session fits its ticks.** The periodic ticks, one wake per pass and the wake at the end need no more steps than the workflow has. -/
 theorem ticks_cover_one_session : periodicTicks + passesPerSession + 1 ≤ tickSteps := by decide
 
 #guard tickPeriodMin 35 == 7 && tickPeriodS 35 == 420 && tickPeriodMin 70 == 14 && tickPeriodMin 50 == 10

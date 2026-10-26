@@ -1,4 +1,3 @@
-// node --test scripts/ci-telemetry/   The upload tick: its stand-ins against the Lean golden, and a real launch / wait / await run.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
