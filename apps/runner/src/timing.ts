@@ -12,12 +12,9 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   /** the run kind (Lean `Fw.Obs.Timing.Sample.kind`): for a CI run dispatched by `fw run`, the digest of its workflow inputs; "" and absent for every other span */
   kind?: string;
   skipped?: true;
-  /** `fw ci wait` spans only (task ci-wait-lag): the runs the verdict covers (key `runIds`, never `runId`: `seenRuns` dedupes CI spans on `"runId":`) and the phase times of the wait (`WaitPhases`, epoch ms). */
   runIds?: number[]; phases?: Record<string, number | string | boolean>;
-  slot?: { width: number; jobs: number };
-  /** `fw polish commit` spans only: the checkmap commands of the commit (count and kinds). */
+  slot?: { width: number; jobs?: number; availMB?: number; chargedMB?: number };
   checks?: { n: number; kinds: string[] };
-  /** `fw polish commit` spans that ran lake build and `fw land dry lake` spans: the modules lake built. */
   lake?: { built: number } };
 
 export function slotWork(slot: unknown): { work?: Record<string, string> } {

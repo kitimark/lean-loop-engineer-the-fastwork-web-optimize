@@ -11,6 +11,7 @@ import {
   simDue, simHandover, simIdleNext, simQueued, simRecord, simSettle, step, stopAct, swapActive, thrash, memLow, verdict, vmNext, withLegacy,
 } from "../src/slot-core.ts";
 import { WHY_TAGS, noteQueue, queueExtra } from "../src/slot-queue.ts";
+import { parseSamples } from "../src/watch-collect.ts";
 import {
   type Deps, type GitFacts, EXIT_REFUSED, SlotUsage, lastHealth, legacyLive, markNext, memOf, parseCompressorMB, parseSysctl, parseVmStat, recoverStale,
   acquire, releaseToken, slotCli, spanRows, startOf, withState, SLOT_MAIN_REL, mainCheckout, resolveSlotMain,
@@ -293,6 +294,25 @@ describe("fw slot run", () => {
     expect(code).toBe(3);
     expect(out.join("")).toBe("1 8\n");
     expect(state().holders).toEqual([]);
+  });
+
+  it("a check run's span records the admitted threads as the width, with the availMB and chargedMB the verdict saw; other kinds record none", async () => {
+    const f = join(mkdtempSync(join(tmpdir(), "fw-slot-w-")), "timings.jsonl");
+    process.env.FW_TIMINGS_FILE = f;
+    try {
+      const a = deps();
+      expect(await slotCli(["run", "--kind", "check", "--", node, "-e", "0"], a.d)).toBe(0);
+      expect(await slotCli(["run", "--kind", "test", "--", node, "-e", "0"], deps().d)).toBe(0);
+      const rows = readFileSync(f, "utf8").trim().split("\n").map((l) => JSON.parse(l) as { step: string; slot?: { width: number; availMB: number; chargedMB: number } });
+      const check = rows.find((r) => r.step.startsWith("slot run check"))!;
+      const avail = availMB(quiet().mem);
+      expect(check.slot).toEqual({ width: leanThreads(DEFAULT_PARAMS, quiet().cores, avail - DEFAULT_PARAMS.floorMB), availMB: avail, chargedMB: 0 });
+      expect(rows.find((r) => r.step.startsWith("slot run test"))!.slot).toBeUndefined();
+      expect(parseSamples(readFileSync(f, "utf8")).filter((s) => s.step.startsWith("slot run check")).map((s) => s.work)).toEqual([{ width: String(check.slot!.width) }]);
+    } finally {
+      delete process.env.FW_TIMINGS_FILE;
+      rmSync(dirname(f), { recursive: true, force: true });
+    }
   });
 
   const nowS = (): number => Math.floor(Date.now() / 1000);

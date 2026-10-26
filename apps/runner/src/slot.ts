@@ -9,7 +9,7 @@ import { basename, dirname, join } from "node:path";
 import {
   DEFAULT_PARAMS, DEFAULT_WPARAMS, type BuildVerdict, type CacheKey, type Ctl, type Entry, type Kind, type Mem, type Params, type PassVerdict, type Row,
   type Sample, type Verdict, type VmMark, type WParams, type Window, KINDS, admitBuild, agentsSeen, avail, beginPass, cacheHit, cacheable, capLease,
-  current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, nestedSkips, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
+  charged, current, expired, grant, heldOf, init, keyOf, kindOf, leaseOr, nestedSkips, openAt, passLive, passStart, predict, prune, release, renew, signal, simAction, simBoot,
   simDue, simHandover, simHeld, simIdleNext, simQueued, simRecord, simSettle, step, stopAct, stopPass, vmNext, want, withLegacy, wverdict, simNew,
 } from "./slot-core.ts";
 
@@ -401,7 +401,8 @@ export function describeBuild(v: BuildVerdict): string {
   }
 }
 
-export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict; queue?: Queue };
+export type Inputs = { availMB: number; chargedMB: number };
+export type Grant = { token: string; owner: string; kind: Kind; till: number; verdict: Verdict; queue?: Queue; inputs?: Inputs };
 
 export function predictor(d: Deps): (k: Kind) => number | null {
   let rows: Row[] | null = null;
@@ -426,13 +427,14 @@ export async function acquire(d: Deps, kind: Kind, leaseS: number, waitS: number
       const hs = withLegacy(s.time, legacyLive(d.legacySimLock), st.holders);
       const w = current(s.time, hs, st.window ?? null);
       const v = wverdict(d.wparams, w, w === null ? null : pred(kind), d.params, st.ctl.n, s, hs, st.queue, me, Math.max(0, s.time - t0));
+      const inputs: Inputs = { availMB: avail(s), chargedMB: charged(d.params, s.time, hs) };
       if (v.verdict !== "wait") st.queue = st.queue.filter((e) => e.token !== token);
       const opened = v.verdict === "admit" && kind === "measure" ? openAt(d.wparams, d.owner, token, s.time, gapS) : null;
       const held = grant(d.params, me, s.time, opened === null ? leaseS : capLease(opened, s.time, leaseS), v.verdict === "admit" ? v.footMB : 0);
       if (v.verdict === "admit") st.holders.push(held);
       if (v.verdict === "admit" && kind === "sim" && !st.holders.some((h) => h !== held && h.kind === "sim")) st.simBefore = simRecord(st.simBefore ?? null, bootedUdids(d));
       if (opened !== null) st.window = opened;
-      return { token, owner: d.owner, kind, till: held.till, verdict: v };
+      return { token, owner: d.owner, kind, till: held.till, verdict: v, ...(v.verdict === "admit" ? { inputs } : {}) };
     });
     if (g.verdict.verdict === "wait") waits = addWait(waits, g.verdict.why, (s.time - prev) * 1000);
     prev = s.time;
@@ -606,6 +608,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   endWait(g.verdict.verdict === "admit" ? 0 : EXIT_REFUSED, g.queue ? { queue: g.queue } : {});
   if (g.verdict.verdict !== "admit") return EXIT_REFUSED;
   const threads = String(g.verdict.threads);
+  const slot = kind === "check" && g.inputs !== undefined ? { slot: { width: g.verdict.threads, ...g.inputs } } : {};
   const lakeFile = kind === "land" ? lakeHandoffFile() : null;
   const env = { ...d.env, ...(lakeFile === null ? {} : { [LAKE_HANDOFF_ENV]: lakeFile }), FW_SLOT_HELD: "1", FW_SLOT_TOKEN: g.token, FW_SLOT_OWNER: d.owner, ...(kind === "check" ? { LAKE_SLOT_CORES: threads, LEAN_NUM_THREADS: threads } : {}) };
   const timer = setInterval(() => { renewToken(d, g.token, null); }, Math.max(1, Math.floor(d.params.leaseS / 3)) * 1000);
@@ -614,7 +617,7 @@ export async function run(d: Deps, kind: Kind, argv: string[], cache: boolean): 
   try {
     const r = await exec(d, argv, env, key !== null);
     exit = r.exit;
-    endRun(exit, lakeFile === null ? {} : readLakeHandoff(lakeFile));
+    endRun(exit, { ...slot, ...(lakeFile === null ? {} : readLakeHandoff(lakeFile)) });
     if (key !== null && r.whole && cacheable(r.exit)) {
       const g1 = d.git();
       if (g1.tree === key.tree && g1.clean && g1.mainSha === g0?.mainSha) {
