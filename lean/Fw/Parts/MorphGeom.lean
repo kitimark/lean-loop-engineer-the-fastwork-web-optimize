@@ -757,4 +757,123 @@ theorem ratTrack_within (v : Vp) (hv : Valid v) (F : Rat → Rat) (κ α β : Ra
     rw [hk, lastL_gridFrom]
     grind
 
+/-! ## The five rational tracks and the net error of the counter layer -/
+
+theorem sU_within (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
+    Within (Track.eval (mk (sU v) (knots v)) m - sU v m) (bndRat v 20 0) :=
+  ratTrack_within v hv (sU v) 0 20 0 (fun x _ _ => by unfold sU; grind) m h0 h1
+
+theorem tauX_within (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
+    Within (Track.eval (mk (tauX v) (knots v)) m - tauX v m) (bndRat v (20 * pillW v) (20 * (wp v - pillW v))) :=
+  ratTrack_within v hv (tauX v) (-2 * wp v) (20 * pillW v) (20 * (wp v - pillW v))
+    (fun x _ _ => by unfold tauX; rw [wd_eq]; grind) m h0 h1
+
+theorem tauY_within (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
+    Within (Track.eval (mk (tauY v) (knots v)) m - tauY v m) (bndRat v (20 * pillH v) (20 * (hp v - pillH v))) :=
+  ratTrack_within v hv (tauY v) (-2 * hp v) (20 * pillH v) (20 * (hp v - pillH v))
+    (fun x _ _ => by unfold tauY; rw [ht_eq]; grind) m h0 h1
+
+theorem tUx_within (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
+    Within (Track.eval (mk (tUx v) (knots v)) m - tUx v m)
+      (bndRat v (-10 * (wp v + pillW v)) (-10 * (wp v - pillW v))) :=
+  ratTrack_within v hv (tUx v) (2 * wp v) (-10 * (wp v + pillW v)) (-10 * (wp v - pillW v))
+    (fun x _ _ => by unfold tUx x0; rw [wd_eq]; grind) m h0 h1
+
+theorem tUy_within (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
+    Within (Track.eval (mk (tUy v) (knots v)) m - tUy v m)
+      (bndRat v (-20 * (16 - navTop v 1 + pillH v)) (-20 * (navTop v 1 - 16 + (hp v - pillH v)))) :=
+  ratTrack_within v hv (tUy v) (2 * hp v) (-20 * (16 - navTop v 1 + pillH v))
+    (-20 * (navTop v 1 - 16 + (hp v - pillH v)))
+    (fun x _ _ => by unfold tUy; rw [y0_eq, ht_eq]; grind) m h0 h1
+
+theorem eval_mk_neg (f : Rat → Rat) : ∀ (ks : List Rat) (m : Rat),
+    Track.eval (mk (fun x => -f x) ks) m = -Track.eval (mk f ks) m := by
+  intro ks
+  induction ks with
+  | nil => intro m; simp [mk, Track.eval]
+  | cons p tl ih =>
+    cases tl with
+    | nil => intro m; simp [mk, Track.eval]
+    | cons q rest =>
+      intro m
+      rw [eval_mk_cons, eval_mk_cons]
+      by_cases h : m ≤ q
+      · simp only [h, ↓reduceIte, chord]
+        have : q - p = q - p := rfl
+        grind
+      · simp only [h, ↓reduceIte]
+        exact ih m
+
+/-- The worst content offset of the counter layer, x axis, in css px. -/
+def netBoundX (v : Vp) : Rat :=
+  8 / 5 * (bndRat v 20 0 * (wp v + hp v)) +
+    8 / 5 * (bndRat v (-10 * (wp v + pillW v)) (-10 * (wp v - pillW v)) +
+      bndRat v (20 * pillW v) (20 * (wp v - pillW v)))
+
+/-- The worst content offset of the counter layer, y axis, in css px. -/
+def netBoundY (v : Vp) : Rat :=
+  8 / 5 * (bndRat v 20 0 * (wp v + hp v)) +
+    8 / 5 * (bndRat v (-20 * (16 - navTop v 1 + pillH v)) (-20 * (navTop v 1 - 16 + (hp v - pillH v))) +
+      bndRat v (20 * pillH v) (20 * (hp v - pillH v)))
+
+/-- The knot table of `v` keeps the content within 1/64 css px. -/
+def netOk (v : Vp) : Bool := decide (netBoundX v ≤ 1 / 64 ∧ netBoundY v ≤ 1 / 64)
+
+/-- Content position of a point `u` of the counter layer along x, through the generated tracks. -/
+def navX (v : Vp) (m u : Rat) : Rat :=
+  x0 v m + kk v m * (Track.eval (mk (sU v) (knots v)) m * u + Track.eval (mk (tUx v) (knots v)) m +
+    (Track.eval (mk (tauX v) (knots v)) m + Track.eval (mk (fun x => -tauX v x) (knots v)) m +
+      Track.eval (mk (tauX v) (knots v)) m))
+
+theorem net_err_x (v : Vp) (hv : Valid v) (hok : netOk v = true) (m u : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1)
+    (hu : Within u (wp v + hp v)) : Within (navX v m u - u) (1 / 64) := by
+  unfold netOk at hok
+  have hok' := of_decide_eq_true hok
+  have f := rad_facts v hv m h0 h1
+  have hk0 : 0 ≤ kk v m := by unfold kk; grind
+  have hk : kk v m ≤ 8 / 5 := by unfold kk; grind
+  have hneg := eval_mk_neg (tauX v) (knots v) m
+  have e := net_axis (x0 v m) (kk v m) (sU v m) (tUx v m) (tauX v m) u
+    (Track.eval (mk (sU v) (knots v)) m - sU v m) (Track.eval (mk (tUx v) (knots v)) m - tUx v m)
+    (Track.eval (mk (tauX v) (knots v)) m - tauX v m) _ _ _ (wp v + hp v) (8 / 5)
+    (sU_exact v hv m h0 h1) (tUx_exact v hv m h0 h1) hk0 hk
+    (sU_within v hv m h0 h1) (tUx_within v hv m h0 h1) (tauX_within v hv m h0 h1) hu
+  have eq : navX v m u = x0 v m + kk v m * ((sU v m + (Track.eval (mk (sU v) (knots v)) m - sU v m)) * u +
+      (tUx v m + (Track.eval (mk (tUx v) (knots v)) m - tUx v m)) +
+      (tauX v m + (Track.eval (mk (tauX v) (knots v)) m - tauX v m))) := by
+    unfold navX; rw [hneg]; grind
+  rw [eq]
+  exact within_mono _ _ _ e (by unfold netBoundX at hok'; grind)
+
+/-- Content position of a point `u` of the counter layer along y, through the generated tracks. -/
+def navY (v : Vp) (m u : Rat) : Rat :=
+  y0 v m + kk v m * (Track.eval (mk (sU v) (knots v)) m * u + Track.eval (mk (tUy v) (knots v)) m +
+    (0 + Track.eval (mk (tauY v) (knots v)) m + 0))
+
+theorem net_err_y (v : Vp) (hv : Valid v) (hok : netOk v = true) (m u : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1)
+    (hu : Within u (wp v + hp v)) : Within (navY v m u - u) (1 / 64) := by
+  unfold netOk at hok
+  have hok' := of_decide_eq_true hok
+  have f := rad_facts v hv m h0 h1
+  have hk0 : 0 ≤ kk v m := by unfold kk; grind
+  have hk : kk v m ≤ 8 / 5 := by unfold kk; grind
+  have e := net_axis (y0 v m) (kk v m) (sU v m) (tUy v m) (tauY v m) u
+    (Track.eval (mk (sU v) (knots v)) m - sU v m) (Track.eval (mk (tUy v) (knots v)) m - tUy v m)
+    (Track.eval (mk (tauY v) (knots v)) m - tauY v m) _ _ _ (wp v + hp v) (8 / 5)
+    (sU_exact v hv m h0 h1) (tUy_exact v hv m h0 h1) hk0 hk
+    (sU_within v hv m h0 h1) (tUy_within v hv m h0 h1) (tauY_within v hv m h0 h1) hu
+  have eq : navY v m u = y0 v m + kk v m * ((sU v m + (Track.eval (mk (sU v) (knots v)) m - sU v m)) * u +
+      (tUy v m + (Track.eval (mk (tUy v) (knots v)) m - tUy v m)) +
+      (tauY v m + (Track.eval (mk (tauY v) (knots v)) m - tauY v m))) := by
+    unfold navY; grind
+  rw [eq]
+  exact within_mono _ _ _ e (by unfold netBoundY at hok'; grind)
+
+/-- Viewports whose knot table is proved: phones, tablets and desktops of the breakpoint gate. -/
+def bandVps : List Vp :=
+  [⟨320, 568⟩, ⟨360, 640⟩, ⟨390, 844⟩, ⟨430, 932⟩, ⟨640, 360⟩, ⟨640, 1000⟩, ⟨641, 700⟩, ⟨768, 1024⟩, ⟨1024, 768⟩,
+    ⟨1280, 800⟩, ⟨1440, 900⟩, ⟨1920, 1080⟩]
+
+theorem net_ok_bands : bandVps.all netOk = true := by decide +kernel
+
 end Fw.Parts.MorphGeom
