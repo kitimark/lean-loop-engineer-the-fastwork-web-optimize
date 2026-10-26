@@ -1,3 +1,8 @@
+branch: worktree-wf_2a0a5c6b-863-1 | worktree: .claude/worktrees/wf_2a0a5c6b-863-1 | commit: see `git log -1` (865da7bfb = padded layer + FlagDelta)
+round 2 CI runs: gate 40263875277 (ci/platform-sweep-layer-pad @865da7bfb, both engines) running; premise rerun on ci/platform-sweep-layer-pix (commit with [ci:premise-tests]) pending; WebKit counts at fbc6ee4ff: arm 40261059419 in_progress, base 40261071388 queued (webkit-sim queue, created 02:50Z; NOT queued for 2 h as round 1 said)
+round 2 done: merged main; FlagDelta 9 class-L tuples (platform.sweep, role word) + guards + golden; premise bound back to 12 with a 6px padded layer (CSS, page, Lean pad_start); goldens regenerated.
+open: gate verdict, premise result at bound 12, WebKit counts + table in note + ledger, part.json limit text, full check.sh, tests, dry land, review ready.
+---
 branch: worktree-wf_2a0a5c6b-863-1 (CI branches ci/platform-sweep-layer at fbc6ee4ff for the count and gate runs, ci/platform-sweep-layer-pix at 909b34123 for the premise run)
 worktree: .claude/worktrees/wf_2a0a5c6b-863-1
 last commit: see `git log -1`
