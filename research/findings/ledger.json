@@ -4458,6 +4458,38 @@
    "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
    "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
    "userDecision": "pending"
+  },
+  {
+   "n": 90,
+   "id": "morph.stage",
+   "part": "morph.stage",
+   "candidate": "morph.stage:on: the end-of-page morph follows the finger over T px of added sticky page (scroll-driven animation) instead of a timed play after a push",
+   "status": "look-change",
+   "flag": "morph.stage:on",
+   "visClass": "L",
+   "flags": [
+    "morph.stage:on"
+   ],
+   "chromium": "unknown: not measured yet (task morph-stage gate)",
+   "webkit": "unknown: not measured yet; Simulator lanes wait for wk-sim-hang",
+   "visual": "look change (L): the morph runs with the finger over T px (696 at 1280x800, 768 at 390x844) instead of a 680 ms play; T open for the user's look review",
+   "mechanism": "INFERRED from WebKit ScrollTimeline.cpp:363-380 and ThreadedScrollDrivenAnimationsEnabled: --morph and --morph-fade run on animation-timeline scroll(root) over [maxY-T, maxY]",
+   "leanFor": [
+    "Fw.Parts.MorphStage.keyframes_end",
+    "Fw.Parts.MorphStage.key_eq_tween",
+    "Fw.Parts.MorphStage.no_scrollTo",
+    "Fw.Parts.MorphStage.no_nonpassive"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change and T are reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "pending the gate",
+   "next": "Out of v2-proved (look change, class L); gate, then the user's look review.",
+   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean",
+   "userDecision": "pending"
   }
  ],
  "notes": [
