@@ -5,7 +5,7 @@ import { loadFresh, pageInfo, scrollHold } from './page.mjs';
 import { loadStamp } from './load.mjs';
 import { navigateTab, reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
-import { PASS_RETRY_S, SCROLL_RETRY_S, afterFailure, afterPass, centi, stepGate } from './sim-host.mjs';
+import { PASS_NEED_S, SCROLL_NEED_S, afterFailure, afterPass, centi, stepGate } from './sim-host.mjs';
 import { censusAt } from './census.mjs';
 import { scrollRun } from './scrollrun.mjs';
 import { seekExperiment } from './seek.mjs';
@@ -42,7 +42,7 @@ export async function onePass(ctx, { states, clock, settleMs, holdMs, paintWindo
   for (let attempt = 1; ; attempt++) {
     await ctx.check?.();
     try { await loadFresh(c, { clock, settleMs, timers: mode.includes('hold') ? 'hold' : 'live' }); scroll = await scrollRun(c, { step, framesPerStep, mode }); break; } catch (e) {
-      if (!afterFailure(attempt, attempts(), gate.elapsedS(), SCROLL_RETRY_S, gate.boundS)) { log(`  scroll attempt ${attempt} failed and no retry fits (${attempt}/${attempts()} tries, ${gate.elapsedS()} s of ${gate.boundS ?? 'no'} s bound)`); throw e; }
+      if (!afterFailure(attempt, attempts(), gate.elapsedS(), SCROLL_NEED_S, gate.boundS)) { log(`  scroll attempt ${attempt} failed and no retry fits (${attempt}/${attempts()} tries, ${gate.elapsedS()} s of ${gate.boundS ?? 'no'} s bound)`); throw e; }
       log(`  scroll attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
       await reconnect(ctx, { log });
       c = ctx.c;
@@ -71,12 +71,12 @@ export async function onePassRetrying(ctx, opts) {
     await ctx.check?.();
     let pass;
     try { pass = await onePass(ctx, opts); } catch (e) {
-      if (!afterFailure(attempt, attempts(), gate.elapsedS(), PASS_RETRY_S, gate.boundS)) { opts.log(`  pass attempt ${attempt} failed and no retry fits (${attempt}/${attempts()} tries, ${gate.elapsedS()} s of ${gate.boundS ?? 'no'} s bound)`); throw e; }
+      if (!afterFailure(attempt, attempts(), gate.elapsedS(), PASS_NEED_S, gate.boundS)) { opts.log(`  pass attempt ${attempt} failed and no retry fits (${attempt}/${attempts()} tries, ${gate.elapsedS()} s of ${gate.boundS ?? 'no'} s bound)`); throw e; }
       opts.log(`  pass attempt ${attempt} failed (${e.message}); reconnecting and repeating the pass from a fresh load`);
       await reconnect(ctx, { log: opts.log });
       continue;
     }
-    const v = afterPass(centi(pass.load.start.load1), centi(pass.load.end.load1), attempt, attempts(), gate.elapsedS(), PASS_RETRY_S, gate.boundS);
+    const v = afterPass(centi(pass.load.start.load1), centi(pass.load.end.load1), attempt, attempts(), gate.elapsedS(), PASS_NEED_S, gate.boundS);
     if (v === 'count') return pass;
     if (v === 'refuse') throw new Error(`host load1 ${pass.load.start.load1} -> ${pass.load.end.load1} is past the ceiling and no repeat fits: the pass is not counted`);
     opts.log(`  host load1 ${pass.load.start.load1} -> ${pass.load.end.load1} is past the ceiling; repeating the pass from a fresh load`);

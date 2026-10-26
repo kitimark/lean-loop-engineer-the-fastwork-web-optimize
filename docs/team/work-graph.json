@@ -22610,7 +22610,8 @@
     "research/notes/2026/10-2x-sim-retry-needs.md",
     "results/sim-retry-needs/**",
     "docs/team/handoffs/sim-retry-needs.md"
-   ]
+   ],
+   "evidence": "9fc756d"
   },
   {
    "devices": [
