@@ -22110,7 +22110,8 @@
     "results/push-cycle-separate/**",
     "research/findings/ledger.json",
     "docs/team/handoffs/push-cycle-separate.md"
-   ]
+   ],
+   "evidence": "9b60789"
   },
   {
    "devices": [
