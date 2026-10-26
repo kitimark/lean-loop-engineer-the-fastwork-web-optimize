@@ -22119,7 +22119,8 @@
     "packages/measure-webkit/test/offscreen-webkit.test.mjs",
     "research/notes/2026/10-2x-offscreen-vm-count.md",
     "docs/team/handoffs/offscreen-vm-count.md"
-   ]
+   ],
+   "evidence": "2b06b17"
   },
   {
    "devices": [
