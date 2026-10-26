@@ -1,7 +1,3 @@
-// Extra page recorder of the push-cycle lane (I/O glue, runs after finish-page.mjs START_JS): the frame index of every window `resize`, of every
-// visualViewport `resize` and `scroll`, so a toolbar change (H1) can be placed between frames. The frame index is the length of the base recorder's
-// time array when the event fires, the same index its other arrays use.
-
 export const EXTRA_START_JS = `(() => {
   const st = window.__fwFin;
   if (!st) return 'no base recorder';

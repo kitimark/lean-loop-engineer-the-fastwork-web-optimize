@@ -1,5 +1,3 @@
-// One push-cycle pass in an open session (I/O glue): the finish pass of finish-probe.mjs with the extra viewport-event recorder added, so the
-// record carries `rz`, `vvr`, `vvs` next to the frame arrays. Nothing is decided here; push-cycle.mjs reduces.
 import { loadavg } from 'node:os';
 import { loadFresh, pageInfo } from '../page.mjs';
 import { sleep } from '../sim.mjs';

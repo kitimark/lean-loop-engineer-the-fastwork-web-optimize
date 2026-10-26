@@ -3,32 +3,12 @@ import Fw.Engine.Resource
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
 
-/-!
-# Fw.Measure.PushCycle: what repeats when the finger pushes the page end open and closed again
-
-The user sees lag when the page end is pulled in and out, only on Safari on the real iPhone. This file holds the model that says
-which work is paid once per open and which is paid again every cycle, the premises of the four iOS-only hypotheses (H1 to H4) as
-statements with their source lines, one verdict function per hypothesis, the cycle plan the Chromium proxy and the phone replay
-both run, and the golden file the TS twins are checked against.
-
-Status words: a theorem here proves the arithmetic of a premise. Whether WebKit or the phone behaves so is CONFIRMED (source line),
-INFERRED or MEASURED where the docstring says it.
--/
 namespace Fw.Measure.PushCycle
 open Lean
 open Fw.Engine.WebKit (reattachPaint attachPaint)
 open Fw.Engine.Resource (repaintPx MiB)
 open Fw.Device.Replay (Sample Swipe Profile Load layout layoutFrom layoutFrom_length layoutFrom_gaps gapsOk)
 
-/-! ## Which work repeats per cycle -/
-
-/-- The work parts of one push cycle, in any one unit (ms of main thread, or counted stage events).
-
-* `first`: paid once per page load, at the first open (first style resolve, decodes, layer creation).
-* `promo`: layer promotion and the re-attach repaint; paid at every open when the layers are released between opens.
-* `run`: the running work of an open (the morph's frames).
-* `close`: the work of a close.
-* `toolbar`: the work of the toolbar change a direction reversal causes (resize event, re-layout), per cycle. -/
 structure Cost where
   first : Nat
   promo : Nat
@@ -37,58 +17,43 @@ structure Cost where
   toolbar : Nat
   deriving Repr, DecidableEq
 
-/-- One single open, the baseline of every comparison: everything but a close and a toolbar change. -/
 def Cost.single (c : Cost) : Nat := c.first + c.promo + c.run
 
-/-- The work of the `k`-th open (0 based). The first open pays `first`. It pays `promo` when `k` is 0, or when the layers are
-not kept (`keep = false`). -/
 def openWork (c : Cost) (keep : Bool) (k : Nat) : Nat :=
   c.run + (if k = 0 then c.first else 0) + (if k = 0 || !keep then c.promo else 0)
 
-/-- The work of the `k`-th cycle: its open, its close and its toolbar change. -/
 def cycleWork (c : Cost) (keep : Bool) (k : Nat) : Nat := openWork c keep k + c.close + c.toolbar
 
-/-- The work of the first `n` cycles. -/
 def totalWork (c : Cost) (keep : Bool) : Nat → Nat
   | 0 => 0
   | n + 1 => totalWork c keep n + cycleWork c keep n
 
-/-- The per-cycle work of cycles 1 and later, when the layers are released between opens. -/
 def Cost.perCycle (c : Cost) : Nat := c.run + c.promo + c.close + c.toolbar
 
 theorem open_first (c : Cost) (keep : Bool) : openWork c keep 0 = c.single := by
   simp [openWork, Cost.single]; omega
 
-/-- A later open pays promotion again when the layers are released. -/
 theorem open_repeat (c : Cost) (k : Nat) : openWork c false (k + 1) = c.run + c.promo := by
   simp [openWork]
 
-/-- A later open pays no promotion when the layers are kept. -/
 theorem open_kept (c : Cost) (k : Nat) : openWork c true (k + 1) = c.run := by
   simp [openWork]
 
-/-- **Per-cycle work is at least the single open** when promotion repeats and a close with its toolbar change costs at least
-the one-time `first` work. This holds for every cycle index. -/
 theorem repeat_ge_single (c : Cost) (h : c.first ≤ c.close + c.toolbar) (k : Nat) :
     c.single ≤ cycleWork c false k := by
   cases k with
   | zero => simp [cycleWork, openWork, Cost.single]; omega
   | succ k => simp [cycleWork, openWork, Cost.single]; omega
 
-/-- **The k-th cycle's work does not fall** when the layers are released: from the second cycle on, every cycle costs the same. -/
 theorem no_fall_released (c : Cost) (k : Nat) : cycleWork c false (k + 2) = cycleWork c false (k + 1) := by
   simp [cycleWork, openWork]
 
-/-- The first cycle costs at least any later cycle: the model never predicts a cycle that costs more than the first. -/
 theorem first_ge_later (c : Cost) (keep : Bool) (k : Nat) : cycleWork c keep (k + 1) ≤ cycleWork c keep 0 := by
   cases keep <;> simp [cycleWork, openWork] <;> omega
 
-/-- **Layers kept falls**: with the layers kept, the second cycle costs less than the first whenever the first open pays
-anything the later ones skip. -/
 theorem kept_falls (c : Cost) (h : 0 < c.first + c.promo) : cycleWork c true 1 < cycleWork c true 0 := by
   simp [cycleWork, openWork]; omega
 
-/-- Keeping the layers saves exactly `promo` in every later cycle. -/
 theorem kept_saves (c : Cost) (k : Nat) : cycleWork c false (k + 1) = cycleWork c true (k + 1) + c.promo := by
   simp [cycleWork, openWork]; omega
 
@@ -112,7 +77,6 @@ theorem total_kept (c : Cost) (n : Nat) :
     have h3 : totalWork c true (n + 1 + 1) = totalWork c true (n + 1) + cycleWork c true (n + 1) := rfl
     omega
 
-/-- Over `n + 1` cycles, keeping the layers saves `n` promotions: the promotion of the first open is paid either way. -/
 theorem kept_saves_total (c : Cost) (n : Nat) : totalWork c false (n + 1) = totalWork c true (n + 1) + n * c.promo := by
   rw [total_released, total_kept]
   have e1 : (n + 1) * c.perCycle = (n + 1) * (c.run + c.close + c.toolbar) + (n + 1) * c.promo := by
@@ -123,10 +87,6 @@ theorem kept_saves_total (c : Cost) (n : Nat) : totalWork c false (n + 1) = tota
   have e2 : (n + 1) * c.promo = n * c.promo + c.promo := Nat.succ_mul n c.promo
   omega
 
-/-! ## Trend over the cycle index -/
-
-/-- How a series of per-cycle counts moves from the first cycle to the later ones: later cycles above 1.2 times the first on
-average (`rises`), below one over 1.2 (`falls`), else `flat`. -/
 inductive Trend where
   | rises | flat | falls
   deriving DecidableEq, Repr
@@ -140,7 +100,6 @@ def trend : List Nat → Trend
   | [] => .flat
   | f :: t => if 6 * t.length * f < 5 * t.sum then .rises else if 6 * t.sum < 5 * t.length * f then .falls else .flat
 
-/-- The model's per-cycle series for `n` cycles. -/
 def series (c : Cost) (keep : Bool) (n : Nat) : List Nat := (List.range n).map (cycleWork c keep)
 
 theorem sum_le_mul (l : List Nat) (f : Nat) (h : ∀ x ∈ l, x ≤ f) : l.sum ≤ l.length * f := by
@@ -152,8 +111,6 @@ theorem sum_le_mul (l : List Nat) (f : Nat) (h : ∀ x ∈ l, x ≤ f) : l.sum �
     simp only [List.sum_cons, List.length_cons, Nat.succ_mul]
     omega
 
-/-- **The model never rises**: no cost split, kept or released, makes the later cycles cost more than the first. A series that
-rises is therefore outside the model, so it needs work that accumulates (the memory pools of H4, heat, a leak). -/
 theorem model_never_rises (c : Cost) (keep : Bool) (n : Nat) : trend (series c keep n) ≠ .rises := by
   cases n with
   | zero => simp [series, trend]
@@ -174,7 +131,6 @@ theorem model_never_rises (c : Cost) (keep : Bool) (n : Nat) : trend (series c k
     · rename_i hlt; omega
     · split at h <;> simp at h
 
-/-- Under the released model every cycle after the first is equal, so the series of cycles 1 and later is flat. -/
 theorem sum_replicate_eq (m x : Nat) : (List.replicate m x).sum = m * x := by
   induction m with
   | zero => simp
@@ -189,14 +145,10 @@ theorem released_tail_flat (c : Cost) (n : Nat) : trend (List.replicate (n + 1) 
   have b : ¬ 6 * (n * cycleWork c false 1) < 5 * n * cycleWork c false 1 := by omega
   simp [a, b]
 
-/-! ## H3: the same cycle at device pixel ratio 3 against 2 -/
-
-/-- The backing-store states of one layer over `n` cycles when the layer is released between opens: off, on, off, on ... -/
 def cycleFlags : Nat → List Bool
   | 0 => []
   | n + 1 => false :: true :: cycleFlags n
 
-/-- **Re-promotion repaints every cycle**: a layer released between opens pays its full area at every open. -/
 theorem repaint_released (a : Nat) : ∀ n, reattachPaint a (cycleFlags n) = n * a
   | 0 => by simp [cycleFlags, reattachPaint]
   | 1 => by simp [cycleFlags, reattachPaint, attachPaint]
@@ -207,8 +159,6 @@ theorem repaint_released (a : Nat) : ∀ n, reattachPaint a (cycleFlags n) = n *
     rw [e, ih, Nat.succ_mul (n + 1) a]
     omega
 
-/-- **A kept layer repaints once**: attached at the first open and never released again. This is
-`Fw.Engine.Resource.tween_repaint` for a run of `n` attached frames after the first attach. -/
 theorem repaint_kept (a n : Nat) : reattachPaint a (false :: true :: List.replicate n true) = a := by
   have h := (Fw.Engine.Resource.tween_repaint a (n + 1) []).2
   have e : reattachPaint a (false :: true :: List.replicate n true)
@@ -217,7 +167,6 @@ theorem repaint_kept (a n : Nat) : reattachPaint a (false :: true :: List.replic
   rw [e, e2, h]
   simp [attachPaint]
 
-/-- Releasing between opens repaints at least as much as keeping, from the second cycle on; strictly more for a layer with area. -/
 theorem released_repaints_more (a n : Nat) (ha : 0 < a) :
     reattachPaint a (false :: true :: List.replicate n true) < reattachPaint a (cycleFlags (n + 2)) := by
   rw [repaint_kept, repaint_released]
@@ -225,46 +174,33 @@ theorem released_repaints_more (a n : Nat) (ha : 0 < a) :
   have : 0 < (n + 1) * a := Nat.mul_pos (by omega) ha
   omega
 
-/-- The device pixels repainted for a layer of `a` CSS px² over `n` released cycles at device pixel ratio `dpr`. -/
 def cyclePx (dpr a n : Nat) : Nat := repaintPx dpr (reattachPaint a (cycleFlags n)) 1
 
-/-- **H3**: the same cycles repaint 9/4 as many device pixels on the iPhone (DPR 3) as at DPR 2. -/
 theorem dpr3_over_dpr2 (a n : Nat) : 4 * cyclePx 3 a n = 9 * cyclePx 2 a n := by
   simp only [cyclePx, Fw.Engine.Resource.repaintPx, Nat.pow_succ, Nat.pow_zero]
   omega
 
-/-! ## H4: the surface pool that holds freed backing stores -/
-
-/-- The byte cap of the IOSurface pool: 256 MiB on macOS, 64 MiB otherwise (`IOSurfacePool.h:85-89@862f17d`, CONFIRMED). -/
+-- IOSurfacePool.h:85-89@862f17d
 def poolCap (mac : Bool) : Nat := if mac then 256 * MiB else 64 * MiB
 
-/-- Bytes of released backing stores the pool does not keep, so the next promotion must allocate them again. -/
 def realloc (cap released : Nat) : Nat := released - min released cap
 
 theorem realloc_mono_cap {c c' : Nat} (r : Nat) (h : c ≤ c') : realloc c' r ≤ realloc c r := by
   simp only [realloc]; omega
 
-/-- Releases that fit the iOS cap are reused on both platforms. -/
 theorem realloc_fits (r : Nat) (h : r ≤ 64 * MiB) : realloc (poolCap false) r = 0 ∧ realloc (poolCap true) r = 0 := by
   simp only [realloc, poolCap, MiB] at *; simp; omega
 
-/-- **H4**: a release set between the iOS cap and the macOS cap is reused on the Mac and allocated again on iOS. -/
 theorem realloc_gap (r : Nat) (h1 : 64 * MiB < r) (h2 : r ≤ 256 * MiB) :
     0 < realloc (poolCap false) r ∧ realloc (poolCap true) r = 0 := by
   simp only [realloc, poolCap, MiB] at *; simp; omega
 
-/-- A release set above both caps costs iOS exactly 192 MiB more allocation than the Mac. -/
 theorem realloc_big (r : Nat) (h : 256 * MiB < r) : realloc (poolCap false) r = realloc (poolCap true) r + 192 * MiB := by
   simp only [realloc, poolCap, MiB] at *; simp; omega
 
-/-- The Simulator census of the morph backing (90 to 106 MB, MEASURED, run 39897807511) is above the iOS cap and below the
-macOS cap, so a full release of it is the `realloc_gap` case. -/
 theorem census_in_gap : 64 * MiB < 90000000 ∧ 106000000 ≤ 256 * MiB := by
   simp only [MiB]; omega
 
-/-! ## The verdicts -/
-
-/-- The three answers the report gives per hypothesis. -/
 inductive Verdict where
   | holds | refuted | open
   deriving DecidableEq, Repr
@@ -274,35 +210,26 @@ def Verdict.name : Verdict → String
   | .refuted => "refuted"
   | .open => "open"
 
-/-! ### H1: a direction reversal moves the toolbar, resizes the visual viewport and throttles the visible-rect updates -/
-
-/-- The visible-rect update throttle while the toolbar changes interactively: 100 ms (`WKWebViewIOS.mm:143@862f17d`, CONFIRMED). -/
+-- WKWebViewIOS.mm:143@862f17d
 def throttleMs : Nat := 100
 
-/-- The updates the UI process sends over a toolbar change that lasts `span` ms: at most one per throttle period, plus the final
-one at the end (`WKWebViewIOS.mm:3256-3268`, `:4698-4708`, CONFIRMED). -/
+-- WKWebViewIOS.mm:3256-3268, :4698-4708@862f17d
 def updatesIn (span : Nat) : Nat := span / throttleMs + 1
 
 theorem updates_mono {a b : Nat} (h : a ≤ b) : updatesIn a ≤ updatesIn b := by
   simp only [updatesIn]; exact Nat.add_le_add_right (Nat.div_le_div_right h) 1
 
-/-- A toolbar change always sends the final update, and a one-frame change sends exactly it. -/
 theorem updates_floor (span : Nat) (h : span < throttleMs) : updatesIn span = 1 := by
   simp only [updatesIn, throttleMs] at *; omega
 
-/-- Layouts that a toolbar change causes in the web process: none while it is interactive, one when it ends
-(`WebPageIOS.mm:3728-3735`, `:3745-3747`, CONFIRMED). -/
+-- WebPageIOS.mm:3728-3735, :3745-3747@862f17d
 def layoutsOf (interactive : Bool) : Nat := if interactive then 0 else 1
 
-/-- Over `n` cycles with `tb` toolbar changes each, the layouts the changes cause: none for a single open (no direction
-reversal, `tb = 0` there), `n * tb` for the cycles. -/
 def toolbarLayouts (n tb : Nat) : Nat := n * tb * layoutsOf false
 
 theorem toolbar_layouts_single (tb : Nat) : toolbarLayouts 1 0 = 0 ∧ 0 < toolbarLayouts 1 (tb + 1) := by
   simp [toolbarLayouts, layoutsOf]
 
-/-- What the page recorder counts for H1. `changes`: frames where innerHeight or the visual viewport height changed.
-`near*`: frames within the window after such a change; `far*`: all other frames. -/
 structure H1Obs where
   changes : Nat
   slowNear : Nat
@@ -311,13 +238,10 @@ structure H1Obs where
   framesFar : Nat
   deriving Repr, DecidableEq
 
-/-- H1 needs at least this many viewport changes to be tested at all. -/
 def h1MinChanges : Nat := 3
 
-/-- H1 needs at least this many slow frames in total to say anything about their place. -/
 def h1MinSlow : Nat := 5
 
-/-- **H1 verdict**: holds when slow frames are at least twice as common right after a viewport change as elsewhere. -/
 def h1Verdict (o : H1Obs) : Verdict :=
   if o.changes < h1MinChanges then .open
   else if o.slowNear + o.slowFar < h1MinSlow then .open
@@ -349,18 +273,12 @@ theorem h1_refuted (o : H1Obs) (h0 : ¬ o.changes < h1MinChanges) (h1 : ¬ o.slo
   have c : ¬ 2 * o.slowFar * o.framesNear ≤ o.slowNear * o.framesFar := by omega
   simp [h1Verdict, h0, h1, a, b, c]
 
-/-! ### H2: the UI process owns the scroll, the page sees it late -/
-
-/-- The pin write that the UI process drops while its own scroll animation runs (`ScrollingTreeScrollingNodeDelegateIOS.mm:526-535`
-and `:560-566@862f17d`, CONFIRMED): a page `scrollTo` during UI-side momentum does not move the offset, so the next frame sees
-the same offset again. Frames of stale pin per open: the drag speed `v` (px per frame) times the frames `d` the web process sees
-the position late. -/
+-- ScrollingTreeScrollingNodeDelegateIOS.mm:526-535, :560-566@862f17d
 def staleErr (v d : Nat) : Nat := v * d
 
 theorem stale_err_mono {v v' d d' : Nat} (hv : v ≤ v') (hd : d ≤ d') : staleErr v d ≤ staleErr v' d' :=
   Nat.mul_le_mul hv hd
 
-/-- Spring-back fights per open stretch (the `Fw.Measure.TouchLock` count) in the first open and in the later ones. -/
 structure H2Obs where
   stretchesFirst : Nat
   fightsFirst : Nat
@@ -368,8 +286,6 @@ structure H2Obs where
   fightsLater : Nat
   deriving Repr, DecidableEq
 
-/-- **H2 verdict**: holds when the fights per open stretch of the later opens exceed those of the first open (the previous
-cycle's UI-side scroll still runs when the next open starts); open without a first open or with fewer than two later opens. -/
 def h2Verdict (o : H2Obs) : Verdict :=
   if o.stretchesFirst = 0 || o.stretchesLater < 2 then .open
   else if o.fightsFirst * o.stretchesLater < o.fightsLater * o.stretchesFirst then .holds
@@ -391,10 +307,6 @@ theorem h2_refuted (o : H2Obs) (a : 0 < o.stretchesFirst) (b : 2 ≤ o.stretches
   have c : ¬ o.fightsFirst * o.stretchesLater < o.fightsLater * o.stretchesFirst := by omega
   simp [h2Verdict, a', b', c]
 
-/-! ### H3 and H4 verdicts: the Simulator runs on the Mac GPU and memory, so they are premised and counted, not felt -/
-
-/-- What the lane can count for H3 and H4: the repaint device pixels per cycle index at DPR 3, and the backing bytes freed at
-the close. -/
 structure PixObs where
   cyclesSeen : Nat
   firstCyclePx : Nat
@@ -402,16 +314,12 @@ structure PixObs where
   freedBytes : Nat
   deriving Repr, DecidableEq
 
-/-- **H3 verdict**: holds when the later cycles repaint at least as many device pixels as the first (re-promotion repeats); refuted when
-they repaint under half; open with fewer than three cycles or no repaint seen. -/
 def h3Verdict (o : PixObs) : Verdict :=
   if o.cyclesSeen < 3 || o.firstCyclePx = 0 then .open
   else if o.firstCyclePx ≤ o.laterCyclePx then .holds
   else if 2 * o.laterCyclePx < o.firstCyclePx then .refuted
   else .open
 
-/-- **H4 verdict**: holds when the freed bytes of a close lie in the gap between the two caps (re-allocated on iOS, reused on
-the Mac), refuted when they fit the iOS cap, open when they exceed both or none were counted. -/
 def h4Verdict (o : PixObs) : Verdict :=
   if o.freedBytes = 0 then .open
   else if o.freedBytes ≤ 64 * MiB then .refuted
@@ -451,88 +359,63 @@ theorem h4_open (o : PixObs) (h : o.freedBytes = 0 ∨ 256 * MiB < o.freedBytes)
     have d : ¬ o.freedBytes ≤ 256 * MiB := by omega
     simp [h4Verdict, z, c, d]
 
-/-- H4 on the model agrees with the pool arithmetic: a close that frees a gap-size set is `holds`, and then `realloc` says iOS
-allocates again. -/
 theorem h4_holds_realloc (o : PixObs) (a : 64 * MiB < o.freedBytes) (b : o.freedBytes ≤ 256 * MiB) :
     h4Verdict o = .holds ∧ 0 < realloc (poolCap false) o.freedBytes := ⟨h4_holds o a b, (realloc_gap _ a b).1⟩
 
-/-! ## The cycle plan -/
-
-/-- The cycle count of every run. -/
 def cycles : Nat := 6
 
-/-- Frames of one leg at 60 Hz and 14 px per frame. -/
 def legFrames : Nat := 24
 
-/-- Dwell in frames at 60 Hz for a dwell of `ms` ms: 300 ms is 18 frames, 1000 ms is 60. -/
 def dwellFrames (ms : Nat) : Nat := ms * 60 / 1000
 
-/-- The finger x in CSS px, the start y, the end-push y and the step, as in the single-open replays. -/
 def fingerX : Int := 215
 def startY : Int := 700
 def stepPx : Int := 14
 
-/-- The y at the top of a push leg. -/
 def topY : Int := startY - stepPx * (legFrames - 1)
 
-/-- One cycle as finger positions per frame: push up `legFrames` frames (opens the panel at the page end), hold `d` frames,
-pull back down `legFrames` frames (closes it), hold `d` frames. -/
 def cyclePath (d : Nat) : List (Int × Int) :=
   (List.range legFrames).map (fun (i : Nat) => (fingerX, startY - stepPx * (i : Int)))
   ++ List.replicate d (fingerX, topY)
   ++ (List.range legFrames).map (fun (i : Nat) => (fingerX, topY + stepPx * ((i : Int) + 1)))
   ++ List.replicate d (fingerX, topY + stepPx * legFrames)
 
-/-- Frames of one cycle. -/
 def cycleLen (d : Nat) : Nat := 2 * legFrames + 2 * d
 
 theorem cyclePath_length (d : Nat) : (cyclePath d).length = cycleLen d := by
   simp [cyclePath, cycleLen]; omega
 
-/-- A stroke of finger positions that starts at frame `f0`. -/
 structure Stroke where
   f0 : Nat
   path : List (Int × Int)
   deriving Repr, DecidableEq
 
-/-- The `n` cycles as strokes (one finger down per cycle), each starting where the last ended. -/
 def strokes (n d : Nat) : List Stroke := (List.range n).map fun i => ⟨i * cycleLen d, cyclePath d⟩
 
-/-- The frame after the last stroke. -/
 def endFrame (n d : Nat) : Nat := n * cycleLen d
 
-/-- The frame window `[a, b)` of the `k`-th cycle. -/
 def window (d k : Nat) : Nat × Nat := (k * cycleLen d, (k + 1) * cycleLen d)
 
 theorem strokes_length (n d : Nat) : (strokes n d).length = n := by simp [strokes]
 
-/-- The strokes are in order and each begins at or after the end of the one before (the check `ordered` of the Chromium profile). -/
 theorem strokes_ordered (n d : Nat) : ∀ k, k + 1 < n →
     ((strokes n d)[k]?.map fun s => s.f0 + s.path.length) = ((strokes n d)[k + 1]?.map fun s => s.f0) := by
   intro k hk
   simp [strokes, cyclePath_length, Nat.succ_mul, hk, Nat.lt_of_succ_lt hk]
 
-/-- Every position is inside a 430 by 775 CSS px viewport. -/
 theorem cyclePath_in_bounds (d : Nat) : ∀ p ∈ cyclePath d, 0 ≤ p.1 ∧ p.1 ≤ 430 ∧ 0 ≤ p.2 ∧ p.2 ≤ 775 := by
   intro p hp
   simp only [cyclePath, List.mem_append, List.mem_map, List.mem_range, List.mem_replicate] at hp
   simp only [fingerX, startY, stepPx, topY, legFrames] at *
   rcases hp with ((⟨i, hi, rfl⟩ | ⟨_, rfl⟩) | ⟨i, hi, rfl⟩) | ⟨_, rfl⟩ <;> simp <;> omega
 
-/-- Each window holds exactly the frames of its cycle, and the windows tile `[0, endFrame)`. -/
 theorem window_tiles (d k : Nat) : (window d k).2 = (window d (k + 1)).1 ∧ (window d k).2 - (window d k).1 = cycleLen d := by
   refine ⟨?_, ?_⟩ <;> simp [window, Nat.succ_mul] <;> omega
 
-/-! ### The phone replay profile -/
-
-/-- Time between samples while the finger moves: 16 ms, in hundredths of a ms. -/
 def tick : Int := 1600
 
-/-- Gap between two lifts and the next touch-down: two ticks. -/
 def liftGap : Int := 3200
 
-/-- The samples of one cycle for a dwell of `ms` ms, in the units of `Fw.Device.Replay.Sample` (hundredths of a ms, tenth px):
-push up in `legFrames` samples, one sample at the end of the dwell, pull down, one sample at the end of the dwell. -/
 def phoneSamples (ms : Nat) : List Sample :=
   let dw : Int := ms * 100
   let up := (List.range legFrames).map fun (i : Nat) => (⟨tick * (i : Int), fingerX * 10, (startY - stepPx * (i : Int)) * 10⟩ : Sample)
@@ -542,14 +425,10 @@ def phoneSamples (ms : Nat) : List Sample :=
   let t2 : Int := t1 + tick * legFrames + dw
   up ++ [hold1] ++ down ++ [⟨t2, fingerX * 10, (topY + stepPx * legFrames) * 10⟩]
 
-/-- The lift of a cycle: one tick after its last sample. -/
 def phoneLift (ms : Nat) : Int := tick * (2 * legFrames - 1) + 2 * (ms * 100 : Int) + tick
 
-/-- One swipe, a cycle. -/
 def phoneSwipe (ms : Nat) : Swipe := ⟨0, phoneSamples ms, phoneLift ms⟩
 
-/-- The phone replay profile: `n` cycles at the page end, one finger, dwell `ms` ms. Viewport 430 by 775 CSS px (the size of
-the Chromium proxy). `phone-compose-counts` runs it per arm next to the single open. -/
 def phoneProfile (n ms : Nat) : Profile :=
   ⟨s!"push-cycle-{n}x{ms}", 430, 775, .warm, layout liftGap (List.replicate n (phoneSwipe ms))⟩
 
@@ -560,23 +439,17 @@ theorem phone_gaps (n ms : Nat) : gapsOk liftGap (phoneProfile n ms).swipes = tr
   simp only [phoneProfile, layout]
   exact layoutFrom_gaps liftGap _ 0
 
-/-- Every sample of the phone profile is inside the viewport (tenth px). -/
 theorem phoneSamples_in_bounds (ms : Nat) : ∀ e ∈ phoneSamples ms, 0 ≤ e.x ∧ e.x ≤ 4300 ∧ 0 ≤ e.y ∧ e.y ≤ 7750 := by
   intro e he
   simp only [phoneSamples, List.mem_append, List.mem_map, List.mem_range, List.mem_singleton] at he
   simp only [fingerX, startY, stepPx, topY, legFrames, tick] at *
   rcases he with ((⟨i, hi, rfl⟩ | rfl) | ⟨i, hi, rfl⟩) | rfl <;> simp <;> omega
 
-/-- Samples are in time order: the first is at 0 and every later one is later. -/
 theorem phoneSamples_head (ms : Nat) : (phoneSamples ms).head? = some ⟨0, fingerX * 10, startY * 10⟩ := by
   simp [phoneSamples, legFrames, List.range_succ_eq_map, tick]
 
-/-- The profile has the same finger path as the Chromium proxy: sample count `2 * legFrames + 2`, against `cycleLen` frames, with
-the two holds as one sample each. -/
 theorem phoneSamples_length (ms : Nat) : (phoneSamples ms).length = 2 * legFrames + 2 := by
   simp [phoneSamples]; omega
-
-/-! ## The golden file -/
 
 private def pairJ (p : Int × Int) : Json := toJson [p.1, p.2]
 
@@ -592,7 +465,6 @@ private def profileJ (p : Profile) : Json :=
 private def costJ (c : Cost) : Json :=
   Json.mkObj [("first", c.first), ("promo", c.promo), ("run", c.run), ("close", c.close), ("toolbar", c.toolbar)]
 
-/-- Cost splits the golden evaluates: promotion heavy, first-open heavy, no promotion, toolbar heavy. -/
 def costCases : List (String × Cost) :=
   [("promo-heavy", ⟨20, 60, 100, 10, 5⟩), ("first-heavy", ⟨90, 10, 100, 20, 10⟩), ("no-promo", ⟨30, 0, 100, 10, 5⟩),
    ("toolbar-heavy", ⟨10, 20, 50, 5, 80⟩)]

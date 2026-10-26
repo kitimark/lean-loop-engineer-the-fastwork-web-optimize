@@ -1,4 +1,3 @@
-// The TS twin of lean/Fw/Measure/PushCycle.lean against its golden, and the TS stand-ins (recordCycles, arms) on synthetic records.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -97,8 +96,6 @@ test('the committed phone profiles (for phone-compose-counts) are the Lean profi
   }
 });
 
-// a synthetic record: 6 cycles of 100 frames (20 closed, 60 open, 20 closed), 16 ms gaps; one toolbar change at frame 130 followed by two 60 ms frames,
-// one slow frame far from any change at frame 400
 function synthetic() {
   const n = 620, t = [], y = [], o = [], ih = [], vh = [];
   let now = 0;

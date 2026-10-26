@@ -1,4 +1,3 @@
-// The push-cycle table of the Simulator touch lane (reducer; the verdict and trend decisions are push-cycle.mjs, the twin of Fw.Measure.PushCycle).
 import { excludeReason } from './finish-report.mjs';
 import { CYCLES, trend, verdictInputs, h1Verdict, h2Verdict, indexSeries, recordCycles } from './push-cycle.mjs';
 
@@ -9,7 +8,6 @@ const median = (xs) => {
   return s.length ? s[Math.floor(s.length / 2)] : null;
 };
 
-/** @param jobs [{vm, passes:[{arm, round, vm, rec, drag, ...}]}] as written by push-cycle-cli.mjs run */
 export function armTable(jobs) {
   const all = jobs.flatMap((j) => (j.passes ?? []).map((p) => ({ ...p, vm: p.vm ?? j.vm })));
   const present = [...new Set(all.map((p) => p.arm))];

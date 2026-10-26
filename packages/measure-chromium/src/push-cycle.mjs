@@ -1,10 +1,3 @@
-// Push-cycle lane of the counts harness (task push-cycle-lag): six pull-in/pull-out cycles at the page end as one replay profile, and the per-cycle
-// window sums of its counts. The plan (cycle length, strokes, windows) is the `plan` line of the Lean golden
-// packages/contracts/golden/measure/push-cycle.jsonl (lean/Fw/Measure/PushCycle.lean); this file reads it and holds no plan logic of its own.
-// The comparison of a cycle against the first one is `cmp` of offscreen.mjs (Fw.Measure.Offscreen, proved), over the per-run window sums.
-// TS STAND-INS (no Lean spec): `windowSums`, `perRun`, `armTable`, `reportMd`, `armOf` (they cut frames at the plan's windows and format).
-//   node src/push-cycle.mjs profiles [--dir profiles]      write the two profiles push-cycle-d300 and push-cycle-d1000 from the golden
-//   node src/push-cycle.mjs report <dir of chromium-counts-<arm>-<run> artifacts> [--dwell 300] [--md file] [--json file]
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,13 +7,11 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const GOLDEN = join(here, '../../contracts/golden/measure/push-cycle.jsonl');
 export const DWELLS = Object.freeze([300, 1000]);
 
-/** Counters added over the frames of a window. */
 export const SUM_KEYS = Object.freeze([
   'metric.RecalcStyleCount', 'metric.LayoutCount', 'trace.UpdateLayoutTree', 'trace.Layout', 'trace.Paint', 'trace.Layerize', 'trace.Commit',
   'trace.UpdateLayer', 'trace.RasterTask', 'trace.cc.Draw', 'trace.cc.Commit', 'trace.cc.Activate', 'trace.FireAnimationFrame',
   'trace.Layer.created', 'trace.Layer.deleted', 'raster.invalidationAreaPx', 'raster.invalidatedLayers',
 ]);
-/** Levels (a layer census per frame): the largest value in the window. */
 export const MAX_KEYS = Object.freeze(['census.layers', 'census.drawingLayers', 'census.drawingAreaPx', 'census.tiles', 'census.tilings']);
 
 export const readGolden = (path = GOLDEN) => readFileSync(path, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -30,7 +21,6 @@ export const planOf = (golden, dwellMs) => {
   return p;
 };
 
-/** The replay profile of the plan: 6 cycles, each its own touch (lift between them), starting at the page end. Same fields as user-bug-1025-reopen-same-touch. */
 export function profileOf(plan) {
   return {
     id: `push-cycle-d${plan.dwellMs}`,
@@ -49,10 +39,8 @@ export function profileOf(plan) {
 }
 export const profileText = (plan) => `${JSON.stringify(profileOf(plan))}\n`;
 
-// ---- TS STAND-INS
 const num = (x) => (typeof x === 'number' ? x : 0);
 
-/** Per window [a, b) over the replay frames: {sum, max} of the counters, split into the open half (up leg and top dwell) and the close half. */
 export function windowSums(frames, plan) {
   const replay = frames.filter((f) => f.phase === 'replay');
   const half = 24 + plan.dwellFrames;
@@ -66,13 +54,11 @@ export function windowSums(frames, plan) {
   return plan.windows.map(([a, b], k) => ({ k, open: cut(a, a + half), close: cut(a + half, b), all: cut(a, b) }));
 }
 
-/** @param runs [{label, counts}] one arm; returns the windows of every run. */
 export const perRun = (runs, plan) => runs.map((r) => windowSums(r.counts.frames, plan));
 
 const spread = (xs) => [Math.min(...xs), Math.max(...xs)];
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
 
-/** Per counter and cycle k, the median over runs and the verdict of cycle k against cycle 0 (`more` = cycle k costs more than the first one); `half` is open|close|all. */
 export function armTable(windowsPerRun, half = 'open') {
   const keys = [...SUM_KEYS, ...MAX_KEYS];
   const n = windowsPerRun[0]?.length ?? 0;
@@ -87,7 +73,6 @@ export function armTable(windowsPerRun, half = 'open') {
   });
 }
 
-/** `chromium-counts-<arm>-<run>` -> {arm, run}; the arm is original, rewrite or f1..f4 (the armmap names the flags). */
 export function armOf(dirName) {
   const m = /^chromium-counts-(.+)-r?(\d+)$/.exec(dirName);
   return m ? { arm: m[1], run: Number(m[2]) } : null;

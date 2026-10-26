@@ -1,4 +1,3 @@
-// The push-cycle lane: profiles generated from the Lean plan, and the window sums of a counts file.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -23,7 +22,6 @@ test('the committed profiles are the ones generated from the Lean plan', () => {
   }
 });
 
-// a synthetic counts file: replay frames carry a Layout count that is 3 in the first window and `later` in the others
 function counts(plan, later, extra = 0) {
   const frames = [];
   for (let n = 0; n < 10; n++) frames.push({ n, phase: 'rest', counts: { 'trace.Layout': 99 } });
