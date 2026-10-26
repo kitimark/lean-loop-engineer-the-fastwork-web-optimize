@@ -22653,7 +22653,8 @@
     "packages/measure-chromium/test/offscreen-windows*.test.mjs",
     "research/notes/2026/10-2x-window-min-frames.md",
     "docs/team/handoffs/window-min-frames.md"
-   ]
+   ],
+   "evidence": "006e394"
   },
   {
    "devices": [

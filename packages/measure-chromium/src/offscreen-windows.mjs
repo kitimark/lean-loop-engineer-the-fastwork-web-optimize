@@ -107,6 +107,16 @@ export function ownVerdicts(baseRuns, flagRuns) {
   return armVerdicts(capped(baseRuns), capped(flagRuns)).map((v) => ({ ...v, frames: frames(v.window) }));
 }
 
+export const MIN_END_120 = 20;
+export const MIN_FRAMES = Object.fromEntries(allWindows(APPROACH, APPROACH + 120 + MIN_END_120).map((w) => [w.name, w.hi - w.lo]));
+
+export function minVerdicts(baseRuns, flagRuns) {
+  return ownVerdicts(baseRuns, flagRuns).map((v) => {
+    const enough = MIN_FRAMES[v.window] <= v.frames;
+    return { ...v, minFrames: MIN_FRAMES[v.window], enough, own: v.verdict, verdict: enough ? v.verdict : 'noData' };
+  });
+}
+
 export const PROFILE_ID = 'swipe-touch-v1';
 
 export function profileTail(profile) {
@@ -159,8 +169,8 @@ export function cellText(c) {
 }
 
 export function summarizeArm(baseRuns, flagRuns) {
-  return ownVerdicts(baseRuns.map((r) => r.run), flagRuns.map((r) => r.run)).map((v) => ({
-    window: v.window, frames: v.frames, verdict: v.verdict, usable: v.usable,
+  return minVerdicts(baseRuns.map((r) => r.run), flagRuns.map((r) => r.run)).map((v) => ({
+    window: v.window, frames: v.frames, minFrames: v.minFrames, verdict: v.verdict, own: v.own, usable: v.usable, enough: v.enough,
     less: v.cells.filter((c) => c && c.cmp === 'less').map(cellText),
     more: v.cells.filter((c) => c && c.cmp === 'more').map(cellText),
   }));
@@ -171,7 +181,7 @@ const endsOf = (runs) => [...new Set(runs.map((r) => r.end))].join(', ');
 export function markdown(arms, baseRuns, flagRuns = {}) {
   const L = [];
   const ends = [`${endsOf(baseRuns)} (base)`, ...Object.entries(flagRuns).map(([n, rs]) => `${endsOf(rs)} (${n})`)];
-  L.push(`End frame per run: ${ends.join(', ')}; each window starts at the run's own end frame and is cut to the frames every run has, slack ${SLACK}, ${MIN_RUNS} runs per arm.`);
+  L.push(`End frame per run: ${ends.join(', ')}; each window starts at the run's own end frame and is cut to the frames every run has, slack ${SLACK}, ${MIN_RUNS} runs per arm; a window with fewer frames than its minimum in any run is noData.`);
   L.push('', `| window | ${Object.keys(arms).join(' | ')} |`, `|---${'|---'.repeat(Object.keys(arms).length)}|`);
   for (const n of WINDOW_NAMES) {
     const cellsOf = Object.values(arms).map((s) => {
@@ -179,7 +189,8 @@ export function markdown(arms, baseRuns, flagRuns = {}) {
       const parts = [];
       if (w.less.length) parts.push(`less: ${w.less.join(', ')}`);
       if (w.more.length) parts.push(`more: ${w.more.join(', ')}`);
-      return `${w.verdict}${w.usable ? '' : ' (not usable)'}${parts.length ? `; ${parts.join('; ')}` : ''} [${w.frames} frames]`;
+      const short = !w.enough ? ` (below ${w.minFrames} frames, own-end rule: ${w.own})` : w.usable ? '' : ' (not usable)';
+      return `${w.verdict}${short}${parts.length ? `; ${parts.join('; ')}` : ''} [${w.frames} frames, min ${w.minFrames}]`;
     });
     L.push(`| ${n} | ${cellsOf.join(' | ')} |`);
   }
