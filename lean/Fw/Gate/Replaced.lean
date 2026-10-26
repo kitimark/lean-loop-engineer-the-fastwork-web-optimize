@@ -2,13 +2,9 @@ import Lean.Data.Json
 import Fw.Gate.FlagDelta
 import Fw.Gate.Compare
 
-/-! A flag that unmounts a part excuses exactly that part's absent anchors, and nothing else.
-Entries: `Fw.Gate.FlagDelta.replacedParts`; style tuples stay `Fw.Gate.FlagDelta.deltas`. -/
-
 namespace Fw.Gate.Replaced
 open Fw.Gate Fw.Gate.FlagDelta
 
-/-- A failing count item whose anchor the original has and the rewrite does not. -/
 def absent (it : DItem) : Bool :=
   it.cls == .count && it.key == "count" && !it.byRect && it.status == .differ && it.rewriteCount == some 0
 
@@ -30,7 +26,6 @@ def Excuse.by : Excuse → String
   | .delta _ => "delta"
   | .replaced _ => "replaced"
 
-/-- The excuse of one failing item: a style delta first, else a replaced-part entry. -/
 def excuse (es : List ReplacedPart) (flags : List String) (part : String) (it : DItem) : Option Excuse :=
   match excuseItem flags part it with
   | some d => some (.delta d)
@@ -39,7 +34,6 @@ def excuse (es : List ReplacedPart) (flags : List String) (part : String) (it : 
 def allExcused (es : List ReplacedPart) (flags : List String) (part : String) (fails : List DItem) : Bool :=
   !fails.isEmpty && fails.all fun it => (excuse es flags part it).isSome
 
-/-- A part reading after the excuses: a fail whose every failing item is excused becomes a pass. -/
 def readingVerdict (es : List ReplacedPart) (flags : List String) (part : String) (v : Verdict) (fails : List DItem) :
     Verdict :=
   if v == .fail && allExcused es flags part fails then .pass else v
@@ -220,7 +214,6 @@ def fixtureMounted (v : String) : Bool := v != "on"
 theorem fixture_unmounted_iff (v : String) : fixtureMounted v = false ↔ v = "on" := by
   simp [fixtureMounted]
 
-/-- Entries the golden cases and the harness tests decide with; never read by the gate. -/
 def fixtureParts : List ReplacedPart :=
   [ { id := "fixture-stage-mount", flag := "fixture.stage:on", part := "morph.mount",
       reason := "test fixture: the fixture flag unmounts the mount target", premise := ``fixture_unmounted_iff },

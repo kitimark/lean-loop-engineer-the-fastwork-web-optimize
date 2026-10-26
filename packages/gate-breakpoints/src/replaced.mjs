@@ -6,7 +6,6 @@ import { FLAG_DELTA_GOLDEN, loadDeltas, excuseItem } from './flag-delta.mjs';
 export const REPLACED_GOLDEN = resolve(PKG, '../contracts/golden/gate/replaced.jsonl');
 let cached = null;
 
-/** The replaced-part entries the gate reads: Lean `Fw.Gate.FlagDelta.replacedParts`, lines of kind `replaced`. */
 export function loadReplaced(path = FLAG_DELTA_GOLDEN) {
   if (path === FLAG_DELTA_GOLDEN && cached) return cached;
   const es = readFileSync(path, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((l) => l.kind === 'replaced');
@@ -14,12 +13,10 @@ export function loadReplaced(path = FLAG_DELTA_GOLDEN) {
   return es;
 }
 
-/** Lean `Fw.Gate.Replaced.absent`. */
 export const absent = (it) => it.cls === 'count' && it.key === 'count' && !it.byRect && it.status === 'differ' && it.rewriteCount === 0;
 
 const hits = (e, flags, part, it) => flags.includes(e.flag) && e.part === part && absent(it);
 
-/** Lean `Fw.Gate.Replaced.excuse`: `{ by, id, entry }` or null. */
 export function excuse(flags, part, it, es = loadReplaced(), ds = loadDeltas()) {
   const d = excuseItem(flags, part, it, ds);
   if (d !== null) return { by: 'delta', id: d.id, entry: d };
@@ -29,10 +26,8 @@ export function excuse(flags, part, it, es = loadReplaced(), ds = loadDeltas()) 
 
 const allExcused = (flags, part, fails, es, ds) => fails.length > 0 && fails.every((it) => excuse(flags, part, it, es, ds) !== null);
 
-/** Lean `Fw.Gate.Replaced.readingVerdict`. */
 export const readingVerdict = (flags, part, v, fails, es = loadReplaced(), ds = loadDeltas()) =>
   (v === 'fail' && allExcused(flags, part, fails, es, ds) ? 'pass' : v);
 
-/** Lean `Fw.Gate.Replaced.excusedItems`: `[item, excuse]` pairs. */
 export const excusedItems = (flags, part, v, fails, es = loadReplaced(), ds = loadDeltas()) =>
   (v === 'fail' && allExcused(flags, part, fails, es, ds) ? fails.map((it) => [it, excuse(flags, part, it, es, ds)]) : []);

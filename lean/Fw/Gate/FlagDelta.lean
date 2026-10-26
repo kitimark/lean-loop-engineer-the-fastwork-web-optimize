@@ -103,7 +103,6 @@ structure ReplacedPart where
   reason : String
   premise : Lean.Name
 
-/-- The parts a flag unmounts, each with the theorem that it is unmounted under the flag; `Fw.Gate.Replaced` decides. -/
 def replacedParts : List ReplacedPart := []
 
 structure DItem where

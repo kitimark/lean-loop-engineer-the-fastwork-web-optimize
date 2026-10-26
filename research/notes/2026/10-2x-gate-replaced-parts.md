@@ -1,4 +1,4 @@
-# Breakpoint gate: replaced parts (task gate-replaced-parts)
+# Breakpoint gate: replaced parts
 
 Status: proved in Lean, harness wired and tested. No CI gate run here (the morph.stage rerun belongs to morph-stage).
 
@@ -14,8 +14,7 @@ in the morph-stage worktree). `Fw.Gate.FlagDelta` only excuses style tuples, so 
   decided by rect, its status is `differ`, and its rewrite count is `some 0`. Because `countStatus a 0 = differ ↔ 0 < a`
   (`countStatus_absent`), the original has the anchor.
 - An entry excuses an item only when its flag is on, its part is the reading's part and the item is an absent anchor.
-  A style delta is tried first (`excuse`). A reading passes only when every failing item is excused. This is the
-  FlagDelta rule with one more excuse kind.
+  A style delta is tried first (`excuse`). A reading passes only when every failing item is excused.
 
 ## Theorems (lean/Fw/Gate/Replaced.lean)
 | claim | theorem |
@@ -36,7 +35,7 @@ in the morph-stage worktree). `Fw.Gate.FlagDelta` only excuses style tuples, so 
   `Fw.Gate.Replaced.fixture_unmounted_iff`) and 26 reading cases. Each case is decided with the fixture entries or
   with none.
 - `packages/gate-breakpoints/src/replaced.mjs` replays the decision. Its test checks every Lean case.
-  `summary.mjs applyFlagDeltas` uses it with the canonical entries. `flag-delta.mjs wireItem` now also carries
+  `summary.mjs applyFlagDeltas` uses it with the canonical entries. `flag-delta.mjs wireItem` carries
   `rewriteCount`, the rewrite count of a count item.
 - `flag-delta.jsonl` is byte-identical: no canonical entry exists yet.
 

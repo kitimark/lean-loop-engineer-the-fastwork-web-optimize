@@ -1,7 +1,7 @@
 # gate-replaced-parts handoff
 
 **State:** branch `worktree-wf_b45aa19b-35b-1`, worktree `.claude/worktrees/wf_b45aa19b-35b-1`; work commits ccb158b74 (Lean +
-harness) and 48af2e168 (note), then this handoff and the main merge. No CI runs (none needed: Lean and node tests only).
+harness) and 48af2e168 (note). No CI runs; only Lean and node tests apply.
 **Lean:** `lean/Fw/Gate/FlagDelta.lean` adds `ReplacedPart` and `replacedParts` (empty) and a `replaced` golden line,
 plus `DItem.rewriteCount` (default none). `flag-delta.jsonl` is byte-identical. `lean/Fw/Gate/Replaced.lean` adds `absent`, `excuse` (a delta first, then
 an entry), `readingVerdict` and `excusedItems`. Theorems: `entry_same_part`, `other_part_none/_fails`,
