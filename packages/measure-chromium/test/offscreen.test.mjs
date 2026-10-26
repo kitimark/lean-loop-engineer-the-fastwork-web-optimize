@@ -7,6 +7,7 @@ import {
   extraTraceCounts, reduceRun, summarize, markdown, parseLine,
 } from '../src/offscreen.mjs';
 import { parseProfile } from '../src/profile.mjs';
+import './offscreen-windows.test.mjs'; // the push-window reader suite runs with this file (test:run lists this one)
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/offscreen.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const ops = (op) => golden.filter((g) => g.op === op);
