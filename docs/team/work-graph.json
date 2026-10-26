@@ -22110,7 +22110,8 @@
     "results/push-cycle-separate/**",
     "research/findings/ledger.json",
     "docs/team/handoffs/push-cycle-separate.md"
-   ]
+   ],
+   "evidence": "9b60789"
   },
   {
    "devices": [
@@ -22172,7 +22173,8 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "toolbar-sim-lane"
+    "toolbar-sim-lane",
+    "push-cycle-16"
    ],
    "title": "Split from toolbar-sim-lane (review r1): measure Layout and RecalcStyle per frame on the Simulator toolbar lane with >= 3 whole gesture-4 cost windows per arm beside same-job default passes (default, engine.scroll:unthrottle, morph.panel:threaded; look-change arms optional), new push budget (at most 2 pushes, free GitHub macOS), Lean cost-evidence rule from toolbar-sim-lane (.undecided below 3 windows). Decides the cost of candidate f (unthrottle: steps ~95 ms to ~50 ms) and whether it may enter a preset.",
    "writes": [
