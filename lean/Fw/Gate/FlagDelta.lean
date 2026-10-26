@@ -3,6 +3,7 @@ import Fw.Wire.Gate
 import Fw.Gate.Settle
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphColumnsScale
+import Fw.Parts.PlatformSweepLayer
 namespace Fw.Gate.FlagDelta
 open Fw.Gate
 
@@ -44,7 +45,43 @@ def deltas : List Delta :=
     { id := "final-scale-col-flex-shrink", flag := "morph.columns:final-scale", part := "morph.columns", role := "col",
       property := "flex-shrink", orig := "1", rewrite := "0", look := .l,
       reason := "the columns keep the final-width layout (flex: none) and a horizontal scale draws the base edges; a look change",
-      premise := ``Fw.Parts.MorphColumnsScale.layout_const } ]
+      premise := ``Fw.Parts.MorphColumnsScale.layout_const },
+    { id := "layer-sweep-background-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "background-clip", orig := "text", rewrite := "border-box", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-webkit-background-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "-webkit-background-clip", orig := "text", rewrite := "border-box", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-background-image-chromium", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "background-image", orig := "linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.33%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.67%, rgb(255, 255, 255) 100%)", rewrite := "none", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-background-image-webkit", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "background-image", orig := "linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.330002%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.669998%, rgb(255, 255, 255) 100%)", rewrite := "none", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-display", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "display", orig := "inline", rewrite := "inline-block", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-position", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "position", orig := "static", rewrite := "relative", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-mask-image", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "mask-image", orig := "none", rewrite := "linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-mask-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "mask-clip", orig := "border-box", rewrite := "text", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look },
+    { id := "layer-sweep-webkit-mask-clip", flag := "platform.sweep:layer-sweep", part := "platform.sweep", role := "word",
+      property := "-webkit-mask-clip", orig := "border-box", rewrite := "text", look := .l,
+      reason := "the word keeps its glyphs as a static mask-clip:text mask and the gradient moves to a child layer under a compositor transform; the colour at each point and time is the original's (same_look), the pixels differ by edge rounding; a look change",
+      premise := ``Fw.Parts.PlatformSweepLayer.same_look } ]
 
 structure DItem where
   cls : Cls
@@ -252,6 +289,18 @@ def restOn : List String := ["morph.panel:rest"]
 
 def scaleOn : List String := ["morph.columns:final-scale"]
 
+def sweepOn : List String := ["platform.sweep:layer-sweep"]
+
+def sweepItems : List DItem :=
+  [styleItem "word" "background-clip" "text" "border-box", styleItem "word" "display" "inline" "inline-block",
+   styleItem "word" "position" "static" "relative", styleItem "word" "mask-image" "none" "linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))",
+   styleItem "word" "mask-clip" "border-box" "text"]
+
+#guard readingVerdict sweepOn "platform.sweep" .fail sweepItems == .pass
+#guard readingVerdict [] "platform.sweep" .fail sweepItems == .fail
+#guard readingVerdict sweepOn "platform" .fail sweepItems == .fail
+#guard readingVerdict sweepOn "platform.sweep" .fail (sweepItems ++ [styleItem "word" "width" "100px" "103px"]) == .fail
+
 #guard readingVerdict restOn "platform" .fail [sectionFilter] == .pass
 #guard readingVerdict restOn "engine.scene" .fail [sceneFilter] == .pass
 #guard readingVerdict [] "platform" .fail [sectionFilter] == .fail
@@ -301,7 +350,7 @@ def readingLine (flags : List String) (part : String) (v : Verdict) (fails : Lis
 
 def searchCases : List String :=
   ["", "?fw=morph.panel:rest", "?fw=morph.columns:final-scale", "?fw=morph.columns:final-scale,morph.panel:rest&x=1",
-   "?fw=a:b&fw=c:d&fw=a:b", "?fw=a:b%2Cc:d", "?f%77=a:b", "?fw", "?fw=a", "?fw=a:b:c", "?other=1", "fw=a:b", "?fw=,a:b,"]
+   "?fw=platform.sweep:layer-sweep", "?fw=a:b&fw=c:d&fw=a:b", "?fw=a:b%2Cc:d", "?f%77=a:b", "?fw", "?fw=a", "?fw=a:b:c", "?other=1", "fw=a:b", "?fw=,a:b,"]
 
 def readingCases : List (List String × String × Verdict × List DItem) :=
   [ (restOn, "platform", .fail, [sectionFilter]),
@@ -328,7 +377,11 @@ def readingCases : List (List String × String × Verdict × List DItem) :=
     (scaleOn, "morph.columns", .fail, [styleItem "col" "flex-grow" "1" "1"]),
     (restOn, "morph.columns", .fail, flexItems),
     (restOn ++ scaleOn, "morph.columns", .fail, flexItems),
-    (restOn ++ scaleOn, "platform", .fail, [sectionFilter]) ]
+    (restOn ++ scaleOn, "platform", .fail, [sectionFilter]),
+    (sweepOn, "platform.sweep", .fail, sweepItems),
+    ([], "platform.sweep", .fail, sweepItems),
+    (sweepOn, "platform", .fail, sweepItems),
+    (sweepOn, "platform.sweep", .fail, sweepItems ++ [styleItem "word" "width" "100px" "103px"]) ]
 
 def goldenLines (_ : Unit := ()) : List String :=
   deltas.map deltaLine ++ searchCases.map searchLine ++

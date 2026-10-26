@@ -9,9 +9,9 @@ Chromium and WebKit run a transform animation on the compositor (`animationIsAcc
 and neither runs `background-position` there. Part 1 proves the layer shows the original's colour at every point and
 time. Part 2 counts the layers a frame must repaint and proves the text mask is not one of them.
 
-Measured pixel difference against the original (Playwright Chromium and WebKit, one word): at most 3 levels of 255 in
-Chromium and 8 in WebKit, none beyond edge and gradient rounding. That is rounding of two paint paths, not part of this
-exact model, so the flag is a look change (`visClass` L) for the user's visual review.
+`same_look` covers the colour at each point of the word over time (the gradient position), not the pixels. Measured pixel
+difference against the original is in the note and the ledger row; edge and gradient rounding of two paint paths is not
+part of this exact model, so the flag is a look change (`visClass` L) for the user's visual review.
 -/
 namespace Fw.Parts.PlatformSweepLayer
 open Fw.Parts.PlatformSweep
@@ -46,6 +46,13 @@ Proved for every positive width: `band_eq_bgpos` with the keyframe offset. -/
 theorem same_look (w : Rat) (hw : 0 < w) (v t : Rat) : color (bandU w (layerX w t) v) = shown v t := by
   rw [layerX_eq]
   exact band_eq_bgpos w hw v t
+
+/-- The padded layer box is `3w + 2e` wide (`e` px of padding per side, the image in the content box), so a percent
+translate of its own width moves `fromExact * (3w + 2e)`; the keyframe adds `4e/3` px to bring the content box back to
+`-2w`. The site uses `e = 6` and `+8px`. -/
+theorem pad_start (w e : Rat) : -(fromExact * (3 * w + 2 * e)) + 4 * e / 3 = -2 * w := by
+  unfold fromExact
+  grind
 
 /-- The layer starts at its keyframe start, `-2w`, like the original's 100 %. -/
 theorem layerX_start (w : Rat) : layerX w 0 = -2 * w := by

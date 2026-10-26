@@ -10,9 +10,9 @@
   .g { background-image: linear-gradient(90deg, #fff 0 33.33%, #82bcff 40%, #2483ff 45%, #ff66f4 50%, #ff3029 55%, #fe7b02 60%, #fff 66.67% 100%) }
   .a { display: inline; vertical-align: top; background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: #0000; -webkit-text-fill-color: transparent; animation: 4s linear infinite paused sweepDoc }
   .b { display: inline-block; vertical-align: top; position: relative; color: #0000; -webkit-text-fill-color: transparent; -webkit-mask-image: linear-gradient(#000, #000); mask-image: linear-gradient(#000, #000); -webkit-mask-clip: text; mask-clip: text }
-  .b i { display: block; position: absolute; left: 0; top: 0; width: 300%; height: 100%; animation: 4s linear infinite paused sweepLayerX; will-change: transform }
+  .b i { display: block; position: absolute; left: -6px; top: 0; width: calc(300% + 12px); height: 100%; box-sizing: border-box; padding-inline: 6px; background-origin: content-box; background-size: 100% 100%; animation: 4s linear infinite paused sweepLayerX; will-change: transform }
   @keyframes sweepDoc { 0% { background-position: 100% } to { background-position: 0% } }
-  @keyframes sweepLayerX { 0% { transform: translateX(-66.6667%) } to { transform: translateX(0) } }
+  @keyframes sweepLayerX { 0% { transform: translateX(calc(-66.6667% + 8px)) } to { transform: translateX(0) } }
   div.t0 * { animation-delay: 0s }
   div.t1 * { animation-delay: -0.5s }
   div.t2 * { animation-delay: -1.5s }

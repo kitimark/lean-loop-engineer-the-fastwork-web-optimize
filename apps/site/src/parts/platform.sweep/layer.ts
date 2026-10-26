@@ -3,7 +3,7 @@ import { PERIOD_MS, color, phase, pos } from './logic';
 export const VARIANT = 'layer-sweep';
 export const FLAG = 'platform.sweep:layer-sweep';
 
-/** The `translateX` keyframe start (a fraction of the gradient layer's own width, `-66.6667%` in sweep.module.css). */
+/** The `translateX` keyframe start (a fraction of the padded layer box, `-66.6667%` plus 8px in sweep.module.css; Lean `pad_start`). */
 export const FROM_PCT = 0.666667;
 /** Layers the variant adds: one gradient layer per title word. */
 export const LAYERS = 4;
