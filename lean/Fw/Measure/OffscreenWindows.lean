@@ -549,12 +549,10 @@ theorem ownVerdicts_noData_of_noFrames (base flag : List Run) (n : String) (hn :
     simp only [Bool.and_eq_false_iff, decide_eq_false_iff_not]
     left; omega
 
-/-- Frames `end 120+` needs in every run: the span of `end 0-19`, the shortest fixed end window. -/
 def minEnd120 : Nat := 20
 
 def wholeWindows : List Win := allWindows approachFrames (approachFrames + 120 + minEnd120)
 
-/-- Frames window `n` needs in every run: its whole span for the fixed windows, `minEnd120` for `end 120+`, their sum for `finish`. -/
 def minFrames (n : String) : Nat := (lenOf wholeWindows n).getD 0
 
 theorem minFrames_eq : windowNames.map minFrames = [34, 20, 40, 60, 20, 174] := by decide

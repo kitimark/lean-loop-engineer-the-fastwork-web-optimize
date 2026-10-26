@@ -8,8 +8,7 @@ Tags: MEASURED (CI run id named), CONFIRMED (Lean theorem or source cited), INFE
   whose common frame count (`commonLen`, the shortest window over every run of both arms) is below it reads `noData`
   (`minVerdicts`, line 572). Above it the verdict is the own-end verdict of `ownVerdicts`, unchanged.
 * A run shorter than `minFrames` in a window makes that window `noData` for the arm pair. The run is not dropped.
-  CONFIRMED by `minVerdicts_short_noData` (line 626). The reason is the counterexample below: dropping a short run can
-  turn a `noGain` into a `gain`.
+  CONFIRMED by `minVerdicts_short_noData` (line 626); dropping it can turn a `noGain` into a `gain` (counterexample below).
 * morph.stage re-read (runs 40339630528 base, 40339622735 flag, MEASURED from their counts.json, no new CI run): end
   0-19 now reads `noData` (3 frames, minimum 20), where the own-end rule read `gain`. The approach stays `noGain` on 34
   frames. Finish moves from `noGain` on 37 frames to `noData` (minimum 174). No window of the stage run gives a gain.
@@ -28,7 +27,7 @@ and records `120 + minEnd120` frames after its end, so nothing is clipped.
 | end 120+ | 20 | no fixed span; `minEnd120`, the span of end 0-19, the shortest fixed end window |
 | finish | 174 | the sum of the five push windows at their minimum (`pushWindows_sum`) |
 
-A fixed window is thus compared only whole. The `commonLen` cut still applies to end 120+ and finish when every run
+A fixed window is compared only whole. The `commonLen` cut still applies to end 120+ and finish when every run
 holds at least the minimum.
 
 ## Theorems (CONFIRMED, `lean/Fw/Measure/OffscreenWindows.lean`)
@@ -57,8 +56,7 @@ after frame 100. In end 120+:
 | drop the short run | gain: the 3 remaining base runs all raster more than the flag |
 | minFrames (this note) | noData |
 
-Dropping picks which runs count after seeing their lengths, and the run it removes can be the one that disagrees. The
-noData rule decides each window on every run it has.
+Dropping picks which runs count after seeing their lengths, and the run it removes can be the one that disagrees.
 
 ## Golden and TS reader
 
