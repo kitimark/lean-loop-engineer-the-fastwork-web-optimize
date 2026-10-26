@@ -429,7 +429,12 @@ def registry : List Premise := [
     statement := "∀ k ∈ {margin-left, margin-right, margin-inline-start, margin-inline-end}: n.computedStyleMap().get(k) is the computed value (CSSKeywordValue auto for an auto margin, a percent CSSUnitValue for a percentage, a px CSSUnitValue for a fixed length) in each of three cases: (a) n is in normal flow; (b) n is in a subtree skipped by content-visibility:auto, which is still skipped after the read; (c) n is under an ancestor with transform: scale(0.916667)"
     theorems := ["Fw.Gate.marginStatus_fixed", "Fw.Gate.marginStatus_fail_iff", "Fw.Gate.marginStatus_never_pass_over_failing_rect"]
     engines := both
-    testId := "prem.cv.margin-typed-om" }
+    testId := "prem.cv.margin-typed-om" },
+  { id := "sweep.layer-pixels"
+    statement := "at the fixed progress times 0, 0.5, 1.5, 2.5 and 3.9 s, every channel of a word drawn as a gradient child 3w wide moved by translateX under a static mask-clip:text mask is within 12 of 255 of the same word drawn with background-clip:text and background-position, and both show the colour band"
+    theorems := ["Fw.Parts.PlatformSweepLayer.same_look"]
+    engines := both
+    testId := "prem.sweep.layer-pixels" }
 ]
 
 /-- The premise ids are pairwise distinct. -/

@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>sweep.layer-pixels</title>
+<style>
+  /* Row pairs at fixed progress (paused, negative delay: nothing is seeked). Pair i: the word as the original paints it
+     (background-clip:text, background-position animated) and as platform.sweep:layer-sweep paints it (a gradient child 3x
+     as wide moved by transform under a static mask-clip:text mask). Same declarations as sweep.module.css. */
+  body { margin: 0; background: #131922; color: #fff; font: 700 40px/1.15 sans-serif }
+  p { margin: 0; height: 60px; padding: 7px 20px; box-sizing: border-box; width: 800px; white-space: nowrap }
+  .g { background-image: linear-gradient(90deg, #fff 0 33.33%, #82bcff 40%, #2483ff 45%, #ff66f4 50%, #ff3029 55%, #fe7b02 60%, #fff 66.67% 100%) }
+  .a { display: inline; vertical-align: top; background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: #0000; -webkit-text-fill-color: transparent; animation: 4s linear infinite paused sweepDoc }
+  .b { display: inline-block; vertical-align: top; position: relative; color: #0000; -webkit-text-fill-color: transparent; -webkit-mask-image: linear-gradient(#000, #000); mask-image: linear-gradient(#000, #000); -webkit-mask-clip: text; mask-clip: text }
+  .b i { display: block; position: absolute; left: 0; top: 0; width: 300%; height: 100%; animation: 4s linear infinite paused sweepLayerX; will-change: transform }
+  @keyframes sweepDoc { 0% { background-position: 100% } to { background-position: 0% } }
+  @keyframes sweepLayerX { 0% { transform: translateX(-66.6667%) } to { transform: translateX(0) } }
+  div.t0 * { animation-delay: 0s }
+  div.t1 * { animation-delay: -0.5s }
+  div.t2 * { animation-delay: -1.5s }
+  div.t3 * { animation-delay: -2.5s }
+  div.t4 * { animation-delay: -3.9s }
+</style>
+<div class="t0"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<div class="t1"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<div class="t2"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<div class="t3"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
+<div class="t4"><p>Get discovered. <span class="a g">Document</span> more</p><p>Get discovered. <span class="b">Document<i class="g"></i></span> more</p></div>
