@@ -6,7 +6,7 @@ import type { View } from '../platform.entries/logic';
 import { PROFILE_TARGET } from '../platform.entries/logic';
 import { createGlintDriver } from '../platform.glint/driver';
 import { createPause } from '../platform.glint/pause';
-import { X1, X2 } from '../platform.glint/logic';
+import { holdElements, X1, X2 } from '../platform.glint/logic';
 import { ASK_TITLE, FLAGS, NETWORK, ORDERS, PROFILE, QUOTE, REVIEWS, TOPICS, UK_LAYERS, type Service } from './content';
 import { matchList } from './media';
 import v from './visuals.module.css';
@@ -17,6 +17,7 @@ export interface Subs {
   entriesFill?: boolean;
   glint: boolean;
   glintPause?: boolean;
+  glintHold?: boolean;
   marquee: boolean;
 }
 
@@ -264,20 +265,33 @@ export function Ask({ subs }: { subs: Subs }) {
 
 const KEYTIMES = '0;0.2;0.4;0.6;0.8;1';
 
-function Dash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
+/** platform.glint:hold-freeze: the ring of `<animate>` ramps and `<set>` holds (Lean PlatformGlintHold, logic.ts holdElements). */
+function HoldRing({ side, idBase }: { side: 'left' | 'right'; idBase: string }) {
+  return (
+    <>
+      {holdElements(side, idBase).map((e) => {
+        const common = { id: e.id, attributeName: e.attributeName, to: e.to, dur: e.dur, fill: e.fill, begin: e.begin, 'data-fw-anchor': e.anchor ? '' : undefined };
+        return e.tag === 'set' ? <set key={e.id} {...common} /> : <animate key={e.id} {...common} from={e.from} />;
+      })}
+    </>
+  );
+}
+
+function Dash({ side, playing, hold }: { side: 'left' | 'right'; playing: boolean; hold?: boolean }) {
   const ref = useRef<SVGSVGElement>(null);
   const id = `secure-network-dash-${side}`;
   useEffect(() => {
     if (!playing) return;
     // the original calls beginElement() on every <animate> right after they render: the SMIL clock restarts there
-    for (const a of ref.current?.querySelectorAll('animate') ?? []) {
+    // hold-freeze: only the segment-0 piece of each attribute is started, the ring follows by its own begin chain
+    for (const a of ref.current?.querySelectorAll(hold ? '[data-fw-anchor]' : 'animate') ?? []) {
       try {
         (a as SVGAnimationElement).beginElement();
       } catch {
         /* unsupported */
       }
     }
-  }, [playing]);
+  }, [playing, hold]);
   return (
     <span className={cx(v.dash, side === 'left' ? v.dashLeft : v.dashRight)} data-fw-dash={side}>
       <svg ref={ref} className={v.dashSvg} width="94" height="3.2" viewBox="0 0 94 3.2" fill="none" overflow="visible" aria-hidden="true">
@@ -289,7 +303,8 @@ function Dash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
             <stop offset="60%" stopColor="#ae8eff" stopOpacity="1" />
             <stop offset="80%" stopColor="#ffcca5" stopOpacity="1" />
             <stop offset="100%" stopColor="#ffcca5" stopOpacity="0" />
-            {playing ? (
+            {playing && hold ? <HoldRing side={side} idBase={`${id}-`} /> : null}
+            {playing && !hold ? (
               <>
                 <animate attributeName="x1" begin="indefinite" repeatCount="indefinite" keyTimes={KEYTIMES} dur="5s" values={X1[side].join(';')} />
                 <animate attributeName="x2" begin="indefinite" repeatCount="indefinite" keyTimes={KEYTIMES} dur="5s" values={X2[side].join(';')} />
@@ -354,8 +369,8 @@ export function Secure({ subs }: { subs: Subs }) {
   return (
     <div ref={root} className={cx(v.secure, subs.entriesFill && v.fillRelease)} data-fw-visual="secure" aria-hidden="true">
       <img className={v.rings} loading="lazy" decoding="async" src={`${NETWORK}/hex-rings.svg`} alt="" width="542" height="600" draggable={false} />
-      <Dash side="left" playing={playing} />
-      <Dash side="right" playing={playing} />
+      <Dash side="left" playing={playing} hold={subs.glintHold} />
+      <Dash side="right" playing={playing} hold={subs.glintHold} />
       <img className={cx(v.face, v.faceLeft)} loading="lazy" decoding="async" src={`${NETWORK}/portrait-left.png`} alt="" width="96" height="96" draggable={false} />
       <img className={cx(v.face, v.faceRight)} loading="lazy" decoding="async" src={`${NETWORK}/portrait-right.png`} alt="" width="96" height="96" draggable={false} />
       <div className={v.shield}>

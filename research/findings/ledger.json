@@ -4458,6 +4458,41 @@
    "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
    "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
    "userDecision": "pending"
+  },
+  {
+   "id": "platform.glint:hold-freeze",
+   "n": 90,
+   "part": "platform.glint",
+   "flags": [
+    "platform.glint:hold-freeze"
+   ],
+   "flag": "platform.glint:hold-freeze",
+   "visClass": "E",
+   "candidate": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
+   "status": "partly-proved",
+   "chromium": "not yet measured (task glint-hold-freeze, CI run ids in research/notes/2026/10-2x-glint-hold-freeze.md)",
+   "webkit": "not yet measured; WebKit Simulator runs wait for task wk-sim-hang",
+   "visual": "E (Lean PlatformGlintHold.hold_eq_faithful: the hold sample equals the original at every elapsed time)",
+   "mechanism": "INFERRED: both engines tick every active non-<set> animation on each SMIL frame; a <set> in its hold segment changes nothing, so the 3 of 5 hold segments per side spend no animated-value writes (Lean ticking_hold, ticking_le). Engine citations in the note.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintHold.hold_premise",
+    "Fw.Parts.PlatformGlintHold.hold_eq_faithful",
+    "Fw.Parts.PlatformGlintHold.ticking_hold",
+    "Fw.Parts.PlatformGlintHold.ticking_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Chromium and WebKit counts; both engines' parse of the begin chain (INFERRED from probe runs)"
+   ],
+   "premises": [
+    "the begin chain of the ring keeps one piece active at every instant in both engines: INFERRED, tested in the look premise",
+    "one SMIL clock writer (createPause) as for platform:faded-pause"
+   ],
+   "v1Evidence": "",
+   "lesson": "A held value costs a per-frame animated-value write only while a non-<set> animation covers it; tiling the cycle with <set> pieces removes the writes without changing a pixel.",
+   "next": "counts in the task note; the user's preset decision",
+   "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md (task glint-hold-freeze)",
+   "userDecision": "pending"
   }
  ],
  "notes": [
