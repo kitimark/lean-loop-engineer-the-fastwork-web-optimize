@@ -10,7 +10,7 @@ history. Slow or not is Lean; the producer and the collector only measure and ca
 | piece | where | decides |
 |---|---|---|
 | record schema, JSON round trip, span names, slow verdict | `lean/Fw/Ci/Telemetry.lean` (op `ci.telemetry`) | everything |
-| goldens (9 cases, generated) | `packages/contracts/golden/ci/telemetry.jsonl`, `lean/scripts/TelemetryGolden.lean --check` in `check.sh` | |
+| goldens (generated) | `packages/contracts/golden/ci/telemetry.jsonl`, `lean/scripts/TelemetryGolden.lean --check` in `check.sh` | |
 | producer (node, no dependencies) | `scripts/ci-telemetry/` (`cli.mjs`, `lib.mjs`, `sampler.mjs`, `tick.mjs`) | nothing |
 | GitHub composite action | `.github/actions/telemetry` (`mode: start`, `cache`, `finish`) | nothing |
 | collector | `apps/runner/src/ci-telemetry.ts`, `fw ci telemetry` | nothing |
