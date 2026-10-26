@@ -356,13 +356,14 @@ def perThousand (count opens : Nat) : Option Nat := if opens = 0 then Option.non
 def rates (ps : List (Nat × Nat)) : List Nat := ps.filterMap fun p => perThousand p.1 p.2
 
 inductive Brick where
-  | win | trade | noWin
+  | win | trade | noWin | undecided
   deriving DecidableEq, Repr
 
 def Brick.name : Brick → String
   | .win => "win"
   | .trade => "trade"
   | .noWin => "no-win"
+  | .undecided => "undecided"
 
 def brickVerdict (rev fight : Cmp) (stillLifted stillWorse : Bool) : Brick :=
   let better := (if rev = .lower then 1 else 0) + (if fight = .lower then 1 else 0) + (if stillLifted then 1 else 0)
@@ -806,23 +807,114 @@ theorem sameLook_empty_cand (base : List TbPass) : sameLook base [] = false := b
 def liftedBy (base cand : List TbPass) : Bool :=
   stepsLifted (medianCs (cand.map (·.frameCs))) (cand.flatMap (·.gaps)) && !stepsLifted (medianCs (base.map (·.frameCs))) (base.flatMap (·.gaps))
 
+/-- Whole cost windows a verdict needs on each side before Layout and RecalcStyle per frame may speak. -/
+def minCostWindows : Nat := 3
+
+/-- Passes of `ps` that hold a cost reading of `num` per frame (a pass with no frames holds none). -/
+def costWindows (num : TbPass → Nat) (ps : List TbPass) : Nat := (rates (ps.map fun p => (num p, p.frames))).length
+
+/-- Both costs have at least `minCostWindows` readings on the default side and on the flag side. -/
+def costKnown (base cand : List TbPass) : Bool :=
+  decide (minCostWindows ≤ costWindows (·.layout) base) && decide (minCostWindows ≤ costWindows (·.layout) cand)
+  && decide (minCostWindows ≤ costWindows (·.recalc) base) && decide (minCostWindows ≤ costWindows (·.recalc) cand)
+
+/-- A cost column without enough readings says nothing: it reads as overlap. -/
+def costCmp (known : Bool) (c : Cmp) : Cmp := if known then c else .overlap
+
+/-- The cadence and state verdict of `armVerdict`; a plain win whose cost is not known is `undecided`, not a win. -/
 def flagVerdict (base cand : List TbPass) : Brick :=
-  armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
-    (cmpBy (·.onsets) (·.gestures) base cand) (cmpBy (·.layout) (·.frames) base cand) (cmpBy (·.recalc) (·.frames) base cand)
-    (liftedBy base cand) (sameLook base cand)
+  let known := costKnown base cand
+  let v := armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
+    (cmpBy (·.onsets) (·.gestures) base cand) (costCmp known (cmpBy (·.layout) (·.frames) base cand))
+    (costCmp known (cmpBy (·.recalc) (·.frames) base cand)) (liftedBy base cand) (sameLook base cand)
+  if !known && v == .win then .undecided else v
 
 theorem cmpBy_empty_cand (num den : TbPass → Nat) (base : List TbPass) : cmpBy num den base [] = .overlap := by
   simp [cmpBy, Fw.Measure.TouchLock.cmp_empty_cand, rates]
 
+theorem costCmp_overlap (known : Bool) : costCmp known .overlap = .overlap := by
+  cases known <;> rfl
+
 theorem flagVerdict_empty_cand (base : List TbPass) : flagVerdict base [] = .noWin := by
+  have h : armVerdict (cmpBy (·.reversals) (·.gestures) base []) (cmpBy (·.swaps) (·.gestures) base [])
+      (cmpBy (·.onsets) (·.gestures) base []) (costCmp (costKnown base []) (cmpBy (·.layout) (·.frames) base []))
+      (costCmp (costKnown base []) (cmpBy (·.recalc) (·.frames) base [])) (liftedBy base []) (sameLook base []) = .noWin := by
+    apply armVerdict_noWin <;> simp [cmpBy_empty_cand, liftedBy, stepsLifted_empty]
   unfold flagVerdict
-  apply armVerdict_noWin <;> simp [cmpBy_empty_cand, liftedBy, stepsLifted_empty]
+  simp only [h]
+  simp
+
+/-- With the cost known the verdict is the one `armVerdict` gives on all five columns. -/
+theorem flagVerdict_cost_known (base cand : List TbPass) (h : costKnown base cand = true) :
+    flagVerdict base cand =
+      armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
+        (cmpBy (·.onsets) (·.gestures) base cand) (cmpBy (·.layout) (·.frames) base cand)
+        (cmpBy (·.recalc) (·.frames) base cand) (liftedBy base cand) (sameLook base cand) := by
+  simp [flagVerdict, costCmp, h]
+
+/-- Without the cost no arm is a win. -/
+theorem flagVerdict_cost_unknown_not_win (base cand : List TbPass) (h : costKnown base cand = false) :
+    flagVerdict base cand ≠ .win := by
+  unfold flagVerdict
+  simp only [h, Bool.not_false, Bool.true_and]
+  split <;> simp_all
+
+/-- Cadence and state hold but the cost is not known: undecided. -/
+theorem flagVerdict_undecided (base cand : List TbPass) (h : costKnown base cand = false)
+    (hv : armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
+        (cmpBy (·.onsets) (·.gestures) base cand) .overlap .overlap (liftedBy base cand) (sameLook base cand) = .win) :
+    flagVerdict base cand = .undecided := by
+  simp [flagVerdict, costCmp, h, hv]
+
+/-- A no-win or trade stands whether or not the cost is known: cost cannot rescue it. -/
+theorem flagVerdict_unknown_keeps_loss (base cand : List TbPass) (h : costKnown base cand = false)
+    (hv : armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
+        (cmpBy (·.onsets) (·.gestures) base cand) .overlap .overlap (liftedBy base cand) (sameLook base cand) ≠ .win) :
+    flagVerdict base cand = armVerdict (cmpBy (·.reversals) (·.gestures) base cand) (cmpBy (·.swaps) (·.gestures) base cand)
+        (cmpBy (·.onsets) (·.gestures) base cand) .overlap .overlap (liftedBy base cand) (sameLook base cand) := by
+  simp [flagVerdict, costCmp, h, hv]
+
+/-- The default side holds no cost reading: not known. -/
+theorem costKnown_empty_base_layout (base cand : List TbPass) (h : rates (base.map fun p => (p.layout, p.frames)) = []) :
+    costKnown base cand = false := by
+  simp [costKnown, costWindows, h, minCostWindows]
+
+theorem costKnown_empty_base_recalc (base cand : List TbPass) (h : rates (base.map fun p => (p.recalc, p.frames)) = []) :
+    costKnown base cand = false := by
+  simp [costKnown, costWindows, h, minCostWindows]
+
+theorem costKnown_short_base (base cand : List TbPass) (h : costWindows (·.layout) base < minCostWindows) :
+    costKnown base cand = false := by
+  have : ¬ minCostWindows ≤ costWindows (·.layout) base := by omega
+  simp [costKnown, this]
+
+theorem costKnown_short_cand (base cand : List TbPass) (h : costWindows (·.layout) cand < minCostWindows) :
+    costKnown base cand = false := by
+  have : ¬ minCostWindows ≤ costWindows (·.layout) cand := by omega
+  simp [costKnown, this]
+
+theorem costKnown_short_base_recalc (base cand : List TbPass) (h : costWindows (·.recalc) base < minCostWindows) :
+    costKnown base cand = false := by
+  have : ¬ minCostWindows ≤ costWindows (·.recalc) base := by omega
+  simp [costKnown, this]
+
+theorem costKnown_short_cand_recalc (base cand : List TbPass) (h : costWindows (·.recalc) cand < minCostWindows) :
+    costKnown base cand = false := by
+  have : ¬ minCostWindows ≤ costWindows (·.recalc) cand := by omega
+  simp [costKnown, this]
+
+/-- An arm with an empty cost base is never a win (the round-1 unthrottle case: no default pass holds a cost window). -/
+theorem unthrottle_no_cost_undecided (base cand : List TbPass) (h : rates (base.map fun p => (p.layout, p.frames)) = []) :
+    flagVerdict base cand ≠ .win :=
+  flagVerdict_cost_unknown_not_win base cand (costKnown_empty_base_layout base cand h)
 
 def enters (lookChange : Bool) (v : Brick) : Bool := !lookChange && v == .win
 
 theorem look_class_never_enters (v : Brick) : enters true v = false := by simp [enters]
 
 theorem plain_win_enters : enters false .win = true := rfl
+
+theorem undecided_never_enters (lookChange : Bool) : enters lookChange .undecided = false := by simp [enters]
 
 theorem plain_trade_stays_out : enters false .trade = false := rfl
 
@@ -956,6 +1048,18 @@ private def slowP (_ : Nat) : List TbPass :=
   [mkP 12 6 4 6 4 [10000, 10100, 9900] 1000 true 60 90 600 5000, mkP 12 5 5 7 4 [10000, 9800] 1000 true 66 96 600 5000,
    mkP 12 7 3 6 4 [10100, 10000] 1000 true 63 93 600 5000]
 
+private def noCostP : List TbPass :=
+  [mkP 12 6 4 6 4 [10000, 10100, 9900] 1000 true 0 0 0, mkP 12 5 5 7 4 [10000, 9800] 1000 true 0 0 0,
+   mkP 12 7 3 6 4 [10100, 10000] 1000 true 0 0 0]
+
+private def unP : List TbPass :=
+  [mkP 12 6 4 6 4 [1667, 1667, 1700] 1000 true 60 90 600, mkP 12 5 5 7 4 [1667, 1600] 1000 true 66 96 600,
+   mkP 12 7 3 6 4 [1700, 1667] 1000 true 63 93 600]
+
+private def unCostlyP : List TbPass :=
+  [mkP 12 6 4 6 4 [1667, 1667, 1700] 1000 true 360 540 600, mkP 12 5 5 7 4 [1667, 1600] 1000 true 372 558 600,
+   mkP 12 7 3 6 4 [1700, 1667] 1000 true 366 546 600]
+
 private def tbVerdictCases (_ : Unit) : List (String × List TbPass × List TbPass) :=
   [("the same passes", baseP, baseP),
    ("unthrottle: a step every frame, layout and style recalcs per frame higher", baseP,
@@ -975,7 +1079,14 @@ private def tbVerdictCases (_ : Unit) : List (String × List TbPass × List TbPa
     [mkP 12 6 4 6 4 [5000, 5000, 6000] 1000 true 360 540 600 5000, mkP 12 5 5 7 4 [5000, 5500] 1000 true 372 558 600 5000,
      mkP 12 7 3 6 4 [6000, 5000] 1000 true 366 546 600 5000]),
    ("no cost reading (no frames)", baseP, [mkP 12 6 4 6 4 [10000] 1000 true 0 0 0, mkP 12 6 4 6 4 [10000] 1000 true 0 0 0]),
-   ("no candidate pass", baseP, []), ("no default pass", [], baseP)]
+   ("no candidate pass", baseP, []), ("no default pass", [], baseP),
+   ("unthrottle, cost known on both sides, nothing higher: a win", baseP, unP),
+   ("unthrottle, empty cost base (no default pass holds a cost window): undecided", noCostP, unP),
+   ("unthrottle, two cost windows in the default: undecided", baseP.take 2 ++ [mkP 12 6 4 6 4 [10000] 1000 true 0 0 0], unP),
+   ("unthrottle, two cost windows in the flag arm: undecided", baseP, unP.take 2 ++ [mkP 12 6 4 6 4 [1667, 1667] 1000 true 0 0 0]),
+   ("unthrottle, cost known and higher: trade", baseP, unCostlyP),
+   ("unthrottle without cost, broken look: trade", noCostP, unP.map fun p => { p with peak := 400 }),
+   ("no cadence lift without cost: no-win", noCostP, noCostP)]
 
 private def tbHzCases (_ : Unit) : List Nat := [0, 833, 1667, 1666, 1700, 1000, 3334]
 
@@ -1013,7 +1124,7 @@ def tbGoldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "tb-verdict"), ("name", name), ("base", Json.arr (base.map tbPassJ).toArray), ("cand", Json.arr (cand.map tbPassJ).toArray),
       ("reversals", (cmpBy (·.reversals) (·.gestures) base cand).name), ("swaps", (cmpBy (·.swaps) (·.gestures) base cand).name),
       ("onsets", (cmpBy (·.onsets) (·.gestures) base cand).name), ("layout", (cmpBy (·.layout) (·.frames) base cand).name),
-      ("recalc", (cmpBy (·.recalc) (·.frames) base cand).name), ("lifted", liftedBy base cand), ("look", sameLook base cand),
+      ("recalc", (cmpBy (·.recalc) (·.frames) base cand).name), ("lifted", liftedBy base cand), ("look", sameLook base cand), ("costKnown", costKnown base cand),
       ("verdict", (flagVerdict base cand).name), ("entersPlain", enters false (flagVerdict base cand)),
       ("entersLook", enters true (flagVerdict base cand))]).compress) ++
   ((tbHzCases ()).map fun (gap : Nat) => (Json.mkObj [("kind", "tb-hz"), ("gapCs", gap), ("hz", refreshHz gap), ("fold", foldOf (refreshHz gap))]).compress) ++

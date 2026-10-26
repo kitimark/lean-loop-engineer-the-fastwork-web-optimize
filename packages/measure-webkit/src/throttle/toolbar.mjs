@@ -100,6 +100,15 @@ export function armVerdict(rev, reopen, onset, layout, recalc, lifted, look) {
 export const liftedBy = (base, cand) =>
   stepsLifted(medianCs(cand.map((p) => p.frameCs)), cand.flatMap((p) => p.gaps)) && !stepsLifted(medianCs(base.map((p) => p.frameCs)), base.flatMap((p) => p.gaps));
 
+export const MIN_COST_WINDOWS = 3;
+
+/** Passes of ps that hold a cost reading of num per frame (a pass with no frames holds none). */
+export const costWindows = (num, ps) => rates(ps.map((p) => [num(p), p.frames])).length;
+
+/** Lean `costKnown`: Layout and RecalcStyle each have at least MIN_COST_WINDOWS readings on the default side and on the flag side. */
+export const costKnown = (base, cand) =>
+  [(p) => p.layout, (p) => p.recalc].every((num) => costWindows(num, base) >= MIN_COST_WINDOWS && costWindows(num, cand) >= MIN_COST_WINDOWS);
+
 export const columns = (base, cand) => ({
   reversals: cmpBy((p) => p.reversals, (p) => p.gestures, base, cand),
   swaps: cmpBy((p) => p.swaps, (p) => p.gestures, base, cand),
@@ -108,11 +117,16 @@ export const columns = (base, cand) => ({
   recalc: cmpBy((p) => p.recalc, (p) => p.frames, base, cand),
   lifted: liftedBy(base, cand),
   look: sameLook(base, cand),
+  costKnown: costKnown(base, cand),
 });
 
+/** Lean `flagVerdict`: a cost column without enough readings reads as overlap, and a win on that footing is 'undecided'. */
 export function flagVerdict(base, cand) {
   const c = columns(base, cand);
-  return armVerdict(c.reversals, c.swaps, c.onsets, c.layout, c.recalc, c.lifted, c.look);
+  const lay = c.costKnown ? c.layout : 'overlap';
+  const rec = c.costKnown ? c.recalc : 'overlap';
+  const v = armVerdict(c.reversals, c.swaps, c.onsets, lay, rec, c.lifted, c.look);
+  return !c.costKnown && v === 'win' ? 'undecided' : v;
 }
 
 export const enters = (lookChange, v) => !lookChange && v === 'win';

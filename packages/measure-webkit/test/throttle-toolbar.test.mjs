@@ -62,6 +62,7 @@ test('golden: the comparison columns, the look, and the verdict of a flag', () =
     assert.equal(c.recalc, g.recalc, g.name);
     assert.equal(c.lifted, g.lifted, g.name);
     assert.equal(c.look, g.look, g.name);
+    assert.equal(c.costKnown, g.costKnown, g.name);
     const v = flagVerdict(g.base, g.cand);
     assert.equal(v, g.verdict, g.name);
     assert.equal(enters(false, v), g.entersPlain, g.name);
@@ -149,19 +150,41 @@ test('the refresh rate of idle frames', () => {
   assert.equal(hzOf([]), 0);
 });
 
-test('the report: per-frame steps of unthrottle are lifted and its costs higher, so it is a trade', () => {
-  const base = [pass('default', 'job 1'), pass('default', 'job 2', record({ extra: { total: 61 } }), { layout: 14, recalc: 21, frames: 600, counts: true })];
-  const cand = [pass('unthrottle', 'job 1', record({ every: 1 }), { layout: 300, recalc: 500, frames: 600, counts: true }),
-    pass('unthrottle', 'job 2', record({ every: 1 }), { layout: 310, recalc: 510, frames: 600, counts: true })];
-  const k = flagRow('unthrottle', [...base, ...cand]);
+const costOf = (layout, recalc) => ({ layout, recalc, frames: 600, counts: true });
+const none = { layout: 0, recalc: 0, frames: 0, counts: true };
+const jobsOfPasses = (n, cand, base) => Array.from({ length: n }, (_, i) => ({
+  vm: `job ${i + 1}`,
+  passes: [pass('default', `job ${i + 1}`, record({ extra: { total: 60 + i } }), base(i)), pass('unthrottle', `job ${i + 1}`, record({ every: 1 }), cand(i))],
+}));
+
+test('the report: per-frame steps of unthrottle with three cost windows per side and higher costs are a trade', () => {
+  const vms = jobsOfPasses(3, (i) => costOf(300 + i, 500 + i), (i) => costOf(12 + i, 20 + i));
+  const k = flagRow('unthrottle', vms.flatMap((v) => v.passes.map((p) => ({ ...p, job: v.vm }))));
   assert.equal(k.verdict, 'trade');
   assert.equal(k.cols.layout, 'higher');
   assert.equal(k.cols.lifted, true);
+  assert.equal(k.cols.costKnown, true);
   assert.equal(k.enters, false);
-  const md = reportMd([{ vm: 'job 1', passes: [base[0], cand[0]] }, { vm: 'job 2', passes: [base[1], cand[1]] }]);
-  assert.match(md, /\| engine\.scroll:unthrottle \| plain \| 2 \| 2 \| 2 \|/);
-  assert.match(md, /\| unthrottle \| 2 \(2\) \|/);
+  const md = reportMd(vms);
+  assert.match(md, /\| engine\.scroll:unthrottle \| plain \| 3 \| 3 \| 3 \|/);
+  assert.match(md, /\| unthrottle \| 3 \(3\) \|/);
   assert.match(md, /per frame/);
+  assert.match(md, /## Not measured here \(task toolbar-cost-sample\)/);
+  assert.match(md, /does not detect touch-first's designed change of the first push/);
+});
+
+test('the report: a lifted cadence without three cost windows per side is undecided and never enters', () => {
+  for (const [name, base, cand] of [
+    ['two windows each', () => costOf(12, 20), () => costOf(13, 21)],
+    ['empty cost base', () => none, () => costOf(13, 21)],
+  ]) {
+    const vms = jobsOfPasses(name === 'two windows each' ? 2 : 3, cand, base);
+    const k = flagRow('unthrottle', vms.flatMap((v) => v.passes.map((p) => ({ ...p, job: v.vm }))));
+    assert.equal(k.cols.costKnown, false, name);
+    assert.equal(k.verdict, 'undecided', name);
+    assert.equal(k.enters, false, name);
+    assert.match(reportMd(vms), /undecided \(cost not measured\)/, name);
+  }
 });
 
 test('the report: a flag with no default pass beside it has no data, a look-change arm never enters', () => {

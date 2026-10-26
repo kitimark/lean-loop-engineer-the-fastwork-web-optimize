@@ -1,6 +1,6 @@
 // The toolbar lane table (task toolbar-sim-lane). Every number is a sum or a quotient of counts; the verdict per flag is
 // toolbar.mjs `flagVerdict` (twin of Lean Fw.Measure.MorphEndCount.flagVerdict). A pass is {arm, round, vm, rec, drag, cost, job} as toolbar-probe.mjs returns it.
-import { ARM_ORDER, FLAG_ARMS, FLAG_OF, LOOK_CHANGE, reasonOf, passOf, facts, columns, flagVerdict, enters, stepsLifted, medianCs, hzOf, foldOf } from './toolbar.mjs';
+import { ARM_ORDER, FLAG_ARMS, FLAG_OF, LOOK_CHANGE, reasonOf, passOf, facts, columns, flagVerdict, enters, costWindows, MIN_COST_WINDOWS, stepsLifted, medianCs, hzOf, foldOf } from './toolbar.mjs';
 
 const table = (head, rows) => [head, '|' + head.split('|').slice(1, -1).map(() => '---').join('|') + '|', ...rows].join('\n');
 const sum = (l) => l.reduce((a, b) => a + b, 0);
@@ -44,7 +44,7 @@ export function flagRow(arm, passes) {
   const b = base.map(passOf), c = mine.map(passOf);
   const cols = columns(b, c);
   const verdict = c.length && b.length ? flagVerdict(b, c) : 'no-data';
-  return { arm, n: c.length, baseN: b.length, jobs: jobs.size, cols, verdict, enters: enters(LOOK_CHANGE.has(arm), verdict) };
+  return { arm, n: c.length, baseN: b.length, jobs: jobs.size, cols, verdict, costBase: costWindows((p) => p.layout, b), costCand: costWindows((p) => p.layout, c), enters: enters(LOOK_CHANGE.has(arm), verdict) };
 }
 
 export function reportMd(vms) {
@@ -61,18 +61,23 @@ export function reportMd(vms) {
     const r = rows[a];
     return `| ${a} | ${r.gestures} | ${per(r.reversals, r.gestures)} | ${per(r.closes, r.gestures)} | ${per(r.reopens, r.gestures)} | ${per(r.onsets, r.gestures)} | ${r.onsetGestures} / ${r.gestures} | ${r.peaks.length ? Math.min(...r.peaks) : '-'} | ${r.unsettled} |`;
   });
-  const h3 = '| arm | passes with a whole gesture-4 window | windows without both gesture stamps (left out) | frames in the windows | Layout per frame | RecalcStyle per frame | Simulator refresh Hz (median of passes) | unthrottle cost model (fold of the throttle) |';
+  const h3 = '| arm | passes with a whole gesture-4 window | windows without both gesture stamps (left out) | frames in the windows | Layout per frame | RecalcStyle per frame | idle requestAnimationFrame Hz (median of passes) | cost fold derived from that cadence |';
   const t3 = arms.map((a) => {
     const r = rows[a];
     return `| ${a} | ${r.timed} | ${r.overran} | ${r.frames} | ${per(r.layout, r.frames, 3)} | ${per(r.recalc, r.frames, 3)} | ${r.hz ?? '-'} | ${r.hz ? `${foldOf(r.hz)}x` : '-'} |`;
   });
-  const h4 = '| flag | class | usable passes | default passes beside them | jobs | reversals | re-opens | onsets | Layout | RecalcStyle | step cadence lifted | same look | verdict | enters a preset |';
-  const t4 = FLAG_ARMS.filter((a) => arms.includes(a)).map((a) => {
-    const k = flagRow(a, all);
-    return `| ${FLAG_OF[a]} | ${LOOK_CHANGE.has(a) ? 'look-change (L)' : 'plain'} | ${k.n} | ${k.baseN} | ${k.jobs} | ${k.cols.reversals} | ${k.cols.swaps} | ${k.cols.onsets} | ${k.cols.layout} | ${k.cols.recalc} | ${k.cols.lifted ? 'yes' : 'no'} | ${k.cols.look ? 'yes' : 'no'} | ${k.verdict} | ${k.enters ? 'yes' : 'no'} |`;
+  const h4 = '| flag | class | usable passes | default passes beside them | jobs | reversals | re-opens | onsets | step cadence lifted | state-trace floor holds | verdict | enters a preset |';
+  const flags = FLAG_ARMS.filter((a) => arms.includes(a)).map((a) => flagRow(a, all));
+  const t4 = flags.map((k) => {
+    const v = k.verdict === 'undecided' ? 'undecided (cost not measured)' : k.verdict;
+    return `| ${FLAG_OF[k.arm]} | ${LOOK_CHANGE.has(k.arm) ? 'look-change (L)' : 'plain'} | ${k.n} | ${k.baseN} | ${k.jobs} | ${k.cols.reversals} | ${k.cols.swaps} | ${k.cols.onsets} | ${k.cols.lifted ? 'yes' : 'no'} | ${k.cols.look ? 'yes' : 'no'} | ${v} | ${k.enters ? 'yes' : 'no'} |`;
   });
-  const out = [table(h1, t1), '', table(h2, t2), '', table(h3, t3), '',
-    'Verdict per flag against the default passes of the same jobs (Lean `Fw.Measure.MorphEndCount.flagVerdict`; lower or higher needs every flag pass beyond every default pass, rates per gesture and per frame):', '', table(h4, t4)];
+  const h5 = '| flag | cost windows (default / flag) | needed per side | Layout vs default | RecalcStyle vs default |';
+  const t5 = flags.map((k) => `| ${FLAG_OF[k.arm]} | ${k.costBase} / ${k.costCand} | ${MIN_COST_WINDOWS} | ${k.cols.costKnown ? k.cols.layout : 'not read'} | ${k.cols.costKnown ? k.cols.recalc : 'not read'} |`);
+  const out = [table(h1, t1), '', table(h2, t2), '',
+    'Verdict per flag against the default passes of the same jobs (Lean `Fw.Measure.MorphEndCount.flagVerdict`; lower or higher needs every flag pass beyond every default pass, rates per gesture; a win without at least 3 cost windows on each side is undecided):', '', table(h4, t4), '',
+    "This check does not detect touch-first's designed change of the first push; look-change arms still need the user's visual review.", '',
+    '## Not measured here (task toolbar-cost-sample)', '', 'Layout and RecalculateStyles per frame need at least 3 whole cost windows per side; fewer are shown for the record and never decide a verdict.', '', table(h3, t3), '', table(h5, t5)];
   const why = [...new Set(all.map(reasonOf).filter(Boolean))];
   if (why.length) out.push('', `Excluded passes: ${why.join('; ')}.`);
   const lost = vms.filter((v) => v.passes.length === 0).map((v) => v.vm);
