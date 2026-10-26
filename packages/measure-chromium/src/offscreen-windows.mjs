@@ -40,17 +40,37 @@ export function owner(e, last, f) {
 
 export const sumRange = (xs, lo, hi) => xs.slice(lo, Math.max(lo, hi)).reduce((s, x) => s + x, 0);
 
-export function runWindows(run) {
+// Fw.Measure.OffscreenWindows.Run.plan: the end frame and the windows of a run; null without a frame or with a short column.
+export function runPlan(run) {
   const e = endFrame(run.ys);
   if (e === null) return null;
   if (!Object.values(run.cols).every((xs) => xs.length === run.ys.length)) return null;
-  const last = lastFrame(run.ys.length, run.tail);
-  const windows = allWindows(e, last).map((w) => {
-    const vals = {};
-    for (const [k, xs] of Object.entries(run.cols)) vals[k] = sumRange(xs, w.lo, w.hi);
-    return { name: w.name, vec: { n: w.hi - w.lo, vals } };
-  });
-  return { end: e, windows };
+  return { end: e, wins: allWindows(e, lastFrame(run.ys.length, run.tail)) };
+}
+
+const sumVec = (cols, w) => {
+  const vals = {};
+  for (const [k, xs] of Object.entries(cols)) vals[k] = sumRange(xs, w.lo, w.hi);
+  return { n: w.hi - w.lo, vals };
+};
+
+export function runWindows(run) {
+  const p = runPlan(run);
+  if (p === null) return null;
+  return { end: p.end, windows: p.wins.map((w) => ({ name: w.name, vec: sumVec(run.cols, w) })) };
+}
+
+// Fw.Measure.OffscreenWindows.Win.cap, lenOf, commonLen, Run.capped: windows cut to the frames every run has since its own end.
+export const capWin = (m, w) => ({ ...w, hi: Math.min(w.hi, w.lo + m) });
+const lenOf = (wins, n) => { const w = wins.find((x) => x.name === n); return w ? w.hi - w.lo : null; };
+export function commonLen(plans, n) {
+  const ls = plans.map((p) => lenOf(p.wins, n)).filter((x) => x !== null);
+  return ls.length === 0 ? 0 : Math.min(...ls);
+}
+export function cappedRun(run, cap) {
+  const p = runPlan(run);
+  if (p === null) return null;
+  return { end: p.end, windows: p.wins.map((w) => ({ name: w.name, vec: sumVec(run.cols, capWin(cap(w.name), w)) })) };
 }
 
 const vecsOf = (runs, name) => runs.flatMap((r) => { const w = r.windows.find((x) => x.name === name); return w ? [w.vec] : []; });
@@ -80,6 +100,14 @@ export function armVerdicts(base, flag) {
     const b = vecsOf(base, n), f = vecsOf(flag, n);
     return { window: n, verdict: verdictOn(WKEYS, b, f), usable: usableOn(WKEYS, b, f), cells: WKEYS.map((k) => cell(b, f, k)) };
   });
+}
+
+// Fw.Measure.OffscreenWindows.ownVerdicts / ownFrames: the verdicts with every window cut to the frames both arms have.
+export function ownVerdicts(baseRuns, flagRuns) {
+  const plans = [...baseRuns, ...flagRuns].map(runPlan).filter((p) => p !== null);
+  const frames = (n) => commonLen(plans, n);
+  const capped = (rs) => rs.map((r) => cappedRun(r, frames)).filter((r) => r !== null);
+  return armVerdicts(capped(baseRuns), capped(flagRuns)).map((v) => ({ ...v, frames: frames(v.window) }));
 }
 
 export const PROFILE_ID = 'swipe-touch-v1';
@@ -118,9 +146,10 @@ export function findCounts(dir) {
 export function readArm(dir, tail) {
   return findCounts(dir).map((path) => {
     const counts = JSON.parse(readFileSync(path, 'utf8'));
-    const w = runWindows(runFromCounts(counts, tail));
+    const run = runFromCounts(counts, tail);
+    const w = runWindows(run);
     if (!w) throw new Error(`${path}: no windows`);
-    return { path, search: counts.meta?.search ?? null, ...w };
+    return { path, search: counts.meta?.search ?? null, run, ...w };
   });
 }
 
@@ -133,16 +162,19 @@ export function cellText(c) {
 }
 
 export function summarizeArm(baseRuns, flagRuns) {
-  return armVerdicts(baseRuns, flagRuns).map((v) => ({
-    window: v.window, verdict: v.verdict, usable: v.usable,
+  return ownVerdicts(baseRuns.map((r) => r.run), flagRuns.map((r) => r.run)).map((v) => ({
+    window: v.window, frames: v.frames, verdict: v.verdict, usable: v.usable,
     less: v.cells.filter((c) => c && c.cmp === 'less').map(cellText),
     more: v.cells.filter((c) => c && c.cmp === 'more').map(cellText),
   }));
 }
 
-export function markdown(arms, baseRuns) {
+const endsOf = (runs) => [...new Set(runs.map((r) => r.end))].join(', ');
+
+export function markdown(arms, baseRuns, flagRuns = {}) {
   const L = [];
-  L.push(`End frame per run: ${[...new Set(baseRuns.map((r) => r.end))].join(', ')} (base), windows from the end frame, slack ${SLACK}, ${MIN_RUNS} runs per arm.`);
+  const ends = [`${endsOf(baseRuns)} (base)`, ...Object.entries(flagRuns).map(([n, rs]) => `${endsOf(rs)} (${n})`)];
+  L.push(`End frame per run: ${ends.join(', ')}; each window starts at the run's own end frame and is cut to the frames every run has, slack ${SLACK}, ${MIN_RUNS} runs per arm.`);
   L.push('', `| window | ${Object.keys(arms).join(' | ')} |`, `|---${'|---'.repeat(Object.keys(arms).length)}|`);
   for (const n of WINDOW_NAMES) {
     const cellsOf = Object.values(arms).map((s) => {
@@ -150,7 +182,7 @@ export function markdown(arms, baseRuns) {
       const parts = [];
       if (w.less.length) parts.push(`less: ${w.less.join(', ')}`);
       if (w.more.length) parts.push(`more: ${w.more.join(', ')}`);
-      return `${w.verdict}${w.usable ? '' : ' (not usable)'}${parts.length ? `; ${parts.join('; ')}` : ''}`;
+      return `${w.verdict}${w.usable ? '' : ' (not usable)'}${parts.length ? `; ${parts.join('; ')}` : ''} [${w.frames} frames]`;
     });
     L.push(`| ${n} | ${cellsOf.join(' | ')} |`);
   }
