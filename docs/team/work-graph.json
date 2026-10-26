@@ -22229,6 +22229,64 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/layer-sweep-webkit-n3.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-end-nobounce",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "End-of-page scroll design rank 2 (research/notes/2026/10-26-end-scroll-designs.md): flag morph.end.nobounce, `html { overscroll-behavior-y: none }` from first paint and never toggled (differs from the tried morph.mount:overscroll-lock n79, which toggled bounce mid-gesture), so the bottom rubber band never exists and the scrollTo pin (already at maxY) has nothing to correct on forward pushes. Look change L (no rubber band page-wide), user visual review, never a preset. Lean first: the pin-write rule under no bounce (forward push at maxY writes nothing; theorem) with golden. Measure on the Simulator toolbar lane and the push-cycle replay: reversals near maxY, pin writes, re-opens, slow-frame share by cycle (tests H2 of push-cycle-lag), against a same-commit default; Chromium windows with the Lean reader.",
+   "writes": [
+    "apps/site/src/parts/morph.end.nobounce/**",
+    "apps/site/src/parts/morph.tween/end.logic.ts",
+    "lean/Fw/Parts/MorphEnd*.lean",
+    "packages/contracts/golden/parts/morph-end*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "research/notes/2026/10-2x-morph-end-nobounce.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-end-nobounce.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-stage",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "morph-end-nobounce"
+   ],
+   "title": "End-of-page scroll design rank 1 (research/notes/2026/10-26-end-scroll-designs.md): flag morph.stage, replace the end-of-page scroll-jack (two non-passive touch/wheel capture pairs, the per-frame scrollTo pin, the 680 ms rAF tween with 3 MutationObservers) by a sticky stage: a track of T px after the platform with the scene position: sticky (UI-process scrolling-tree node), and --morph on animation-timeline: scroll(root) over [maxY-T, maxY]; discrete states (data-fw-morph classes, POINTER_CUT, ACTIVE_CUT, FADE_END) from the same progress. Look change L (the morph follows the finger over T px instead of a timed 680 ms play), user visual review, never a preset. Lean first: ranges, keyframes equal to the tween's end states, the state cuts as functions of progress, no scrollTo and no non-passive listener under the flag (theorems + golden). Measure: Simulator toolbar lane (reversals, re-opens, pin writes, slow-frame share by cycle), WebKit Simulator zones (3 VMs, Lean minVms), Chromium windows (Lean reader), breakpoint gate both engines; T chosen from the Lean model and the user's review.",
+   "writes": [
+    "apps/site/src/parts/morph.stage/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/App.tsx",
+    "lean/Fw/Parts/MorphStage*.lean",
+    "packages/contracts/golden/parts/morph-stage*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "research/notes/2026/10-2x-morph-stage.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/morph-stage.md"
+   ]
   }
  ],
  "deadline": {
