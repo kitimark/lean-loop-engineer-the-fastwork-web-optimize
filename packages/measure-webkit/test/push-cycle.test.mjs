@@ -291,11 +291,11 @@ test('the report names the verdict per arm, the census reading and the lost pass
   assert.equal(rows[0].dwell, 2, 'the lost pass is not counted');
   assert.deepEqual(rows[0].lost.dwell, ['a touch driver timed out']);
   assert.equal(rows[0].s50.verdict, 'undecided:fewDwell');
-  const withFailed = P_REPORT.sepTable([{ vm: 'job 5', passes: [ok('full', [1])], failed: ['rewrite-r1: done without a record', 'rewrite-r2: failed:touchesFailed'] }], ['job 5', 'job 6']);
-  assert.deepEqual(withFailed[0].lost.full, ['job 5 failed pass (done without a record)', 'job 6 no result file']);
-  assert.deepEqual(withFailed[0].lost.dwell, ['job 5 failed pass (failed:touchesFailed)', 'job 6 no result file'], 'a failed pass with no record is lost, a job without a file too');
-  const recorded = P_REPORT.sepTable([{ vm: 'job 5', passes: [{ ...lost, round: 2 }], failed: ['rewrite-r2: failed:touchesFailed'] }]);
-  assert.deepEqual(recorded[0].lost.dwell, ['job 5 touch driver timed out'], 'a failed pass that has a record is named once');
+  const withFailed = P_REPORT.sepTable([{ vm: 'job 5', passes: [], failed: ['rewrite-r1: done without a record', 'rewrite-r2: failed:touchesFailed'] },
+    { vm: 'job 7', passes: [ok('full', [1])] }, { vm: 'job 8', passes: [{ ...lost, profile: 'full' }], failed: ['rewrite-r1: failed:restartFailed'] }], ['job 5', 'job 6', 'job 7', 'job 8']);
+  assert.deepEqual(withFailed[0].lost.full, ['job 5 failed pass (done without a record)', 'job 6 no result file', 'job 8 touch driver timed out (failed:restartFailed)']);
+  assert.deepEqual(withFailed[0].lost.dwell, ['job 5 failed pass (failed:touchesFailed)', 'job 6 no result file', 'job 7 not run (the job ended first)', 'job 8 not run (the job ended first)'],
+    'a failed pass with no record, a pass never started and a job without a file are lost, named');
   const md = reportMd([{ vm: 'a', passes: [ok('full', [1]), ok('dwell', [1])] }]);
   assert.match(md, /Cycle versus clock/);
   assert.match(md, /Census after each cycle/);

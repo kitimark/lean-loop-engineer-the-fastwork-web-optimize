@@ -43,25 +43,33 @@ const parseFailed = (f) => {
   return m ? { arm: m[1], round: Number(m[2]), phase: m[3], profile: Number(m[2]) % 2 === 1 ? 'full' : 'dwell' } : null;
 };
 
-/** Failed passes that left no pass record (`failed` of a job); the ones with a record are already excluded by excludeReason. */
-export const failedOnly = (jobs) => jobs.flatMap((j) => (j.failed ?? []).map(parseFailed).filter(Boolean)
-  .filter((f) => !(j.passes ?? []).some((p) => p.arm === f.arm && p.round === f.round)).map((f) => ({ ...f, vm: j.vm })));
+export const PROFILES = Object.freeze(['full', 'dwell']);
 
-export const missingJobs = (jobs, expect) => (expect ?? []).filter((vm) => !jobs.some((j) => j.vm === vm));
+/**
+ * Every pass an arm should have had in every job and did not deliver, named: an excluded record (its reason, with the phase of a failed entry),
+ * a failed entry with no record, a pass never started because the job ended first, and a job with no result file.
+ */
+export function lostOf(jobs, arm, profile, expect = null) {
+  const vms = [...new Set([...(expect ?? []), ...jobs.map((j) => j.vm)])];
+  return vms.flatMap((vm) => {
+    const j = jobs.find((x) => x.vm === vm);
+    if (!j) return [`${vm} no result file`];
+    const mine = (j.passes ?? []).filter((p) => p.arm === arm && p.profile === profile);
+    const failed = (j.failed ?? []).map(parseFailed).filter((f) => f && f.arm === arm && f.profile === profile);
+    const phase = failed.length ? ` (${failed[0].phase})` : '';
+    if (!mine.length) return [`${vm} ${failed.length ? `failed pass${phase}` : 'not run (the job ended first)'}`];
+    return mine.filter((p) => excludeReason(p) !== null).map((p) => `${vm} ${excludeReason(p)}${phase}`);
+  });
+}
 
 export function sepTable(jobs, expect = null) {
   const all = jobs.flatMap((j) => (j.passes ?? []).map((p) => ({ ...p, vm: p.vm ?? j.vm }))).filter((p) => p.profile);
-  const failed = failedOnly(jobs);
-  const gone = missingJobs(jobs, expect);
-  const arms = [...new Set([...all.map((p) => p.arm), ...failed.map((f) => f.arm)])];
+  const failedArms = jobs.flatMap((j) => (j.failed ?? []).map(parseFailed).filter(Boolean).map((f) => f.arm));
+  const arms = [...new Set([...all.map((p) => p.arm), ...failedArms])];
   return arms.map((arm) => {
     const mine = all.filter((p) => p.arm === arm);
     const usable = mine.filter((p) => excludeReason(p) === null);
-    const lost = (profile) => [
-      ...mine.filter((p) => p.profile === profile && excludeReason(p) !== null).map((p) => `${p.vm} ${excludeReason(p)}`),
-      ...failed.filter((f) => f.arm === arm && f.profile === profile).map((f) => `${f.vm} failed pass (${f.phase})`),
-      ...gone.map((vm) => `${vm} no result file`),
-    ];
+    const lost = (profile) => lostOf(jobs, arm, profile, expect);
     const s50 = sepArm(usable, 50), s34 = sepArm(usable, 34);
     const end = (profile) => usable.filter((p) => p.profile === profile).map((p) => p.census?.at(-1)?.bytes).filter((x) => x != null);
     return { arm, full: usable.filter((p) => p.profile === 'full').length, dwell: usable.filter((p) => p.profile === 'dwell').length,
