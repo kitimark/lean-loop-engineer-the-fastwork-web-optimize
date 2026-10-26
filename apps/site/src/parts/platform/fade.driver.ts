@@ -45,8 +45,10 @@ export interface TimedAnim {
 }
 
 export interface FadedHost {
-  /** The section's CSS animations; the call also flushes style, so the scene attribute is applied by the time it returns. */
+  /** The section's CSS animations. */
   animations(): readonly TimedAnim[];
+  /** Put the saved start times back on the section's live animations (first flushes style, so the scene value is applied). */
+  restore(saved: ReadonlyMap<TimedAnim, CSSNumberish>): void;
   /** The dash svgs' SMIL clock (platform.glint pause), or null. */
   svg: { away(): void; back(): void } | null;
 }
@@ -66,20 +68,19 @@ export interface FadedPause {
  */
 export function createFadedPause(host: FadedHost, setFaded: (faded: boolean) => void): FadedPause {
   let faded = false;
-  let saved: Array<[TimedAnim, CSSNumberish]> = [];
+  let saved = new Map<TimedAnim, CSSNumberish>();
   const restore = () => {
-    if (saved.length === 0) return;
-    host.animations();
-    for (const [a, s] of saved) a.startTime = s;
-    saved = [];
+    if (saved.size === 0) return;
+    host.restore(saved);
+    saved = new Map();
   };
   return {
     set(zero) {
       if (zero === faded) return;
       faded = zero;
       if (zero) {
-        saved = [];
-        for (const a of host.animations()) if (a.playState === 'running' && a.startTime != null) saved.push([a, a.startTime]);
+        saved = new Map();
+        for (const a of host.animations()) if (a.playState === 'running' && a.startTime != null) saved.set(a, a.startTime);
         host.svg?.away();
       } else host.svg?.back();
       setFaded(zero);
@@ -93,7 +94,7 @@ export function createFadedPause(host: FadedHost, setFaded: (faded: boolean) => 
         host.svg?.back();
         setFaded(false);
       }
-      saved = [];
+      saved = new Map();
     },
   };
 }

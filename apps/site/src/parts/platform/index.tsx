@@ -120,7 +120,19 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
     let unsubFaded: (() => void) | null = null;
     if (variant === FADED_PAUSE) {
       const dashes = createPause(() => Array.from(sec.querySelectorAll<SVGSVGElement>('[data-fw-dash] svg')), () => performance.now());
-      faded = createFadedPause({ animations: () => sec.getAnimations({ subtree: true }).filter((a) => a instanceof CSSAnimation), svg: { away: dashes.away, back: dashes.back } }, writer.setFaded);
+      faded = createFadedPause(
+        {
+          animations: () => sec.getAnimations({ subtree: true }).filter((a) => a instanceof CSSAnimation),
+          restore: (saved) => {
+            for (const a of sec.getAnimations({ subtree: true })) {
+              const t = saved.get(a);
+              if (t != null) a.startTime = t;
+            }
+          },
+          svg: { away: dashes.away, back: dashes.back },
+        },
+        writer.setFaded,
+      );
       unsubFaded = fadedBus.subscribe(faded.set);
     }
     return () => {

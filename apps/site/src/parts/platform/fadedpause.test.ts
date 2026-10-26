@@ -49,7 +49,19 @@ function cssRig(off: number) {
     },
     (v) => ctl?.onScene(v),
   );
-  ctl = createFadedPause({ animations: () => [anim, fin], svg: null }, writer.setFaded);
+  ctl = createFadedPause(
+    {
+      animations: () => [anim, fin],
+      restore: (saved) => {
+        for (const a of [anim, fin]) {
+          const t = saved.get(a);
+          if (t != null) a.startTime = t;
+        }
+      },
+      svg: null,
+    },
+    writer.setFaded,
+  );
   writer.setActive(true);
   return {
     anim,
