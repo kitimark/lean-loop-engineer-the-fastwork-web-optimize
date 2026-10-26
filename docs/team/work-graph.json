@@ -22681,6 +22681,36 @@
     "results/push-cycle-16/**",
     "docs/team/handoffs/push-cycle-16.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wk-loop-freeze",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "webkit-sim still loses VMs after wk-sim-hang (both runs contain a32a50b15): run 40364461242 job 1 logged 'event loop blocked: the 30 s tick came 675 s late; host calls running: []' then 'stalled: no output for 731 s (limit 720 s)' and exit 3; run 40349930733 r2 (glint base, lost 3 times) ended 'the inspector is dead and rebooting the Simulator failed: terminate Safari took longer than 20 s; exit code 4'. Find what blocks the node event loop with no host call running (in-process sync work, GC, or the whole runner VM descheduled: compare with scripts/ci-telemetry tick samples and load at the same minutes), and why the reboot's Safari terminate overruns. Decide in Lean (extend SimHost/SimBound) whether a late tick with no host call is a host freeze that the stall verdict must not count, and the recover rule after a freeze; golden replayed by watchdog/guard tests. Re-measure the per-job loss rate on CI against wk-sim-hang's remeasure (0 of 7) with run ids.",
+   "writes": [
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/src/guard.mjs",
+    "packages/measure-webkit/src/session.mjs",
+    "packages/measure-webkit/src/load.mjs",
+    "packages/measure-webkit/src/sim*.mjs",
+    "packages/measure-webkit/test/watchdog*.test.mjs",
+    "packages/measure-webkit/test/guard*.test.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/SimHost*.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "lean/scripts/*Golden.lean",
+    ".github/workflows/webkit-sim.yml",
+    "scripts/ci-telemetry/tick*.mjs",
+    "research/notes/2026/10-2x-wk-loop-freeze.md",
+    "results/wk-loop-freeze/**",
+    "docs/team/handoffs/wk-loop-freeze.md"
+   ]
   }
  ],
  "deadline": {
