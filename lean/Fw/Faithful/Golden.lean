@@ -88,6 +88,8 @@ def verdictCases : List (String × Json) := [
   ("a zone missing in R fails and reports present false",
     req (aZones aCells) [zone "y04000" 50 500 (rCells []), zone "tail" 30 0 (rCells [])]),
   ("zones asks for one zone only", req (aZones aCells) (aZones (rCells [])) (some ["tail"])),
+  ("A recorded no zones: every region zone is absent and fails", req [] (aZones (rCells []))),
+  ("R recorded no zones: every region zone is absent and fails", req (aZones aCells) []),
   ("classes missing is refused", Json.mkObj [("a", .arr #[]), ("r", .arr #[])])]
 
 /-- A baseline's meta: profile viewport 430 x 932 at dpr 3 (mobile, touch), `observed` the size the page reported. -/

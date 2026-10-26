@@ -148,6 +148,7 @@ import Fw.Measure.OffscreenWebKit
 import Fw.Measure.OffscreenWebKitGolden
 import Fw.Measure.OffscreenWindows
 import Fw.Measure.OffscreenWindowsGolden
+import Fw.Measure.VerdictEvidence
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard

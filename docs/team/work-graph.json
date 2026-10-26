@@ -22212,7 +22212,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-verdict-evidence-audit.md",
     "docs/team/handoffs/verdict-evidence-audit.md"
-   ]
+   ],
+   "evidence": "7c64f53"
   },
   {
    "devices": [
