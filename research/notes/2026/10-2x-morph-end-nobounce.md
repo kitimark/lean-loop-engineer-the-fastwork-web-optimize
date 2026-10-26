@@ -5,7 +5,7 @@
 * Lean (PROVED, `lean/Fw/Parts/MorphEndNobounce.lean`, golden `packages/contracts/golden/parts/morph-end-nobounce.jsonl`): `nb_target` (the write target equals the pin while the pin is at most the end), `push_at_end_no_write` (pin at the end, a forward push writes nothing), `pin_writes_below` (a write happens only when the page is below the pin and writes the pin), `no_write_above_end` (over a whole recording read without bounce no write asks for a position above the end), contrast `bounce_writes_back`. The flag changes no reducer code; it removes the positions above the end from what the reducer can read.
 
 ## What is delivered
-One rule in `apps/site/src/styles/reset.css`: `html:has([data-fw-nobounce]) { overscroll-behavior-y: none }`, inside `@layer reset`. The flag `morph.end.nobounce:on` puts `data-fw-nobounce` on the page root in the server HTML; without the flag no element carries it. The first delivery as a prerendered style tag failed the build (the build bans them); the CSS file plus an attribute is the second.
+One rule in `apps/site/src/styles/reset.css`: `html:has([data-fw-nobounce]) { overscroll-behavior-y: none }`, inside `@layer reset`. The flag `morph.end.nobounce:on` puts `data-fw-nobounce` on the page root in the server HTML; without the flag no element carries it. A prerendered style tag fails the build, so the rule lives in the CSS file.
 
 ## Runs (flag code at 3c5ac115f; base and flag on the same commit)
 | lane | arm | run | n |
@@ -29,7 +29,7 @@ End frame 574 on all 6 runs, usable windows from the end frame.
 | end 120+ | noGain | none |
 | finish | noGain | none |
 
-Why noGain (mechanism): the compositor's elastic overscroll on the root scroller is off by default (`cc/trees/layer_tree_settings.h:114-115@f842f52`, `enable_elastic_overscroll_on_root = false`, CONFIRMED) and it is a platform setting, so the Linux Chromium of this lane has no rubber band for the rule to remove. The page never reads a position above the end in either arm, which is exactly the state the Lean theorems describe for the flag arm; the default arm already is in it. INFERRED for this harness (the setting was not read at run time); the identical counts are consistent with it.
+Why noGain (mechanism): the compositor's elastic overscroll on the root scroller is off by default (`cc/trees/layer_tree_settings.h:114-115@f842f52`, `enable_elastic_overscroll_on_root = false`, CONFIRMED) and it is a platform setting, so the Linux Chromium of this lane has no rubber band for the rule to remove. The page never reads a position above the end in either arm, which is exactly the state the Lean theorems describe for the flag arm; the default arm already is in it. INFERRED for this harness (the setting was not read at run time).
 
 ## WebKit Simulator toolbar lane (MEASURED, run 40283405286, reducer `packages/measure-webkit/src/throttle/toolbar-report.mjs`, Lean `Fw.Measure.MorphEndCount.flagVerdict`)
 Jobs 1-8 ran. Jobs sim (9) and sim (10) failed at once with `toolbar-plan has no entry for job 9 / 10` (the commit's plan lists 8 entries, the run started 10 jobs): no pass, not a Simulator loss. Job 1 lost its nobounce pass (Runtime.evaluate timed out after 120 s); default passes lost to touch-driver timeouts left 5 of 8 usable. A side below its minimum is undecided, never a win.
@@ -43,12 +43,12 @@ Jobs 1-8 ran. Jobs sim (9) and sim (10) failed at once with `toolbar-plan has no
 |---|---|---|---|---|---|---|---|---|
 | morph.end.nobounce:on | 7 | 5 (7 jobs) | overlap | overlap | overlap | no | holds | no-win |
 
-Cost (idle rAF 36-37 Hz, fold 3x): cost windows default / flag 2 / 3, 3 needed per side, so Layout (2.225 against 1.819 per frame) and RecalcStyle (2.930 against 2.733) are shown for the record and not read. Reversals per gesture are lower (1.33 to 1.11) but the Lean rule asks every flag pass beyond every default pass, so the ranges overlap and the rate is not a win. Still runs and finish counts: every pass of both arms ends closed (passes open at the end 0).
+Cost (idle rAF 36-37 Hz, fold 3x): cost windows default / flag 2 / 3, 3 needed per side, so Layout (2.225 against 1.819 per frame) and RecalcStyle (2.930 against 2.733) are shown for the record and not read. Reversals per gesture are lower (1.33 to 1.11) but the Lean rule asks every flag pass beyond every default pass, so the ranges overlap and the rate is not a win. Every pass of both arms ends closed (passes open at the end 0).
 
 Mechanism (CONFIRMED from source, WebKit@862f17d): the main frame's vertical overscroll behavior is copied onto the UIScrollView in the UI process, `WKWebViewIOS.mm:1084-1087` calls `updateScrollViewForOverscrollBehavior`, which for the WKScrollView calls `_setBouncesInternal:... vertical:(behavior != None)` (`ScrollingTreeScrollingNodeDelegateIOS.mm:352-358`). So the rule turns off the iOS rubber band; scroll offsets above the end then do not occur, which is the premise of `no_write_above_end`. The lane's drag stays in the page (springboard target, 480 pt drag), so it rarely pushes against the end; the pin-write column drops 1.15 to 0.98 per gesture, inside the spread.
 
 ## Limits and follow-ups
 * CI only, no phone pass; the felt end of page and Safari's toolbar reveal on a bottom push belong to the user's review (class L).
-* The WebKit lane has 5 default and 7 flag usable passes in 7 jobs and no cost verdict; no new CI push was left to rerun it.
+* The WebKit lane has 5 default and 7 flag usable passes in 7 jobs and no cost verdict.
 * Follow-up: the push-cycle replay (a forward push at the end, the case the Lean theorems are about) once `push-cycle-separate` has landed; the lane today has no flag arm there.
 * Follow-up: the toolbar plan lists 8 entries for 10 started jobs; a plan of 10 or a job count of 8 would not waste two jobs.

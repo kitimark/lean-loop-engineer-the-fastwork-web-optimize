@@ -1,23 +1,17 @@
 import Lean.Data.Json
 import Fw.Parts.MorphEndNobounce
 import Fw.Parts.MorphEndGolden
-/-! Golden vectors for the pin-write rule under no bounce: three recorded-style cases, each under all 8 brick picks
-(`packages/contracts/golden/parts/morph-end-nobounce.jsonl`). Two cases read positions only up to the end (no bounce);
-the third reads one position above the end (a bounce) as the contrast. -/
 namespace Fw.Parts.MorphEndNobounceGolden
 open Lean Fw.Parts.MorphEnd Fw.Parts.MorphEndGolden Fw.Parts.MorphEndNobounce
 
-/-- Forward pushes at the end with the page staying at the end. -/
 def pushAtEnd : Rat × List Ev :=
   (5227, [.touchstart (some 600), mv 560 5227 0, .scroll 5227 5227, .tick 100, mv 540 5227 110, .scroll 5227 5227,
     .tick 440, .scroll 5227 5227, .resize 5227 5227])
 
-/-- A short reversal near the end: the page sits a few pixels under the pin, the pin is written back. -/
 def reverseNearEnd : Rat × List Ev :=
   (5227, [.touchstart (some 600), mv 560 5227 0, .tick 50, .scroll 5227 5227, mv 585 5227 60, .scroll 5222 5227,
     .scroll 5227 5227, .tick 400])
 
-/-- The same push with a rubber band: the page is read above the end once. -/
 def bounceContrast : Rat × List Ev :=
   (5227, [.touchstart (some 600), mv 560 5227 0, .scroll 5292 5227, .tick 100, .scroll 5227 5227])
 

@@ -1,5 +1,5 @@
 branch: worktree-wf_2ef78aa3-7da-1 (CI branch ci/morph-end-nobounce)
-worktree: .claude/worktrees/wf_2ef78aa3-7da-1 (under the repo root)
+worktree: .claude/worktrees/wf_2ef78aa3-7da-1
 last commit: see `git log -1` (code at 3c5ac115f; note, ledger and merge of main after it; no more CI pushes)
 
 CI runs at 3c5ac115f (push 2 of 2; first push failed in every site job: the build bans a prerendered style tag):

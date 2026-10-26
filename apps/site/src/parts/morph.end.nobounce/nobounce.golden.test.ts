@@ -1,5 +1,3 @@
-// TS twin of Lean Fw.Parts.MorphEndNobounce: the golden replays through the real end reducer, and the
-// theorem's consequences are asserted on the replayed trace (no bounce: a push at the end writes nothing).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { cfgOf, hooksOf, type EndCfg } from '../morph.tween/end.hooks';

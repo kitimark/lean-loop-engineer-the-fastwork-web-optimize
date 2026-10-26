@@ -167,7 +167,6 @@ export function reasonOf(p) {
 export function passOf(p) {
   const { rec } = p;
   const w = p.cost && p.cost.counts === true && p.cost.frames > 0 ? p.cost : { layout: 0, recalc: 0, frames: 0 };
-  // pins: scrollTo({behavior:'instant'}) calls the page made while armed (the pin writes); a count, no verdict reads it
   return { ...tbPass(rec.t.map((x) => Math.round(x * 100)), rec.vh, rec.r, rec.d, rec.g, lockCounts(rec).reversals, w.layout, w.recalc, w.frames), pins: Array.isArray(rec.ca) ? rec.ca.length : 0 };
 }
 
