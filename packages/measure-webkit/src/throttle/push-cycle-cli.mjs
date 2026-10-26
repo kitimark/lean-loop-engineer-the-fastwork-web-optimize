@@ -79,7 +79,7 @@ async function main() {
             // the dwell pass fills each cycle's period to `ratio` times the full pass's measured one (150 s when that pass left no period)
             const last = passes.filter((p) => p.arm === arm && p.profile === 'full').at(-1);
             const period = last?.rec ? periodMs(last.rec) : 0;
-            plan.targetMs = period > 0 ? Math.round(period * Number(v.ratio)) : 150000;
+            plan.targetMs = period > 0 ? Math.round(period * Number(v.ratio)) : 40000;
             log(`${arm}: full period ${period} ms, dwell target ${plan.targetMs} ms`);
             await dwell.runArm(arm, rd + 1);
           }
