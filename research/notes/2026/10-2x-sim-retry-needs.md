@@ -16,7 +16,7 @@ Date: 2026-10-26. Task `sim-retry-needs` (follow-up of `wk-sim-hang`, note `10-2
 
 `best_stop_le` is `runPass_stop_le` at `best`. Its condition, plainly: every scroll try lasts at most 876 s and every pass head at most 687 s, the maxima seen in the 98 green jobs. A retry whose real duration exceeds its need can still reach the step bound. The bound holds per pass, not per step.
 
-## Frontier (Lean `grid`, `#guard` in `SimHostGolden.lean`; TS replay agrees)
+## Frontier (Lean `grid`, `grid_frontier` in `SimHostGolden.lean`; TS replay agrees)
 
 | Scroll need (s) | Pass need (s) | Tab need (s) | Refused green jobs (of 98) | Scroll | Pass | Tab | Premise |
 |---|---|---|---|---|---|---|---|

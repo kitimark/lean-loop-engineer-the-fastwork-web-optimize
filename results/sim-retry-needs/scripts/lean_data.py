@@ -5,7 +5,7 @@ import sys
 
 src, out = sys.argv[1], sys.argv[2]
 jobs = json.load(open(src))
-head = 'def jobs : List Job := [\n'
+head = 'noncomputable def jobs : List Job := [\n'
 rows = []
 for j in jobs:
     ds = ', '.join(f"⟨.{d['kind']}, {d['at']}, {d.get('tries', 1)}⟩" for d in j['decisions'])

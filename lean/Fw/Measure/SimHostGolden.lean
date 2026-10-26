@@ -4,7 +4,7 @@ import Fw.Measure.SimHost
 namespace Fw.Measure.SimHostGolden
 open Fw.Measure.SimHost Lean
 
-def jobs : List Job := [
+noncomputable def jobs : List Job := [
   ⟨120798401732, 40068853873, 1, 3, [⟨.tab, 701, 1⟩, ⟨.tab, 716, 1⟩, ⟨.tab, 725, 1⟩, ⟨.tab, 740, 1⟩, ⟨.tab, 775, 1⟩, ⟨.tab, 849, 1⟩, ⟨.tab, 857, 1⟩, ⟨.tab, 866, 1⟩, ⟨.tab, 901, 1⟩]⟩,
   ⟨120837700860, 40081936555, 1, 3, [⟨.tab, 865, 1⟩, ⟨.tab, 882, 1⟩, ⟨.tab, 891, 1⟩, ⟨.tab, 901, 1⟩, ⟨.tab, 921, 1⟩, ⟨.tab, 980, 1⟩, ⟨.tab, 989, 1⟩, ⟨.tab, 997, 1⟩, ⟨.tab, 1011, 1⟩]⟩,
   ⟨120992312974, 40134016822, 1, 3, [⟨.scroll, 1089, 1⟩, ⟨.tab, 1494, 1⟩, ⟨.tab, 1502, 1⟩, ⟨.tab, 1510, 1⟩, ⟨.tab, 1520, 1⟩, ⟨.tab, 1556, 1⟩, ⟨.tab, 1618, 1⟩, ⟨.tab, 1627, 1⟩, ⟨.tab, 1635, 1⟩, ⟨.tab, 1646, 1⟩]⟩,
@@ -121,10 +121,11 @@ theorem shipped_untabbed_refused : refusedCount { shipped with tab := 0 } jobs =
 theorem deployed_is_pick : pick best shipped jobs = deployed := by
   rw [pick_fallback (by rw [best_refused, shipped_refused]; decide)]; rfl
 
-#guard grid.map (fun c => (refusedCount c jobs, decide (Premise c))) ==
-  [(1, false), (10, false), (8, false), (13, false), (3, false), (11, false), (9, false), (14, true)]
-#guard pick best shipped jobs == deployed
-#guard pick ⟨0, 0, 0⟩ shipped jobs == ⟨0, 0, 0⟩
+theorem grid_frontier : grid.map (fun c => (refusedCount c jobs, decide (Premise c))) =
+    [(1, false), (10, false), (8, false), (13, false), (3, false), (11, false), (9, false), (14, true)] := by decide
+
+#guard pick ⟨0, 0, 0⟩ shipped [⟨1, 1, 1, 3, [⟨.tab, 1700, 1⟩]⟩] == ⟨0, 0, 0⟩
+#guard pick best shipped [⟨1, 1, 1, 3, [⟨.pass, 900, 1⟩]⟩] == shipped
 #guard pick best best [] == best
 
 def optJson : Option Nat → Json
