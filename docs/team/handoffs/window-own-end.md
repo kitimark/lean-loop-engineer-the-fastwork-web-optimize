@@ -1,7 +1,6 @@
 # window-own-end handoff
 
-Branch: worktree-wf_efff2ff6-e4a-1
-Worktree: .claude/worktrees/wf_efff2ff6-e4a-1 (under the main checkout)
+Branch: worktree-wf_efff2ff6-e4a-1, worktree .claude/worktrees/wf_efff2ff6-e4a-1
 Last code commit: a5d689d34 (the handoff and later fixes follow it)
 CI runs: none started (accepted limit: re-read of runs 40339630528 base and 40339622735 morph.stage, both complete).
 

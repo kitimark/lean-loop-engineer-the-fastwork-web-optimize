@@ -109,7 +109,6 @@ def lateRaster : String → Nat → Nat → Nat := fun k i v => if k == "trace.R
 def latePaint : String → Nat → Nat → Nat := fun k i v =>
   if k == "trace.RasterTask" && 100 ≤ i then 0 else if k == "trace.Paint" && 165 ≤ i then v + 3 else v
 
-/-- Arms whose runs end on different frames or have different lengths. -/
 def ownCases (_ : Unit := ()) : List (String × List Run × List Run) := [
   ("the flag ends 125 frames later with 3 frames after its end: end 0-19 compares 3 frames, later end windows are empty",
     arm 40 same, arm 165 lateRaster [0, 1, 2] 198),

@@ -40,7 +40,6 @@ export function owner(e, last, f) {
 
 export const sumRange = (xs, lo, hi) => xs.slice(lo, Math.max(lo, hi)).reduce((s, x) => s + x, 0);
 
-// Fw.Measure.OffscreenWindows.Run.plan: the end frame and the windows of a run; null without a frame or with a short column.
 export function runPlan(run) {
   const e = endFrame(run.ys);
   if (e === null) return null;
@@ -60,7 +59,6 @@ export function runWindows(run) {
   return { end: p.end, windows: p.wins.map((w) => ({ name: w.name, vec: sumVec(run.cols, w) })) };
 }
 
-// Fw.Measure.OffscreenWindows.Win.cap, lenOf, commonLen, Run.capped: windows cut to the frames every run has since its own end.
 export const capWin = (m, w) => ({ ...w, hi: Math.min(w.hi, w.lo + m) });
 const lenOf = (wins, n) => { const w = wins.find((x) => x.name === n); return w ? w.hi - w.lo : null; };
 export function commonLen(plans, n) {
@@ -102,7 +100,6 @@ export function armVerdicts(base, flag) {
   });
 }
 
-// Fw.Measure.OffscreenWindows.ownVerdicts / ownFrames: the verdicts with every window cut to the frames both arms have.
 export function ownVerdicts(baseRuns, flagRuns) {
   const plans = [...baseRuns, ...flagRuns].map(runPlan).filter((p) => p !== null);
   const frames = (n) => commonLen(plans, n);

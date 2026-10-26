@@ -317,14 +317,6 @@ theorem armVerdicts_of_usable (base flag : List (List (String × Vec))) (n : Str
     (armVerdicts base flag).lookup n = some (judge (wkeys.filterMap (cmpKey slack (vecsOf base n) (vecsOf flag n)))) := by
   rw [armVerdicts_get base flag n hn, verdictOn_of_usable wkeys _ _ hu]
 
-/-! ### Windows compared by frames since each run's own end
-
-`Run.windows` already cuts every run at its own end frame. What differs between arms is how many frames follow that
-end: a flag that lengthens the page ends the swipe later, and the recording stops a fixed tail after the swipe, so its
-end windows hold fewer frames (or none). `sameWindow` then refuses the window. `ownVerdicts` compares the first `m`
-frames of each window, `m` being the shortest that window is in any run of either arm. -/
-
-/-- The first `m` frames of a window; the whole window when it has at most `m` frames. -/
 def Win.cap (m : Nat) (w : Win) : Win := { w with hi := min w.hi (w.lo + m) }
 
 theorem Win.cap_len (m : Nat) (w : Win) : (w.cap m).len = min w.len m := by
@@ -339,7 +331,6 @@ theorem Win.cap_of_len_le (m : Nat) (w : Win) (h : w.len ≤ m) : w.cap m = w :=
     simp only [Win.cap, Win.mk.injEq, true_and]
     omega
 
-/-- A run's end frame and its windows; none for a run without a frame or with a short counter column. -/
 def Run.plan (r : Run) : Option (Nat × List Win) :=
   match endFrame r.ys with
   | none => none
@@ -354,23 +345,18 @@ theorem Run.windows_eq_plan (r : Run) :
   · rfl
   · split <;> rfl
 
-/-- Frame count of the window called `n` in a list of windows. -/
 def lenOf (ws : List Win) (n : String) : Option Nat := (ws.find? (·.name == n)).map Win.len
 
-/-- The shortest the window `n` is in any plan; 0 when no plan has it. -/
 def commonLen (plans : List (Nat × List Win)) (n : String) : Nat :=
   ((plans.filterMap fun p => lenOf p.2 n).min?).getD 0
 
-/-- A run's window vectors with window `n` cut to its first `cap n` frames. -/
 def Run.capped (r : Run) (cap : String → Nat) : Option (List (String × Vec)) :=
   r.plan.map fun p => p.2.map fun w => (w.name, sumVec r.cols (w.cap (cap w.name)))
 
-/-- The window verdicts with every window cut to the frames both arms have since their own ends. -/
 def ownVerdicts (base flag : List Run) : List (String × Verdict) :=
   let cap := commonLen ((base ++ flag).filterMap (·.plan))
   armVerdicts (base.filterMap (·.capped cap)) (flag.filterMap (·.capped cap))
 
-/-- The frames per window that `ownVerdicts` compares. -/
 def ownFrames (base flag : List Run) : List (String × Nat) :=
   let cap := commonLen ((base ++ flag).filterMap (·.plan))
   windowNames.map fun n => (n, cap n)
@@ -409,7 +395,6 @@ theorem lookup_capped (r : Run) (cap : String → Nat) (n : String)
       simp only [Option.map_some]
       rw [hn, Win.cap_of_len_le _ _ hw]
 
-/-- Cutting a window to `cap n` frames changes nothing in the runs where it already has at most that many. -/
 theorem vecsOf_capped (rs : List Run) (cap : String → Nat) (n : String)
     (h : ∀ r ∈ rs, ∀ p, r.plan = some p → ∀ w, p.2.find? (·.name == n) = some w → w.len ≤ cap n) :
     vecsOf (rs.filterMap (·.capped cap)) n = vecsOf (rs.filterMap fun r => r.windows.map (·.2)) n := by
@@ -424,7 +409,6 @@ theorem lenOf_eq_some (ws : List Win) (n : String) (w : Win) (h : ws.find? (·.n
     lenOf ws n = some w.len := by
   simp [lenOf, h]
 
-/-- A length that is in the list and no bigger than any other in it is at most the common length. -/
 theorem le_commonLen (plans : List (Nat × List Win)) (n : String) (c : Nat)
     (hmem : c ∈ plans.filterMap fun p => lenOf p.2 n) (hall : ∀ x ∈ plans.filterMap (fun p => lenOf p.2 n), c ≤ x) :
     c ≤ commonLen plans n := by
@@ -437,7 +421,6 @@ theorem le_commonLen (plans : List (Nat × List Win)) (n : String) (c : Nat)
   | some a =>
     exact hall a (List.min?_mem hm)
 
-/-- When every run that has the window `n` has it of one length `c`, the cut keeps all of it. -/
 theorem cap_ge_of_same_len (rs : List Run) (n : String) (c : Option Nat)
     (h : ∀ r ∈ rs, ∀ p, r.plan = some p → lenOf p.2 n = c) :
     ∀ r ∈ rs, ∀ p, r.plan = some p → ∀ w, p.2.find? (·.name == n) = some w →
@@ -454,7 +437,6 @@ theorem cap_ge_of_same_len (rs : List Run) (n : String) (c : Option Nat)
     simp only [Option.some.injEq] at this
     omega
 
-/-- Each window on its own: when every run has window `n` of one length, its cut verdict inputs are today's. -/
 theorem ownVecs_eq (base flag : List Run) (n : String) (c : Option Nat)
     (h : ∀ r ∈ base ++ flag, ∀ p, r.plan = some p → lenOf p.2 n = c) :
     vecsOf (base.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n =
@@ -472,14 +454,12 @@ theorem ownVerdicts_get (base flag : List Run) (n : String) (hn : n ∈ windowNa
         (vecsOf (flag.filterMap (·.capped (commonLen ((base ++ flag).filterMap (·.plan))))) n)) :=
   armVerdicts_get _ _ n hn
 
-/-- A window that is the same length in every run gets today's verdict. -/
 theorem ownVerdicts_eq_window (base flag : List Run) (n : String) (hn : n ∈ windowNames) (c : Option Nat)
     (h : ∀ r ∈ base ++ flag, ∀ p, r.plan = some p → lenOf p.2 n = c) :
     (ownVerdicts base flag).lookup n =
       (armVerdicts (base.filterMap fun r => r.windows.map (·.2)) (flag.filterMap fun r => r.windows.map (·.2))).lookup n := by
   rw [ownVerdicts_get base flag n hn, armVerdicts_get _ _ n hn, (ownVecs_eq base flag n c h).1, (ownVecs_eq base flag n c h).2]
 
-/-- When every run of both arms ends on the same frame and has the same last frame, the cut changes nothing. -/
 theorem ownVerdicts_eq_of_same_end (base flag : List Run) (e last : Nat)
     (h : ∀ r ∈ base ++ flag, r.plan = none ∨ r.plan = some (e, allWindows e last)) :
     ownVerdicts base flag =
@@ -508,14 +488,12 @@ theorem length_capped (rs : List Run) (cap : String → Nat) :
         simp [Run.capped, hp]
       simp [h1, hp, ih]
 
-/-- A cut verdict is a gain only with `minRuns` valid runs in each arm. -/
 theorem ownVerdicts_gain_needs_runs (base flag : List Run) (n : String) (h : (n, Verdict.gain) ∈ ownVerdicts base flag) :
     minRuns ≤ (base.filterMap (·.plan)).length ∧ minRuns ≤ (flag.filterMap (·.plan)).length := by
   have := armVerdicts_gain_needs_runs _ _ n h
   rw [length_capped, length_capped] at this
   exact this
 
-/-- Fewer than `minRuns` valid base runs: every window is no data, never a gain. -/
 theorem ownVerdicts_noData_of_fewBase (base flag : List Run) (h : (base.filterMap (·.plan)).length < minRuns) :
     ∀ q ∈ ownVerdicts base flag, q.2 = Verdict.noData := by
   intro q hq
@@ -525,7 +503,6 @@ theorem ownVerdicts_noData_of_fewBase (base flag : List Run) (h : (base.filterMa
   rw [length_capped] at this
   omega
 
-/-- Fewer than `minRuns` valid flag runs: every window is no data, never a gain. -/
 theorem ownVerdicts_noData_of_fewFlag (base flag : List Run) (h : (flag.filterMap (·.plan)).length < minRuns) :
     ∀ q ∈ ownVerdicts base flag, q.2 = Verdict.noData := by
   intro q hq
@@ -535,7 +512,6 @@ theorem ownVerdicts_noData_of_fewFlag (base flag : List Run) (h : (flag.filterMa
   rw [length_capped] at this
   omega
 
-/-- A cut window has at most the common number of frames. -/
 theorem vecsOf_capped_n_le (rs : List Run) (cap : String → Nat) (n : String) (v : Vec)
     (hv : v ∈ vecsOf (rs.filterMap (·.capped cap)) n) : v.n ≤ cap n := by
   simp only [vecsOf, List.filterMap_filterMap] at hv
@@ -554,7 +530,6 @@ theorem vecsOf_capped_n_le (rs : List Run) (cap : String → Nat) (n : String) (
       rw [← hr, sumVec_n, Win.cap_len, hn]
       exact Nat.min_le_right _ _
 
-/-- A window that no run has a frame of in common is no data in every arm pair. -/
 theorem ownVerdicts_noData_of_noFrames (base flag : List Run) (n : String) (hn : n ∈ windowNames)
     (h : commonLen ((base ++ flag).filterMap (·.plan)) n = 0) : (ownVerdicts base flag).lookup n = some Verdict.noData := by
   rw [ownVerdicts_get base flag n hn]
