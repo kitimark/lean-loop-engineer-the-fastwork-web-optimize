@@ -107,6 +107,8 @@ import Fw.Parts.PlatformFadedPause
 import Fw.Parts.PlatformFadedPauseGolden
 import Fw.Parts.PlatformSweepLayer
 import Fw.Parts.PlatformSweepLayerGolden
+import Fw.Engine.VisualTimed
+import Fw.Parts.PlatformEntriesFillGolden
 import Fw.Parts.NavClipBox
 import Fw.Parts.NavBarFixed
 import Fw.Parts.NavBarFixedWork

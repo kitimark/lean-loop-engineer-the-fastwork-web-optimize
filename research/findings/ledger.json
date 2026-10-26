@@ -4304,35 +4304,44 @@
    "n": 85
   },
   {
-   "n": 88,
-   "id": "morph.end.nobounce",
-   "part": "morph.end.nobounce",
-   "candidate": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the vertical rubber band (top and bottom) never exists and a forward push at the end leaves scrollY at the pin",
-   "status": "look-change",
-   "flag": "morph.end.nobounce:on",
-   "visClass": "L",
+   "n": 89,
+   "id": "platform.entries.fill-release",
+   "part": "platform.entries",
+   "candidate": "platform.entries:fill-release: the 15 platform entry animations fill backwards only and their keyframe end values are written as static style, so no animation stays in effect after its end",
+   "status": "partly-proved",
    "flags": [
-    "morph.end.nobounce:on"
+    "platform.entries:fill-release"
    ],
-   "chromium": "MEASURED no-gain in every window, no metric differs (flag run 40283424333, default 40283428442, same commit 3c5ac115f, 3 runs each, end frame 574)",
-   "webkit": "MEASURED no-win (run 40283405286, Simulator toolbar lane): nobounce 7 usable passes against 5 default in 7 jobs; reversals, re-opens, onsets overlap; cost not read (2/3 windows, 3 needed); jobs 9 and 10 had no plan entry",
-   "visual": "look change (L): no vertical rubber band at the top or the bottom of the page; Safari's toolbar reveal on a bounce may differ. The user's visual review decides; never a preset.",
-   "mechanism": "CONFIRMED from source: root overscroll-behavior maps onto the WKScrollView's vertical bounce in the UI process (WKWebViewIOS.mm:1084-1087, _setBouncesInternal at ScrollingTreeScrollingNodeDelegateIOS.mm:352-358@862f17d). Lean push_at_end_no_write, pin_writes_below, no_write_above_end (Fw.Parts.MorphEndNobounce): with no bounce the pin write has nothing to correct above the end. Differs from morph.mount:overscroll-lock, which toggled bounce while armed or active.",
+   "flag": "platform.entries:fill-release",
+   "visClass": "E",
+   "chromium": "MEASURED run 40280497740 at e133f74c8 (swipe-touch-v1, 3 runs, base and flag at one commit): tail layer-frames 7140 to 6480 (-9.2%, 238 to 216 layers per frame), finish 45026 to 41089 (-8.7%), drawing area -7.7% and tiles -10.9% in the tail; work noGain in every window (Paint less, RasterTask more in approach, end 0-19 and finish)",
+   "webkit": "Simulator flag run 40282951274 (3 VMs, e133f74c8): layer count and backing memory equal the two good base VMs (40282962088 r2, 40305413688 r1) at every census stop (141-145 layers at y 4500, 124-128 at the end; 149.3 and 105.8 MB), as the proved webkit_unchanged predicts. Base run 40282962088 kept only VM r2 and the retry 40305413688 only VM r1 (the other VMs lost their determinism sessions to host overload, task wk-sim-hang), so every per-zone work cell (z4500, z5000, finish, whole) is undecided with n=1+3 VMs (pooled r1+r2: n=2+3, still below minVms 3). Follow-up: WebKit recount after wk-sim-hang lands.",
+   "visual": "E: Lean same_look (every Env, every time) from release_shown; the stylesheet rows are checked against the golden by fill.test.ts",
+   "mechanism": "CONFIRMED by source: Chromium keeps an active-animation compositing reason while an animation is current or in effect, and fill both keeps it in effect after the end (timing_calculations.cc:141-161, css_animations.cc:2267-2280, compositing_reason_finder.cc:570-597 @f842f52); WebKit affects the property and keeps the accelerated animation only in the active phase (KeyframeEffect.cpp:1703-1715, 2085-2089 @862f17d). PROVED in Lean: no_held_after, held_saved, same_look.",
    "leanFor": [
-    "Fw.Parts.MorphEndNobounce.push_at_end_no_write",
-    "Fw.Parts.MorphEndNobounce.pin_writes_below",
-    "Fw.Parts.MorphEndNobounce.no_write_above_end"
+    "Fw.Parts.PlatformEntries.same_look",
+    "Fw.Parts.PlatformEntries.no_held_after",
+    "Fw.Parts.PlatformEntries.held_saved",
+    "Fw.Parts.PlatformEntries.webkit_unchanged",
+    "Fw.Parts.PlatformEntries.rows_win",
+    "Fw.Engine.VisualTimed.release_shown",
+    "Fw.Parts.PlatformEntries.memoryWin_fits",
+    "Fw.Parts.PlatformEntries.work_change_not_memoryWin"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "not a same-look claim: the look change is reviewed by the user"
+    "WebKit per-zone work cells need 3 base VMs: recount after wk-sim-hang lands (runs 40282962088 and 40305413688 gave 1 good VM each)",
+    "RasterTask rise: INFERRED as the release repainting into the parent layer, no tile trace"
    ],
-   "premises": [],
+   "premises": [
+    "the census layer count follows the compositing reasons of the entry elements: INFERRED, read from the counts"
+   ],
    "v1Evidence": "none",
-   "lesson": "A static CSS rule removes the rubber-band side of the pin fight with no JS; whether the fight drove the slow frames is the measured part (note).",
-   "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
-   "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
-   "userDecision": "pending"
+   "lesson": "A finished animation with fill forwards is still an animation to Chromium; write its end values as style and fill backwards only.",
+   "next": "WebKit recount after wk-sim-hang lands (base needs 3 complete VMs), then preset promotion",
+   "evidence": "research/notes/2026/10-20-fill-release-platform.md (task fill-release-platform)",
+   "gate": "breakpoint-gate run 40282885162, both engines: pass (Chromium 7049 of 7056 pass, 7 excused; Playwright WebKit 6765 pass, 291 excused, 0 FAIL)",
+   "memory": "Lean MemoryTrade section of Fw.Parts.PlatformEntries: memoryWin_fits, memoryWin_neutral, work_change_not_memoryWin over Fw.Engine.Resource.verdict with budgetB (210 MiB). Chromium: memory down (layers -9.2%, area -7.7%, tiles -10.9% in the tail) but RasterTask up, so not a memory-only win (no-win, a trade); WebKit: no memory or layer change (no-win, nothing to gain)."
   },
   {
    "n": 86,
@@ -4418,6 +4427,37 @@
    "lesson": "Pausing an invisible section removes its paint and raster work once the fade is 0, but the resume edge costs one style recalc and one layout, so the gain shows only in windows long enough to repay it.",
    "next": "WebKit count on a lane that opens the morph (toolbar/push); the user's preset decision",
    "evidence": "research/notes/2026/10-2x-platform-faded-pause.md (task platform-faded-pause)"
+  },
+  {
+   "n": 88,
+   "id": "morph.end.nobounce",
+   "part": "morph.end.nobounce",
+   "candidate": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the vertical rubber band (top and bottom) never exists and a forward push at the end leaves scrollY at the pin",
+   "status": "look-change",
+   "flag": "morph.end.nobounce:on",
+   "visClass": "L",
+   "flags": [
+    "morph.end.nobounce:on"
+   ],
+   "chromium": "MEASURED no-gain in every window, no metric differs (flag run 40283424333, default 40283428442, same commit 3c5ac115f, 3 runs each, end frame 574)",
+   "webkit": "MEASURED no-win (run 40283405286, Simulator toolbar lane): nobounce 7 usable passes against 5 default in 7 jobs; reversals, re-opens, onsets overlap; cost not read (2/3 windows, 3 needed); jobs 9 and 10 had no plan entry",
+   "visual": "look change (L): no vertical rubber band at the top or the bottom of the page; Safari's toolbar reveal on a bounce may differ. The user's visual review decides; never a preset.",
+   "mechanism": "CONFIRMED from source: root overscroll-behavior maps onto the WKScrollView's vertical bounce in the UI process (WKWebViewIOS.mm:1084-1087, _setBouncesInternal at ScrollingTreeScrollingNodeDelegateIOS.mm:352-358@862f17d). Lean push_at_end_no_write, pin_writes_below, no_write_above_end (Fw.Parts.MorphEndNobounce): with no bounce the pin write has nothing to correct above the end. Differs from morph.mount:overscroll-lock, which toggled bounce while armed or active.",
+   "leanFor": [
+    "Fw.Parts.MorphEndNobounce.push_at_end_no_write",
+    "Fw.Parts.MorphEndNobounce.pin_writes_below",
+    "Fw.Parts.MorphEndNobounce.no_write_above_end"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change is reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A static CSS rule removes the rubber-band side of the pin fight with no JS; whether the fight drove the slow frames is the measured part (note).",
+   "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
+   "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
+   "userDecision": "pending"
   }
  ],
  "notes": [
@@ -5086,6 +5126,12 @@
    "task": "layer-sweep-webkit-n3",
    "field": "webkit",
    "text": "layer-sweep-webkit-n3 (note research/notes/2026/10-2x-platform-sweep-layer.md, re-run section): MEASURED WebKit Simulator at 9493a5ddb, base runs 40277969074 and 40284460392, layer-sweep runs 40277972324 and 40284464262, 3 VMs requested per run; 9 of 12 VM jobs lost (base r1,r2 and r2,r3; arm r2,r3 and r1,r2,r3). Reader offscreen-webkit-cli.mjs (minVms 3): complete sessions base 2 VMs, arm 1 VM, every zone (z4500, z5000, finish, whole) UNDECIDED; with kept lost-VM passes base 5 VMs, arm 2 VMs, UNDECIDED. Harness cause INFERRED: in 8 of 9 lost jobs the first inspector call times out at 120 s (the 9th never opened a tab), reconnect finds no page target, host load average 157-965 on 3 CPUs; no variant effect (base lost 4 of 6, arm 5 of 6). Chromium t=0 x=526 (premise sweep.layer-pixels, run 40264978871): original path CONFIRMED in background_image_geometry.cc:392-401,754@f842f52 and box_painter_base.cc:1492-1497,1569@f842f52; variant path CONFIRMED in compositing_reasons.h:116@f842f52 and paint_property_tree_builder.cc:731-735,763-805@f842f52; the pixel-level column mechanism stays INFERRED (the will-change:auto probe gave the same 33). Class L, for the user's visual review, never a preset."
+  },
+  {
+   "entry": "platform.entries:fill-release: the 15 platform entry animations fill backwards only and their keyframe end values are written as static style, so no animation stays in effect after its end",
+   "task": "fill-release-platform",
+   "field": "webkit",
+   "text": "fill-release-platform (note research/notes/2026/10-20-fill-release-platform.md, WebKit per-zone verdict): WebKit Simulator flag run 40282951274 (3 VMs) against base runs 40282962088 (only r2 good) and 40305413688 (only r1 good; r2 and r3 lost in Determinism sessions, host overload, task wk-sim-hang), all at e133f74c8: every zone (z4500, z5000, finish, whole) is undecided with n=1+3 VMs under Lean minVms 3; pooling the two base runs' good VMs (distinct ids r1, r2) gives n=2+3, still below 3. No WebKit work win or no-win is claimed; layers and backing memory are equal at every census stop. Follow-up: WebKit recount after wk-sim-hang lands."
   }
  ]
 }

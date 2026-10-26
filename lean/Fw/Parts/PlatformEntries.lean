@@ -1,4 +1,7 @@
 import Fw.Parts.PlatformSweep
+import Fw.Engine.VisualTimed
+import Fw.Engine.ResourceVerdict
+import Fw.Site.Breakpoints
 /-!
 # platform.entries: entry animations, count-up and the search typing of the stage visuals (P5 port, `faithful`)
 
@@ -417,5 +420,168 @@ theorem typing_subsample (L k : Nat) :
       (typedV L 0 = 0 ∧ typedO L 0 = 0) ∧ (L + 1 ≤ k → typedV L k = L ∧ typedO L k = L) := by
   simp only [typedV, typedO]
   refine ⟨trivial, fun h => by omega, by omega, fun h => by omega⟩
+
+section FillRelease
+open Fw.Engine.VisualTimed
+open Fw.Site.Breakpoints (Env rmNopref)
+
+def track (e : Entry) (tr : Tr) (base : Rat) : Track Rat := ⟨e.delay, e.dur, .both, value e tr, base⟩
+
+theorem value_end (e : Entry) (tr : Tr) (hD : 0 < e.dur) : value e tr (e.delay + e.dur) = tr.b := by
+  simp [value, progress_after e _ hD Rat.le_refl]; grind
+
+theorem track_settles (e : Entry) (tr : Tr) (base : Rat) (hD : 0 < e.dur) : Settles (track e tr base) := by
+  intro t h
+  simp only [endVal, track] at *
+  simp [value, progress_after e _ hD h, progress_after e _ hD Rat.le_refl]
+
+theorem release_base (e : Entry) (tr : Tr) (base : Rat) (hD : 0 < e.dur) : (release (track e tr base)).base = tr.b :=
+  value_end e tr hD
+
+def shownIn (rel : Bool) (env : Env) (e : Entry) (tr : Tr) (base still t : Rat) : Rat :=
+  if rmNopref.eval env then shown (if rel then release (track e tr base) else track e tr base) t else still
+
+theorem same_look_motion (env : Env) (e : Entry) (tr : Tr) (base still t : Rat) (hD : 0 < e.dur)
+    (h : rmNopref.eval env = true) : shownIn true env e tr base still t = shownIn false env e tr base still t := by
+  simp only [shownIn, h, ite_true, Bool.false_eq_true, ite_false]
+  exact release_shown _ rfl (track_settles e tr base hD) (Rat.le_of_lt hD) t
+
+theorem same_look_reduce (env : Env) (e : Entry) (tr : Tr) (base still t : Rat)
+    (h : rmNopref.eval env = false) : shownIn true env e tr base still t = shownIn false env e tr base still t := by
+  simp [shownIn, h]
+
+theorem same_look (env : Env) (e : Entry) (tr : Tr) (base still t : Rat) (hD : 0 < e.dur) :
+    shownIn true env e tr base still t = shownIn false env e tr base still t := by
+  cases h : rmNopref.eval env
+  · exact same_look_reduce env e tr base still t h
+  · exact same_look_motion env e tr base still t hD h
+
+theorem faithful_held (e : Entry) (tr : Tr) (base t : Rat) :
+    chromiumHeld (track e tr base).fill (phaseAt e.delay e.dur t) = true :=
+  both_held _ _ _
+
+theorem no_held_after (e : Entry) (tr : Tr) (base t : Rat) (hD : 0 < e.dur) (h : e.delay + e.dur ≤ t) :
+    chromiumHeld (release (track e tr base)).fill (phaseAt e.delay e.dur t) = false :=
+  release_no_held_after (track e tr base) t h (Rat.le_of_lt hD)
+
+theorem held_saved (e : Entry) (tr : Tr) (base : Rat) (hD : 0 < e.dur) (ts : List Rat) :
+    heldFrames (release (track e tr base)) ts + (ts.filter fun t => decide (e.delay + e.dur ≤ t)).length =
+      heldFrames (track e tr base) ts :=
+  release_saves (track e tr base) rfl (Rat.le_of_lt hD) ts
+
+theorem webkit_unchanged (e : Entry) (tr : Tr) (base t : Rat) :
+    webkitHeld (release (track e tr base)).fill (phaseAt e.delay e.dur t) =
+      webkitHeld (track e tr base).fill (phaseAt e.delay e.dur t) :=
+  webkit_same_fill _ _ _
+
+structure FillRow where
+  root : String
+  state : String
+  rest : String
+  kf : String
+  entry : Entry
+  pre : String
+  els : List String
+  cls : Nat
+  rival : Nat
+
+def FillRow.faithful (r : FillRow) : String := s!".{r.root}{r.state}{r.rest}"
+
+def FillRow.variant (r : FillRow) : String := s!".{r.root}.fillRelease{r.state}{r.rest}"
+
+def FillRow.spec (r : FillRow) : Nat := r.cls + 1
+
+def fillRoots : List String := ["profile", "secure", "invoice", "ask"]
+
+def fillRows : List FillRow :=
+  let sp := ":not(.isStatic).isPlay"
+  let mid := "translate(-50%, -50%) "
+  [⟨"profile", ":not(.isStatic).isEnter", " .phone", "profilePhoneIn", profilePhone, "", ["phone"], 4, 4⟩,
+   ⟨"profile", ":not(.isStatic).isEnter", " .reviews .credCard", "credCardIn", credCard 0, "", ["credCard"], 5, 5⟩,
+   ⟨"secure", sp, " .rings", "secureNetworkRingsIn", rings, "", ["rings"], 4, 4⟩,
+   ⟨"secure", sp, " .faceLeft", "secureNetworkFaceLeftIn", faceLeft, "", ["face", "faceLeft"], 4, 4⟩,
+   ⟨"secure", sp, " .faceRight", "secureNetworkFaceRightIn", faceRight, "", ["face", "faceRight"], 4, 4⟩,
+   ⟨"secure", sp, " .dash", "secureNetworkDashIn", dash, "", ["dash", "dashLeft", "dashRight"], 4, 4⟩,
+   ⟨"secure", sp, " .shield", "secureNetworkShieldIn", shield, mid, ["shield"], 4, 4⟩,
+   ⟨"secure", sp, " .logoMark", "secureNetworkLogoIn", logo, mid, ["logoMark"], 4, 4⟩,
+   ⟨"secure", sp, " .flag", "secureNetworkFlagIn", flag 1, "", ["flag", "flagBordered", "flagUs"], 4, 4⟩,
+   ⟨"invoice", sp, " .order", "invoiceIRowIn", orderRow 0, "", ["order"], 4, 4⟩,
+   ⟨"invoice", sp, " .cardEnter", "invoiceCardIn", invoiceCard, "", ["cardEnter"], 4, 4⟩,
+   ⟨"ask", ":not(.isStatic).isEnter", " .askTitle", "agentsAskIn", askIn 0, "", ["askTitle"], 4, 4⟩,
+   ⟨"ask", ":not(.isStatic).isEnter", " .askField", "agentsAskIn", askIn 0, "", ["askField"], 4, 4⟩,
+   ⟨"ask", ":not(.isStatic).isResults", " .askList > .service", "agentsAskIn", askIn 0, "", ["service"], 5, 5⟩,
+   ⟨"ask", ":not(.isStatic).isLeaving", " .askListOut .service", "agentsAskOut", askOut 0, "", ["service"], 5, 5⟩]
+
+def lenCss (v : Rat) : String := if v = 0 then "0" else s!"{v}px"
+
+def fnCss (tr : Tr) : Option String :=
+  match tr.key with
+  | "translateX" => some s!"translateX({lenCss tr.b})"
+  | "translateY" => some s!"translateY({lenCss tr.b})"
+  | "scale" => some s!"scale({tr.b})"
+  | "scaleX" => some s!"scaleX({tr.b})"
+  | _ => none
+
+def endDecls (r : FillRow) : List (String × String) :=
+  let trs := r.entry.trs
+  let fil := (trs.find? (·.key == "blur")).map fun tr => ("filter", s!"blur({lenCss tr.b})")
+  let op := (trs.find? (·.key == "opacity")).map fun tr => ("opacity", toString tr.b)
+  let fs := trs.filterMap fnCss
+  let tf := if fs.isEmpty then none else some ("transform", r.pre ++ " ".intercalate fs)
+  [fil, op, tf].filterMap id
+
+def fillDecls (r : FillRow) : List (String × String) := ("animation-fill-mode", "backwards") :: endDecls r
+
+theorem rows_win : fillRows.all (fun r => decide (r.rival < r.spec)) = true := by decide
+
+theorem rows_dur : fillRows.all (fun r => decide (0 < r.entry.dur)) = true := by decide
+
+def fillMedia : String := rmNopref.css
+
+#guard fillMedia == "(prefers-reduced-motion: no-preference)"
+#guard fillRows.length == 15
+#guard fillRows[0]?.map endDecls ==
+  some [("filter", "blur(0)"), ("opacity", "1"), ("transform", "translateY(0) scale(1)")]
+#guard fillRows[6]?.map endDecls == some [("opacity", "1"), ("transform", "translate(-50%, -50%) scale(1)")]
+#guard fillRows[14]?.map endDecls == some [("opacity", "0"), ("transform", "translateY(10px)")]
+#guard fillRows[9]?.map FillRow.variant == some ".invoice.fillRelease:not(.isStatic).isPlay .order"
+#guard heldFrames (track profilePhone ⟨"opacity", 0, 1⟩ 1) [0, 300, 620, 1000] == 4
+#guard heldFrames (release (track profilePhone ⟨"opacity", 0, 1⟩ 1)) [0, 300, 620, 1000] == 2
+
+section MemoryTrade
+open Fw.Engine.Resource
+
+def memoryWin (fp : Footprint) : Bool := gated.all (fun r => fp.sign r == .same) && fp.sign .gpuMem == .down
+
+theorem memoryWin_fits (B : Nat) (fp : Footprint) (h : memoryWin fp = true) :
+    memFit B (fp.sign .gpuMem) fp.peak = some true := by
+  have hd : fp.sign .gpuMem = .down := by simpa [memoryWin] using (Bool.and_eq_true_iff.mp h).2
+  simp [memFit, hd]
+
+theorem memoryWin_neutral (B : Nat) (fp : Footprint) (h : memoryWin fp = true) : verdict B fp = .neutral := by
+  have hg : ∀ r ∈ gated, fp.sign r = .same := fun r hr => by
+    simpa using List.all_eq_true.mp (Bool.and_eq_true_iff.mp h).1 r hr
+  have h1 : gated.any (fp.sign · == .up) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
+  have h2 : gated.any (fp.sign · == .unknown) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
+  have h3 : gated.any (fp.sign · == .down) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
+  simp [verdict, h1, h2, h3]
+
+theorem work_change_not_memoryWin (fp : Footprint) (r : Res) (hr : r ∈ gated) (h : fp.sign r ≠ .same) :
+    memoryWin fp = false := by
+  cases hm : memoryWin fp with
+  | false => rfl
+  | true =>
+    exact absurd (by simpa using List.all_eq_true.mp (Bool.and_eq_true_iff.mp hm).1 r hr) h
+
+def chromiumFp : Footprint :=
+  ofSigns "platform.entries:fill-release" .chromium
+    ((.layers, .down) :: (.gpuMem, .down) :: (.paintRec, .unknown) :: (.repaint, .unknown) :: gatedAt .same) none
+
+#guard memoryWin chromiumFp == false
+#guard verdict budgetB chromiumFp == .open
+
+end MemoryTrade
+
+end FillRelease
 
 end Fw.Parts.PlatformEntries

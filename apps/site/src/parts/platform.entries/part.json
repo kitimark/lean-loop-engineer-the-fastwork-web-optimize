@@ -11,6 +11,17 @@
       "tier": "T1",
       "provenance": { "original": "assets/2.gBuqKVzi.css keyframes (profile, cred, secure-network, invoice, orders, agents-ask); _app/immutable/nodes/2.DyWL8TcE.js:11996-12040 and the search loop", "lean": "lean/Fw/Parts/PlatformEntries.lean" }
     },
+    "fill-release": {
+      "kind": "optimized",
+      "tier": "T1",
+      "visClass": "E",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformEntries same_look, same_look_motion, same_look_reduce, no_held_after, held_saved, faithful_held, webkit_unchanged, rows_win, rows_dur; Fw.Engine.VisualTimed release_shown, release_no_held_after, release_saves",
+        "chromium": "third_party/blink/renderer/core/animation/timing_calculations.cc:103-130,141-161, timing.cc:259,267-270, css/css_animations.cc:2225-2238,2267-2280, paint/compositing/compositing_reason_finder.cc:570-597 @f842f52 (a finished animation that fills forwards stays in effect and keeps its active-animation compositing reason)",
+        "webkit": "Source/WebCore/animation/AnimationEffectTiming.cpp:182-201,219-241, KeyframeEffect.cpp:1703-1715,2085-2089, rendering/RenderLayerCompositor.cpp:3841-3866 @862f17d (only the active phase affects the property and keeps the accelerated animation; no layer change expected)",
+        "limit": "same computed values only where the variant rule wins the cascade (rows_win counts classes; checked against the stylesheet by fill.test.ts); the release at the end can repaint the element once into its parent layer"
+      }
+    },
     "probe-off": {
       "kind": "probe",
       "provenance": {

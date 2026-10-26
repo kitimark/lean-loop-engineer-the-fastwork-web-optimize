@@ -9565,7 +9565,8 @@
     "apps/site/src/parts/platform/index.tsx",
     "lean/Fw/Parts/PlatformEntriesFillGolden.lean",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "2997bc3"
   },
   {
    "devices": [

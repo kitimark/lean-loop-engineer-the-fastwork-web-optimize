@@ -1323,4 +1323,86 @@
       display: none;
     }
   }
+
+  /* platform.entries:fill-release: each entry fills backwards only and its keyframe end values are static style, so no
+     animation stays in effect after the end (Lean Fw.Parts.PlatformEntries fillRows, golden platform-entries-fill.jsonl). */
+  @media (prefers-reduced-motion: no-preference) {
+    .profile.fillRelease:not(.isStatic).isEnter .phone {
+      animation-fill-mode: backwards;
+      filter: blur(0);
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .profile.fillRelease:not(.isStatic).isEnter .reviews .credCard {
+      animation-fill-mode: backwards;
+      filter: blur(0);
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .rings {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: scale(1);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .faceLeft {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .faceRight {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .dash {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: scaleX(1);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .shield {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .logoMark {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .secure.fillRelease:not(.isStatic).isPlay .flag {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: scale(1);
+    }
+    .invoice.fillRelease:not(.isStatic).isPlay .order {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .invoice.fillRelease:not(.isStatic).isPlay .cardEnter {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .ask.fillRelease:not(.isStatic).isEnter .askTitle {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .ask.fillRelease:not(.isStatic).isEnter .askField {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .ask.fillRelease:not(.isStatic).isResults .askList > .service {
+      animation-fill-mode: backwards;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .ask.fillRelease:not(.isStatic).isLeaving .askListOut .service {
+      animation-fill-mode: backwards;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+  }
 }
