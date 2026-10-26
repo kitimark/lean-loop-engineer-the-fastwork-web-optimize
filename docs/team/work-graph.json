@@ -9869,7 +9869,11 @@
     "packages/contracts/golden/parts/footprint*.gen.json",
     "packages/contracts/golden/preset/**",
     "refs/upstream/sources.lock.yaml",
-    ".github/workflows/lean.yml"
+    ".github/workflows/lean.yml",
+    "lean/Fw/Gate/FlagDelta.lean",
+    "packages/contracts/golden/gate/flag-delta.jsonl",
+    "packages/gate-breakpoints/test/flag-delta.test.mjs",
+    "research/findings/ledger.json"
    ]
   },
   {
