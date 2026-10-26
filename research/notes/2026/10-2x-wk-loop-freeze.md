@@ -41,7 +41,29 @@ The guard also counted "2 failed in a row" across a freeze: the first failed pro
 
 TS stand-ins: none for the decisions (sim-host.mjs reads the golden for the plan and computes the rest as the Lean defs). Glue: the freeze counter and the cpu note in `watchdog.mjs`.
 
+## Re-measure on CI (2 of 2 dispatches, `ci/wk-loop-freeze` at b3f0299cb, webkit-sim, target rewrite, 3 VMs each)
+
+| Run | Arm | Jobs lost / total |
+|---|---|---|
+| 40390428285 | base | 2 / 3 (r2 exit 4, r1 job timeout) |
+| 40390434234 | flag `platform.glint:hold-freeze` | 0 / 3 |
+| both | | 2 / 6 (wk-sim-hang: 0 / 7) |
+
+The rate did not fall, and the two base losses are not the two classes fixed above. MEASURED; the mechanisms are INFERRED.
+
+| Job | What the log and telemetry show | Class |
+|---|---|---|
+| base r2 (121811602882, exit 4 after 31 min) | no `blocked` or `stalled` line; warm-up `Runtime.evaluate` timed out after 120 s, no page target after 484 s, relaunch failed at `terminate Safari` (20 s), then `simctl shutdown` ETIMEDOUT; sampler gaps at most 34 s, swap-outs 26180 | Simulator wedged under load, not a VM freeze |
+| base r1 (121811602912, cancelled after 58 min, log not kept; the job limit is INFERRED to be the cause) | last sampler row 22:26:27, then nothing for 34 min: sampler and tick uploads stopped together, so the whole VM or runner went away; free memory 70% at the last row | VM lost, nothing in-process can end it |
+
+What worked: the stall limit and the guard ended base r2 in 31 min with exit 4 and named causes instead of the 50 min step limit. The `terminate Safari` overrun now shows up in the first (non-fresh) relaunch too: the freeze fix does not cover a wedged device. The flag arm ran 3 of 3 with sampler gaps of at most 74 s, a freeze that the new rule would credit.
+
+Host load1 was 800 to 920 at the last row of every job, successes included (cpu 100%), so it does not separate lost from kept jobs.
+
 ## Follow-ups
+
+- The Simulator wedge of base r2: `simctl` calls and the inspector time out with no VM freeze (sampler steady). Needs the daemon and process state when the first `Runtime.evaluate` timeout happens.
+- Base r1: a VM that vanishes for 34 min is outside a node watchdog; the job limit (58 min) is the only end. A shorter job limit would only save minutes.
 
 - Which process takes the memory (per-process RSS when free memory is below 15%) and the Simulator daemon load.
 - Attempt 2 of loss 2 (silent stall without a blocked warning).
