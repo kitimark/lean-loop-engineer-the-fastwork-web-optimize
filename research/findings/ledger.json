@@ -4470,8 +4470,8 @@
    "flags": [
     "morph.stage:on"
    ],
-   "chromium": "unknown: not measured yet (task morph-stage gate)",
-   "webkit": "unknown: not measured yet; Simulator lanes wait for wk-sim-hang",
+   "chromium": "MEASURED swipe-touch-v1, 3 runs per arm, same commit 13b09467c (flag run 40339622735, base 40339630528), Lean reader: approach noGain (RecalcStyleCount and FireAnimationFrame less; LayoutCount, Paint, RasterTask more), end windows noData (flag end frame 670 against 574)",
+   "webkit": "unknown: Simulator lanes wait for wk-sim-hang; a local Playwright WebKit debug run (not a result) shows the timeline reaching --morph 1 at the end",
    "visual": "look change (L): the morph runs with the finger over T px (696 at 1280x800, 768 at 390x844) instead of a 680 ms play; T open for the user's look review",
    "mechanism": "INFERRED from WebKit ScrollTimeline.cpp:363-380 and ThreadedScrollDrivenAnimationsEnabled: --morph and --morph-fade run on animation-timeline scroll(root) over [maxY-T, maxY]",
    "leanFor": [
@@ -4486,9 +4486,9 @@
    ],
    "premises": [],
    "v1Evidence": "none",
-   "lesson": "pending the gate",
+   "lesson": "The breakpoint gate with the flag fails 28 Chromium and 24 WebKit cells, all in morph.mount and morph.tween whose anchors the flag leaves unmounted (run 40339272935); the flag-delta list has no count delta for an unmounted part.",
    "next": "Out of v2-proved (look change, class L); gate, then the user's look review.",
-   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean",
+   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; gate run 40339272935; chromium-counts 40339622735 and 40339630528",
    "userDecision": "pending"
   }
  ],
