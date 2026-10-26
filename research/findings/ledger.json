@@ -4314,7 +4314,7 @@
    "flag": "platform.entries:fill-release",
    "visClass": "E",
    "chromium": "MEASURED run 40280497740 at e133f74c8 (swipe-touch-v1, 3 runs, base and flag at one commit): tail layer-frames 7140 to 6480 (-9.2%, 238 to 216 layers per frame), finish 45026 to 41089 (-8.7%), drawing area -7.7% and tiles -10.9% in the tail; work noGain in every window (Paint less, RasterTask more in approach, end 0-19 and finish)",
-   "webkit": "predicted no layer change (webkit_unchanged); Simulator counts not run, need lead dispatch",
+   "webkit": "Simulator flag run 40282951274 (3 VMs, e133f74c8): layer count and backing memory equal the base's one good VM at every census stop (141-145 layers at y 4500, 124-128 at the end; 149.3 and 105.8 MB), as the proved webkit_unchanged predicts. Base run 40282962088 lost VMs r1 and r3 to the 2100 s determinism bound, so every per-zone work cell is undecided (n=1+3 VMs); base retry 40305413688 pending.",
    "visual": "E: Lean same_look (every Env, every time) from release_shown; the stylesheet rows are checked against the golden by fill.test.ts",
    "mechanism": "CONFIRMED by source: Chromium keeps an active-animation compositing reason while an animation is current or in effect, and fill both keeps it in effect after the end (timing_calculations.cc:141-161, css_animations.cc:2267-2280, compositing_reason_finder.cc:570-597 @f842f52); WebKit affects the property and keeps the accelerated animation only in the active phase (KeyframeEffect.cpp:1703-1715, 2085-2089 @862f17d). PROVED in Lean: no_held_after, held_saved, same_look.",
    "leanFor": [
@@ -4323,11 +4323,13 @@
     "Fw.Parts.PlatformEntries.held_saved",
     "Fw.Parts.PlatformEntries.webkit_unchanged",
     "Fw.Parts.PlatformEntries.rows_win",
-    "Fw.Engine.VisualTimed.release_shown"
+    "Fw.Engine.VisualTimed.release_shown",
+    "Fw.Parts.PlatformEntries.memoryWin_fits",
+    "Fw.Parts.PlatformEntries.work_change_not_memoryWin"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "WebKit Simulator counts and the breakpoint gate need lead dispatch",
+    "WebKit per-zone work cells need 3 base VMs: run 40305413688",
     "RasterTask rise: INFERRED as the release repainting into the parent layer, no tile trace"
    ],
    "premises": [
@@ -4335,8 +4337,10 @@
    ],
    "v1Evidence": "none",
    "lesson": "A finished animation with fill forwards is still an animation to Chromium; write its end values as style and fill backwards only.",
-   "next": "breakpoint gate and WebKit Simulator counts (lead dispatch), then preset promotion",
-   "evidence": "research/notes/2026/10-20-fill-release-platform.md (task fill-release-platform)"
+   "next": "read base retry 40305413688 against flag run 40282951274 with offscreen-webkit-cli.mjs (minVms 3), then preset promotion",
+   "evidence": "research/notes/2026/10-20-fill-release-platform.md (task fill-release-platform)",
+   "gate": "breakpoint-gate run 40282885162, both engines: pass (Chromium 7049 of 7056 pass, 7 excused; Playwright WebKit 6765 pass, 291 excused, 0 FAIL)",
+   "memory": "Lean MemoryTrade section of Fw.Parts.PlatformEntries: memoryWin_fits, memoryWin_neutral, work_change_not_memoryWin over Fw.Engine.Resource.verdict with budgetB (210 MiB). Chromium: memory down (layers -9.2%, area -7.7%, tiles -10.9% in the tail) but RasterTask up, so not a memory-only win (no-win, a trade); WebKit: no memory or layer change (no-win, nothing to gain)."
   }
  ],
  "notes": [
