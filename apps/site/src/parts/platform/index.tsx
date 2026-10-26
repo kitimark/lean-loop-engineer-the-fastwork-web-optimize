@@ -3,7 +3,10 @@ import { GenSvg, art } from '../../GenSvg';
 import { getScrollEngine } from '../../engine/scroll';
 import { watchActive } from '../people/shared';
 import { HEADING } from './content';
-import { bindScene } from './scene';
+import { bindScene, createSceneWriter, type SceneWriter } from './scene';
+import { createFadedPause, fadedBus, type FadedPause } from './fade.driver';
+import { FADED_PAUSE } from './fade.logic';
+import { createPause } from '../platform.glint/pause';
 import { createShrink } from './driver';
 import { matchList } from './media';
 import css from './platform.module.css';
@@ -111,8 +114,30 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
     const onBand = () => frame();
     c860?.addEventListener('change', onBand);
     const off = getScrollEngine().register('platform.shrink', SHRINK_ORDER, () => frame());
-    const stopScene = bindScene(sec, watchActive);
+    let faded: FadedPause | null = null;
+    const writer: SceneWriter = createSceneWriter(sec, (v) => faded?.onScene(v));
+    const stopScene = bindScene(sec, watchActive, writer);
+    let unsubFaded: (() => void) | null = null;
+    if (variant === FADED_PAUSE) {
+      const dashes = createPause(() => Array.from(sec.querySelectorAll<SVGSVGElement>('[data-fw-dash] svg')), () => performance.now());
+      faded = createFadedPause(
+        {
+          animations: () => sec.getAnimations({ subtree: true }).filter((a) => a instanceof CSSAnimation),
+          restore: (saved) => {
+            for (const a of sec.getAnimations({ subtree: true })) {
+              const t = saved.get(a);
+              if (t != null) a.startTime = t;
+            }
+          },
+          svg: { away: dashes.away, back: dashes.back },
+        },
+        writer.setFaded,
+      );
+      unsubFaded = fadedBus.subscribe(faded.set);
+    }
     return () => {
+      unsubFaded?.();
+      faded?.dispose();
       stopScene();
       c860?.removeEventListener('change', onBand);
       off();

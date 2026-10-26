@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ARMS, ARM_ORDER, FLAG_ARMS, LOOK_CHANGE, stepFrames, stepGaps, medianCs, stepsLifted, frameGapCs, windowCost, rowsOf, gestureCount, perGesture, onsetFrames, refreshHz, foldOf, tbPass,
-  columns, flagVerdict, enters, winPhase, reasonOf, passOf, facts, hzOf,
+  columns, columnsKnown, armVerdict, flagVerdict, enters, winPhase, reasonOf, passOf, facts, hzOf,
 } from '../src/throttle/toolbar.mjs';
 import { opens } from '../src/throttle/morph-end.mjs';
 import { armsOf, jobsOf, planOf, overrideOf } from '../src/throttle/toolbar-plan.mjs';
@@ -68,6 +68,25 @@ test('golden: the comparison columns, the look, and the verdict of a flag', () =
     assert.equal(enters(false, v), g.entersPlain, g.name);
     assert.equal(enters(true, v), g.entersLook, g.name);
   }
+});
+
+test('the printed columns: a side with no rate reads undecided, every other cell is the golden one, and the verdict is unchanged', () => {
+  let undecided = 0;
+  for (const g of of('tb-verdict')) {
+    const c = columnsKnown(g.base, g.cand);
+    for (const k of ['reversals', 'swaps', 'onsets', 'layout', 'recalc']) {
+      if (c[k] === 'undecided') {
+        undecided++;
+        assert.equal(g[k], 'overlap', `${g.name} ${k}`);
+      } else assert.equal(c[k], g[k], `${g.name} ${k}`);
+    }
+    const lay = c.costKnown ? c.layout : 'overlap', rec = c.costKnown ? c.recalc : 'overlap';
+    const v = armVerdict(c.reversals, c.swaps, c.onsets, lay, rec, c.lifted, c.look);
+    assert.equal(!c.costKnown && v === 'win' ? 'undecided' : v, g.verdict, g.name);
+  }
+  assert.ok(undecided > 0);
+  const none = of('tb-verdict').find((g) => g.name === 'no candidate pass');
+  assert.deepEqual(['reversals', 'swaps', 'onsets', 'layout', 'recalc'].map((k) => columnsKnown(none.base, none.cand)[k]), Array(5).fill('undecided'));
 });
 
 test('golden: the refresh rate and the unthrottle fold', () => {

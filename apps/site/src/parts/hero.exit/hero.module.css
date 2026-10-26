@@ -38,4 +38,9 @@
       position: relative;
     }
   }
+
+  /* contain: a relayout boundary for the hero's own layout passes (Lean Fw.Parts.HeroContainOpt). */
+  [data-fw-variant='contain'] > .hero {
+    contain: size layout;
+  }
 }

@@ -4332,6 +4332,91 @@
    "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
    "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
    "userDecision": "pending"
+  },
+  {
+   "n": 86,
+   "id": "hero.exit.contain",
+   "part": "hero.exit",
+   "candidate": "hero.exit:contain: contain: size layout on the sticky .hero, so it is a relayout boundary in both engines and a frame whose dirty objects all sit inside the hero (accent width, countdown digits) lays out only the hero subtree",
+   "status": "proved",
+   "flag": "hero.exit:contain",
+   "flags": [
+    "hero.exit:contain"
+   ],
+   "visClass": "E",
+   "chromium": "win (MEASURED, chromium-counts swipe-touch-v1, sha 0537be1, 3 runs per arm, base run 40268899311, flag run 40268902395): hero-exit window (zones y00000 and y00500, 103 frames in every run), Lean cmp/judge (Fw.Measure.Offscreen, slack 0): Layout passes 122-123 to 121-122 same, RecalcStyle (UpdateLayoutTree) 405 same, Paint 897 same, Layout totalObjects 108,371-108,596 to 70,064-70,231 less, verdict gain; means: totalObjects 108,446 to 70,122 (-35.3%), dirtyObjects 1,466 to 1,112, partial passes 25.7 to 76.3; whole run totalObjects 456,706 to 357,812 (-21.7%); zones y01500 and y02000 drop too (the countdown keeps ticking), y02500 on unchanged. results/hero-relayout-boundary/chromium.json (zone sums by extract-chromium.mjs, a TS stand-in)",
+   "webkit": "undecided (n=2+2 VMs; MEASURED, webkit-sim sha 26bd7b1, base run 40271367353, flag run 40271370582; base r1 and flag r3 lost at Determinism sessions with no session file): hero-exit (scroll y 0-1000), after-exit (1001-2500) and whole windows all undecided by the Lean VM rule (minVms 3); by the pass rule alone every counter is same (Layout 138-157 / 146-156, RecalculateStyles 135-151 / 144-151, Paint 327-393 / 387-422 in the hero-exit window). The WebKit timeline has no laid-out object count, so the predicted smaller passes are not observable there; source: the same boundary (RenderObject.cpp:530-531@862f17d) and one-root scheduling (INFERRED). results/hero-relayout-boundary/webkit.json",
+   "visual": "same look, class E (Lean hero_same_box, extent_same; breakpoint gate run 40271199102 at sha 26bd7b1 passes on Chromium and WebKit with only the declared contain style excused by Fw.Gate.FlagDelta; gate run 40268905824 at 0537be1 had equal geometry at every probe and failed only on that declared style)",
+   "mechanism": "CONFIRMED (source, Lean Fw.Parts.HeroContainOpt): Chromium ObjectIsRelayoutBoundary returns true for layout plus size containment once the guards pass (layout_object.cc:1535-1538@f842f52; guards :1441-1531, the hero is a block-track child, a flex container, self-painting, with no out-of-flow descendant escaping it); WebKit isLayoutBoundary returns true for layout plus size containment (RenderObject.cpp:530-531@862f17d) and false for the base hero (overflow visible, :536-539). The marking walk starts at the container, so a dirty hero box roots at the view (outside_view). Chromium keeps a list of subtree roots and a walk reaching the view makes a full layout (local_frame_view.cc:1676-1723); WebKit keeps one root and two disjoint roots make a full layout (LocalFrameViewLayoutContext.cpp:701-753). So a frame with only hero-internal sources lays out the hero subtree (drawIn_flag_hero), any outside source or the hero box itself gives a full layout (drawIn_outside_full, cr_outside_full, wk_outside_full). Same box: the hero's height is definite and its auto width fills the block track (hero_same_box); layout containment moves its content overflow to ink overflow, at most 453.2 px below the track (excess_lt_454), and the page extent stays when at least that much content follows (extent_same).",
+   "leanFor": [
+    "Fw.Parts.HeroContainOpt.hero_cr_flag",
+    "Fw.Parts.HeroContainOpt.hero_wk_flag",
+    "Fw.Parts.HeroContainOpt.drawIn_flag_hero",
+    "Fw.Parts.HeroContainOpt.objects_flag",
+    "Fw.Parts.HeroContainOpt.hero_same_box",
+    "Fw.Parts.HeroContainOpt.hero_height_stage",
+    "Fw.Parts.HeroContainOpt.excess_lt_vh",
+    "Fw.Parts.HeroContainOpt.excess_lt_454",
+    "Fw.Parts.HeroContainOpt.extent_same",
+    "Fw.Parts.HeroContainOpt.effects_same"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.HeroContainOpt.hero_cr_base",
+    "Fw.Parts.HeroContainOpt.hero_wk_base",
+    "Fw.Parts.HeroContainOpt.drawIn_outside_full",
+    "Fw.Parts.HeroContainOpt.outside_view",
+    "Fw.Parts.HeroContainOpt.height_auto_differs"
+   ],
+   "missingWhy": [
+    "A per-frame dirty-source trace (which frames of the hero exit carry an outside source): the counts give partial and full passes per zone, not their sources.",
+    "A phone pass: CI only, so whether the smaller passes are felt on the iPhone is not measured."
+   ],
+   "premises": [
+    "At least 453.2 px of content follows the hero track at every breakpoint (MEASURED at least 3902.75 px in gate run 40268905824, extent_same_matrix restMin); a page with less content below would grow shorter.",
+    "svh equals vh for the height cases (as in HeroScenePause)."
+   ],
+   "v1Evidence": "",
+   "lesson": "Containment scopes layout only when every dirty source of a frame is inside the boundary and the boundary box itself stays clean; it shrinks passes (objects per pass) and does not remove them. An in-flow box with a definite height and a fill width keeps its box under size containment; an auto-height box would collapse.",
+   "next": "Preset promotion is a later task (trajectory cells and a why link pending in v2-proved). A phone pass would show whether the smaller passes are felt.",
+   "evidence": "chromium-counts runs 40268899311 (base) and 40268902395 (flag) at 0537be1; webkit-sim runs 40271367353 (base) and 40271370582 (flag) at 26bd7b1; breakpoint-gate runs 40268905824 and 40271199102; note research/notes/2026/10-20-hero-relayout-boundary.md"
+  },
+  {
+   "id": "platform.faded-pause",
+   "n": 87,
+   "part": "platform",
+   "flags": [
+    "platform:faded-pause"
+   ],
+   "flag": "platform:faded-pause",
+   "visClass": "E",
+   "candidate": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "status": "partly-proved",
+   "chromium": "MEASURED swipe-touch-v1, 3 runs per arm, one commit 5a82a54 (base 40287924353, flag 40287928566, Lean window reader): gain in end 20-59 (Paint 252 to 197, PaintImage 454 to 294), end 60-119 (Paint 120 to 0) and end 120+ (Paint 94 to 0); end 0-19 and finish noGain because RecalcStyleCount and LayoutCount read one more (finish 320 to 321 and 52 to 53); approach noGain",
+   "webkit": "not run: the WebKit lane only scrolls (scrollrun.mjs:35,69 scrollTo steps), so the open morph is never reached, the fade never gets to 0 and the flag is a no-op there; runs 40288001111 and 40288005328 were cancelled; the toolbar/push lanes are a follow-up",
+   "visual": "E (Lean PlatformFadedPause.faded_same_pixels: at fade 0 the page pixel is the backdrop for every subtree colour, assuming no descendant escapes the opacity group, census-tested; visible_phase, glint_phase: every visible frame reads the uninterrupted phase)",
+   "mechanism": "CONFIRMED by source: Chromium records an effectively invisible layer (paint_layer_painter.cc:168-191,424@f842f52, ScopedEffectivelyInvisible); WebKit clears the repaint rects of an opacity-0 subtree (RenderLayer.cpp:1522,6147-6150@862f17d) but the main-thread background-position animation still resolves style each frame. INFERRED: pausing removes the per-frame invalidation and decode work.",
+   "leanFor": [
+    "Fw.Parts.PlatformFadedPause.faded_same_pixels",
+    "Fw.Parts.PlatformFadedPause.frame_same",
+    "Fw.Parts.PlatformFadedPause.visible_phase",
+    "Fw.Parts.PlatformFadedPause.faded_no_tick",
+    "Fw.Parts.PlatformFadedPause.glint_phase",
+    "Fw.Parts.PlatformFadedPause.scene_offscreen",
+    "Fw.Parts.PlatformFadedPause.scene_faded",
+    "Fw.Parts.PlatformFadedPause.scene_neither"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit count (no lane reaches the open morph); the +1 RecalcStyle/Layout at the edge is INFERRED"
+   ],
+   "premises": [
+    "setting startTime on a CSSAnimation after the style flush keeps the CSS play state: INFERRED",
+    "no descendant escapes the section's opacity group: census test over the platform sources"
+   ],
+   "v1Evidence": "",
+   "lesson": "Pausing an invisible section removes its paint and raster work once the fade is 0, but the resume edge costs one style recalc and one layout, so the gain shows only in windows long enough to repay it.",
+   "next": "WebKit count on a lane that opens the morph (toolbar/push); the user's preset decision",
+   "evidence": "research/notes/2026/10-2x-platform-faded-pause.md (task platform-faded-pause)"
   }
  ],
  "notes": [
@@ -4982,6 +5067,18 @@
    "task": "morph-end-nobounce",
    "field": "mechanism",
    "text": "morph-end-nobounce (note research/notes/2026/10-2x-morph-end-nobounce.md): MEASURED Chromium swipe-touch-v1, flag run 40283424333 against default run 40283428442 at 3c5ac115f, 3 runs each, Lean cmp/judge slack 0: every window noGain, no metric differs (end frame 574). Elastic overscroll on the root is off by default in cc (layer_tree_settings.h:114-115@f842f52), so Chromium has no rubber band to remove (INFERRED for the harness). MEASURED WebKit Simulator toolbar lane, run 40283405286, jobs 1-8 (sim 9 and 10 failed: toolbar-plan has no entry for them): nobounce 7 usable passes, default 5 of 8 usable; reversals per gesture 1.11 against 1.33, re-opens 0.25 and 0.25, onsets 0.33 and 0.33, all overlapping, Lean flagVerdict no-win; cost windows 2 default / 3 flag, 3 needed, so Layout and RecalcStyle are not read. Breakpoint gate both engines PASS in run 40283431992. CONFIRMED mechanism: WKWebViewIOS.mm:1084-1087 and ScrollingTreeScrollingNodeDelegateIOS.mm:352-362@862f17d map root overscroll-behavior to UIScrollView bouncesVertically. Lean: push_at_end_no_write, pin_writes_below, no_write_above_end. Class L (end feel changes), for the user's visual review, never a preset. The push-cycle replay is a follow-up."
+  },
+  {
+   "entry": "contain the fixed nav's relayout with a containment boundary (nav-oof-root-finding)",
+   "task": "hero-relayout-boundary",
+   "field": "mechanism",
+   "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): the same containment on the in-flow sticky hero is a boundary in both engines (Fw.Parts.HeroContainOpt.hero_cr_flag, hero_wk_flag) and scopes the frames whose dirty sources are all inside it; a frame that also dirties the fixed nav stays full (drawIn_outside_full), as nav.oofRoot.containment predicts. MEASURED Chromium runs 40268899311 and 40268902395: hero-exit Layout totalObjects -35.3%."
+  },
+  {
+   "entry": "hero.exit:contain: contain: size layout on the sticky .hero, so it is a relayout boundary in both engines and a frame whose dirty objects all sit inside the hero (accent width, countdown digits) lays out only the hero subtree",
+   "task": "hero-relayout-boundary",
+   "field": "webkit",
+   "text": "hero-relayout-boundary (note research/notes/2026/10-20-hero-relayout-boundary.md): WebKit Simulator runs 40271367353 and 40271370582 lost one VM per arm (Determinism sessions), so every hero-exit window is undecided with n=2+2; no WebKit win or no-win is claimed."
   }
  ]
 }

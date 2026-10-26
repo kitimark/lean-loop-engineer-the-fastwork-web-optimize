@@ -1,4 +1,4 @@
-import { ARM_ORDER, FLAG_ARMS, FLAG_OF, LOOK_CHANGE, reasonOf, passOf, facts, columns, flagVerdict, enters, costWindows, MIN_COST_WINDOWS, stepsLifted, medianCs, hzOf, foldOf } from './toolbar.mjs';
+import { ARM_ORDER, FLAG_ARMS, FLAG_OF, LOOK_CHANGE, reasonOf, passOf, facts, columnsKnown, flagVerdict, enters, costWindows, MIN_COST_WINDOWS, stepsLifted, medianCs, hzOf, foldOf } from './toolbar.mjs';
 
 const table = (head, rows) => [head, '|' + head.split('|').slice(1, -1).map(() => '---').join('|') + '|', ...rows].join('\n');
 const sum = (l) => l.reduce((a, b) => a + b, 0);
@@ -38,7 +38,7 @@ export function flagRow(arm, passes) {
   const jobs = new Set(mine.map((p) => p.job));
   const base = usable(passes.filter((p) => p.arm === 'default' && jobs.has(p.job)));
   const b = base.map(passOf), c = mine.map(passOf);
-  const cols = columns(b, c);
+  const cols = columnsKnown(b, c);
   const verdict = c.length && b.length ? flagVerdict(b, c) : 'no-data';
   return { arm, n: c.length, baseN: b.length, jobs: jobs.size, cols, verdict, costBase: costWindows((p) => p.layout, b), costCand: costWindows((p) => p.layout, c), enters: enters(LOOK_CHANGE.has(arm), verdict) };
 }

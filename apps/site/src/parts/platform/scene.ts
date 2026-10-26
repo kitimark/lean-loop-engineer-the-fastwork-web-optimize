@@ -14,13 +14,43 @@ export interface SceneHost {
   removeAttribute(name: string): void;
 }
 
+export function sceneValue(active: boolean, faded: boolean): SceneValue {
+  return active && !faded ? 'active' : 'paused';
+}
+
+export interface SceneWriter {
+  setActive(active: boolean): void;
+  setFaded(faded: boolean): void;
+}
+
+export function createSceneWriter(el: SceneHost, onValue?: (v: SceneValue) => void): SceneWriter {
+  let active = true;
+  let faded = false;
+  const write = () => {
+    const v = sceneValue(active, faded);
+    el.setAttribute(SCENE_ATTR, v);
+    onValue?.(v);
+  };
+  return {
+    setActive(a) {
+      active = a;
+      write();
+    },
+    setFaded(f) {
+      if (f === faded) return;
+      faded = f;
+      write();
+    },
+  };
+}
+
 /**
  * The platform section's scene registration (the original's `dE` with `manageAnimations`): the attribute follows the
  * observer's activity and is removed on teardown. The paused CSS rule (platform.module.css) does the pausing.
  * `watch` is `watchActive` (rootMargin `100% 0px`); it reports the initial activity at once.
  */
-export function bindScene(el: SceneHost & Element, watch: (el: Element, onChange: (active: boolean) => void) => () => void): () => void {
-  const stop = watch(el, (active) => el.setAttribute(SCENE_ATTR, active ? 'active' : 'paused'));
+export function bindScene(el: SceneHost & Element, watch: (el: Element, onChange: (active: boolean) => void) => () => void, writer: SceneWriter = createSceneWriter(el)): () => void {
+  const stop = watch(el, (active) => writer.setActive(active));
   return () => {
     stop();
     el.removeAttribute(SCENE_ATTR);

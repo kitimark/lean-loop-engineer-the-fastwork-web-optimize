@@ -58,6 +58,7 @@ import Fw.Parts.MorphTweenOpt
 import Fw.Parts.MorphTweenWebkit
 import Fw.Parts.HiddenPause
 import Fw.Parts.HeroScenePause
+import Fw.Parts.HeroContainOpt
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphMountDormant
 import Fw.Parts.DormantCounts
@@ -102,6 +103,8 @@ import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
 import Fw.Parts.PlatformSweepPause
 import Fw.Parts.PlatformSweepPauseGolden
+import Fw.Parts.PlatformFadedPause
+import Fw.Parts.PlatformFadedPauseGolden
 import Fw.Parts.PlatformSweepLayer
 import Fw.Parts.PlatformSweepLayerGolden
 import Fw.Parts.NavClipBox
@@ -149,6 +152,7 @@ import Fw.Measure.OffscreenWebKit
 import Fw.Measure.OffscreenWebKitGolden
 import Fw.Measure.OffscreenWindows
 import Fw.Measure.OffscreenWindowsGolden
+import Fw.Measure.VerdictEvidence
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
 import Fw.Ops.SpawnGuard

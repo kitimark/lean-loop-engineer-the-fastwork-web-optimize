@@ -58,6 +58,8 @@ test('offscreen: every golden verdict case matches Lean, and each no-data reason
   assert.equal(why['empty window'], 'emptyWindow');
   assert.equal(why['windows differ'], 'windowDiffers');
   assert.equal(why['counter missing'], 'missingKey');
+  assert.equal(why['no base runs'], 'fewBase(0)');
+  assert.equal(why['no flag runs'], 'fewFlag(0)');
 });
 
 test('offscreen: each flag is decided on its own', () => {
