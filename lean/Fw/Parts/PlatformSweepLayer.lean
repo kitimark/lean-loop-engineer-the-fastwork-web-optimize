@@ -47,13 +47,6 @@ theorem same_look (w : Rat) (hw : 0 < w) (v t : Rat) : color (bandU w (layerX w 
   rw [layerX_eq]
   exact band_eq_bgpos w hw v t
 
-/-- The padded layer box is `3w + 2e` wide (`e` px of padding per side, the image in the content box), so a percent
-translate of its own width moves `fromExact * (3w + 2e)`; the keyframe adds `4e/3` px to bring the content box back to
-`-2w`. The site uses `e = 6` and `+8px`. -/
-theorem pad_start (w e : Rat) : -(fromExact * (3 * w + 2 * e)) + 4 * e / 3 = -2 * w := by
-  unfold fromExact
-  grind
-
 /-- The layer starts at its keyframe start, `-2w`, like the original's 100 %. -/
 theorem layerX_start (w : Rat) : layerX w 0 = -2 * w := by
   rw [layerX_eq, pos_zero]

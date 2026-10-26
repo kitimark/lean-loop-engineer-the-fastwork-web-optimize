@@ -27,10 +27,7 @@
   }
   /* platform.sweep:layer-sweep (look change): the word keeps its glyphs as a static mask and the same gradient, on a
      child layer 3 times as wide, is moved by a compositor transform instead of repainting background-position.
-     The gradient (the content box, 3 word widths) starts 2 word widths to the left (background-position 100%) and ends
-     flush (0%); Lean PlatformSweepLayer. The layer box adds 6px of padding per side, so the repeating image fills a
-     margin past both word edges (the original's tiling does the same) and no layer edge falls inside the glyph overhang;
-     the percent of the translate is of the padded box (3w + 12px), hence the +8px that restores -2w. */
+     The layer starts 2/3 of its width to the left (background-position 100%) and ends flush (0%); Lean PlatformSweepLayer. */
   .layerBg {
     display: none;
   }
@@ -50,14 +47,10 @@
     .layerBg {
       display: block;
       position: absolute;
-      left: -6px;
+      left: 0;
       top: 0;
-      width: calc(300% + 12px);
+      width: 300%;
       height: 100%;
-      box-sizing: border-box;
-      padding-inline: 6px;
-      background-origin: content-box;
-      background-size: 100% 100%;
       background-image: linear-gradient(90deg, #fff 0 33.33%, #82bcff 40%, #2483ff 45%, #ff66f4 50%, #ff3029 55%, #fe7b02 60%, #fff 66.67% 100%);
       animation: 4s linear infinite sweepLayerX;
       will-change: transform;
@@ -65,7 +58,7 @@
   }
   @keyframes sweepLayerX {
     0% {
-      transform: translateX(calc(-66.6667% + 8px));
+      transform: translateX(-66.6667%);
     }
     to {
       transform: translateX(0);
