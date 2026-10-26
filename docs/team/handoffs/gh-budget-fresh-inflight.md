@@ -1,6 +1,6 @@
 # Handoff: gh-budget-fresh-inflight
 Branch: worktree-wf_b2422c29-dea-1. Worktree: .claude/worktrees/wf_b2422c29-dea-1. No CI push, no CI run ids (unit tests only).
-State: Lean rules + golden + TS glue + tests written; final checks listed at the end once run.
+Verified: lean/scripts/check.sh green; @fw/gh-budget test 99/99; ci-paths 56/56; land-inputs 73/73; dry land `VERDICT dry gh-budget-fresh-inflight`.
 
 What changed
 - lean/Fw/Ci/Attempt.lean: `inflightS` (300 s), `trusted` (completed -> `fresh`, unfinished -> within `inflightS`), theorems
