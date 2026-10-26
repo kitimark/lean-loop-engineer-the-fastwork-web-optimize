@@ -125,10 +125,10 @@ windows are scroll ranges passed to it by `results/hero-relayout-boundary/read-w
 | after-exit (1001-2500) | 30 | 2+2 | undecided (n=2+2) | noGain (all same) | 179-199 / 173-204 | 158-170 / 157-169 | 269-388 / 311-375 |
 | whole (0-5200) | 105 | 2+2 | undecided (n=2+2) | noGain (all same) | 608-657 / 630-644 | 635-687 / 657-674 | 1172-1377 / 1267-1350 |
 
-- No WebKit claim is made: with 2 VMs per arm every window is undecided. Read by the pass rule alone, every counter
+- No WebKit claim: with 2 VMs per arm every window is undecided. Read by the pass rule alone, every counter
   overlaps the base spread.
 - The WebKit timeline counts layout passes, not laid-out objects, so even a decided run could not show the effect the
-  model predicts (the same passes, each over the hero subtree only; Chromium shows the pass count unchanged too).
+  model predicts (the same passes, each over the hero subtree only).
   The source shows the same boundary (RenderObject.cpp:530-531) and single-root scheduling, so draw-in frames with
   only hero sources root at the hero; that stays INFERRED.
 

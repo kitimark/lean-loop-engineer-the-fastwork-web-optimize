@@ -1,10 +1,6 @@
 import fs from 'node:fs';
 import { MIN_RUNS, SLACK, cmp, judge, sameWindow } from '../../packages/measure-chromium/src/offscreen.mjs';
 
-// TS stand-in: the zone sums are read here, not by a Lean-checked reader. The verdict uses `cmp`, `judge` and
-// `sameWindow` from offscreen.mjs, which are checked against the Lean golden of Fw.Measure.Offscreen.
-// Usage: node extract-chromium.mjs <store> <out.json> base=<runId>:<runDirPrefix> flag=<runId>:<runDirPrefix>
-// The hero-exit window is the zones y00000 and y00500 (scrollY 0 to 1000; the exit runs over 0 to 1vh = 932 px).
 const KEYS = ['trace.Layout', 'trace.Layout.totalObjects', 'trace.Layout.dirtyObjects', 'trace.Layout.partial',
   'trace.UpdateLayoutTree', 'trace.InvalidateLayout', 'metric.LayoutObjects', 'trace.UpdateLayoutTree.elementCount',
   'trace.Paint'];

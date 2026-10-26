@@ -2,9 +2,6 @@ import fs from 'node:fs';
 import { passesOfDir } from '../../packages/measure-webkit/src/offscreen-webkit-cli.mjs';
 import { cmpKeys, passVerdict, undecided, verdict, vmCount, windowSteps, windowVec } from '../../packages/measure-webkit/src/offscreen-webkit.mjs';
 
-// Glue only: the window rule, the VM rule and the verdict are the committed reader's functions (Fw.Measure.OffscreenWebKit
-// golden). The windows are the hero-exit scroll range instead of the reader's end zones.
-// Usage: node read-webkit.mjs <out.json> base=<dir>[,<dir>] flag=<dir>[,<dir>]
 const WINDOWS = [
   { name: 'hero-exit', lo: 0, hi: 1000 },
   { name: 'after-exit', lo: 1001, hi: 2500 },

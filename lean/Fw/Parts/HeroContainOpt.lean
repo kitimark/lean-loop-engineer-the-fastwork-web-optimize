@@ -2,18 +2,11 @@ import Lean.Data.Json
 import Fw.Parts.NavOofRoot
 import Fw.Parts.HeroScenePause
 
-/-!
-# `contain: size layout` on the sticky hero: which layout passes it scopes, and why its box stays the same
-Note: `research/notes/2026/10-20-hero-relayout-boundary.md`.
--/
-
 namespace Fw.Parts.HeroContainOpt
 
 open Lean (Json)
 open Fw.Parts.NavOofRoot (Tree Pass view)
 open Fw.Site.Breakpoints (Probe matrix)
-
-/-! ## 1. The relayout-boundary test of each engine -/
 
 /-- What Chromium's `ObjectIsRelayoutBoundary` reads of one object
 (`third_party/blink/renderer/core/layout/layout_object.cc:1439-1560@f842f52`). -/
@@ -41,7 +34,6 @@ def CrBox.guards (b : CrBox) : Bool :=
   b.box && b.cached && b.fragmentSafe && !b.propagated && !b.oofDescendants && b.fcRoot &&
     (b.selfPaintingLayer || b.svgRoot) && !b.tablePart && !b.oofStatic && !b.flexItem && !b.gridCb && !b.mathInner
 
-/-- Layout plus size containment (`:1535-1538`), an SVG root (`:1542-1543`), or the fixed-size tail (`:1550-1570`). -/
 def crBoundary (b : CrBox) : Bool :=
   b.guards && (b.layoutContain && b.sizeContain || b.svgRoot || b.fixedTail)
 
@@ -85,8 +77,6 @@ structure WkBox where
   clipTail : Bool
 deriving DecidableEq, Repr
 
-/-- The view (`:519-520`), a text control outside flex and grid (`:523-528`), layout plus size containment
-(`:530-531`), an SVG root (`:533-534`), or a clipped fixed-size formatting-context root (`:536-555`). -/
 def wkBoundary (b : WkBox) : Bool :=
   b.view || b.textControl || (b.layoutContain && b.sizeContain) || b.svgRoot || b.clipTail
 
@@ -106,20 +96,15 @@ theorem wk_none (b : WkBox) (hv : b.view = false) (ht : b.textControl = false)
     wkBoundary b = false := by
   simp only [wkBoundary, hv, ht, hc, hs, hk]; simp
 
-/-- The sticky `.hero` (`apps/site/src/parts/hero.exit/hero.module.css`): a block-level flex container in the block
-`.track`, `z-index: 2`, auto width, no fixed or sticky descendant, every absolute descendant inside it; `contain` adds
-`contain: size layout`. -/
 def heroCr (contain : Bool) : CrBox :=
   { box := true, cached := true, fragmentSafe := true, propagated := false, oofDescendants := false, fcRoot := true,
     selfPaintingLayer := true, svgRoot := false, tablePart := false, oofStatic := false, flexItem := false,
     gridCb := false, mathInner := false, layoutContain := contain, sizeContain := contain, fixedTail := false }
 
-/-- The same hero as WebKit reads it: `overflow: visible`, so the clipped tail is false (`RenderObject.cpp:536-539`). -/
 def heroWk (contain : Bool) : WkBox :=
   { view := false, textControl := false, layoutContain := contain, sizeContain := contain, svgRoot := false,
     clipTail := false }
 
-/-- The accent's `<svg>`: an SVG root in WebKit (`RenderObject.cpp:533-534`). -/
 def svgWk : WkBox :=
   { view := false, textControl := false, layoutContain := false, sizeContain := false, svgRoot := true,
     clipTail := false }
@@ -132,14 +117,9 @@ theorem hero_wk_base : wkBoundary (heroWk false) = false := by decide
 
 theorem hero_wk_flag : wkBoundary (heroWk true) = true := by decide
 
-/-- A flex item with containment is a boundary in WebKit but not in Chromium (`layout_object.cc:1517-1519`). -/
 theorem flexItem_engines_differ :
     crBoundary { heroCr true with flexItem := true } = false ∧ wkBoundary (heroWk true) = true := by decide
 
-/-! ## 2. The hero's layout tree -/
-
-/-- 0 view, 1 html, 2 body, 3 #root, 4 nav (fixed), 5 page-root, 6 main, 7 track, 8 hero, 9 stage, 10 copy,
-11 headline, 12 accent, 13 frame, 14 paint, 15 svg, 16 path, 17 countdown digit, 18 people, 19 people card. -/
 def heroContainer : Nat → Option Nat
   | 1 => some 0 | 2 => some 1 | 3 => some 2 | 4 => some 3 | 5 => some 3 | 6 => some 5 | 7 => some 6
   | 8 => some 7 | 9 => some 8 | 10 => some 9 | 11 => some 10 | 12 => some 11 | 13 => some 12 | 14 => some 13
@@ -167,19 +147,13 @@ def digit : Nat := 17
 def nav : Nat := 4
 def card : Nat := 19
 
-/-- Chromium's boundary per object: only the hero can pass (`heroCr`); no other object of the tree is a boundary. -/
 def crB (contain : Bool) (a : Nat) : Bool := a == hero && crBoundary (heroCr contain)
 
-/-- WebKit's boundary per object: the view, the accent's SVG root, and the hero when contained. -/
 def wkB (contain : Bool) (a : Nat) : Bool :=
   a == view || (a == svg && wkBoundary svgWk) || (a == hero && wkBoundary (heroWk contain))
 
-/-- `a` is on the container chain of `b` (or is `b`): WebKit's `isAncestorContainerOfRenderer`. -/
 def above (t : Tree) (a b : Nat) : Bool := t.climb (· == a) b == a
 
-/-! ## 3. What one frame's dirty objects schedule -/
-
-/-- The layout a frame runs: nothing, the whole view, or the scheduled subtree roots. -/
 inductive Sched where
   | clean
   | full
@@ -260,12 +234,10 @@ theorem wkFold_outside (t : Tree) (B : Nat → Bool) (x : Nat) (h : t.layoutRoot
     · simp only [List.foldl, wkStep_view t B s _ h, wkStep_full]
     · exact ih _ hy
 
-/-- One dirty object whose walk reaches the view makes the whole frame a full layout in Chromium, in any order. -/
 theorem cr_outside_full (t : Tree) (B : Nat → Bool) (xs : List Nat) (x : Nat) (hx : x ∈ xs)
     (h : t.layoutRoot B x = view) : crFrame t B xs = .full :=
   crFold_outside t B x h xs .clean hx
 
-/-- The same in WebKit. -/
 theorem wk_outside_full (t : Tree) (B : Nat → Bool) (xs : List Nat) (x : Nat) (hx : x ∈ xs)
     (h : t.layoutRoot B x = view) : wkFrame t B xs = .full :=
   wkFold_outside t B x h xs .clean hx
@@ -293,27 +265,23 @@ theorem wkFold_inside (t : Tree) (B : Nat → Bool) (r : Nat) (hr : r ≠ view) 
     simp only [List.foldl, wkStep, hy, hr, ite_false, ite_true]
     exact ih fun x hx => h x (List.mem_cons_of_mem _ hx)
 
-/-- When every dirty object of a frame roots at the same `r` below the view, Chromium lays out the subtree of `r`. -/
 theorem cr_inside_root (t : Tree) (B : Nat → Bool) (r : Nat) (hr : r ≠ view) (x : Nat) (xs : List Nat)
     (h : ∀ y ∈ x :: xs, t.layoutRoot B y = r) : crFrame t B (x :: xs) = .roots [r] := by
   have hx := h x (List.mem_cons_self ..)
   simp only [crFrame, List.foldl, crStep, hx, hr, ite_false]
   exact crFold_inside t B r hr xs fun y hy => h y (List.mem_cons_of_mem _ hy)
 
-/-- The same in WebKit. -/
 theorem wk_inside_root (t : Tree) (B : Nat → Bool) (r : Nat) (hr : r ≠ view) (x : Nat) (xs : List Nat)
     (h : ∀ y ∈ x :: xs, t.layoutRoot B y = r) : wkFrame t B (x :: xs) = .roots [r] := by
   have hx := h x (List.mem_cons_self ..)
   simp only [wkFrame, List.foldl, wkStep, hx, hr, ite_false]
   exact wkFold_inside t B r hr xs fun y hy => h y (List.mem_cons_of_mem _ hy)
 
-/-- WebKit re-roots a nested root at the enclosing one (`LocalFrameViewLayoutContext.cpp:741-747`). -/
 theorem wk_reroot (t : Tree) (B : Nat → Bool) (s x : Nat) (hr : t.layoutRoot B x ≠ view) (hs : t.layoutRoot B x ≠ s)
     (hn : above t s (t.layoutRoot B x) = false) (ha : above t (t.layoutRoot B x) s = true) :
     wkStep t B (.roots [s]) x = .roots [t.layoutRoot B x] := by
   simp [wkStep, hr, hs, hn, ha]
 
-/-- WebKit turns two disjoint roots into a full layout (`LocalFrameViewLayoutContext.cpp:749-752`). -/
 theorem wk_disjoint (t : Tree) (B : Nat → Bool) (s x : Nat) (hr : t.layoutRoot B x ≠ view) (hs : t.layoutRoot B x ≠ s)
     (hn : above t s (t.layoutRoot B x) = false) (ha : above t (t.layoutRoot B x) s = false) :
     wkStep t B (.roots [s]) x = .full := by
@@ -326,10 +294,6 @@ def objects (size : Nat → Nat) : Sched → Nat
   | .full => size view
   | .roots rs => (rs.map size).sum
 
-/-! ## 4. The hero's dirty sources, per engine and arm -/
-
-/-- The dash offset dirties no layout in Chromium (`Fw.Engine.StyleDiffAccent.dashoffset_cr_nolayout`), so its
-frames drop the path. -/
 def crSources (xs : List Nat) : List Nat := xs.filter (· != path)
 
 def crRoot (contain : Bool) (x : Nat) : Nat := (heroTree ()).layoutRoot (crB contain) x
@@ -352,15 +316,12 @@ theorem path_wk_base : wkRoot false path = svg := by decide +kernel
 
 theorem path_wk_flag : wkRoot true path = svg := by decide +kernel
 
-/-- Sources outside the hero, and the hero itself, root at the view with or without containment. -/
 theorem outside_view : ∀ c : Bool, ∀ x ∈ [nav, card, hero],
     crRoot c x = view ∧ wkRoot c x = view := by decide +kernel
 
-/-- Without containment every source of the tree except the SVG path gives a full layout in both engines. -/
 theorem base_full : ∀ x ∈ [accent, digit, nav, card, hero], crRoot false x = view ∧ wkRoot false x = view := by
   decide +kernel
 
-/-- The hero draw-in frame, accent width and countdown text: one hero subtree pass in both engines. -/
 theorem drawOut_cr_clean : crFrame (heroTree ()) (crB true) (crSources [path]) = .clean := by decide +kernel
 
 theorem drawIn_flag_hero :
@@ -371,18 +332,15 @@ theorem drawIn_base_full :
     crFrame (heroTree ()) (crB false) [accent, digit] = .full ∧
     wkFrame (heroTree ()) (wkB false) [path, accent] = .full := by decide +kernel
 
-/-- The draw-out frame (dash offset only) is already an SVG subtree pass in WebKit; containment does not change it. -/
 theorem drawOut_wk_same :
     wkFrame (heroTree ()) (wkB false) [path] = .roots [svg] ∧
     wkFrame (heroTree ()) (wkB true) [path] = .roots [svg] := by decide +kernel
 
-/-- The dirty-source condition: a people card, the nav or the hero itself in the same frame undoes the scoping. -/
 theorem drawIn_outside_full : ∀ o ∈ [nav, card, hero],
     crFrame (heroTree ()) (crB true) [accent, o] = .full ∧ crFrame (heroTree ()) (crB true) [o, accent] = .full ∧
     wkFrame (heroTree ()) (wkB true) [path, accent, o] = .full ∧
     wkFrame (heroTree ()) (wkB true) [o, path, accent] = .full := by decide +kernel
 
-/-- A frame whose dirty sources all root at the hero counts the hero subtree; one outside source counts the tree. -/
 theorem objects_flag (size : Nat → Nat) (xs : List Nat) (x : Nat) (h : ∀ y ∈ x :: xs, crRoot true y = hero) :
     objects size (crFrame (heroTree ()) (crB true) (x :: xs)) = size hero := by
   rw [cr_inside_root (heroTree ()) (crB true) hero (by decide) x xs h]
@@ -393,23 +351,17 @@ theorem objects_outside (size : Nat → Nat) (xs : List Nat) (x : Nat) (hx : x �
   rw [cr_outside_full (heroTree ()) (crB true) xs x hx h]
   rfl
 
-/-! ## 5. The hero's box does not change -/
-
-/-- A CSS length for a size: a definite length in px or `auto`. -/
 inductive Len where
   | px (v : Rat)
   | auto
 deriving DecidableEq, Repr
 
-/-- The size rules of a block-level box: `height`, `min-height`, and whether its auto width fills its containing block
-(a block-level box in block flow) or comes from its content. -/
 structure SizeSpec where
   height : Len
   minHeight : Rat
   fillWidth : Bool
 deriving DecidableEq, Repr
 
-/-- Size containment sizes the box as if it had no content (CSS Containment 2, size containment). -/
 def usedHeight (s : SizeSpec) (sizeContain : Bool) (content : Rat) : Rat :=
   max s.minHeight (match s.height with | .px v => v | .auto => if sizeContain then 0 else content)
 
@@ -423,13 +375,9 @@ theorem height_definite (s : SizeSpec) (v : Rat) (h : s.height = .px v) (c : Rat
 theorem width_fill (s : SizeSpec) (h : s.fillWidth = true) (cb c : Rat) : usedWidth s true cb c = usedWidth s false cb c := by
   simp [usedWidth, h]
 
-/-- Why the hero needs a definite height: an auto-height box taller than its minimum collapses under size
-containment. -/
 theorem height_auto_differs : usedHeight ⟨.auto, 0, true⟩ true 100 ≠ usedHeight ⟨.auto, 0, true⟩ false 100 := by
   decide
 
-/-- The hero at a probe: `height: 100svh`, `min-height: 680px`, or `100svh` at `≤ 600` px, with `svh = vh`; the
-`.track` is block-level at every breakpoint, so the auto width fills it. -/
 def heroSpec (p : Probe) : SizeSpec :=
   ⟨.px (Fw.Parts.HeroScenePause.vhOf p), if Fw.Parts.HeroScenePause.le600Of p then Fw.Parts.HeroScenePause.vhOf p
     else 680, true⟩
@@ -440,22 +388,18 @@ theorem hero_same_box : ∀ p ∈ matrix, ∀ cb c : Rat,
   intro p _ cb c
   exact ⟨height_definite _ _ rfl c, width_fill _ rfl cb c⟩
 
-/-- The used height is the stage height `heroHeightPx` that the hero-exit model already uses. -/
 theorem hero_height_stage : ∀ p ∈ matrix, ∀ c : Rat,
     usedHeight (heroSpec p) true c = Fw.Parts.HeroScenePause.stageOf p := by
   intro p _ c
   simp only [usedHeight, heroSpec, Fw.Parts.HeroScenePause.stageOf, Fw.Parts.HeroExit.heroHeightPx]
   split <;> simp [Rat.max_def] <;> grind
 
-/-- The `.track` height at a probe: `200vh`, or the hero's own height under reduced motion (`height: auto`). -/
 def trackOf (p : Probe) : Rat :=
   if p.env.motion = .reduce then Fw.Parts.HeroScenePause.stageOf p else 2 * Fw.Parts.HeroScenePause.vhOf p
 
-/-- How far the hero's ink can reach below the track bottom: stage plus overflow `m` minus the track. -/
 def excess (p : Probe) : Rat :=
   Fw.Parts.HeroScenePause.stageOf p + Fw.Parts.HeroScenePause.overflowOf p - trackOf p
 
-/-- The reach below the track is less than one viewport at every probe. -/
 theorem excess_lt_vh : ∀ p ∈ matrix, excess p < Fw.Parts.HeroScenePause.vhOf p := by
   intro p hp
   have hs := Fw.Parts.HeroScenePause.stage_fits p hp
@@ -464,20 +408,13 @@ theorem excess_lt_vh : ∀ p ∈ matrix, excess p < Fw.Parts.HeroScenePause.vhOf
   unfold Fw.Parts.HeroScenePause.kMax at hk
   split <;> grind
 
-/-- The page's scrollable bottom with `rest` px of content after the track: layout containment drops the hero's
-reach `e` from scrollable overflow (CSS Containment 2, layout containment); without it the reach counts. -/
 def extent (rest e : Rat) (contain : Bool) : Rat := if contain then rest else max rest e
 
-/-- The extent is the same when the content after the track is at least the reach below it. -/
 theorem extent_same (rest e : Rat) (h : e ≤ rest) : extent rest e true = extent rest e false := by
   simp [extent, Rat.max_def]; grind
 
-/-- The largest reach over the matrix is `453.2` px (`desk-rm-601`, reduced motion, an upper bound that counts the
-scatter reduced motion turns off). -/
 theorem excess_lt_454 : ∀ p ∈ matrix, excess p < 454 := by decide +kernel
 
-/-- The least content below the track over the 124 probes of gate run 40268905824 (Chromium, part boxes):
-`3902.75` px at `desk-641`. MEASURED, not proved. -/
 def restMin : Rat := 3902
 
 theorem extent_same_matrix : ∀ p ∈ matrix, ∀ rest : Rat, restMin ≤ rest →
@@ -486,8 +423,6 @@ theorem extent_same_matrix : ∀ p ∈ matrix, ∀ rest : Rat, restMin ≤ rest 
   have := excess_lt_454 p hp
   exact extent_same rest (excess p) (by unfold restMin at h; grind)
 
-/-- What else layout containment changes, each already true of the hero: a stacking context (sticky with
-`z-index: 2`), an absolute containing block (positioned), an independent formatting context (flex container). -/
 structure Effects where
   stacking : Bool
   absCb : Bool
@@ -498,13 +433,9 @@ def effects (sticky flex contain : Bool) : Effects := ⟨sticky || contain, stic
 
 theorem effects_same : effects true true true = effects true true false := by decide
 
-/-- Fixed descendants would gain the hero as containing block; the hero has none (`position` values in the hero
-subtree CSS: relative and absolute). -/
 def heroPositions : List String := ["relative", "absolute"]
 
 theorem no_fixed_descendant : "fixed" ∉ heroPositions ∧ "sticky" ∉ heroPositions := by decide
-
-/-! ## 6. Golden -/
 
 def jb (b : Bool) : Json := .bool b
 def jn (n : Nat) : Json := .num ⟨n, 0⟩
@@ -543,7 +474,6 @@ def lines (_ : Unit := ()) : List String :=
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
-/-- Print the golden text, or with `--check <file>` compare it; exit 1 on a difference. -/
 def run (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
