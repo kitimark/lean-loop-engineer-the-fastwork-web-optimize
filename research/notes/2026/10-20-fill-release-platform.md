@@ -14,8 +14,9 @@ topics: [chromium, webkit, animation-fill-mode, compositing, gpu-memory, platfor
 - **Chromium memory: a win.** With `?fw=platform.entries:fill-release`, the census holds 216 layers per frame in the profile tail instead of 238. Tail layer-frames fall from 7140 to 6480 (-9.2%), drawing area falls by 7.7% and tiles fall by 10.9%. Base and flag come from the same run and commit (MEASURED, run 40280497740 at e133f74c8, 3 runs per arm, swipe-touch-v1).
 - **Chromium work: noGain in every window.** The Lean windows reader finds Paint lower and RasterTask higher in approach, end 0-19 and finish. Windows end 20-59, 60-119 and 120+ show no difference (MEASURED, same run, `results/fill-release-platform/windows.md`).
 - **Look: unchanged.** Lean `same_look` proves the shown value is the same at every time and in every `Env`, which includes every breakpoint width and both reduced-motion states (PROVED). `fill.test.ts` reads each of the 15 stylesheet rows back against the golden.
-- **WebKit: no layer change predicted.** WebKit holds the accelerated animation only in the active phase, whatever the fill mode, so the variant changes nothing there (PROVED `webkit_unchanged`, from source below). The Simulator counts were not run (they need lead dispatch).
-- **Breakpoint gate:** not run yet; it needs lead dispatch (fw input).
+- **Breakpoint gate: pass on both engines.** Run 40282885162 at e133f74c8 with `?fw=platform.entries:fill-release`: Chromium 7056 readings, 7049 pass and 7 excused as not comparable; Playwright WebKit 7056 readings, 6765 pass and 291 excused (unreachable cells and a cell without a vector), no FAIL (MEASURED).
+- **WebKit: no layer or memory change, verdict undecided on work.** Simulator run 40282951274 (flag, 3 VMs) shows the same layer count and backing memory as the base run's one good VM at every census stop (layers 141-145 at y 4500, 124-128 at the end; backing 149.3 MB and 105.8 MB; MEASURED). That matches `webkit_unchanged` (PROVED). The base run 40282962088 lost VMs r1 and r3 to the 2100 s bound of the determinism sessions on a slow runner, so every per-zone cell reads undecided (n=1+3 VMs); the retry is in the Runs table.
+- **Memory verdict: Chromium no-win, WebKit no-win (nothing to gain).** The memory budget is the existing `budgetB` (210 MiB, `Fw.Engine.Resource.budgetB_bytes`, `budgetB_quarter`). The flag only lowers memory, so `memoryWin_fits` holds at every budget with no measured peak. Chromium memory falls but RasterTask rises, so paint records are mixed and `work_change_not_memoryWin` rules out a memory-only win. WebKit memory and work do not change.
 
 ## Mechanism
 
@@ -51,6 +52,16 @@ topics: [chromium, webkit, animation-fill-mode, compositing, gpu-memory, platfor
 | `rows_win` | every variant row has more classes than its strongest rival |
 | `rows_dur` | every row has a positive duration |
 
+Memory section `MemoryTrade` (same file):
+
+| Theorem | Statement |
+|---|---|
+| `memoryWin_fits` | a footprint with every gated resource unchanged and GPU memory down fits any budget B without a measured peak |
+| `memoryWin_neutral` | `Fw.Engine.Resource.verdict` calls such a footprint neutral (it never says win without a falling gated resource) |
+| `work_change_not_memoryWin` | one gated resource that is not unchanged rules out a memory-only win |
+
+The budget is `Fw.Engine.Resource.budgetB` (210 MiB, a quarter of the 840 MiB jetsam fallback); `win_mono_budget` shows raising B never turns a win into a non-win.
+
 The golden is `packages/contracts/golden/parts/platform-entries-fill.jsonl`. It is written by `lean/Fw/Parts/PlatformEntriesFillGolden.lean` and checked by `lean/scripts/check.sh`.
 
 ## Runs
@@ -59,8 +70,10 @@ The golden is `packages/contracts/golden/parts/platform-entries-fill.jsonl`. It 
 |---|---|---|---|---|
 | 40280497740 | chromium-counts, swipe-touch-v1, 3 runs | e133f74c8 | base `rewrite`, flag `platform.entries:fill-release` | success |
 | 40280497901 | lean | e133f74c8 | none | success |
-| not run | breakpoint-gate, both engines | none | `platform.entries:fill-release` | needs dispatch |
-| not run | webkit-sim, 3 VMs | none | base and flag | needs dispatch |
+| 40282885162 | breakpoint-gate, both engines | e133f74c8 | `platform.entries:fill-release` | success, pass |
+| 40282951274 | webkit-sim, 3 VMs | e133f74c8 | flag `platform.entries:fill-release` | success |
+| 40282962088 | webkit-sim, 3 VMs | e133f74c8 | base `rewrite` | failed: VMs r1 and r3 hit the 2100 s determinism bound, r2 good |
+| 40305413688 | webkit-sim, 3 VMs (retry of the base) | e133f74c8 | base `rewrite` | running |
 
 ## Chromium windows
 
@@ -96,7 +109,8 @@ The base runs agree to within 2 layer-frames. One flag run differs from the othe
 
 - The same look holds only where each variant rule wins the cascade. `rows_win` counts classes, and `fill.test.ts` checks the rows against the stylesheet.
 - At the end, the release can repaint the element once into its parent layer. This is the INFERRED cause of the RasterTask rise.
-- The layer-frame sums come from a script with no Lean golden: `results/fill-release-platform/layer-frames.mjs` is a TS stand-in.
+- The layer-frame sums use `runWindows` and `sumRange` of `packages/measure-chromium/src/offscreen-windows.mjs`, which the Lean window golden checks (`sumRange_add`, `pushWindows_sum`); `results/fill-release-platform/layer-frames.mjs` only reads `counts.json` and prints JSON.
+- The census gives no Chromium GPU bytes: Chromium memory is read as layers, drawing area and tiles. WebKit gives backing bytes (`memoryBytes`), which are equal in both arms.
 - Preset promotion is left for later. The visual class is E, so no review by the user is needed.
 
 ## Lesson
