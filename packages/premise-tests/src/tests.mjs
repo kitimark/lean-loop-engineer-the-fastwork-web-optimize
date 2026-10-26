@@ -484,6 +484,12 @@ export const TESTS = [
     async run({ page }) {
       await frames(page, 3);
       const shot = (await page.screenshot({ clip: { x: 0, y: 0, width: 800, height: 600 } })).toString('base64');
+      const geo = await page.evaluate(() => {
+        const r = (e) => { const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height]; };
+        const d = document.querySelector('div.t0');
+        return { a: r(d.querySelector('.a')), b: r(d.querySelector('.b')), i: r(d.querySelector('.b i')),
+          times: document.getAnimations().slice(0, 4).map((x) => [x.playState, x.currentTime]), dpr: devicePixelRatio };
+      });
       // rows 0..4 are the five fixed progress times; the word as the original paints it is the first 60 px of a 120 px pair
       const o = await page.evaluate(async (b64) => {
         const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
@@ -491,21 +497,23 @@ export const TESTS = [
         const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
         const px = g.getImageData(0, 0, c.width, c.height).data;
         const scale = bmp.width / 800;
-        const rows = [];
+        const rows = []; const where = [];
         for (let i = 0; i < 5; i++) {
           let max = 0; let n = 0; let big = 0; let sat = 0; let satB = 0;
           for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) {
             const a = ((i * 120 * scale + y) * bmp.width + x) * 4; const b = ((i * 120 * scale + 60 * scale + y) * bmp.width + x) * 4;
             let d = 0; for (let k = 0; k < 3; k++) d = Math.max(d, Math.abs(px[a + k] - px[b + k]));
             if (d > 0) n++; if (d > 12) big++; if (d > max) max = d;
+            if (d > 12 && where.length < 16) where.push({ row: i, x, y, orig: [px[a], px[a + 1], px[a + 2]], layer: [px[b], px[b + 1], px[b + 2]] });
             if (Math.max(px[a], px[a + 1], px[a + 2]) - Math.min(px[a], px[a + 1], px[a + 2]) > 100) sat++;
             if (Math.max(px[b], px[b + 1], px[b + 2]) - Math.min(px[b], px[b + 1], px[b + 2]) > 100) satB++;
           }
           rows.push({ max, differing: n, over12: big, saturated: sat, saturatedLayer: satB });
         }
         const lit = (i) => { let m = 0; for (let y = 0; y < 60 * scale; y++) for (let x = 0; x < bmp.width; x++) { const a = ((i * 120 * scale + y) * bmp.width + x) * 4; m = Math.max(m, px[a], px[a + 1], px[a + 2]); } return m; };
-        return { rows, lit: lit(0) };
+        return { rows, where, lit: lit(0) };
       }, shot);
+      o.geo = geo;
       assert.ok(o.lit > 200, `the page is drawn (brightest channel ${o.lit})`);
       o.rows.slice(1, 4).forEach((r, i) => assert.ok(r.saturated > 100 && r.saturatedLayer > 100, `time ${i + 1}: both words show the colour band (${r.saturated}, ${r.saturatedLayer} saturated pixels)`));
       const worst = Math.max(...o.rows.map((r) => r.max));
