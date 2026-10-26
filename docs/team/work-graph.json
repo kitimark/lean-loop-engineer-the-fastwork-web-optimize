@@ -22560,7 +22560,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-gate-replaced-parts.md",
     "docs/team/handoffs/gate-replaced-parts.md"
-   ]
+   ],
+   "evidence": "d8b781c"
   },
   {
    "devices": [
