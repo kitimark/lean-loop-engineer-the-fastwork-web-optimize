@@ -4944,20 +4944,8 @@
   {
    "entry": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
    "task": "platform-sweep-layer",
-   "field": "chromium",
-   "text": "platform-sweep-layer (note research/notes/2026/10-2x-platform-sweep-layer.md): MEASURED Chromium swipe-touch-v1, runs 40261037706 (base) and 40261040439 (layer-sweep) at fbc6ee4ff, 3 runs each, Lean cmp/judge slack 0. Approach: gain (RasterTask 236 to 63, PaintImage 137 to 1). Finish window: no-gain by the rule because Paint is +1 per frame (915 to 1087, a cost) although RasterTask falls 1207 to 984 and PaintImage 1514 to 718. Breakpoint gate PASS in run 40266919532 with the class-L FlagDelta tuples."
-  },
-  {
-   "entry": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
-   "task": "platform-sweep-layer",
-   "field": "webkit",
-   "text": "platform-sweep-layer (note research/notes/2026/10-2x-platform-sweep-layer.md): MEASURED WebKit Simulator iOS 27, runs 40261071388 (base, 3 VMs) and 40261059419 (layer-sweep, 2 VMs: job r2 failed twice with a dead Simulator inspector), offscreen-webkit reader, sameWindow, y <= 5200. UNDECIDED by the 3-VM rule (n = 3 base, 2 arm). The reader reads Paint less in every zone: z4500 113-147 to 93-106, z5000 59-69 to 36-38, finish 172-214 to 129-142, whole 1197-1379 to 1051-1160; Layout, RecalculateStyles, Composite and FireAnimationFrame inside the slack."
-  },
-  {
-   "entry": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
-   "task": "platform-sweep-layer",
-   "field": "visual",
-   "text": "platform-sweep-layer (note research/notes/2026/10-2x-platform-sweep-layer.md): the variant is NOT same-look at the pixel level. MEASURED CI premise sweep.layer-pixels (run 40264978871, Chromium 156, WebKit 27.2): worst channel difference at progress 0, 0.5, 1.5, 2.5, 3.9 s is 33, 5, 4, 2, 2 (Chromium) and 35, 2, 2, 4, 3 (WebKit) of 255; at t=0 9 pixels (Chromium) and 1 pixel (WebKit) differ. Lean same_look covers the gradient position over time only. WebKit t=0: the original's own background tile seam (repeat vs no-repeat original 35, layer vs no-repeat 0). Chromium t=0: one edge column at the word's box edge, not the tile seam, not will-change, not the layer edge (a padded layer gave the same 33); INFERRED original tile snapping. Class L, for the user's visual review, never a preset."
+   "field": "mechanism",
+   "text": "platform-sweep-layer (note research/notes/2026/10-2x-platform-sweep-layer.md): MEASURED Chromium swipe-touch-v1, runs 40261037706 (base) and 40261040439 (layer-sweep) at fbc6ee4ff, 3 runs each, Lean cmp/judge slack 0. Approach: gain (RasterTask 236 to 63, PaintImage 137 to 1). Finish window: no-gain by the rule because Paint is +1 per frame (915 to 1087, a cost) although RasterTask falls 1207 to 984 and PaintImage 1514 to 718. Breakpoint gate PASS in run 40266919532 with the class-L FlagDelta tuples. MEASURED WebKit Simulator iOS 27, runs 40261071388 (base, 3 VMs) and 40261059419 (layer-sweep, 2 VMs: job r2 failed twice with a dead Simulator inspector), offscreen-webkit reader, sameWindow, y <= 5200. UNDECIDED by the 3-VM rule (n = 3 base, 2 arm). The reader reads Paint less in every zone: z4500 113-147 to 93-106, z5000 59-69 to 36-38, finish 172-214 to 129-142, whole 1197-1379 to 1051-1160; Layout, RecalculateStyles, Composite and FireAnimationFrame inside the slack. the variant is NOT same-look at the pixel level. MEASURED CI premise sweep.layer-pixels (run 40264978871, Chromium 156, WebKit 27.2): worst channel difference at progress 0, 0.5, 1.5, 2.5, 3.9 s is 33, 5, 4, 2, 2 (Chromium) and 35, 2, 2, 4, 3 (WebKit) of 255; at t=0 9 pixels (Chromium) and 1 pixel (WebKit) differ. Lean same_look covers the gradient position over time only. WebKit t=0: the original's own background tile seam (repeat vs no-repeat original 35, layer vs no-repeat 0). Chromium t=0: one edge column at the word's box edge, not the tile seam, not will-change, not the layer edge (a padded layer gave the same 33); INFERRED original tile snapping. Class L, for the user's visual review, never a preset."
   }
  ]
 }
