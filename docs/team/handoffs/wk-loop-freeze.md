@@ -1,6 +1,6 @@
 branch: worktree-wf_bcca31ed-d99-1 (CI branch ci/wk-loop-freeze at b3f0299cb, pushed)
-worktree: .claude/worktrees/wf_bcca31ed-d99-1 (under the repo root)
-last commit: see git log (code at b3f0299cb; later commits are note and handoff only)
+worktree: .claude/worktrees/wf_bcca31ed-d99-1
+last commit: code at b3f0299cb; later commits are note and handoff only
 CI runs (2 of 2 dispatches used, vms=3 target=rewrite): base 40390428285 complete failure (r3 success, r2 exit 4, r1 cancelled after 58 min); flag 40390434234 (fw=platform.glint:hold-freeze) complete success 3 of 3. Lost 2 of 6 against wk-sim-hang 0 of 7.
 
 Verified: lean/scripts/check.sh green; @fw/measure-webkit test 938/938; scripts/ci-paths.test.mjs 56/56; apps/runner land-inputs 73/73; plan lint 0 errors; dry land VERDICT dry wk-loop-freeze.

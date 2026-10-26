@@ -20,7 +20,6 @@ export { lagMs };
 export const tickBlocked = blocked;
 
 let freezes = 0;
-/** Ticks so far that the host held (Lean: `Freeze.frozen`); the guard drops its failed-probe streak when this moved. */
 export const hostFreezes = () => freezes;
 
 export function openResources(info = process.getActiveResourcesInfo()) {

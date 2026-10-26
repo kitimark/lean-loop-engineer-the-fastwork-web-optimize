@@ -1,4 +1,3 @@
-// usage: node gaps.mjs <probes.jsonl> [minGapS]   the sampler's gaps above minGapS (default 60) with swap-outs and free memory around them
 import { readFileSync } from 'node:fs';
 
 const [file, min = '60'] = process.argv.slice(2);

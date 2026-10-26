@@ -1,6 +1,3 @@
-// usage: node probes.mjs <dir>...   one row per job (sim-tick-<job>-<n> artifacts under <dir>): the sampler's own gaps,
-// swap and memory. The sampler is a separate process (scripts/ci-telemetry/sampler.mjs): a gap in its samples that matches
-// a late tick of the measure process is a stall of both, not of one.
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 

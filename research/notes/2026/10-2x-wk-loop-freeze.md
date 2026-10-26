@@ -1,7 +1,5 @@
 # wk-loop-freeze: the webkit-sim losses after wk-sim-hang are runner-VM freezes, not a blocked node loop
 
-Answer first.
-
 - Both losses are whole-VM freezes (memory exhaustion, swap thrash), not a node loop blocked in our process. MEASURED.
 - The 20 s `terminate Safari` overrun in the reboot is a step that has nothing to terminate on a fresh boot, run on a VM that is still loaded. MEASURED overrun, INFERRED mechanism.
 - Fix: the silence clock skips a freeze, failed probes from before a freeze are dropped, and the reboot relaunch has no `terminate Safari`. All three are Lean rules (`Fw.Measure.SimHost`, section `Freeze`) with a golden replayed by the TS tests.
@@ -63,7 +61,7 @@ Host load1 was 800 to 920 at the last row of every job, successes included (cpu 
 ## Follow-ups
 
 - The Simulator wedge of base r2: `simctl` calls and the inspector time out with no VM freeze (sampler steady). Needs the daemon and process state when the first `Runtime.evaluate` timeout happens.
-- Base r1: a VM that vanishes for 34 min is outside a node watchdog; the job limit (58 min) is the only end. A shorter job limit would only save minutes.
+- Base r1: a VM that vanishes for 34 min is outside a node watchdog; the job limit (58 min) is the only end.
 
 - Which process takes the memory (per-process RSS when free memory is below 15%) and the Simulator daemon load.
 - Attempt 2 of loss 2 (silent stall without a blocked warning).

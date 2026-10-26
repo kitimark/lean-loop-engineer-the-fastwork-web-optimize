@@ -1,4 +1,3 @@
-// usage: gh run view <runId> --json jobs | node jobs.mjs   one line per sim job: replica, status, conclusion, start, end, failed step
 let s = '';
 process.stdin.on('data', (d) => { s += d; });
 process.stdin.on('end', () => {

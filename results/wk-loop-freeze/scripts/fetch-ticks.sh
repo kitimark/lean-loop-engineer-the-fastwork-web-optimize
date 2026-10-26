@@ -1,5 +1,4 @@
 #!/bin/sh
-# usage: fetch-ticks.sh <outdir> <runId>...  downloads the sim-tick-* artifacts (probes.jsonl, tick.json) of each run
 out=$1; shift
 for r in "$@"; do
   mkdir -p "$out/$r"
