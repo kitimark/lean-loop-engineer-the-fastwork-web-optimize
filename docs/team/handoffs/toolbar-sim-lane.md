@@ -7,17 +7,17 @@ Scratch copies of runs 1 and 2 artifacts: scratchpad/tsl/run1, scratchpad/tsl/b1
 
 ## What runs 1 and 2 showed (drove the push-2 and push-3 fixes)
 - Simulator frames are 30-65 ms apart during touches, so Lean's fixed 50 ms "lifted" rule called a per-frame cadence throttled: stepsLifted now takes the median frame gap (lifted iff 2 * median step gap < frame gap + 100 ms). unthrottle: step gap 43-59 ms at frame 32-42 ms; default 83-122 ms.
-- Timeline windows overran: spans of 73-157 s, g1 = 12, and a frame denominator that included the start latency. Lean winCounts leaves out windows past gesture 5 or 20 s; frames are now the window's RenderingFrame records. Cost columns of run 1 are not usable.
+- Timeline windows overran: spans of 73-157 s, g1 = 12, and a frame denominator that included the start latency. (superseded by the stamps below). Cost columns of run 1 are not usable.
 - Run 2: protocol round trips under touch took 7-30 s (Timeline start 8-28 s, stop 13-51 s), the poll often first saw g > 4 (window missed), and Timeline has no RenderingFrame records (frames 0). So push 3 cuts the window by page stamps: tbg<n> at touchstart n, tbf per frame; window opens at gesture 2; Lean windowCost counts between the stamps of gestures 4 and 5.
 - Failures in run 1: job 3 default and touch-first (done without a record / touchesFailed), job 4 unthrottle Timeline.stop timed out 120 s, job 5 threaded touchesFailed.
 
 ## State
-- Lean: lean/Fw/Measure/MorphEndCount.lean Tb block (stepsLifted frame gaps, frameGapCs, tbPass.frameCs, winPhase, winCounts, armVerdict, flagVerdict); golden kinds tb-steps, tb-gestures, tb-onsets, tb-pass, tb-verdict, tb-hz, tb-win, tb-wincount in packages/contracts/golden/device/morph-end-count.jsonl (regenerate: `lake build Fw.Measure.MorphEndCount` first, then `lake env lean --run scripts/MorphEndCountGolden.lean`).
+- Lean: lean/Fw/Measure/MorphEndCount.lean Tb block (stepsLifted frame gaps, frameGapCs, tbPass.frameCs, winPhase, windowCost, armVerdict, flagVerdict); golden kinds tb-steps, tb-gestures, tb-onsets, tb-pass, tb-verdict, tb-hz, tb-win, tb-cost in packages/contracts/golden/device/morph-end-count.jsonl (regenerate: `lake build Fw.Measure.MorphEndCount` first, then `lake env lean --run scripts/MorphEndCountGolden.lean`).
 - TS twin: packages/measure-webkit/src/throttle/toolbar.mjs; glue toolbar-page.mjs, toolbar-probe.mjs (windowWatcher), toolbar-plan.mjs, toolbar-cli.mjs, toolbar-report.mjs; test/throttle-toolbar.test.mjs replays the golden.
 - Workflow: `[throttle:toolbar]` mode in toolbar-throttle.yml; out files `out/<vm>-throttle.json`.
 
 ## Conventions and limits
-- One Timeline window per pass, opened at gesture 4, closed at gesture 5 or 10 s; counted only if lean winCounts holds. Layout/RecalcStyle per RenderingFrame.
+- One Timeline window per pass, opened at gesture 2 (cap 150 s), closed once gesture 5 began; Lean windowCost counts Layout/RecalcStyle per frame stamp only between the stamps of gestures 4 and 5.
 - Look-change arms (touch-first, open-once, overscroll-lock) never enter a preset; part.json untouched (promotion is a follow-up).
 - Same look is judged on the morph state trace, not pixels.
 - Lost VMs are named failures with run id and job number.
