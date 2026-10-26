@@ -4304,6 +4304,7 @@
    "n": 85
   },
   {
+   "n": 88,
    "id": "morph.end.nobounce",
    "part": "morph.end.nobounce",
    "candidate": "morph.end.nobounce:on: html { overscroll-behavior-y: none } from first paint, never toggled, so the bottom rubber band never exists and a forward push at the end leaves scrollY at the pin",
@@ -4315,8 +4316,8 @@
    ],
    "chromium": "MEASURED no-gain in every window, no metric differs (flag run 40283424333, default 40283428442, same commit 3c5ac115f, 3 runs each, end frame 574)",
    "webkit": "MEASURED no-win (run 40283405286, Simulator toolbar lane): nobounce 7 usable passes against 5 default in 7 jobs; reversals, re-opens, onsets overlap; cost not read (2/3 windows, 3 needed); jobs 9 and 10 had no plan entry",
-   "visual": "look change (L): no rubber band at the bottom of any page; Safari's toolbar reveal on a bottom bounce may differ. The user's visual review decides; never a preset.",
-   "mechanism": "CONFIRMED from source: root overscroll-behavior maps onto UIScrollView bounce in the UI process (WKWebViewIOS.mm:1084-1087, ScrollingTreeScrollingNodeDelegateIOS.mm:352-362@862f17d). Lean push_at_end_no_write, pin_writes_below, no_write_above_end (Fw.Parts.MorphEndNobounce): with no bounce the pin write has nothing to correct above the end. Differs from morph.mount:overscroll-lock, which toggled bounce while armed or active.",
+   "visual": "look change (L): no vertical rubber band at the top or the bottom of the page; Safari's toolbar reveal on a bounce may differ. The user's visual review decides; never a preset.",
+   "mechanism": "CONFIRMED from source: root overscroll-behavior maps onto the WKScrollView's vertical bounce in the UI process (WKWebViewIOS.mm:1084-1087, _setBouncesInternal at ScrollingTreeScrollingNodeDelegateIOS.mm:352-358@862f17d). Lean push_at_end_no_write, pin_writes_below, no_write_above_end (Fw.Parts.MorphEndNobounce): with no bounce the pin write has nothing to correct above the end. Differs from morph.mount:overscroll-lock, which toggled bounce while armed or active.",
    "leanFor": [
     "Fw.Parts.MorphEndNobounce.push_at_end_no_write",
     "Fw.Parts.MorphEndNobounce.pin_writes_below",
