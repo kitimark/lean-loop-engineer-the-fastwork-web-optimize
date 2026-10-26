@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { billedMin, buildMinutes, classDigest, classRows, compareTables, exitOf, fetchBuild, ledgerRows, loadConfig, loadGolden, main, mayTrigger, monthOf, normBuild,
+import { billedMin, buildMinutes, classDigest, classRows, compareTables, exitOf, stateWord, fetchBuild, ledgerRows, loadConfig, loadGolden, main, mayTrigger, monthOf, normBuild,
   digestOfText, poolFacts, poolOk, siteDigest, poolRefusals, redact, refusals, request, triggerRequest, usedIn, waitBuild, MIN_POLL_S } from './codemagic.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -382,4 +382,20 @@ test('fetchBuild unpacks the zip Codemagic bundles the artifacts into, flat next
   await fetchBuild(ctx, { buildId: 'b3', out: join(root, 'o') });
   assert.equal(readFileSync(join(root, 'o', 'artifacts', 'r1-session-1.md'), 'utf8'), 'table');
   assert.equal(digestOfText(readFileSync(join(root, 'o', 'artifacts', 'site-digest.txt'), 'utf8')), 'a'.repeat(64));
+});
+
+test('state word: running until exitOf answers, complete for finished, failed for any other end', () => {
+  const w = {};
+  for (const r of g.status) w[r.status] = stateWord(r.status);
+  assert.equal(w.finished, 'complete');
+  for (const r of g.status) assert.equal(stateWord(r.status), r.exit === null ? 'running' : r.exit === 0 ? 'complete' : 'failed', r.status);
+});
+
+test('state --build prints cm:ID and the word, refuses a malformed id, and writes no ledger', async () => {
+  const out = [];
+  const id = '6ade316d0123456789abcdef';
+  const ctx = { fetchFn: async () => res(200, { build: { _id: id, status: 'building' } }), getToken: () => TOKEN, sleep: async () => {}, now: () => 0 };
+  assert.equal(await main(['state', '--build', id], { root: tmp(), env: { FW_CODEMAGIC_APP_ID: APP }, ctx, log: (l) => out.push(l) }), 0);
+  assert.deepEqual(out, [`cm:${id} running`]);
+  assert.equal(await main(['state', '--build', 'nope'], { root: tmp(), env: { FW_CODEMAGIC_APP_ID: APP }, ctx, log: () => {} }), 64);
 });

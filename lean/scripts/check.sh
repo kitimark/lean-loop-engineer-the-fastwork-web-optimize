@@ -138,6 +138,7 @@ run_group() {
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"
+  job "dormant-counts golden check" sh -c "printf 'import Fw.Parts.DormantCounts\\n#eval Fw.Parts.DormantCounts.gen [\"--check\"]\\n' | lake env lean --stdin"  # the shift-dormant verdicts per engine, zone and metric from results/dormant-counts/zones.json
   job "hittest elements golden check" sh -c "printf 'import Fw.Parts.NavHitTestElements\\n#eval Fw.Parts.NavHitTestElements.gen [\"--check\"]\\n' | lake env lean --stdin"  # the hit and is-on-dark class table apps/site/src/parts/nav.hitTest/elements.golden.test.ts replays (Fw.Parts.NavHitTestElements)
   job "webkit-profile golden check" lake env lean --run scripts/WebkitProfileGolden.lean --check ../packages/contracts/golden/measure/webkit-profile.jsonl  # the zone-binned Timeline profile vectors packages/measure-webkit/src/profile/reduce.mjs is checked against (Fw.Measure.WebKitProfile)
   job "path-pix golden check" lake env lean --run scripts/PathPixGolden.lean --check ../packages/contracts/golden/gate/path-pix.jsonl
@@ -174,6 +175,7 @@ run_group() {
   job "timing golden check" lake env lean --run scripts/TimingGolden.lean --check
   job "state-list golden check" lake env lean --run scripts/StateListGolden.lean --check
   job "ci-state golden check" lake env lean --run scripts/CiStateGolden.lean --check
+  job "attempt-inflight golden check" sh -c "printf 'import Fw.Ci.AttemptGolden\\n#eval Fw.Ci.AttemptGolden.gen [\"--check\"]\\n' | lake env lean --stdin"
   job "slot-key golden check" lake env lean --run scripts/SlotKeyGolden.lean --check
   job "heavy golden check" lake env lean --run scripts/HeavyGolden.lean --check
   job "land-legs golden check" lake env lean --run scripts/LandLegsGolden.lean --check
@@ -203,6 +205,7 @@ run_group() {
   job "people-o preview golden check" lake env lean --run scripts/PeopleOPreviewGolden.lean --check ../packages/contracts/golden/parts/people-o-preview.jsonl
   job "morph-idle-none golden check" lake env lean --run scripts/MorphIdleNoneGolden.lean --check ../packages/contracts/golden/parts/morph-idle-none.jsonl
   job "morph-panel-rest golden check" lake env lean --run scripts/MorphPanelRestGolden.lean --check ../packages/contracts/golden/parts/morph.panel.rest.jsonl
+  job "const-bounds-counts golden check" lake env lean --run scripts/ConstBoundsCountsGolden.lean --check ../packages/contracts/golden/parts/const-bounds-counts.jsonl ../results/const-bounds-counts/tables.md
   job "morph-columns-scale golden check" lake env lean --run scripts/MorphColumnsScaleGolden.lean --check ../packages/contracts/golden/parts/morph.columns.final-scale.jsonl
   job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
   job "combo-scroll golden check" lake env lean --run scripts/ComboScrollGolden.lean --check ../packages/contracts/golden/parts/combo-scroll.jsonl

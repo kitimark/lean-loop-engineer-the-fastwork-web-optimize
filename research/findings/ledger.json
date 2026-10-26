@@ -2023,8 +2023,8 @@
    "flags": [
     "morph.mount:shift-dormant"
    ],
-   "chromium": "trade",
-   "webkit": "unknown",
+   "chromium": "win (MEASURED, counts lane swipe-touch-v1, 3 runs per arm at 1fac415, base 40171939293, flag 40171969469, Lean Fw.Parts.DormantCounts): small and in the hero zone only: FunctionCall 2188/2184/2184 to 2140/2144/2140 (-2.0 %); the other 17 cells same under the rule: inside the base spread (hero Layout 238/240/237 against 235/234/235, -1.5 %) or a step under 1 % (UpdateLayoutTree 788 against 787) (layers 24160 to 24159, UpdateLayoutTree 788 to 787); finish and rest no-win. The earlier trade was the resource model's prediction of about +200 resolved elements, which these counts do not show",
+   "webkit": "no-win (MEASURED, webkit-sim swipe-v1 at cb4bec8, 3 VMs x 2 passes per arm, base 40196215217, flag 40196227509, Lean Fw.Parts.DormantCounts): hero, finish and rest all same; no decided cell (Layout, RecalculateStyles, FunctionCall, Composite, layers, backing MB) is clear of the base spread; layers and Composite same (within 1 % and 2 %, inside the base spread), hero FunctionCall 1096 to 1355 inside a spread of 164. The base is the faithful mount the default arm runs, which has no early mount, so there is no layer cost to give back",
    "visual": "equal: the panel is invisible while dormant and wakes on the original trigger (Lean visSame_dormant, dormant_iff); breakpoint gate run 39325704868 passes every morph.* cell (MEASURED)",
    "mechanism": "MEASURED (commit f59fdbf0; swipe-v1 runs 39325709978 faithful, 39325715862 shift, 39325721909 dormant; swipe-touch-v1 39325727288, 39325735139, 39325741608): shift adds 9 drawing layers per frame until the original trigger (+1053 swipe-v1, +1134 swipe-touch-v1), from 3 marquee tracks running a transform animation while mounted and invisible. shift-dormant gets the faithful layer census back (equal lists in a real dump) and keeps 3 of the 4 saved layouts, at about +200 resolved elements. WebKit: source-only (sim run 39309416016 measured shift only).",
    "leanFor": [
@@ -2842,8 +2842,8 @@
    "flags": [
     "morph.panel:const-bounds"
    ],
-   "chromium": "unknown",
-   "webkit": "unknown",
+   "chromium": "worse (MEASURED, 3 runs per arm at 1fac415: finish zone only, Layout.dirtyObjects 758 to 920 with equal Layout records, Paint +1, raster area +228k px, drawing area +3.25M px; hero and rest no-win; note research/notes/2026/10-2x-const-bounds-counts.md)",
+   "webkit": "no-win (MEASURED, 3 VMs x 2 passes per arm at cb4bec8: hero, finish, rest all same, Composite 61/30/118 in every pass; INFERRED not observed: the step walk ends before the page-end morph frames)",
    "visual": "E under P1-P4 (paint_eq, visible_iff: every child point is painted where the original paints it at every scale; inset_width_eq, backdrop_eq: every child keeps its width; varBox_rest: no rule at rest); fractional offsets may snap to the device grid differently (INFERRED, at most 1/2 device px)",
    "mechanism": "PROVED (Fw.Parts.MorphConstBounds): the panel box is constant for every m above the is-morphing cut (varBox_const) while the original grows with m (orig_resizes_h, orig_resizes_w); children keep their boxes and so their layout inputs. Not removed: the nav resize, the column tracks (colW_mono: widths change; pitch_scaled_ne: a scaled final layout would change the 12 px gap pitch, so not the same look) and the blur outset of the panel layer while the fade runs (INFERRED). Breakpoint gate both engines on the final design: run 39747969466 pass; the first design (a wrapper element) failed the gate, run 39744563175, because the gate counts direct children of the panel and compares the panel insets at rest. MEASURED, CI webkit-sim of the first design (wrapper, not shipped; base run 39744614747, flag run 39744653093, 2 passes per arm, iOS Simulator 430x775): every morph-zone cell overlaps the base (frame cadence, Composite and Paint per frame, paint records after the tween); the Simulator has no GPU and does not log IOSurface creations, so allocation cost stays INFERRED. MEASURED, CI webkit-sim of the final design (base run 39744614747, flag run 39760667274, 2 passes per arm): Composite per frame on the open push is lower (100214-148161 us against 176345-180949 us); the close push, Paint per frame and frame cadence overlap, and resized layers per 100 reads do not fall (1250-1300 against 833-1250). The 5th dispatch, run 39751427150, hung in the determinism step and was cancelled at 60 min with no artifact.",
    "leanFor": [
@@ -3030,8 +3030,8 @@
    "flags": [
     "nav:clip-box"
    ],
-   "chromium": "unknown",
-   "webkit": "unknown",
+   "chromium": "no-win",
+   "webkit": "unknown: 2 of 3 VMs (run 40196217959; sim r3 lost twice to the Determinism session stall), every cell n<3, none decided; nav-fixed-counts",
    "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39857031808; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint clipBox_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-clip-box.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,015 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887328839). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
    "mechanism": "PROVED (Fw.Parts.NavClipBox): clip rect equals the original nav rect (box_eq), no change at rest or with the locale menu open, the box is constant above the morphing cut (union_const) so layout happens only at the endpoints (layout_only_at_endpoints); the union width is width: pill-w plus min-width: panel-w, equal to the rest width at morph end (usedW_eq_unionW, decl_eq_rest_zero), so the original transition lists stay untouched. Dropping .is-morphing at m = 0 starts no width transition (decl_eq_rest_zero for every hero-pill state), but for 0 < m <= cut one starts, under 0.42 px (decl_close_rest): a stated limit. Breakpoint gate on both engines with the flag: run 39842609609 PASS. Trajectory probe (verdict run) 39842561544.",
    "leanFor": [
@@ -3062,8 +3062,8 @@
    "flags": [
     "nav:bar-fixed"
    ],
-   "chromium": "unknown",
-   "webkit": "unknown",
+   "chromium": "no-win",
+   "webkit": "no-win",
    "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39860402069; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint barFixed_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-bar-fixed.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,655 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887331854). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
    "mechanism": "PROVED (Fw.Parts.NavBarFixed, NavBarFixedWork): bar width constant (barW_const) where the original grows; logo and actions translations are closed forms of the Lean rows; the union box of clip-box underlies it. Breakpoint gate on both engines with the flag: run 39846092556 PASS. Trajectory probe (verdict run) 39842569267.",
    "leanFor": [
@@ -3096,8 +3096,8 @@
    "flags": [
     "nav:logo-3d"
    ],
-   "chromium": "unknown",
-   "webkit": "unknown",
+   "chromium": "no-win",
+   "webkit": "no-win",
    "visual": "E: same-look breakpoint gate on main (flag ci/nav-fixed-followups 6f35ba8), both engines, PASS run 39862686589; transition lists unchanged (rest states only). Now CLASS L (look change, user look review pending; moved from Q by task nav-look-class, Lean Fw.Parts.Footprint logo3d_look): MEASURED mid-morph, the local Simulator lane (results/gpu-safari/nav-logo-3d.json, run gpu-safari-sim-2026-10-23T00-46-14-744Z) shows 1,012,932 changed px at m0.5 vs the nearest later load, against a later-load A/A floor of 0, pill edge ring 8,617 px, subpixel content shift up to maxDelta 220 at m0.9; the CI morph trajectory is RED on both engines (run 39887335005). The rest-state gate and the open/close nav-clip cell grade E and cannot see mid-morph pixels (rest_blind, cell_blind). Out of v2-proved until the user decides keep or drop.",
    "mechanism": "PROVED (Fw.Parts.NavBarFixed): translate3d then scale keeps the original translate-then-scale order (translate_scale_order). Breakpoint gate on both engines with the flag: run 39848853982 PASS. Trajectory probe (verdict run) 39842581192.",
    "leanFor": [
@@ -4681,6 +4681,12 @@
    "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts mixed (a trade: rest Paint beats the base while FunctionCall rises), frames same: rest Paint 711 vs 899 lower, rest FunctionCall 931 vs 831 higher, every other cell same. The Simulator question (open-push Composite 100-148 vs 176-181 ms, 39760667274 vs 39744614747) is another quantity. Note research/notes/2026/10-25-phone-end-counts.md."
   },
   {
+   "entry": "morph.panel:const-bounds: while the nav morphs, keep the panel layer at the nav's final box and inset every child onto the nav box, so the blur-backed panel layer is not resized on any morph frame",
+   "task": "const-bounds-counts",
+   "field": "lesson",
+   "text": "const-bounds-counts: per-zone counts on the CI Simulator (cb4bec8, 3 VMs x 2 passes per arm, flag run 40196209240, base run 40196215217) and on Chromium (1fac415, 3 runs per arm, flag run 40171951145, base run 40171939293), verdicts decided in Lean (Fw.Parts.ConstBoundsCounts, golden replayed by check.sh). WebKit: no-win in hero, finish and rest, Composite 61/30/118 in every pass (MEASURED); the step walk ends before the page-end morph frames, so the lane does not observe the flag (INFERRED), and a WebKit end-dwell lane is the follow-up. Chromium: finish is a cost (Layout.dirtyObjects 758 to 920 with Layout records equal at 71, because the four per-frame insets at morph.module.css:194-228 dirty +4 objects on 40 of the 41 page-end morph frames, dirty_gap in Lean; Paint +1, raster area +228k px), hero and rest no-win (MEASURED). A constant panel box removes the panel resize but adds four inset writes per frame; count the children a variant moves before expecting fewer layout objects. Note research/notes/2026/10-2x-const-bounds-counts.md."
+  },
+  {
    "entry": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius on the nav; the bar and the panel are still placed by the insets, so they lay out per frame",
    "task": "phone-end-counts",
    "field": "lesson",
@@ -4703,24 +4709,6 @@
    "task": "phone-end-counts",
    "field": "lesson",
    "text": "phone-end-counts: real iPhone, end-of-page scripted scroll, one visit per arm against the base visited three times (A/B/A; MEASURED, summaries results/phone/2026-10-25-end-counts): counts, area, layers and frames same as the base in every zone; no phone effect in this lane (Simulator: -3 layouts, 39325721909). Note research/notes/2026/10-25-phone-end-counts.md."
-  },
-  {
-   "entry": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
-   "task": "platform-end-variants",
-   "field": "chromium",
-   "text": "platform-end-variants: Chromium no-win. MEASURED (chromium-counts swipe-touch-v1 x3, base run 40203753344, flag run 40203756095, main 5c8cccc): on zone y05000 (191 swipe frames) Paint 861 vs 838 and PrePaint 350 vs 324 (more, Lean rule noGain); over frames 540-740 incl. settle frames they are equal; Layout and Commit are equal, style counts differ by at most 1. Raster invalidation area 292 M px against 137 M px over frames 540-740 (276.6 against 130.0 on the lane zone, 2.1x), census layers +0.6 %. The first 20 frames at the page end (the drop lies in settle frames outside the lane zone) show 23 Paint and 26 PrePaint fewer (Lean verdict rule: gain) and the next 40 show the same numbers more, so the work moves, it does not leave. Zone verdict noGain. Note research/notes/2026/10-2x-platform-end-variants.md."
-  },
-  {
-   "entry": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
-   "task": "platform-end-variants",
-   "field": "mechanism",
-   "text": "platform-end-variants: no gain at the page end on either engine. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203778407; WebKit Simulator 3 VMs base 40203774734, flag 40203759230): every end push phase equal on Chromium (finish zone +1 RecalcStyle, which the Lean rule reads as more); before the end the pause saves 59 of 236 raster tasks (34 frames). WebKit: ObserverCallback +2 to +4 per zone (its own observer), Paint at y 5000-5200 (common window of the 106- and 107-step passes) 37-55 against 54-64 overlaps. The pause is a no-op while the section is on screen, so the arm cannot attribute the sweep's cost inside the push. Note research/notes/2026/10-2x-platform-end-variants.md."
-  },
-  {
-   "entry": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
-   "task": "platform-end-variants",
-   "field": "mechanism",
-   "text": "platform-end-variants: re-check at the page end, no difference. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203771621; WebKit Simulator 3 VMs base 40203774734, flag 40203790654): every counter equal in every Chromium push phase and WebKit zone (WebKit whole-run Layout (y <= 5200) 624-653 against 588-619 is the one more, outside the end). Agrees with the proved faithful_no_ticks_away. Note research/notes/2026/10-2x-platform-end-variants.md."
   },
   {
    "entry": "morph.countdown:strip with hero.countdown:strip: one 12-entry strip transform per digit instead of ten will-change faces (end-of-page GPU candidate 4)",
@@ -4757,6 +4745,48 @@
    "task": "toolbar-proof-morph",
    "field": "mechanism",
    "text": "toolbar-proof-morph r2: REFUTED premise 'the arm decision is equal for h and h+toolbar' (the task title's Lean goal): Fw.Parts.MorphMountToolbar.armed_differs_in_band shows the arm test differs for a platform bottom in the 40 px band; only armed_same_outside_band holds, so candidate (b) toolbar-independent geometry is a no-win. Same look under touch for touch-first and open-once is unproven until toolbar-sim-lane runs, so both are look-change proposals (L); touch-first differs when a drag enters the armed zone after its first move."
+  },
+  {
+   "entry": "platform:fade-threaded: run the section fade of a morph push as one opacity and blur Web Animation per push (Core Animation on WebKit) instead of writing --morph-fade every frame",
+   "task": "platform-end-variants",
+   "field": "chromium",
+   "text": "platform-end-variants: Chromium no-win. MEASURED (chromium-counts swipe-touch-v1 x3, base run 40203753344, flag run 40203756095, main 5c8cccc): on zone y05000 (191 swipe frames) Paint 861 vs 838 and PrePaint 350 vs 324 (more, Lean rule noGain); over frames 540-740 incl. settle frames they are equal; Layout and Commit are equal, style counts differ by at most 1. Raster invalidation area 292 M px against 137 M px over frames 540-740 (276.6 against 130.0 on the lane zone, 2.1x), census layers +0.6 %. The first 20 frames at the page end (the drop lies in settle frames outside the lane zone) show 23 Paint and 26 PrePaint fewer (Lean verdict rule: gain) and the next 40 show the same numbers more, so the work moves, it does not leave. Zone verdict noGain. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.sweep:offscreen-pause: an IntersectionObserver pauses the four 4 s sweep animations while their element is offscreen and, on return, seeks them to the document timeline's time plus their start offset (research/notes/2026/10-2x-webkit-throttles.md rank 3)",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: no gain at the page end on either engine. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203778407; WebKit Simulator 3 VMs base 40203774734, flag 40203759230): every end push phase equal on Chromium (finish zone +1 RecalcStyle, which the Lean rule reads as more); before the end the pause saves 59 of 236 raster tasks (34 frames). WebKit: ObserverCallback +2 to +4 per zone (its own observer), Paint at y 5000-5200 (common window of the 106- and 107-step passes) 37-55 against 54-64 overlaps. The pause is a no-op while the section is on screen, so the arm cannot attribute the sweep's cost inside the push. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "platform.glint:offscreen-pause: pauseAnimations() on the two dash svgs while the platform stage is not intersecting, unpauseAnimations() and setCurrentTime(now + offset) from the document clock on return",
+   "task": "platform-end-variants",
+   "field": "mechanism",
+   "text": "platform-end-variants: re-check at the page end, no difference. MEASURED (main 5c8cccc; Chromium swipe-touch-v1 x3 base 40203753344, flag 40203771621; WebKit Simulator 3 VMs base 40203774734, flag 40203790654): every counter equal in every Chromium push phase and WebKit zone (WebKit whole-run Layout (y <= 5200) 624-653 against 588-619 is the one more, outside the end). Agrees with the proved faithful_no_ticks_away. Note research/notes/2026/10-2x-platform-end-variants.md."
+  },
+  {
+   "entry": "morph.mount:shift-dormant (morph-layers): keep shift's early mount but keep the panel's timed state asleep (marquee tracks animation-name: none, no countdown driver) until the original trigger",
+   "task": "dormant-counts",
+   "field": "mechanism",
+   "text": "dormant-counts (Fw.Parts.DormantCounts, golden parts/dormant-counts.jsonl, note research/notes/2026/10-2x-dormant-counts.md): against the faithful mount the default arm runs, shift-dormant is no-win on WebKit in every zone (MEASURED, webkit-sim swipe-v1 at cb4bec8, base 40196215217, flag 40196227509, 3 VMs x 2 passes: Layout, RecalculateStyles, FunctionCall, Composite, layers and backing MB all inside the base spread) and a small hero-only win on Chromium (FunctionCall -2.0 %, runs 40171939293 and 40171969469 at 1fac415). Why: the base has no early mount, shift-dormant adds one invisible, asleep panel (no layer: layers_dormant_eq), so it can gain over the base only through the moved mount work (INFERRED). Lesson (INFERRED): judge a variant that repairs a sibling's cost (shift-dormant repairs shift) against the original, not the sibling; its only possible gain is the work it moves."
+  },
+  {
+   "entry": "nav:clip-box: while the nav morphs the box is the union of its boxes at constant size and the pill is a clip-path inset, so the morph writes no width, height, top or border-radius on the nav; the bar and the panel are still placed by the insets, so they lay out per frame",
+   "task": "nav-fixed-counts",
+   "field": "mechanism",
+   "text": "nav-fixed-counts: WebKit Simulator at main cb4bec8 (base 40196215217), Chromium swipe-touch-v1 at 1fac415 (base 40171939293), per zone, Lean verdict Fw.Parts.NavFixedCounts; note research/notes/2026/10-2x-nav-fixed-counts.md. MEASURED: Chromium run 40171943772 (3 runs): Layout, UpdateLayoutTree, FunctionCall and cc.Draw equal the base in every zone; census.layers summed over frames is a cost (hero 30761..30762 vs 30760, finish 49492 vs 49453..49456), so no win cell. WebKit: undecided in the hero, rest and finish zones (Lean verdict undecided, n = 2 of 3 VMs, run 40196217959; all 22 cells unusable), so no WebKit no-win is claimed. Mechanism (Lean, units_fall_normal, pass_every_arm): the layout units per morph frame fall to 3, but one Layout record is queued per morph frame in every arm, so a record count cannot show it. No look review is posted without a count win."
+  },
+  {
+   "entry": "nav:bar-fixed (includes clip-box): the bar keeps its union width and moves by translate, the logo and actions by closed-form translations, so the morph writes no layout property on the bar",
+   "task": "nav-fixed-counts",
+   "field": "mechanism",
+   "text": "nav-fixed-counts: WebKit Simulator at main cb4bec8 (base 40196215217), Chromium swipe-touch-v1 at 1fac415 (base 40171939293), per zone, Lean verdict Fw.Parts.NavFixedCounts; note research/notes/2026/10-2x-nav-fixed-counts.md. MEASURED: WebKit run 40196221086 (3 VMs, 6 passes): hero 4 same and 4 quarantined, rest 5 same and 1, finish 3 same and 5; no win and no cost cell; Composite 61/118/30 equals the base. Chromium run 40171960215: work counts equal except rest FunctionCall cost 3920..3925 vs 3916; census.layers cost (hero 30762..30763, finish 49490..49492 vs 49453..49456). Mechanism (Lean, units_fall_normal, pass_every_arm, addedLayers_arms): layout units per morph frame fall to 2 but the Layout record count stays one per morph frame; up to 2 layers are added, which the WebKit end-state layer spread of 4 hides (shift_not_above). Chromium rest FunctionCall is a certified cost, which refutes the FunctionCall-equal prediction there (cause unknown). No look review is posted without a count win."
+  },
+  {
+   "entry": "nav:logo-3d (includes bar-fixed): the logo moves by translate3d and scale in one transform so it composites instead of repainting",
+   "task": "nav-fixed-counts",
+   "field": "mechanism",
+   "text": "nav-fixed-counts: WebKit Simulator at main cb4bec8 (base 40196215217), Chromium swipe-touch-v1 at 1fac415 (base 40171939293), per zone, Lean verdict Fw.Parts.NavFixedCounts; note research/notes/2026/10-2x-nav-fixed-counts.md. MEASURED: WebKit run 40196212618 (3 VMs, 6 passes): hero 4 same and 4 quarantined, rest 2 same and 4, finish 3 same and 5; no win and no cost cell. Chromium run 40171946109: work counts equal; census.layers cost (hero 30771..30772, finish 49676..49678 vs 49453..49456, about one extra layer in each of 221 finish frames, INFERRED). Mechanism (Lean, units_fall_normal, pass_every_arm, addedLayers_arms): layout units per morph frame fall to 1 but the Layout record count stays one per morph frame; up to 3 layers are added. No look review is posted without a count win."
   }
  ]
 }

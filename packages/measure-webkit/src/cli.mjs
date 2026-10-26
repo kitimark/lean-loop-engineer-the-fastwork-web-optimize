@@ -10,7 +10,7 @@ import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { withSession, simDown } from './session.mjs';
+import { withSession, simDown, writePassFile } from './session.mjs';
 import { loadFresh, pageInfo } from './page.mjs';
 import { censusAt } from './census.mjs';
 import { scrollRun } from './scrollrun.mjs';
@@ -126,6 +126,8 @@ async function main() {
         for (let i = 0; i < runs; i++) {
           log(`pass ${i + 1}/${runs}`);
           ps.push(await onePassRetrying(ctx, { states: i === 0 ? states : pinStates(ps[0]), clock: v.clock, settleMs: num(v.settle), holdMs: num(v.hold), paintWindowMs: num(v.window), step: num(v.step), framesPerStep: num(v.frames), mode: v.mode, seek: v.seek, seekNs: v.ns.split(',').map(num), log }));
+          const f = writePassFile(v.out, i + 1, runs, ps[i]);
+          if (f) log(`pass ${i + 1}/${runs} written to ${f}`);
         }
         return ps;
       }, sessionOpts);
