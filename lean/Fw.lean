@@ -60,6 +60,7 @@ import Fw.Parts.HiddenPause
 import Fw.Parts.HeroScenePause
 import Fw.Parts.MorphMountOpt
 import Fw.Parts.MorphMountDormant
+import Fw.Parts.DormantCounts
 import Fw.Parts.MorphMountArmLate
 import Fw.Parts.MorphMountArmLateGolden
 import Fw.Parts.MorphMountToolbar

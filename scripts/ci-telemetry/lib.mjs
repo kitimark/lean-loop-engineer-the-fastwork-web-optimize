@@ -35,6 +35,28 @@ export function parseVmStat(text, totalBytes) {
   return Math.max(0, Math.round((totalBytes - avail) / 1048576));
 }
 
+/** `vm_stat` (macOS) -> the compressor and swap counters: MB occupied by the compressor, MB stored in it, and the running totals of
+ *  swapouts and compressions (pages). A counter the text lacks is null. */
+export function parseVmStatPressure(text) {
+  const size = Number(/page size of (\d+) bytes/.exec(text ?? "")?.[1] ?? 16384);
+  const get = (k) => { const m = new RegExp(`^${k}:\\s+(\\d+)\\.`, "m").exec(text ?? ""); return m ? Number(m[1]) : null; };
+  const mb = (pages) => (pages === null ? null : Math.round((pages * size) / 1048576));
+  return { compressorMb: mb(get("Pages occupied by compressor")), storedMb: mb(get("Pages stored in compressor")), swapOuts: get("Swapouts"), compressions: get("Compressions") };
+}
+
+/** `sysctl -n vm.swapusage kern.memorystatus_vm_pressure_level` -> { swapUsedMb, pressureLevel }: swap in use (MB) and the kernel level (1 normal, 2 warn, 4 critical). */
+export function parseSysctlPressure(text) {
+  const used = /used = ([\d.]+)M/.exec(text ?? "");
+  const last = String(text ?? "").trim().split("\n").pop()?.trim() ?? "";
+  return { swapUsedMb: used ? Math.floor(Number(used[1])) : null, pressureLevel: /^\d+$/.test(last) ? Number(last) : null };
+}
+
+/** `memory_pressure -Q` -> the system-wide free memory in percent, or null. */
+export function parseFreePct(text) {
+  const m = /free percentage:\s*(\d+)%/.exec(text ?? "");
+  return m ? Number(m[1]) : null;
+}
+
 /** The CPU percentage between two [busy,total] samples, an integer 0..100. */
 export function cpuPct(a, b) {
   const dt = b[1] - a[1];
@@ -108,14 +130,24 @@ export function takeProbe(prev, dir, exec, t0 = Date.now()) {
     usedMb = mi ? parseMeminfo(mi)?.usedMb ?? null : null;
   }
   if (!cur) cur = busyTotal(os.cpus());
-  if (usedMb === null) {
-    const vm = process.platform === "darwin" && exec ? exec("vm_stat", []) : null;
-    usedMb = (vm ? parseVmStat(vm, os.totalmem()) : null) ?? Math.round((os.totalmem() - os.freemem()) / 1048576);
-  }
+  const mac = process.platform === "darwin" && exec;
+  const vm = mac ? exec("vm_stat", []) : null;
+  if (usedMb === null) usedMb = (vm ? parseVmStat(vm, os.totalmem()) : null) ?? Math.round((os.totalmem() - os.freemem()) / 1048576);
   let diskFreeMb = 0;
   try { const f = statfsSync(dir); diskFreeMb = Math.round((f.bavail * f.bsize) / 1048576); } catch { /* keep 0 */ }
   const probe = { atMs: t0, cpuPct: prev ? cpuPct(prev, cur) : 0, memUsedMb: usedMb, loadCenti: Math.round(os.loadavg()[0] * 100), diskFreeMb };
+  if (mac) Object.assign(probe, pressureReadings(vm, exec));
   return { probe, cur };
+}
+
+/** The memory pressure readings of a macOS host as the optional probe fields; a reading that did not come is left out. */
+export function pressureReadings(vmStat, exec) {
+  const all = {
+    ...parseVmStatPressure(vmStat),
+    ...parseSysctlPressure(exec("sysctl", ["-n", "vm.swapusage", "kern.memorystatus_vm_pressure_level"])),
+    freePct: parseFreePct(exec("memory_pressure", ["-Q"])),
+  };
+  return Object.fromEntries(Object.entries(all).filter(([, v]) => v !== null));
 }
 
 // ---- spans: the scripts/span.sh format ------------------------------------------------------------------------------------
@@ -196,5 +228,8 @@ export function stepTable(rec) {
   const q = rec.times.createdMs == null ? "queue n/a" : `queue ${(rec.times.startedMs - rec.times.createdMs) / 1000} s`;
   const peak = rec.probes.reduce((a, p) => Math.max(a, p.cpuPct), 0);
   const mem = rec.probes.reduce((a, p) => Math.max(a, p.memUsedMb), 0);
-  return [`telemetry ${rec.ident.provider}/${rec.ident.lane}/${rec.ident.job} [${rec.ident.class}] ${q}, job ${(rec.times.endedMs - rec.times.startedMs) / 1000} s, ${rec.probes.length} probes, peak cpu ${peak}%, peak mem ${mem} MB`, ...rows].join("\n");
+  const top = (k) => rec.probes.reduce((a, p) => (p[k] == null ? a : Math.max(a ?? 0, p[k])), null);
+  const swap = top("swapUsedMb"), cmp = top("compressorMb"), lvl = top("pressureLevel");
+  const pressure = swap == null && cmp == null && lvl == null ? "" : `, peak swap ${swap ?? "n/a"} MB, compressor ${cmp ?? "n/a"} MB, pressure level ${lvl ?? "n/a"}`;
+  return [`telemetry ${rec.ident.provider}/${rec.ident.lane}/${rec.ident.job} [${rec.ident.class}] ${q}, job ${(rec.times.endedMs - rec.times.startedMs) / 1000} s, ${rec.probes.length} probes, peak cpu ${peak}%, peak mem ${mem} MB${pressure}`, ...rows].join("\n");
 }

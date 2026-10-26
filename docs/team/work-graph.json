@@ -21429,7 +21429,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.mount:shift-dormant (ledger: WebKit unknown, Chromium trade; morph-layers measured -1052/-1136 drawing layers vs shift on Chromium). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. Compare against the rewrite default and say which mount variant the default arm runs. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/DormantCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.mount:shift-dormant (ledger: WebKit unknown, Chromium trade; morph-layers measured -1052/-1136 drawing layers vs shift on Chromium). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. Compare against the rewrite default and say which mount variant the default arm runs. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/DormantCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note.",
+   "evidence": "eacf5e6"
   },
   {
    "devices": [
@@ -21773,7 +21774,8 @@
     "packages/measure-webkit/src/cli.mjs",
     "apps/runner/src/land.ts",
     "scripts/wallclock-allow.json"
-   ]
+   ],
+   "evidence": "10661e0"
   },
   {
    "devices": [
