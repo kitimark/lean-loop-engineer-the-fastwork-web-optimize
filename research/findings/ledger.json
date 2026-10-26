@@ -4267,6 +4267,41 @@
    "lesson": "The marquee probe moves no count; the marquee is not an end-of-page cost.",
    "next": "step-2 variants are built in later tasks",
    "evidence": "research/notes/2026/10-2x-platform-attribution.md (task platform-attribution)"
+  },
+  {
+   "id": "platform.sweep.layer-sweep",
+   "part": "platform.sweep",
+   "candidate": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
+   "status": "look-change",
+   "flags": [
+    "platform.sweep:layer-sweep"
+   ],
+   "flag": "platform.sweep:layer-sweep",
+   "visClass": "L",
+   "chromium": "not measured yet (task platform-sweep-layer)",
+   "webkit": "not measured yet (task platform-sweep-layer)",
+   "visual": "L (look change, for the user's visual review, never into a preset): Lean PlatformSweepLayer.same_look proves the layer shows the original's colour at every point and time; a Playwright debug run on one word differs by at most 3 of 255 levels in Chromium and 8 in WebKit (edge and gradient rounding).",
+   "mechanism": "CONFIRMED by source: background-position is not a compositor animation (Chromium compositor_animations.cc:193-208@f842f52; WebKit CSSProperties.json background-position has no animation-wrapper-acceleration, transform has :12112 @862f17d). PROVED in Lean: orig_repaints (one text-mask repaint per word per frame), layer_no_text_repaint (none), memory_ok (four layers at most 8 MiB).",
+   "leanFor": [
+    "Fw.Parts.PlatformSweepLayer.same_look",
+    "Fw.Parts.PlatformSweepLayer.layerX_eq",
+    "Fw.Parts.PlatformSweepLayer.css_close",
+    "Fw.Parts.PlatformSweepLayer.orig_repaints",
+    "Fw.Parts.PlatformSweepLayer.layer_no_text_repaint",
+    "Fw.Parts.PlatformSweepLayer.memory_ok"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Per-engine counts: see the note research/notes/2026/10-2x-platform-sweep-layer.md"
+   ],
+   "premises": [
+    "the engines keep the masked word and the transform child on separate layers: INFERRED, read from the counts"
+   ],
+   "v1Evidence": "row n=23 (v1 ::after band under -webkit-mask-clip:text, pixels Q)",
+   "lesson": "A moving fill under a static glyph mask is a transform, not a background animation.",
+   "next": "the user's visual review; counts in the note",
+   "evidence": "research/notes/2026/10-2x-platform-sweep-layer.md (task platform-sweep-layer)",
+   "n": 85
   }
  ],
  "notes": [
