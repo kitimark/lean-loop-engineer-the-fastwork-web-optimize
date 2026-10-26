@@ -109,7 +109,6 @@ test('the plan override replaces the plan and sets the job count', () => {
   assert.equal(overrideOf('plain'), null);
 });
 
-// a recorder record of one pass with three gestures, a morph that opens in two of them and a vh stepping every `every` frames
 function record({ every = 6, open = [3, 21], n = 60, extra = {} } = {}) {
   const t = [], y = [], mx = [], o = [], r = [], d = [], g = [], ih = [], vh = [];
   for (let i = 0; i < n; i++) {

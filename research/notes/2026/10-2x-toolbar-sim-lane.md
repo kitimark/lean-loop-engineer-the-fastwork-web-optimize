@@ -83,7 +83,7 @@ Layout and RecalculateStyles per frame need at least 3 whole gesture-4 cost wind
 Windows per arm are counted against the default passes of the same jobs. The measurement (at least 3 same-job windows per arm, a new push budget) is task toolbar-cost-sample.
 
 ## Runs
-All three runs are failed runs (conclusion cancelled, cancelled, failure); their completed passes are used.
+Conclusions are cancelled, cancelled, failure; completed passes are used.
 - Push 1, run 40236328441 (eb755ffb4), cancelled: sim (1) to (5) success; sim (6) to (10) cancelled by me once the cost window overran (spans 73 to 157 s). A fixed 50 ms lifted rule called per-frame steps throttled (frames are 30 to 65 ms apart); replaced by a rule relative to the frame gap.
 - Push 2, run 40250249829 (86646a00d), cancelled: sim (1) to (3) success; sim (4) to (10) cancelled by me: Timeline start took 8 to 28 s and stop 13 to 51 s under touch, so polling could not cut the window, and Timeline has no RenderingFrame records.
 - Push 3, run 40257287239 (02d957418), failure: sim (1) to (3) and (5) to (10) success. sim (4) failed in the touch step with no log and no artifact after 75 min: a lost VM, a named failure, not rerun (push budget used). The cost window is cut by page stamps `tbg<n>` (touchstart n) and `tbf` (frame); Lean `windowCost` counts only between the stamps of gestures 4 and 5.
@@ -92,6 +92,6 @@ All three runs are failed runs (conclusion cancelled, cancelled, failure); their
 
 ## Method and limits
 - Lean first: `lean/Fw/Measure/MorphEndCount.lean` (steps, burst gaps, median, lifted against the frame gap, gestures, onsets, refresh Hz and fold, sameLook, armVerdict, costKnown, flagVerdict with the verdict `undecided`, winPhase, windowCost) with 126 golden lines in `packages/contracts/golden/device/morph-end-count.jsonl`, replayed by `packages/measure-webkit/test/throttle-toolbar.test.mjs`. TS stand-ins: page scripts, the window watcher and the CLI glue (unproved I/O).
-- The state-trace floor (peak floor, gestures with an onset, settled) is judged on the morph state trace, not on pixels, and does not detect touch-first's designed change of the first push.
+- The state-trace floor (peak floor, gestures with an onset, settled) is judged on the morph state trace, not on pixels, so it does not detect touch-first's designed change of the first push.
 - One Timeline window per pass perturbs the cadence of all arms equally; a whole-pass Timeline is not used (it stalls, `10-2x-sim-touch-reliable.md`).
 - CI only; the phone pass belongs to phone-compose-counts. The cost measurement, any promotion of unthrottle in `part.json` and the `research/findings/ledger.json` row are follow-ups (cost: task toolbar-cost-sample). A look-change arm is never promoted.

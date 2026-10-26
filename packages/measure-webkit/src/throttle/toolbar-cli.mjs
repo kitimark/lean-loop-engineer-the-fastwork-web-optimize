@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 // node src/throttle/toolbar-cli.mjs run --driver d --site dir --vm n [--message text] [--arms default,unthrottle] [--cycles 4] [--out file]
-//   The toolbar lane (task toolbar-sim-lane): real touch drags past the page end on Mobile Safari in the booted Simulator, one pass per arm,
-//   the default first. Without --arms the arms of job --vm come from toolbar-plan.mjs (and --message, the head commit message).
 // node src/throttle/toolbar-cli.mjs build-driver --dir d   build the touch driver once, before the Simulator boots
 // node src/throttle/toolbar-cli.mjs report --in a.json,run2-job3=b.json [--md file]   (label=file keeps jobs of several runs apart)   the tables and the verdict per flag
 // node src/throttle/toolbar-cli.mjs plan [--message text]   print the arms of every job

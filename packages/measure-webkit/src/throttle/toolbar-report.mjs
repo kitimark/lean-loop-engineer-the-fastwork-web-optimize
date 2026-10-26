@@ -1,5 +1,3 @@
-// The toolbar lane table (task toolbar-sim-lane). Every number is a sum or a quotient of counts; the verdict per flag is
-// toolbar.mjs `flagVerdict` (twin of Lean Fw.Measure.MorphEndCount.flagVerdict). A pass is {arm, round, vm, rec, drag, cost, job} as toolbar-probe.mjs returns it.
 import { ARM_ORDER, FLAG_ARMS, FLAG_OF, LOOK_CHANGE, reasonOf, passOf, facts, columns, flagVerdict, enters, costWindows, MIN_COST_WINDOWS, stepsLifted, medianCs, hzOf, foldOf } from './toolbar.mjs';
 
 const table = (head, rows) => [head, '|' + head.split('|').slice(1, -1).map(() => '---').join('|') + '|', ...rows].join('\n');
@@ -19,7 +17,6 @@ function rowFacts(passes) {
   return { us, recs, fs, gaps, hz, moved: fs.filter((f) => f.vhMax - f.vhMin >= 20).length };
 }
 
-/** The pooled counts of the usable passes of an arm. */
 export function armRow(passes) {
   const { us, recs, fs, gaps, hz, moved } = rowFacts(passes);
   const timed = recs.filter((r) => r.frames > 0);
@@ -36,7 +33,6 @@ export function armRow(passes) {
   };
 }
 
-/** The verdict row of one flag arm against the default passes of the jobs it ran in. */
 export function flagRow(arm, passes) {
   const mine = usable(passes.filter((p) => p.arm === arm));
   const jobs = new Set(mine.map((p) => p.job));

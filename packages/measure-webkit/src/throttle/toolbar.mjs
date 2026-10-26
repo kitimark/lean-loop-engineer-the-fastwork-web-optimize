@@ -1,6 +1,3 @@
-// Twin of the toolbar reducers of Lean Fw.Measure.MorphEndCount (step cadence of visualViewport.height, gestures, fade onsets, refresh rate,
-// the per-flag verdict, the Timeline window). test/throttle-toolbar.test.mjs checks it against the tb-* rows of
-// packages/contracts/golden/device/morph-end-count.jsonl. Times are hundredths of a ms, heights and morph values as the recorder writes them.
 import { events, opens, rates, lockCounts, hasMorphReads, byDirection } from './morph-end.mjs';
 import { cmp } from '../touchlock.mjs';
 import { excludeReason } from './finish-report.mjs';
@@ -66,7 +63,6 @@ export function onsetFrames(r) {
 export const refreshHz = (gapCs) => (gapCs === 0 ? 0 : Math.floor((Math.floor(200000 / gapCs) + 1) / 2));
 export const foldOf = (hz) => Math.floor(hz / 10);
 
-/** Lean `tbPass` over the recorder arrays (t in hundredths of a ms) and the Timeline counts. */
 export function tbPass(t, vh, r, d, g, reversals, layout, recalc, frames) {
   return {
     gestures: gestureCount(g), reversals, swaps: events(r, d).length, onsets: opens(r),
@@ -102,10 +98,8 @@ export const liftedBy = (base, cand) =>
 
 export const MIN_COST_WINDOWS = 3;
 
-/** Passes of ps that hold a cost reading of num per frame (a pass with no frames holds none). */
 export const costWindows = (num, ps) => rates(ps.map((p) => [num(p), p.frames])).length;
 
-/** Lean `costKnown`: Layout and RecalcStyle each have at least MIN_COST_WINDOWS readings on the default side and on the flag side. */
 export const costKnown = (base, cand) =>
   [(p) => p.layout, (p) => p.recalc].every((num) => costWindows(num, base) >= MIN_COST_WINDOWS && costWindows(num, cand) >= MIN_COST_WINDOWS);
 
@@ -120,7 +114,6 @@ export const columns = (base, cand) => ({
   costKnown: costKnown(base, cand),
 });
 
-/** Lean `flagVerdict`: a cost column without enough readings reads as overlap, and a win on that footing is 'undecided'. */
 export function flagVerdict(base, cand) {
   const c = columns(base, cand);
   const lay = c.costKnown ? c.layout : 'overlap';
@@ -131,13 +124,11 @@ export function flagVerdict(base, cand) {
 
 export const enters = (lookChange, v) => !lookChange && v === 'win';
 
-/** The Timeline window: 'wait' | 'record' | 'done' from the gesture counter and the ms spent recording (null before it started). */
 export function winPhase(g, inMs) {
   if (inMs === null) return g < WIN_LEAD ? 'wait' : g < WIN_START ? 'record' : 'done';
   return g > WIN_START || inMs >= WIN_CAP_MS ? 'done' : 'record';
 }
 
-/** Lean `windowCost`: Layout, RecalculateStyles and frame stamps between the stamps of gesture g and g + 1, or null when either stamp is missing. */
 export function windowCost(g, rows) {
   const markAt = (k) => rows.find((r) => r[0] !== null && typeof r[0] === 'object' && r[0].mark === k)?.[1];
   const a = markAt(g), b = markAt(g + 1);
@@ -146,7 +137,6 @@ export function windowCost(g, rows) {
   return { layout: n('layout'), recalc: n('recalc'), frames: n('frame') };
 }
 
-/** Raw Timeline rows ([type, start s, end s, message]) as Lean rows: start in hundredths of ms. The page stamps `tbg<n>` at touchstart n and `tbf` at every frame. */
 export function rowsOf(raw) {
   return raw.map(([type, start, , msg]) => {
     const at = Math.round(start * 100000);
@@ -158,19 +148,16 @@ export function rowsOf(raw) {
   });
 }
 
-/** Why a pass cannot count, or null. */
 export function reasonOf(p) {
   return excludeReason(p) ?? (hasMorphReads(p.rec) && Array.isArray(p.rec.g) && p.rec.g.length === p.rec.y.length ? null : 'record has no gesture reads');
 }
 
-/** The Lean pass record of a recorder record plus the window's Timeline counts ({layout, recalc, frames} or null). */
 export function passOf(p) {
   const { rec } = p;
   const w = p.cost && p.cost.counts === true && p.cost.frames > 0 ? p.cost : { layout: 0, recalc: 0, frames: 0 };
   return tbPass(rec.t.map((x) => Math.round(x * 100)), rec.vh, rec.r, rec.d, rec.g, lockCounts(rec).reversals, w.layout, w.recalc, w.frames);
 }
 
-/** Display facts of one pass that no verdict reads: steps, vh range (tenth px), closes and re-opens. */
 export function facts(p) {
   const { rec } = p;
   const dirs = byDirection(events(rec.r, rec.d));
@@ -178,7 +165,6 @@ export function facts(p) {
   return { steps: stepFrames(rec.vh).length, vhMin: Math.min(...rec.vh), vhMax: Math.max(...rec.vh), closes: sum(dirs.close), reopens: sum(dirs.reopen) };
 }
 
-/** The refresh rate in Hz from the idle rAF timestamps of a pass (ms), 0 when there are fewer than two. */
 export function hzOf(ts) {
   const gaps = ts.slice(1).map((x, i) => Math.round((x - ts[i]) * 100)).filter((x) => x > 0);
   return gaps.length ? refreshHz(medianCs(gaps)) : 0;

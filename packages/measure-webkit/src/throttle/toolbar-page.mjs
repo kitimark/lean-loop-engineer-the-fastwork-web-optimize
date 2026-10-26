@@ -1,5 +1,3 @@
-// The page side of the toolbar lane (I/O glue): the finish recorder of finish-page.mjs plus a gesture index per frame (a counter of touchstarts),
-// a frame counter, and the first 40 requestAnimationFrame times of the pass (the refresh rate). Nothing is decided here; toolbar.mjs reduces.
 export { nearEndJs } from './finish-page.mjs';
 
 export const START_TB_JS = `(() => {
@@ -51,10 +49,8 @@ export const START_TB_JS = `(() => {
   return 'started';
 })()`;
 
-/** The gesture counter and the frame counter now (for the Timeline window); null when the recorder is not running. */
 export const COUNT_TB_JS = `(() => { const st = window.__fwFin; return st ? JSON.stringify({ g: st.gc, nf: st.nf }) : 'null'; })()`;
 
-/** Stop and return the record as a JSON string: frames [0, last], the start state, whether the nav was found. */
 export const FETCH_TB_JS = `(() => {
   const st = window.__fwFin;
   if (!st) return JSON.stringify({ err: 'recorder not started' });

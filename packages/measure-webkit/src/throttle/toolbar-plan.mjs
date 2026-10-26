@@ -1,6 +1,3 @@
-// Which arms job `vm` of the toolbar lane runs. Default first, then two of the five flag arms; ten jobs cover each flag arm four times
-// (job v takes numbers 2(v-1) and 2(v-1)+1 mod 5, jobs 6 to 10 swap the two so every arm runs in both positions). A commit message with
-// `[toolbar-plan:a+b,c,...]` replaces the plan: entry v is job v (flag arm names joined by +), and `[toolbar-top:N]` sets the job count.
 import { FLAG_ARMS } from './toolbar.mjs';
 
 export const JOBS = 10;
@@ -26,12 +23,10 @@ export function armsOf(vm, message = '') {
   return vm > JOBS / 2 ? ['default', b, a] : ['default', a, b];
 }
 
-/** Jobs of a message: `[toolbar-top:N]`, else the plan override's length, else JOBS. */
 export function jobsOf(message = '') {
   const m = /\[toolbar-top:(\d+)\]/.exec(message);
   if (m) return Number(m[1]);
   return overrideOf(message)?.length ?? JOBS;
 }
 
-/** The arms of every job in a push, for the plan printed in the log. */
 export const planOf = (message = '') => Array.from({ length: jobsOf(message) }, (_, i) => armsOf(i + 1, message));

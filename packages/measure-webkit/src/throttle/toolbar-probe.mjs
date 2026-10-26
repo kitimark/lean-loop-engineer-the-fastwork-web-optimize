@@ -1,9 +1,3 @@
-// One toolbar pass in an open session (I/O glue): the finish pass of finish-probe.mjs (fresh load, near the page end, recorder, real touches,
-// fetch) with one Timeline window around gesture 4, the first press of the second cycle (the drag past the end that opens the morph).
-// Why not a window closed on time: under touch every protocol round trip took 7 to 30 s (research/notes/2026/10-2x-toolbar-sim-lane.md), so a
-// window cannot be cut by polling. The page stamps `tbg<n>` at touchstart n and `tbf` at every frame, the window opens a gesture early
-// (Lean `winPhase`: from gesture 2, closed once gesture 5 began) and Lean `windowCost` counts only between the stamps of gesture 4 and 5.
-// Nothing is decided here beyond feeding `winPhase`; toolbar.mjs and toolbar-report.mjs reduce.
 import { readFileSync } from 'node:fs';
 import { loadavg } from 'node:os';
 import { loadFresh, pageInfo } from '../page.mjs';
@@ -17,7 +11,6 @@ import { winPhase, rowsOf, windowCost, WIN_START } from './toolbar.mjs';
 
 export const POLL_MS = 250;
 
-/** The last 2000 characters of the driver's log with device ids and home paths removed. */
 function logTail(file) {
   try {
     return readFileSync(file, 'utf8').slice(-2000)
@@ -27,7 +20,6 @@ function logTail(file) {
 
 const NO_COST = { layout: 0, recalc: 0, frames: 0 };
 
-/** Poll the gesture counter while the touches run; open the Timeline when Lean says record, close it when Lean says done or the touches end. */
 export function windowWatcher(c, { log, tag }, deps = {}) {
   const d = { startTimeline, sleep, now: Date.now, ...deps };
   const state = { stop: false, cost: { ...NO_COST, note: 'window never opened' } };
@@ -74,7 +66,6 @@ export function windowWatcher(c, { log, tag }, deps = {}) {
   return { state, done: run };
 }
 
-/** @returns the pass record: page facts, the touch run's exit, the frames, and the window's Timeline counts as `cost` */
 export async function toolbarPass(ctx, { driver, udid, drag, gapPx = GAP_PX, settleMs = 6000, tag = 'pass' }) {
   const { c, log } = ctx;
   await loadFresh(c, { clock: 'pinned', settleMs });
