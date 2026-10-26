@@ -1,0 +1,9 @@
+{"commit":"b4de7bc","load":3.35,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792968021533,"durMs":179360,"exit":0}
+{"commit":"9789fd3","load":7.69,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792969554592,"durMs":99049,"exit":0}
+{"commit":"d7bb8d8","load":7.57,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792969950953,"durMs":189227,"exit":0}
+{"commit":"e92dadc","load":4.47,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792970842199,"durMs":92795,"exit":0}
+{"commit":"d8f3042","load":8.02,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792971425584,"durMs":95479,"exit":1}
+{"commit":"9ea6717","load":3.87,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792971583988,"durMs":90201,"exit":1}
+{"commit":"5972545","load":5.85,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792972086556,"durMs":99798,"exit":0}
+{"commit":"1414619","load":4.84,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792973799462,"durMs":180178,"exit":0}
+{"commit":"401d607","load":4.96,"host":"local","tool":"fw","step":"slot run check sh lean/scripts/check.sh","startMs":1792977899774,"durMs":177727,"exit":0}
