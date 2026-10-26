@@ -8,7 +8,8 @@
   "variants": {
     "faithful": { "kind": "faithful", "tier": "T1", "layerBudget": 24 },
     "scoped": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "O5 exit-scoped-var", "limit": "the win is in UpdateLayoutTree.elementCount, a quarantined counter; WebKit is source-only (Lean wk_units)" } },
-    "threaded": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "hero-exit-threaded-port", "limit": "the CSS animations replace the callback only for a settled entrance in a browser with animation-timeline and unreduced motion; before Safari 26.4 they run on the main thread; countdown hidden-pause reads the stage's inline --exit-opacity, which this variant clears" } }
+    "threaded": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroExitOpt", "ledger": "hero-exit-threaded-port", "limit": "the CSS animations replace the callback only for a settled entrance in a browser with animation-timeline and unreduced motion; before Safari 26.4 they run on the main thread; countdown hidden-pause reads the stage's inline --exit-opacity, which this variant clears" } },
+    "contain": { "kind": "optimized", "tier": "T0", "layerBudget": 24, "provenance": { "lean": "Fw.Parts.HeroContainOpt", "ledger": "hero-relayout-boundary", "limit": "a frame with any dirty source outside the hero (people cards, nav) or on the hero box itself stays a full layout in both engines; the same box needs the people section at least 453.2 px tall (excess_lt_454)" } }
   },
   "requires": {},
   "conflicts": {}
