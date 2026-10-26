@@ -417,6 +417,16 @@ theorem gain_sound (base flag : List Vec) (h : verdict base flag = .gain) :
   obtain ⟨k, hk, hkm⟩ := List.mem_filterMap.1 hl
   exact ⟨k, hk, hkm⟩
 
+theorem gain_needs_runs (base flag : List Vec) (h : verdict base flag = .gain) :
+    minRuns ≤ base.length ∧ minRuns ≤ flag.length := by
+  refine ⟨Nat.not_lt.mp fun hb => ?_, Nat.not_lt.mp fun hf => ?_⟩
+  · rw [noData_of_fewBase base flag hb] at h; cases h
+  · rw [noData_of_fewFlag base flag hf] at h; cases h
+
+theorem verdict_empty_base (flag : List Vec) : verdict [] flag = .noData := noData_of_fewBase [] flag (by decide)
+
+theorem verdict_empty_flag (base : List Vec) : verdict base [] = .noData := noData_of_fewFlag base [] (by decide)
+
 /-- Frames of the section's hidden mask. -/
 def hiddenMask (rs : List Rec) : List Bool := rs.map Rec.hidden
 

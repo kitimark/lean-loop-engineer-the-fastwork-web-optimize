@@ -83,7 +83,10 @@ def armCases (_ : Unit := ()) : List (String × List Run × List Run) := [
   ("two flag runs", arm 40 same, (arm 40 lowRaster).take 2),
   ("a counter column missing in one flag run", arm 40 same, [mkRun 40 lowRaster 0, mkRun 40 lowRaster 1, mkRun 40 lowRaster 2 ["trace.FireAnimationFrame"]]),
   ("one flag run ends a frame later: end 120+ and finish differ in length", arm 40 same, [mkRun 40 lowRaster 0, mkRun 40 lowRaster 1, mkRun 41 lowRaster 2]),
-  ("the page end falls in the tail: end windows are empty", arm 203 same, arm 203 lowRaster)]
+  ("the page end falls in the tail: end windows are empty", arm 203 same, arm 203 lowRaster),
+  ("no base runs", [], arm 40 lowRaster),
+  ("no flag runs", arm 40 same, []),
+  ("two base runs", (arm 40 same).take 2, arm 40 lowRaster)]
 
 def cellJson (base flag : List Vec) (k : String) : Json :=
   match cell base flag k with
