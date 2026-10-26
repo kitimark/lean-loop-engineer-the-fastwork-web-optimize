@@ -137,6 +137,7 @@ run_group() {
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"
+  job "dormant-counts golden check" sh -c "printf 'import Fw.Parts.DormantCounts\\n#eval Fw.Parts.DormantCounts.gen [\"--check\"]\\n' | lake env lean --stdin"  # the shift-dormant verdicts per engine, zone and metric from results/dormant-counts/zones.json
   job "hittest elements golden check" sh -c "printf 'import Fw.Parts.NavHitTestElements\\n#eval Fw.Parts.NavHitTestElements.gen [\"--check\"]\\n' | lake env lean --stdin"  # the hit and is-on-dark class table apps/site/src/parts/nav.hitTest/elements.golden.test.ts replays (Fw.Parts.NavHitTestElements)
   job "webkit-profile golden check" lake env lean --run scripts/WebkitProfileGolden.lean --check ../packages/contracts/golden/measure/webkit-profile.jsonl  # the zone-binned Timeline profile vectors packages/measure-webkit/src/profile/reduce.mjs is checked against (Fw.Measure.WebKitProfile)
   job "path-pix golden check" lake env lean --run scripts/PathPixGolden.lean --check ../packages/contracts/golden/gate/path-pix.jsonl
