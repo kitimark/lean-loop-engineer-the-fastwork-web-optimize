@@ -473,9 +473,18 @@ theorem extent_same (rest e : Rat) (h : e ≤ rest) : extent rest e true = exten
   simp [extent, Rat.max_def]; grind
 
 /-- The largest reach over the matrix is `453.2` px (`desk-rm-601`, reduced motion, an upper bound that counts the
-scatter reduced motion turns off); the premise of `extent_same` is a people section of at least that height, which
-the gate's `scroll-height` page property checks. -/
+scatter reduced motion turns off). -/
 theorem excess_lt_454 : ∀ p ∈ matrix, excess p < 454 := by decide +kernel
+
+/-- The least content below the track over the 124 probes of gate run 40268905824 (Chromium, part boxes):
+`3902.75` px at `desk-641`. MEASURED, not proved. -/
+def restMin : Rat := 3902
+
+theorem extent_same_matrix : ∀ p ∈ matrix, ∀ rest : Rat, restMin ≤ rest →
+    extent rest (excess p) true = extent rest (excess p) false := by
+  intro p hp rest h
+  have := excess_lt_454 p hp
+  exact extent_same rest (excess p) (by unfold restMin at h; grind)
 
 /-- What else layout containment changes, each already true of the hero: a stacking context (sticky with
 `z-index: 2`), an absolute containing block (positioned), an independent formatting context (flex container). -/

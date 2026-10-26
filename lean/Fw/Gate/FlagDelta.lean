@@ -3,6 +3,7 @@ import Fw.Wire.Gate
 import Fw.Gate.Settle
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphColumnsScale
+import Fw.Parts.HeroContainOpt
 namespace Fw.Gate.FlagDelta
 open Fw.Gate
 
@@ -44,7 +45,15 @@ def deltas : List Delta :=
     { id := "final-scale-col-flex-shrink", flag := "morph.columns:final-scale", part := "morph.columns", role := "col",
       property := "flex-shrink", orig := "1", rewrite := "0", look := .l,
       reason := "the columns keep the final-width layout (flex: none) and a horizontal scale draws the base edges; a look change",
-      premise := ``Fw.Parts.MorphColumnsScale.layout_const } ]
+      premise := ``Fw.Parts.MorphColumnsScale.layout_const },
+    { id := "contain-hero-exit-hero", flag := "hero.exit:contain", part := "hero.exit", role := "hero",
+      property := "contain", orig := "none", rewrite := "size layout", look := .e,
+      reason := "the declared containment is the variant; the hero's box is unchanged at every probe (definite height, filled width)",
+      premise := ``Fw.Parts.HeroContainOpt.hero_same_box },
+    { id := "contain-hero-stage", flag := "hero.exit:contain", part := "hero", role := "stage",
+      property := "contain", orig := "none", rewrite := "size layout", look := .e,
+      reason := "the same element as the hero.exit hero role, read by the hero part",
+      premise := ``Fw.Parts.HeroContainOpt.hero_same_box } ]
 
 structure DItem where
   cls : Cls
@@ -252,6 +261,12 @@ def restOn : List String := ["morph.panel:rest"]
 
 def scaleOn : List String := ["morph.columns:final-scale"]
 
+def containOn : List String := ["hero.exit:contain"]
+
+def heroContain : DItem := styleItem "hero" "contain" "none" "size layout"
+
+def stageContain : DItem := styleItem "stage" "contain" "none" "size layout"
+
 #guard readingVerdict restOn "platform" .fail [sectionFilter] == .pass
 #guard readingVerdict restOn "engine.scene" .fail [sceneFilter] == .pass
 #guard readingVerdict [] "platform" .fail [sectionFilter] == .fail
@@ -269,6 +284,11 @@ def scaleOn : List String := ["morph.columns:final-scale"]
 #guard readingVerdict (restOn ++ scaleOn) "morph.columns" .fail flexItems == .pass
 #guard (excusedItems restOn "platform" .fail [sectionFilter]).map (·.2) == ["panel-rest-section-filter"]
 #guard excusedItems restOn "platform" .fail [sectionFilter, styleItem "section" "opacity" "1" "0.5"] == []
+#guard readingVerdict containOn "hero.exit" .fail [heroContain] == .pass
+#guard readingVerdict containOn "hero" .fail [stageContain] == .pass
+#guard readingVerdict [] "hero.exit" .fail [heroContain] == .fail
+#guard readingVerdict containOn "hero" .fail [heroContain] == .fail
+#guard readingVerdict containOn "hero.exit" .fail [heroContain, styleItem "hero" "height" "900px" "0px"] == .fail
 
 open Lean (Json toJson)
 
@@ -328,7 +348,10 @@ def readingCases : List (List String × String × Verdict × List DItem) :=
     (scaleOn, "morph.columns", .fail, [styleItem "col" "flex-grow" "1" "1"]),
     (restOn, "morph.columns", .fail, flexItems),
     (restOn ++ scaleOn, "morph.columns", .fail, flexItems),
-    (restOn ++ scaleOn, "platform", .fail, [sectionFilter]) ]
+    (restOn ++ scaleOn, "platform", .fail, [sectionFilter]),
+    (containOn, "hero.exit", .fail, [heroContain]),
+    (containOn, "hero", .fail, [stageContain]),
+    (containOn, "hero.exit", .fail, [heroContain, styleItem "hero" "height" "900px" "0px"]) ]
 
 def goldenLines (_ : Unit := ()) : List String :=
   deltas.map deltaLine ++ searchCases.map searchLine ++

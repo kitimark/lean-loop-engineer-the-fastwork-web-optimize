@@ -65,7 +65,8 @@ root (:533-534); overflow visible returns false (:536-539), which is the base he
 - Layout containment turns the hero's content overflow into ink overflow, so it no longer adds to the page's
   scrollable overflow. Its reach below the track is under one viewport and at most 453.2 px (`excess_lt_vh`,
   `excess_lt_454`, `desk-rm-601`). The page extent is unchanged when the content after the track is at least that tall
-  (`extent_same`); `page-root` clips x. The breakpoint gate checks the premise (`scroll-height`).
+  (`extent_same`, `extent_same_matrix`); `page-root` clips x. MEASURED premise: in gate run 40268905824 (Chromium) the
+  part boxes reach at least 3902.75 px below the track bottom at every probe (least at `desk-641`).
 
 ## Measurements (MEASURED)
 
