@@ -22040,7 +22040,8 @@
     "packages/contracts/golden/gate/flag-delta.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/gate-breakpoints/test/flag-delta.test.mjs"
-   ]
+   ],
+   "evidence": "da7bdf9"
   },
   {
    "devices": [
@@ -22151,6 +22152,78 @@
     "lean/Fw/Measure/OffscreenGolden.lean"
    ],
    "evidence": "97e6a64"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "toolbar-cost-sample",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "toolbar-sim-lane"
+   ],
+   "title": "Split from toolbar-sim-lane (review r1): measure Layout and RecalcStyle per frame on the Simulator toolbar lane with >= 3 whole gesture-4 cost windows per arm beside same-job default passes (default, engine.scroll:unthrottle, morph.panel:threaded; look-change arms optional), new push budget (at most 2 pushes, free GitHub macOS), Lean cost-evidence rule from toolbar-sim-lane (.undecided below 3 windows). Decides the cost of candidate f (unthrottle: steps ~95 ms to ~50 ms) and whether it may enter a preset.",
+   "writes": [
+    "packages/measure-webkit/src/throttle/toolbar*.mjs",
+    "packages/measure-webkit/test/throttle-toolbar.test.mjs",
+    "lean/Fw/Measure/MorphEndCount.lean",
+    "packages/contracts/golden/device/morph-end-count.jsonl",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-toolbar-cost-sample.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/toolbar-cost-sample.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "verdict-evidence-audit",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "toolbar-sim-lane"
+   ],
+   "title": "Hardening of inc-empty-evidence-win: every Lean verdict that compares base and candidate samples (TouchLock.cmp with cmp_empty_faith, Offscreen cmp/judge, OffscreenWindows, OffscreenWebKit, MorphEndCount, Faithful and Ops goldens) must return undecided when either side lacks its minimum evidence; prove for each verdict function that an empty or short side is never a win (or gain) and list every caller. Golden rows for empty and short sides, TS twins updated, no behaviour change where evidence is complete (prove equality).",
+   "writes": [
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/Fw/Measure/Offscreen.lean",
+    "lean/Fw/Measure/OffscreenGolden.lean",
+    "lean/Fw/Measure/OffscreenWindows*.lean",
+    "lean/Fw/Measure/OffscreenWebKit*.lean",
+    "lean/Fw/Faithful/Golden.lean",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Measure/VerdictEvidence*.lean",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-webkit/src/offscreen-webkit.mjs",
+    "packages/measure-chromium/src/offscreen*.mjs",
+    "packages/measure-webkit/test/offscreen-webkit.test.mjs",
+    "packages/measure-chromium/test/offscreen*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-verdict-evidence-audit.md",
+    "docs/team/handoffs/verdict-evidence-audit.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-sweep-webkit-n3",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [
+    "platform-sweep-layer"
+   ],
+   "title": "platform-sweep-layer follow-up: the WebKit verdict is undecided (base 3 VMs, layer-sweep arm 2 VMs: r2 failed twice on a dead Simulator inspector, run 40261059419) while the reader reads Paint less in every zone (finish 172-214 to 129-142). Re-run the layer-sweep arm (and the base at the same commit) on the WebKit Simulator lane for 3 VMs and decide per zone with the Lean minVms reader; also trace the Chromium t=0 column x=526 to background_image_geometry.cc dest-rect snapping vs the layer path (premise sweep.layer-pixels).",
+   "writes": [
+    "research/notes/2026/10-2x-platform-sweep-layer.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/layer-sweep-webkit-n3.md"
+   ]
   }
  ],
  "deadline": {
