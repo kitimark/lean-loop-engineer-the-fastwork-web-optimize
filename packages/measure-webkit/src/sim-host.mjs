@@ -1,11 +1,23 @@
-export const END_MARGIN_S = 60;
-export const SCROLL_RETRY_S = 589;
-export const PASS_RETRY_S = 436;
-export const LOAD_CEIL_CENTI = 132000;
+// Retry budget and host gate of the Simulator lane: Lean `Fw.Measure.SimHost`, its constants read from the generated golden.
+import { readFileSync } from 'node:fs';
+
+const GOLDEN = readFileSync(new URL('../../contracts/golden/measure/sim-host.jsonl', import.meta.url), 'utf8')
+  .trim().split('\n').map((l) => JSON.parse(l));
+const C = GOLDEN.find((g) => g.op === 'constants');
+
+export const END_MARGIN_S = C.endMarginS;
+export const SCROLL_NEED_S = C.scrollNeedS;
+export const PASS_NEED_S = C.passNeedS;
+export const NAV_WAIT_MS = C.navWaitMs;
+export const LOAD_CEIL_CENTI = C.loadCeilCenti;
 
 export const gateBoundS = (stepMin) => Math.max(0, stepMin * 60 - END_MARGIN_S);
 
 export const retryFits = (elapsedS, needS, boundS) => boundS === null || boundS === undefined || elapsedS + needS <= boundS;
+
+export const tabNeedS = (waitMs) => Math.floor((waitMs + 999) / 1000);
+
+export const tabFits = (elapsedS, waitMs, boundS) => retryFits(elapsedS, tabNeedS(waitMs), boundS);
 
 export const afterFailure = (tries, maxTries, elapsedS, needS, boundS) => tries < maxTries && retryFits(elapsedS, needS, boundS);
 

@@ -10,7 +10,11 @@ def optJson : Option Nat → Json
 
 def boundCases : List (Option Nat) := [none, some 0, some 100, some (gateBoundS 35), some (gateBoundS 70)]
 
-def fitsCases : List (Nat × Nat) := [(0, 0), (0, 589), (1451, 589), (1452, 589), (1600, 436), (2040, 0), (2041, 0)]
+def fitsCases : List (Nat × Nat) :=
+  [(0, 0), (0, scrollNeedS), (1164, scrollNeedS), (1165, scrollNeedS), (477, passNeedS), (478, passNeedS), (2040, 0), (2041, 0)]
+
+def tabCases : List (Nat × Nat) :=
+  [(0, 0), (0, 1), (1560, 480000), (1561, 480000), (1999, 60000), (2000, 60001), (2040, 0)]
 
 def failCases : List (Nat × Nat) := [(1, 3), (2, 3), (3, 3), (0, 0)]
 
@@ -21,24 +25,28 @@ def passCases : List (Nat × Nat) :=
 
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("endMarginS", toJson endMarginS), ("loadCeilCenti", toJson loadCeilCenti),
-    ("scrollRetryS", toJson Seen.scrollRetryS), ("passRetryS", toJson Seen.passRetryS), ("warmS", toJson Seen.warmS),
+    ("scrollNeedS", toJson scrollNeedS), ("passNeedS", toJson passNeedS), ("navWaitMs", toJson navWaitMs),
+    ("headS", toJson Seen.headS), ("tryS", toJson Seen.tryS), ("warmS", toJson Seen.warmS),
     ("stepS", toJson Seen.stepS), ("perSessionMin", toJson SimBound.perSessionMin)]).compress
   let gates := [1, 35, 70].map fun m =>
     (Json.mkObj [("op", "gate"), ("stepMin", toJson m), ("boundS", toJson (gateBoundS m))]).compress
   let fits := (boundCases.map fun b => fitsCases.map fun (e, n) =>
     (Json.mkObj [("op", "fits"), ("elapsedS", toJson e), ("needS", toJson n), ("boundS", optJson b),
       ("fits", .bool (retryFits e n b))]).compress).flatten
+  let tabs := (boundCases.map fun b => tabCases.map fun (e, w) =>
+    (Json.mkObj [("op", "tab"), ("elapsedS", toJson e), ("waitMs", toJson w), ("boundS", optJson b),
+      ("needS", toJson (tabNeedS w)), ("fits", .bool (tabFits e w b))]).compress).flatten
   let fails := (boundCases.map fun b => failCases.map fun (t, mt) =>
     (Json.mkObj [("op", "failure"), ("tries", toJson t), ("maxTries", toJson mt), ("elapsedS", toJson 1000),
-      ("needS", toJson 589), ("boundS", optJson b), ("retry", .bool (afterFailure t mt 1000 589 b))]).compress).flatten
+      ("needS", toJson scrollNeedS), ("boundS", optJson b), ("retry", .bool (afterFailure t mt 1000 scrollNeedS b))]).compress).flatten
   let hosts := loadCases.map fun c =>
     (Json.mkObj [("op", "host"), ("loadCenti", toJson c), ("ok", .bool (hostOk c))]).compress
   let passes := (boundCases.map fun b => passCases.map fun (s, e) =>
     (Json.mkObj [("op", "pass"), ("startCenti", toJson s), ("endCenti", toJson e), ("tries", toJson 1),
-      ("maxTries", toJson 3), ("elapsedS", toJson 1000), ("needS", toJson 436), ("boundS", optJson b),
-      ("verdict", Json.str (afterPass s e 1 3 1000 436 b).name),
-      ("counted", .bool (counted (afterPass s e 1 3 1000 436 b)))]).compress).flatten
-  [consts] ++ gates ++ fits ++ fails ++ hosts ++ passes
+      ("maxTries", toJson 3), ("elapsedS", toJson 400), ("needS", toJson passNeedS), ("boundS", optJson b),
+      ("verdict", Json.str (afterPass s e 1 3 400 passNeedS b).name),
+      ("counted", .bool (counted (afterPass s e 1 3 400 passNeedS b)))]).compress).flatten
+  [consts] ++ gates ++ fits ++ tabs ++ fails ++ hosts ++ passes
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -53,8 +61,14 @@ def checkRepo : IO Unit := check goldenPath
 
 def write (path : System.FilePath) : IO Unit := IO.FS.writeFile path goldenText
 
-#guard retryFits 1451 589 (some 2040) == true
-#guard retryFits 1452 589 (some 2040) == false
+#guard retryFits 1164 scrollNeedS (some 2040) == true
+#guard retryFits 1165 scrollNeedS (some 2040) == false
+#guard retryFits 477 passNeedS (some 2040) == true
+#guard retryFits 478 passNeedS (some 2040) == false
+#guard tabNeedS 60001 == 61
+#guard tabFits 1560 480000 (some 2040) == true
+#guard tabFits 1561 480000 (some 2040) == false
+#guard tabFits 99999 480000 none == true
 #guard (afterPass 200000 0 1 3 0 0 none).name == "redo"
 #guard (afterPass 200000 0 3 3 0 0 none).name == "refuse"
 #guard (afterPass 0 0 3 3 99999 99999 (some 0)).name == "count"
