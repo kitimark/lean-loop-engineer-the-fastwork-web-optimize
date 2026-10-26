@@ -22508,7 +22508,8 @@
     "packages/contracts/golden/measure/measure.simBounds.jsonl",
     "packages/measure-webkit/test/watchdog.test.mjs",
     "scripts/ci-telemetry/tick.test.mjs"
-   ]
+   ],
+   "evidence": "36b98f8"
   },
   {
    "devices": [
