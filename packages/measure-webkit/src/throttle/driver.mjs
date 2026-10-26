@@ -194,16 +194,17 @@ export async function dragPass(driver, { udid, cycles = 4, dragPt = 360, velocit
 }
 
 /**
- * One long run of the push server (driver/UITests/PushServer.swift): it swipes on request through files in `dir` (go-<n> asks,
+ * One long run of the push server (driver/UITests/PushServer.swift; `suite` FinishServer runs FinishServer.swift, one finish cycle per request): it swipes on request through files in `dir` (go-<n> asks,
  * done-<n> answers, ready first, stop last). Returns at once: {state, exited, logFile}; `state.ended` flips when xcodebuild ends.
  */
-export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve' }) {
+export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve', suite = 'PushServer' }) {
   const env = { ...process.env, TEST_RUNNER_FW_DIR: dir, TEST_RUNNER_FW_DRAG_PT: String(push.dragPt), TEST_RUNNER_FW_VELOCITY: String(push.velocity),
-    TEST_RUNNER_FW_HOLD_MS: String(push.holdMs), TEST_RUNNER_FW_MAX_S: String(maxS) };
+    TEST_RUNNER_FW_HOLD_MS: String(push.holdMs), TEST_RUNNER_FW_MAX_S: String(maxS), TEST_RUNNER_FW_WAIT_SCALE: String(timeoutScale()) };
   const logFile = join(driver.dir, `${tag}.log`);
   const state = { ended: false, code: null, timedOut: false };
+  rmSync(join(driver.dir, `${tag}.xcresult`), { recursive: true, force: true });
   const exited = runGroup('xcodebuild', ['test-without-building', '-xctestrun', driver.xctestrun, '-destination', `id=${udid}`,
-    '-only-testing:DriverUITests/PushServer/testServe', '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs: (maxS + 120) * 1000, logFile })
+    `-only-testing:DriverUITests/${suite}/testServe`, '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs: (maxS + 120) * 1000, logFile })
     .then((r) => { Object.assign(state, { ended: true, code: r.code, timedOut: r.timedOut }); return r; });
   return { state, exited, logFile };
 }
