@@ -1,19 +1,15 @@
 # fill-release-platform handoff
 
-- Branch `worktree-wf_1e215c74-cb5-1`, worktree `.claude/worktrees/wf_1e215c74-cb5-1`, CI branch `ci/fill-release-platform` at e133f74c8 (all runs below measure that commit). Last work commit: see `git log`.
-- CI runs (state when written):
-  - chromium-counts 40280497740, success (base `rewrite` vs `platform.entries:fill-release`, swipe-touch-v1, 3 runs).
-  - lean 40280497901, success.
-  - breakpoint-gate 40282885162 (both engines, fw=platform.entries:fill-release): success, pass. Chromium 7056 readings, 7049 pass/pass, 7 excused not-comparable; playwright-webkit 7056 readings, 6765 pass/pass, 291 excused (unreachable or no vector), 0 FAIL.
-  - webkit-sim flag 40282951274 (fw=platform.entries:fill-release, vms 3): success, 3 VMs (6 passes).
-  - webkit-sim base 40282962088: failed, only VM r2 gave data (r1 and r3 hit the 2100 s Determinism sessions bound on a slow runner). Read against the flag run: every cell undecided (n=1+3 VMs). Census layers and memoryBytes are equal in base and flag at y 1500, 3000, 4500, end (layers 141-145 at 4500; memory 149.3 MB; 105.8 MB at the end) - no WebKit change, as `webkit_unchanged` predicts.
-  - webkit-sim base retry 40305413688 (same commit and inputs, vms 3): running; read it with `offscreen-webkit-cli.mjs --arm base=<dirs> --arm flag=<dirs>` against the flag run when done.
-  - check.sh green at the memory-win commit (run through the slot).
-- Verified: tail layer-frames fall 7140 to 6480 (-9.2%), drawing area -7.7%, tiles -10.9%; work noGain in every window (Paint less, RasterTask more). Lean `Fw.Engine.VisualTimed` and the FillRelease section of `Fw.Parts.PlatformEntries` (same_look, no_held_after, held_saved, rows_win, webkit_unchanged); golden `platform-entries-fill.jsonl`; `fill.test.ts`.
-- Done this round: `results/fill-release-platform/layer-frames.mjs` now sums with `runWindows`/`sumRange` of `packages/measure-chromium/src/offscreen-windows.mjs` (Lean-golden-checked windows); output numbers equal the earlier TS stand-in's.
-- Done: Lean `memoryWin` section at the end of FillRelease in `lean/Fw/Parts/PlatformEntries.lean` (memoryWin_fits, memoryWin_neutral, work_change_not_memoryWin; Chromium footprint is open, not a memory-only win).
-- Open: read WebKit per zone (`packages/measure-webkit/src/offscreen-webkit-cli.mjs`, minVms 3), memory verdict (cite `Fw.Engine.Resource.verdict`, `budgetB`, `memory_cost_win`, `win_mono_budget`), note, ledger row, merge main, check.sh, dry land, `fw review ready`.
-- Fetch results: `pnpm -s fw ci <runId>`; gate tables via `gh run download <id>`.
+- State: waiting on one CI run (WebKit base retry). Branch `worktree-wf_1e215c74-cb5-1`, worktree `.claude/worktrees/wf_1e215c74-cb5-1`, CI branch `ci/fill-release-platform` at e133f74c8 (every run below measures that commit). Last work commit: see `git log`.
+- CI runs:
+  - chromium-counts 40280497740 success (base `rewrite` vs flag, swipe-touch-v1, 3 runs); lean 40280497901 success.
+  - breakpoint-gate 40282885162 success, pass on both engines (Chromium 7049 of 7056 pass, 7 excused; Playwright WebKit 6765 pass, 291 excused, 0 FAIL).
+  - webkit-sim flag 40282951274 success, 3 VMs. webkit-sim base 40282962088 failed: VMs r1 and r3 hit the 2100 s determinism bound; only r2 is good, so every per-zone cell reads undecided (n=1+3 VMs).
+  - webkit-sim base retry 40305413688 (same commit and inputs, vms 3): queued since 10:20 UTC (macOS runner contention). When done: `gh run download 40305413688 --pattern 'webkit-sim-r*'` and `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<r1,r2,r3 dirs> --arm flag=<flag run dirs>`; fill the WebKit per-zone verdict into the note (Answer and Runs) and the ledger `webkit` field.
+- Verified: tail layer-frames 7140 to 6480 (-9.2%), drawing area -7.7%, tiles -10.9%, work noGain in every window (Paint less, RasterTask more). WebKit census layers and backing memory equal in base (r2) and flag at every stop (149.3 and 105.8 MB), as `webkit_unchanged` predicts.
+- Lean: `Fw.Engine.VisualTimed`; FillRelease and MemoryTrade sections of `lean/Fw/Parts/PlatformEntries.lean` (memoryWin_fits, memoryWin_neutral, work_change_not_memoryWin over `Resource.verdict` with `budgetB`); check.sh green after merging main; site, runner, ci-paths tests pass.
+- Memory verdict: Chromium no-win (memory down, RasterTask up, not a memory-only win); WebKit no-win (no change). `layer-frames.mjs` now uses the golden-checked `runWindows`/`sumRange`.
+- Dry land: `VERDICT scope fill-release-platform`, four files lie outside the graph writes: `apps/site/src/parts/platform.entries/fill.test.ts`, `apps/site/src/parts/platform/index.tsx`, `lean/Fw/Parts/PlatformEntriesFillGolden.lean`, `research/findings/ledger.json`. With `--allow` for those four the dry land ends `VERDICT dry fill-release-platform`.
 
 Conventions: variant rules sit in `@media (prefers-reduced-motion: no-preference)` at the end of `@layer parts`; each selector is the faithful selector plus `.fillRelease` on the stage root; `.order` included.
-Read first: `lean/Fw/Engine/VisualTimed.lean`, the FillRelease section of `lean/Fw/Parts/PlatformEntries.lean`, then the note.
+Read first: `lean/Fw/Engine/VisualTimed.lean`, the FillRelease section of `lean/Fw/Parts/PlatformEntries.lean`, then the note `research/notes/2026/10-20-fill-release-platform.md`.
