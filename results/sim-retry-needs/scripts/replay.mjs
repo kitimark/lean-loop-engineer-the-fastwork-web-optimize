@@ -1,5 +1,3 @@
-// Replays the retry and tab gates of packages/measure-webkit/src/sim-host.mjs (Lean SimHost, golden-checked) over the
-// decisions of pieces.json. usage: node replay.mjs <repo root> <pieces.json> <out.json>
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';

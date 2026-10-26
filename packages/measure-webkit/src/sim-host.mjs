@@ -1,4 +1,3 @@
-// Retry budget and host gate of the Simulator lane: Lean `Fw.Measure.SimHost`, its constants read from the generated golden.
 import { readFileSync } from 'node:fs';
 
 const GOLDEN = readFileSync(new URL('../../contracts/golden/measure/sim-host.jsonl', import.meta.url), 'utf8')

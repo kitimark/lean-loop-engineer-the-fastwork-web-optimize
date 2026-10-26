@@ -8,13 +8,13 @@ Date: 2026-10-26. Task `sim-retry-needs` (follow-up of `wk-sim-hang`, note `10-2
 - Among all needs that meet `runPass_stop_le`'s premise, the fewest green jobs are refused by `best` = (876, 1563, 480): 14 of 98. PROVED: `best_premise`, `best_fewest` (no premise-meeting needs refuse fewer, over all of ℕ³, so over any grid too: `grid_fewest`), `premise_best_le` (every premise-meeting needs are at least `best` in each component, so a tie goes to `best`), `best_refused`.
 - That is more than the shipped needs refuse, so the shipped needs stay deployed: scroll 589 s, pass 436 s (`SimHost.scrollNeedS`, `passNeedS`), tab need 480 s on CI. PROVED: `pick_fallback`, `deployed_is_pick` (the decision `pick best shipped jobs` returns the deployed needs).
 - For the deployed needs the premise is unmet (`deployed_premise_unmet`, `SimHost.deployed_needs_missed`, `deployed_scroll_below_try`: 589 < the longest scroll try with its pass rest, 876). Model limit: a retry can still reach the step bound and be killed there.
-- Price of the tab gate: with the deployed needs, the gate at 480 s refuses 9 green jobs (navigations later than 1560 s into the step), so the deployed gates refuse 10 of 98 (`shipped_refused`); without the tab gate 1 (`shipped_untabbed_refused`). The lead's figure of 1 is the ungated arm. Open below.
+- Price of the tab gate: with the deployed needs, the gate at 480 s refuses 9 green jobs (navigations later than 1560 s into the step), so the deployed gates refuse 10 of 98 (`shipped_refused`); without the tab gate 1 (`shipped_untabbed_refused`). The lead's figure of 1 is the ungated arm.
 
 ## Premise and the theorem's condition
 
 `Premise c`: `Seen.tryS ≤ c.scroll` (inner level: every scroll try, and for the try that ends the step the rest of its pass, fits the scroll need), `Seen.headS + c.scroll ≤ c.pass` (outer level: reconnect, tab wait and load of a pass head, then a scroll need, fit the pass need; the tab wait is the `tabS` term of the head), and `tabWaitS ≤ c.tab` (the tab need covers the CI tab wait, 60 s × 8 = 480 s, so an admitted wait ends within the bound: `tab_started_le`).
 
-`best_stop_le` is `runPass_stop_le` at `best`. Its condition, plainly: every scroll try lasts at most 876 s and every pass head at most 687 s, the maxima seen in the 98 green jobs. A retry whose real duration exceeds its need can still reach the step bound. The bound holds per pass, not per step.
+`best_stop_le` is `runPass_stop_le` at `best`. Its condition: every scroll try lasts at most 876 s and every pass head at most 687 s, the maxima seen in the 98 green jobs. A retry whose real duration exceeds its need can still reach the step bound. The bound holds per pass, not per step.
 
 ## Frontier (Lean `grid`, `grid_frontier` in `SimHostGolden.lean`; TS replay agrees)
 

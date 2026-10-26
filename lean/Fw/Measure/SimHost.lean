@@ -20,13 +20,10 @@ def stepS : Nat := 1734
 /-- Longest wait from a failed scroll attempt to the end of its retried step, seconds. -/
 def scrollRetryS : Nat := 589
 
-/-- Longest wait from a failed pass attempt to the end of the repeated pass, seconds. -/
 def passRetryS : Nat := 436
 
-/-- Longest pass head, seconds: attempt start (or the failure before it) to its scroll step or its failure. -/
 def headS : Nat := 687
 
-/-- Longest scroll try, seconds, with the rest of the pass for the try that ends the step. -/
 def tryS : Nat := 876
 
 def loadAnyCenti : Nat := 101592
@@ -42,31 +39,23 @@ def endMarginS : Nat := 60
 
 def gateBoundS (stepMin : Nat) : Nat := stepMin * 60 - endMarginS
 
-/-- Need of a scroll retry: the longest seen wait from a failed scroll attempt to the end of its retried step. -/
 def scrollNeedS : Nat := Seen.scrollRetryS
 
-/-- Need of a pass retry: the longest seen wait from a failed pass attempt to the end of the repeated pass. -/
 def passNeedS : Nat := Seen.passRetryS
 
-/-- `navigateTab`'s wait for the new document before the timeout scale, ms. -/
 def navWaitMs : Nat := 60000
 
-/-- `FW_WK_TIMEOUT_SCALE` of the webkit-sim lane. -/
 def ciScale : Nat := 8
 
-/-- Need of a tab wait of `waitMs`: the wait in whole seconds, rounded up. -/
 def tabNeedS (waitMs : Nat) : Nat := (waitMs + 999) / 1000
 
-/-- Whether a retry started `elapsedS` into the step, taking at most `needS`, ends within `boundS` (none: always). -/
 def retryFits (elapsedS needS : Nat) (boundS : Option Nat) : Bool :=
   match boundS with
   | none => true
   | some b => decide (elapsedS + needS ≤ b)
 
-/-- Whether a tab wait of `waitMs` started `elapsedS` into the step ends within `boundS`. -/
 def tabFits (elapsedS waitMs : Nat) (boundS : Option Nat) : Bool := retryFits elapsedS (tabNeedS waitMs) boundS
 
-/-- Whether to retry after an attempt threw. -/
 def afterFailure (tries maxTries elapsedS needS : Nat) (boundS : Option Nat) : Bool :=
   decide (tries < maxTries) && retryFits elapsedS needS boundS
 
@@ -328,7 +317,6 @@ def best : Needs := ⟨Seen.tryS, Seen.headS + Seen.tryS, tabWaitS⟩
 
 def shipped : Needs := ⟨Seen.scrollRetryS, Seen.passRetryS, tabWaitS⟩
 
-/-- The deployed needs: `best` unless it refuses more of `js` than `fallback` does. -/
 def pick (best fallback : Needs) (js : List Job) : Needs :=
   if refusedCount best js ≤ refusedCount fallback js then best else fallback
 
