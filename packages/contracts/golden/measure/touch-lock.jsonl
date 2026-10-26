@@ -1,4 +1,4 @@
-{"maxRestarts":2,"minOpenFrames":10,"op":"constants"}
+{"maxRestarts":2,"minOpenFrames":10,"minSamples":3,"op":"constants"}
 {"calls":[],"case":"steady open phase","events":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":0,"eventReversals":0,"frameFights":0,"frameReversals":0,"jitter":false,"lock":null,"openFrames":12,"restores":0}}
 {"calls":[[5000,1],[5000,1]],"case":"restore after a displaced frame","events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":2,"eventFights":2,"eventReversals":3,"frameFights":2,"frameReversals":3,"jitter":true,"lock":5000,"openFrames":12,"restores":2}}
 {"calls":[[5000,1]],"case":"frames steady, events fight","events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":2,"eventReversals":3,"frameFights":0,"frameReversals":0,"jitter":false,"lock":5000,"openFrames":12,"restores":2}}
@@ -41,16 +41,23 @@
 {"op":"tag","restarts":2,"tag":"serve-r2"}
 {"op":"tag","restarts":3,"tag":"serve-r3"}
 {"cand":[0,0,1],"case":"candidate below","faith":[2,3,5],"op":"cmpKnown","out":"lower"}
-{"cand":[3,4],"case":"candidate above","faith":[0,1],"op":"cmpKnown","out":"higher"}
-{"cand":[1,2],"case":"ranges overlap","faith":[0,4],"op":"cmpKnown","out":"overlap"}
+{"cand":[3,4,4],"case":"candidate above","faith":[0,1,1],"op":"cmpKnown","out":"higher"}
+{"cand":[1,2,3],"case":"ranges overlap","faith":[0,4,2],"op":"cmpKnown","out":"overlap"}
 {"cand":[0,0,0],"case":"both zero","faith":[0,0,0],"op":"cmpKnown","out":"overlap"}
-{"cand":[1,2],"case":"touching ranges","faith":[2,3],"op":"cmpKnown","out":"overlap"}
-{"cand":[1],"case":"no faithful run","faith":[],"op":"cmpKnown","out":"undecided"}
-{"cand":[],"case":"no candidate run","faith":[1],"op":"cmpKnown","out":"undecided"}
-{"cand":[0,0,0],"case":"both steady","faith":[0,0],"op":"lookKnown","out":"same"}
-{"cand":[0,0],"case":"faithful displaced","faith":[0,2],"op":"lookKnown","out":"change"}
-{"cand":[1],"case":"candidate displaced","faith":[0,0],"op":"lookKnown","out":"change"}
-{"cand":[4],"case":"both displaced","faith":[3],"op":"lookKnown","out":"change"}
+{"cand":[1,2,2],"case":"touching ranges","faith":[2,3,3],"op":"cmpKnown","out":"overlap"}
+{"cand":[1,1,1],"case":"no faithful run","faith":[],"op":"cmpKnown","out":"undecided"}
+{"cand":[],"case":"no candidate run","faith":[1,1,1],"op":"cmpKnown","out":"undecided"}
+{"cand":[0,0,1],"case":"one faithful run","faith":[5],"op":"cmpKnown","out":"undecided"}
+{"cand":[0],"case":"one candidate run","faith":[5,6,7],"op":"cmpKnown","out":"undecided"}
+{"cand":[3,4],"case":"two runs each, separated","faith":[0,1],"op":"cmpKnown","out":"undecided"}
+{"cand":[0,1],"case":"two candidate runs, separated","faith":[5,6,7],"op":"cmpKnown","out":"undecided"}
+{"cand":[0,0,0],"case":"both steady","faith":[0,0,0],"op":"lookKnown","out":"same"}
+{"cand":[0,0,0],"case":"faithful displaced","faith":[0,2,0],"op":"lookKnown","out":"change"}
+{"cand":[1,0,0],"case":"candidate displaced","faith":[0,0,0],"op":"lookKnown","out":"change"}
+{"cand":[4,4,4],"case":"both displaced","faith":[3,3,3],"op":"lookKnown","out":"change"}
 {"cand":[],"case":"nothing measured","faith":[],"op":"lookKnown","out":"undecided"}
-{"cand":[0],"case":"no faithful run","faith":[],"op":"lookKnown","out":"undecided"}
-{"cand":[],"case":"no candidate run","faith":[0],"op":"lookKnown","out":"undecided"}
+{"cand":[0,0,0],"case":"no faithful run","faith":[],"op":"lookKnown","out":"undecided"}
+{"cand":[],"case":"no candidate run","faith":[0,0,0],"op":"lookKnown","out":"undecided"}
+{"cand":[0],"case":"one steady run each","faith":[0],"op":"lookKnown","out":"undecided"}
+{"cand":[0,0],"case":"two steady runs each","faith":[0,0],"op":"lookKnown","out":"undecided"}
+{"cand":[1],"case":"one candidate run, displaced","faith":[0,0,0],"op":"lookKnown","out":"undecided"}
