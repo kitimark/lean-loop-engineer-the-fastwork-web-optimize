@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
+import { relaunchPlan } from './sim-host.mjs';
 import { bootDevice, terminateSafariAsync, startSafariAsync, waitSocket, openUrlAsync, shutdownDeviceAsync, startProxy, proxyCheck, probeInspector, findDevice, shutdownDevice, listTabs, sleep } from './sim.mjs';
 import { BOUNDS, InspectorDeadError, TargetLostError } from './inspector.mjs';
 import { createGuard, runSteps } from './guard.mjs';
@@ -150,23 +151,25 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
       proxy = null;
       proxy = await startProxy({ log, timeoutMs: BOUNDS.proxyMs - 5000, phones: phones, lsofMs: 5000 });
     };
-    const relaunch = async () => {
+    // The steps and their bounds are Lean's (SimHost.Freeze.relaunchPlan): right after a reboot there is no Safari to terminate.
+    const relaunch = async ({ fresh = false } = {}) => {
       try { client?.close().catch(() => {}); } catch { /* the page is gone with Safari */ } // not awaited: its close waits for a dead socket
-      await runSteps([
-        { name: 'terminate Safari', ms: BOUNDS.terminateMs, run: () => terminateSafariAsync(device.udid, { timeoutMs: BOUNDS.terminateMs }) },
-        { name: 'launch Safari', ms: BOUNDS.launchMs, run: () => startSafariAsync(device.udid, { log, timeoutMs: BOUNDS.launchMs, max: 1 }) },
-        { name: 'wait for the inspector socket', ms: BOUNDS.socketMs, run: () => waitSocket({ timeoutMs: BOUNDS.socketMs }) },
-        { name: 'start the proxy', ms: BOUNDS.proxyMs, run: async () => {
+      const doStep = {
+        'terminate Safari': () => terminateSafariAsync(device.udid, { timeoutMs: BOUNDS.terminateMs }),
+        'launch Safari': () => startSafariAsync(device.udid, { log, timeoutMs: BOUNDS.launchMs, max: 1 }),
+        'wait for the inspector socket': () => waitSocket({ timeoutMs: BOUNDS.socketMs }),
+        'start the proxy': async () => {
           try { await proxy?.stop(); } catch { /* already gone */ }
           proxy = null;
           proxy = await startProxy({ log, timeoutMs: BOUNDS.proxyMs - 5000, phones, lsofMs: 5000 });
-        } },
+        },
         // no openurl first: Safari restores its tab, and a second one would make `openTab` see two; one ask if none is listed
-        { name: 'wait for the Safari tab', ms: BOUNDS.tabMs + BOUNDS.askMs, run: () => ensureTab({
-          list: listPageTabs, ask: askOnce(() => openUrlAsync(device.udid, tabUrl, { timeoutMs: BOUNDS.askMs, max: 1 }), log), maxAsks: 1, timeoutMs: BOUNDS.tabMs, log }) },
+        'wait for the Safari tab': () => ensureTab({
+          list: listPageTabs, ask: askOnce(() => openUrlAsync(device.udid, tabUrl, { timeoutMs: BOUNDS.askMs, max: 1 }), log), maxAsks: 1, timeoutMs: BOUNDS.tabMs, log }),
         // the page answers: connect once and let go again; the run's own retry connects its client (one owner of ctx.c)
-        { name: 'connect to the tab', ms: BOUNDS.connectMs, run: async () => { await (await openTab(server.url, { waitMs: BOUNDS.connectMs, log })).close(); } },
-      ], { log });
+        'connect to the tab': async () => { await (await openTab(server.url, { waitMs: BOUNDS.connectMs, log })).close(); },
+      };
+      await runSteps(relaunchPlan(fresh).map(({ name, ms }) => ({ name, ms, run: doStep[name] })), { log });
     };
     guard = createGuard({
       probe: () => probeInspector({ urlPrefix: server.url }), relaunch, repair: restartProxy, log, onDead: (e) => deadReject(e),
