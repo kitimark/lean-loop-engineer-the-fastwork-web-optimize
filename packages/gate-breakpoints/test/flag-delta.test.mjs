@@ -16,7 +16,7 @@ test('the golden is the file the gate reads', () => {
   assert.deepEqual(loadDeltas(), of('delta'));
 });
 
-test('the allowlist holds the five tuples of the two runs with their premises', () => {
+test('the allowlist holds the tuples of the reviewed flags with their premises', () => {
   const ds = of('delta').map((d) => [d.flag, d.part, d.role, d.property, d.orig, d.rewrite, d.look, d.premise]);
   assert.deepEqual(ds, [
     ['morph.panel:rest', 'platform', 'section', 'filter', 'blur(0px)', 'none', 'E', 'Fw.Parts.MorphPanelOpt.rest_visSame_E'],
@@ -24,6 +24,16 @@ test('the allowlist holds the five tuples of the two runs with their premises', 
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-basis', '0px', 'auto', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-grow', '1', '0', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
     ['morph.columns:final-scale', 'morph.columns', 'col', 'flex-shrink', '1', '0', 'L', 'Fw.Parts.MorphColumnsScale.layout_const'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-clip', 'text', 'border-box', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-background-clip', 'text', 'border-box', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-image', 'linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.33%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.67%, rgb(255, 255, 255) 100%)', 'none', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'background-image', 'linear-gradient(90deg, rgb(255, 255, 255) 0px, rgb(255, 255, 255) 33.330002%, rgb(130, 188, 255) 40%, rgb(36, 131, 255) 45%, rgb(255, 102, 244) 50%, rgb(255, 48, 41) 55%, rgb(254, 123, 2) 60%, rgb(255, 255, 255) 66.669998%, rgb(255, 255, 255) 100%)', 'none', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'display', 'inline', 'inline-block', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'position', 'static', 'relative', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'position', 'relative', 'static', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-image', 'none', 'linear-gradient(rgb(0, 0, 0), rgb(0, 0, 0))', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', 'mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
+    ['platform.sweep:layer-sweep', 'platform.sweep', 'word', '-webkit-mask-clip', 'border-box', 'text', 'L', 'Fw.Parts.PlatformSweepLayer.same_look'],
   ]);
 });
 
