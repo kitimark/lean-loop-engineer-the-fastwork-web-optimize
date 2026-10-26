@@ -21972,7 +21972,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "docs/team/handoffs/gh-budget-fresh-inflight.md"
-   ]
+   ],
+   "evidence": "47e8c19"
   }
  ],
  "deadline": {
