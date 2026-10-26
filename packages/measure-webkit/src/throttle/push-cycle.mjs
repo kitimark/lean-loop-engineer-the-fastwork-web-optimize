@@ -253,3 +253,40 @@ export function periodMs(rec) {
 
 /** Per-pass slow (> thr ms) frames of each cycle, the quiet ranges masked: the list the verdict reads. */
 export const slowCounts = (rec, thr = 50) => recordCycles(rec).map((c) => (thr === 50 ? c.slow50 : c.slow34));
+
+// The counted window of a cycle (TS stand-in, glue over the recorded frames): from the start of an open stretch to POST_MS after its end, but not into the next
+// stretch. Every other gap is quiet in both profiles, so the idle time between the dwell pass's touch runs never adds a slow frame.
+export const POST_MS = 8000;
+
+export function activeQuiet(rec, postMs = POST_MS) {
+  const st = stretches(rec.o);
+  const quiet = [];
+  let from = -Infinity;
+  st.forEach(([a, b], k) => {
+    quiet.push([from, rec.t[a]]);
+    from = Math.min(rec.t[b] + postMs, k + 1 < st.length ? rec.t[st[k + 1][0]] : Infinity);
+  });
+  quiet.push([from, Infinity]);
+  return [...quiet, ...(rec.quiet ?? [])];
+}
+
+export const activeCycles = (rec, postMs = POST_MS) => recordCycles({ ...rec, quiet: activeQuiet(rec, postMs) });
+
+export const censusSeries = (pass, field) => (pass.census ?? []).filter((c) => c.k >= 0 && c.k < SEP_DWELL_CYCLES).map((c) => c[field]);
+
+const meanInt = (xs) => (xs.length ? Math.round(sum(xs) / xs.length) : 0);
+
+/** One arm's passes (usable ones, with .profile and .rec) to the Lean rule's input and the census reading. */
+export function sepArm(passes, thr = 50) {
+  const full = passes.filter((p) => p.profile === 'full'), dwell = passes.filter((p) => p.profile === 'dwell');
+  const key = thr === 50 ? 'slow50' : 'slow34';
+  const input = {
+    full: full.map((p) => activeCycles(p.rec).map((c) => c[key])), dwell: dwell.map((p) => activeCycles(p.rec).map((c) => c[key])),
+    periodFull: meanInt(full.map((p) => periodMs(p.rec)).filter(Boolean)), periodDwell: meanInt(dwell.map((p) => periodMs(p.rec)).filter(Boolean)),
+  };
+  const census = Object.fromEntries(['layers', 'bytes', 'created'].map((f) => [f, readCensus(dwell.map((p) => censusSeries(p, f)))]));
+  const trends = Object.fromEntries(['layers', 'bytes', 'created'].map((f) => [f, dwell.map((p) => trend(censusSeries(p, f)))]));
+  const r = stretch(input.periodDwell, input.periodFull);
+  const rates = { idx: rate(sepWindowOf(input.full, (k) => k)), clk: rate(sepWindowOf(input.full, (k) => clockIndex(r, k))), dwell: rate(sepWindowOf(input.dwell, (k) => k)) };
+  return { input, verdict: sepVerdict(input), r, rates, census, trends };
+}

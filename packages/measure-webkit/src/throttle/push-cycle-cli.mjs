@@ -3,7 +3,10 @@
 //   Real touches on Mobile Safari in the booted Simulator: the page is scrolled to 300 px above its end, then N back-and-forth cycles (drag past
 //   the end, drag back, shorter drag so the toolbar returns), dwell --hold ms after each press. One pass per arm and round, the order rotated by
 //   --rotate. original = the read-only snapshot; rewrite = the default prerendered build; user = the user's composition; off-<flag> = it minus one flag.
-// node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file]   the per-cycle table, the trend and the H1/H2 verdicts
+//   --separate (task push-cycle-separate): per arm one `full` pass (--cycles cycles, one continuous touch run) and one `dwell` pass (6 touch runs, a census and a
+//   rest between them that fills the period to --ratio times the full pass's measured period); each finished pass is also written as <out>.pass-N.part.
+// node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file]   the per-cycle table, the trend and the H1/H2 verdicts; with separate passes the
+//   cycle-vs-clock verdict (Lean Fw.Measure.PushCycle.sepVerdict) and the census reading
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -14,7 +17,8 @@ import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
 import { makePassRunner } from './pass-run.mjs';
 import { excludeReason } from './finish-report.mjs';
 import { pushCyclePass } from './push-cycle-pass.mjs';
-import { searchOf, uploadName } from './push-cycle.mjs';
+import { searchOf, uploadName, periodMs } from './push-cycle.mjs';
+import { passFile } from '../session.mjs';
 import { reportMd } from './push-cycle-report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -28,6 +32,7 @@ const { values: v } = parseArgs({
     timeout: { type: 'string', default: '480' }, reset: { type: 'boolean', default: false }, 'no-warmup': { type: 'boolean', default: false },
     settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' }, out: { type: 'string' }, driver: { type: 'string' },
     in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
+    separate: { type: 'boolean', default: false }, ratio: { type: 'string', default: '2' }, 'rest-cap': { type: 'string', default: '120000' },
   },
   allowNegative: true,
 });
@@ -53,13 +58,31 @@ async function main() {
       const file = resolve(v.out ?? 'out/push-cycle.json');
       const outDir = dirname(file);
       mkdirSync(outDir, { recursive: true });
-      const save = () => writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed, machine }) + '\n');
-      const { warmUp, runArm } = makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
-        firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf: pushCyclePass, reasonOf: excludeReason, state: { passes, failed, machine }, save });
+      let written = 0;
+      const save = () => {
+        writeFileSync(file, JSON.stringify({ vm: v.vm, drag, passes, failed, machine }) + '\n');
+        for (; written < passes.length; written++) writeFileSync(passFile(file, written + 1), JSON.stringify(passes[written]) + '\n'); // one file per finished pass, for the tick uploads
+      };
+      const plan = { profile: 'full', targetMs: 0 };
+      const runner = (profile) => makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
+        firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf: (ctx, o) => pushCyclePass(ctx, { ...o, profile, targetMs: plan.targetMs, restCapMs: Number(v['rest-cap']) }),
+        reasonOf: excludeReason, state: { passes, failed, machine }, save });
+      const full = runner('full');
+      const dwell = v.separate ? runner('dwell') : null;
       try {
-        if (!v['no-warmup']) await warmUp('warm-up');
+        if (!v['no-warmup']) await full.warmUp('warm-up');
         for (let round = 0; round < Number(v.rounds); round++) {
-          for (const arm of rotate(arms, round + Number(v.rotate))) await runArm(arm, round);
+          for (const arm of rotate(arms, round + Number(v.rotate))) {
+            const rd = dwell ? 2 * round : round;
+            await full.runArm(arm, rd);
+            if (!dwell) continue;
+            // the dwell pass fills each cycle's period to `ratio` times the full pass's measured one (150 s when that pass left no period)
+            const last = passes.filter((p) => p.arm === arm && p.profile === 'full').at(-1);
+            const period = last?.rec ? periodMs(last.rec) : 0;
+            plan.targetMs = period > 0 ? Math.round(period * Number(v.ratio)) : 150000;
+            log(`${arm}: full period ${period} ms, dwell target ${plan.targetMs} ms`);
+            await dwell.runArm(arm, rd + 1);
+          }
         }
       } finally {
         stop(); if (!v.driver) cleanup(driver);

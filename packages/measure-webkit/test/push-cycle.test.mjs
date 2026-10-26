@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import * as P from '../src/throttle/push-cycle.mjs';
+import * as P_REPORT from '../src/throttle/push-cycle-report.mjs';
 import { armTable, reportMd } from '../src/throttle/push-cycle-report.mjs';
 import { EXTRA_START_JS } from '../src/throttle/push-cycle-page.mjs';
 
@@ -231,4 +232,53 @@ test('periodMs is the mean spacing of the first six opens; fewer opens give 0', 
   const want = Math.round((rec.t[520] - rec.t[20]) / 5);
   assert.equal(P.periodMs(rec), want);
   assert.equal(P.periodMs({ ...rec, o: rec.o.map((x, i) => (i >= 400 ? 0 : x)) }), 0);
+});
+
+test('the active window masks the idle time between stretches, the same way in both profiles', () => {
+  const rec = synthetic();
+  const q = P.activeQuiet(rec, 100);
+  assert.equal(q.length, 7, 'one range before each stretch and one after the last');
+  assert.deepEqual(q[0], [-Infinity, rec.t[20]]);
+  const base = P.recordCycles(rec), act = P.activeCycles(rec, 100);
+  assert.equal(base[3].slowFar34, 1);
+  assert.equal(act[3].slowFar34, 0, 'the 40 ms gap lies in the idle time after the stretch');
+  assert.equal(act[1].slow50, 2, 'a gap inside the open stretch stays');
+  assert.deepEqual(P.activeCycles(rec, 1e9).map((c) => c.slow34), base.map((c) => c.slow34), 'a long tail leaves nothing masked');
+  const own = [[rec.t[130] - 5, rec.t[132] + 1]];
+  assert.deepEqual(P.activeQuiet({ ...rec, quiet: own }, 100).at(-1), own[0], 'recorded ranges are kept');
+});
+
+test('sepArm: census reading from the dwell passes, the Lean rule over both profiles', () => {
+  const rec = synthetic();
+  const rise = [10, 14, 14, 14, 14, 14], flat = [14, 14, 14, 14, 14, 14];
+  const census = (layers) => [{ k: -1, layers: 3, bytes: 1, created: 3 }, ...layers.map((l, k) => ({ k, layers: l, bytes: l * 100, created: k === 0 ? l : 0 })), { k: 6, layers: 1, bytes: 1, created: 0 }];
+  const pass = (profile, layers) => ({ profile, rec, census: census(layers) });
+  const a = P.sepArm([pass('full', flat), pass('full', flat), pass('full', flat), pass('dwell', rise), pass('dwell', rise), pass('dwell', rise)]);
+  assert.deepEqual(P.censusSeries(pass('dwell', rise), 'layers'), rise, 'the pre and post points are not cycles');
+  assert.equal(a.census.layers, 'yes');
+  assert.equal(a.census.bytes, 'yes');
+  assert.equal(a.input.full.length, 3);
+  assert.equal(a.input.periodFull, P.periodMs(rec));
+  assert.equal(a.r, 1000);
+  assert.equal(a.verdict, 'undecided:inseparable', 'no slow frames in cycles 3 to 5: nothing to separate');
+  const b = P.sepArm([pass('full', flat), pass('dwell', rise), pass('dwell', flat), pass('dwell', flat)]);
+  assert.equal(b.verdict, 'undecided:fewFull', 'a side below its minimum passes is undecided');
+  assert.equal(b.census.layers, 'mixed');
+  assert.equal(P.sepArm([pass('full', flat), pass('full', flat), pass('full', flat), pass('dwell', rise)]).census.layers, 'few');
+});
+
+test('the report names the verdict per arm, the census reading and the lost passes', () => {
+  const rec = synthetic();
+  const ok = (profile, layers) => ({ arm: 'rewrite', profile, rec, drag: { code: 0 }, census: [{ k: -1, layers: 3, bytes: 1, created: 3 }, ...layers.map((l, k) => ({ k, layers: l, bytes: l * 100, created: 0 })), { k: 6, layers: 1, bytes: 9, created: 0 }] });
+  const lost = { arm: 'rewrite', profile: 'dwell', rec, drag: { code: 1, timedOut: true } };
+  const rows = P_REPORT.sepTable([{ vm: 'a', passes: [ok('full', [1]), ok('full', [1]), ok('full', [1]), ok('dwell', [10, 14, 14, 14, 14, 14]), ok('dwell', [10, 14, 14, 14, 14, 14]), lost] }]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].full, 3);
+  assert.equal(rows[0].dwell, 2, 'the lost pass is not counted');
+  assert.deepEqual(rows[0].lost.dwell, ['a touch driver timed out']);
+  assert.equal(rows[0].s50.verdict, 'undecided:fewDwell');
+  const md = reportMd([{ vm: 'a', passes: [ok('full', [1]), ok('dwell', [1])] }]);
+  assert.match(md, /Cycle versus clock/);
+  assert.match(md, /Census after each cycle/);
+  assert.match(md, /rewrite \| 1 \| 1 \|/);
 });
