@@ -22148,7 +22148,8 @@
     "research/notes/2026/10-2x-chromium-window-reader.md",
     "docs/team/handoffs/chromium-window-reader.md",
     "lean/Fw/Measure/OffscreenGolden.lean"
-   ]
+   ],
+   "evidence": "97e6a64"
   }
  ],
  "deadline": {

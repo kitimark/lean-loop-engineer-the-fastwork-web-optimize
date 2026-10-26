@@ -121,6 +121,7 @@ run_group() {
   job "walkbudget golden check" lake env lean --run scripts/WalkBudgetGolden.lean --check ../packages/contracts/golden/measure/walk-budget.jsonl
   job "offscreen golden check" lake env lean --run scripts/OffscreenGolden.lean --check ../packages/contracts/golden/measure/offscreen.jsonl
   job "offscreen-webkit golden check" sh -c "printf 'import Fw.Measure.OffscreenWebKitGolden\\n#eval Fw.Measure.OffscreenWebKitGolden.checkRepo\\n' | lake env lean --stdin"
+  job "offscreen-windows golden check" sh -c "printf 'import Fw.Measure.OffscreenWindowsGolden\\n#eval Fw.Measure.OffscreenWindowsGolden.checkRepo\\n' | lake env lean --stdin"
   job "touchlock golden check" lake env lean --run scripts/TouchLockGolden.lean --check ../packages/contracts/golden/measure/touch-lock.jsonl
   job "smooth golden check" lake env lean --run scripts/SmoothGolden.lean --check ../packages/contracts/golden/gate/smooth.jsonl
   job "exit golden check" lake env lean --run scripts/ExitGolden.lean --check ../packages/contracts/golden/gate/exit.jsonl
