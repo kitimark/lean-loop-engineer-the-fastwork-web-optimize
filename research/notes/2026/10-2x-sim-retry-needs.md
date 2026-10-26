@@ -4,7 +4,7 @@ Date: 2026-10-26. Task `sim-retry-needs` (follow-up of `wk-sim-hang`, note `10-2
 
 ## Answer
 
-- The needs (scroll, pass, tab) are a choice, decided in Lean (`lean/Fw/Measure/SimRetryChoice.lean`) over the gate decisions of the 98 green jobs (`SimRetryData.jobs`, generated from `pieces.json`).
+- The needs (scroll, pass, tab) are a choice, decided in Lean over the gate decisions of the 98 green jobs: the decision (`Premise`, `refusedCount`, `pick`) and its general theorems are in `lean/Fw/Measure/SimHost.lean`, the data (`jobs`, written from `pieces.json` by `lean_data.py`) and the theorems on it in `lean/Fw/Measure/SimHostGolden.lean`.
 - Among all needs that meet `runPass_stop_le`'s premise, the fewest green jobs are refused by `best` = (876, 1563, 480): 14 of 98. PROVED: `best_premise`, `best_fewest` (no premise-meeting needs refuse fewer, over all of ℕ³, so over any grid too: `grid_fewest`), `premise_best_le` (every premise-meeting needs are at least `best` in each component, so a tie goes to `best`), `best_refused`.
 - That is more than the shipped needs refuse, so the shipped needs stay deployed: scroll 589 s, pass 436 s (`SimHost.scrollNeedS`, `passNeedS`), tab need 480 s on CI. PROVED: `pick_fallback`, `deployed_is_pick` (the decision `pick best shipped jobs` returns the deployed needs).
 - For the deployed needs the premise is unmet (`deployed_premise_unmet`, `SimHost.deployed_needs_missed`, `deployed_scroll_below_try`: 589 < the longest scroll try with its pass rest, 876). Model limit: a retry can still reach the step bound and be killed there.
@@ -16,7 +16,7 @@ Date: 2026-10-26. Task `sim-retry-needs` (follow-up of `wk-sim-hang`, note `10-2
 
 `best_stop_le` is `runPass_stop_le` at `best`. Its condition, plainly: every scroll try lasts at most 876 s and every pass head at most 687 s, the maxima seen in the 98 green jobs. A retry whose real duration exceeds its need can still reach the step bound. The bound holds per pass, not per step.
 
-## Frontier (Lean `grid`, `#guard` in `SimRetryChoice.lean`; TS replay agrees)
+## Frontier (Lean `grid`, `#guard` in `SimHostGolden.lean`; TS replay agrees)
 
 | Scroll need (s) | Pass need (s) | Tab need (s) | Refused green jobs (of 98) | Scroll | Pass | Tab | Premise |
 |---|---|---|---|---|---|---|---|
@@ -54,7 +54,7 @@ A pass attempt is reconnect, tab wait, load and census (the head), then the scro
 
 ## Replay (`results/sim-retry-needs/scripts/`)
 
-`fetch.py` downloads the logs, `pieces.py` extracts per job the pass attempts and every gate decision (scroll retry, pass retry, tab wait) with its time from the step start, `lean_data.py` writes `SimRetryData.lean` from `pieces.json` (`--check` compares), `replay.mjs` runs the package's `afterFailure` and `tabFits` on the decisions. Decisions: 12 scroll retries, 8 pass retries (18 jobs), 889 tab waits. Every job ran one session (bound 2040 s).
+`fetch.py` downloads the logs, `pieces.py` extracts per job the pass attempts and every gate decision (scroll retry, pass retry, tab wait) with its time from the step start, `lean_data.py` writes the `jobs` block of `SimHostGolden.lean` from `pieces.json` (`--check` compares), `replay.mjs` runs the package's `afterFailure` and `tabFits` on the decisions. Decisions: 12 scroll retries, 8 pass retries (18 jobs), 889 tab waits. Every job ran one session (bound 2040 s).
 
 | Arm (`replay.json`) | Refused | Scroll | Pass | Tab |
 |---|---|---|---|---|
