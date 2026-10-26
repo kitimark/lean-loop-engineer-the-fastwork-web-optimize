@@ -20,20 +20,33 @@ and the look are for the user's review. Never a preset. Commit 13b09467c on ci/m
 | chromium-counts swipe-touch-v1 base, 3 runs | 40339630528 | filed |
 | chromium-counts swipe-touch-v1 morph.stage:on, 3 runs | 40339622735 | filed |
 
-## Gate with the flag: fail, cause named
-Chromium 28 and WebKit 24 cells not ok, all in two parts: morph.mount (26) and morph.tween (14). Cause (read from
-the merged readings): their anchors (`morph.mount` target, `morph.tween` scroller) have count 0 on the rewrite and 1 on
-the original, because the flag does not mount the scroll-jack. Every other part passes. The Lean flag-delta list only
-excuses style items, so a flag that unmounts a part has no way to pass the gate yet. Follow-up (not done here, a new
-mechanism): a count delta for a flag that unmounts a part, with a theorem tying it to `jack_off_iff`.
+## Gate with the flag: pass (round 2, run 40366243322)
+Round 1 (40339272935) failed 28 Chromium and 24 WebKit cells, all in morph.mount and morph.tween: the flag leaves their
+anchors (`morph-mount`, `morph-tween`) unmounted, count 0 on the rewrite against 1 on the original.
+Now `Fw.Gate.FlagDelta.replacedParts` has two entries (stage-mount, stage-tween; flag morph.stage:on; premise
+`Fw.Parts.MorphStage.stage_unmounts_anchors`, which states that with the stage on `morph-mount` and `morph-tween` are
+not mounted; `stage_keeps_others` says no other anchor is unmounted; `faithful_mounts_anchors` the off side). The
+gate (both engines, fw=morph.stage:on) passes. Items excused: only `target[-1].count` of morph.mount and
+`scroller[-1].count` of morph.tween (Chromium 196 each, WebKit 188 each); no other item was excused.
+Accepted limit: a Lean look field on ReplacedPart is a follow-up.
 
-## Chromium, base against flag (Lean reader offscreen-windows-cli.mjs, slack 0, 3 runs per arm)
-End frame 574 on base, 670 with the flag.
+## Chromium, base against flag (round 2, swipe-touch-v1 with the swipe-end tail, 3 runs per arm, commit 8f2f726bf)
+Base run 40366273179, flag run 40366262655. Lean reader offscreen-windows-cli.mjs (slack 0) with minFrames
+34/20/40/60/20/174. End frame 574 (base), 670 (flag); each window starts at the run's own end frame.
 
-| window | verdict |
+| window | stage |
 |---|---|
-| approach | noGain (less RecalcStyleCount 129 to 95, FireAnimationFrame 120 to 77; more LayoutCount 6 to 30, Paint 114 to 272, RasterTask 236 to 637) |
-| end 0-19, 20-59, 60-119, 120+, finish | noData (not usable: the flag run has no frames in those windows from its end frame) |
+| approach | noGain; less: RecalcStyleCount 129 to 95, FireAnimationFrame 120 to 77; more: LayoutCount 6 to 30, Paint 114 to 272, RasterTask 236 to 637, PaintImage 137 to 617 [34 frames, min 34] |
+| end 0-19 | gain; less: RecalcStyleCount 43 to 22, LayoutCount 21 to 1, Paint 335 to 43, RasterTask 517 to 20, PaintImage 495 to 92, FireAnimationFrame 43 to 40 [20 frames, min 20] |
+| end 20-59 | gain; less: LayoutCount 25 to 0, Paint 252 to 80, RasterTask 454 to 0, PaintImage 454 to 160, FireAnimationFrame 141 to 17 [40 frames, min 40] |
+| end 60-119 | gain; less: FireAnimationFrame 56 to 54 [60 frames, min 60] |
+| end 120+ | gain; less: FireAnimationFrame 39 to 37 [47 frames, min 20] |
+| finish | gain; less: RecalcStyleCount 319 to 264, LayoutCount 52 to 31, Paint 915 to 609, RasterTask 1207 to 657, PaintImage 1514 to 1297, FireAnimationFrame 400 to 225 [201 frames, min 174] |
+
+Reading: the approach window has more LayoutCount, Paint, RasterTask and PaintImage (the sticky scene and the scroll
+timeline do work the base does not do while the page approaches the end) and less RecalcStyleCount and
+FireAnimationFrame: noGain. Every window from the end frame has a counter less and none more with the minimum frames
+met: gain. All six windows have enough frames (the 120+ window has 47 against 20).
 
 ## WebKit Simulator
 Waiting: wk-sim-hang is not on main. Dispatch after it lands: `pnpm -s fw run --target rewrite --fw morph.stage:on --engines webkit --ref ci/morph-stage` (zones, 3 VMs) and the toolbar-throttle lane with the flag.
