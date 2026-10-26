@@ -65,39 +65,39 @@ def goalCss (v : Vp) (c : Ctx) : List String :=
 
 def vpIn (v : Vp) : List (String × Json) := [("w", jdec 0 v.w), ("h", jdec 0 v.h)]
 
-def knotLines : List String :=
+def knotLines (_ : Unit) : List String :=
   bandVps.map fun v => gline "knots" (vpIn v)
     (Json.mkObj ([Ks.grid, .earn, .panel, .fade].map fun k => (k.name, jl ((k.list v).map (jdec 9)))))
 
-def timeLine : String :=
+def timeLine (_ : Unit) : String :=
   gline "time" [] (Json.mkObj [("frameMs", jdec 9 frameMs), ("frames", .num ⟨frames, 0⟩), ("end", jdec 9 timeEnd)])
 
-def sampleLines : List String :=
+def sampleLines (_ : Unit) : List String :=
   bandVps.flatMap fun v => [Eng.webkit, .chromium].flatMap fun e =>
     ((anims v (Ctx.sample v e)).filter fun a => e = .webkit || engDep a).map fun a =>
       gline "sample" (vpIn v ++ [("eng", .str (engTag e)), ("el", .str a.el), ("i", .num ⟨a.key.1, 0⟩),
         ("j", .num ⟨a.key.2, 0⟩), ("prop", .str a.prop.css), ("ks", .str a.ks.name)])
         (jl ((a.tracks v).map fun t => jl (samples.map fun m => jdec 6 (t.eval (a.ks.at m)))))
 
-def cssLines : List String :=
+def cssLines (_ : Unit) : List String :=
   gline "flip" [] (.str flipCss) ::
   bandVps.flatMap fun v => [Eng.webkit, .chromium].map fun e =>
     gline "goal" (vpIn v ++ [("eng", .str (engTag e))]) (jl ((goalCss v (Ctx.sample v e)).map Json.str))
 
-def goldenLines : List String := knotLines ++ [timeLine] ++ sampleLines ++ cssLines
+def goldenLines (_ : Unit) : List String := knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines ()
 
-def goldenText : String := String.join (goldenLines.map (· ++ "\n"))
+def goldenText (_ : Unit) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
-    if (← IO.FS.readFile path) == goldenText then
-      IO.eprintln s!"morph-geom golden: {path} is up to date ({goldenLines.length} lines)"
+    if (← IO.FS.readFile path) == goldenText () then
+      IO.eprintln s!"morph-geom golden: {path} is up to date ({(goldenLines ()).length} lines)"
       return 0
     IO.eprintln s!"morph-geom golden: {path} differs from the generated text"
     return 1
   | _ =>
-    IO.print goldenText
+    IO.print (goldenText ())
     return 0
 
 #guard roundTo 2 (1 / 3) == 33 && roundTo 0 (-1 / 2) == 0 && roundTo 0 (1 / 2) == 1
