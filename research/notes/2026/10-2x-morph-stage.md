@@ -48,5 +48,22 @@ timeline do work the base does not do while the page approaches the end) and les
 FireAnimationFrame: noGain. Every window from the end frame has a counter less and none more with the minimum frames
 met: gain. All six windows have enough frames (the 120+ window has 47 against 20).
 
-## WebKit Simulator
-Waiting: wk-sim-hang is not on main. Dispatch after it lands: `pnpm -s fw run --target rewrite --fw morph.stage:on --engines webkit --ref ci/morph-stage` (zones, 3 VMs) and the toolbar-throttle lane with the flag.
+## WebKit Simulator zones (webkit-sim, minVms 3): undecided
+Dispatched at 8f2f726bf, 3 VMs per side: base 40366306645, flag 40366323523. macOS runners were scarce for hours: VM jobs
+were cancelled or failed after about an hour, and the failed jobs were re-run (the rerun is still queued). At the time of
+writing the base has 2 VMs with a result and the flag has none, so every zone is undecided on the Lean minVms 3 rule
+(never a win). Both runs stay pending; read them with
+`node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<webkit-sim-r dirs> --arm stage=<dirs>`
+once each side has 3 VMs.
+
+## Toolbar lane (toolbar-throttle, arm `stage`): undecided
+Run 40365940148 (commit message [ci:toolbar-throttle] [throttle:toolbar] [toolbar-plan:stage,stage,stage]). The new arm
+`stage` (`?fw=morph.stage:on`, look change) is in `packages/measure-webkit/src/throttle/toolbar.mjs`. Of the jobs that
+uploaded, the stage pass of job 3 ended `restartFailed` (Simulator not ready after 1295 s), so the stage arm has 0 usable
+passes and the report (toolbar-cli.mjs report) has a verdict row for no flag. Read the three uploaded jobs: default arm only,
+3 passes, 1 usable. Undecided; six sim jobs failed or were cancelled.
+
+## Track length T and class (for the user's review)
+T = 696 px at 1280x800 and 768 px at 390x844 (`trackT_ge`, `trackT_least` in MorphStage.lean: the least track that keeps the
+morph start where the faithful tween starts). Class L: look change (the morph follows the finger, no 680 ms play). The user
+reviews the end feel and chooses T; the flag is never in a preset.

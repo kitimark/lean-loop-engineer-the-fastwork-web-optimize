@@ -4470,15 +4470,19 @@
    "flags": [
     "morph.stage:on"
    ],
-   "chromium": "MEASURED swipe-touch-v1, 3 runs per arm, same commit 13b09467c (flag run 40339622735, base 40339630528), Lean reader: approach noGain (RecalcStyleCount and FireAnimationFrame less; LayoutCount, Paint, RasterTask more), end windows noData (flag end frame 670 against 574)",
-   "webkit": "unknown: Simulator lanes wait for wk-sim-hang; a local Playwright WebKit debug run (not a result) shows the timeline reaching --morph 1 at the end",
-   "visual": "look change (L): the morph runs with the finger over T px (696 at 1280x800, 768 at 390x844) instead of a 680 ms play; T open for the user's look review",
+   "chromium": "MEASURED swipe-touch-v1 with the swipe-end tail, 3 runs per arm, commit 8f2f726bf (base 40366273179, flag 40366262655), Lean reader with minFrames 34/20/40/60/20/174: approach noGain (RecalcStyleCount and FireAnimationFrame less; LayoutCount, Paint, RasterTask, PaintImage more); end 0-19, 20-59, 60-119, 120+ and finish all gain (a counter less, none more, minimum frames met)",
+   "webkit": "undecided: webkit-sim zones need minVms 3 per side; base 40366306645 has 2 VMs with a result and flag 40366323523 has none (macOS runners lost or cancelled the VM jobs); reruns pending",
+   "visual": "look change (L): the morph runs with the finger over a track of T px (T = 696 at 1280x800, 768 at 390x844; the user chooses T) instead of a 680 ms play; never in a preset",
    "mechanism": "INFERRED from WebKit ScrollTimeline.cpp:363-380 and ThreadedScrollDrivenAnimationsEnabled: --morph and --morph-fade run on animation-timeline scroll(root) over [maxY-T, maxY]",
    "leanFor": [
     "Fw.Parts.MorphStage.keyframes_end",
     "Fw.Parts.MorphStage.key_eq_tween",
     "Fw.Parts.MorphStage.no_scrollTo",
-    "Fw.Parts.MorphStage.no_nonpassive"
+    "Fw.Parts.MorphStage.no_nonpassive",
+    "Fw.Parts.MorphStage.stage_unmounts_anchors",
+    "Fw.Parts.MorphStage.stage_keeps_others",
+    "Fw.Parts.MorphStage.stage_unmounts_anchors",
+    "Fw.Parts.MorphStage.stage_keeps_others"
    ],
    "leanAgainst": [],
    "missingWhy": [
@@ -4486,9 +4490,9 @@
    ],
    "premises": [],
    "v1Evidence": "none",
-   "lesson": "The breakpoint gate with the flag fails 28 Chromium and 24 WebKit cells, all in morph.mount and morph.tween whose anchors the flag leaves unmounted (run 40339272935); the flag-delta list has no count delta for an unmounted part.",
-   "next": "Out of v2-proved (look change, class L); gate, then the user's look review.",
-   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; gate run 40339272935; chromium-counts 40339622735 and 40339630528",
+   "lesson": "A flag that unmounts a part passes the breakpoint gate only through a Replaced entry backed by a premise theorem naming the unmounted anchors (stage_unmounts_anchors): gate run 40366243322 passes, excusing only the target and scroller count items of morph.mount and morph.tween. The approach window pays for the sticky scene (more layout, paint, raster) while every end window gains.",
+   "next": "Out of v2-proved (look change, class L). The user reviews the end feel and T on the phone; WebKit zones and the toolbar lane: zones undecided (runs 40366306645, 40366323523 pending); toolbar lane run 40365940148: the stage arm has 0 usable passes (restartFailed), undecided; T 696 px at 1280x800 and 768 px at 390x844, class L, no preset",
+   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; lean/Fw/Gate/FlagDelta.lean; gate run 40366243322; chromium-counts 40366262655 and 40366273179",
    "userDecision": "pending"
   }
  ],
