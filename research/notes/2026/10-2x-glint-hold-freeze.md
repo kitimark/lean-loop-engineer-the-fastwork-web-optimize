@@ -1,6 +1,6 @@
 # platform.glint:hold-freeze
 
-Rank 2 of research/notes/2026/10-26-end-of-page-variants.md. Status: built and proved; no CI count yet (see Results).
+Rank 2 of research/notes/2026/10-26-end-of-page-variants.md. Status: built and proved; look class E, gate pass both engines, Chromium counts read; WebKit cells undecided (n=2+3 VMs).
 
 ## What the flag does
 The two repeating 5 s `<animate>` per glint dash (x1, x2 over six key times) become a ring of five pieces per attribute,
@@ -40,8 +40,8 @@ on both engines is the check.
 ### Look premise glint.hold-pixels: class E (MEASURED, run 40345059212)
 Page packages/premise-tests/pages/glint.hold-pixels.html, test prem.glint.hold-pixels, Lean registry entry (theorem
 `PlatformGlintHold.hold_eq_faithful`). Four strips (left and right dash, original pair against the ring), a paused SVG
-timeline, `beginElement` at 10 s, then 30 judged times that never decrease: every key-time boundary of three cycles with a
-sample either side of the first ones, every third one reached by unpause, `setCurrentTime`, pause in one task (what `createPause`
+timeline, `beginElement` at 10 s, then 30 judged times that never decrease: every key-time boundary of the first 5 s cycle
+(a sample either side of 1, 2, 3, 4, 5) and the later boundaries 6, 10, 11, 12, 15, 16 and 20, every third one reached by unpause, `setCurrentTime`, pause in one task (what `createPause`
 does on a reveal). Bound 12 of 255 per channel, and the colour band must be drawn.
 
 | engine | browser | worst channel diff | samples |
@@ -55,7 +55,7 @@ and digits (`fwglintleftX1S0`); hold.test.ts asserts it. (2) A backward `setCurr
 shows the previous value in Chromium (diff 235, both locally and on CI) and is right in WebKit. No flag path seeks backward:
 `createPause` seeks to the read time plus the paused time, so the container clock only moves forward; the two backward samples
 are recorded as `backWorst` and not judged. The page restates the stops and key values (it does not import logic.ts), so the
-flag's markup itself is exercised by the breakpoint gate below.
+flag's own React markup is not run in a browser for the look; the gate checks only the dash box (it excludes the SMIL x1/x2 values), and hold.test.ts checks the holdElements descriptors.
 
 ### Breakpoint gate: pass on both engines (run 40345141093, `?fw=platform.glint:hold-freeze`)
 Chromium 156.0.8078.4: 124 probes, 4604 pass, 4 not comparable, 0 failing items, 0 unsettled. Playwright WebKit 27.2: 124 probes,
@@ -74,7 +74,7 @@ Base `rewrite` run 40345261186, flag run 40345253392, same commit, read with `pa
 | end 120+ | noGain | none |
 | finish | gain | RasterTask 1207 to 1196 |
 
-The gain is one counter, RasterTask, about 5 percent in two windows and no counter more. The hold segments are not what the touch
+The gain is one counter, RasterTask: about 5 percent in approach (236 to 225) and under 1 percent in finish (1207 to 1196); no counter more. The hold segments are not what the touch
 profile spends its end windows on, so the window verdict there is no change.
 
 ### WebKit z5000
