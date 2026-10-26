@@ -9,7 +9,7 @@
   `verdictReply`, `unguardedReply`, `zoneFields` in `lean/Fw/Faithful/Wire.lean`; `opVerdict` returns `verdictReply`.
 - Proved: (a) `evidence_of_judged_pass`, `evidence_of_reply_pass`; (b) `judged_eq_unguarded`,
   `verdictReply_eq_unguarded`; branch theorems per `judged` outcome.
-- Goldens: `faithful.verdict.jsonl` gained rows 16-21; rows 1-15 byte-identical.
+- Goldens: `faithful.verdict.jsonl` gained rows 15-20 (refusal row now 21); the diff removes no line.
 - TS: `faithful.mjs` `stateOf`, `undecidedZones`, `namedLines`; `UNDECIDED: <p>: <reason>` exits 1; `leanSource`
   refuses undecided verdicts. `test/faithful.test.mjs` covers the undecided rows.
 

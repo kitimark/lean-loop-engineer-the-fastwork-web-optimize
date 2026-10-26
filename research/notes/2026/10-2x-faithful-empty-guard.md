@@ -4,7 +4,7 @@ Follow-up 2 of `10-2x-verdict-evidence-audit.md`. Before: `faithful.verdict` pas
 zone judged) and a zone with 0 frames and no cells in both arms (shape `0 = 0`, no cell to fail).
 
 Status: CONFIRMED by the Lean theorems below (`lake build`, `lean/scripts/check.sh`) and by the golden diff: the
-regenerated `faithful.verdict.jsonl` only gained lines 16-21; lines 1-15 are byte-identical.
+regenerated `faithful.verdict.jsonl` only gained six rows (lines 15-20, before the refusal row, now line 21); the diff removes no line, so the 15 old rows are byte-identical.
 
 ## Rule
 
@@ -27,7 +27,7 @@ regenerated `faithful.verdict.jsonl` only gained lines 16-21; lines 1-15 are byt
 | branches | `judged_fail_iff`, `judged_nil`, `judged_undecided_of_zone`, `judged_pass_iff`; `zoneJudged_pass_iff`, `zoneJudged_fail_iff`, `zoneJudged_undecided_iff` |
 | what has no evidence | `not_evidence_of_absent`, `not_evidence_of_frames_a`, `not_evidence_of_frames_r`, `not_evidence_of_no_types` |
 
-## Golden rows (`packages/contracts/golden/faithful/faithful.verdict.jsonl` 16-21)
+## Golden rows (`packages/contracts/golden/faithful/faithful.verdict.jsonl` 15-20)
 
 `zones: []`; no zones anywhere with `zones: []`; tail with 0 frames and no cells; tail with 0 frames and equal cells;
 tail with frames and no types; a failing zone next to an empty zone (request fails, the empty zone is undecided).
