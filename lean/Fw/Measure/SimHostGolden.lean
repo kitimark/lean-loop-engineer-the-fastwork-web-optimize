@@ -114,15 +114,15 @@ theorem grid_fewest : ∀ c ∈ grid, Premise c → refusedCount best jobs ≤ r
 
 theorem best_refused : refusedCount best jobs = 14 := by decide
 
-theorem shipped_refused : refusedCount shipped jobs = 10 := by decide
-
-theorem shipped_untabbed_refused : refusedCount { shipped with tab := 0 } jobs = 1 := by decide
+theorem shipped_refused : refusedCount shipped jobs = 1 := by decide
 
 theorem deployed_is_pick : pick best shipped jobs = deployed := by
   rw [pick_fallback (by rw [best_refused, shipped_refused]; decide)]; rfl
 
-theorem grid_frontier : grid.map (fun c => (refusedCount c jobs, decide (Premise c))) =
-    [(1, false), (10, false), (8, false), (13, false), (3, false), (11, false), (9, false), (14, true)] := by decide
+theorem grid_frontier : grid.map (fun c => (refusedCount c jobs,
+      decide (Seen.tryS ≤ c.scroll ∧ Seen.headS + c.scroll ≤ c.pass), decide (tabWaitS ≤ c.tab))) =
+    [(1, false, false), (10, false, true), (8, false, false), (13, false, true),
+     (3, false, false), (11, false, true), (9, true, false), (14, true, true)] := by decide
 
 #guard pick ⟨0, 0, 0⟩ shipped [⟨1, 1, 1, 3, [⟨.tab, 1700, 1⟩]⟩] == ⟨0, 0, 0⟩
 #guard pick best shipped [⟨1, 1, 1, 3, [⟨.pass, 900, 1⟩]⟩] == shipped

@@ -20,7 +20,7 @@ test('sim-host: constants are the Lean golden values', () => {
   assert.ok([SCROLL_NEED_S, PASS_NEED_S, NAV_WAIT_MS].every((n) => Number.isInteger(n) && n > 0));
 });
 
-test('sim-host: the tab wait gate replays the Lean vectors', () => {
+test('sim-host: the tab wait model (no deployed gate) replays the Lean vectors', () => {
   assert.ok(ops('tab').length >= 30);
   for (const g of ops('tab')) {
     assert.equal(tabNeedS(g.waitMs), g.needS, JSON.stringify(g));
@@ -73,15 +73,17 @@ test('onePassRetrying: a failed pass is not repeated when the repeat would end p
   }
 });
 
-test('navigateTab: a tab wait that would end past the step bound is not started', async () => {
-  let touched = false;
-  const c = { evaluate: async () => { touched = true; return 'nav'; }, close: async () => {} };
-  const late = { boundS: 2040, elapsedS: () => 1561 };
-  await assert.rejects(navigateTab(c, 'http://x/', { waitMs: 480000, gate: late }), /no tab wait fits: 480 s from 1561 s/);
-  assert.equal(touched, false);
-  const fresh = { evaluate: async (e) => (e.includes('__fwNav === undefined') ? true : e.includes('readyState') ? 'complete' : 'nav'), close: async () => {} };
-  const r = await navigateTab(c, 'http://x/', { waitMs: 480000, gate: { boundS: 2040, elapsedS: () => 1560 }, openTabFn: async () => fresh });
-  assert.equal(r, fresh);
+test('navigateTab: a tab wait late in the step is still started (Lean SimHost.deployed has tab need 0)', async () => {
+  const env = { ...process.env };
+  process.env.FW_MEASURE_T0_MS = String(Date.now() - 2039 * 1000);
+  process.env.FW_WK_STEP_MIN = '35';
+  try {
+    const fresh = { evaluate: async (e) => (e.includes('__fwNav === undefined') ? true : e.includes('readyState') ? 'complete' : 'nav'), close: async () => {} };
+    const c = { evaluate: async () => 'nav', close: async () => {} };
+    assert.equal(await navigateTab(c, 'http://x/', { waitMs: 480000, openTabFn: async () => fresh }), fresh);
+  } finally {
+    for (const k of ['FW_MEASURE_T0_MS', 'FW_WK_STEP_MIN']) { if (env[k] === undefined) delete process.env[k]; else process.env[k] = env[k]; }
+  }
 });
 
 test('onePassRetrying: a pass retry decided 1 s after the last admitted second of a 35 min step is refused (PASS_NEED_S from the golden)', async () => {

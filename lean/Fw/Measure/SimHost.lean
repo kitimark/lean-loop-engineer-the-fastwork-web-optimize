@@ -298,6 +298,7 @@ def Needs.of (c : Needs) : Kind → Nat
 
 def tabWaitS : Nat := tabNeedS (navWaitMs * ciScale)
 
+/-- runPass_stop_le's premise at the seen maxima (inner, outer), plus tab cover for tab_started_le. -/
 def Premise (c : Needs) : Prop := Seen.tryS ≤ c.scroll ∧ Seen.headS + c.scroll ≤ c.pass ∧ tabWaitS ≤ c.tab
 
 instance (c : Needs) : Decidable (Premise c) := by unfold Premise; infer_instance
@@ -315,12 +316,12 @@ def refusedCount (c : Needs) (js : List Job) : Nat := js.countP (refused c)
 
 def best : Needs := ⟨Seen.tryS, Seen.headS + Seen.tryS, tabWaitS⟩
 
-def shipped : Needs := ⟨Seen.scrollRetryS, Seen.passRetryS, tabWaitS⟩
+def shipped : Needs := ⟨Seen.scrollRetryS, Seen.passRetryS, 0⟩
 
 def pick (best fallback : Needs) (js : List Job) : Needs :=
   if refusedCount best js ≤ refusedCount fallback js then best else fallback
 
-def deployed : Needs := ⟨scrollNeedS, passNeedS, tabWaitS⟩
+def deployed : Needs := ⟨scrollNeedS, passNeedS, 0⟩
 
 theorem retryFits_mono {e n n' b : Nat} (h : n ≤ n') (hf : retryFits e n' (some b) = true) : retryFits e n (some b) = true :=
   le_retryFits (by have := retryFits_le hf; omega)
@@ -353,6 +354,10 @@ theorem premise_best_le {c : Needs} (h : Premise c) : best.le c := by
 
 theorem best_fewest {c : Needs} (h : Premise c) (js : List Job) : refusedCount best js ≤ refusedCount c js :=
   refusedCount_mono (premise_best_le h) js
+
+theorem untabbed_fewest {c : Needs} (h : Seen.tryS ≤ c.scroll ∧ Seen.headS + c.scroll ≤ c.pass) (js : List Job) :
+    refusedCount { best with tab := 0 } js ≤ refusedCount c js :=
+  refusedCount_mono ⟨h.1, by show Seen.headS + Seen.tryS ≤ c.pass; omega, Nat.zero_le _⟩ js
 
 theorem pick_best {b f : Needs} {js : List Job} (h : refusedCount b js ≤ refusedCount f js) : pick b f js = b := by
   simp [pick, h]
