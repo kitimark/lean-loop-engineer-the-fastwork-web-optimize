@@ -4304,6 +4304,7 @@
    "n": 85
   },
   {
+   "n": 89,
    "id": "platform.entries.fill-release",
    "part": "platform.entries",
    "candidate": "platform.entries:fill-release: the 15 platform entry animations fill backwards only and their keyframe end values are written as static style, so no animation stays in effect after its end",
@@ -4314,7 +4315,7 @@
    "flag": "platform.entries:fill-release",
    "visClass": "E",
    "chromium": "MEASURED run 40280497740 at e133f74c8 (swipe-touch-v1, 3 runs, base and flag at one commit): tail layer-frames 7140 to 6480 (-9.2%, 238 to 216 layers per frame), finish 45026 to 41089 (-8.7%), drawing area -7.7% and tiles -10.9% in the tail; work noGain in every window (Paint less, RasterTask more in approach, end 0-19 and finish)",
-   "webkit": "Simulator flag run 40282951274 (3 VMs, e133f74c8): layer count and backing memory equal the base's one good VM at every census stop (141-145 layers at y 4500, 124-128 at the end; 149.3 and 105.8 MB), as the proved webkit_unchanged predicts. Base run 40282962088 kept only VM r2 and the retry 40305413688 only VM r1 (the other VMs lost their determinism sessions to host overload, task wk-sim-hang), so every per-zone work cell (z4500, z5000, finish, whole) is undecided with n=1+3 VMs (pooled r1+r2: n=2+3, still below minVms 3). Follow-up: WebKit recount after wk-sim-hang lands.",
+   "webkit": "Simulator flag run 40282951274 (3 VMs, e133f74c8): layer count and backing memory equal the two good base VMs (40282962088 r2, 40305413688 r1) at every census stop (141-145 layers at y 4500, 124-128 at the end; 149.3 and 105.8 MB), as the proved webkit_unchanged predicts. Base run 40282962088 kept only VM r2 and the retry 40305413688 only VM r1 (the other VMs lost their determinism sessions to host overload, task wk-sim-hang), so every per-zone work cell (z4500, z5000, finish, whole) is undecided with n=1+3 VMs (pooled r1+r2: n=2+3, still below minVms 3). Follow-up: WebKit recount after wk-sim-hang lands.",
    "visual": "E: Lean same_look (every Env, every time) from release_shown; the stylesheet rows are checked against the golden by fill.test.ts",
    "mechanism": "CONFIRMED by source: Chromium keeps an active-animation compositing reason while an animation is current or in effect, and fill both keeps it in effect after the end (timing_calculations.cc:141-161, css_animations.cc:2267-2280, compositing_reason_finder.cc:570-597 @f842f52); WebKit affects the property and keeps the accelerated animation only in the active phase (KeyframeEffect.cpp:1703-1715, 2085-2089 @862f17d). PROVED in Lean: no_held_after, held_saved, same_look.",
    "leanFor": [
