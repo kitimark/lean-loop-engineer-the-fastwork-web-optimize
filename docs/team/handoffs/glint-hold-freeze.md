@@ -1,8 +1,8 @@
 branch: worktree-wf_8596d321-474-1; worktree: .claude/worktrees/wf_8596d321-474-1; code commit cf69a9052 (pushed to ci/glint-hold-freeze; push 2 of 2 used, main merged incl. wk-sim-hang)
 runs (all at a5e170b94 unless noted): premise-tests 40345059212 success (webkit job re-run once after a 20 min setup-pnpm hang); breakpoint-gate 40345141093 success; chromium-counts base 40345261186, flag 40345253392 success.
-webkit-sim at cf69a9052 (3 VMs each, ~1 h): base and flag dispatched in background by the builder; ids in note once filed. If this file still says waiting: run the two commands under dispatch below with --ref ci/glint-hold-freeze and read with packages/measure-webkit/src/offscreen-webkit-cli.mjs.
+webkit-sim at cf69a9052: flag 40349914211 success (3 VMs, r1 re-run once); base 40349930733 failed (r2 lost twice, exit 1 then 130; 2 VMs). Reader: every zone undecided n=2+3 VMs. To decide: gh run rerun 40349930733 --failed, then packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<r1,r2,r3 dirs> --arm hold=<dirs>.
 verified: look premise glint.hold-pixels class E (Chromium worst 1, WebKit 0, bound 12); gate pass both engines; Chromium windows approach/finish gain (RasterTask about 5 percent), end windows noGain. Found and fixed: ring ids with hyphens left the begin chain unresolved in both engines (now fwglint<side>X1S0). Backward seek into segment 0 after the first cycle wrong in Chromium (235), no flag path seeks backward.
-open: WebKit z5000 verdict (n VMs); check.sh at the final commit; dry land.
+open: WebKit cells undecided (n=2+3); dry land. check.sh green at the merge commit.
 ---
 branch: worktree-wf_8596d321-474-1; worktree: .claude/worktrees/wf_8596d321-474-1; CI branch ci/glint-hold-freeze (one push, lean lane only)
 state: built and proved; waiting on lead dispatches (no gate, look, counts run exists yet) and on wk-sim-hang (not on main).

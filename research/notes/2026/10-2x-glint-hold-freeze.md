@@ -78,7 +78,19 @@ The gain is one counter, RasterTask, about 5 percent in two windows and no count
 profile spends its end windows on, so the window verdict there is no change.
 
 ### WebKit z5000
-WEBKIT_PLACEHOLDER
+Simulator runs at cf69a9052 (3 VMs requested each): flag run 40349914211 (r1 lost to a `simctl bootstatus` abort, exit 134, re-run once; 3 of 3 VMs good on attempt 2),
+base run 40349930733 (r2 lost twice: exit 1, then exit 130 on the re-run; r1 and r3 good, so 2 VMs). Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs`,
+Lean `minVms` 3 (MEASURED). Every zone is undecided with n=2+3 VMs; the pass rule alone (not a verdict) reads z5000 as gain (Paint less, InvalidateLayout less).
+
+| zone | steps | passes base+flag | VMs base+flag | verdict | Paint base / flag | Layout base / flag |
+|---|---|---|---|---|---|---|
+| z4500 | 10 | 4+6 | 2+3 | undecided (n=2+3 VMs) | 140-156 / 100-164 | 53-74 / 35-79 |
+| z5000 | 5 | 4+6 | 2+3 | undecided (n=2+3 VMs) | 63-65 / 53-62 | 25-31 / 19-31 |
+| finish | 15 | 4+6 | 2+3 | undecided (n=2+3 VMs) | 203-220 / 162-218 | 80-100 / 54-106 |
+| whole | 105 | 4+6 | 2+3 | undecided (n=2+3 VMs) | 1245-1332 / 1121-1328 | 614-649 / 587-675 |
+
+FireAnimationFrame is 22 in base z5000 against 22-26 in the flag, so the ring does not reduce animation-frame callbacks there. A third
+good base VM decides the cells; the command is `gh run rerun 40349930733 --failed` (a re-run of r2) and then the reader above.
 
 ### Engine tick rules
 Unchanged from the section above: the citations are CONFIRMED, the per-frame cost of a frame the container still runs stays INFERRED

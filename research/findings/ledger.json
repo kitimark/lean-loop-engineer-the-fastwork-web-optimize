@@ -4471,7 +4471,7 @@
    "candidate": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
    "status": "partly-proved",
    "chromium": "swipe-touch-v1, 3 runs, same commit a5e170b94: base run 40345261186, flag run 40345253392. Lean window reader: approach gain (RasterTask 236 to 225), finish gain (RasterTask 1207 to 1196), end 0-19, 20-59, 60-119, 120+ noGain (no counter differs). MEASURED",
-   "webkit": "WEBKIT_LEDGER",
+   "webkit": "Simulator at cf69a9052: flag run 40349914211 (3 VMs), base run 40349930733 (2 VMs, r2 lost twice). Every zone (z4500, z5000, finish, whole) undecided, n=2+3 VMs; the pass rule alone reads z5000 as gain (Paint less, InvalidateLayout less). MEASURED",
    "visual": "E (Lean PlatformGlintHold.hold_eq_faithful; look premise glint.hold-pixels run 40345059212: worst channel diff 1 on Chromium 156, 0 on WebKit 27.2, bound 12; breakpoint gate run 40345141093 pass on both engines, 0 failing items)",
    "mechanism": "INFERRED: both engines tick every active non-<set> animation on each SMIL frame; a <set> in its hold segment changes nothing, so the 3 of 5 hold segments per side spend no animated-value writes (Lean ticking_hold, ticking_le). Engine citations in the note.",
    "leanFor": [
