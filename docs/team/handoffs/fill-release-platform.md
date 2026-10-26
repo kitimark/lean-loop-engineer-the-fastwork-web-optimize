@@ -1,6 +1,6 @@
 # fill-release-platform handoff
 
-- State: done, waiting for review. Branch `worktree-wf_1e215c74-cb5-1`, worktree `.claude/worktrees/wf_1e215c74-cb5-1`, CI branch `ci/fill-release-platform` at e133f74c8 (every run below measures that commit). Last work commit: see `git log`.
+- State: done, waiting for review. Branch `worktree-wf_1e215c74-cb5-1`, worktree `.claude/worktrees/wf_1e215c74-cb5-1`, CI branch `ci/fill-release-platform` at e133f74c8 (every run below measures that commit).
 - CI runs:
   - chromium-counts 40280497740 success (base `rewrite` vs flag, swipe-touch-v1, 3 runs); lean 40280497901 success.
   - breakpoint-gate 40282885162 success, pass on both engines (Chromium 7049 of 7056 pass, 7 excused; Playwright WebKit 6765 pass, 291 excused, 0 FAIL).

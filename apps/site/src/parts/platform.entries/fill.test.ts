@@ -3,11 +3,6 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { goldenConformance } from '../../engine/golden.testutil';
 
-/**
- * platform.entries:fill-release against the Lean golden (Fw.Parts.PlatformEntries fillRows): every row is read back from
- * visuals.module.css (variant rule, its media block, the faithful rule's keyframe, fill and duration, the keyframe's `to`
- * block, class counts of the variant and of its strongest rival), so the stylesheet is the implementation under test.
- */
 const css = readFileSync(resolve(__dirname, '../platform/visuals.module.css'), 'utf8');
 const tsx = readFileSync(resolve(__dirname, '../platform/Visuals.tsx'), 'utf8');
 const part = JSON.parse(readFileSync(resolve(__dirname, 'part.json'), 'utf8')) as {
@@ -52,13 +47,11 @@ const isReduce = (r: Rule) => r.ctx.some((c) => /prefers-reduced-motion:\s*reduc
 const isVariant = (r: Rule) => r.sel.includes('.fillRelease');
 const variantRules = rules.filter((r) => !isKeyframes(r) && isVariant(r));
 
-/** Class-level specificity (classes, attributes, pseudo-classes; `:not` counts its argument, `:where` nothing). */
 function classCount(sel: string): number {
   const s = sel.replace(/:where\([^)]*\)/g, '').replace(/::[\w-]+/g, '').replace(/:not\(([^)]*)\)/g, ' $1');
   return (s.match(/\.[\w-]+|\[[^\]]*\]|:[\w-]+/g) ?? []).length;
 }
 
-/** The shorthand with every function call removed, as tokens. */
 function tokens(value: string): string[] {
   let v = value;
   for (let prev = ''; prev !== v;) { prev = v; v = v.replace(/[\w-]+\([^()]*\)/g, ' '); }

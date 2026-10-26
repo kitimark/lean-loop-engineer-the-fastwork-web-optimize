@@ -1,7 +1,3 @@
-// Census layer, drawing-area and tile sums per offscreen window. The windows and the range sum come from
-// packages/measure-chromium/src/offscreen-windows.mjs (runWindows, sumRange), which the Lean golden
-// lean/Fw/Measure/OffscreenWindowsGolden.lean checks; this file is I/O glue (read counts.json, print JSON).
-// usage: node layer-frames.mjs <label>=<dir> [<label>=<dir> ...]
 import { readFileSync } from 'node:fs';
 import { TOUCH_TAIL, findCounts, lastFrame, runWindows, sumRange } from '../../packages/measure-chromium/src/offscreen-windows.mjs';
 

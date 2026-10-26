@@ -421,75 +421,59 @@ theorem typing_subsample (L k : Nat) :
   simp only [typedV, typedO]
   refine ⟨trivial, fun h => by omega, by omega, fun h => by omega⟩
 
-/-! ## fill-release: fill `backwards` and the end values as static style (`platform.entries:fill-release`) -/
-
 section FillRelease
 open Fw.Engine.VisualTimed
 open Fw.Site.Breakpoints (Env rmNopref)
 
-/-- One property of an entry as a timed track from the stage start, fill `both`, over the static value `base`. -/
 def track (e : Entry) (tr : Tr) (base : Rat) : Track Rat := ⟨e.delay, e.dur, .both, value e tr, base⟩
 
-/-- The value at the end of the active interval is the to-value. -/
 theorem value_end (e : Entry) (tr : Tr) (hD : 0 < e.dur) : value e tr (e.delay + e.dur) = tr.b := by
   simp [value, progress_after e _ hD Rat.le_refl]; grind
 
-/-- The track holds its to-value after the end. -/
 theorem track_settles (e : Entry) (tr : Tr) (base : Rat) (hD : 0 < e.dur) : Settles (track e tr base) := by
   intro t h
   simp only [endVal, track] at *
   simp [value, progress_after e _ hD h, progress_after e _ hD Rat.le_refl]
 
-/-- The variant's static value is the to-value. -/
 theorem release_base (e : Entry) (tr : Tr) (base : Rat) (hD : 0 < e.dur) : (release (track e tr base)).base = tr.b :=
   value_end e tr hD
 
-/-- The value shown in `env` at `t`: the track under no-preference, the reduced-motion static value `still` otherwise. -/
 def shownIn (rel : Bool) (env : Env) (e : Entry) (tr : Tr) (base still t : Rat) : Rat :=
   if rmNopref.eval env then shown (if rel then release (track e tr base) else track e tr base) t else still
 
-/-- Same look where the entries run. -/
 theorem same_look_motion (env : Env) (e : Entry) (tr : Tr) (base still t : Rat) (hD : 0 < e.dur)
     (h : rmNopref.eval env = true) : shownIn true env e tr base still t = shownIn false env e tr base still t := by
   simp only [shownIn, h, ite_true, Bool.false_eq_true, ite_false]
   exact release_shown _ rfl (track_settles e tr base hD) (Rat.le_of_lt hD) t
 
-/-- Same look under reduced motion. -/
 theorem same_look_reduce (env : Env) (e : Entry) (tr : Tr) (base still t : Rat)
     (h : rmNopref.eval env = false) : shownIn true env e tr base still t = shownIn false env e tr base still t := by
   simp [shownIn, h]
 
-/-- Same look at every breakpoint and time. -/
 theorem same_look (env : Env) (e : Entry) (tr : Tr) (base still t : Rat) (hD : 0 < e.dur) :
     shownIn true env e tr base still t = shownIn false env e tr base still t := by
   cases h : rmNopref.eval env
   · exact same_look_reduce env e tr base still t h
   · exact same_look_motion env e tr base still t hD h
 
-/-- Chromium holds the faithful animation layer at every time from the stage start. -/
 theorem faithful_held (e : Entry) (tr : Tr) (base t : Rat) :
     chromiumHeld (track e tr base).fill (phaseAt e.delay e.dur t) = true :=
   both_held _ _ _
 
-/-- No held layer after the end. -/
 theorem no_held_after (e : Entry) (tr : Tr) (base t : Rat) (hD : 0 < e.dur) (h : e.delay + e.dur ≤ t) :
     chromiumHeld (release (track e tr base)).fill (phaseAt e.delay e.dur t) = false :=
   release_no_held_after (track e tr base) t h (Rat.le_of_lt hD)
 
-/-- Layer-frames saved: one per sampled frame after the end. -/
 theorem held_saved (e : Entry) (tr : Tr) (base : Rat) (hD : 0 < e.dur) (ts : List Rat) :
     heldFrames (release (track e tr base)) ts + (ts.filter fun t => decide (e.delay + e.dur ≤ t)).length =
       heldFrames (track e tr base) ts :=
   release_saves (track e tr base) rfl (Rat.le_of_lt hD) ts
 
-/-- WebKit holds the same layers in both arms. -/
 theorem webkit_unchanged (e : Entry) (tr : Tr) (base t : Rat) :
     webkitHeld (release (track e tr base)).fill (phaseAt e.delay e.dur t) =
       webkitHeld (track e tr base).fill (phaseAt e.delay e.dur t) :=
   webkit_same_fill _ _ _
 
-/-- One `fill-release` rule: stage root, state classes, descendant part, keyframe, entry, transform prefix, element
-classes, class count of the faithful selector and of its strongest rival. -/
 structure FillRow where
   root : String
   state : String
@@ -501,19 +485,14 @@ structure FillRow where
   cls : Nat
   rival : Nat
 
-/-- The faithful selector. -/
 def FillRow.faithful (r : FillRow) : String := s!".{r.root}{r.state}{r.rest}"
 
-/-- The variant selector: the faithful one with `.fillRelease` on the root. -/
 def FillRow.variant (r : FillRow) : String := s!".{r.root}.fillRelease{r.state}{r.rest}"
 
-/-- Class count of the variant selector. -/
 def FillRow.spec (r : FillRow) : Nat := r.cls + 1
 
-/-- Stage roots carrying `.fillRelease`. -/
 def fillRoots : List String := ["profile", "secure", "invoice", "ask"]
 
-/-- The fifteen rules, in stylesheet order. -/
 def fillRows : List FillRow :=
   let sp := ":not(.isStatic).isPlay"
   let mid := "translate(-50%, -50%) "
@@ -533,10 +512,8 @@ def fillRows : List FillRow :=
    ⟨"ask", ":not(.isStatic).isResults", " .askList > .service", "agentsAskIn", askIn 0, "", ["service"], 5, 5⟩,
    ⟨"ask", ":not(.isStatic).isLeaving", " .askListOut .service", "agentsAskOut", askOut 0, "", ["service"], 5, 5⟩]
 
-/-- A length as CSS: `0` bare, otherwise in px. -/
 def lenCss (v : Rat) : String := if v = 0 then "0" else s!"{v}px"
 
-/-- The transform function of a property at its to-value, if it is one. -/
 def fnCss (tr : Tr) : Option String :=
   match tr.key with
   | "translateX" => some s!"translateX({lenCss tr.b})"
@@ -545,7 +522,6 @@ def fnCss (tr : Tr) : Option String :=
   | "scaleX" => some s!"scaleX({tr.b})"
   | _ => none
 
-/-- The to-values as CSS declarations, in property order. -/
 def endDecls (r : FillRow) : List (String × String) :=
   let trs := r.entry.trs
   let fil := (trs.find? (·.key == "blur")).map fun tr => ("filter", s!"blur({lenCss tr.b})")
@@ -554,16 +530,12 @@ def endDecls (r : FillRow) : List (String × String) :=
   let tf := if fs.isEmpty then none else some ("transform", r.pre ++ " ".intercalate fs)
   [fil, op, tf].filterMap id
 
-/-- The variant rule's declarations. -/
 def fillDecls (r : FillRow) : List (String × String) := ("animation-fill-mode", "backwards") :: endDecls r
 
-/-- Every variant rule outranks every rival rule on its element. -/
 theorem rows_win : fillRows.all (fun r => decide (r.rival < r.spec)) = true := by decide
 
-/-- Every row's entry has a positive duration, so `same_look` and `no_held_after` apply to it. -/
 theorem rows_dur : fillRows.all (fun r => decide (0 < r.entry.dur)) = true := by decide
 
-/-- The variant rules sit in the no-preference media block. -/
 def fillMedia : String := rmNopref.css
 
 #guard fillMedia == "(prefers-reduced-motion: no-preference)"
@@ -579,16 +551,13 @@ def fillMedia : String := rmNopref.css
 section MemoryTrade
 open Fw.Engine.Resource
 
-/-- A memory-only win: every gated resource keeps its sign `same` and the GPU memory falls. -/
 def memoryWin (fp : Footprint) : Bool := gated.all (fun r => fp.sign r == .same) && fp.sign .gpuMem == .down
 
-/-- A memory-only win fits any budget: the memory only falls, so `memFit` holds without a measured peak. -/
 theorem memoryWin_fits (B : Nat) (fp : Footprint) (h : memoryWin fp = true) :
     memFit B (fp.sign .gpuMem) fp.peak = some true := by
   have hd : fp.sign .gpuMem = .down := by simpa [memoryWin] using (Bool.and_eq_true_iff.mp h).2
   simp [memFit, hd]
 
-/-- The existing verdict calls a memory-only win `neutral`: it needs a gated resource that falls to say `win`. -/
 theorem memoryWin_neutral (B : Nat) (fp : Footprint) (h : memoryWin fp = true) : verdict B fp = .neutral := by
   have hg : ∀ r ∈ gated, fp.sign r = .same := fun r hr => by
     simpa using List.all_eq_true.mp (Bool.and_eq_true_iff.mp h).1 r hr
@@ -597,7 +566,6 @@ theorem memoryWin_neutral (B : Nat) (fp : Footprint) (h : memoryWin fp = true) :
   have h3 : gated.any (fp.sign · == .down) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
   simp [verdict, h1, h2, h3]
 
-/-- One gated resource that is not `same` (it rose, or rose in one reading and fell in another) rules out a memory-only win. -/
 theorem work_change_not_memoryWin (fp : Footprint) (r : Res) (hr : r ∈ gated) (h : fp.sign r ≠ .same) :
     memoryWin fp = false := by
   cases hm : memoryWin fp with
@@ -605,8 +573,6 @@ theorem work_change_not_memoryWin (fp : Footprint) (r : Res) (hr : r ∈ gated) 
   | true =>
     exact absurd (by simpa using List.all_eq_true.mp (Bool.and_eq_true_iff.mp hm).1 r hr) h
 
-/-- Chromium: layers, tiles and drawing area fall; Paint falls and RasterTask rises in every window the Lean reader decides
-(run 40280497740, `windows.md`), so paint records are mixed (`unknown`) and the flag is not a memory-only win. -/
 def chromiumFp : Footprint :=
   ofSigns "platform.entries:fill-release" .chromium
     ((.layers, .down) :: (.gpuMem, .down) :: (.paintRec, .unknown) :: (.repaint, .unknown) :: gatedAt .same) none

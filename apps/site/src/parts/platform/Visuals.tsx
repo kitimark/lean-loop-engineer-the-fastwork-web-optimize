@@ -14,7 +14,6 @@ import v from './visuals.module.css';
 /** Which sub-parts are the faithful ones (anything else leaves the visual static, the hook for later variants). */
 export interface Subs {
   entries: boolean;
-  /** platform.entries:fill-release: the stage roots carry `fillRelease` (fill backwards, end values static). */
   entriesFill?: boolean;
   glint: boolean;
   glintPause?: boolean;
