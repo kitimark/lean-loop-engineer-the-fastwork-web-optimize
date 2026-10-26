@@ -21377,9 +21377,13 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-speed.jsonl"
    ],
-   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.panel:const-bounds (ledger: WebKit and Chromium unknown; E under P1-P4). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. The flag conflicts with the nav flags (part.json conflicts), so it runs alone. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/ConstBoundsCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.panel:const-bounds (ledger: WebKit and Chromium unknown; E under P1-P4). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. The flag conflicts with the nav flags (part.json conflicts), so it runs alone. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/ConstBoundsCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note.",
+   "evidence": "6ce93cd"
   },
   {
    "devices": [
@@ -21399,9 +21403,12 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
-    "packages/contracts/golden/ci/triggers.jsonl"
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/nav-fixed-counts.webkit-passes.json",
+    "packages/contracts/golden/parts/nav-fixed-counts.chromium-bands.json"
    ],
-   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): nav:clip-box, nav:bar-fixed and nav:logo-3d (cumulative arms; look-change class L, mid-morph look change on the local Simulator lane; WebKit and Chromium cost unknown). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. A count win decides whether a look review is worth posting (no look-review step without a count win). A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/NavFixedCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): nav:clip-box, nav:bar-fixed and nav:logo-3d (cumulative arms; look-change class L, mid-morph look change on the local Simulator lane; WebKit and Chromium cost unknown). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. A count win decides whether a look review is worth posting (no look-review step without a count win). A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/NavFixedCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note.",
+   "evidence": "c017d30"
   },
   {
    "devices": [
@@ -21423,7 +21430,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
    ],
-   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.mount:shift-dormant (ledger: WebKit unknown, Chromium trade; morph-layers measured -1052/-1136 drawing layers vs shift on Chromium). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. Compare against the rewrite default and say which mount variant the default arm runs. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/DormantCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note."
+   "title": "End-of-page variant never measured on WebKit (user 2026-10-25: start the end-of-page variants not measured yet): morph.mount:shift-dormant (ledger: WebKit unknown, Chromium trade; morph-layers measured -1052/-1136 drawing layers vs shift on Chromium). The lead dispatched at main 1fac415: WebKit Simulator rewrite base and flag runs (3 VMs each) and Chromium swipe-touch-v1 base and flag runs (3 runs each); run ids come in the build prompt. Reduce per finish zone and per arm (Layout, RecalculateStyles, FunctionCall, Composite, layer count, backing MB on WebKit; trace counts on Chromium), base vs flag with the spread over 3 VMs or runs; per-engine verdict win / trade / no-win, each arm decided on its own. Compare against the rewrite default and say which mount variant the default arm runs. A win or a no-win both need the mechanism and a Lean why (lean/Fw/Parts/DormantCounts.lean, golden replayed by a test); the ledger row gets its webkit/chromium cells and one note.",
+   "evidence": "eacf5e6"
   },
   {
    "devices": [
@@ -21659,7 +21667,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/platform-end-variants.md"
    ],
-   "title": "User 2026-10-25: add the platform.* variants to the end-of-page work. Step 1 (measure before building): which platform parts do work at the end of the page. The section paint is already skipped once fully faded (opacity 0 for fade(m)=0, m >= 0.55; RenderLayer.cpp:3365-3376@862f17d), so platform parts cost only while the section is visible during the push. Attribute per finish zone and per push phase on CI (WebKit Simulator rewrite counts + census, Chromium swipe-touch-v1), base vs the existing un-measured variants: platform.sweep:offscreen-pause (partly-proved), platform.glint:offscreen-pause (negative result: re-check at the end of the page only), platform:fade-threaded on Chromium (WebKit no-win, Chromium unknown). platform:mq stays closed (negative). Step 2, only for parts step 1 shows doing work, same look, Lean first (premise, theorem, golden), each its own flag: (a) platform.sweep:layer-sweep — the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor transform with the identical pixels (or prove it impossible and record the negative result); (b) platform.glint:transform — SMIL x1/x2 on the 94x3.2 SVG gradient becomes a translate on a pre-rendered gradient, identical pixels; (c) platform.entries:contain — count-up and typing writes isolated with contain/fixed boxes so they do not lay out the section, identical layout. platform.marquee is already a transform keyframe (compositor), measure only. Each variant: breakpoint gate (both engines), counts per engine and zone, look check; a look change goes to the look-change class for the user's visual review. Negative results are findings (mechanism + Lean why)."
+   "title": "User 2026-10-25: add the platform.* variants to the end-of-page work. Step 1 (measure before building): which platform parts do work at the end of the page. The section paint is already skipped once fully faded (opacity 0 for fade(m)=0, m >= 0.55; RenderLayer.cpp:3365-3376@862f17d), so platform parts cost only while the section is visible during the push. Attribute per finish zone and per push phase on CI (WebKit Simulator rewrite counts + census, Chromium swipe-touch-v1), base vs the existing un-measured variants: platform.sweep:offscreen-pause (partly-proved), platform.glint:offscreen-pause (negative result: re-check at the end of the page only), platform:fade-threaded on Chromium (WebKit no-win, Chromium unknown). platform:mq stays closed (negative). Step 2, only for parts step 1 shows doing work, same look, Lean first (premise, theorem, golden), each its own flag: (a) platform.sweep:layer-sweep — the 4 s background-position sweep under background-clip:text repaints the text every frame; move the moving gradient to a compositor transform with the identical pixels (or prove it impossible and record the negative result); (b) platform.glint:transform — SMIL x1/x2 on the 94x3.2 SVG gradient becomes a translate on a pre-rendered gradient, identical pixels; (c) platform.entries:contain — count-up and typing writes isolated with contain/fixed boxes so they do not lay out the section, identical layout. platform.marquee is already a transform keyframe (compositor), measure only. Each variant: breakpoint gate (both engines), counts per engine and zone, look check; a look change goes to the look-change class for the user's visual review. Negative results are findings (mechanism + Lean why).",
+   "evidence": "1d5d929"
   },
   {
    "devices": [
@@ -21762,8 +21771,12 @@
     "packages/measure-webkit/test/**",
     "lean/Fw/Ci/Telemetry.lean",
     "research/notes/2026/10-25-macos-vm-loss.md",
-    "docs/team/handoffs/macos-vm-evidence.md"
-   ]
+    "docs/team/handoffs/macos-vm-evidence.md",
+    "packages/measure-webkit/src/cli.mjs",
+    "apps/runner/src/land.ts",
+    "scripts/wallclock-allow.json"
+   ],
+   "evidence": "10661e0"
   },
   {
    "devices": [
@@ -21870,7 +21883,8 @@
     "scripts/codemagic.test.mjs",
     "docs/team/tools/ci-pool.md",
     "docs/team/handoffs/cross-pool-pooling.md"
-   ]
+   ],
+   "evidence": "bba4b97"
   },
   {
    "devices": [
@@ -21895,7 +21909,71 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-toolbar-wktr-gate.md",
     "docs/team/handoffs/toolbar-wktr-control.md"
+   ],
+   "evidence": "8564490"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "platform-attribution",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "platform-end-variants"
+   ],
+   "title": "Follow-ups of platform-end-variants (landed d7a95f3cb; review 2026-10-26): step-2 premises are not measured because the pause arms are no-ops while the section is on screen. (1) Probe class: a Lean rule for measurement-only part-off flags (platform.sweep:probe-off, platform.glint:probe-off, platform.entries:probe-off, platform.marquee:probe-off) that are never eligible for a preset or a look verdict (theorem: a probe flag is never in any preset decision; golden), wired in the flag registry. (2) Measure on CI from a pushed ci/platform-attribution branch: WebKit Simulator rewrite counts + census (3 VMs) and Chromium swipe-touch-v1 counts (3 runs), base vs each probe-off arm, per finish zone and per push phase (Chromium end 0-19 / 20-59 / 60+), on one common window per engine (WebKit passes end at 5231 or 5267: compare on y <= 5200). Also rerun the base WebKit VM r1 lost in run 40203774734. (3) Lean WebKit zone verdict: Offscreen-style cmp/judge over the WebKit census keys with sameWindow over equal step sets, golden, replacing the TS stand-in of platform-end-variants. (4) Per part: the measured work it does at the page end (premise of step-2 (a) sweep layer, (b) glint transform, (c) entries contain: holds / refuted, with run ids); recommend which step-2 variants to build. Negative results are findings (mechanism + Lean why). Builders that edit research/findings/ledger.json run the apps/runner ledger-merge test; builders that merge main run lake build before any golden check.",
+   "writes": [
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform.entries/**",
+    "apps/site/src/parts/platform.marquee/**",
+    "lean/Fw/Parts/Platform*.lean",
+    "lean/Fw/Parts/Platform*/**",
+    "lean/Fw/Measure/OffscreenWebKit.lean",
+    "lean/Fw/Measure/OffscreenWebKitGolden.lean",
+    "packages/contracts/golden/measure/offscreen-webkit.jsonl",
+    "packages/contracts/golden/parts/platform*.jsonl",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/scripts/check.sh",
+    "packages/measure-webkit/src/offscreen*.mjs",
+    "packages/measure-webkit/test/offscreen*",
+    "research/notes/2026/10-2x-platform-attribution.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/platform-attribution.md",
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/**"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gh-budget-fresh-inflight",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Incident 2026-10-26 (CONFIRMED by a checker): fw run --from-run and fw ci wait idled up to their 4 h cap on finished runs. The gh-budget cache trusts a non-completed meta row at any age: createdOf's cached() and listed() apply freshRead only to completed rows (packages/gh-budget/src/wait.ts:303-320), and the poller window no longer lists old runs (incidents.jsonl 'uncovered' every few minutes), so evaluate stays pending. Lead mitigation: 47 stale non-completed rows (> 1 h) moved out of .git/fw-gh-budget/meta. Fix, Lean first: how long an in-flight observation may be trusted is a Lean decision next to Fw.Ci.Attempt.fresh (theorem: a non-completed row older than the bound is never trusted; a completed row keeps its current rule), golden replayed by a gh-budget test; cached()/listed() call it; a stale in-flight row triggers one charged gh run view (rate-limit hygiene: no retry on 403). Also: an 'uncovered' incident repeated for one run ends that wait with a clear exit code instead of polling to the cap. Tests: a stale queued row for a completed run returns within one tick.",
+   "writes": [
+    "packages/gh-budget/src/wait.ts",
+    "packages/gh-budget/src/state.ts",
+    "packages/gh-budget/src/bounds.gen.ts",
+    "packages/gh-budget/test/**",
+    "lean/Fw/Ci/Attempt.lean",
+    "lean/Fw/Ci/AttemptGolden.lean",
+    "packages/contracts/golden/ci/attempt*.jsonl",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "docs/team/handoffs/gh-budget-fresh-inflight.md"
+   ],
+   "evidence": "47e8c19"
   }
  ],
  "deadline": {

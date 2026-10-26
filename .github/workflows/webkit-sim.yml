@@ -381,6 +381,7 @@ jobs:
             xcodebuild -version
             xcrun simctl list runtimes
             brew list --versions ios-webkit-debug-proxy
+            sysctl -n hw.ncpu hw.memsize
           } | tee "$RUNNER_TEMP/result/tools.txt"
 
       # Boot once and keep it booted; bootDevice() is idempotent and every command below passes --keep.

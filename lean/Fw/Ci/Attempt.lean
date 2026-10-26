@@ -6,13 +6,18 @@ of a finished run, a run's list row) was read at one attempt. After a rerun, `fw
 of attempt 1 while attempt 2 was still running (run 39363764375). Here the verdict is keyed on the attempt: a recorded
 fact answers for a run only while the run is still on the attempt it was recorded at.
 
-Five rules, each decided here and called through fwcore's op `ci.attempt` (`Fw.Wire.Ci`):
+Seven rules, each decided here; all but the unfinished branch of `trusted` and `uncoveredExit` (TS stand-ins replaying golden ci/attempt-inflight.jsonl) are called through fwcore's op `ci.attempt` (`Fw.Wire.Ci`):
 - `reuse`: a cached fact is reused when it and the live run name the same attempt;
 - `settled`: jobs fetched for a listed row decide when the row names no attempt (a file written before the list carried
   it) or the same attempt as the jobs view;
 - `current`: a row is current when its attempt is at least the newest attempt a view has shown for the run;
 - `fresh`: a finished row kept in the meta cache answers only for waiters that start together with the view that
   read it (`freshS` seconds); a later wait reads the run again, since a rerun may have started since.
+- `trusted` (task `gh-budget-fresh-inflight`): a cached row answers by its own rule: a finished row by `fresh`, a row
+  that is still queued or in progress only within `inflightS` of its view, so a row read hours ago never keeps a wait
+  pending on a run that has long finished (incident 2026-10-26: 47 such rows held `fw ci wait` to its 4 h cap);
+- `uncoveredExit`: a run whose watch the poller dropped as `uncovered` (older than its list window) twice ends the
+  wait with exit code `uncoveredCode` instead of polling to the cap.
 - `jobsSettled` (task `macos-telemetry`): a jobs view decides only when every job has a conclusion, or the run finished
   `jobsGraceS` ago. GitHub sets the conclusion of a matrix job a moment after the run is marked completed; a view in that
   moment read an open job as `""`, which the verdict folds to failure, and the facts were cached for good
@@ -43,10 +48,61 @@ def current (floor : Nat) (row : Option Nat) : Bool :=
 reads the run again (a rerun starts new attempts minutes after the failure, not within this window of a view). -/
 def freshS : Nat := 30
 
-/-- A finished row read at `read` is still shared at `now`. -/
 def fresh (read now : Nat) : Bool := decide (now ≤ read + freshS)
 
-/-- Seconds after a run finished within which an open job conclusion is lag, not a fact (INFERRED: the lag seen was seconds). -/
+def inflightS : Nat := 300
+
+/-- Whether a cached row answers a wait: a finished row by `fresh`, an unfinished row for `inflightS` seconds. -/
+def trusted (completed : Bool) (read now : Nat) : Bool :=
+  if completed then fresh read now else decide (now ≤ read + inflightS)
+
+theorem trusted_completed (r t : Nat) : trusted true r t = fresh r t := rfl
+
+theorem trusted_inflight_young (r t : Nat) (h : t ≤ r + inflightS) : trusted false r t = true := by
+  simp [trusted]; omega
+
+theorem trusted_inflight_stale (r t : Nat) (h : r + inflightS < t) : trusted false r t = false := by
+  simp [trusted]; omega
+
+theorem trusted_old_never (c : Bool) (r t : Nat) (h : r + inflightS < t) : trusted c r t = false := by
+  cases c
+  · exact trusted_inflight_stale r t h
+  · have h' : r + freshS < t := by simp [freshS, inflightS] at *; omega
+    simp only [trusted, fresh]; simp; omega
+
+def uncoveredMax : Nat := 2
+
+/-- The exit code of a wait ended by repeated `uncovered` incidents. -/
+def uncoveredCode : Nat := 6
+
+def uncoveredLookbackS : Nat := 1200
+
+def uncoveredExit (regAt : Nat) (times : List Nat) : Bool :=
+  decide (uncoveredMax ≤ (times.filter fun x => regAt ≤ x + uncoveredLookbackS).length) && times.any fun x => decide (regAt ≤ x)
+
+theorem uncovered_none_waits (regAt : Nat) : uncoveredExit regAt [] = false := rfl
+
+theorem uncovered_once_waits (regAt x : Nat) : uncoveredExit regAt [x] = false := by
+  by_cases h : regAt ≤ x + uncoveredLookbackS <;> simp [uncoveredExit, uncoveredMax, h]
+
+theorem uncovered_two_slices_exit (regAt a : Nat) (h : regAt ≤ a + 567) : uncoveredExit regAt [a, a + 567] = true := by
+  have h1 : regAt ≤ a + uncoveredLookbackS := by simp [uncoveredLookbackS]; omega
+  have h2 : regAt ≤ a + 567 + uncoveredLookbackS := by simp [uncoveredLookbackS]; omega
+  simp [uncoveredExit, uncoveredMax, h1, h2, h]
+
+theorem uncovered_old_ignored (regAt a b : Nat) (h : a + uncoveredLookbackS < regAt) :
+    uncoveredExit regAt [a, b] = false := by
+  have h1 : ¬ regAt ≤ a + uncoveredLookbackS := by omega
+  have h2 : ¬ regAt ≤ a := by simp [uncoveredLookbackS] at *; omega
+  by_cases h3 : regAt ≤ b + uncoveredLookbackS <;> simp [uncoveredExit, uncoveredMax, h1, h2, h3]
+
+theorem uncovered_all_before_waits (regAt a b : Nat) (ha : a < regAt) (hb : b < regAt) : uncoveredExit regAt [a, b] = false := by
+  have h2 : ¬ regAt ≤ a := by omega
+  have h3 : ¬ regAt ≤ b := by omega
+  simp [uncoveredExit, h2, h3]
+
+theorem uncoveredCode_ne_timeout : uncoveredCode ≠ 3 ∧ uncoveredCode ≠ 5 := by decide
+
 def jobsGraceS : Nat := 300
 
 /-- A jobs view decides when no job is open (no conclusion yet) or the run finished more than `jobsGraceS` s ago. -/
@@ -98,6 +154,13 @@ theorem fresh_at_read (r : Nat) : fresh r r = true := by
 /-- **A finished row is not shared after the window.** -/
 theorem stale_after_window (r t : Nat) (h : r + freshS < t) : fresh r t = false := by
   simp [fresh]; omega
+
+#guard trusted false 100 400 == true
+#guard trusted false 100 401 == false
+#guard trusted true 100 130 == true
+#guard trusted true 100 131 == false
+#guard uncoveredExit 5000 [5000] == false
+#guard uncoveredExit 5000 [4433, 5000] == true
 
 #guard jobsSettled 0 0 == true
 #guard jobsSettled 1 0 == false

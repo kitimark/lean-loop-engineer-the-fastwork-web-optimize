@@ -165,6 +165,11 @@
    "file": "apps/runner/test/watch-collect.test.ts",
    "text": "timeout: 120_000",
    "reason": "hang catcher, not a speed assertion: a child that never answers fails the test after this cap; set well above any loaded run"
+  },
+  {
+   "file": "packages/measure-webkit/test/host-call.test.mjs",
+   "text": "timeout: 20000 });",
+   "reason": "hang catcher, not a speed assertion: a watchdog subprocess that never exits fails the test after this cap; set well above any loaded run"
   }
  ]
 }

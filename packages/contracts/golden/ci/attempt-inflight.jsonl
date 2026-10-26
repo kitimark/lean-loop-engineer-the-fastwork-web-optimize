@@ -1,0 +1,14 @@
+{"completed":true,"kind":"trusted","name":"finished row read 30 s ago is shared","now":130,"read":100,"trusted":true}
+{"completed":true,"kind":"trusted","name":"finished row read 31 s ago is read again","now":131,"read":100,"trusted":false}
+{"completed":false,"kind":"trusted","name":"queued row read at once is trusted","now":100,"read":100,"trusted":true}
+{"completed":false,"kind":"trusted","name":"queued row read 300 s ago is trusted","now":400,"read":100,"trusted":true}
+{"completed":false,"kind":"trusted","name":"queued row read 301 s ago is read again","now":401,"read":100,"trusted":false}
+{"completed":false,"kind":"trusted","name":"in-progress row read hours ago is read again","now":14500,"read":100,"trusted":false}
+{"code":6,"exit":false,"kind":"uncovered","lookback":1200,"name":"no incident keeps waiting","regAt":5000,"times":[]}
+{"code":6,"exit":false,"kind":"uncovered","lookback":1200,"name":"one incident keeps waiting","regAt":5000,"times":[5000]}
+{"code":6,"exit":true,"kind":"uncovered","lookback":1200,"name":"two incidents 567 s apart end the wait","regAt":5000,"times":[4433,5000]}
+{"code":6,"exit":true,"kind":"uncovered","lookback":1200,"name":"incident of the previous slice, one in this one","regAt":5000,"times":[4460,5001]}
+{"code":6,"exit":false,"kind":"uncovered","lookback":1200,"name":"two incidents both before the wait keep waiting","regAt":5000,"times":[4900,4990]}
+{"code":6,"exit":false,"kind":"uncovered","lookback":1200,"name":"old incident beyond the lookback keeps waiting","regAt":5000,"times":[3799,5000]}
+{"code":6,"exit":true,"kind":"uncovered","lookback":1200,"name":"lookback edge counts","regAt":5000,"times":[3800,5000]}
+{"code":6,"exit":true,"kind":"uncovered","lookback":1200,"name":"many incidents end the wait","regAt":5000,"times":[4000,4500,5000,5100]}
