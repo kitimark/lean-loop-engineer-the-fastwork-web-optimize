@@ -1,12 +1,36 @@
-branch: worktree-wf_f89668d1-656-1; worktree: .claude/worktrees/wf_f89668d1-656-1 (split from morph-geom: the first builder hit 255k context; lead wrote this)
-design: research/notes/2026/10-27-morph-compositor-geometry.md, section "Lean spec to write first" is the checklist.
-state: lean/Fw/Parts/MorphGeom.lean (879 lines, no sorry, builds; not yet imported in lean/Fw.lean). Last commit: see git log (lead WIP commit on top of 4d73805c8).
-done (proved): Track/eval/mk, chord, ChordOk, chord_aff, exact_of_aff, chord_sub_eq, chord_rat_eq, chord_rat_within, chordOk_grid_rat;
-  sizes wd/ht/x0/y0/rad/kk (wd_eq, ht_eq, y0_eq, sizes, pill_le, rad_facts, mKnot phone knot); clip doors (RR, cTL..cBR, door, clip_eq, boxAt, cover, clip_pill);
-  net offset bound navX/navY per band (net_ok_bands over bandVps by decide +kernel).
-open (from the note's list): AnimProp allowlist inductive + Anim + layers/anims; rect_eq (bar, actions, columns, images, veil, centre, footer, backdrop clip, panel centre);
-  fill_eq (premultiplied colorMix); panel_eq, fade_eq; earn_eq per engine (NavEarnWebkit / NavEarnOpt on the 60 Hz grid); logo_err; end_eq;
-  accelerable v and noTransition; memBytes <= budget per band; generators: knot JSON, .is-flip and goal CSS, golden vectors for the TS track builder
-  (lean/scripts/MorphGeomGolden.lean -> packages/contracts/golden/morph-geom*.jsonl), Fw.lean import, check.sh golden check + Trigger.lean row + triggers.jsonl.
-conventions: decide +kernel over the band viewport table for numeric facts; grind for Rat algebra; keep each statement one line of English in the note, no LaTeX in Lean.
-read first: the note's Lean section, then MorphGeom.lean lines 1-130 (Track, chord) and 360-430 (clip doors), lean/Fw/Parts/Nav.lean:244-257.
+branch: worktree-wf_f89668d1-656-1; worktree: .claude/worktrees/wf_f89668d1-656-1
+last commit: this handoff's commit, on top of f4deda24b (main merged at 52f0a1894)
+CI runs: none (Lean only; the accepted limits rule out CI)
+verified:
+- check.sh green via `fw slot run --kind check` (4:28), including the `morph-geom golden check` job.
+- plan lint: 0 errors, no writesClosure finding for this task.
+- Tests pass: ci-paths 56/56, contracts 11/11, runner land-inputs 73/73.
+- `#print axioms` standard on every main theorem.
+done: every statement of the design note's Lean list. See research/notes/2026/10-27-morph-geom-lean.md for the table.
+- MorphGeom.lean: tracks, chords, sizes, clip doors, net_err.
+- MorphGeomRect.lean: rect_eq, fill_eq, panel_eq, fade_eq, logo_err.
+- MorphGeomEarn.lean: earn_eq for WebKit and Chromium.
+- MorphGeomAnim.lean:
+  - AnimProp, Anim, layers, anims;
+  - accelerable_bands, noTransition_bands;
+  - end_eq;
+  - mem_bands.
+- MorphGeomGen.lean writes packages/contracts/golden/morph-geom.jsonl. Its fn kinds:
+  - knots;
+  - time;
+  - sample: eval at 11 m points, rounded to 6 decimals;
+  - flip;
+  - goal.
+- check.sh job; Trigger.lean lean.yml row; triggers.jsonl regenerated.
+finding:
+- mem_bands: the census fits the 23,055,555 B headroom only on 320×568 and 641×700.
+- The veil and platform backings dominate; the design must shrink them or measure what the faithful arm already pays.
+open:
+- morph-geom (site half) consumes the golden. The DOM contract is `data-mg="<el>"`, plus `data-i`/`data-j` on columns
+  and images.
+- The TS track builder must reproduce the `sample` lines within 1e-6.
+- The memory verdict needs a design decision before morph-geom lands.
+conventions:
+- decide +kernel over bandVps for numeric facts; grind for Rat algebra.
+- Golden constants are `(_ : Unit)` functions; the init cost lint refuses closed constants.
+read first: the note above, then MorphGeomAnim.lean (anims, Ctx.sample) and MorphGeomGen.lean.
