@@ -49,7 +49,7 @@ Every end window has frames (47 in end 120+). The stop frame is 740 = 575 + tail
 says.
 
 The morph.stage flag is not on main, so the limit-end arm was not run here. For a limit end the stop frame is `stopAt_limit`:
-end + 165, so end 120+ gets 47 frames as in the base run (INFERRED from the theorem, not seen). The flag arm is the morph-stage task's rerun.
+end + 165, so end 120+ gets 47 frames as in the base run (INFERRED from the theorem, not seen).
 
 ## What this does to existing comparisons
 

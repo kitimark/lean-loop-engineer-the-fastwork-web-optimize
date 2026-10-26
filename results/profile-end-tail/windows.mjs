@@ -1,4 +1,3 @@
-// usage: node windows.mjs <artifact dir> [out.json]  (prints one line per run: end, endReason, frames per window)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { readArm } from '../../packages/measure-chromium/src/offscreen-windows.mjs';
 

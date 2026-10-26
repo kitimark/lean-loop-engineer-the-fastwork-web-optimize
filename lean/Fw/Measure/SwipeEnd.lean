@@ -1,14 +1,9 @@
 import Fw.Measure.Profile
 import Fw.Measure.OffscreenWindows
 
-/-!
-The Chromium touch swipe stops a fixed tail of frames after its end frame, for a limit end and a stalled end alike.
-Twin: `packages/measure-chromium/src/profile.mjs`, golden `packages/contracts/golden/measure/swipe-end.jsonl`.
--/
 namespace Fw.Measure.SwipeEnd
 open Fw.Measure.Profile Fw.Measure.OffscreenWindows
 
-/-- First frame after the end that the last reader window starts at. -/
 def windowReach : Nat := ((pushWindows 0 1000).getLast?.map (·.lo)).getD 0
 
 theorem windowReach_eq : windowReach = 120 := rfl
@@ -20,25 +15,20 @@ theorem windowReach_spec (e last : Nat) (h : e + windowReach ≤ last) :
   simp only [clip, Option.some.injEq]
   omega
 
-/-- Frames the last end window holds at least. -/
 def endWinFrames : Nat := 40
 
 def windowTail : Nat := windowReach + endWinFrames
 
-/-- Frames the run records after its end frame. -/
 def _root_.Fw.Measure.Profile.Swipe.tail (s : Swipe) : Nat := max windowTail (s.idleFrames + s.holdFrames + 1)
 
-/-- The end frame: the frame at which the scroll position last improved, from the frame the end rule fires at and its idle count. -/
 def endFrameOf (n idle : Nat) : Nat := n - idle
 
 def limitEnd (limit y : Nat) : Bool := decide (limit ≤ y)
 
 def endReason (limit y : Nat) : String := if limitEnd limit y then "limit" else "stalled"
 
-/-- Last frame of the swipe: the later of the tail and the frame the touch has lifted by. -/
 def _root_.Fw.Measure.Profile.Swipe.stopAt (s : Swipe) (e nf : Nat) : Nat := max (e + s.tail) (nf + s.holdFrames + 1)
 
-/-- Per-frame stop decision once the end rule has fired. -/
 def _root_.Fw.Measure.Profile.Swipe.stops (s : Swipe) (e n : Nat) (done : Bool) : Bool := done && decide (e + s.tail ≤ n)
 
 theorem tail_ge_window (s : Swipe) : windowTail ≤ s.tail := Nat.le_max_left _ _

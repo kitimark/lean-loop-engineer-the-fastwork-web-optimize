@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Measure.SwipeEnd
 
-/-!
-Golden vectors for the Chromium swipe end tail.
--/
 namespace Fw.Measure.SwipeEndGolden
 open Fw.Measure.SwipeEnd Fw.Measure.Profile Fw.Measure.OffscreenWindows Lean
 
