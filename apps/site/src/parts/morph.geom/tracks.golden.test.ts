@@ -82,4 +82,17 @@ describe('morph.geom tracks against the Lean golden', () => {
       }
     }
   });
+
+  it('every animated element is in the transition-none list of geom.css, which is the golden flip rule', () => {
+    const flip = lines.find((l) => l.fn === 'flip')!.out as string;
+    const css = readFileSync(resolve(__dirname, 'geom.css'), 'utf8').replace(/'/g, '"').replace(/\s+/g, ' ');
+    const sels = flip.replace(/ \{ transition: none; \}$/, '').split(', ');
+    expect(sels.length).toBeGreaterThan(20);
+    for (const sel of sels) expect(css, sel).toContain(sel);
+    for (const eng of ['webkit', 'chromium'] as const) {
+      for (const [w, h] of [[390, 844], [1280, 800]]) {
+        for (const a of buildAnims({ w, h }, sample(w, eng))) expect(sels, a.el).toContain(`.is-flip [data-mg="${a.el}"]`);
+      }
+    }
+  });
 });
