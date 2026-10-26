@@ -4360,9 +4360,9 @@
    "flag": "platform:faded-pause",
    "visClass": "E",
    "candidate": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
-   "status": "pending",
-   "chromium": "pending (CI)",
-   "webkit": "pending (CI)",
+   "status": "partly-proved",
+   "chromium": "MEASURED swipe-touch-v1, 3 runs per arm, one commit 5a82a54 (base 40287924353, flag 40287928566, Lean window reader): gain in end 20-59 (Paint 252 to 197, PaintImage 454 to 294), end 60-119 (Paint 120 to 0) and end 120+ (Paint 94 to 0); end 0-19 and finish noGain because RecalcStyleCount and LayoutCount read one more (finish 320 to 321 and 52 to 53); approach noGain",
+   "webkit": "not run: the WebKit lane only scrolls (scrollrun.mjs:35,69 scrollTo steps), so the open morph is never reached, the fade never gets to 0 and the flag is a no-op there; runs 40288001111 and 40288005328 were cancelled; the toolbar/push lanes are a follow-up",
    "visual": "E (Lean PlatformFadedPause.faded_same_pixels: at fade 0 the page pixel is the backdrop for every subtree colour, assuming no descendant escapes the opacity group, census-tested; visible_phase, glint_phase: every visible frame reads the uninterrupted phase)",
    "mechanism": "CONFIRMED by source: Chromium records an effectively invisible layer (paint_layer_painter.cc:168-191,424@f842f52, ScopedEffectivelyInvisible); WebKit clears the repaint rects of an opacity-0 subtree (RenderLayer.cpp:1522,6147-6150@862f17d) but the main-thread background-position animation still resolves style each frame. INFERRED: pausing removes the per-frame invalidation and decode work.",
    "leanFor": [
@@ -4377,15 +4377,15 @@
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "Per-engine counts: see the note research/notes/2026/10-2x-platform-faded-pause.md"
+    "WebKit count (no lane reaches the open morph); the +1 RecalcStyle/Layout at the edge is INFERRED"
    ],
    "premises": [
     "setting startTime on a CSSAnimation after the style flush keeps the CSS play state: INFERRED",
     "no descendant escapes the section's opacity group: census test over the platform sources"
    ],
    "v1Evidence": "",
-   "lesson": "",
-   "next": "CI gate and counts (task platform-faded-pause)",
+   "lesson": "Pausing an invisible section removes its paint and raster work once the fade is 0, but the resume edge costs one style recalc and one layout, so the gain shows only in windows long enough to repay it.",
+   "next": "WebKit count on a lane that opens the morph (toolbar/push); the user's preset decision",
    "evidence": "research/notes/2026/10-2x-platform-faded-pause.md (task platform-faded-pause)"
   }
  ],

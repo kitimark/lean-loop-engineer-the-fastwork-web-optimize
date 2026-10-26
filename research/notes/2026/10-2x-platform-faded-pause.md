@@ -1,6 +1,6 @@
 # platform:faded-pause (task platform-faded-pause)
 
-Rank 3 of research/notes/2026/10-26-end-of-page-variants.md. Status: built, CI pending (this note is filled in as runs finish).
+Rank 3 of research/notes/2026/10-26-end-of-page-variants.md. Status: built; gate PASS on both engines; Chromium measured; WebKit not run (reason below).
 
 ## What the flag does
 - The tween reports "fade is 0" (m at or past 0.55) once per edge (`fadedBus`). The platform section's one `data-fw-scene`
@@ -31,5 +31,30 @@ Rank 3 of research/notes/2026/10-26-end-of-page-variants.md. Status: built, CI p
   rects. WebKit schedules no repaint for the subtree, but the background-position animation is not accelerated and
   still resolves style per frame (INFERRED), so the gain there is style work, not paint.
 
-## Results
-Pending.
+## Results (MEASURED, CI only, no phone pass)
+Gate: breakpoint gate run 40287895072 (fw=platform:faded-pause) PASS on both engines, at 5a82a54.
+
+Chromium swipe-touch-v1, 3 runs per arm, base run 40287924353, flag run 40287928566, both at 5a82a54. Reader: Lean
+`Fw.Measure.OffscreenWindows` through packages/measure-chromium/src/offscreen-windows-cli.mjs; end frame 574, slack 0.
+`less` prints base min to flag max, `more` prints base max to flag min.
+
+| window | Lean verdict | counts that differ |
+|---|---|---|
+| approach | noGain | none |
+| end 0-19 | noGain | less: Paint 335 to 308, PaintImage 495 to 451; more: RecalcStyleCount 43 to 44, LayoutCount 21 to 22 |
+| end 20-59 | gain | less: Paint 252 to 197, PaintImage 454 to 294 |
+| end 60-119 | gain | less: Paint 120 to 0, PaintImage 240 to 0 |
+| end 120+ | gain | less: Paint 94 to 0, PaintImage 188 to 0 |
+| finish | noGain | less: Paint 915 to 619, PaintImage 1514 to 882; more: RecalcStyleCount 320 to 321, LayoutCount 52 to 53 |
+
+Why finish is noGain: the verdict rule reads any counter that rises as a cost, and the flag reads exactly one more
+RecalcStyle and one more Layout in every run (base max 320, flag min 321). INFERRED mechanism: the resume edge writes
+`data-fw-scene` and flushes style with `getAnimations` once; those are the two extra counts, and the same +1 shows in end
+0-19 (43 to 44, 21 to 22), the window where the edge falls. Paint and PaintImage fall in the finish window, so the flag
+saves work; the verdict is strict about the two counters. Not isolated by a run.
+
+WebKit: not run. The WebKit Simulator lane only scrolls (packages/measure-webkit/src/scrollrun.mjs:35 and :69 issue
+`scrollTo` steps; cli.mjs:96 calls scrollRun), so the open morph is never reached there ("WebKit has no push-phase
+windows", research/notes/2026/10-2x-platform-attribution.md:53). The fade never gets to 0, so the flag is a no-op on that
+lane. Runs 40288001111 and 40288005328 were queued and cancelled for this reason. Follow-up: count it on a toolbar or push
+lane that opens the morph.
