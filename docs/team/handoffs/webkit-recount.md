@@ -1,9 +1,10 @@
-branch: worktree-wf_60f31c57-bb5-1 | worktree: .claude/worktrees/wf_60f31c57-bb5-1 | last commit: 60ee5c326 (main, nothing of mine committed yet) | CI branch: ci/webkit-recount @60ee5c326 (= main; every arm measures this sha)
-State: dispatch wave 1 running (base + fill-release, `pnpm -s fw run --target rewrite --engines webkit --ref ci/webkit-recount --runs 3 --no-route [--fw ...]`; --no-route keeps all 3 VMs on GitHub, Codemagic cells have other hardware).
-CI runs:
-- base (default): 40349554405 running (nonce 1163cafa8d429157)
-- platform.entries:fill-release: 40349566685 running (queued title "webkit-sim"; confirm by nonce 6c0279d8bc0d217b)
+branch: worktree-wf_60f31c57-bb5-1 | worktree: .claude/worktrees/wf_60f31c57-bb5-1 | last commit: see git log | CI branch: ci/webkit-recount @60ee5c326 (= main; every arm measures this sha)
+Dispatch form: `pnpm -s fw run --target rewrite --engines webkit --ref ci/webkit-recount --runs 3 --no-route [--fw part:variant]` (--no-route keeps all VMs on GitHub: Codemagic cells have other hardware; `--runs` must be 2..10, so a retry is --runs 2 and only the needed VM id is used). Artifacts of a failed run: `gh run download <id> --repo kitimark/lean-loop-engineer-the-fastwork-web-optimize --pattern 'webkit-sim-r*' --dir <scratch>` (scratch = session scratchpad wr/).
+CI runs (state):
+- base 40349554405: r2, r3 ok; r1 LOST at Determinism sessions (first pass: Safari opened no tab, 19 openurl asks in 155 s, then silent; the 720 s stall watchdog killed it at 748 s; no pass-level SimHost gate fired). Host load1 667-860 in r2/r3, passes still kept.
+- base retry 40360267706 (--runs 2; use only r1) queued
+- platform.entries:fill-release 40349566685 running (1 of 3 jobs already failed at Determinism sessions)
 Next waves in order: layer-sweep (platform.sweep:layer-sweep), hero.exit:contain, platform.entries:probe-off, platform.marquee:probe-off.
-Lane takes one site config per VM job (no several arms per VM): 6 dispatches x 3 VMs = 18 jobs.
+Lane takes one site config per VM job (no several arms per VM).
 Reader: packages/measure-webkit/src/offscreen-webkit-cli.mjs (zones z4500 z5000 finish whole); hero.exit:contain also results/hero-relayout-boundary/read-webkit.mjs windows.
 Verified: nothing yet. Open: everything after the runs (notes, ledger, recount note, check.sh, dry land, review).
