@@ -22438,7 +22438,8 @@
     "packages/measure-chromium/test/faithful.test.mjs",
     "research/notes/2026/10-2x-faithful-empty-guard.md",
     "docs/team/handoffs/faithful-empty-guard.md"
-   ]
+   ],
+   "evidence": "f4369b9"
   }
  ],
  "deadline": {
