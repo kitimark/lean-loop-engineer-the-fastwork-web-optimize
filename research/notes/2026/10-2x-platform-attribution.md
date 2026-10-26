@@ -17,7 +17,7 @@
 Superseded: the first sweep arm (runs 40236459376 Chromium, 40236443781 WebKit) removed the class and made Paint a counter artifact.
 
 ## Rule
-* WebKit: Lean `Fw.Measure.OffscreenWebKit` (golden `packages/contracts/golden/measure/offscreen-webkit.jsonl`, replayed by `packages/measure-webkit/test/offscreen-webkit.test.mjs`). Base and arm are compared only on the same steps (`sameWindow` over equal step sets) with a common window y <= 5200 (the passes end at 5231 or 5267). Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<dirs> --arm name=<dirs>`. A cell with fewer than 3 VMs in an arm is reported undecided (n shown), never no-win. The undecided label is a manual reading on top of the Lean verdict: Lean minRuns counts passes, so the reader prints gain for entries at 4 passes from 2 VMs (prose stand-in; follow-up: count VMs in Lean).
+* WebKit: Lean `Fw.Measure.OffscreenWebKit` (golden `packages/contracts/golden/measure/offscreen-webkit.jsonl`, replayed by `packages/measure-webkit/test/offscreen-webkit.test.mjs`). Base and arm are compared only on the same steps (`sameWindow` over equal step sets) with a common window y <= 5200 (the passes end at 5231 or 5267). Reader: `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<dirs> --arm name=<dirs>`. A cell with fewer than 3 VMs in an arm is reported undecided (n shown), never no-win. Lean decides this label: an arm needs passes from at least 3 distinct VMs (`minVms`, task offscreen-vm-count, research/notes/2026/10-2x-offscreen-vm-count.md), and the reader prints `undecided (n=3+2 VMs)`.
 * Chromium: the same Lean cmp/judge per window, 3 runs per arm, windows approach (34 frames), end 0-19 (20), end 20-59 (40), end 60-119 and 120+ (both shown as end 60+), finish (all 201). Reader: scratch script (TS stand-in, not committed): per-run sums of counts.json frames, end = first frame at max scrollY (574 in all runs), finish = frames 540-740, keys RecalcStyleCount, LayoutCount, Paint, RasterTask, PaintImage, FireAnimationFrame; Offscreen cmp/judge, slack 0.
 
 ## WebKit (MEASURED; counts summed per zone, min-max over passes; base 6 passes)
@@ -25,16 +25,16 @@ Superseded: the first sweep arm (runs 40236459376 Chromium, 40236443781 WebKit) 
 |---|---|---|---|---|---|
 | z4500 (10) | sweep | 6+6 | no-gain | none | 105-156 / 45-107 |
 | z4500 | glint | 6+6 | no-gain | none | 105-156 / 130-143 |
-| z4500 | entries | 6+4 | undecided (n=2 VMs) | would read: FireAnimationFrame less, ObserverCallback less | 105-156 / 89-142 |
-| z4500 | marquee | 6+4 | undecided (n=2) | would read no-gain | 105-156 / 120-134 |
+| z4500 | entries | 6+4 | undecided (n=3+2 VMs) | would read: FireAnimationFrame less, ObserverCallback less | 105-156 / 89-142 |
+| z4500 | marquee | 6+4 | undecided (n=3+2 VMs) | would read no-gain | 105-156 / 120-134 |
 | z5000 (5) | sweep | 6+6 | gain | Paint less | 54-66 / 30-36 |
 | z5000 | glint | 6+6 | gain | Paint, EventDispatch, FunctionCall less | 54-66 / 40-44 |
-| z5000 | entries | 6+4 | undecided (n=2) | would read: ObserverCallback less | 54-66 / 40-56 |
-| z5000 | marquee | 6+4 | undecided (n=2) | would read no-gain | 54-66 / 48-65 |
+| z5000 | entries | 6+4 | undecided (n=3+2 VMs) | would read: ObserverCallback less | 54-66 / 40-56 |
+| z5000 | marquee | 6+4 | undecided (n=3+2 VMs) | would read no-gain | 54-66 / 48-65 |
 | finish (15) | sweep | 6+6 | gain | Paint less | 166-222 / 80-143 |
 | finish | glint | 6+6 | no-gain | none | 166-222 / 174-186 |
-| finish | entries | 6+4 | undecided (n=2) | would read: ObserverCallback less (14 to 6) | 166-222 / 141-197 |
-| finish | marquee | 6+4 | undecided (n=2) | would read no-gain | 166-222 / 168-199 |
+| finish | entries | 6+4 | undecided (n=3+2 VMs) | would read: ObserverCallback less (14 to 6) | 166-222 / 141-197 |
+| finish | marquee | 6+4 | undecided (n=3+2 VMs) | would read no-gain | 166-222 / 168-199 |
 Layout, RecalculateStyles and Composite are inside the base spread for every arm (Composite 30 in finish for all). Full output: the CLI above on the downloaded `webkit-sim-r*` artifacts.
 
 ## Chromium (MEASURED; 3 runs per arm; windows in frames from the end)
