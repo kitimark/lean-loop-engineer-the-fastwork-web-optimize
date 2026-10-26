@@ -35,7 +35,7 @@ on both engines is the check.
 - Not shown by these lines: the cost of a frame the container still runs for another element. That stays INFERRED; the
   counts decide.
 
-## Results (all runs on ci/glint-hold-freeze at a5e170b94, CI only, no phone pass)
+## Results (CI only, no phone pass; runs on ci/glint-hold-freeze at a5e170b94, WebKit at cf69a9052)
 
 ### Look premise glint.hold-pixels: class E (MEASURED, run 40345059212)
 Page packages/premise-tests/pages/glint.hold-pixels.html, test prem.glint.hold-pixels, Lean registry entry (theorem
