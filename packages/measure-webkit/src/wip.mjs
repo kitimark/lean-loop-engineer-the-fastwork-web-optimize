@@ -12,6 +12,7 @@ import { T } from './timeouts.mjs';
 import { attachFresh } from './poll.mjs';
 import { capped, waitForTarget } from './target.mjs';
 import { remainingMs } from './inspector.mjs';
+import { NAV_WAIT_MS } from './sim-host.mjs';
 
 /**
  * The Target-domain bookkeeping of one connection, as a pure step (TS stand-in; WebKit Target.json and TargetManager.js@862f17dc).
@@ -180,7 +181,7 @@ export async function reconnect(ctx, { log = () => {}, openTabFn = null, clock =
  * sleep: the old document gets a marker, and a client that attaches to it before the navigation lands is released and
  * the attach repeated until a document without the marker answers and is complete.
  */
-export async function navigateTab(c, url, { waitMs = T(60000), log = () => {}, openTabFn = openTab, clock } = {}) {
+export async function navigateTab(c, url, { waitMs = T(NAV_WAIT_MS), log = () => {}, openTabFn = openTab, clock } = {}) {
   await c.evaluate(`window.__fwNav = 1; setTimeout(() => { location.href = ${JSON.stringify(url)}; }, 30); 'nav'`);
   await c.close();
   return attachFresh({

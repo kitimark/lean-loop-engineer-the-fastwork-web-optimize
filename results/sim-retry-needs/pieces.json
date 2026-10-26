@@ -1,0 +1,7608 @@
+[
+{
+"job": "120798401732",
+"run": "40068853873",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 52,
+"attempts": [
+{
+"startEl": 316,
+"retry": false,
+"tries": [
+{
+"s": 34,
+"ok": true,
+"recon": false
+}
+],
+"headS": 351,
+"tailS": 74,
+"endEl": 775
+},
+{
+"startEl": 775,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 54,
+"tailS": 169,
+"endEl": 1017
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 701
+},
+{
+"kind": "tab",
+"at": 716
+},
+{
+"kind": "tab",
+"at": 725
+},
+{
+"kind": "tab",
+"at": 740
+},
+{
+"kind": "tab",
+"at": 775
+},
+{
+"kind": "tab",
+"at": 849
+},
+{
+"kind": "tab",
+"at": 857
+},
+{
+"kind": "tab",
+"at": 866
+},
+{
+"kind": "tab",
+"at": 901
+}
+]
+},
+{
+"job": "120837700860",
+"run": "40081936555",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 38,
+"attempts": [
+{
+"startEl": 407,
+"retry": false,
+"tries": [
+{
+"s": 36,
+"ok": true,
+"recon": false
+}
+],
+"headS": 422,
+"tailS": 56,
+"endEl": 921
+},
+{
+"startEl": 921,
+"retry": false,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 40,
+"tailS": 67,
+"endEl": 1048
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 865
+},
+{
+"kind": "tab",
+"at": 882
+},
+{
+"kind": "tab",
+"at": 891
+},
+{
+"kind": "tab",
+"at": 901
+},
+{
+"kind": "tab",
+"at": 921
+},
+{
+"kind": "tab",
+"at": 980
+},
+{
+"kind": "tab",
+"at": 989
+},
+{
+"kind": "tab",
+"at": 997
+},
+{
+"kind": "tab",
+"at": 1011
+}
+]
+},
+{
+"job": "120992312974",
+"run": "40134016822",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 47,
+"attempts": [
+{
+"startEl": 757,
+"retry": false,
+"tries": [
+{
+"s": 148,
+"ok": false,
+"recon": false
+},
+{
+"s": 405,
+"ok": true,
+"recon": true
+}
+],
+"headS": 184,
+"tailS": 62,
+"endEl": 1556
+},
+{
+"startEl": 1556,
+"retry": false,
+"tries": [
+{
+"s": 17,
+"ok": true,
+"recon": false
+}
+],
+"headS": 46,
+"tailS": 53,
+"endEl": 1672
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 1089,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1494
+},
+{
+"kind": "tab",
+"at": 1502
+},
+{
+"kind": "tab",
+"at": 1510
+},
+{
+"kind": "tab",
+"at": 1520
+},
+{
+"kind": "tab",
+"at": 1556
+},
+{
+"kind": "tab",
+"at": 1618
+},
+{
+"kind": "tab",
+"at": 1627
+},
+{
+"kind": "tab",
+"at": 1635
+},
+{
+"kind": "tab",
+"at": 1646
+}
+]
+},
+{
+"job": "120992933059",
+"run": "40134234199",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 46,
+"attempts": [
+{
+"startEl": 720,
+"retry": false,
+"tries": [
+{
+"s": 24,
+"ok": true,
+"recon": false
+}
+],
+"headS": 132,
+"tailS": 60,
+"endEl": 936
+},
+{
+"startEl": 936,
+"retry": false,
+"tries": [
+{
+"s": 18,
+"ok": true,
+"recon": false
+}
+],
+"headS": 50,
+"tailS": 48,
+"endEl": 1051
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 876
+},
+{
+"kind": "tab",
+"at": 889
+},
+{
+"kind": "tab",
+"at": 896
+},
+{
+"kind": "tab",
+"at": 908
+},
+{
+"kind": "tab",
+"at": 936
+},
+{
+"kind": "tab",
+"at": 1004
+},
+{
+"kind": "tab",
+"at": 1012
+},
+{
+"kind": "tab",
+"at": 1020
+},
+{
+"kind": "tab",
+"at": 1033
+}
+]
+},
+{
+"job": "121008833797",
+"run": "40139526492",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 41,
+"attempts": [
+{
+"startEl": 511,
+"retry": false,
+"tries": [
+{
+"s": 150,
+"ok": true,
+"recon": false
+}
+],
+"headS": 98,
+"tailS": 94,
+"endEl": 853
+},
+{
+"startEl": 853,
+"retry": false,
+"tries": [
+{
+"s": 165,
+"ok": true,
+"recon": false
+}
+],
+"headS": 84,
+"tailS": 66,
+"endEl": 1169
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 760
+},
+{
+"kind": "tab",
+"at": 793
+},
+{
+"kind": "tab",
+"at": 801
+},
+{
+"kind": "tab",
+"at": 819
+},
+{
+"kind": "tab",
+"at": 853
+},
+{
+"kind": "tab",
+"at": 1103
+},
+{
+"kind": "tab",
+"at": 1112
+},
+{
+"kind": "tab",
+"at": 1121
+},
+{
+"kind": "tab",
+"at": 1133
+}
+]
+},
+{
+"job": "121045164924",
+"run": "40151792642",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 31,
+"attempts": [
+{
+"startEl": 142,
+"retry": false,
+"tries": [
+{
+"s": 221,
+"ok": true,
+"recon": false
+}
+],
+"headS": 490,
+"tailS": 71,
+"endEl": 924
+},
+{
+"startEl": 924,
+"retry": false,
+"tries": [
+{
+"s": 200,
+"ok": true,
+"recon": false
+}
+],
+"headS": 60,
+"tailS": 601,
+"endEl": 1784
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 854
+},
+{
+"kind": "tab",
+"at": 875
+},
+{
+"kind": "tab",
+"at": 884
+},
+{
+"kind": "tab",
+"at": 904
+},
+{
+"kind": "tab",
+"at": 924
+},
+{
+"kind": "tab",
+"at": 1184
+},
+{
+"kind": "tab",
+"at": 1202
+},
+{
+"kind": "tab",
+"at": 1217
+},
+{
+"kind": "tab",
+"at": 1287
+}
+]
+},
+{
+"job": "121045164942",
+"run": "40151792642",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 37,
+"attempts": [
+{
+"startEl": 775,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 49,
+"tailS": 66,
+"endEl": 920
+},
+{
+"startEl": 920,
+"retry": false,
+"tries": [
+{
+"s": 22,
+"ok": true,
+"recon": false
+}
+],
+"headS": 46,
+"tailS": 66,
+"endEl": 1054
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 855
+},
+{
+"kind": "tab",
+"at": 873
+},
+{
+"kind": "tab",
+"at": 882
+},
+{
+"kind": "tab",
+"at": 894
+},
+{
+"kind": "tab",
+"at": 920
+},
+{
+"kind": "tab",
+"at": 988
+},
+{
+"kind": "tab",
+"at": 998
+},
+{
+"kind": "tab",
+"at": 1007
+},
+{
+"kind": "tab",
+"at": 1023
+}
+]
+},
+{
+"job": "121049390265",
+"run": "40151792642",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 45,
+"attempts": [
+{
+"startEl": 675,
+"retry": false,
+"tries": [
+{
+"s": 109,
+"ok": true,
+"recon": false
+}
+],
+"headS": 81,
+"tailS": 87,
+"endEl": 952
+},
+{
+"startEl": 952,
+"retry": false,
+"tries": [
+{
+"s": 18,
+"ok": true,
+"recon": false
+}
+],
+"headS": 39,
+"tailS": 60,
+"endEl": 1069
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 865
+},
+{
+"kind": "tab",
+"at": 877
+},
+{
+"kind": "tab",
+"at": 886
+},
+{
+"kind": "tab",
+"at": 933
+},
+{
+"kind": "tab",
+"at": 952
+},
+{
+"kind": "tab",
+"at": 1009
+},
+{
+"kind": "tab",
+"at": 1016
+},
+{
+"kind": "tab",
+"at": 1024
+},
+{
+"kind": "tab",
+"at": 1041
+}
+]
+},
+{
+"job": "121051667521",
+"run": "40153917806",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 35,
+"attempts": [
+{
+"startEl": 251,
+"retry": false,
+"tries": [
+{
+"s": 34,
+"ok": true,
+"recon": false
+}
+],
+"headS": 619,
+"tailS": 62,
+"endEl": 967
+},
+{
+"startEl": 967,
+"retry": false,
+"tries": [
+{
+"s": 23,
+"ok": true,
+"recon": false
+}
+],
+"headS": 57,
+"tailS": 53,
+"endEl": 1100
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 905
+},
+{
+"kind": "tab",
+"at": 922
+},
+{
+"kind": "tab",
+"at": 931
+},
+{
+"kind": "tab",
+"at": 943
+},
+{
+"kind": "tab",
+"at": 967
+},
+{
+"kind": "tab",
+"at": 1047
+},
+{
+"kind": "tab",
+"at": 1056
+},
+{
+"kind": "tab",
+"at": 1065
+},
+{
+"kind": "tab",
+"at": 1076
+}
+]
+},
+{
+"job": "121051706071",
+"run": "40153925235",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 160,
+"attempts": [
+{
+"startEl": 363,
+"retry": false,
+"tries": [
+{
+"s": 195,
+"ok": true,
+"recon": false
+}
+],
+"headS": 156,
+"tailS": 552,
+"endEl": 1266
+},
+{
+"startEl": 1267,
+"retry": false,
+"tries": [
+{
+"s": 290,
+"ok": true,
+"recon": false
+}
+],
+"headS": 139,
+"tailS": 62,
+"endEl": 1757
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 714
+},
+{
+"kind": "tab",
+"at": 727
+},
+{
+"kind": "tab",
+"at": 735
+},
+{
+"kind": "tab",
+"at": 772
+},
+{
+"kind": "tab",
+"at": 1267
+},
+{
+"kind": "tab",
+"at": 1696
+},
+{
+"kind": "tab",
+"at": 1708
+},
+{
+"kind": "tab",
+"at": 1716
+},
+{
+"kind": "tab",
+"at": 1728
+}
+]
+},
+{
+"job": "121051706132",
+"run": "40153925235",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 102,
+"attempts": [
+{
+"startEl": 324,
+"retry": false,
+"tries": [
+{
+"s": 50,
+"ok": true,
+"recon": false
+}
+],
+"headS": 145,
+"tailS": 262,
+"endEl": 781
+},
+{
+"startEl": 781,
+"retry": false,
+"tries": [
+{
+"s": 32,
+"ok": true,
+"recon": false
+}
+],
+"headS": 143,
+"tailS": 68,
+"endEl": 1023
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 519
+},
+{
+"kind": "tab",
+"at": 548
+},
+{
+"kind": "tab",
+"at": 572
+},
+{
+"kind": "tab",
+"at": 737
+},
+{
+"kind": "tab",
+"at": 781
+},
+{
+"kind": "tab",
+"at": 956
+},
+{
+"kind": "tab",
+"at": 967
+},
+{
+"kind": "tab",
+"at": 976
+},
+{
+"kind": "tab",
+"at": 988
+}
+]
+},
+{
+"job": "121056621964",
+"run": "40153917806",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 27,
+"attempts": [
+{
+"startEl": 243,
+"retry": false,
+"tries": [
+{
+"s": 314,
+"ok": true,
+"recon": false
+}
+],
+"headS": 126,
+"tailS": 61,
+"endEl": 745
+},
+{
+"startEl": 745,
+"retry": false,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 46,
+"tailS": 105,
+"endEl": 916
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 683
+},
+{
+"kind": "tab",
+"at": 694
+},
+{
+"kind": "tab",
+"at": 705
+},
+{
+"kind": "tab",
+"at": 719
+},
+{
+"kind": "tab",
+"at": 745
+},
+{
+"kind": "tab",
+"at": 810
+},
+{
+"kind": "tab",
+"at": 819
+},
+{
+"kind": "tab",
+"at": 826
+},
+{
+"kind": "tab",
+"at": 896
+}
+]
+},
+{
+"job": "121058900267",
+"run": "40153925235",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 168,
+"attempts": [
+{
+"startEl": 598,
+"retry": false,
+"tries": [
+{
+"s": 85,
+"ok": true,
+"recon": false
+}
+],
+"headS": 148,
+"tailS": 262
+},
+{
+"startEl": 1092,
+"retry": true,
+"tries": [
+{
+"s": 160,
+"ok": false,
+"recon": false
+},
+{
+"s": 323,
+"ok": true,
+"recon": true
+}
+],
+"headS": 105,
+"tailS": 60,
+"endEl": 1740
+},
+{
+"startEl": 1740,
+"retry": false,
+"tries": [
+{
+"s": 24,
+"ok": true,
+"recon": false
+}
+],
+"headS": 81,
+"tailS": 61,
+"endEl": 1906
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 831
+},
+{
+"kind": "tab",
+"at": 853
+},
+{
+"kind": "tab",
+"at": 861
+},
+{
+"kind": "tab",
+"at": 883
+},
+{
+"kind": "pass",
+"at": 1092,
+"tries": 1
+},
+{
+"kind": "scroll",
+"at": 1358,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1680
+},
+{
+"kind": "tab",
+"at": 1689
+},
+{
+"kind": "tab",
+"at": 1698
+},
+{
+"kind": "tab",
+"at": 1712
+},
+{
+"kind": "tab",
+"at": 1740
+},
+{
+"kind": "tab",
+"at": 1845
+},
+{
+"kind": "tab",
+"at": 1853
+},
+{
+"kind": "tab",
+"at": 1862
+},
+{
+"kind": "tab",
+"at": 1880
+}
+]
+},
+{
+"job": "121060093155",
+"run": "40156393010",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 52,
+"attempts": [
+{
+"startEl": 685,
+"retry": false,
+"tries": [
+{
+"s": 22,
+"ok": true,
+"recon": false
+}
+],
+"headS": 58,
+"tailS": 358,
+"endEl": 1123
+},
+{
+"startEl": 1123,
+"retry": false,
+"tries": [
+{
+"s": 224,
+"ok": false,
+"recon": false
+},
+{
+"s": 73,
+"ok": true,
+"recon": true
+}
+],
+"headS": 120,
+"tailS": 104,
+"endEl": 1643
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 765
+},
+{
+"kind": "tab",
+"at": 776
+},
+{
+"kind": "tab",
+"at": 784
+},
+{
+"kind": "tab",
+"at": 794
+},
+{
+"kind": "tab",
+"at": 1123
+},
+{
+"kind": "scroll",
+"at": 1467,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1540
+},
+{
+"kind": "tab",
+"at": 1555
+},
+{
+"kind": "tab",
+"at": 1564
+},
+{
+"kind": "tab",
+"at": 1583
+}
+]
+},
+{
+"job": "121060103747",
+"run": "40156388674",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 134,
+"attempts": [
+{
+"startEl": 635,
+"retry": false,
+"tries": [
+{
+"s": 34,
+"ok": true,
+"recon": false
+}
+],
+"headS": 249,
+"tailS": 60,
+"endEl": 977
+},
+{
+"startEl": 977,
+"retry": false,
+"tries": [
+{
+"s": 21,
+"ok": true,
+"recon": false
+}
+],
+"headS": 54,
+"tailS": 64,
+"endEl": 1117
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 918
+},
+{
+"kind": "tab",
+"at": 928
+},
+{
+"kind": "tab",
+"at": 936
+},
+{
+"kind": "tab",
+"at": 954
+},
+{
+"kind": "tab",
+"at": 977
+},
+{
+"kind": "tab",
+"at": 1052
+},
+{
+"kind": "tab",
+"at": 1066
+},
+{
+"kind": "tab",
+"at": 1073
+},
+{
+"kind": "tab",
+"at": 1088
+}
+]
+},
+{
+"job": "121062147182",
+"run": "40156388674",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 175,
+"attempts": [
+{
+"startEl": 395,
+"retry": false,
+"tries": [
+{
+"s": 59,
+"ok": true,
+"recon": false
+}
+],
+"headS": 305,
+"tailS": 86,
+"endEl": 845
+},
+{
+"startEl": 845,
+"retry": false,
+"tries": [
+{
+"s": 63,
+"ok": true,
+"recon": false
+}
+],
+"headS": 154,
+"tailS": 83,
+"endEl": 1145
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 759
+},
+{
+"kind": "tab",
+"at": 775
+},
+{
+"kind": "tab",
+"at": 785
+},
+{
+"kind": "tab",
+"at": 809
+},
+{
+"kind": "tab",
+"at": 845
+},
+{
+"kind": "tab",
+"at": 1061
+},
+{
+"kind": "tab",
+"at": 1080
+},
+{
+"kind": "tab",
+"at": 1089
+},
+{
+"kind": "tab",
+"at": 1105
+}
+]
+},
+{
+"job": "121066806182",
+"run": "40156393010",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 14,
+"attempts": [
+{
+"startEl": 726,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 164,
+"tailS": 72,
+"endEl": 992
+},
+{
+"startEl": 992,
+"retry": false,
+"tries": [
+{
+"s": 24,
+"ok": true,
+"recon": false
+}
+],
+"headS": 56,
+"tailS": 336,
+"endEl": 1408
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 920
+},
+{
+"kind": "tab",
+"at": 937
+},
+{
+"kind": "tab",
+"at": 948
+},
+{
+"kind": "tab",
+"at": 958
+},
+{
+"kind": "tab",
+"at": 992
+},
+{
+"kind": "tab",
+"at": 1072
+},
+{
+"kind": "tab",
+"at": 1080
+},
+{
+"kind": "tab",
+"at": 1088
+},
+{
+"kind": "tab",
+"at": 1199
+}
+]
+},
+{
+"job": "121076632841",
+"run": "40162251194",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 51,
+"attempts": [
+{
+"startEl": 919,
+"retry": false,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 343,
+"tailS": 57,
+"endEl": 1338
+},
+{
+"startEl": 1338,
+"retry": false,
+"tries": [
+{
+"s": 23,
+"ok": true,
+"recon": false
+}
+],
+"headS": 61,
+"tailS": 97,
+"endEl": 1519
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1280
+},
+{
+"kind": "tab",
+"at": 1290
+},
+{
+"kind": "tab",
+"at": 1298
+},
+{
+"kind": "tab",
+"at": 1312
+},
+{
+"kind": "tab",
+"at": 1338
+},
+{
+"kind": "tab",
+"at": 1422
+},
+{
+"kind": "tab",
+"at": 1433
+},
+{
+"kind": "tab",
+"at": 1441
+},
+{
+"kind": "tab",
+"at": 1480
+}
+]
+},
+{
+"job": "121076632842",
+"run": "40162251194",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 29,
+"attempts": [
+{
+"startEl": 253,
+"retry": false,
+"tries": [
+{
+"s": 47,
+"ok": true,
+"recon": false
+}
+],
+"headS": 245,
+"tailS": 206,
+"endEl": 750
+},
+{
+"startEl": 750,
+"retry": false,
+"tries": [
+{
+"s": 55,
+"ok": true,
+"recon": false
+}
+],
+"headS": 74,
+"tailS": 71,
+"endEl": 951
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 544
+},
+{
+"kind": "tab",
+"at": 564
+},
+{
+"kind": "tab",
+"at": 578
+},
+{
+"kind": "tab",
+"at": 630
+},
+{
+"kind": "tab",
+"at": 750
+},
+{
+"kind": "tab",
+"at": 880
+},
+{
+"kind": "tab",
+"at": 894
+},
+{
+"kind": "tab",
+"at": 902
+},
+{
+"kind": "tab",
+"at": 918
+}
+]
+},
+{
+"job": "121082316538",
+"run": "40162251194",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 41,
+"attempts": [
+{
+"startEl": 283,
+"retry": false,
+"tries": [],
+"headS": 590,
+"headFailed": true
+},
+{
+"startEl": 873,
+"retry": true,
+"tries": [
+{
+"s": 26,
+"ok": true,
+"recon": false
+}
+],
+"headS": 80,
+"tailS": 50,
+"endEl": 1028
+},
+{
+"startEl": 1028,
+"retry": false,
+"tries": [
+{
+"s": 82,
+"ok": true,
+"recon": false
+}
+],
+"headS": 234,
+"tailS": 531,
+"endEl": 1876
+}
+],
+"decisions": [
+{
+"kind": "pass",
+"at": 873,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 979
+},
+{
+"kind": "tab",
+"at": 989
+},
+{
+"kind": "tab",
+"at": 997
+},
+{
+"kind": "tab",
+"at": 1008
+},
+{
+"kind": "tab",
+"at": 1028
+},
+{
+"kind": "tab",
+"at": 1344
+},
+{
+"kind": "tab",
+"at": 1356
+},
+{
+"kind": "tab",
+"at": 1364
+},
+{
+"kind": "tab",
+"at": 1425
+}
+]
+},
+{
+"job": "121099368025",
+"run": "40170046006",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 47,
+"attempts": [
+{
+"startEl": 236,
+"retry": false,
+"tries": [
+{
+"s": 34,
+"ok": true,
+"recon": false
+}
+],
+"headS": 81,
+"tailS": 296,
+"endEl": 648
+},
+{
+"startEl": 648,
+"retry": false,
+"tries": [
+{
+"s": 39,
+"ok": true,
+"recon": false
+}
+],
+"headS": 101,
+"tailS": 73,
+"endEl": 861
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 351
+},
+{
+"kind": "tab",
+"at": 366
+},
+{
+"kind": "tab",
+"at": 375
+},
+{
+"kind": "tab",
+"at": 475
+},
+{
+"kind": "tab",
+"at": 648
+},
+{
+"kind": "tab",
+"at": 788
+},
+{
+"kind": "tab",
+"at": 804
+},
+{
+"kind": "tab",
+"at": 813
+},
+{
+"kind": "tab",
+"at": 828
+}
+]
+},
+{
+"job": "121105263156",
+"run": "40171948671",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 33,
+"attempts": [
+{
+"startEl": 233,
+"retry": false,
+"tries": [
+{
+"s": 53,
+"ok": true,
+"recon": false
+}
+],
+"headS": 91,
+"tailS": 96,
+"endEl": 473
+},
+{
+"startEl": 473,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 49,
+"tailS": 42,
+"endEl": 584
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 377
+},
+{
+"kind": "tab",
+"at": 391
+},
+{
+"kind": "tab",
+"at": 398
+},
+{
+"kind": "tab",
+"at": 441
+},
+{
+"kind": "tab",
+"at": 473
+},
+{
+"kind": "tab",
+"at": 542
+},
+{
+"kind": "tab",
+"at": 550
+},
+{
+"kind": "tab",
+"at": 557
+},
+{
+"kind": "tab",
+"at": 566
+}
+]
+},
+{
+"job": "121105263176",
+"run": "40171948671",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 34,
+"attempts": [
+{
+"startEl": 798,
+"retry": false,
+"tries": [
+{
+"s": 23,
+"ok": true,
+"recon": false
+}
+],
+"headS": 62,
+"tailS": 76,
+"endEl": 958
+},
+{
+"startEl": 958,
+"retry": false,
+"tries": [
+{
+"s": 45,
+"ok": true,
+"recon": false
+}
+],
+"headS": 109,
+"tailS": 91,
+"endEl": 1202
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 882
+},
+{
+"kind": "tab",
+"at": 896
+},
+{
+"kind": "tab",
+"at": 905
+},
+{
+"kind": "tab",
+"at": 920
+},
+{
+"kind": "tab",
+"at": 958
+},
+{
+"kind": "tab",
+"at": 1111
+},
+{
+"kind": "tab",
+"at": 1127
+},
+{
+"kind": "tab",
+"at": 1135
+},
+{
+"kind": "tab",
+"at": 1151
+}
+]
+},
+{
+"job": "121111948751",
+"run": "40174232514",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 99,
+"attempts": [
+{
+"startEl": 304,
+"retry": false,
+"tries": [
+{
+"s": 111,
+"ok": true,
+"recon": false
+}
+],
+"headS": 129,
+"tailS": 159,
+"endEl": 702
+},
+{
+"startEl": 702,
+"retry": false,
+"tries": [
+{
+"s": 22,
+"ok": true,
+"recon": false
+}
+],
+"headS": 68,
+"tailS": 56,
+"endEl": 849
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 544
+},
+{
+"kind": "tab",
+"at": 557
+},
+{
+"kind": "tab",
+"at": 566
+},
+{
+"kind": "tab",
+"at": 639
+},
+{
+"kind": "tab",
+"at": 702
+},
+{
+"kind": "tab",
+"at": 793
+},
+{
+"kind": "tab",
+"at": 801
+},
+{
+"kind": "tab",
+"at": 809
+},
+{
+"kind": "tab",
+"at": 820
+}
+]
+},
+{
+"job": "121112721721",
+"run": "40174475566",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 31,
+"attempts": [
+{
+"startEl": 244,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 436,
+"tailS": 250,
+"endEl": 959
+},
+{
+"startEl": 959,
+"retry": false,
+"tries": [
+{
+"s": 45,
+"ok": true,
+"recon": false
+}
+],
+"headS": 194,
+"tailS": 101,
+"endEl": 1299
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 710
+},
+{
+"kind": "tab",
+"at": 723
+},
+{
+"kind": "tab",
+"at": 738
+},
+{
+"kind": "tab",
+"at": 790
+},
+{
+"kind": "tab",
+"at": 959
+},
+{
+"kind": "tab",
+"at": 1198
+},
+{
+"kind": "tab",
+"at": 1211
+},
+{
+"kind": "tab",
+"at": 1222
+},
+{
+"kind": "tab",
+"at": 1278
+}
+]
+},
+{
+"job": "121112721750",
+"run": "40174475566",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 31,
+"attempts": [
+{
+"startEl": 507,
+"retry": false,
+"tries": [
+{
+"s": 21,
+"ok": true,
+"recon": false
+}
+],
+"headS": 61,
+"tailS": 125,
+"endEl": 714
+},
+{
+"startEl": 714,
+"retry": false,
+"tries": [
+{
+"s": 78,
+"ok": true,
+"recon": false
+}
+],
+"headS": 94,
+"tailS": 61,
+"endEl": 947
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 589
+},
+{
+"kind": "tab",
+"at": 600
+},
+{
+"kind": "tab",
+"at": 612
+},
+{
+"kind": "tab",
+"at": 643
+},
+{
+"kind": "tab",
+"at": 714
+},
+{
+"kind": "tab",
+"at": 886
+},
+{
+"kind": "tab",
+"at": 900
+},
+{
+"kind": "tab",
+"at": 909
+},
+{
+"kind": "tab",
+"at": 919
+}
+]
+},
+{
+"job": "121112757027",
+"run": "40174472900",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 87,
+"attempts": [
+{
+"startEl": 379,
+"retry": false,
+"tries": [
+{
+"s": 48,
+"ok": true,
+"recon": false
+}
+],
+"headS": 130,
+"tailS": 273,
+"endEl": 831
+},
+{
+"startEl": 831,
+"retry": false,
+"tries": [
+{
+"s": 28,
+"ok": true,
+"recon": false
+}
+],
+"headS": 84,
+"tailS": 64,
+"endEl": 1007
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 557
+},
+{
+"kind": "tab",
+"at": 576
+},
+{
+"kind": "tab",
+"at": 589
+},
+{
+"kind": "tab",
+"at": 708
+},
+{
+"kind": "tab",
+"at": 831
+},
+{
+"kind": "tab",
+"at": 943
+},
+{
+"kind": "tab",
+"at": 951
+},
+{
+"kind": "tab",
+"at": 959
+},
+{
+"kind": "tab",
+"at": 972
+}
+]
+},
+{
+"job": "121112757036",
+"run": "40174472900",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 29,
+"attempts": [
+{
+"startEl": 592,
+"retry": false,
+"tries": [
+{
+"s": 47,
+"ok": true,
+"recon": false
+}
+],
+"headS": 82,
+"tailS": 51,
+"endEl": 771
+},
+{
+"startEl": 771,
+"retry": false,
+"tries": [
+{
+"s": 58,
+"ok": true,
+"recon": false
+}
+],
+"headS": 93,
+"tailS": 71,
+"endEl": 993
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 720
+},
+{
+"kind": "tab",
+"at": 735
+},
+{
+"kind": "tab",
+"at": 743
+},
+{
+"kind": "tab",
+"at": 752
+},
+{
+"kind": "tab",
+"at": 771
+},
+{
+"kind": "tab",
+"at": 922
+},
+{
+"kind": "tab",
+"at": 937
+},
+{
+"kind": "tab",
+"at": 945
+},
+{
+"kind": "tab",
+"at": 963
+}
+]
+},
+{
+"job": "121113332447",
+"run": "40171948671",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 44,
+"attempts": [
+{
+"startEl": 920,
+"retry": false,
+"tries": [
+{
+"s": 27,
+"ok": true,
+"recon": false
+}
+],
+"headS": 42,
+"tailS": 55,
+"endEl": 1044
+},
+{
+"startEl": 1044,
+"retry": false,
+"tries": [
+{
+"s": 32,
+"ok": true,
+"recon": false
+}
+],
+"headS": 62,
+"tailS": 47,
+"endEl": 1185
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 989
+},
+{
+"kind": "tab",
+"at": 1001
+},
+{
+"kind": "tab",
+"at": 1009
+},
+{
+"kind": "tab",
+"at": 1019
+},
+{
+"kind": "tab",
+"at": 1044
+},
+{
+"kind": "tab",
+"at": 1138
+},
+{
+"kind": "tab",
+"at": 1146
+},
+{
+"kind": "tab",
+"at": 1154
+},
+{
+"kind": "tab",
+"at": 1165
+}
+]
+},
+{
+"job": "121119956296",
+"run": "40174232514",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 34,
+"attempts": [
+{
+"startEl": 711,
+"retry": false,
+"tries": [
+{
+"s": 32,
+"ok": true,
+"recon": false
+}
+],
+"headS": 113,
+"tailS": 68,
+"endEl": 924
+},
+{
+"startEl": 924,
+"retry": false,
+"tries": [
+{
+"s": 62,
+"ok": true,
+"recon": false
+}
+],
+"headS": 48,
+"tailS": 60,
+"endEl": 1093
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 856
+},
+{
+"kind": "tab",
+"at": 866
+},
+{
+"kind": "tab",
+"at": 874
+},
+{
+"kind": "tab",
+"at": 886
+},
+{
+"kind": "tab",
+"at": 924
+},
+{
+"kind": "tab",
+"at": 1033
+},
+{
+"kind": "tab",
+"at": 1047
+},
+{
+"kind": "tab",
+"at": 1055
+},
+{
+"kind": "tab",
+"at": 1066
+}
+]
+},
+{
+"job": "121125704855",
+"run": "40174475566",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 39,
+"attempts": [
+{
+"startEl": 608,
+"retry": false,
+"tries": [
+{
+"s": 25,
+"ok": true,
+"recon": false
+}
+],
+"headS": 49,
+"tailS": 52,
+"endEl": 734
+},
+{
+"startEl": 735,
+"retry": false,
+"tries": [
+{
+"s": 17,
+"ok": true,
+"recon": false
+}
+],
+"headS": 42,
+"tailS": 83,
+"endEl": 876
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 682
+},
+{
+"kind": "tab",
+"at": 696
+},
+{
+"kind": "tab",
+"at": 704
+},
+{
+"kind": "tab",
+"at": 714
+},
+{
+"kind": "tab",
+"at": 735
+},
+{
+"kind": "tab",
+"at": 793
+},
+{
+"kind": "tab",
+"at": 801
+},
+{
+"kind": "tab",
+"at": 809
+},
+{
+"kind": "tab",
+"at": 820
+}
+]
+},
+{
+"job": "121132994070",
+"run": "40174472900",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 44,
+"attempts": [
+{
+"startEl": 645,
+"retry": false,
+"tries": [
+{
+"s": 50,
+"ok": true,
+"recon": false
+}
+],
+"headS": 81,
+"tailS": 65,
+"endEl": 841
+},
+{
+"startEl": 841,
+"retry": false,
+"tries": [
+{
+"s": 16,
+"ok": true,
+"recon": false
+}
+],
+"headS": 41,
+"tailS": 58,
+"endEl": 956
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 777
+},
+{
+"kind": "tab",
+"at": 793
+},
+{
+"kind": "tab",
+"at": 803
+},
+{
+"kind": "tab",
+"at": 816
+},
+{
+"kind": "tab",
+"at": 841
+},
+{
+"kind": "tab",
+"at": 899
+},
+{
+"kind": "tab",
+"at": 907
+},
+{
+"kind": "tab",
+"at": 915
+},
+{
+"kind": "tab",
+"at": 925
+}
+]
+},
+{
+"job": "121153583929",
+"run": "40171953359",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 33,
+"attempts": [
+{
+"startEl": 357,
+"retry": false,
+"tries": [],
+"headS": 627,
+"headFailed": true
+},
+{
+"startEl": 984,
+"retry": true,
+"tries": [
+{
+"s": 161,
+"ok": true,
+"recon": false
+}
+],
+"headS": 305,
+"tailS": 71,
+"endEl": 1520
+},
+{
+"startEl": 1520,
+"retry": false,
+"tries": [
+{
+"s": 226,
+"ok": true,
+"recon": false
+}
+],
+"headS": 100,
+"tailS": 84,
+"endEl": 1931
+}
+],
+"decisions": [
+{
+"kind": "pass",
+"at": 984,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1450
+},
+{
+"kind": "tab",
+"at": 1464
+},
+{
+"kind": "tab",
+"at": 1473
+},
+{
+"kind": "tab",
+"at": 1486
+},
+{
+"kind": "tab",
+"at": 1520
+},
+{
+"kind": "tab",
+"at": 1847
+},
+{
+"kind": "tab",
+"at": 1862
+},
+{
+"kind": "tab",
+"at": 1871
+},
+{
+"kind": "tab",
+"at": 1887
+}
+]
+},
+{
+"job": "121153584809",
+"run": "40171953359",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 152,
+"attempts": [
+{
+"startEl": 377,
+"retry": false,
+"tries": [
+{
+"s": 136,
+"ok": true,
+"recon": false
+}
+],
+"headS": 98,
+"tailS": 85,
+"endEl": 697
+},
+{
+"startEl": 697,
+"retry": false,
+"tries": [
+{
+"s": 77,
+"ok": true,
+"recon": false
+}
+],
+"headS": 72,
+"tailS": 96,
+"endEl": 942
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 612
+},
+{
+"kind": "tab",
+"at": 624
+},
+{
+"kind": "tab",
+"at": 635
+},
+{
+"kind": "tab",
+"at": 652
+},
+{
+"kind": "tab",
+"at": 697
+},
+{
+"kind": "tab",
+"at": 846
+},
+{
+"kind": "tab",
+"at": 862
+},
+{
+"kind": "tab",
+"at": 870
+},
+{
+"kind": "tab",
+"at": 886
+}
+]
+},
+{
+"job": "121153585933",
+"run": "40171953359",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 66,
+"attempts": [
+{
+"startEl": 960,
+"retry": false,
+"tries": [
+{
+"s": 28,
+"ok": true,
+"recon": false
+}
+],
+"headS": 69,
+"tailS": 63,
+"endEl": 1120
+},
+{
+"startEl": 1120,
+"retry": false,
+"tries": [
+{
+"s": 42,
+"ok": true,
+"recon": false
+}
+],
+"headS": 67,
+"tailS": 51,
+"endEl": 1281
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1058
+},
+{
+"kind": "tab",
+"at": 1076
+},
+{
+"kind": "tab",
+"at": 1086
+},
+{
+"kind": "tab",
+"at": 1098
+},
+{
+"kind": "tab",
+"at": 1120
+},
+{
+"kind": "tab",
+"at": 1229
+},
+{
+"kind": "tab",
+"at": 1239
+},
+{
+"kind": "tab",
+"at": 1247
+},
+{
+"kind": "tab",
+"at": 1259
+}
+]
+},
+{
+"job": "121153589784",
+"run": "40171955521",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 100,
+"attempts": [
+{
+"startEl": 594,
+"retry": false,
+"tries": [
+{
+"s": 148,
+"ok": false,
+"recon": false
+},
+{
+"s": 142,
+"ok": true,
+"recon": true
+}
+],
+"headS": 135,
+"tailS": 64,
+"endEl": 1082
+},
+{
+"startEl": 1082,
+"retry": false,
+"tries": [
+{
+"s": 24,
+"ok": true,
+"recon": false
+}
+],
+"headS": 69,
+"tailS": 132,
+"endEl": 1307
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 877,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1019
+},
+{
+"kind": "tab",
+"at": 1041
+},
+{
+"kind": "tab",
+"at": 1050
+},
+{
+"kind": "tab",
+"at": 1063
+},
+{
+"kind": "tab",
+"at": 1082
+},
+{
+"kind": "tab",
+"at": 1175
+},
+{
+"kind": "tab",
+"at": 1184
+},
+{
+"kind": "tab",
+"at": 1192
+},
+{
+"kind": "tab",
+"at": 1223
+}
+]
+},
+{
+"job": "121153590507",
+"run": "40171955521",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 43,
+"attempts": [
+{
+"startEl": 284,
+"retry": false,
+"tries": [
+{
+"s": 196,
+"ok": true,
+"recon": false
+}
+],
+"headS": 484,
+"tailS": 612,
+"endEl": 1575
+},
+{
+"startEl": 1575,
+"retry": false,
+"tries": [
+{
+"s": 64,
+"ok": true,
+"recon": false
+}
+],
+"headS": 118,
+"tailS": 68,
+"endEl": 1825
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 963
+},
+{
+"kind": "tab",
+"at": 974
+},
+{
+"kind": "tab",
+"at": 1002
+},
+{
+"kind": "tab",
+"at": 1023
+},
+{
+"kind": "tab",
+"at": 1575
+},
+{
+"kind": "tab",
+"at": 1757
+},
+{
+"kind": "tab",
+"at": 1772
+},
+{
+"kind": "tab",
+"at": 1781
+},
+{
+"kind": "tab",
+"at": 1808
+}
+]
+},
+{
+"job": "121153590535",
+"run": "40171955521",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 56,
+"attempts": [
+{
+"startEl": 743,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 63,
+"tailS": 53,
+"endEl": 889
+},
+{
+"startEl": 889,
+"retry": false,
+"tries": [
+{
+"s": 80,
+"ok": true,
+"recon": false
+}
+],
+"headS": 46,
+"tailS": 78,
+"endEl": 1093
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 836
+},
+{
+"kind": "tab",
+"at": 847
+},
+{
+"kind": "tab",
+"at": 857
+},
+{
+"kind": "tab",
+"at": 869
+},
+{
+"kind": "tab",
+"at": 889
+},
+{
+"kind": "tab",
+"at": 1016
+},
+{
+"kind": "tab",
+"at": 1032
+},
+{
+"kind": "tab",
+"at": 1040
+},
+{
+"kind": "tab",
+"at": 1054
+}
+]
+},
+{
+"job": "121153604305",
+"run": "40171941566",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 39,
+"attempts": [
+{
+"startEl": 855,
+"retry": false,
+"tries": [
+{
+"s": 152,
+"ok": false,
+"recon": false
+},
+{
+"s": 589,
+"ok": true,
+"recon": true
+}
+],
+"headS": 52,
+"tailS": 263,
+"endEl": 1911
+},
+{
+"startEl": 1911,
+"retry": false,
+"tries": [
+{
+"s": 22,
+"ok": true,
+"recon": false
+}
+],
+"headS": 67,
+"tailS": 44,
+"endEl": 2044
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 1059,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1648
+},
+{
+"kind": "tab",
+"at": 1662
+},
+{
+"kind": "tab",
+"at": 1677
+},
+{
+"kind": "tab",
+"at": 1694
+},
+{
+"kind": "tab",
+"at": 1911
+},
+{
+"kind": "tab",
+"at": 2001
+},
+{
+"kind": "tab",
+"at": 2009
+},
+{
+"kind": "tab",
+"at": 2018
+},
+{
+"kind": "tab",
+"at": 2028
+}
+]
+},
+{
+"job": "121153604468",
+"run": "40171941566",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 44,
+"attempts": [
+{
+"startEl": 502,
+"retry": false,
+"tries": [
+{
+"s": 23,
+"ok": true,
+"recon": false
+}
+],
+"headS": 78,
+"tailS": 99,
+"endEl": 703
+},
+{
+"startEl": 703,
+"retry": false,
+"tries": [
+{
+"s": 68,
+"ok": true,
+"recon": false
+}
+],
+"headS": 54,
+"tailS": 64,
+"endEl": 889
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 604
+},
+{
+"kind": "tab",
+"at": 618
+},
+{
+"kind": "tab",
+"at": 626
+},
+{
+"kind": "tab",
+"at": 644
+},
+{
+"kind": "tab",
+"at": 703
+},
+{
+"kind": "tab",
+"at": 825
+},
+{
+"kind": "tab",
+"at": 839
+},
+{
+"kind": "tab",
+"at": 847
+},
+{
+"kind": "tab",
+"at": 858
+}
+]
+},
+{
+"job": "121153604621",
+"run": "40171941566",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 29,
+"attempts": [
+{
+"startEl": 644,
+"retry": false,
+"tries": [
+{
+"s": 21,
+"ok": true,
+"recon": false
+}
+],
+"headS": 48,
+"tailS": 63,
+"endEl": 775
+},
+{
+"startEl": 775,
+"retry": false,
+"tries": [
+{
+"s": 173,
+"ok": true,
+"recon": false
+}
+],
+"headS": 50,
+"tailS": 71,
+"endEl": 1069
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 712
+},
+{
+"kind": "tab",
+"at": 725
+},
+{
+"kind": "tab",
+"at": 732
+},
+{
+"kind": "tab",
+"at": 752
+},
+{
+"kind": "tab",
+"at": 775
+},
+{
+"kind": "tab",
+"at": 999
+},
+{
+"kind": "tab",
+"at": 1009
+},
+{
+"kind": "tab",
+"at": 1020
+},
+{
+"kind": "tab",
+"at": 1038
+}
+]
+},
+{
+"job": "121164907139",
+"run": "40171966460",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 47,
+"attempts": [
+{
+"startEl": 746,
+"retry": false,
+"tries": [
+{
+"s": 70,
+"ok": true,
+"recon": false
+}
+],
+"headS": 44,
+"tailS": 63,
+"endEl": 923
+},
+{
+"startEl": 923,
+"retry": false,
+"tries": [
+{
+"s": 46,
+"ok": true,
+"recon": false
+}
+],
+"headS": 128,
+"tailS": 71,
+"endEl": 1168
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 860
+},
+{
+"kind": "tab",
+"at": 875
+},
+{
+"kind": "tab",
+"at": 884
+},
+{
+"kind": "tab",
+"at": 896
+},
+{
+"kind": "tab",
+"at": 923
+},
+{
+"kind": "tab",
+"at": 1097
+},
+{
+"kind": "tab",
+"at": 1108
+},
+{
+"kind": "tab",
+"at": 1119
+},
+{
+"kind": "tab",
+"at": 1131
+}
+]
+},
+{
+"job": "121178255131",
+"run": "40196215217",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 106,
+"attempts": [
+{
+"startEl": 399,
+"retry": false,
+"tries": [
+{
+"s": 221,
+"ok": true,
+"recon": false
+}
+],
+"headS": 336,
+"tailS": 67,
+"endEl": 1023
+},
+{
+"startEl": 1023,
+"retry": false,
+"tries": [
+{
+"s": 25,
+"ok": true,
+"recon": false
+}
+],
+"headS": 72,
+"tailS": 171,
+"endEl": 1291
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 956
+},
+{
+"kind": "tab",
+"at": 983
+},
+{
+"kind": "tab",
+"at": 992
+},
+{
+"kind": "tab",
+"at": 1003
+},
+{
+"kind": "tab",
+"at": 1023
+},
+{
+"kind": "tab",
+"at": 1120
+},
+{
+"kind": "tab",
+"at": 1135
+},
+{
+"kind": "tab",
+"at": 1158
+},
+{
+"kind": "tab",
+"at": 1201
+}
+]
+},
+{
+"job": "121178255206",
+"run": "40196215217",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 52,
+"attempts": [
+{
+"startEl": 761,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 73,
+"tailS": 53,
+"endEl": 916
+},
+{
+"startEl": 916,
+"retry": false,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 46,
+"tailS": 187,
+"endEl": 1168
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 863
+},
+{
+"kind": "tab",
+"at": 878
+},
+{
+"kind": "tab",
+"at": 887
+},
+{
+"kind": "tab",
+"at": 897
+},
+{
+"kind": "tab",
+"at": 916
+},
+{
+"kind": "tab",
+"at": 981
+},
+{
+"kind": "tab",
+"at": 993
+},
+{
+"kind": "tab",
+"at": 1001
+},
+{
+"kind": "tab",
+"at": 1055
+}
+]
+},
+{
+"job": "121178294140",
+"run": "40196221086",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 24,
+"attempts": [
+{
+"startEl": 402,
+"retry": false,
+"tries": [
+{
+"s": 63,
+"ok": true,
+"recon": false
+}
+],
+"headS": 56,
+"tailS": 85,
+"endEl": 606
+},
+{
+"startEl": 606,
+"retry": false,
+"tries": [
+{
+"s": 43,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 72,
+"endEl": 773
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 521
+},
+{
+"kind": "tab",
+"at": 533
+},
+{
+"kind": "tab",
+"at": 541
+},
+{
+"kind": "tab",
+"at": 555
+},
+{
+"kind": "tab",
+"at": 606
+},
+{
+"kind": "tab",
+"at": 700
+},
+{
+"kind": "tab",
+"at": 712
+},
+{
+"kind": "tab",
+"at": 721
+},
+{
+"kind": "tab",
+"at": 731
+}
+]
+},
+{
+"job": "121178294148",
+"run": "40196221086",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 56,
+"attempts": [
+{
+"startEl": 415,
+"retry": false,
+"tries": [
+{
+"s": 60,
+"ok": true,
+"recon": false
+}
+],
+"headS": 377,
+"tailS": 119,
+"endEl": 971
+},
+{
+"startEl": 971,
+"retry": false,
+"tries": [
+{
+"s": 51,
+"ok": true,
+"recon": false
+}
+],
+"headS": 74,
+"tailS": 46,
+"endEl": 1142
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 852
+},
+{
+"kind": "tab",
+"at": 872
+},
+{
+"kind": "tab",
+"at": 881
+},
+{
+"kind": "tab",
+"at": 898
+},
+{
+"kind": "tab",
+"at": 971
+},
+{
+"kind": "tab",
+"at": 1096
+},
+{
+"kind": "tab",
+"at": 1105
+},
+{
+"kind": "tab",
+"at": 1114
+},
+{
+"kind": "tab",
+"at": 1125
+}
+]
+},
+{
+"job": "121191968490",
+"run": "40196215217",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 106,
+"attempts": [
+{
+"startEl": 697,
+"retry": false,
+"tries": [
+{
+"s": 29,
+"ok": true,
+"recon": false
+}
+],
+"headS": 98,
+"tailS": 82,
+"endEl": 907
+},
+{
+"startEl": 907,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 55,
+"tailS": 707,
+"endEl": 1688
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 824
+},
+{
+"kind": "tab",
+"at": 838
+},
+{
+"kind": "tab",
+"at": 846
+},
+{
+"kind": "tab",
+"at": 856
+},
+{
+"kind": "tab",
+"at": 907
+},
+{
+"kind": "tab",
+"at": 981
+},
+{
+"kind": "tab",
+"at": 990
+},
+{
+"kind": "tab",
+"at": 998
+},
+{
+"kind": "tab",
+"at": 1014
+}
+]
+},
+{
+"job": "121199075343",
+"run": "40196504411",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 61,
+"attempts": [
+{
+"startEl": 907,
+"retry": false,
+"tries": [
+{
+"s": 29,
+"ok": true,
+"recon": false
+}
+],
+"headS": 92,
+"tailS": 66,
+"endEl": 1095
+},
+{
+"startEl": 1095,
+"retry": false,
+"tries": [
+{
+"s": 52,
+"ok": true,
+"recon": false
+}
+],
+"headS": 86,
+"tailS": 86,
+"endEl": 1320
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1028
+},
+{
+"kind": "tab",
+"at": 1044
+},
+{
+"kind": "tab",
+"at": 1053
+},
+{
+"kind": "tab",
+"at": 1063
+},
+{
+"kind": "tab",
+"at": 1095
+},
+{
+"kind": "tab",
+"at": 1233
+},
+{
+"kind": "tab",
+"at": 1250
+},
+{
+"kind": "tab",
+"at": 1259
+},
+{
+"kind": "tab",
+"at": 1276
+}
+]
+},
+{
+"job": "121199076690",
+"run": "40196504411",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 79,
+"attempts": [
+{
+"startEl": 815,
+"retry": false,
+"tries": [
+{
+"s": 47,
+"ok": true,
+"recon": false
+}
+],
+"headS": 109,
+"tailS": 88,
+"endEl": 1059
+},
+{
+"startEl": 1059,
+"retry": false,
+"tries": [
+{
+"s": 26,
+"ok": true,
+"recon": false
+}
+],
+"headS": 83,
+"tailS": 67,
+"endEl": 1235
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 971
+},
+{
+"kind": "tab",
+"at": 990
+},
+{
+"kind": "tab",
+"at": 998
+},
+{
+"kind": "tab",
+"at": 1016
+},
+{
+"kind": "tab",
+"at": 1059
+},
+{
+"kind": "tab",
+"at": 1167
+},
+{
+"kind": "tab",
+"at": 1176
+},
+{
+"kind": "tab",
+"at": 1184
+},
+{
+"kind": "tab",
+"at": 1194
+}
+]
+},
+{
+"job": "121199610658",
+"run": "40196221086",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 61,
+"attempts": [
+{
+"startEl": 292,
+"retry": false,
+"tries": [
+{
+"s": 67,
+"ok": true,
+"recon": false
+}
+],
+"headS": 318,
+"tailS": 93,
+"endEl": 771
+},
+{
+"startEl": 771,
+"retry": false,
+"tries": [
+{
+"s": 28,
+"ok": true,
+"recon": false
+}
+],
+"headS": 60,
+"tailS": 70,
+"endEl": 929
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 677
+},
+{
+"kind": "tab",
+"at": 702
+},
+{
+"kind": "tab",
+"at": 710
+},
+{
+"kind": "tab",
+"at": 731
+},
+{
+"kind": "tab",
+"at": 771
+},
+{
+"kind": "tab",
+"at": 859
+},
+{
+"kind": "tab",
+"at": 875
+},
+{
+"kind": "tab",
+"at": 885
+},
+{
+"kind": "tab",
+"at": 898
+}
+]
+},
+{
+"job": "121200994540",
+"run": "40203790654",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 44,
+"attempts": [
+{
+"startEl": 579,
+"retry": false,
+"tries": [
+{
+"s": 29,
+"ok": true,
+"recon": false
+}
+],
+"headS": 429,
+"tailS": 56,
+"endEl": 1093
+},
+{
+"startEl": 1093,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 49,
+"tailS": 56,
+"endEl": 1218
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1037
+},
+{
+"kind": "tab",
+"at": 1052
+},
+{
+"kind": "tab",
+"at": 1060
+},
+{
+"kind": "tab",
+"at": 1071
+},
+{
+"kind": "tab",
+"at": 1093
+},
+{
+"kind": "tab",
+"at": 1162
+},
+{
+"kind": "tab",
+"at": 1172
+},
+{
+"kind": "tab",
+"at": 1181
+},
+{
+"kind": "tab",
+"at": 1193
+}
+]
+},
+{
+"job": "121200994617",
+"run": "40203790654",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 133,
+"attempts": [
+{
+"startEl": 302,
+"retry": false,
+"tries": [
+{
+"s": 118,
+"ok": true,
+"recon": false
+}
+],
+"headS": 225,
+"tailS": 364,
+"endEl": 1009
+},
+{
+"startEl": 1009,
+"retry": false,
+"tries": [
+{
+"s": 29,
+"ok": true,
+"recon": false
+}
+],
+"headS": 84,
+"tailS": 129,
+"endEl": 1250
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 645
+},
+{
+"kind": "tab",
+"at": 660
+},
+{
+"kind": "tab",
+"at": 669
+},
+{
+"kind": "tab",
+"at": 795
+},
+{
+"kind": "tab",
+"at": 1009
+},
+{
+"kind": "tab",
+"at": 1122
+},
+{
+"kind": "tab",
+"at": 1131
+},
+{
+"kind": "tab",
+"at": 1139
+},
+{
+"kind": "tab",
+"at": 1161
+}
+]
+},
+{
+"job": "121201182369",
+"run": "40203759230",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 122,
+"attempts": [
+{
+"startEl": 829,
+"retry": false,
+"tries": [
+{
+"s": 27,
+"ok": true,
+"recon": false
+}
+],
+"headS": 81,
+"tailS": 66,
+"endEl": 1004
+},
+{
+"startEl": 1004,
+"retry": false,
+"tries": [
+{
+"s": 35,
+"ok": true,
+"recon": false
+}
+],
+"headS": 122,
+"tailS": 69,
+"endEl": 1229
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 937
+},
+{
+"kind": "tab",
+"at": 950
+},
+{
+"kind": "tab",
+"at": 959
+},
+{
+"kind": "tab",
+"at": 970
+},
+{
+"kind": "tab",
+"at": 1004
+},
+{
+"kind": "tab",
+"at": 1161
+},
+{
+"kind": "tab",
+"at": 1169
+},
+{
+"kind": "tab",
+"at": 1179
+},
+{
+"kind": "tab",
+"at": 1189
+}
+]
+},
+{
+"job": "121201182450",
+"run": "40203759230",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 41,
+"attempts": [
+{
+"startEl": 276,
+"retry": false,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 90,
+"tailS": 49,
+"endEl": 433
+},
+{
+"startEl": 433,
+"retry": false,
+"tries": [
+{
+"s": 140,
+"ok": true,
+"recon": false
+}
+],
+"headS": 74,
+"tailS": 83,
+"endEl": 730
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 384
+},
+{
+"kind": "tab",
+"at": 393
+},
+{
+"kind": "tab",
+"at": 402
+},
+{
+"kind": "tab",
+"at": 413
+},
+{
+"kind": "tab",
+"at": 433
+},
+{
+"kind": "tab",
+"at": 647
+},
+{
+"kind": "tab",
+"at": 659
+},
+{
+"kind": "tab",
+"at": 667
+},
+{
+"kind": "tab",
+"at": 689
+}
+]
+},
+{
+"job": "121247650088",
+"run": "40203790654",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 110,
+"attempts": [
+{
+"startEl": 405,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 88,
+"tailS": 437,
+"endEl": 961
+},
+{
+"startEl": 961,
+"retry": false,
+"tries": [
+{
+"s": 65,
+"ok": true,
+"recon": false
+}
+],
+"headS": 101,
+"tailS": 77,
+"endEl": 1204
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 524
+},
+{
+"kind": "tab",
+"at": 581
+},
+{
+"kind": "tab",
+"at": 608
+},
+{
+"kind": "tab",
+"at": 725
+},
+{
+"kind": "tab",
+"at": 961
+},
+{
+"kind": "tab",
+"at": 1127
+},
+{
+"kind": "tab",
+"at": 1142
+},
+{
+"kind": "tab",
+"at": 1150
+},
+{
+"kind": "tab",
+"at": 1165
+}
+]
+},
+{
+"job": "121251135419",
+"run": "40203759230",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 59,
+"attempts": [
+{
+"startEl": 411,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 66,
+"tailS": 244,
+"endEl": 752
+},
+{
+"startEl": 752,
+"retry": false,
+"tries": [
+{
+"s": 39,
+"ok": true,
+"recon": false
+}
+],
+"headS": 103,
+"tailS": 130,
+"endEl": 1024
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 508
+},
+{
+"kind": "tab",
+"at": 520
+},
+{
+"kind": "tab",
+"at": 534
+},
+{
+"kind": "tab",
+"at": 633
+},
+{
+"kind": "tab",
+"at": 752
+},
+{
+"kind": "tab",
+"at": 894
+},
+{
+"kind": "tab",
+"at": 908
+},
+{
+"kind": "tab",
+"at": 917
+},
+{
+"kind": "tab",
+"at": 939
+}
+]
+},
+{
+"job": "121265257612",
+"run": "40225058193",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 97,
+"attempts": [
+{
+"startEl": 405,
+"retry": false,
+"tries": [
+{
+"s": 86,
+"ok": true,
+"recon": false
+}
+],
+"headS": 74,
+"tailS": 67,
+"endEl": 633
+},
+{
+"startEl": 633,
+"retry": false,
+"tries": [
+{
+"s": 186,
+"ok": false,
+"recon": false
+},
+{
+"s": 201,
+"ok": true,
+"recon": true
+}
+],
+"headS": 65,
+"tailS": 60,
+"endEl": 1144
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 566
+},
+{
+"kind": "tab",
+"at": 575
+},
+{
+"kind": "tab",
+"at": 584
+},
+{
+"kind": "tab",
+"at": 596
+},
+{
+"kind": "tab",
+"at": 633
+},
+{
+"kind": "scroll",
+"at": 884,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1084
+},
+{
+"kind": "tab",
+"at": 1093
+},
+{
+"kind": "tab",
+"at": 1101
+},
+{
+"kind": "tab",
+"at": 1113
+}
+]
+},
+{
+"job": "121270000713",
+"run": "40226715252",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 62,
+"attempts": [
+{
+"startEl": 345,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 76,
+"tailS": 85,
+"endEl": 536
+},
+{
+"startEl": 536,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 50,
+"tailS": 62,
+"endEl": 679
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 451
+},
+{
+"kind": "tab",
+"at": 464
+},
+{
+"kind": "tab",
+"at": 474
+},
+{
+"kind": "tab",
+"at": 491
+},
+{
+"kind": "tab",
+"at": 536
+},
+{
+"kind": "tab",
+"at": 617
+},
+{
+"kind": "tab",
+"at": 631
+},
+{
+"kind": "tab",
+"at": 640
+},
+{
+"kind": "tab",
+"at": 650
+}
+]
+},
+{
+"job": "121277247653",
+"run": "40229095163",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 123,
+"attempts": [
+{
+"startEl": 370,
+"retry": false,
+"tries": [
+{
+"s": 57,
+"ok": true,
+"recon": false
+}
+],
+"headS": 59,
+"tailS": 247
+},
+{
+"startEl": 733,
+"retry": true,
+"tries": [
+{
+"s": 48,
+"ok": true,
+"recon": false
+}
+],
+"headS": 137,
+"tailS": 206,
+"endEl": 1124
+},
+{
+"startEl": 1124,
+"retry": false,
+"tries": [
+{
+"s": 28,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 50,
+"endEl": 1255
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 485
+},
+{
+"kind": "tab",
+"at": 502
+},
+{
+"kind": "tab",
+"at": 558
+},
+{
+"kind": "pass",
+"at": 733,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 918
+},
+{
+"kind": "tab",
+"at": 932
+},
+{
+"kind": "tab",
+"at": 941
+},
+{
+"kind": "tab",
+"at": 980
+},
+{
+"kind": "tab",
+"at": 1124
+},
+{
+"kind": "tab",
+"at": 1205
+},
+{
+"kind": "tab",
+"at": 1214
+},
+{
+"kind": "tab",
+"at": 1224
+},
+{
+"kind": "tab",
+"at": 1233
+}
+]
+},
+{
+"job": "121279958654",
+"run": "40196209240",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 80,
+"attempts": [
+{
+"startEl": 673,
+"retry": false,
+"tries": [],
+"headS": 418,
+"headFailed": true
+},
+{
+"startEl": 1090,
+"retry": true,
+"tries": [
+{
+"s": 124,
+"ok": true,
+"recon": false
+}
+],
+"headS": 367,
+"tailS": 146,
+"endEl": 1728
+},
+{
+"startEl": 1728,
+"retry": false,
+"tries": [
+{
+"s": 34,
+"ok": true,
+"recon": false
+}
+],
+"headS": 159,
+"tailS": 58,
+"endEl": 1979
+}
+],
+"decisions": [
+{
+"kind": "pass",
+"at": 1090,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1582
+},
+{
+"kind": "tab",
+"at": 1600
+},
+{
+"kind": "tab",
+"at": 1609
+},
+{
+"kind": "tab",
+"at": 1672
+},
+{
+"kind": "tab",
+"at": 1728
+},
+{
+"kind": "tab",
+"at": 1921
+},
+{
+"kind": "tab",
+"at": 1935
+},
+{
+"kind": "tab",
+"at": 1943
+},
+{
+"kind": "tab",
+"at": 1954
+}
+]
+},
+{
+"job": "121279959618",
+"run": "40196209240",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 192,
+"attempts": [
+{
+"startEl": 876,
+"retry": false,
+"tries": [
+{
+"s": 328,
+"ok": true,
+"recon": false
+}
+],
+"headS": 106,
+"tailS": 111,
+"endEl": 1420
+},
+{
+"startEl": 1420,
+"retry": false,
+"tries": [
+{
+"s": 38,
+"ok": true,
+"recon": false
+}
+],
+"headS": 103,
+"tailS": 326,
+"endEl": 1887
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1309
+},
+{
+"kind": "tab",
+"at": 1320
+},
+{
+"kind": "tab",
+"at": 1328
+},
+{
+"kind": "tab",
+"at": 1351
+},
+{
+"kind": "tab",
+"at": 1420
+},
+{
+"kind": "tab",
+"at": 1561
+},
+{
+"kind": "tab",
+"at": 1609
+},
+{
+"kind": "tab",
+"at": 1650
+},
+{
+"kind": "tab",
+"at": 1758
+}
+]
+},
+{
+"job": "121279960401",
+"run": "40196209240",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 55,
+"attempts": [
+{
+"startEl": 749,
+"retry": false,
+"tries": [
+{
+"s": 23,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 248,
+"endEl": 1072
+},
+{
+"startEl": 1072,
+"retry": false,
+"tries": [
+{
+"s": 73,
+"ok": true,
+"recon": false
+}
+],
+"headS": 116,
+"tailS": 623,
+"endEl": 1884
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 824
+},
+{
+"kind": "tab",
+"at": 836
+},
+{
+"kind": "tab",
+"at": 851
+},
+{
+"kind": "tab",
+"at": 894
+},
+{
+"kind": "tab",
+"at": 1072
+},
+{
+"kind": "tab",
+"at": 1261
+},
+{
+"kind": "tab",
+"at": 1274
+},
+{
+"kind": "tab",
+"at": 1281
+},
+{
+"kind": "tab",
+"at": 1294
+}
+]
+},
+{
+"job": "121279966658",
+"run": "40196212618",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 76,
+"attempts": [
+{
+"startEl": 325,
+"retry": false,
+"tries": [
+{
+"s": 47,
+"ok": true,
+"recon": false
+}
+],
+"headS": 388,
+"tailS": 73,
+"endEl": 833
+},
+{
+"startEl": 833,
+"retry": false,
+"tries": [
+{
+"s": 32,
+"ok": true,
+"recon": false
+}
+],
+"headS": 56,
+"tailS": 54,
+"endEl": 975
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 760
+},
+{
+"kind": "tab",
+"at": 776
+},
+{
+"kind": "tab",
+"at": 786
+},
+{
+"kind": "tab",
+"at": 798
+},
+{
+"kind": "tab",
+"at": 833
+},
+{
+"kind": "tab",
+"at": 921
+},
+{
+"kind": "tab",
+"at": 930
+},
+{
+"kind": "tab",
+"at": 939
+},
+{
+"kind": "tab",
+"at": 953
+}
+]
+},
+{
+"job": "121279967563",
+"run": "40196212618",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 56,
+"attempts": [
+{
+"startEl": 818,
+"retry": false,
+"tries": [
+{
+"s": 33,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 47,
+"endEl": 949
+},
+{
+"startEl": 949,
+"retry": false,
+"tries": [
+{
+"s": 21,
+"ok": true,
+"recon": false
+}
+],
+"headS": 70,
+"tailS": 61,
+"endEl": 1101
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 903
+},
+{
+"kind": "tab",
+"at": 914
+},
+{
+"kind": "tab",
+"at": 921
+},
+{
+"kind": "tab",
+"at": 932
+},
+{
+"kind": "tab",
+"at": 949
+},
+{
+"kind": "tab",
+"at": 1040
+},
+{
+"kind": "tab",
+"at": 1052
+},
+{
+"kind": "tab",
+"at": 1060
+},
+{
+"kind": "tab",
+"at": 1072
+}
+]
+},
+{
+"job": "121279967717",
+"run": "40196212618",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 93,
+"attempts": [
+{
+"startEl": 622,
+"retry": false,
+"tries": [
+{
+"s": 72,
+"ok": true,
+"recon": false
+}
+],
+"headS": 156,
+"tailS": 182,
+"endEl": 1031
+},
+{
+"startEl": 1031,
+"retry": false,
+"tries": [
+{
+"s": 62,
+"ok": true,
+"recon": false
+}
+],
+"headS": 99,
+"tailS": 68,
+"endEl": 1261
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 850
+},
+{
+"kind": "tab",
+"at": 869
+},
+{
+"kind": "tab",
+"at": 878
+},
+{
+"kind": "tab",
+"at": 982
+},
+{
+"kind": "tab",
+"at": 1031
+},
+{
+"kind": "tab",
+"at": 1192
+},
+{
+"kind": "tab",
+"at": 1209
+},
+{
+"kind": "tab",
+"at": 1218
+},
+{
+"kind": "tab",
+"at": 1229
+}
+]
+},
+{
+"job": "121279973917",
+"run": "40196227509",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 57,
+"attempts": [
+{
+"startEl": 513,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 256,
+"tailS": 71,
+"endEl": 870
+},
+{
+"startEl": 871,
+"retry": false,
+"tries": [
+{
+"s": 27,
+"ok": true,
+"recon": false
+}
+],
+"headS": 73,
+"tailS": 56,
+"endEl": 1027
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 800
+},
+{
+"kind": "tab",
+"at": 825
+},
+{
+"kind": "tab",
+"at": 834
+},
+{
+"kind": "tab",
+"at": 845
+},
+{
+"kind": "tab",
+"at": 871
+},
+{
+"kind": "tab",
+"at": 971
+},
+{
+"kind": "tab",
+"at": 980
+},
+{
+"kind": "tab",
+"at": 989
+},
+{
+"kind": "tab",
+"at": 1002
+}
+]
+},
+{
+"job": "121279973981",
+"run": "40196227509",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 35,
+"attempts": [
+{
+"startEl": 803,
+"retry": false,
+"tries": [
+{
+"s": 26,
+"ok": true,
+"recon": false
+}
+],
+"headS": 71,
+"tailS": 71,
+"endEl": 970
+},
+{
+"startEl": 970,
+"retry": false,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 48,
+"tailS": 114,
+"endEl": 1151
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 899
+},
+{
+"kind": "tab",
+"at": 915
+},
+{
+"kind": "tab",
+"at": 925
+},
+{
+"kind": "tab",
+"at": 941
+},
+{
+"kind": "tab",
+"at": 970
+},
+{
+"kind": "tab",
+"at": 1037
+},
+{
+"kind": "tab",
+"at": 1046
+},
+{
+"kind": "tab",
+"at": 1065
+},
+{
+"kind": "tab",
+"at": 1085
+}
+]
+},
+{
+"job": "121279975183",
+"run": "40196227509",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 185,
+"attempts": [
+{
+"startEl": 486,
+"retry": false,
+"tries": [
+{
+"s": 48,
+"ok": true,
+"recon": false
+}
+],
+"headS": 284,
+"tailS": 56,
+"endEl": 874
+},
+{
+"startEl": 874,
+"retry": false,
+"tries": [
+{
+"s": 17,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 64,
+"endEl": 1007
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 818
+},
+{
+"kind": "tab",
+"at": 833
+},
+{
+"kind": "tab",
+"at": 841
+},
+{
+"kind": "tab",
+"at": 856
+},
+{
+"kind": "tab",
+"at": 874
+},
+{
+"kind": "tab",
+"at": 944
+},
+{
+"kind": "tab",
+"at": 954
+},
+{
+"kind": "tab",
+"at": 961
+},
+{
+"kind": "tab",
+"at": 973
+}
+]
+},
+{
+"job": "121294696942",
+"run": "40234829295",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 66,
+"attempts": [
+{
+"startEl": 369,
+"retry": false,
+"tries": [
+{
+"s": 65,
+"ok": true,
+"recon": false
+}
+],
+"headS": 81,
+"tailS": 233,
+"endEl": 747
+},
+{
+"startEl": 748,
+"retry": false,
+"tries": [
+{
+"s": 268,
+"ok": true,
+"recon": false
+}
+],
+"headS": 55,
+"tailS": 57,
+"endEl": 1128
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 514
+},
+{
+"kind": "tab",
+"at": 538
+},
+{
+"kind": "tab",
+"at": 552
+},
+{
+"kind": "tab",
+"at": 582
+},
+{
+"kind": "tab",
+"at": 748
+},
+{
+"kind": "tab",
+"at": 1071
+},
+{
+"kind": "tab",
+"at": 1080
+},
+{
+"kind": "tab",
+"at": 1088
+},
+{
+"kind": "tab",
+"at": 1100
+}
+]
+},
+{
+"job": "121299868349",
+"run": "40236465002",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 103,
+"attempts": [
+{
+"startEl": 432,
+"retry": false,
+"tries": [
+{
+"s": 36,
+"ok": true,
+"recon": false
+}
+],
+"headS": 339,
+"tailS": 174,
+"endEl": 980
+},
+{
+"startEl": 980,
+"retry": false,
+"tries": [
+{
+"s": 26,
+"ok": true,
+"recon": false
+}
+],
+"headS": 83,
+"tailS": 65,
+"endEl": 1153
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 806
+},
+{
+"kind": "tab",
+"at": 822
+},
+{
+"kind": "tab",
+"at": 831
+},
+{
+"kind": "tab",
+"at": 883
+},
+{
+"kind": "tab",
+"at": 980
+},
+{
+"kind": "tab",
+"at": 1088
+},
+{
+"kind": "tab",
+"at": 1101
+},
+{
+"kind": "tab",
+"at": 1110
+},
+{
+"kind": "tab",
+"at": 1124
+}
+]
+},
+{
+"job": "121299868373",
+"run": "40236465002",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 190,
+"attempts": [
+{
+"startEl": 738,
+"retry": false,
+"tries": [
+{
+"s": 33,
+"ok": true,
+"recon": false
+}
+],
+"headS": 74,
+"tailS": 272,
+"endEl": 1118
+},
+{
+"startEl": 1119,
+"retry": false,
+"tries": [
+{
+"s": 165,
+"ok": true,
+"recon": false
+}
+],
+"headS": 136,
+"tailS": 62,
+"endEl": 1482
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 846
+},
+{
+"kind": "tab",
+"at": 858
+},
+{
+"kind": "tab",
+"at": 867
+},
+{
+"kind": "tab",
+"at": 1059
+},
+{
+"kind": "tab",
+"at": 1119
+},
+{
+"kind": "tab",
+"at": 1420
+},
+{
+"kind": "tab",
+"at": 1435
+},
+{
+"kind": "tab",
+"at": 1443
+},
+{
+"kind": "tab",
+"at": 1456
+}
+]
+},
+{
+"job": "121299905515",
+"run": "40236475717",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 28,
+"attempts": [
+{
+"startEl": 244,
+"retry": false,
+"tries": [
+{
+"s": 40,
+"ok": true,
+"recon": false
+}
+],
+"headS": 289,
+"tailS": 151,
+"endEl": 725
+},
+{
+"startEl": 725,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 67,
+"tailS": 179,
+"endEl": 1001
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 574
+},
+{
+"kind": "tab",
+"at": 588
+},
+{
+"kind": "tab",
+"at": 596
+},
+{
+"kind": "tab",
+"at": 653
+},
+{
+"kind": "tab",
+"at": 725
+},
+{
+"kind": "tab",
+"at": 821
+},
+{
+"kind": "tab",
+"at": 843
+},
+{
+"kind": "tab",
+"at": 926
+},
+{
+"kind": "tab",
+"at": 955
+}
+]
+},
+{
+"job": "121299905534",
+"run": "40236475717",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 34,
+"attempts": [
+{
+"startEl": 695,
+"retry": false,
+"tries": [
+{
+"s": 251,
+"ok": false,
+"recon": false
+},
+{
+"s": 103,
+"ok": true,
+"recon": true
+}
+],
+"headS": 130,
+"tailS": 93,
+"endEl": 1272
+},
+{
+"startEl": 1272,
+"retry": false,
+"tries": [
+{
+"s": 22,
+"ok": true,
+"recon": false
+}
+],
+"headS": 48,
+"tailS": 142,
+"endEl": 1485
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 1076,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1179
+},
+{
+"kind": "tab",
+"at": 1192
+},
+{
+"kind": "tab",
+"at": 1204
+},
+{
+"kind": "tab",
+"at": 1240
+},
+{
+"kind": "tab",
+"at": 1272
+},
+{
+"kind": "tab",
+"at": 1342
+},
+{
+"kind": "tab",
+"at": 1356
+},
+{
+"kind": "tab",
+"at": 1364
+},
+{
+"kind": "tab",
+"at": 1393
+}
+]
+},
+{
+"job": "121300130982",
+"run": "40236534457",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 43,
+"attempts": [
+{
+"startEl": 579,
+"retry": false,
+"tries": [
+{
+"s": 77,
+"ok": true,
+"recon": false
+}
+],
+"headS": 131,
+"tailS": 386,
+"endEl": 1172
+},
+{
+"startEl": 1172,
+"retry": false,
+"tries": [
+{
+"s": 172,
+"ok": true,
+"recon": false
+}
+],
+"headS": 46,
+"tailS": 133,
+"endEl": 1524
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 787
+},
+{
+"kind": "tab",
+"at": 801
+},
+{
+"kind": "tab",
+"at": 808
+},
+{
+"kind": "tab",
+"at": 819
+},
+{
+"kind": "tab",
+"at": 1172
+},
+{
+"kind": "tab",
+"at": 1391
+},
+{
+"kind": "tab",
+"at": 1403
+},
+{
+"kind": "tab",
+"at": 1415
+},
+{
+"kind": "tab",
+"at": 1484
+}
+]
+},
+{
+"job": "121300136523",
+"run": "40236531932",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 78,
+"attempts": [
+{
+"startEl": 573,
+"retry": false,
+"tries": [
+{
+"s": 167,
+"ok": true,
+"recon": false
+}
+],
+"headS": 155,
+"tailS": 139,
+"endEl": 1035
+},
+{
+"startEl": 1035,
+"retry": false,
+"tries": [
+{
+"s": 29,
+"ok": true,
+"recon": false
+}
+],
+"headS": 76,
+"tailS": 91,
+"endEl": 1232
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 895
+},
+{
+"kind": "tab",
+"at": 907
+},
+{
+"kind": "tab",
+"at": 916
+},
+{
+"kind": "tab",
+"at": 982
+},
+{
+"kind": "tab",
+"at": 1035
+},
+{
+"kind": "tab",
+"at": 1140
+},
+{
+"kind": "tab",
+"at": 1149
+},
+{
+"kind": "tab",
+"at": 1158
+},
+{
+"kind": "tab",
+"at": 1174
+}
+]
+},
+{
+"job": "121300136535",
+"run": "40236531932",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 64,
+"attempts": [
+{
+"startEl": 691,
+"retry": false,
+"tries": [
+{
+"s": 35,
+"ok": true,
+"recon": false
+}
+],
+"headS": 494,
+"tailS": 63,
+"endEl": 1282
+},
+{
+"startEl": 1283,
+"retry": false,
+"tries": [
+{
+"s": 26,
+"ok": true,
+"recon": false
+}
+],
+"headS": 93,
+"tailS": 79,
+"endEl": 1480
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1220
+},
+{
+"kind": "tab",
+"at": 1235
+},
+{
+"kind": "tab",
+"at": 1243
+},
+{
+"kind": "tab",
+"at": 1254
+},
+{
+"kind": "tab",
+"at": 1283
+},
+{
+"kind": "tab",
+"at": 1401
+},
+{
+"kind": "tab",
+"at": 1415
+},
+{
+"kind": "tab",
+"at": 1424
+},
+{
+"kind": "tab",
+"at": 1442
+}
+]
+},
+{
+"job": "121302998522",
+"run": "40237513521",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 38,
+"attempts": [
+{
+"startEl": 324,
+"retry": false,
+"tries": [
+{
+"s": 39,
+"ok": true,
+"recon": false
+}
+],
+"headS": 53,
+"tailS": 59,
+"endEl": 476
+},
+{
+"startEl": 476,
+"retry": false,
+"tries": [
+{
+"s": 29,
+"ok": true,
+"recon": false
+}
+],
+"headS": 42,
+"tailS": 57,
+"endEl": 603
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 417
+},
+{
+"kind": "tab",
+"at": 432
+},
+{
+"kind": "tab",
+"at": 441
+},
+{
+"kind": "tab",
+"at": 457
+},
+{
+"kind": "tab",
+"at": 476
+},
+{
+"kind": "tab",
+"at": 546
+},
+{
+"kind": "tab",
+"at": 556
+},
+{
+"kind": "tab",
+"at": 565
+},
+{
+"kind": "tab",
+"at": 581
+}
+]
+},
+{
+"job": "121302998532",
+"run": "40237513521",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 39,
+"attempts": [
+{
+"startEl": 265,
+"retry": false,
+"tries": [
+{
+"s": 158,
+"ok": false,
+"recon": false
+},
+{
+"s": 245,
+"ok": true,
+"recon": true
+}
+],
+"headS": 42,
+"tailS": 136,
+"endEl": 846
+},
+{
+"startEl": 846,
+"retry": false,
+"tries": [
+{
+"s": 60,
+"ok": true,
+"recon": false
+}
+],
+"headS": 53,
+"tailS": 79,
+"endEl": 1039
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 465,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 710
+},
+{
+"kind": "tab",
+"at": 722
+},
+{
+"kind": "tab",
+"at": 730
+},
+{
+"kind": "tab",
+"at": 820
+},
+{
+"kind": "tab",
+"at": 846
+},
+{
+"kind": "tab",
+"at": 960
+},
+{
+"kind": "tab",
+"at": 968
+},
+{
+"kind": "tab",
+"at": 977
+},
+{
+"kind": "tab",
+"at": 992
+}
+]
+},
+{
+"job": "121314777043",
+"run": "40236465002",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 70,
+"attempts": [
+{
+"startEl": 263,
+"retry": false,
+"tries": [
+{
+"s": 51,
+"ok": true,
+"recon": false
+}
+],
+"headS": 91,
+"tailS": 825,
+"endEl": 1231
+},
+{
+"startEl": 1231,
+"retry": false,
+"tries": [
+{
+"s": 40,
+"ok": true,
+"recon": false
+}
+],
+"headS": 88,
+"tailS": 175,
+"endEl": 1533
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 405
+},
+{
+"kind": "tab",
+"at": 430
+},
+{
+"kind": "tab",
+"at": 439
+},
+{
+"kind": "tab",
+"at": 453
+},
+{
+"kind": "tab",
+"at": 1231
+},
+{
+"kind": "tab",
+"at": 1359
+},
+{
+"kind": "tab",
+"at": 1374
+},
+{
+"kind": "tab",
+"at": 1383
+},
+{
+"kind": "tab",
+"at": 1425
+}
+]
+},
+{
+"job": "121323256408",
+"run": "40236534457",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 36,
+"attempts": [
+{
+"startEl": 538,
+"retry": false,
+"tries": [
+{
+"s": 190,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 73,
+"endEl": 853
+},
+{
+"startEl": 853,
+"retry": false,
+"tries": [
+{
+"s": 17,
+"ok": true,
+"recon": false
+}
+],
+"headS": 57,
+"tailS": 103,
+"endEl": 1030
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 780
+},
+{
+"kind": "tab",
+"at": 794
+},
+{
+"kind": "tab",
+"at": 803
+},
+{
+"kind": "tab",
+"at": 817
+},
+{
+"kind": "tab",
+"at": 853
+},
+{
+"kind": "tab",
+"at": 927
+},
+{
+"kind": "tab",
+"at": 934
+},
+{
+"kind": "tab",
+"at": 942
+},
+{
+"kind": "tab",
+"at": 958
+}
+]
+},
+{
+"job": "121335928879",
+"run": "40237513521",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 99,
+"attempts": [
+{
+"startEl": 365,
+"retry": false,
+"tries": [
+{
+"s": 90,
+"ok": true,
+"recon": false
+}
+],
+"headS": 118,
+"tailS": 81,
+"endEl": 655
+},
+{
+"startEl": 655,
+"retry": false,
+"tries": [
+{
+"s": 22,
+"ok": true,
+"recon": false
+}
+],
+"headS": 71,
+"tailS": 53,
+"endEl": 800
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 574
+},
+{
+"kind": "tab",
+"at": 586
+},
+{
+"kind": "tab",
+"at": 595
+},
+{
+"kind": "tab",
+"at": 631
+},
+{
+"kind": "tab",
+"at": 655
+},
+{
+"kind": "tab",
+"at": 747
+},
+{
+"kind": "tab",
+"at": 755
+},
+{
+"kind": "tab",
+"at": 764
+},
+{
+"kind": "tab",
+"at": 775
+}
+]
+},
+{
+"job": "121369069783",
+"run": "40259432097",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 19,
+"attempts": [
+{
+"startEl": 347,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 35,
+"tailS": 50,
+"endEl": 463
+},
+{
+"startEl": 463,
+"retry": false,
+"tries": [
+{
+"s": 194,
+"ok": false,
+"recon": false
+},
+{
+"s": 96,
+"ok": true,
+"recon": true
+}
+],
+"headS": 56,
+"tailS": 71,
+"endEl": 880
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 413
+},
+{
+"kind": "tab",
+"at": 418
+},
+{
+"kind": "tab",
+"at": 431
+},
+{
+"kind": "tab",
+"at": 442
+},
+{
+"kind": "tab",
+"at": 463
+},
+{
+"kind": "scroll",
+"at": 713,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 809
+},
+{
+"kind": "tab",
+"at": 819
+},
+{
+"kind": "tab",
+"at": 824
+},
+{
+"kind": "tab",
+"at": 834
+}
+]
+},
+{
+"job": "121374246864",
+"run": "40261071388",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 86,
+"attempts": [
+{
+"startEl": 603,
+"retry": false,
+"tries": [
+{
+"s": 27,
+"ok": true,
+"recon": false
+}
+],
+"headS": 87,
+"tailS": 239,
+"endEl": 956
+},
+{
+"startEl": 964,
+"retry": false,
+"tries": [
+{
+"s": 37,
+"ok": true,
+"recon": false
+}
+],
+"headS": 88,
+"tailS": 346,
+"endEl": 1435
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 717
+},
+{
+"kind": "tab",
+"at": 732
+},
+{
+"kind": "tab",
+"at": 743
+},
+{
+"kind": "tab",
+"at": 854
+},
+{
+"kind": "tab",
+"at": 964
+},
+{
+"kind": "tab",
+"at": 1089
+},
+{
+"kind": "tab",
+"at": 1172
+},
+{
+"kind": "tab",
+"at": 1191
+},
+{
+"kind": "tab",
+"at": 1343
+}
+]
+},
+{
+"job": "121374246997",
+"run": "40261071388",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 31,
+"attempts": [
+{
+"startEl": 264,
+"retry": false,
+"tries": [],
+"headS": 180,
+"headFailed": true
+},
+{
+"startEl": 444,
+"retry": true,
+"tries": [
+{
+"s": 19,
+"ok": true,
+"recon": false
+}
+],
+"headS": 341,
+"tailS": 55,
+"endEl": 858
+},
+{
+"startEl": 859,
+"retry": false,
+"tries": [
+{
+"s": 21,
+"ok": true,
+"recon": false
+}
+],
+"headS": 50,
+"tailS": 309,
+"endEl": 1238
+}
+],
+"decisions": [
+{
+"kind": "pass",
+"at": 444,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 803
+},
+{
+"kind": "tab",
+"at": 813
+},
+{
+"kind": "tab",
+"at": 820
+},
+{
+"kind": "tab",
+"at": 833
+},
+{
+"kind": "tab",
+"at": 859
+},
+{
+"kind": "tab",
+"at": 929
+},
+{
+"kind": "tab",
+"at": 1015
+},
+{
+"kind": "tab",
+"at": 1026
+},
+{
+"kind": "tab",
+"at": 1151
+}
+]
+},
+{
+"job": "121390624401",
+"run": "40261071388",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 38,
+"attempts": [
+{
+"startEl": 828,
+"retry": false,
+"tries": [
+{
+"s": 25,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 56,
+"endEl": 961
+},
+{
+"startEl": 961,
+"retry": false,
+"tries": [
+{
+"s": 30,
+"ok": true,
+"recon": false
+}
+],
+"headS": 74,
+"tailS": 56,
+"endEl": 1120
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 905
+},
+{
+"kind": "tab",
+"at": 915
+},
+{
+"kind": "tab",
+"at": 923
+},
+{
+"kind": "tab",
+"at": 936
+},
+{
+"kind": "tab",
+"at": 961
+},
+{
+"kind": "tab",
+"at": 1065
+},
+{
+"kind": "tab",
+"at": 1073
+},
+{
+"kind": "tab",
+"at": 1082
+},
+{
+"kind": "tab",
+"at": 1094
+}
+]
+},
+{
+"job": "121395373048",
+"run": "40261059419",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 131,
+"attempts": [
+{
+"startEl": 863,
+"retry": false,
+"tries": [
+{
+"s": 51,
+"ok": true,
+"recon": false
+}
+],
+"headS": 92,
+"tailS": 182,
+"endEl": 1188
+},
+{
+"startEl": 1188,
+"retry": false,
+"tries": [
+{
+"s": 87,
+"ok": true,
+"recon": false
+}
+],
+"headS": 113,
+"tailS": 104,
+"endEl": 1493
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1006
+},
+{
+"kind": "tab",
+"at": 1031
+},
+{
+"kind": "tab",
+"at": 1056
+},
+{
+"kind": "tab",
+"at": 1074
+},
+{
+"kind": "tab",
+"at": 1188
+},
+{
+"kind": "tab",
+"at": 1389
+},
+{
+"kind": "tab",
+"at": 1403
+},
+{
+"kind": "tab",
+"at": 1412
+},
+{
+"kind": "tab",
+"at": 1470
+}
+]
+},
+{
+"job": "121395373432",
+"run": "40261059419",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 92,
+"attempts": [
+{
+"startEl": 397,
+"retry": false,
+"tries": [
+{
+"s": 144,
+"ok": false,
+"recon": false
+},
+{
+"s": 431,
+"ok": true,
+"recon": true
+}
+],
+"headS": 94,
+"tailS": 86,
+"endEl": 1152
+},
+{
+"startEl": 1169,
+"retry": false,
+"tries": [
+{
+"s": 180,
+"ok": true,
+"recon": false
+}
+],
+"headS": 120,
+"tailS": 117,
+"endEl": 1586
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 635,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1066
+},
+{
+"kind": "tab",
+"at": 1089
+},
+{
+"kind": "tab",
+"at": 1098
+},
+{
+"kind": "tab",
+"at": 1113
+},
+{
+"kind": "tab",
+"at": 1169
+},
+{
+"kind": "tab",
+"at": 1469
+},
+{
+"kind": "tab",
+"at": 1485
+},
+{
+"kind": "tab",
+"at": 1496
+},
+{
+"kind": "tab",
+"at": 1540
+}
+]
+},
+{
+"job": "121405613266",
+"run": "40271370582",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 49,
+"attempts": [
+{
+"startEl": 642,
+"retry": false,
+"tries": [
+{
+"s": 56,
+"ok": true,
+"recon": false
+}
+],
+"headS": 113,
+"tailS": 67,
+"endEl": 878
+},
+{
+"startEl": 878,
+"retry": false,
+"tries": [
+{
+"s": 43,
+"ok": true,
+"recon": false
+}
+],
+"headS": 79,
+"tailS": 68,
+"endEl": 1069
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 811
+},
+{
+"kind": "tab",
+"at": 826
+},
+{
+"kind": "tab",
+"at": 831
+},
+{
+"kind": "tab",
+"at": 841
+},
+{
+"kind": "tab",
+"at": 878
+},
+{
+"kind": "tab",
+"at": 1000
+},
+{
+"kind": "tab",
+"at": 1015
+},
+{
+"kind": "tab",
+"at": 1025
+},
+{
+"kind": "tab",
+"at": 1035
+}
+]
+},
+{
+"job": "121405613291",
+"run": "40271370582",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 14,
+"attempts": [
+{
+"startEl": 297,
+"retry": false,
+"tries": [
+{
+"s": 101,
+"ok": true,
+"recon": false
+}
+],
+"headS": 104,
+"tailS": 317,
+"endEl": 819
+},
+{
+"startEl": 819,
+"retry": false,
+"tries": [
+{
+"s": 107,
+"ok": true,
+"recon": false
+}
+],
+"headS": 134,
+"tailS": 650,
+"endEl": 1710
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 502
+},
+{
+"kind": "tab",
+"at": 517
+},
+{
+"kind": "tab",
+"at": 527
+},
+{
+"kind": "tab",
+"at": 651
+},
+{
+"kind": "tab",
+"at": 819
+},
+{
+"kind": "tab",
+"at": 1060
+},
+{
+"kind": "tab",
+"at": 1070
+},
+{
+"kind": "tab",
+"at": 1080
+},
+{
+"kind": "tab",
+"at": 1110
+}
+]
+},
+{
+"job": "121405618464",
+"run": "40271367353",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 11,
+"attempts": [
+{
+"startEl": 280,
+"retry": false,
+"tries": [
+{
+"s": 36,
+"ok": true,
+"recon": false
+}
+],
+"headS": 526,
+"tailS": 96,
+"endEl": 938
+},
+{
+"startEl": 938,
+"retry": false,
+"tries": [
+{
+"s": 140,
+"ok": true,
+"recon": false
+}
+],
+"headS": 78,
+"tailS": 106,
+"endEl": 1263
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 842
+},
+{
+"kind": "tab",
+"at": 867
+},
+{
+"kind": "tab",
+"at": 877
+},
+{
+"kind": "tab",
+"at": 890
+},
+{
+"kind": "tab",
+"at": 938
+},
+{
+"kind": "tab",
+"at": 1157
+},
+{
+"kind": "tab",
+"at": 1172
+},
+{
+"kind": "tab",
+"at": 1182
+},
+{
+"kind": "tab",
+"at": 1212
+}
+]
+},
+{
+"job": "121416196352",
+"run": "40271367353",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 13,
+"attempts": [
+{
+"startEl": 516,
+"retry": false,
+"tries": [],
+"headS": 687,
+"headFailed": true
+},
+{
+"startEl": 1203,
+"retry": true,
+"tries": [
+{
+"s": 41,
+"ok": true,
+"recon": false
+}
+],
+"headS": 322,
+"tailS": 73,
+"endEl": 1639
+},
+{
+"startEl": 1639,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 45,
+"tailS": 43,
+"endEl": 1746
+}
+],
+"decisions": [
+{
+"kind": "pass",
+"at": 1203,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1566
+},
+{
+"kind": "tab",
+"at": 1576
+},
+{
+"kind": "tab",
+"at": 1586
+},
+{
+"kind": "tab",
+"at": 1607
+},
+{
+"kind": "tab",
+"at": 1639
+},
+{
+"kind": "tab",
+"at": 1704
+},
+{
+"kind": "tab",
+"at": 1709
+},
+{
+"kind": "tab",
+"at": 1719
+},
+{
+"kind": "tab",
+"at": 1729
+}
+]
+},
+{
+"job": "121425683979",
+"run": "40277972324",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 40,
+"attempts": [
+{
+"startEl": 765,
+"retry": false,
+"tries": [
+{
+"s": 57,
+"ok": false,
+"recon": false
+},
+{
+"s": 134,
+"ok": true,
+"recon": true
+}
+],
+"headS": 345,
+"tailS": 58,
+"endEl": 1359
+},
+{
+"startEl": 1359,
+"retry": false,
+"tries": [
+{
+"s": 39,
+"ok": true,
+"recon": false
+}
+],
+"headS": 52,
+"tailS": 60,
+"endEl": 1511
+}
+],
+"decisions": [
+{
+"kind": "scroll",
+"at": 1167,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1301
+},
+{
+"kind": "tab",
+"at": 1316
+},
+{
+"kind": "tab",
+"at": 1326
+},
+{
+"kind": "tab",
+"at": 1336
+},
+{
+"kind": "tab",
+"at": 1359
+},
+{
+"kind": "tab",
+"at": 1451
+},
+{
+"kind": "tab",
+"at": 1461
+},
+{
+"kind": "tab",
+"at": 1472
+},
+{
+"kind": "tab",
+"at": 1488
+}
+]
+},
+{
+"job": "121434676501",
+"run": "40277969074",
+"sessions": 1,
+"maxTries": 3,
+"servingOffS": 222,
+"attempts": [
+{
+"startEl": 827,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 120,
+"tailS": 84,
+"endEl": 1062
+},
+{
+"startEl": 1062,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 41,
+"tailS": 62,
+"endEl": 1184
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 978
+},
+{
+"kind": "tab",
+"at": 993
+},
+{
+"kind": "tab",
+"at": 1003
+},
+{
+"kind": "tab",
+"at": 1013
+},
+{
+"kind": "tab",
+"at": 1062
+},
+{
+"kind": "tab",
+"at": 1122
+},
+{
+"kind": "tab",
+"at": 1132
+},
+{
+"kind": "tab",
+"at": 1142
+},
+{
+"kind": "tab",
+"at": 1159
+}
+]
+},
+{
+"job": "121440938397",
+"run": "40282951274",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 52,
+"attempts": [
+{
+"startEl": 586,
+"retry": false,
+"tries": [
+{
+"s": 26,
+"ok": true,
+"recon": false
+}
+],
+"headS": 434,
+"tailS": 61,
+"endEl": 1107
+},
+{
+"startEl": 1107,
+"retry": false,
+"tries": [
+{
+"s": 59,
+"ok": true,
+"recon": false
+}
+],
+"headS": 45,
+"tailS": 354,
+"endEl": 1565
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1046
+},
+{
+"kind": "tab",
+"at": 1056
+},
+{
+"kind": "tab",
+"at": 1066
+},
+{
+"kind": "tab",
+"at": 1076
+},
+{
+"kind": "tab",
+"at": 1107
+},
+{
+"kind": "tab",
+"at": 1211
+},
+{
+"kind": "tab",
+"at": 1226
+},
+{
+"kind": "tab",
+"at": 1242
+},
+{
+"kind": "tab",
+"at": 1298
+}
+]
+},
+{
+"job": "121440938424",
+"run": "40282951274",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 7,
+"attempts": [
+{
+"startEl": 305,
+"retry": false,
+"tries": [],
+"headS": 319,
+"headFailed": true
+},
+{
+"startEl": 624,
+"retry": true,
+"tries": [
+{
+"s": 66,
+"ok": true,
+"recon": false
+}
+],
+"headS": 130,
+"tailS": 128,
+"endEl": 948
+},
+{
+"startEl": 948,
+"retry": false,
+"tries": [
+{
+"s": 143,
+"ok": false,
+"recon": false
+},
+{
+"s": 206,
+"ok": true,
+"recon": true
+}
+],
+"headS": 44,
+"tailS": 78,
+"endEl": 1420
+}
+],
+"decisions": [
+{
+"kind": "pass",
+"at": 624,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 820
+},
+{
+"kind": "tab",
+"at": 835
+},
+{
+"kind": "tab",
+"at": 849
+},
+{
+"kind": "tab",
+"at": 948
+},
+{
+"kind": "tab",
+"at": 948
+},
+{
+"kind": "scroll",
+"at": 1135,
+"tries": 1
+},
+{
+"kind": "tab",
+"at": 1341
+},
+{
+"kind": "tab",
+"at": 1362
+},
+{
+"kind": "tab",
+"at": 1367
+},
+{
+"kind": "tab",
+"at": 1420
+}
+]
+},
+{
+"job": "121441017743",
+"run": "40282962088",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 44,
+"attempts": [
+{
+"startEl": 598,
+"retry": false,
+"tries": [
+{
+"s": 57,
+"ok": true,
+"recon": false
+}
+],
+"headS": 391,
+"tailS": 68,
+"endEl": 1113
+},
+{
+"startEl": 1118,
+"retry": false,
+"tries": [
+{
+"s": 37,
+"ok": true,
+"recon": false
+}
+],
+"headS": 127,
+"tailS": 100,
+"endEl": 1382
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 1045
+},
+{
+"kind": "tab",
+"at": 1060
+},
+{
+"kind": "tab",
+"at": 1070
+},
+{
+"kind": "tab",
+"at": 1081
+},
+{
+"kind": "tab",
+"at": 1118
+},
+{
+"kind": "tab",
+"at": 1282
+},
+{
+"kind": "tab",
+"at": 1287
+},
+{
+"kind": "tab",
+"at": 1297
+},
+{
+"kind": "tab",
+"at": 1321
+}
+]
+},
+{
+"job": "121446337635",
+"run": "40284460392",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 17,
+"attempts": [
+{
+"startEl": 318,
+"retry": false,
+"tries": [
+{
+"s": 31,
+"ok": true,
+"recon": false
+}
+],
+"headS": 170,
+"tailS": 120,
+"endEl": 638
+},
+{
+"startEl": 639,
+"retry": false,
+"tries": [
+{
+"s": 87,
+"ok": true,
+"recon": false
+}
+],
+"headS": 55,
+"tailS": 148,
+"endEl": 929
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 519
+},
+{
+"kind": "tab",
+"at": 529
+},
+{
+"kind": "tab",
+"at": 539
+},
+{
+"kind": "tab",
+"at": 595
+},
+{
+"kind": "tab",
+"at": 639
+},
+{
+"kind": "tab",
+"at": 780
+},
+{
+"kind": "tab",
+"at": 791
+},
+{
+"kind": "tab",
+"at": 801
+},
+{
+"kind": "tab",
+"at": 873
+}
+]
+},
+{
+"job": "121452834326",
+"run": "40282951274",
+"sessions": 1,
+"maxTries": 2,
+"servingOffS": 36,
+"attempts": [
+{
+"startEl": 398,
+"retry": false,
+"tries": [
+{
+"s": 20,
+"ok": true,
+"recon": false
+}
+],
+"headS": 50,
+"tailS": 655,
+"endEl": 1123
+},
+{
+"startEl": 1123,
+"retry": false,
+"tries": [
+{
+"s": 101,
+"ok": true,
+"recon": false
+}
+],
+"headS": 61,
+"tailS": 106,
+"endEl": 1391
+}
+],
+"decisions": [
+{
+"kind": "tab",
+"at": 468
+},
+{
+"kind": "tab",
+"at": 479
+},
+{
+"kind": "tab",
+"at": 505
+},
+{
+"kind": "tab",
+"at": 545
+},
+{
+"kind": "tab",
+"at": 1123
+},
+{
+"kind": "tab",
+"at": 1285
+},
+{
+"kind": "tab",
+"at": 1300
+},
+{
+"kind": "tab",
+"at": 1310
+},
+{
+"kind": "tab",
+"at": 1337
+}
+]
+}
+]
