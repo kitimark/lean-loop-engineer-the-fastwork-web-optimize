@@ -1,5 +1,6 @@
 import Fw.Parts.PlatformSweep
 import Fw.Engine.VisualTimed
+import Fw.Engine.ResourceVerdict
 import Fw.Site.Breakpoints
 /-!
 # platform.entries: entry animations, count-up and the search typing of the stage visuals (P5 port, `faithful`)
@@ -574,6 +575,46 @@ def fillMedia : String := rmNopref.css
 #guard fillRows[9]?.map FillRow.variant == some ".invoice.fillRelease:not(.isStatic).isPlay .order"
 #guard heldFrames (track profilePhone ⟨"opacity", 0, 1⟩ 1) [0, 300, 620, 1000] == 4
 #guard heldFrames (release (track profilePhone ⟨"opacity", 0, 1⟩ 1)) [0, 300, 620, 1000] == 2
+
+section MemoryTrade
+open Fw.Engine.Resource
+
+/-- A memory-only win: every gated resource keeps its sign `same` and the GPU memory falls. -/
+def memoryWin (fp : Footprint) : Bool := gated.all (fun r => fp.sign r == .same) && fp.sign .gpuMem == .down
+
+/-- A memory-only win fits any budget: the memory only falls, so `memFit` holds without a measured peak. -/
+theorem memoryWin_fits (B : Nat) (fp : Footprint) (h : memoryWin fp = true) :
+    memFit B (fp.sign .gpuMem) fp.peak = some true := by
+  have hd : fp.sign .gpuMem = .down := by simpa [memoryWin] using (Bool.and_eq_true_iff.mp h).2
+  simp [memFit, hd]
+
+/-- The existing verdict calls a memory-only win `neutral`: it needs a gated resource that falls to say `win`. -/
+theorem memoryWin_neutral (B : Nat) (fp : Footprint) (h : memoryWin fp = true) : verdict B fp = .neutral := by
+  have hg : ∀ r ∈ gated, fp.sign r = .same := fun r hr => by
+    simpa using List.all_eq_true.mp (Bool.and_eq_true_iff.mp h).1 r hr
+  have h1 : gated.any (fp.sign · == .up) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
+  have h2 : gated.any (fp.sign · == .unknown) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
+  have h3 : gated.any (fp.sign · == .down) = false := List.any_eq_false.mpr fun r hr => by simp [hg r hr]
+  simp [verdict, h1, h2, h3]
+
+/-- One gated resource that is not `same` (it rose, or rose in one reading and fell in another) rules out a memory-only win. -/
+theorem work_change_not_memoryWin (fp : Footprint) (r : Res) (hr : r ∈ gated) (h : fp.sign r ≠ .same) :
+    memoryWin fp = false := by
+  cases hm : memoryWin fp with
+  | false => rfl
+  | true =>
+    exact absurd (by simpa using List.all_eq_true.mp (Bool.and_eq_true_iff.mp hm).1 r hr) h
+
+/-- Chromium: layers, tiles and drawing area fall; Paint falls and RasterTask rises in every window the Lean reader decides
+(run 40280497740, `windows.md`), so paint records are mixed (`unknown`) and the flag is not a memory-only win. -/
+def chromiumFp : Footprint :=
+  ofSigns "platform.entries:fill-release" .chromium
+    ((.layers, .down) :: (.gpuMem, .down) :: (.paintRec, .unknown) :: (.repaint, .unknown) :: gatedAt .same) none
+
+#guard memoryWin chromiumFp == false
+#guard verdict budgetB chromiumFp == .open
+
+end MemoryTrade
 
 end FillRelease
 
