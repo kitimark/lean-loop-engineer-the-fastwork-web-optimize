@@ -1,5 +1,5 @@
 import Fw.Parts.MorphGeomEarn
-import Fw.Engine.Resource
+import Fw.Engine.ResourceFlags
 /-! `morph.geom:on`: the flip layers, their Web Animations, the WebKit acceleration rules they meet, end states and
 the backing bytes they add. -/
 namespace Fw.Parts.MorphGeom
@@ -217,5 +217,149 @@ theorem layers_cover_anims :
 #guard easingOk (.cubic (1 / 3) 1 (2 / 3) 1) && !easingOk (.cubic (1 / 3) (-1 / 10) (2 / 3) 1)
 #guard accelOne (anim "D" .opacity .unit [fun x => x]) && !accelOne (anim "D" .translate .unit [fun x => x])
 #guard noTransition [anim "veil" .opacity .unit [fun x => x]] && !noTransition [anim "title" .opacity .unit [fun x => x]]
+
+/-! ## Backing bytes -/
+
+/-- Device pixel ratio of the band: 3 on phone widths, 2 above. -/
+def dprOf (v : Vp) : Nat := if phone v.w then 3 else 2
+
+def Lyr.toLayer (l : Lyr) : Fw.Engine.Resource.Layer := ⟨l.w.ceil.toNat, l.h.ceil.toNat, l.backed, true⟩
+
+/-- Backing bytes of the flip tree under the iOS formula (`Resource.layerBytes`). -/
+def memBytes (v : Vp) (c : Ctx) : Nat := Fw.Engine.Resource.gpuBytes (dprOf v) ((layers v c).map Lyr.toLayer)
+
+/-- Headroom over the measured base peak: `budgetB - basePeak`. -/
+def memBudget : Nat := Fw.Engine.Resource.budgetB - Fw.Engine.Resource.Flags.basePeak
+
+def memOk (v : Vp) (c : Ctx) : Bool := decide (memBytes v c ≤ memBudget)
+
+theorem memBudget_eq : memBudget = 23055555 := by decide
+
+/-- The census verdict per band: only 320×568 and 641×700 fit the headroom; veil and platform backings dominate. -/
+theorem mem_bands :
+    bandVps.map (fun v => memOk v (Ctx.sample v .webkit)) =
+      [true, false, false, false, false, false, true, false, false, false, false, false] := by
+  decide +kernel
+
+theorem mem_phone_390 : memBytes ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webkit) = 34558272 := by decide +kernel
+
+#guard dprOf ⟨390, 844⟩ == 3 && dprOf ⟨1280, 800⟩ == 2
+#guard memOk ⟨320, 568⟩ (Ctx.sample ⟨320, 568⟩ .webkit) && !memOk ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webkit)
+
+/-! ## End states -/
+
+theorem eval_start (f : Rat → Rat) (p : Rat) (ks : List Rat) (h : sortedB (p :: ks) = true) :
+    Track.eval (mk f (p :: ks)) p = f p := by
+  cases ks with
+  | nil => simp [mk, Track.eval]
+  | cons q r =>
+    rw [eval_mk_cons]
+    simp only [sortedB, Bool.and_eq_true, decide_eq_true_eq] at h
+    simp [show p ≤ q by grind, chord, Rat.sub_self, Rat.div_def, Rat.add_zero]
+
+theorem div_one_of (x : Rat) (h : x ≠ 0) : x / x = 1 := by rw [Rat.div_def, Rat.mul_inv_cancel _ h]
+
+theorem lt_lastL (rest : List Rat) : ∀ q r : Rat, sortedB (q :: r :: rest) = true → q < lastL (r :: rest) := by
+  induction rest with
+  | nil => intro q r h; simp only [sortedB, Bool.and_eq_true, decide_eq_true_eq] at h; simp [lastL]; grind
+  | cons s rest ih =>
+    intro q r h
+    simp only [sortedB, Bool.and_eq_true, decide_eq_true_eq] at h
+    have := ih r s (by simp only [sortedB, Bool.and_eq_true, decide_eq_true_eq]; exact h.2)
+    simp only [lastL]; grind
+
+theorem eval_end (f : Rat → Rat) (ks : List Rat) : ∀ p : Rat, sortedB (p :: ks) = true →
+    Track.eval (mk f (p :: ks)) (lastL (p :: ks)) = f (lastL (p :: ks)) := by
+  induction ks with
+  | nil => intro p _; simp [mk, Track.eval, lastL]
+  | cons q r ih =>
+    intro p h
+    rw [eval_mk_cons]
+    have hs := h
+    simp only [sortedB, Bool.and_eq_true, decide_eq_true_eq] at hs
+    cases r with
+    | nil =>
+      simp only [lastL, Rat.le_refl, ite_true, chord]
+      have : (f q - f p) * (q - p) / (q - p) = f q - f p := by
+        rw [Rat.div_def, Rat.mul_assoc, Rat.mul_inv_cancel _ (by grind), Rat.mul_one]
+      grind
+    | cons s r' =>
+      have hlt := lt_lastL r' q s hs.2
+      simp only [lastL] at hlt ⊢
+      simp only [Rat.not_le.mpr hlt, ite_false]
+      exact ih q hs.2
+
+/-- Last keyframe of a knot set: `m = 1`, or `timeEnd` on the time grid. -/
+def Ks.last (k : Ks) : Rat := if k = .time then timeEnd else 1
+
+def allKs : List Ks := [.grid, .unit, .earn, .panel, .fade, .time]
+
+/-- Knots sorted, first 0, last `Ks.last`. -/
+def endsOk (v : Vp) (k : Ks) : Bool := sortedB (k.list v) && (k.list v).head? == some 0 && lastL (k.list v) == k.last
+
+theorem ends_bands : bandVps.all (fun v => allKs.all (endsOk v)) = true := by decide +kernel
+
+theorem valid_bands : bandVps.all (fun v => decide (320 ≤ v.w ∧ 300 ≤ v.h)) = true := by decide +kernel
+
+theorem track_ends (v : Vp) (hv : v ∈ bandVps) (k : Ks) (f : Rat → Rat) :
+    Track.eval (mk f (k.list v)) 0 = f 0 ∧ Track.eval (mk f (k.list v)) k.last = f k.last := by
+  have h := List.all_eq_true.mp (List.all_eq_true.mp ends_bands v hv) k (by cases k <;> simp [allKs])
+  unfold endsOk at h
+  generalize k.list v = ks at h ⊢
+  cases ks with
+  | nil => simp at h
+  | cons p ps =>
+    simp only [Bool.and_eq_true, beq_iff_eq, List.head?_cons, Option.some.injEq] at h
+    obtain ⟨⟨hs, rfl⟩, hl⟩ := h
+    exact ⟨eval_start f 0 ps hs, hl ▸ eval_end f ps 0 hs⟩
+
+/-- The net K0..U map is the identity at `m = 0` and `m = 1`. -/
+theorem nav_ends (v : Vp) (hv : v ∈ bandVps) (m u : Rat) (hm : m = 0 ∨ m = 1) :
+    navX v m u = u ∧ navY v m u = u := by
+  have hV : 320 ≤ v.w ∧ 300 ≤ v.h := of_decide_eq_true (List.all_eq_true.mp valid_bands v hv)
+  have h0 : 0 ≤ m := by grind
+  have h1 : m ≤ 1 := by grind
+  have ev : ∀ f, Track.eval (mk f (knots v)) m = f m := fun f => by
+    rcases hm with rfl | rfl
+    · exact (track_ends v hv .grid f).1
+    · exact (track_ends v hv .grid f).2
+  have hs := sU_exact v hV m h0 h1
+  have hx := tUx_exact v hV m h0 h1
+  have hy := tUy_exact v hV m h0 h1
+  unfold navX navY
+  simp only [ev]
+  constructor <;> grind
+
+/-- At `m = 1` every content transform is the identity and the panel shows at full opacity, unblurred. -/
+theorem content_end (v : Vp) (hv : Valid v) (i j : Nat) (Y inset lw : Rat) :
+    x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧ imgTy v j Y 0 1 = 0 ∧
+      wd v 1 / wp v = 1 ∧ ht v 1 / hp v = 1 ∧ ht v 1 - hp v = 0 ∧ logoT v inset lw 1 = 0 ∧ panelO 1 = 1 ∧
+      panelBlur v 1 = 0 := by
+  have hw := wd_eq v 1; have hh := ht_eq v 1
+  have := wp_pos v hv; have := hp_pos v hv; have := cw1_pos v hv
+  have hx : x0 v 1 = 0 := by unfold x0; grind
+  have hy : y0 v 1 = 0 := by unfold y0; grind
+  have hsI : sImg v 1 = 1 := by unfold sImg; exact div_one_of _ (by grind)
+  refine ⟨hx, hy, by unfold dP; grind, by unfold pS; grind, hsI, by unfold colTx; grind, by unfold imgTy; grind,
+    by rw [show wd v 1 = wp v by grind]; exact div_one_of _ (by grind),
+    by rw [show ht v 1 = hp v by grind]; exact div_one_of _ (by grind), by grind,
+    by unfold logoT logoLeft; grind, by decide +kernel, ?_⟩
+  have : panelO 1 = 1 := by decide +kernel
+  unfold panelBlur; split <;> grind
+
+/-- `end_eq`: on every band, each track sits on its function at its first and last keyframe, the net nav map is the
+identity at both ends, and the content transforms are the identity at `m = 1`. -/
+theorem end_eq (v : Vp) (hv : v ∈ bandVps) :
+    (∀ a ∈ anims v (Ctx.sample v .webkit) ++ anims v (Ctx.sample v .chromium), ∀ f ∈ a.fns,
+      Track.eval (mk f (a.ks.list v)) 0 = f 0 ∧ Track.eval (mk f (a.ks.list v)) a.ks.last = f a.ks.last) ∧
+    (∀ m u, (m = 0 ∨ m = 1) → navX v m u = u ∧ navY v m u = u) ∧
+    (∀ i j Y inset lw, x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧
+      imgTy v j Y 0 1 = 0 ∧ wd v 1 / wp v = 1 ∧ ht v 1 / hp v = 1 ∧ ht v 1 - hp v = 0 ∧ logoT v inset lw 1 = 0 ∧
+      panelO 1 = 1 ∧ panelBlur v 1 = 0) := by
+  have hV : 320 ≤ v.w ∧ 300 ≤ v.h := of_decide_eq_true (List.all_eq_true.mp valid_bands v hv)
+  exact ⟨fun a _ f _ => track_ends v hv a.ks f, fun m u hm => nav_ends v hv m u hm,
+    fun i j Y inset lw => content_end v hV i j Y inset lw⟩
+
+#guard endsOk ⟨390, 844⟩ .grid && endsOk ⟨390, 844⟩ .time && Ks.last .time == 1500
 
 end Fw.Parts.MorphGeom
