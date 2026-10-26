@@ -22362,7 +22362,6 @@
    "writes": [
     "apps/site/src/parts/platform/fade.driver.ts",
     "apps/site/src/parts/platform/fade.logic.ts",
-    "apps/site/src/parts/platform/fade.test.ts",
     "apps/site/src/parts/platform/platform.module.css",
     "apps/site/src/parts/platform/part.json",
     "apps/site/src/parts/platform/scene.ts",
@@ -22384,13 +22383,14 @@
     "apps/site/src/parts/morph.tween/index.tsx",
     "apps/site/src/App.tsx",
     "apps/site/src/parts/platform/index.tsx",
-    "apps/site/src/parts/platform/fadedpause.test.ts",
     "lean/Fw/Parts/PlatformFadedPause*.lean",
     "packages/contracts/golden/parts/platform-faded-pause.jsonl",
     "packages/contracts/golden/parts/footprint*.gen.json",
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Parts/FootprintRows.lean",
-    "lean/Fw/Parts/Bridge.lean"
+    "lean/Fw/Parts/Bridge.lean",
+    "apps/site/src/parts/platform/*.test.ts",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl"
    ]
   },
   {
@@ -22438,7 +22438,8 @@
     "packages/measure-chromium/test/faithful.test.mjs",
     "research/notes/2026/10-2x-faithful-empty-guard.md",
     "docs/team/handoffs/faithful-empty-guard.md"
-   ]
+   ],
+   "evidence": "f4369b9"
   }
  ],
  "deadline": {

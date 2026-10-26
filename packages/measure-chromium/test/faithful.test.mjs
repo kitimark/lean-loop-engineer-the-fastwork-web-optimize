@@ -9,7 +9,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { fwcoreBin } from '../src/fwcore.mjs';
-import { PROFILES, REGION, regionOf, summarize, verdictRun, metaOf, load, leanSource } from '../src/faithful.mjs';
+import { PROFILES, REGION, regionOf, summarize, verdictRun, metaOf, load, leanSource, stateOf, undecidedZones, namedLines } from '../src/faithful.mjs';
 
 const GOLDEN = join(dirname(fileURLToPath(import.meta.url)), '../../contracts/golden/faithful');
 const read = (f) => readFileSync(join(GOLDEN, f), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -38,6 +38,32 @@ test('the goldens pin both outcomes and the refusal', () => {
   const fail = cases.filter((c) => c.response.pass === false).length;
   const err = cases.filter((c) => c.response.error !== undefined).length;
   assert.ok(pass >= 2 && fail >= 5 && err === 1, `pass ${pass} fail ${fail} error ${err}`);
+});
+
+test('no golden passes without evidence: no zone or an empty zone is undecided, and the caller prints UNDECIDED', () => {
+  const und = cases.filter((c) => c.response.undecided !== undefined);
+  assert.ok(und.length >= 5, `undecided ${und.length}`);
+  for (const c of und) {
+    assert.equal(c.response.pass, false, c.name);
+    assert.deepStrictEqual(c.response.failedZones, [], c.name);
+    assert.match(stateOf(c.response), /^UNDECIDED \((no zone to judge|no evidence: .+)\)$/, c.name);
+    assert.deepStrictEqual(namedLines('swipe-v1', { refusal: null, undecided: c.response.undecided }),
+      [`UNDECIDED: swipe-v1: ${c.response.undecided}`], c.name);
+    assert.equal(summarize(c.response).undecided, c.response.undecided, c.name);
+  }
+  const none = cases.find((c) => c.name.startsWith('zones asks for no zone'));
+  assert.equal(stateOf(none.response), 'UNDECIDED (no zone to judge)');
+  const empty = cases.find((c) => c.name.startsWith('tail has 0 frames and no cells'));
+  assert.equal(stateOf(empty.response), 'UNDECIDED (no evidence: tail)');
+  assert.deepStrictEqual(undecidedZones(empty.response), ['tail']);
+  assert.deepStrictEqual(summarize(empty.response).zones.map((z) => z.undecided), [undefined, undefined, true]);
+  const mixed = cases.find((c) => c.name.startsWith('a failing zone next to an empty zone'));
+  assert.equal(stateOf(mixed.response), 'FAIL y04000');
+  assert.deepStrictEqual(undecidedZones(mixed.response), ['tail']);
+  for (const c of cases.filter((x) => x.response.undecided === undefined && x.response.error === undefined)) {
+    assert.match(stateOf(c.response), /^(PASS|FAIL )/, c.name);
+    assert.deepStrictEqual(namedLines('swipe-v1', { refusal: null, undecided: null }), [], c.name);
+  }
 });
 
 test('regionOf keeps exactly the region zones, in file order', () => {
