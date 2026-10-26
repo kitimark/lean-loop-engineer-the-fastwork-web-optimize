@@ -22802,7 +22802,8 @@
     "packages/contracts/golden/morph-geom/**",
     "research/notes/2026/10-2x-morph-geom-lean.md",
     "docs/team/handoffs/morph-geom-lean.md"
-   ]
+   ],
+   "evidence": "b859548"
   }
  ],
  "deadline": {
