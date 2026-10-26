@@ -84,7 +84,7 @@ test('navigateTab: a tab wait that would end past the step bound is not started'
   assert.equal(r, fresh);
 });
 
-test('onePassRetrying: a pass retry decided after 477 s of a 35 min step is refused (PASS_NEED_S from the golden)', async () => {
+test('onePassRetrying: a pass retry decided 1 s after the last admitted second of a 35 min step is refused (PASS_NEED_S from the golden)', async () => {
   const env = { ...process.env };
   process.env.FW_MEASURE_T0_MS = String(Date.now() - (gateBoundS(35) - PASS_NEED_S + 1) * 1000);
   process.env.FW_WK_STEP_MIN = '35';

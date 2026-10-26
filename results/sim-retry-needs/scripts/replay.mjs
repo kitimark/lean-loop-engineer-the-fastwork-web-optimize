@@ -8,13 +8,15 @@ const [root, piecesPath, outPath] = process.argv.slice(2);
 const sh = await import(pathToFileURL(join(root, 'packages/measure-webkit/src/sim-host.mjs')).href);
 const jobs = JSON.parse(readFileSync(piecesPath, 'utf8'));
 const tabWaitMs = sh.NAV_WAIT_MS * 8;
+const best = { scroll: 876, pass: 1563 };
 const arms = {
-  derived: { scroll: sh.SCROLL_NEED_S, pass: sh.PASS_NEED_S, tab: true },
-  derivedNoTab: { scroll: sh.SCROLL_NEED_S, pass: sh.PASS_NEED_S, tab: false },
-  shipped: { scroll: 589, pass: 436, tab: false },
-  derivedFromServing: { scroll: sh.SCROLL_NEED_S, pass: sh.PASS_NEED_S, tab: true, fromServing: true },
+  deployed: { scroll: sh.SCROLL_NEED_S, pass: sh.PASS_NEED_S, tab: true },
+  deployedNoTab: { scroll: sh.SCROLL_NEED_S, pass: sh.PASS_NEED_S, tab: false },
+  best: { ...best, tab: true },
+  bestNoTab: { ...best, tab: false },
+  bestFromServing: { ...best, tab: true, fromServing: true },
 };
-const out = { needs: { scrollNeedS: sh.SCROLL_NEED_S, passNeedS: sh.PASS_NEED_S, tabNeedS: sh.tabNeedS(tabWaitMs), shipped: { scroll: 589, pass: 436 } }, arms: {} };
+const out = { needs: { scrollNeedS: sh.SCROLL_NEED_S, passNeedS: sh.PASS_NEED_S, tabNeedS: sh.tabNeedS(tabWaitMs), best }, arms: {} };
 for (const [name, a] of Object.entries(arms)) {
   const refused = [];
   const byKind = { scroll: 0, pass: 0, tab: 0 };

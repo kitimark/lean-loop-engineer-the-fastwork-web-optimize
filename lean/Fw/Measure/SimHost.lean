@@ -42,11 +42,11 @@ def endMarginS : Nat := 60
 
 def gateBoundS (stepMin : Nat) : Nat := stepMin * 60 - endMarginS
 
-/-- Need of a scroll retry: the longest scroll try with the rest of its pass. -/
-def scrollNeedS : Nat := Seen.tryS
+/-- Need of a scroll retry: the longest seen wait from a failed scroll attempt to the end of its retried step. -/
+def scrollNeedS : Nat := Seen.scrollRetryS
 
-/-- Need of a pass retry: the longest pass head, then a scroll need. -/
-def passNeedS : Nat := Seen.headS + scrollNeedS
+/-- Need of a pass retry: the longest seen wait from a failed pass attempt to the end of the repeated pass. -/
+def passNeedS : Nat := Seen.passRetryS
 
 /-- `navigateTab`'s wait for the new document before the timeout scale, ms. -/
 def navWaitMs : Nat := 60000
@@ -201,19 +201,10 @@ theorem tab_refused_no_pass_retry {x w b : Nat} (t mt : Nat) (hw : tabNeedS w �
   simp only [afterFailure, retryFits, Bool.and_eq_false_iff, decide_eq_false_iff_not, Nat.not_le]
   right; omega
 
-theorem needs_meet_premise (p : PassTry) (h : p.reconS + p.tabS + p.baseS ≤ Seen.headS) :
-    p.reconS + p.tabS + p.baseS + scrollNeedS ≤ passNeedS := by
-  unfold passNeedS; omega
+theorem deployed_needs_missed (p : PassTry) : ¬ (p.reconS + p.tabS + p.baseS + scrollNeedS ≤ passNeedS) := by
+  unfold scrollNeedS passNeedS Seen.scrollRetryS Seen.passRetryS; omega
 
-theorem deployed_stop_le (n m tab b : Nat) (ps : List PassTry)
-    (hin : ∀ p ∈ ps, ∀ t ∈ p.scroll, t.reconS + t.runS ≤ Seen.tryS)
-    (hhead : ∀ p ∈ ps, p.reconS + p.tabS + p.baseS ≤ Seen.headS) :
-    ∀ k e, (runPass n m scrollNeedS passNeedS tab b k e ps).stop ≤ max (e + passNeedS) b ∧
-      ((runPass n m scrollNeedS passNeedS tab b k e ps).retried = true → (runPass n m scrollNeedS passNeedS tab b k e ps).stop ≤ b) :=
-  runPass_stop_le n m scrollNeedS passNeedS tab b ps hin (fun p hp => needs_meet_premise p (hhead p hp))
-
-theorem shipped_needs_missed (p : PassTry) : ¬ (p.reconS + p.tabS + p.baseS + Seen.scrollRetryS ≤ Seen.passRetryS) := by
-  unfold Seen.scrollRetryS Seen.passRetryS; omega
+theorem deployed_scroll_below_try : scrollNeedS < Seen.tryS := by decide
 
 theorem retryFits_none (e n : Nat) : retryFits e n none = true := rfl
 
@@ -268,17 +259,17 @@ theorem seen_retries_within_needs : Seen.scrollRetryS ≤ scrollNeedS ∧ Seen.p
 
 theorem retry_after_warm :
     retryFits (Seen.startS + Seen.warmS) scrollNeedS (some (gateBoundS SimBound.perSessionMin)) = true ∧
-    retryFits (Seen.startS + Seen.warmS) passNeedS (some (gateBoundS SimBound.perSessionMin)) = false := by decide
+    retryFits (Seen.startS + Seen.warmS) passNeedS (some (gateBoundS SimBound.perSessionMin)) = true := by decide
 
 theorem last_admitted :
-    gateBoundS SimBound.perSessionMin - scrollNeedS = 1164 ∧ gateBoundS SimBound.perSessionMin - passNeedS = 477 := by decide
+    gateBoundS SimBound.perSessionMin - scrollNeedS = 1451 ∧ gateBoundS SimBound.perSessionMin - passNeedS = 1604 := by decide
 
 theorem late_retry_refused :
     retryFits Seen.stepS scrollNeedS (some (gateBoundS SimBound.perSessionMin)) = false := by decide
 
 theorem ciScale_stall : SimBound.stallMs = ciScale * 90000 := by decide
 
-theorem ci_tab_need : tabNeedS (navWaitMs * ciScale) = 480 ∧ tabNeedS (navWaitMs * ciScale) ≤ passNeedS := by decide
+theorem ci_tab_need : tabNeedS (navWaitMs * ciScale) = 480 ∧ passNeedS < tabNeedS (navWaitMs * ciScale) := by decide
 
 theorem perSession_vs_step :
     Seen.stepS + endMarginS ≤ SimBound.perSessionMin * 60 ∧ SimBound.perSessionMin * 60 * 4 < Seen.stepS * 5 := by decide

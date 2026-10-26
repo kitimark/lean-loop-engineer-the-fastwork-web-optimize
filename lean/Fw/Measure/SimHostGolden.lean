@@ -11,7 +11,7 @@ def optJson : Option Nat → Json
 def boundCases : List (Option Nat) := [none, some 0, some 100, some (gateBoundS 35), some (gateBoundS 70)]
 
 def fitsCases : List (Nat × Nat) :=
-  [(0, 0), (0, scrollNeedS), (1164, scrollNeedS), (1165, scrollNeedS), (477, passNeedS), (478, passNeedS), (2040, 0), (2041, 0)]
+  [(0, 0), (0, scrollNeedS), (1451, scrollNeedS), (1452, scrollNeedS), (1604, passNeedS), (1605, passNeedS), (2040, 0), (2041, 0)]
 
 def tabCases : List (Nat × Nat) :=
   [(0, 0), (0, 1), (1560, 480000), (1561, 480000), (1999, 60000), (2000, 60001), (2040, 0)]
@@ -61,10 +61,10 @@ def checkRepo : IO Unit := check goldenPath
 
 def write (path : System.FilePath) : IO Unit := IO.FS.writeFile path goldenText
 
-#guard retryFits 1164 scrollNeedS (some 2040) == true
-#guard retryFits 1165 scrollNeedS (some 2040) == false
-#guard retryFits 477 passNeedS (some 2040) == true
-#guard retryFits 478 passNeedS (some 2040) == false
+#guard retryFits 1451 scrollNeedS (some 2040) == true
+#guard retryFits 1452 scrollNeedS (some 2040) == false
+#guard retryFits 1604 passNeedS (some 2040) == true
+#guard retryFits 1605 passNeedS (some 2040) == false
 #guard tabNeedS 60001 == 61
 #guard tabFits 1560 480000 (some 2040) == true
 #guard tabFits 1561 480000 (some 2040) == false

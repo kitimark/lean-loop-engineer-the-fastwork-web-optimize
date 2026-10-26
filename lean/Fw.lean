@@ -144,6 +144,8 @@ import Fw.Measure.SimPlan
 import Fw.Measure.SimBound
 import Fw.Measure.SimHost
 import Fw.Measure.SimHostGolden
+import Fw.Measure.SimRetryChoice
+import Fw.Measure.SimRetryData
 import Fw.Measure.Compose
 import Fw.Measure.ImageArm
 import Fw.Measure.TouchLock
