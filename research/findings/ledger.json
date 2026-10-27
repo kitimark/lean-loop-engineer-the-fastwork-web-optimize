@@ -4611,7 +4611,11 @@
    "lesson": "The scroll-step Simulator profile cannot see a morph that is driven by wheel or touch pushes: equal counts there are no evidence for or against a push-driven change; the push needs its own profile (events) on WebKit.",
    "next": "a WebKit lane that dispatches wheel or touch pushes; user look review (class L)",
    "evidence": "research/notes/2026/10-2x-morph-timed.md; apps/site/src/parts/morph.tween/geom-timed.golden.test.ts",
-   "userDecision": "pending",
+   "userDecision": {
+    "date": "2026-10-27",
+    "decision": "look rejected as is 2026-10-27, feel better: the user tried ?fw=morph.geom:on,morph.tween:geom-timed on the real iPhone and said it is smoother, but the navbar button animation is wrong and lifts a bit when the end opens, the navbar resize has a glitch, the end background shows only one column (the first, left), and after several pull in/out it sometimes returns to the valid display and is laggy again; the user suspects the column background images cause the lag (source: chat, user words)",
+    "review": "real iPhone via the console Builds tab, search ?fw=morph.geom:on,morph.tween:geom-timed; the bugs reproduce on Chromium, Safari on macOS and the iPhone (user)"
+   },
    "n": 93
   }
  ],
