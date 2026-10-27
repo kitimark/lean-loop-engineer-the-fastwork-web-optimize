@@ -2,6 +2,8 @@ import Lean.Data.Json
 import Fw.Engine.Resource
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
+import Fw.Measure.Offscreen
+import Fw.Parts.MorphTween
 
 namespace Fw.Measure.PushCycle
 open Lean
@@ -898,6 +900,293 @@ def censusCases : List (String × List (List Nat)) :=
    ("fall", [[20, 10, 10, 10, 10, 10], [20, 10, 10, 10, 10, 10], [20, 10, 10, 10, 10, 10]]),
    ("empty", [[], [], []])]
 
+/-- The tween duration in ms. -/
+def pushMs : Nat := 680
+
+theorem pushMs_eq : (pushMs : Rat) = Fw.Parts.MorphTween.duration := by
+  unfold pushMs Fw.Parts.MorphTween.duration; rfl
+
+/-- The write that starts a push lands before the first recorder frame that sees it. -/
+def pushLeadMs : Nat := 17
+
+/-- The end timer and the last style write land after the tween's duration. -/
+def pushTailMs : Nat := 100
+
+def winStart (t0 : Nat) : Nat := t0 - pushLeadMs
+
+def winEnd (t0 : Nat) : Nat := t0 + pushMs + pushTailMs
+
+/-- A page time `t` lies in the window of the push seen at `t0`. -/
+def inWin (t0 t : Nat) : Bool := decide (winStart t0 ≤ t ∧ t < winEnd t0)
+
+theorem win_len (t0 : Nat) (h : pushLeadMs ≤ t0) : winEnd t0 - winStart t0 = pushLeadMs + pushMs + pushTailMs := by
+  unfold winEnd winStart; omega
+
+theorem inWin_before (t0 t : Nat) (h : t < winStart t0) : inWin t0 t = false := by
+  unfold inWin; simp; omega
+
+theorem inWin_after (t0 t : Nat) (h : winEnd t0 ≤ t) : inWin t0 t = false := by
+  unfold inWin; simp; omega
+
+theorem inWin_inside (t0 t : Nat) (h0 : winStart t0 ≤ t) (h1 : t < winEnd t0) : inWin t0 t = true := by
+  unfold inWin; simp; omega
+
+theorem inWin_start (t0 : Nat) : inWin t0 t0 = true := by
+  unfold inWin winStart winEnd pushMs pushTailMs; simp; omega
+
+theorem inWin_morph_end (t0 : Nat) : inWin t0 (t0 + pushMs) = true := by
+  unfold inWin winStart winEnd pushMs pushTailMs; simp; omega
+
+def countIn (t0 : Nat) (ts : List Nat) : Nat := (ts.filter (inWin t0)).length
+
+theorem countIn_le (t0 : Nat) (ts : List Nat) : countIn t0 ts ≤ ts.length := List.length_filter_le _ _
+
+theorem countIn_append (t0 : Nat) (a b : List Nat) : countIn t0 (a ++ b) = countIn t0 a + countIn t0 b := by
+  simp [countIn, List.filter_append]
+
+def rowsIn (t0 : Nat) (ty : String) (rows : List (String × Nat)) : Nat :=
+  countIn t0 ((rows.filter (·.1 == ty)).map (·.2))
+
+/-- A frame gap above this many ms is slow. -/
+def slowMs : Nat := 34
+
+def slowIn (t0 : Nat) (ft : List Nat) : Nat :=
+  countIn t0 (((ft.zip ft.tail).filter fun p => decide (slowMs < p.2 - p.1)).map (·.2))
+
+structure PushWin where
+  style : Nat
+  layout : Nat
+  paint : Nat
+  raf : Nat
+  slow : Nat
+deriving Repr, DecidableEq
+
+/-- One pass: timeline rows (type, page ms), page rAF requests, recorder frame times, and the end of the recording. -/
+structure PushRec where
+  rows : List (String × Nat)
+  rafs : List Nat
+  frames : List Nat
+  endMs : Nat
+
+def winOf (r : PushRec) (t0 : Nat) : PushWin :=
+  ⟨rowsIn t0 "RecalculateStyles" r.rows, rowsIn t0 "Layout" r.rows, rowsIn t0 "Paint" r.rows, countIn t0 r.rafs, slowIn t0 r.frames⟩
+
+/-- A push counts only when its whole window lies inside the recording. -/
+def complete (r : PushRec) (t0 : Nat) : Bool := decide (winEnd t0 ≤ r.endMs)
+
+def windows (r : PushRec) (starts : List Nat) : List PushWin := (starts.filter (complete r)).map (winOf r)
+
+theorem windows_length_le (r : PushRec) (starts : List Nat) : (windows r starts).length ≤ starts.length := by
+  simp [windows]; exact List.length_filter_le _ _
+
+theorem windows_incomplete (r : PushRec) (t0 : Nat) (h : r.endMs < winEnd t0) : windows r [t0] = [] := by
+  have : complete r t0 = false := by unfold complete; simp; omega
+  simp [windows, this]
+
+theorem windows_complete (r : PushRec) (t0 : Nat) (h : winEnd t0 ≤ r.endMs) : windows r [t0] = [winOf r t0] := by
+  have : complete r t0 = true := by unfold complete; simp; omega
+  simp [windows, this]
+
+/-- One VM (one job of one run) and the windows of all its passes of one arm. -/
+structure VmPushes where
+  vm : Nat
+  wins : List PushWin
+
+/-- A VM counts only with at least this many windows. -/
+def minWins : Nat := 3
+
+/-- An arm and the base each need this many VMs. -/
+def pushMinVms : Nat := 3
+
+def usableVms (vs : List VmPushes) : List VmPushes := vs.filter fun v => decide (minWins ≤ v.wins.length)
+
+def vmCount (vs : List VmPushes) : Nat := ((usableVms vs).map (·.vm)).eraseDups.length
+
+def pushKeys : List String := ["style", "layout", "paint", "raf", "slow"]
+
+def PushWin.get (w : PushWin) : String → Nat
+  | "style" => w.style
+  | "layout" => w.layout
+  | "paint" => w.paint
+  | "raf" => w.raf
+  | _ => w.slow
+
+/-- Per VM, the mean count per window times 1000. -/
+def vmVec (v : VmPushes) : Offscreen.Vec :=
+  ⟨v.wins.length, pushKeys.map fun k => (k, rate (v.wins.map (·.get k)))⟩
+
+inductive PushWhy where
+  | fewBase
+  | fewArm
+deriving Repr, DecidableEq
+
+def PushWhy.name : PushWhy → String
+  | .fewBase => "fewBase"
+  | .fewArm => "fewArm"
+
+inductive PushVerdict where
+  | gain
+  | noGain
+  | undecided (w : PushWhy)
+deriving Repr, DecidableEq
+
+def PushVerdict.name : PushVerdict → String
+  | .gain => "gain"
+  | .noGain => "noGain"
+  | .undecided w => "undecided:" ++ w.name
+
+def cmpName : Offscreen.Cmp → String
+  | .less => "less"
+  | .same => "same"
+  | .more => "more"
+
+/-- Any counter above the base is no gain; else any below is a gain. -/
+def fromCmps (cs : List Offscreen.Cmp) : PushVerdict :=
+  if Offscreen.Cmp.more ∈ cs then .noGain else if Offscreen.Cmp.less ∈ cs then .gain else .noGain
+
+def armCmps (base arm : List VmPushes) : List Offscreen.Cmp :=
+  pushKeys.filterMap (Offscreen.cmpKey Offscreen.slack ((usableVms base).map vmVec) ((usableVms arm).map vmVec))
+
+/-- One arm against the base, per push window, over the VM spreads. -/
+def armVerdict (base arm : List VmPushes) : PushVerdict :=
+  if vmCount base < pushMinVms then .undecided .fewBase
+  else if vmCount arm < pushMinVms then .undecided .fewArm
+  else fromCmps (armCmps base arm)
+
+theorem fromCmps_more (cs : List Offscreen.Cmp) (h : Offscreen.Cmp.more ∈ cs) : fromCmps cs = .noGain := by
+  simp [fromCmps, h]
+
+theorem fromCmps_less (cs : List Offscreen.Cmp) (h0 : Offscreen.Cmp.more ∉ cs) (h1 : Offscreen.Cmp.less ∈ cs) :
+    fromCmps cs = .gain := by
+  simp [fromCmps, h0, h1]
+
+theorem fromCmps_same (cs : List Offscreen.Cmp) (h0 : Offscreen.Cmp.more ∉ cs) (h1 : Offscreen.Cmp.less ∉ cs) :
+    fromCmps cs = .noGain := by
+  simp [fromCmps, h0, h1]
+
+theorem armVerdict_fewBase (base arm : List VmPushes) (h : vmCount base < pushMinVms) :
+    armVerdict base arm = .undecided .fewBase := by
+  simp [armVerdict, h]
+
+theorem armVerdict_fewArm (base arm : List VmPushes) (h0 : ¬ vmCount base < pushMinVms) (h1 : vmCount arm < pushMinVms) :
+    armVerdict base arm = .undecided .fewArm := by
+  simp [armVerdict, h0, h1]
+
+theorem armVerdict_more (base arm : List VmPushes) (h0 : ¬ vmCount base < pushMinVms) (h1 : ¬ vmCount arm < pushMinVms)
+    (h : Offscreen.Cmp.more ∈ armCmps base arm) : armVerdict base arm = .noGain := by
+  simp [armVerdict, h0, h1, fromCmps_more _ h]
+
+theorem armVerdict_less (base arm : List VmPushes) (h0 : ¬ vmCount base < pushMinVms) (h1 : ¬ vmCount arm < pushMinVms)
+    (a : Offscreen.Cmp.more ∉ armCmps base arm) (b : Offscreen.Cmp.less ∈ armCmps base arm) :
+    armVerdict base arm = .gain := by
+  simp [armVerdict, h0, h1, fromCmps_less _ a b]
+
+theorem armVerdict_same (base arm : List VmPushes) (h0 : ¬ vmCount base < pushMinVms) (h1 : ¬ vmCount arm < pushMinVms)
+    (a : Offscreen.Cmp.more ∉ armCmps base arm) (b : Offscreen.Cmp.less ∉ armCmps base arm) :
+    armVerdict base arm = .noGain := by
+  simp [armVerdict, h0, h1, fromCmps_same _ a b]
+
+theorem armVerdict_gain_sound (base arm : List VmPushes) (h : armVerdict base arm = .gain) :
+    pushMinVms ≤ vmCount base ∧ pushMinVms ≤ vmCount arm ∧ Offscreen.Cmp.more ∉ armCmps base arm ∧
+      Offscreen.Cmp.less ∈ armCmps base arm := by
+  unfold armVerdict at h
+  by_cases h0 : vmCount base < pushMinVms
+  · simp [h0] at h
+  by_cases h1 : vmCount arm < pushMinVms
+  · simp [h0, h1] at h
+  simp only [h0, h1, ite_false] at h
+  unfold fromCmps at h
+  by_cases a : Offscreen.Cmp.more ∈ armCmps base arm
+  · simp [a] at h
+  by_cases b : Offscreen.Cmp.less ∈ armCmps base arm
+  · exact ⟨by omega, by omega, a, b⟩
+  · simp [a, b] at h
+
+/-- No style, layout, paint or page rAF in the window. -/
+def PushWin.quiet (w : PushWin) : Bool := w.style == 0 && w.layout == 0 && w.paint == 0 && w.raf == 0
+
+/-- No page rAF in the window. -/
+def PushWin.rafFree (w : PushWin) : Bool := w.raf == 0
+
+inductive QuietV where
+  | quiet
+  | stirred
+  | undecided
+deriving Repr, DecidableEq
+
+def QuietV.name : QuietV → String
+  | .quiet => "quiet"
+  | .stirred => "stirred"
+  | .undecided => "undecided"
+
+/-- Every window of every usable VM satisfies `p`, on at least `pushMinVms` VMs. -/
+def quietVerdict (p : PushWin → Bool) (vs : List VmPushes) : QuietV :=
+  if vmCount vs < pushMinVms then .undecided
+  else if (usableVms vs).all (fun v => v.wins.all p) then .quiet else .stirred
+
+theorem quietVerdict_few (p : PushWin → Bool) (vs : List VmPushes) (h : vmCount vs < pushMinVms) :
+    quietVerdict p vs = .undecided := by
+  simp [quietVerdict, h]
+
+theorem quietVerdict_quiet (p : PushWin → Bool) (vs : List VmPushes) (h0 : ¬ vmCount vs < pushMinVms)
+    (h1 : (usableVms vs).all (fun v => v.wins.all p) = true) : quietVerdict p vs = .quiet := by
+  simp [quietVerdict, h0, h1]
+
+theorem quietVerdict_stirred (p : PushWin → Bool) (vs : List VmPushes) (h0 : ¬ vmCount vs < pushMinVms)
+    (h1 : ¬ (usableVms vs).all (fun v => v.wins.all p) = true) : quietVerdict p vs = .stirred := by
+  simp [quietVerdict, h0, h1]
+
+theorem quietVerdict_sound (p : PushWin → Bool) (vs : List VmPushes) (h : quietVerdict p vs = .quiet) :
+    pushMinVms ≤ vmCount vs ∧ ∀ v ∈ usableVms vs, ∀ w ∈ v.wins, p w = true := by
+  unfold quietVerdict at h
+  by_cases h0 : vmCount vs < pushMinVms
+  · simp [h0] at h
+  by_cases h1 : (usableVms vs).all (fun v => v.wins.all p) = true
+  · refine ⟨by omega, ?_⟩
+    intro v hv w hw
+    simp only [List.all_eq_true] at h1
+    exact h1 v hv w hw
+  · simp [h0, h1] at h
+
+theorem quiet_zero (w : PushWin) (h : w.quiet = true) : w.style = 0 ∧ w.layout = 0 ∧ w.paint = 0 ∧ w.raf = 0 := by
+  simp [PushWin.quiet] at h; omega
+
+theorem quiet_rafFree (w : PushWin) (h : w.quiet = true) : w.rafFree = true := by
+  have := quiet_zero w h; simp [PushWin.rafFree, this.2.2.2]
+
+def pushRecs : List (String × PushRec × List Nat) :=
+  [("mixed", ⟨[("RecalculateStyles", 990), ("RecalculateStyles", 1000), ("Layout", 1010), ("Paint", 1700), ("Paint", 1779),
+      ("Paint", 1780), ("Layout", 982), ("Layout", 981), ("Composite", 1100)], [1000, 1200, 1779, 1780],
+      [900, 920, 960, 1000, 1100, 1140, 1150, 1790, 1830, 1900], 1800⟩, [1000, 1900]),
+   ("quiet", ⟨[("Layout", 100), ("Paint", 5000)], [], [1000, 1016, 1032, 1048, 1700, 1716, 1732, 1800], 4000⟩, [1000]),
+   ("two", ⟨[("Layout", 1100), ("Layout", 3100), ("Paint", 3200)], [1100, 3100, 3101], [1000, 1016, 1100, 1116, 3000, 3100], 5000⟩,
+      [1000, 3000]),
+   ("short", ⟨[("Layout", 5)], [3], [0, 40], 800⟩, [10]),
+   ("none", ⟨[], [], [], 0⟩, [])]
+
+def inWinCases : List (Nat × List Nat) :=
+  [(1000, [0, 982, 983, 1000, 1679, 1680, 1779, 1780, 2000]), (10, [0, 9, 10, 789, 790])]
+
+private def pw (a b c d e : Nat) : PushWin := ⟨a, b, c, d, e⟩
+
+private def vmSet (base : Nat) (w : Nat → PushWin) : List VmPushes :=
+  (List.range 3).map fun i => ⟨base + i, List.replicate 4 (w i)⟩
+
+def pushVmCases : List (String × List VmPushes × List VmPushes) :=
+  [("gain", vmSet 0 fun i => pw (10 + i) (8 + i) (9 + i) (40 + i) 2, vmSet 10 fun i => pw (3 + i) (2 + i) (4 + i) 0 0),
+   ("moreSlow", vmSet 0 fun i => pw (10 + i) (8 + i) (9 + i) (40 + i) 2, vmSet 10 fun i => pw (3 + i) (2 + i) (4 + i) 0 9),
+   ("same", vmSet 0 fun i => pw (10 + i) (8 + i) (9 + i) (40 + i) 2, vmSet 10 fun i => pw (10 + i) (8 + i) (9 + i) (40 + i) 2),
+   ("overlap", vmSet 0 fun i => pw (10 + 2 * i) 8 9 40 2, vmSet 10 fun i => pw (11 + i) 8 9 40 2),
+   ("fewBase", (vmSet 0 fun i => pw (10 + i) 8 9 40 2).take 2, vmSet 10 fun i => pw (3 + i) 2 4 0 0),
+   ("fewArm", vmSet 0 fun i => pw (10 + i) 8 9 40 2, (vmSet 10 fun i => pw (3 + i) 2 4 0 0).map fun v => ⟨v.vm, v.wins.take 2⟩),
+   ("dupVm", vmSet 0 fun i => pw (10 + i) 8 9 40 2, [⟨10, [pw 1 1 1 0 0, pw 1 1 1 0 0, pw 1 1 1 0 0]⟩, ⟨10, [pw 1 1 1 0 0, pw 1 1 1 0 0, pw 1 1 1 0 0]⟩,
+      ⟨11, [pw 1 1 1 0 0, pw 1 1 1 0 0, pw 1 1 1 0 0]⟩])]
+
+def pushQuietCases : List (String × List VmPushes) :=
+  [("allZero", vmSet 0 fun _ => pw 0 0 0 0 0), ("rafOnlyZero", vmSet 0 fun i => pw (1 + i) 2 3 0 1),
+   ("oneRaf", vmSet 0 fun i => pw 0 0 0 (if i = 1 then 1 else 0) 0), ("fewVms", (vmSet 0 fun _ => pw 0 0 0 0 0).take 2),
+   ("shortVm", (vmSet 0 fun _ => pw 0 0 0 0 0).map fun v => ⟨v.vm, v.wins.take 2⟩)]
+
 def vJ (v : Verdict) : Json := Json.str v.name
 
 open Lean in
@@ -959,7 +1248,23 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("withinBound", toJson (decide (r ≤ sepStretchBound)))]).compress
   let restOps := restCases.map fun (t, s, c) =>
     (Json.mkObj [("op", "rest"), ("target", toJson t), ("spent", toJson s), ("cap", toJson c), ("rest", toJson (restMs t s c))]).compress
-  [consts] ++ model ++ repaint ++ pool ++ upd ++ h1 ++ h2 ++ pix ++ tr ++ plan ++ phone ++ sepOps ++ clockOps ++ censusOps ++ restOps ++ cyclesOps
+  let pushConsts := (Json.mkObj [("op", "pushConstants"), ("pushMs", toJson pushMs), ("leadMs", toJson pushLeadMs), ("tailMs", toJson pushTailMs),
+    ("slowMs", toJson slowMs), ("minWins", toJson minWins), ("minVms", toJson pushMinVms)]).compress
+  let pushIn := inWinCases.map fun (t0, ts) =>
+    (Json.mkObj [("op", "pushInWin"), ("t0", toJson t0), ("ts", toJson ts), ("in", toJson (ts.map (inWin t0)))]).compress
+  let pushWins := pushRecs.map fun (name, r, starts) =>
+    (Json.mkObj [("op", "pushWindows"), ("case", Json.str name), ("rows", toJson (r.rows.map fun x => toJson [Json.str x.1, toJson x.2])),
+      ("rafs", toJson r.rafs), ("frames", toJson r.frames), ("endMs", toJson r.endMs), ("starts", toJson starts),
+      ("windows", toJson ((windows r starts).map fun w => [w.style, w.layout, w.paint, w.raf, w.slow]))]).compress
+  let vmsJ := fun (vs : List VmPushes) => toJson (vs.map fun v => Json.mkObj [("vm", toJson v.vm),
+    ("wins", toJson (v.wins.map fun w => [w.style, w.layout, w.paint, w.raf, w.slow]))])
+  let pushVerdicts := pushVmCases.map fun (name, b, a) =>
+    (Json.mkObj [("op", "pushVerdict"), ("case", Json.str name), ("base", vmsJ b), ("arm", vmsJ a), ("baseVms", toJson (vmCount b)),
+      ("armVms", toJson (vmCount a)), ("cmps", toJson ((armCmps b a).map cmpName)), ("verdict", Json.str (armVerdict b a).name)]).compress
+  let pushQuiets := pushQuietCases.map fun (name, vs) =>
+    (Json.mkObj [("op", "pushQuiet"), ("case", Json.str name), ("vms", vmsJ vs), ("quiet", Json.str (quietVerdict PushWin.quiet vs).name),
+      ("rafFree", Json.str (quietVerdict PushWin.rafFree vs).name)]).compress
+  [consts] ++ model ++ repaint ++ pool ++ upd ++ h1 ++ h2 ++ pix ++ tr ++ plan ++ phone ++ sepOps ++ clockOps ++ censusOps ++ restOps ++ cyclesOps ++ [pushConsts] ++ pushIn ++ pushWins ++ pushVerdicts ++ pushQuiets
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
