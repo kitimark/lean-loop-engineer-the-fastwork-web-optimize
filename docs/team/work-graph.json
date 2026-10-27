@@ -23171,7 +23171,8 @@
     "results/geom-page-diff/**",
     "docs/team/handoffs/geom-page-diff.md",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "cc0c048"
   },
   {
    "devices": [
