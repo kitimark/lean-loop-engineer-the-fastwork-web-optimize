@@ -23,3 +23,10 @@
 {"fn":"cross","in":{"c":0.4,"g":1,"m0":0.3},"out":35}
 {"fn":"cross","in":{"c":0.2,"g":0,"m0":0.6},"out":209}
 {"fn":"cross","in":{"c":0.001,"g":0,"m0":1},"out":612}
+{"fn":"take","in":{"darks":[[true]],"events":[{"e":0,"g":1}],"name":"dark-at-start"},"out":{"m":[0],"taken":[0]}}
+{"fn":"take","in":{"darks":[[false,false,false,true]],"events":[{"e":0,"g":1}],"name":"light-then-dark-3"},"out":{"m":[0.208547],"taken":[3]}}
+{"fn":"take","in":{"darks":[[]],"events":[{"e":0,"g":1}],"name":"never-dark"},"out":{"m":[0],"taken":[null]}}
+{"fn":"take","in":{"darks":[[],[false,false,true]],"events":[{"e":0,"g":1},{"e":1020,"g":0}],"name":"close-from-rest"},"out":{"m":[0,0.857375],"taken":[null,2]}}
+{"fn":"take","in":{"darks":[[true],[]],"events":[{"e":0,"g":1},{"e":1020,"g":0}],"name":"close-after-open"},"out":{"m":[0,1],"taken":[0,0]}}
+{"fn":"take","in":{"darks":[[],[false,true]],"events":[{"e":0,"g":1},{"e":340,"g":0}],"name":"reversal-while-pending"},"out":{"m":[0,0.79274],"taken":[null,1]}}
+{"fn":"take","in":{"darks":[[false,false,true],[false]],"events":[{"e":0,"g":1},{"e":340,"g":0}],"name":"reversal-after-take"},"out":{"m":[0.142625,0.875],"taken":[2,0]}}

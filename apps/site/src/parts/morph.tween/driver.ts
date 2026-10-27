@@ -189,6 +189,10 @@ export function createTweenDriver(env: TweenEnv) {
     updateFade();
     syncLock();
     if (!isActive()) arm();
+    if (st.pending && cancelFrame && startTimed()) {
+      cancelFrame();
+      cancelFrame = null;
+    }
   };
 
   const dropTimers = () => {

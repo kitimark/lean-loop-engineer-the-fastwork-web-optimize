@@ -60,7 +60,7 @@ export function createTimedGeom(env: TimedEnv): EffectSink & { take(from: number
   };
   const take = (from: number, to: number, start: number): boolean => {
     if (anims === null) {
-      if (!(to > from) || !env.allowed()) return false;
+      if (!env.allowed()) return false;
       const { vp, layout } = env.enter();
       anims = buildAnims(vp, layout);
     }

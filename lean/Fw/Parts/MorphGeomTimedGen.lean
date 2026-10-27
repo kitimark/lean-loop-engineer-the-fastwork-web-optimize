@@ -37,7 +37,49 @@ def crossLines (_ : Unit) : List String :=
     gline "cross" [("m0", jdec 6 m0), ("g", jdec 6 g), ("c", jdec 6 c)]
       (match crossMs m0 g c with | some n => .num ⟨n, 0⟩ | none => .null)
 
-def goldenText (_ : Unit) : String := String.join ((scenarioLines () ++ rebaseLines () ++ crossLines ()).map (· ++ "\n"))
+/-- Take-retry scenarios: events and, per push, the on-dark reading at frames 0, 1, ...; missing frames read light. -/
+def takeScenarios : List (String × List Ev × List (List Bool)) :=
+  [("dark-at-start", [⟨0, 1⟩], [[true]]), ("light-then-dark-3", [⟨0, 1⟩], [[false, false, false, true]]),
+    ("never-dark", [⟨0, 1⟩], [[]]), ("close-from-rest", [⟨0, 1⟩, ⟨1020, 0⟩], [[], [false, false, true]]),
+    ("close-after-open", [⟨0, 1⟩, ⟨1020, 0⟩], [[true], []]),
+    ("reversal-while-pending", [⟨0, 1⟩, ⟨340, 0⟩], [[], [false, true]]),
+    ("reversal-after-take", [⟨0, 1⟩, ⟨340, 0⟩], [[false, false, true], [false]])]
+
+def tickMs : Nat := 17
+
+/-- Frames of push `i`: those before the next event, at most 40 (17 ms ticks inside the 680 ms tween). -/
+def frameCount (evs : List Ev) (i : Nat) : Nat :=
+  let e := (evs.getD i ⟨0, 0⟩).e
+  let gap : Rat := match evs[i + 1]? with | some n => n.e - e | none => 680
+  min 40 (((min gap 680).ceil).toNat / tickMs + 1)
+
+/-- The value a reversal starts from: the event-time ideal where the push before it is on the timed tracks; where it
+ran the faithful tween, the value of its last tick strictly before the event (a tick every `tickMs`, none at frame 0). -/
+def startValue (s : St) (e : Rat) (timed : Bool) : Rat :=
+  let el := e - s.start
+  if timed || 680 < el then idealM s e
+  else idealM s (s.start + ((((el.ceil).toNat - 1) / tickMs * tickMs : Nat) : Rat))
+
+/-- Per push: taken frame (or none) and the ideal value at that frame; `anims` carries over after a take. -/
+def takeRows (evs : List Ev) (darks : List (List Bool)) : List (Option Nat × Rat) :=
+  let go := fun (acc : Bool × Bool × St × List (Option Nat × Rat)) (i : Nat) =>
+    let ev := evs.getD i ⟨0, 0⟩
+    let s := push { acc.2.2.1 with value := startValue acc.2.2.1 ev.e acc.2.1 } ev.g false ev.e
+    let d := darks.getD i []
+    let r := takeFrame s.f s.t acc.1 (fun k => d.getD k false) (frameCount evs i)
+    let m := match r with | some k => idealM s (ev.e + (k * tickMs : Nat)) | none => 0
+    (acc.1 || r.isSome, r.isSome, s, acc.2.2.2 ++ [(r, m)])
+  ((List.range evs.length).foldl go (false, false, MorphTween.rest, [])).2.2.2
+
+def takeLines (_ : Unit) : List String :=
+  takeScenarios.map fun (n, evs, darks) =>
+    let rows := takeRows evs darks
+    gline "take" [("name", .str n), ("events", jl (evs.map fun ev => Json.mkObj [("e", jdec 6 ev.e), ("g", jdec 0 ev.g)])),
+      ("darks", jl (darks.map fun d => jl (d.map fun b => Json.bool b)))]
+      (Json.mkObj [("taken", jl (rows.map fun r => match r.1 with | some k => .num ⟨k, 0⟩ | none => .null)),
+        ("m", jl (rows.map fun r => jdec 6 r.2))])
+
+def goldenText (_ : Unit) : String := String.join ((scenarioLines () ++ rebaseLines () ++ crossLines () ++ takeLines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
@@ -55,5 +97,8 @@ def gen (args : List String) : IO UInt32 := do
 #guard idealAt [⟨0, 1⟩] 340 == 7 / 8
 #guard idealAt [⟨0, 1⟩, ⟨340, 0⟩] 340 == 7 / 8
 #guard (rebase panelTrack 0 1).length == 4
+#guard (takeRows [⟨0, 1⟩] [[false, false, false, true]]).map (·.1) == [some 3]
+#guard (takeRows [⟨0, 1⟩, ⟨1020, 0⟩] [[], [false, false, true]]).map (·.1) == [none, some 2]
+#guard (takeRows [⟨0, 1⟩, ⟨1020, 0⟩] [[true], []]).map (·.1) == [some 0, some 0]
 
 end Fw.Parts.MorphGeomTimed
