@@ -24,14 +24,15 @@ The labels are the Lean rule `pushLabel` (`armLabel` over the columns against th
   the base and frames over 50 ms are higher; the rule counts the columns, the felt smoothness is the user's. It is a class L arm:
   its look stays the user's visual review, never a preset.
 - morph.geom:on: mixed (lower p95, p99 and max, higher over-50 count and 2x style recalculation).
-- morph.stage:on: worse on every tail column and 2.3x paint; one visit has a 1145 ms frame.
+- morph.stage:on: worse by the rule on frames over 50 ms (175 vs 56) and on every count column (2.4x paint). Its p95, p99
+  and max medians are higher but overlap the base, so those cells are same. One visit has a 1145 ms frame.
 - Unpinned base trial (110 s, thermal Nominal to Fair) gave p95 36, p99 42 ms: at Serious the base is about twice as slow, so
   numbers are only comparable inside this run.
 - The push is a fixed XCUITest swipe (forward, hold, back, hold), not the user's recorded finger path. Serious is the only
   thermal state. n = 3 per arm is the rule's minimum; ranges overlap for p95 and p99 between arms, so only max and the count
   columns separate them.
 - Pin end: our condition owner stopped and the clear was confirmed; the phone still read Critical for 5 minutes from its own heat
-  (`end heatRemains`) and read Fair afterwards.
+  (`end heatRemains`).
 
 ## Cause of the round-2 hang (MEASURED, 2026-10-27)
 Round 2 blamed the automation switch. With UI Automation on, the driver works, and the real cause was the driver's file channel:
