@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isLocalRelative, mainCheckout, rawResolveIn } from '../src/device-raw-dir.mjs';
+import { isLocalRelative, mainCheckout, rawResolveFrom, rawResolveIn } from '../src/device-raw-dir.mjs';
 
 const src = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const git = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', ...a], { cwd, encoding: 'utf8' });
@@ -20,6 +20,14 @@ test('a relative .local path resolves against the main checkout, any other path 
   assert.equal(rawResolveIn('/m', '.localx/y'), join(process.cwd(), '.localx/y'));
   assert.equal(rawResolveIn('/m', 'a/.local/y'), join(process.cwd(), 'a/.local/y'));
   assert.ok(isLocalRelative('.local/x') && !isLocalRelative('/m/.local/x') && !isLocalRelative(undefined));
+});
+
+test('a path that lands in the worktree .local moves to the main .local, whatever its spelling', () => {
+  assert.equal(rawResolveFrom('/m', '/w', '/w/.local/phone/r1'), '/m/.local/phone/r1');
+  assert.equal(rawResolveFrom('/m', '/w', '/w/.local'), '/m/.local');
+  assert.equal(rawResolveFrom('/m', '/w', '/w/research/out'), '/w/research/out');
+  assert.equal(rawResolveFrom('/m', '/m', '/m/.local/x'), '/m/.local/x');
+  assert.equal(rawResolveFrom('/m', null, '/w/.local/x'), '/w/.local/x');
 });
 
 test('device CLIs route every path through the raw-dir resolver', () => {
@@ -48,5 +56,9 @@ test('from a worktree, mainCheckout is the main checkout and the push CLI reads 
     const summary = JSON.parse(readFileSync(join(wt, 'out', 'summary.json'), 'utf8'));
     assert.deepEqual(summary.notRun.map((v) => v.index), [1]);
     assert.throws(() => readFileSync(join(wt, '.local', 'phone', 'r1', 'state.json')));
+    const sub = join(wt, 'packages', 'x');
+    mkdirSync(sub, { recursive: true });
+    execFileSync('node', [join(src, 'device-push-cli.mjs'), 'reduce', '--dir', '../../.local/phone/r1', '--out', 'out2'], { cwd: sub, encoding: 'utf8' });
+    assert.deepEqual(JSON.parse(readFileSync(join(sub, 'out2', 'summary.json'), 'utf8')).notRun.map((v) => v.index), [1]);
   } finally { rmSync(t, { recursive: true, force: true }); }
 });
