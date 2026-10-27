@@ -23203,6 +23203,34 @@
     "results/timed-m0-webkit/**",
     "docs/team/handoffs/timed-m0-webkit.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-flip-p95",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-veil-restore",
+    "phone-cols-probe",
+    "raw-local-main"
+   ],
+   "title": "iPhone push lane with the veil restored: base, morph.geom:on, geom:on+geom-timed in a Williams order at pinned Serious, raw per-frame timelines kept in main .local; name what makes the flip path's p95 and over-50 frames slow per frame (style, layout, paint, commit, script) and the veil layer's cost against run r2.",
+   "writes": [
+    "research/notes/2026/10-2x-phone-flip-p95.md",
+    "results/phone-flip-p95/**",
+    "docs/team/handoffs/phone-flip-p95.md",
+    "research/findings/ledger.json",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    "lean/Fw/Device/*.lean",
+    "packages/contracts/golden/device/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl"
+   ]
   }
  ],
  "deadline": {
