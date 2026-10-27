@@ -1,13 +1,10 @@
-branch: worktree-wf_e3f8d34f-d4e-1; worktree: .claude/worktrees/wf_e3f8d34f-d4e-1 (CI branch ci/morph-geom at 81d8d6d2c)
-last commit: see git log (round 2 head, after 81d8d6d2c there is the backdrop-premise fix not yet pushed)
-CI runs (push 1 of 3 used; dispatches by `fw run`, logs in scratchpad/morph-geom/*.log of the session):
-- 40427659737 lean: success. 40427659591 premise-tests: FAILED, one finding (below). 40427659517 breakpoint-gate push (no flag): success.
-- 40428166855 breakpoint-gate dispatch --fw morph.geom:on (both engines): queued at last look.
-- 40428218497 chromium-counts base (push-cycle-d1000, 3 runs): success, filed; 40428270226 chromium-counts flag morph.geom:on: running at last look.
-- webkit-sim (3 VMs each, --no-route because the Codemagic app id is unset): 40428422068 (nonce fb2ce1c6e784643f, base) and 40428440889 (nonce bb4308f135c5f629, flag morph.geom:on), both queued at last look. Wait with `pnpm -s fw ci wait --branch ci/morph-geom --workflow webkit-sim --nonce <n>`, poll >= 120 s, exit 3 = still waiting. Read with `pnpm -s fw run ... --from-run webkit=<id>`.
-verified: check.sh green (slot) at ff41866c1; ci-paths 56/56; runner land-inputs + ledger-merge 114 pass; site morph.geom tests 8 pass; premise-tests static 3 pass; local Chromium debug run of the 4 new premises passed (not a result).
-done this round: veil folded into solid D (Lean layers/anims/Rect, golden 679 lines, TS tracks/tree/css); MorphGeomCounts net bytes per band (fold = 10 of 12 at level 0, 12 of 12 with platform dropped); MorphGeomLook.lean lookup lemmas; earnClip/earnLabel/backdropClip/Kb/Ub wrappers in tree.ts + geom.css; four premises + pages.
-finding: premise backdrop.masked-ancestor does not hold on Playwright WebKit (no backdrop-filter; control stripe edge unblurred). Fixed locally by narrowing to chromium in Premise.lean (committed, not pushed); needs the next push to turn the lane green.
-open: (1) read the runs above (gate verdict, Chromium windows with the Lean reader + minFrames, WebKit zones minVms 3); (2) look premise page (11 m points per band and region) NOT built: it needs a built-site pixel harness; (3) WebKit Simulator census of the faithful morph-frame layers NOT built: no lane dumps faithful layer backings, so the faithful level (0 or 2) is undecided, hence net bytes are stated per level; (4) geom.css wrappers never viewed in a browser (earn clip, backdrop Kb/Ub); (5) time tracks right for 0-to-1 only; (6) dry land queued but waiting for memory in the slot at the end of the round (not delivered): `pnpm -s fw slot run --kind land --cache -- pnpm -s fw land worktree-wf_e3f8d34f-d4e-1 --task morph-geom --dry`, then `fw review ready`; (7) push the backdrop-premise fix (push 2 of 3) with --lanes premise-tests; ledger row n=91 exists.
-conventions: change Lean `anims`, regenerate packages/contracts/golden/morph-geom.jsonl (lake env lean --run scripts/MorphGeomGolden.lean prints, redirect to the file), then tracks.ts.
-read first: research/notes/2026/10-2x-morph-geom.md.
+branch: worktree-wf_e3f8d34f-d4e-1; worktree: .claude/worktrees/wf_e3f8d34f-d4e-1 (CI branch ci/morph-geom at ab37c5e84; pushes used 2 of 3)
+last commit: see git log
+CI runs: 40427659737 lean ok; 40427659591 premise-tests failed (backdrop on WebKit); 40430312224 premise-tests (push 2) success;
+ 40428166855 gate with flag: chromium pass, playwright-webkit pass (0 fail); 40428218497 Chromium base, 40428270226 Chromium flag
+ (profile push-cycle-d1000: counts equal, Lean window reader refuses it, needs swipe-touch-v1); webkit-sim 40428422068 (base,
+ nonce fb2ce1c6e784643f) and 40428440889 (flag, nonce bb4308f135c5f629): queued/running at hand-back.
+verified: look report local Chromium (packages/premise-tests/src/look.mjs, results/morph-geom/look-chromium-local.json), not a CI result.
+open: WebKit counts (fw run ... --from-run webkit=<id>, offscreen-webkit-cli.mjs, minVms 3); swipe-touch-v1 Chromium pair; faithful
+ morph-frame census (level 0 vs 2 undecided); no CI lane runs look.mjs (no workflow edit in the task writes); time tracks 0-to-1 only.
+read first: research/notes/2026/10-2x-morph-geom.md (Results section).

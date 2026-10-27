@@ -1,7 +1,6 @@
 # morph.geom:on: the site half (task morph-geom)
 
-Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. This round built the part and the memory
-decision; the premises, the look report, the gate and the counts were not run (state partial, see Open).
+Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. Round 3 read the premises, the gate and the Chromium counts and ran the look report locally (see Results).
 
 ## Memory decision (round 2: veil folded)
 The veil is folded into the solid fill D: no veil layer, no veil track, the panel's veil element is `display: none` under
@@ -57,3 +56,47 @@ Chromium (local, not a result) passed all four.
 ## TS stand-ins
 `tracks.ts` (floats, 40-step bisection), `driver.ts`'s `timeOf` (inverse tween for the time tracks), `tree.ts` (DOM glue).
 The `composed` to `anims` lookup lemma in Lean is not written.
+
+## Results (round 3)
+| item | run | reading |
+|---|---|---|
+| premise-tests, push 2 (backdrop.masked-ancestor narrowed to Chromium) | 40430312224 | success |
+| breakpoint gate, `morph.geom:on`, both engines | 40428166855 | chromium pass (504 cells, 0 fail, 7 excused); playwright-webkit pass (504 cells, 0 fail, 291 excused) |
+| Chromium counts, base vs flag, 3 runs each | 40428218497 vs 40428270226 | profile push-cycle-d1000; counts equal to the unit except raster.invalidatedLayers (base 4111/4113/4107, flag 4112/4107/4111) and Layer.deleted (base 29/41/29, flag 29/29/29). No Animation.* count differs |
+| WebKit Simulator counts, base and flag, 3 VMs | 40428422068, 40428440889 | still queued or running at hand-back (pending) |
+
+Chromium counts: the Lean window reader (`OffscreenWindows`, minFrames 34/20/40/60/20/174) defines windows for swipe-touch-v1
+only and refuses these counts.json (profile push-cycle-d1000), so no window verdict exists for this flag. The equal counts
+say the push-cycle profile does not exercise the morph frames (or the flag did not enter the flip there); they are not
+evidence of a saving. A swipe-touch-v1 run of both arms is the follow-up that makes the reader apply.
+
+Look report (LOCAL debug run on this Mac, Chrome stable, not a CI result; script `packages/premise-tests/src/look.mjs`,
+numbers `results/morph-geom/look-chromium-local.json`). The faithful arm writes `--morph = m` by hand; the flag arm gets the
+same writes and its driver pauses the effects at 1000 m (time tracks at the tween time that shows m). Region nav: max
+channel delta / share of pixels over 12 (percent), nav rect union of both arms.
+
+| band | 0 | .01 | .05 | .08 | .15 | .2 | .32 | .5 | .55 | .8 | 1 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 320x568 | 0/0 | 110/0 | 214/3.4 | 48/5.9 | 15/0.8 | 45/0 | 15/0.4 | 7/0 | 11/0 | 88/0.1 | 7/0 |
+| 360x640 | 206/0.4 | 205/0.3 | 201/0.3 | 234/0.2 | 185/0.8 | 178/0.9 | 16/0.1 | 6/0 | 11/0 | 89/0 | 18/0 |
+| 390x844 | 51/0.1 | 0/0 | 0/0 | 0/0 | 1/0 | 1/0 | 3/0 | 7/0 | 14/0 | 89/0.1 | 39/0.8 |
+| 430x932 | 0/0 | 0/0 | 0/0 | 0/0 | 1/0 | 2/0 | 2/0 | 15/0 | 10/0 | 92/0.4 | 43/0.8 |
+| 640x360 | 0/0 | 0/0 | 0/0 | 0/0 | 2/0 | 1/0 | 2/0 | 6/0 | 7/0 | 83/0 | 6/0 |
+| 640x1000 | 7/0 | 0/0 | 0/0 | 9/0 | 2/0 | 4/0 | 13/0 | 8/0 | 23/0.1 | 101/1.7 | 40/2.3 |
+| 641x700 | 0/0 | 0/0 | 0/0 | 0/0 | 1/0 | 2/0 | 6/0 | 8/0 | 6/0 | 67/0.1 | 11/0 |
+| 768x1024 | 1/0 | 7/0 | 8/0 | 197/5.4 | 85/6.9 | 5/0 | 66/4.3 | 35/1.8 | 10/0 | 75/0.1 | 13/0 |
+| 1024x768 | 3/0 | 23/4.8 | 15/0.5 | 26/1.7 | 23/1.5 | 13/0 | 21/0.4 | 14/0 | 10/0 | 89/0.1 | 13/0 |
+| 1280x800 | 0/0 | 0/0 | 0/0 | 0/0 | 2/0 | 2/0 | 3/0 | 6/0 | 5/0 | 66/0.1 | 13/0 |
+| 1440x900 | 3/0 | 8/0 | 6/0 | 6/0 | 135/0 | 35/0 | 11/0 | 11/0 | 13/0 | 79/0.2 | 15/0 |
+| 1920x1080 | 0/0 | 0/0 | 0/0 | 0/0 | 14/0 | 22/0.5 | 16/0.1 | 7/0 | 9/0 | 80/0.1 | 2/0 |
+
+Reading: E at m = 0 is not pixel-exact in 360x640 and 390x844 (206 and 51 at m = 0, where the flag has no effects: page
+animation drift between two loads, not the flag), at m = 1 the nav differs by at most 43 (430x932) with 0.8 percent over 12 in the
+three narrow bands 390, 430 and 640x1000. Mid-morph deltas are large only in a few cells (320x568 .05/.08, 768x1024 .08-.5,
+1024x768 .01): the class L look change. The region outside the nav is dominated by page animation drift between the two
+loads and is not reported as a look reading. Accepted limits: one engine (Chromium), one local run, no WebKit look.
+
+## Memory decision, final statement
+Per level, proved in `MorphGeomCounts.lean`: level 0 (faithful backs the nav only): flip fits 10 of 12 bands, 12 of 12 with the
+platform dropped; level 2 (nav, panel, platform): 12 of 12. The faithful level stays undecided (no census lane exists), an
+accepted limit; the follow-up task is the faithful morph-frame layer census.
