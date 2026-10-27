@@ -22,8 +22,9 @@ Task geom-look-fade (graph r546). Follows geom-page-diff (note 10-2x-geom-page-d
 | 40585231399 | push 2 (2909997c6) | flip-cell both engines | Chromium on+timed, WebKit on (flip verify A4 flake at 11 of 12 bands: baseline passed, WebKit timed hung at the wheel, job hit the 60 min timeout) |
 | 40590730537 | dispatch on 2909997c6 | `fw run --gate` | Chromium on+timed complete and equal to run 1; WebKit flip-cell cancelled at the timeout |
 | 40594241212 | push 3 (7775f52b4) | timed Chromium only, bands flushed, 22 min budget | Chromium on (identical to runs 1, 2), WebKit on, Chromium timed m=0 equalised but m=1 tween did not start on 9 bands |
+| 40599995604 | push 4 (0f3242fb7) | on-dark copied onto base, nav colour wait; lanes breakpoint-gate and lean | success (all 11 jobs): Chromium on equal to runs 1-3, WebKit on (3rd JSON), Chromium timed m=0 near 0 and m=1 tween verified at 12 of 12 bands |
 
-Pushes: 3 of 3 (one wasted on the missing marker). Chromium 'on': 3 jobs on separate CI jobs, equal to 4 digits (page share differs by at most 0.0001 between jobs). WebKit 'on': 2 jobs with a JSON (runs 1 and 3, equal to 4 digits except 640x1000 m=0 nav 0.0000 vs 0.0057) plus one log (run 1); the third job did not complete (cancelled). Count of 3 not met for WebKit. Tables: results/geom-look-fade/table-*.md, owners.md, look-summary.json.
+Pushes: 4 of 4 (one wasted on the missing marker). Chromium 'on': 3 jobs on separate CI jobs, equal to 4 digits (page share differs by at most 0.0001 between jobs). Chromium 'on' now 4 jobs (runs 1-4, page m=1 within 0.0001). WebKit 'on': 3 jobs with a JSON (runs 1, 3, 4; page m=1 equal to 4 digits in all 12 bands; run 4 also equal in m=0). The count of 3 is met for both engines. Tables: results/geom-look-fade/table-*.md, owners.md, look-summary.json.
 
 ## Result: page share (pixels over 12 in the whole viewport), flip vs base
 
@@ -39,7 +40,7 @@ morph.geom:on, Chromium, before (40553185213) -> after (40594241212); WebKit equ
 | 1280x800 | 0.0000 > 0.0000 | 0.733 > 0.018 | 0.0768 > 0.0005 |
 | 1920x1080 | 0.0000 > 0.0001 | 0.811 > 0.013 | 0.4226 > 0.0003 |
 
-At m=1 the page share falls from 0.056-0.423 to at most 0.0284 (641x700; every other band 0.0025 or less). The flip cell still passes (all verify rows ok on Chromium; WebKit flip verify flaked at A4 in run 1, see open items). m=0.25/.5/.75 (nav, cols, page, 12 bands) are in table-on-*.md: nav falls from 0.31-0.78 to 0.011-0.196, cols from 0.1-0.93 to 0.04-0.35.
+At m=1 the page share falls from 0.056-0.423 to at most 0.0284 (641x700; every other band 0.0025 or less). The flip cell passes in run 4 on both engines (flip/on 48 of 48 rows ok, verify A3a/A4/A5 12 of 12 bands ok plus the 3+3 repeat bands; MEASURED run:40599995604). The WebKit A4 flake of run 1 (11 of 12) did not recur in runs 3 and 4; one flake in three WebKit runs. m=0.25/.5/.75 (nav, cols, page, 12 bands) are in table-on-*.md: nav falls from 0.31-0.78 to 0.011-0.196, cols from 0.1-0.93 to 0.04-0.35.
 
 ## What still differs, by element (results/geom-look-fade/owners.md)
 
@@ -54,7 +55,7 @@ At m=1 the page share falls from 0.056-0.423 to at most 0.0284 (641x700; every o
 - m=1 (real wheel tween, runs 1, 2): nav 0.0004-0.0042 and page 0.0004-0.0052 at all bands, 641x700 highest. Equal in runs 1 and 2.
 - m=0 untouched page, before the on-dark fix (runs 1, 2): nav 0.02-0.82 at bands 430 wide and up (page 0.0032-0.069). Cause (CONFIRMED by run 3, m=0 rows at 0.0000): the untouched timed page rests at m=0 at the page bottom with the nav marked `is-on-dark` by its own engine; base pinned the class from m (off at m=0).
 - Run 3 removed the class on the flip arm: m=0 became 0.0000 at every band but the timed engine reads that class back as its own state, so the wheel no longer started a tween: 9 of 12 bands unverified at m=1 (those cells are not valid, marked `!` in table-timed-chromium.md).
-- Last commit (not measured on CI, no push left): the class is copied from the flip arm onto base after pinNav, the flip arm is untouched, and 900 ms wait for the nav colour transition. One local Chrome run (not a result, other dist, results/geom-look-fade has no local data): 1280x800 and 390x844, m=0 rows 0.0000 and 0.0003 page, m=1 tween started and verify ok at both.
+- Run 4 (40599995604, MEASURED): the class is copied from the flip arm onto base after pinNav, flip arm untouched, 900 ms wait for the nav colour transition. m=0: nav 0.0000-0.0026, cols 0.0000-0.0033, page 0.0000-0.0002 at 11 bands and 0.0101 at 768x1024 (column3.img0 4706 px, the same picture as in look/on). m=1: the real wheel tween started at 12 of 12 bands (unverified=0, 60 cells, no `!`), nav 0.0004-0.0042, page 0.0004-0.0051 (641x700 highest), equal to runs 1 and 2. The m=0 fix works; the timed m=1 numbers did not change.
 - The earlier timed rows (<= 0.001, run 40553185213) measured nothing: a pinned m starts no flip under geom-timed.
 
 ## Why WebKit timed is dropped
