@@ -14,6 +14,8 @@ export function loadVerify(path = GOLDEN) {
 }
 
 // Verdicts: TS stand-ins for Fw.Parts.MorphGeom.quietOk, keptWithin/keptAll and pushesTaken (lean/Fw/Parts/MorphGeomVerify.lean), replayed against the golden.
+const DURATION_MS = 680; // the tween's own length (Fw.Parts.MorphGeomTimed)
+
 export function judgeQuiet(base, tol, frames) {
   return frames.length > 0 && frames.every((f) => f.moving === 0 && f.width - base <= tol && base - f.width <= tol);
 }
@@ -26,18 +28,33 @@ export function judgeKept(frame, lost, pairs) {
   return lost === 0 && pairs.length > 0 && pairs.every((p) => keptWithin(frame, p.dt, p.before, p.after));
 }
 
-export function judgeTrace(events) {
+// Fw.Parts.MorphGeom.takenFlags: per push, was it taken (null: a take with no pending push, or a second take).
+export function takenFlags(events) {
+  const out = [];
   let pending = false;
   for (const e of events) {
     if (e === 'push') {
-      if (pending) return false;
+      if (pending) out.push(false);
       pending = true;
     } else if (e === 'take') {
-      if (!pending) return false;
+      if (!pending) return null;
+      out.push(true);
       pending = false;
     }
   }
-  return !pending && events.includes('push');
+  if (pending) out.push(false);
+  return out;
+}
+
+export const pushJudged = (chance, taken) => !chance || taken;
+export const judgedEnough = (judged, total) => total > 0 && 3 * total <= 4 * judged;
+
+// Fw.Parts.MorphGeom.traceOk: every push that had a chance (the guard open in a frame with a later frame in its window) is taken, in order,
+// and at least 3 of every 4 pushes had a chance.
+export function judgeTrace(events, chances) {
+  const ts = takenFlags(events);
+  if (ts === null || ts.length !== chances.length) return false;
+  return chances.every((c, i) => pushJudged(c, ts[i])) && judgedEnough(chances.filter(Boolean).length, chances.length);
 }
 
 // The mutation each fix gets: the reading that must fail when it is reverted (Fw.Parts.MorphGeom.Mutation).
@@ -99,6 +116,7 @@ export function installFlipProbe() {
       flip: document.documentElement.classList.contains('is-flip'),
       w: nav ? nav.getBoundingClientRect().width : null,
       bg: nav ? getComputedStyle(nav).backgroundColor : '',
+      dark: nav ? /(^| )is-on-dark( |$)/.test(nav.className) : false,
       tr,
       anims: anims(),
     });
@@ -257,18 +275,28 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
     };
   });
   const events = trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => e.kind);
-  const pushes = events.filter((e) => e === 'push').length;
+  const pushEvs = trace.filter((e) => e.kind === 'push');
+  const pushes = pushEvs.length;
   const t0 = frames.length ? frames[0].ts : 0;
+  // read from the className string, not classList.contains, which the A5 mutation overrides
+  const chances = pushEvs.map((e) => {
+    const win = frames.filter((f) => f.ts >= e.at && f.ts < e.at + DURATION_MS);
+    const firstDark = win.findIndex((f) => f.dark);
+    return firstDark >= 0 && firstDark < win.length - 1;
+  });
+  const flags = takenFlags(events) || [];
   const a5 = {
     log: trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => ({
       kind: e.kind,
       at: Math.round(e.at - t0),
-      ...(e.kind === 'push' ? { dir: e.to > e.from ? 'open' : 'close', y: e.y, nav: e.nav, flip: e.flip, frames680: frames.filter((f) => f.ts >= e.at && f.ts < e.at + 680).length } : { el: Math.round(e.el) }),
+      ...(e.kind === 'push' ? { dir: e.to > e.from ? 'open' : 'close', y: e.y, nav: e.nav, flip: e.flip, frames680: frames.filter((f) => f.ts >= e.at && f.ts < e.at + DURATION_MS).length } : { el: Math.round(e.el) }),
     })),
     events,
     pushes,
+    chances,
+    unjudged: chances.filter((c, i) => !c && !flags[i]).length,
     takeMs: trace.filter((e) => e.kind === 'take').map((e) => Math.round(e.el)),
-    ok: judgeTrace(events) && (expectedPushes === null || pushes === expectedPushes),
+    ok: judgeTrace(events, chances) && (expectedPushes === null || pushes === expectedPushes),
   };
   return {
     a3a: { transitions: a3a, enters: a3a.filter((t) => t.kind === 'enter').length, leaves: a3a.filter((t) => t.kind === 'leave').length, ok: a3a.length > 0 && a3a.every((t) => t.ok) },
@@ -388,7 +416,7 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
         const res = analyseFlipProbe(raw, { baseWidth, verify, expectedPushes: cycles * 2 });
         const row = { band: `${band.w}x${band.h}`, baseWidth, applied, diag, ...res };
         rows.push(row);
-        process.stderr.write(`${row.band} A3a ${res.a3a.ok ? 'ok' : 'FAIL'} (enter ${res.a3a.enters}, leave ${res.a3a.leaves}) A4 ${res.a4.ok ? 'ok' : 'FAIL'} A5 ${res.a5.ok ? 'ok' : 'FAIL'} [${res.a5.events.join(',')}] take ms ${res.a5.takeMs.join('/')}\n`);
+        process.stderr.write(`${row.band} A3a ${res.a3a.ok ? 'ok' : 'FAIL'} (enter ${res.a3a.enters}, leave ${res.a3a.leaves}) A4 ${res.a4.ok ? 'ok' : 'FAIL'} A5 ${res.a5.ok ? 'ok' : 'FAIL'} [${res.a5.events.join(',')}] take ms ${res.a5.takeMs.join('/')}${res.a5.unjudged ? ` (${res.a5.unjudged} push not judged: the guard had no chance)` : ''}\n`);
       } finally {
         await B.close().catch(() => {});
       }

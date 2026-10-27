@@ -17,8 +17,8 @@ test('every verifyKept golden line is replayed by judgeKept', () => {
 });
 
 test('every verifyTrace golden line is replayed by judgeTrace', () => {
-  assert.ok(of('verifyTrace').length >= 4);
-  for (const l of of('verifyTrace')) assert.equal(judgeTrace(l.in.events), l.out, JSON.stringify(l.in));
+  assert.ok(of('verifyTrace').length >= 10);
+  for (const l of of('verifyTrace')) assert.equal(judgeTrace(l.in.events, l.in.chances), l.out, JSON.stringify(l.in));
 });
 
 test('the golden names the six mutations and the window', () => {
@@ -36,10 +36,10 @@ test('cell mutation owners match only their own reading', () => {
 });
 
 const verify = loadVerify();
-const fr = (ts, o = {}) => ({ ts, flip: false, w: 984, bg: 'x', tr: [], anims: [{ key: 'nav:up', t: ts, paused: false }], ...o });
+const fr = (ts, o = {}) => ({ ts, flip: false, w: 984, bg: 'x', dark: true, tr: [], anims: [{ key: 'nav:up', t: ts, paused: false }], ...o });
 const quiet = [];
 for (let i = 0; i < 80; i++) quiet.push(fr(i * 16.7, { flip: i >= 2 && i < 20 }));
-const trace = [{ kind: 'push' }, { kind: 'take', el: 30 }, { kind: 'push' }, { kind: 'take', el: 20 }];
+const trace = [{ kind: 'push', at: 0 }, { kind: 'take', el: 30 }, { kind: 'push', at: 700 }, { kind: 'take', el: 20 }];
 
 test('quiet frames, kept time and a taken trace pass', () => {
   const r = analyseFlipProbe({ frames: quiet, trace }, { baseWidth: 984, verify, expectedPushes: 2 });
@@ -61,7 +61,7 @@ test('a restarted animation across the re-parent fails A3a', () => {
 });
 
 test('an untaken push fails A5', () => {
-  const r = analyseFlipProbe({ frames: quiet, trace: [{ kind: 'push' }, { kind: 'take', el: 1 }, { kind: 'push' }] }, { baseWidth: 984, verify });
+  const r = analyseFlipProbe({ frames: quiet, trace: [{ kind: 'push', at: 0 }, { kind: 'take', el: 1 }, { kind: 'push', at: 700 }] }, { baseWidth: 984, verify });
   assert.equal(r.a5.ok, false);
 });
 
@@ -86,4 +86,25 @@ test('a visible background transition fails A4, the base nav residue does not', 
 test('a one-frame stall in a slow frame is within that frame, a restart is not', () => {
   const stall = quiet.map((f, i) => (i >= 20 ? { ...f, ts: f.ts + 8, anims: [{ key: 'nav:up', t: Math.max(0, (i - 1) * 16.7), paused: false }] } : f));
   assert.equal(analyseFlipProbe({ frames: stall, trace }, { baseWidth: 984, verify }).a3a.ok, true);
+});
+
+test('a push the guard never opened for is not judged, but only one in four may be excused', () => {
+  const four = [{ kind: 'push', at: 0 }, { kind: 'take', el: 1 }, { kind: 'push', at: 700 }, { kind: 'take', el: 1 }, { kind: 'push', at: 1400 }, { kind: 'take', el: 1 }, { kind: 'push', at: 2100 }];
+  const frames = Array.from({ length: 200 }, (_, i) => fr(i * 16.7));
+  const none = frames.map((f) => (f.ts >= 2100 ? { ...f, dark: false } : f));
+  const r = analyseFlipProbe({ frames: none, trace: four }, { baseWidth: 984, verify });
+  assert.deepEqual(r.a5.chances, [true, true, true, false]);
+  assert.equal(r.a5.ok, true);
+  assert.equal(r.a5.unjudged, 1);
+  const opened = analyseFlipProbe({ frames, trace: four }, { baseWidth: 984, verify });
+  assert.equal(opened.a5.ok, false, 'the guard was open with a later frame in the window and the push was not taken');
+  const two = [{ kind: 'push', at: 0 }, { kind: 'take', el: 1 }, { kind: 'push', at: 700 }, { kind: 'take', el: 1 }, { kind: 'push', at: 1400 }, { kind: 'push', at: 2100 }];
+  const late = frames.map((f) => (f.ts >= 1400 ? { ...f, dark: false } : f));
+  assert.equal(analyseFlipProbe({ frames: late, trace: two }, { baseWidth: 984, verify }).a5.ok, false);
+});
+
+test('a dark frame that is the last one in the window leaves no tick to retry on', () => {
+  const frames = Array.from({ length: 80 }, (_, i) => fr(i * 100, { dark: i === 6 }));
+  const r = analyseFlipProbe({ frames, trace: [{ kind: 'push', at: 0 }] }, { baseWidth: 984, verify });
+  assert.deepEqual(r.a5.chances, [false]);
 });

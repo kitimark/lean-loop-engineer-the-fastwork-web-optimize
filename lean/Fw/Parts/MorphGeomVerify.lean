@@ -129,6 +129,52 @@ theorem trace_stray_take_fails : pushesTaken [.take, .push, .take] = false := by
 
 theorem trace_cycle_passes : pushesTaken [.push, .take, .push, .take] = true := by decide
 
+/-- Per push: was it taken? `true` before a push is open (its take is pending), `false` between pushes; a take with no pending push, or a
+second take, has no reading (`none`). A push followed by a push was not taken. -/
+def takenFlags : Bool → List TakeEv → Option (List Bool)
+  | false, [] => some []
+  | true, [] => some [false]
+  | false, .push :: r => takenFlags true r
+  | true, .push :: r => (takenFlags true r).map (false :: ·)
+  | true, .take :: r => (takenFlags false r).map (true :: ·)
+  | false, .take :: _ => none
+
+/-- A push had a chance when the nav showed `is-on-dark` in a frame that a later frame of the same 680 ms window followed: the retry runs on
+a tick, and `take_never` says a guard that never opens never takes. A push without a chance is not judged. -/
+def pushJudged (chance taken : Bool) : Bool := !chance || taken
+
+/-- At least three of every four pushes had a chance, so that the reading cannot pass by excusing every push. -/
+def judgedEnough (judged total : Nat) : Bool := 0 < total && 3 * total ≤ 4 * judged
+
+def traceOk (evs : List TakeEv) (chances : List Bool) : Bool :=
+  match takenFlags false evs with
+  | none => false
+  | some ts => ts.length == chances.length && (chances.zip ts).all (fun (c, t) => pushJudged c t) &&
+      judgedEnough (chances.filter id).length chances.length
+
+theorem trace_ok_cycle : traceOk [.push, .take, .push, .take] [true, true] = true := by decide
+
+theorem judged_enough_taken : traceOk [.push, .take, .push, .take, .push, .take, .push, .take] [true, true, true, true] = true := by decide
+
+theorem judged_open_untaken_fails : traceOk [.push, .take, .push, .take, .push, .take, .push] [true, true, true, true] = false := by decide
+
+theorem judged_no_chance_excused :
+    traceOk [.push, .take, .push, .take, .push, .take, .push] [true, true, true, false] = true := by decide
+
+theorem judged_two_excused_fails :
+    traceOk [.push, .take, .push, .take, .push, .push] [true, true, false, false] = false := by decide
+
+theorem judged_stray_take_fails : traceOk [.take, .push, .take] [true] = false := by decide
+
+theorem judged_double_take_fails : traceOk [.push, .take, .take] [true] = false := by decide
+
+theorem judged_empty_fails : traceOk [] [] = false := by decide
+
+theorem judged_chances_mismatch_fails : traceOk [.push, .take] [true, true] = false := by decide
+
+theorem push_judged_untaken (taken : Bool) (h : pushJudged true taken = false) : taken = false := by
+  cases taken <;> simp_all [pushJudged]
+
 def verifyWindowMs : Nat := 800
 
 def verifyFrameMs : Rat := 50 / 3
