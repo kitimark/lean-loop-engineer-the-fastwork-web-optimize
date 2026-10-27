@@ -57,3 +57,19 @@ test('the plan', () => {
   assert.equal(D.pushOk(D.pushRounds(2)), p.ok2);
   assert.equal(D.noRepeat(D.pushRounds(3)), p.noRepeat3);
 });
+
+test('the Latin-square order is read from the golden: each arm once per round and per position, no repeats', () => {
+  const [c] = of('pushconsts');
+  const ids = D.latinOrder().map((a) => a.id);
+  assert.deepEqual(ids, c.order);
+  assert.deepEqual(D.LATIN_ROWS.flat().map((a) => a.id), ids);
+  assert.equal(ids.length, 16);
+  for (const r of c.latin) assert.deepEqual([...r].sort(), c.arms.map((a) => a.id).sort());
+  for (let p = 0; p < 4; p++) assert.deepEqual(c.latin.map((r) => r[p]).sort(), c.arms.map((a) => a.id).sort());
+  assert.ok(D.pushOk(D.latinOrder()) && D.noRepeat(D.latinOrder()));
+  assert.deepEqual(D.slotOf(5), { round: 1, position: 1 });
+  assert.equal(D.slotOf(16), null);
+  const [pl] = of('pushplan');
+  assert.equal(pl.latinOk, true);
+  assert.equal(pl.latinNoRepeat, true);
+});

@@ -187,6 +187,8 @@ test('session: induce, run, stop with SIGTERM, read back below the target: ended
     assert.equal(o.st.pin.profile, 'ThermalSerious');
     assert.equal(o.st.pin.owner.pid, 4000);
     assert.deepEqual(o.st.pin.readback.map((r) => r.state), ['Fair']);
+    assert.equal(o.st.pin.before.state, 'Fair', 'the state just before the pin is recorded');
+    assert.equal(o.st.pin.after.state, 'Fair', 'the state after the clear is recorded');
     assert.equal(o.owner.alive(), false);
     assert.equal(o.st.visits[0].status, 'done');
   } finally { rmSync(e.dir, { recursive: true, force: true }); }

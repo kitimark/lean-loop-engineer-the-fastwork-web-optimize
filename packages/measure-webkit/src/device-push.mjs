@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { armLabel } from './device-phone-arms.mjs';
+import { armLabel, cells } from './device-phone-arms.mjs';
 import { driftOk, meanOffset, offsetOf } from './profile/reduce.mjs';
 
 const GOLDEN = readFileSync(new URL('../../contracts/golden/device/phone-arms.jsonl', import.meta.url), 'utf8')
@@ -55,3 +55,14 @@ export function pushLabel(base, arm) {
 export const pushRounds = (r) => Array.from({ length: r }, () => PUSH_ARMS).flat();
 export const pushOk = (order) => PUSH_ARMS.every((a) => order.filter((x) => x.id === a.id).length >= PUSH.minVisits);
 export const noRepeat = (order) => order.every((a, i) => i === 0 || a.id !== order[i - 1].id);
+
+const armById = (id) => PUSH_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown arm ${id}`); })();
+export const LATIN_ROWS = Object.freeze(PUSH.latin.map((r) => Object.freeze(r.map(armById))));
+export const latinOrder = () => PUSH.order.map(armById);
+export const slotOf = (i) => (PUSH.slots[i] ? { round: PUSH.slots[i][0], position: PUSH.slots[i][1] } : null);
+
+export function pushCells(base, arm) {
+  if (base.length < PUSH.minVisits || arm.length < PUSH.minVisits) return null;
+  const k = PUSH_METRICS.length;
+  return Object.fromEntries(cells(columns(k, base), columns(k, arm)).map((v, i) => [PUSH_METRICS[i], v]));
+}

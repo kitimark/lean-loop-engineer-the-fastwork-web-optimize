@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recordsOf, valuesOf, summarize, nearEndJs } from '../src/device-push-run.mjs';
+import { recordsOf, valuesOf, summarize, nearEndJs, positionCheck, FRAMES_START_JS } from '../src/device-push-run.mjs';
 import { pushTables } from '../src/device-push-tables.mjs';
 import { PUSH, PUSH_ARMS, PUSH_METRICS } from '../src/device-push.mjs';
 
@@ -62,4 +62,27 @@ test('pushTables writes a row per arm and per visit', () => {
 
 test('nearEndJs scrolls to the end minus the gap', () => {
   assert.match(nearEndJs(100), /maxY - 100/);
+});
+
+test('the frames recorder reads data-fw-morph when the inline --morph is empty (morph.stage)', () => {
+  assert.match(FRAMES_START_JS, /getPropertyValue\('--morph'\) \|\| n\.getAttribute\('data-fw-morph'\)/);
+});
+
+test('positionCheck: median over the arms of each position and of each round', () => {
+  const rows = [];
+  for (let i = 0; i < 16; i++) rows.push({ index: i, arm: PUSH_ARMS[i % 4].id, round: Math.floor(i / 4), position: i % 4, vals: [i, 0, 0, 0, 0, 0, 0, 0] });
+  const c = positionCheck(rows);
+  assert.equal(c.byPosition.length, 4);
+  assert.equal(c.byRound.length, 4);
+  assert.deepEqual(c.byPosition[1].metrics[PUSH_METRICS[0]].values, [1, 5, 9, 13]);
+  assert.equal(c.byPosition[1].n, 4);
+  assert.equal(c.byRound[2].metrics[PUSH_METRICS[0]].median, 10);
+});
+
+test('summarize adds the Lean cell verdicts per metric for each non-base arm', () => {
+  const rows = [];
+  for (let i = 0; i < 3; i++) for (const a of PUSH_ARMS) rows.push({ arm: a.id, vals: [a.id === 'base' ? 3000 : 1500, 0, 0, 0, 10, 10, 10, 10] });
+  const s = summarize(rows);
+  assert.equal(s[0].cells, null);
+  assert.deepEqual(Object.keys(s[1].cells), PUSH_METRICS);
 });
