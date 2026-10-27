@@ -307,7 +307,7 @@ jobs:
     concurrency:
       group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:flip-cell:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 60
     name: flip-cell ${{ matrix.engine }}
     strategy:
       fail-fast: false
@@ -367,6 +367,19 @@ jobs:
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
         run: node src/cli.mjs verify --engine "$ENGINE" --out out/verify
+      - name: Flip verify repeats (two more passes in this job on three bands; in-job repeats, not separate jobs)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        shell: bash
+        run: |
+          rc=0
+          for r in 2 3; do
+            node src/cli.mjs verify --engine "$ENGINE" --bands 390x844,1280x800,1920x1080 --out "out/verify-rep$r" || rc=1
+          done
+          exit $rc
       - name: Flip mutation runs (each reverted fix must fail its reading)
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
         env:
@@ -399,6 +412,8 @@ jobs:
           path: |
             packages/gate-breakpoints/out/flip
             packages/gate-breakpoints/out/verify
+            packages/gate-breakpoints/out/verify-rep2
+            packages/gate-breakpoints/out/verify-rep3
             packages/gate-breakpoints/out/mutation
             packages/premise-tests/out/look/*/look-*.json
           if-no-files-found: error

@@ -79,14 +79,24 @@ function pin(m) {
   nav.dataset.fwMorph = String(m);
 }
 
+// Scrolls in steps, then keeps asking for the target until the page is there and has stayed for 3 checks: one scrollTo can stop short while the
+// page is locked or still growing (run 40530697810, WebKit 1280x800: the base page stayed at y 2236 while the flag page was at the top, so its
+// nav was scroll-hidden at y -72 and the m=0 reading compared two different scroll positions).
 async function stepScroll(to) {
-  const end = to === 'bottom' ? document.documentElement.scrollHeight : 0;
+  const target = () => (to === 'bottom' ? document.documentElement.scrollHeight - window.innerHeight : 0);
   const from = window.scrollY;
   for (let i = 1; i <= 14; i++) {
-    window.scrollTo(0, from + ((end - from) * i) / 14);
+    window.scrollTo(0, from + ((target() - from) * i) / 14);
     await new Promise((r) => setTimeout(r, 90));
   }
-  window.scrollTo(0, end);
+  let steady = 0;
+  let tries = 0;
+  for (; tries < 80 && steady < 3; tries++) {
+    window.scrollTo(0, target());
+    await new Promise((r) => setTimeout(r, 250));
+    steady = Math.abs(window.scrollY - target()) < 2 ? steady + 1 : 0;
+  }
+  return { reached: steady >= 3, y: Math.round(window.scrollY), tries };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -168,10 +178,10 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, m
         const steps = timed ? [[1, 'bottom'], [0, 'top']] : cell.ms.map((m) => [m, null]);
         for (const [m, to] of steps) {
           if (to) {
-            await A.page.evaluate(stepScroll, to);
-            await B.page.evaluate(stepScroll, to);
+            const sa = await A.page.evaluate(stepScroll, to);
+            const sb = await B.page.evaluate(stepScroll, to);
             await sleep(2600);
-            mount = await waitMountAgree(A.page, B.page);
+            mount = { ...(await waitMountAgree(A.page, B.page)), scroll: { base: sa, flag: sb } };
           } else {
             await A.page.evaluate(pin, m);
             await B.page.evaluate(pin, m);
@@ -182,6 +192,7 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, m
           const base = await A.page.evaluate(readRects);
           const got = await B.page.evaluate(readRects);
           const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)'
+            : timed && mount && !(mount.scroll.base.reached && mount.scroll.flag.reached) ? `scroll did not reach ${to} (base y ${mount.scroll.base.y}, flag y ${mount.scroll.flag.y}): the pages are not at the same place`
             : timed && mount && !mount.agree ? `panel mounted on one page only (base ${mount.a}, flag ${mount.b}): its lazy mount is timer-driven, not the flip` : null;
           const bandNow = timed && mount && mount.agree && !mount.b ? { ...band, cols: 0 } : band;
           const bad = skipped ? [] : judgeRects(base, got, bandNow, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);

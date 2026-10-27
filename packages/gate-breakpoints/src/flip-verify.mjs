@@ -68,7 +68,8 @@ export function installFlipProbe() {
   const all = [];
   let running = false;
   window.__fwTakeTrace = (ev) => {
-    trace.push({ ...ev, at: performance.now() });
+    const nav = document.querySelector('[data-fw="nav"]');
+    trace.push({ ...ev, at: performance.now(), y: Math.round(window.scrollY), nav: nav ? nav.className.split(' ').filter((c) => c.startsWith('is-')).join(' ') : '', flip: document.documentElement.classList.contains('is-flip') });
     all.push(ev.kind);
   };
   const roots = () => [document.querySelector('[data-fw="nav"]'), document.querySelector('[data-fw="morph-columns"]')];
@@ -257,7 +258,13 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
   });
   const events = trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => e.kind);
   const pushes = events.filter((e) => e === 'push').length;
+  const t0 = frames.length ? frames[0].ts : 0;
   const a5 = {
+    log: trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => ({
+      kind: e.kind,
+      at: Math.round(e.at - t0),
+      ...(e.kind === 'push' ? { dir: e.to > e.from ? 'open' : 'close', y: e.y, nav: e.nav, flip: e.flip, frames680: frames.filter((f) => f.ts >= e.at && f.ts < e.at + 680).length } : { el: Math.round(e.el) }),
+    })),
     events,
     pushes,
     takeMs: trace.filter((e) => e.kind === 'take').map((e) => Math.round(e.el)),
@@ -300,15 +307,17 @@ const TAKES = (n) => `window.__fwFlipProbe.count().take >= ${n}`;
 export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, windowMs = 1200, warmTries = 8 } = {}) {
   const size = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
   const diag = { warm: [], cycles: [] };
-  await page.evaluate(async () => {
-    const end = document.documentElement.scrollHeight;
-    const from = window.scrollY;
-    for (let i = 1; i <= 14; i++) {
-      window.scrollTo(0, from + ((end - from) * i) / 14);
-      await new Promise((r) => setTimeout(r, 60));
+  // Scroll to the true end: the page grows while sections hydrate, so one scrollTo can stop short (run 40530697810, WebKit 1024x768 and 1920x1080: y 2681 of 6352).
+  const atEnd = await page.evaluate(async () => {
+    let steady = 0;
+    for (let i = 0; i < 80 && steady < 4; i++) {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await new Promise((r) => setTimeout(r, 250));
+      steady = document.documentElement.scrollHeight - window.innerHeight - window.scrollY < 2 ? steady + 1 : 0;
     }
-    window.scrollTo(0, end);
+    return steady >= 4;
   });
+  diag.atEnd = atEnd;
   await sleep(1200);
   await page.mouse.move(size.w / 2, size.h / 2);
   await page.evaluate(() => window.__fwFlipProbe.listen());
@@ -364,7 +373,7 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
   try {
     for (const band of cell.bands.filter((b) => !bandFilter || bandFilter.includes(`${b.w}x${b.h}`))) {
       const env = {
-        width: band.w, height: band.h, deviceWidth: band.w, deviceHeight: band.h, dpr: band.w <= 640 ? 3 : 1,
+        width: band.w, height: band.h, deviceWidth: band.w, deviceHeight: band.h, dpr: 1, // the push and take path does not depend on pixel density; dpr 3 made the CI WebKit runner render the open panel at 2 fps (run 40530697810)
         hover: band.w <= 1024 ? 'none' : 'hover', pointer: band.w <= 1024 ? 'coarse' : 'fine', colorScheme: 'light', reducedMotion: 'no-preference',
       };
       const B = await engine.open(env, { origin: server.origin, path: flag.path + flag.search, init });
