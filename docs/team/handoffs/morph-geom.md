@@ -2,6 +2,8 @@ branch: worktree-wf_e3f8d34f-d4e-1; worktree: .claude/worktrees/wf_e3f8d34f-d4e-
 last commit: see git log (the handoff's own commit); CI runs: none (no push spent)
 state: partial
 verified:
+- check.sh green (slot, after regenerating FootprintRows/footprint-diff); dry land with --allow apps/runner/src/land.ts --allow lean/Fw/Parts/FootprintRows.lean ends VERDICT dry morph-geom; without --allow it ends VERDICT scope morph-geom (those 2 files are outside the task writes).
+- runner land-inputs 73/73 and land-scope 17/17 (run directly after the land.ts reads edit), ci-paths 56/56, site test 162 pass.
 - apps/site tracks.golden.test.ts (3 tests) and driver.test.ts (4) pass: all 653 golden sample lines within 1e-6.
 - MorphGeomCounts.lean compiles; net-bytes theorems proved by decide +kernel.
 done:
