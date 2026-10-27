@@ -13,18 +13,15 @@ export interface TimedOpts {
   fill: 'backwards' | 'both';
 }
 export interface TimedEnv {
-  /** The nav is on dark and motion is not reduced; read when a push finds no geometry yet. */
   allowed(): boolean;
   enter(): { vp: Vp; layout: Layout };
   leave(): void;
   animate(a: Anim, kf: Kf[], opts: TimedOpts): TimedAnim | null;
-  /** The goal rule (`selector { prop: value }` lines) as the root's base style, or null to remove it. */
   goal(rules: string | null): void;
 }
 
 const PROP: Record<string, string> = { backdropFilter: 'backdrop-filter' };
 
-/** The keyframes of one track for a push from `m0` to `g`: m tracks rebased and eased, time tracks linear over the push. */
 export function pushKeyframes(a: Anim, m0: number, g: number): { kf: Kf[]; easing: string } {
   const time = a.ks === 'time';
   const xs = a.offsets;
@@ -34,7 +31,6 @@ export function pushKeyframes(a: Anim, m0: number, g: number): { kf: Kf[]; easin
   return { kf, easing: time ? 'linear' : EASING_CSS };
 }
 
-/** The goal style of every track at a push up to 1: the last keyframe, so the base equals it once the animations end. */
 export const GOAL_ATTR = 'data-mg-goal';
 export function goalRules(anims: Anim[]): string {
   const by = new Map<string, string[]>();
@@ -47,12 +43,6 @@ export function goalRules(anims: Anim[]): string {
   return [...by].map(([s, d]) => `html[${GOAL_ATTR}] ${s}{${d.join(';')}}`).join('');
 }
 
-/**
- * The timed geometry: per push one Web Animation per track, all on the same `startTime` (the event time), 680 ms,
- * the tween's curve as the easing. A push in flight is cancelled and the new one starts from the event-time value
- * (the caller passes it as `from`), so the shown value is continuous (Lean reverse_continuous). A push to 1 sets the
- * goal style as the base at once (the animations cover it), a push to 0 holds its last keyframe until `settle`.
- */
 export function createTimedGeom(env: TimedEnv): EffectSink & { take(from: number, to: number, start: number): boolean; live(): boolean } {
   let anims: Anim[] | null = null;
   let live: TimedAnim[] = [];
