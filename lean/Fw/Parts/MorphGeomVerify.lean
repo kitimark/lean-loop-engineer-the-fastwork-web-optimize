@@ -1,6 +1,6 @@
 import Fw.Parts.MorphGeomLook
 import Fw.Parts.MorphGeomTimed
-/-! Automatic flip readings (A3a time kept, A4 quiet leave, A5 timed take) and the verdict of the six mutation runs. -/
+/-! Automatic flip readings (A3a, A4, A5) and the six mutation runs. -/
 namespace Fw.Parts.MorphGeom
 open Fw.Parts.MorphGeomTimed
 
@@ -129,8 +129,6 @@ theorem trace_stray_take_fails : pushesTaken [.take, .push, .take] = false := by
 
 theorem trace_cycle_passes : pushesTaken [.push, .take, .push, .take] = true := by decide
 
-/-- Per push: was it taken? `true` before a push is open (its take is pending), `false` between pushes; a take with no pending push, or a
-second take, has no reading (`none`). A push followed by a push was not taken. -/
 def takenFlags : Bool → List TakeEv → Option (List Bool)
   | false, [] => some []
   | true, [] => some [false]
@@ -139,12 +137,8 @@ def takenFlags : Bool → List TakeEv → Option (List Bool)
   | true, .take :: r => (takenFlags false r).map (true :: ·)
   | false, .take :: _ => none
 
-/-- A push had a chance when the nav showed `is-on-dark` in a frame that a later frame of the same 680 ms window followed: the retry runs on
-a tick, and `take_never` says a guard that never opens never takes. A push without a chance is not judged. -/
 def pushJudged (chance taken : Bool) : Bool := !chance || taken
 
-/-- At least three of every four pushes are covered (had a chance, or were taken anyway), so that the reading cannot pass by excusing every push.
-A taken push is covered without a chance: a runner at one frame in 680 ms has no frame to show the guard open, and the take proves it did. -/
 def judgedEnough (judged total : Nat) : Bool := 0 < total && 3 * total ≤ 4 * judged
 
 def traceOk (evs : List TakeEv) (chances : List Bool) : Bool :=
@@ -197,7 +191,6 @@ def Mutation.name : Mutation → String
 
 def Mutation.all : List Mutation := [.a1, .a3b, .a3c, .a4, .a3a, .a5]
 
-/-- The readings that must fail when a fix is reverted; the cell readings are the ones in `flipCell`. -/
 def Mutation.reading : Mutation → String
   | .a1 => "column beside" | .a3b => "earn y" | .a3c => "lang y" | .a4 => "quiet leave" | .a3a => "time kept" | .a5 => "timed take"
 

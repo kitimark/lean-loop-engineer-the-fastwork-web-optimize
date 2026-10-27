@@ -13,8 +13,7 @@ export function loadVerify(path = GOLDEN) {
   return v;
 }
 
-// Verdicts: TS stand-ins for Fw.Parts.MorphGeom.quietOk, keptWithin/keptAll and pushesTaken (lean/Fw/Parts/MorphGeomVerify.lean), replayed against the golden.
-const DURATION_MS = 680; // the tween's own length (Fw.Parts.MorphGeomTimed)
+const DURATION_MS = 680;
 
 export function judgeQuiet(base, tol, frames) {
   return frames.length > 0 && frames.every((f) => f.moving === 0 && f.width - base <= tol && base - f.width <= tol);
@@ -28,7 +27,6 @@ export function judgeKept(frame, lost, pairs) {
   return lost === 0 && pairs.length > 0 && pairs.every((p) => keptWithin(frame, p.dt, p.before, p.after));
 }
 
-// Fw.Parts.MorphGeom.takenFlags: per push, was it taken (null: a take with no pending push, or a second take).
 export function takenFlags(events) {
   const out = [];
   let pending = false;
@@ -49,23 +47,18 @@ export function takenFlags(events) {
 export const pushJudged = (chance, taken) => !chance || taken;
 export const judgedEnough = (judged, total) => total > 0 && 3 * total <= 4 * judged;
 
-// Fw.Parts.MorphGeom.traceOk: every push that had a chance (the guard open in a frame with a later frame in its window) is taken, in order,
-// and at least 3 of every 4 pushes are covered (had a chance, or were taken anyway).
 export function judgeTrace(events, chances) {
   const ts = takenFlags(events);
   if (ts === null || ts.length !== chances.length) return false;
   return chances.every((c, i) => pushJudged(c, ts[i])) && judgedEnough(chances.filter((c, i) => c || ts[i]).length, chances.length);
 }
 
-// The mutation each fix gets: the reading that must fail when it is reverted (Fw.Parts.MorphGeom.Mutation).
 export const MUTATION_RUN = { A1: 'cell', A3b: 'cell', A3c: 'cell', A4: 'verify', A3a: 'verify', A5: 'verify' };
 export const MUTATION_OWNER = {
   A1: (b) => /^column\d+: not beside|^columns:|^image\d+:/.test(b),
   A3b: (b) => /^earn:/.test(b),
   A3c: (b) => /^lang:/.test(b),
 };
-
-// ---- page side: serialised into the page (init script, or page.evaluate), no closure over Node values ----
 
 export function installFlipProbe() {
   if (window.__fwFlipProbe) return;
@@ -133,7 +126,6 @@ export function installFlipProbe() {
       running = false;
       return { frames: frames.slice(), trace: trace.slice() };
     },
-    // push and take events seen since the page loaded (the warm-up included), for the drive loop's waits
     count() {
       return { push: all.filter((e) => e === 'push').length, take: all.filter((e) => e === 'take').length };
     },
@@ -147,7 +139,6 @@ export function installFlipProbe() {
   };
 }
 
-// Reverts one fix at run time: A1/A3b/A3c/A4 edit the stylesheet rule the fix added, A3a drops the animation-time restore, A5 makes the take guard read light at every push and every frame after it (no push can take).
 export function mutatePage(name) {
   const rules = [];
   const walk = (list) => {
@@ -184,7 +175,6 @@ export function mutatePage(name) {
     Object.defineProperty(CSSAnimation.prototype, 'currentTime', { configurable: true, get() { return d.get.call(this); }, set() {} });
     n = 1;
   } else if (name === 'A5') {
-    // The nav reads light for the take guard at every push and every frame after it: the unfixed code decided once at push start and never retried, so no push takes the timed path.
     const nav = document.querySelector('[data-fw="nav"]');
     const real = nav.classList.contains.bind(nav.classList);
     Object.defineProperty(nav.classList, 'contains', { configurable: true, value: (c) => (c === 'is-on-dark' ? false : real(c)) });
@@ -195,11 +185,8 @@ export function mutatePage(name) {
   return n;
 }
 
-// ---- the readings (pure; the phone and Safari macOS lanes call analyseFlipProbe on the raw log of window.__fwFlipProbe.stop()) ----
-
 const MOVING = (p) => p === 'width' || p.startsWith('background');
 
-// Computed colours as sRGB + alpha in 0..1 (getComputedStyle gives rgba(), color(srgb) or oklab() depending on the value).
 export function parseColor(str) {
   const nums = (str.match(/-?\d*\.?\d+(?:e-?\d+)?/g) || []).map(Number);
   const alpha = str.includes('/') ? nums[nums.length - 1] : nums.length > 3 ? nums[3] : 1;
@@ -252,7 +239,6 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
       win.push(j);
     }
     const endBg = frames[win[win.length - 1]].bg;
-    // a running width or background transition counts only while it is visibly off its end value (the base nav ends the close with a sub-pixel, sub-percent transition of its own)
     const quietWin = win.map((j) => ({
       moving: frames[j].tr.filter((p) => MOVING(p) && (p === 'width' ? Math.abs(frames[j].w - baseWidth) > tol : colorDist(frames[j].bg, endBg) > BG_TOL)).length,
       width: frames[j].w,
@@ -278,7 +264,6 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
   const pushEvs = trace.filter((e) => e.kind === 'push');
   const pushes = pushEvs.length;
   const t0 = frames.length ? frames[0].ts : 0;
-  // read from the className string, not classList.contains, which the A5 mutation overrides
   const chances = pushEvs.map((e) => {
     const win = frames.filter((f) => f.ts >= e.at && f.ts < e.at + DURATION_MS);
     const firstDark = win.findIndex((f) => f.dark);
@@ -307,7 +292,6 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Polls a page-side predicate (source string) every 100 ms; resolves true when it held, false at the timeout.
 const until = (page, src, ms) =>
   page.evaluate(
     ([code, limit]) =>
@@ -329,13 +313,9 @@ const FLIP_OFF = `!${FLIP_ON}`;
 const PUSHES = (n) => `window.__fwFlipProbe.count().push >= ${n}`;
 const TAKES = (n) => `window.__fwFlipProbe.count().take >= ${n}`;
 
-// Entry point for every lane that has a Playwright-style page (the phone and the Safari macOS lanes call it with their own page object):
-// scrolls to the page end, warms the wheel listeners up with one unrecorded open and close (they arm late), then records `cycles` pairs of
-// wheel down (open) and wheel up (pull out), each waiting for what it started instead of a fixed time. Returns the raw log and the base width.
 export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, windowMs = 1200, warmTries = 8 } = {}) {
   const size = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
   const diag = { warm: [], cycles: [] };
-  // Scroll to the true end: the page grows while sections hydrate, so one scrollTo can stop short (run 40530697810, WebKit 1024x768 and 1920x1080: y 2681 of 6352).
   const atEnd = await page.evaluate(async () => {
     let steady = 0;
     for (let i = 0; i < 80 && steady < 4; i++) {
@@ -401,7 +381,7 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
   try {
     for (const band of cell.bands.filter((b) => !bandFilter || bandFilter.includes(`${b.w}x${b.h}`))) {
       const env = {
-        width: band.w, height: band.h, deviceWidth: band.w, deviceHeight: band.h, dpr: 1, // the push and take path does not depend on pixel density; dpr 3 made the CI WebKit runner render the open panel at 2 fps (run 40530697810)
+        width: band.w, height: band.h, deviceWidth: band.w, deviceHeight: band.h, dpr: 1,
         hover: band.w <= 1024 ? 'none' : 'hover', pointer: band.w <= 1024 ? 'coarse' : 'fine', colorScheme: 'light', reducedMotion: 'no-preference',
       };
       const B = await engine.open(env, { origin: server.origin, path: flag.path + flag.search, init });

@@ -79,9 +79,6 @@ function pin(m) {
   nav.dataset.fwMorph = String(m);
 }
 
-// Scrolls in steps, then keeps asking for the target until the page is there and has stayed for 3 checks: one scrollTo can stop short while the
-// page is locked or still growing (run 40530697810, WebKit 1280x800: the base page stayed at y 2236 while the flag page was at the top, so its
-// nav was scroll-hidden at y -72 and the m=0 reading compared two different scroll positions).
 async function stepScroll(to) {
   const target = () => (to === 'bottom' ? document.documentElement.scrollHeight - window.innerHeight : 0);
   const from = window.scrollY;
@@ -127,8 +124,6 @@ export async function readLive() {
   };
 }
 
-// The morph panel mounts and unmounts on timers and an IntersectionObserver, so two pages loaded side by side can differ in whether the columns exist
-// at all (run 40525667335: WebKit 1280x800 base unmounted, flag mounted; 1920x1080 the reverse). A reading is only valid once both agree.
 export async function waitMountAgree(a, b, limitMs = 20000) {
   const mounted = (pg) => pg.evaluate(() => !!document.querySelector('[data-fw="morph-panel"]'));
   const t0 = Date.now();

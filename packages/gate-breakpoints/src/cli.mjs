@@ -207,7 +207,6 @@ if (cmd === 'run') {
   for (const engineName of engines) ok = (await runFlipVerify({ engineName, fw: arg('fw', 'morph.geom:on,morph.tween:geom-timed'), outDir: out, bandFilter: bands, mutation, expectFail: argv.includes('--expect-fail'), cycles: Number(arg('cycles', '2')) })) && ok;
   process.exit(ok ? 0 : 1);
 } else if (cmd === 'gaps') {
-  // the gaps lane (src/gaps/): the Q33 cells, fractional widths and hover x pointer; see src/gaps/README.md
   const { gapsMain } = await import('./gaps/cli.mjs');
   await gapsMain(argv.slice(1), out);
   process.exit(0);

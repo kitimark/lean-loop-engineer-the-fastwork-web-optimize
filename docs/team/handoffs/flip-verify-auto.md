@@ -1,6 +1,6 @@
 branch: worktree-wf_563f1ba9-714-1 (CI branch ci/flip-verify-auto)
 worktree: .claude/worktrees/wf_563f1ba9-714-1
-last commit: see `git log -1` (WIP commits carry "flip-verify-auto")
+last commit: `git log -1`
 CI runs: push 1 40525667335 failure; push 2 40530697810 failure; push 3 40537879823 failure (WebKit A5 11/12); push 4 40544410328 failure (WebKit A5 8/12 by my coverage rule; Chromium all green; both engines 6 of 6 mutations caught; timed m=0 12/12). No push 5 (cap 4). After push 4: Lean traceOk counts a taken push as covered (commit 04a75838b), replayed offline on run 4 logs to 12/12; not run on CI. Note and ledger row written. Left: merge main, plan lint, dry land, review ready.
 
 ## State
