@@ -155,14 +155,25 @@ const diffImage = (map, W, box, over) => {
   return { width, height, data };
 };
 
+const DEADLINE = Date.now() + Number(opt('budget-min', '22')) * 60000;
+if (TIMED && engineName !== 'chromium') {
+  // The wheel did not start a tween on WebKit in run 40585231399 (3 bands took 33 min), so the timed look is a Chromium report only.
+  mkdirSync(out, { recursive: true });
+  writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, complete: false, cells: 0, unverified: 0, skipped: 'geom-timed look: its tween does not start from a wheel on this engine (WebKit); Chromium only', rows: [] }, null, 1) + '\n');
+  process.stderr.write(`look ${FW} ${engineName}: skipped (timed look is Chromium only)\n`);
+  process.exit(0);
+}
 const dist = siteDist();
 const flag = rewritePathFor(dist, FW);
 const server = await startServer(dist);
 const engine = await LAUNCHERS[engineName]();
 const rows = [];
+// Written after every band so a job timeout keeps the finished bands.
+const flush = (complete) => writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, complete, cells: rows.length, unverified: rows.filter((r) => r.verify && !r.verify.ok).length, rows }, null, 1) + '\n');
 mkdirSync(out, { recursive: true });
 try {
   for (const [w, h] of BANDS) {
+    if (Date.now() > DEADLINE) { process.stderr.write(`budget spent: stopped before ${w}x${h}\n`); break; }
     const env = { width: w, height: h, deviceWidth: w, deviceHeight: h, dpr: w <= 640 ? 3 : 1, hover: w <= 1024 ? 'none' : 'hover', pointer: w <= 1024 ? 'coarse' : 'fine', colorScheme: 'light', reducedMotion: 'no-preference' };
     const open = async (path) => {
       const s = await engine.open(env, { origin: server.origin, path, init: PIN_SRC });
@@ -195,6 +206,10 @@ try {
           await B.page.evaluate(pinNav, m);
           await sleep(900);
           if (m > 0) await B.page.evaluate((v) => { const n = document.querySelector('[data-fw="nav"]'); n.dataset.fwMorph = String(v); }, m);
+        }
+        if (TIMED && m === 0) {
+          // The untouched timed page rests at m=0 at the page bottom, where its engine marks the nav on-dark; base pins on-dark from m (pinNav).
+          note.navOnDarkBefore = await B.page.evaluate(() => { const n = document.querySelector('[data-fw="nav"]'); const was = n.classList.contains('is-on-dark'); n.classList.toggle('is-on-dark', !!n.dataset.fwKeepDark); return was; });
         }
         await sleep(300);
         Object.assign(ra, await A.page.evaluate(pinNav, m));
@@ -254,9 +269,10 @@ try {
         process.stderr.write(`${band} m=${m} ${verify.ok ? 'ok' : `UNVERIFIED(${verify.failCount}): ${verify.fails[0]}`} nav ${row.nav.share.toFixed(4)} bar ${row.bar.share.toFixed(4)} cols ${row.cols.share.toFixed(4)} page ${row.page.share.toFixed(4)} top ${top ? `${top.key} ${top.own}` : '-'}\n`);
       }
     } finally { await A.close().catch(() => {}); await B.close().catch(() => {}); }
+    flush(false);
   }
 } finally { await engine.close?.(); server.close?.(); }
 const bad = rows.filter((r) => r.verify && !r.verify.ok).length;
-writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, cells: rows.length, unverified: bad, rows }, null, 1) + '\n');
+flush(true);
 process.stderr.write(`look ${FW} ${engineName}: ${rows.length} rows, ${bad} unverified (exit 0: reported only)\n`);
 process.exit(0);
