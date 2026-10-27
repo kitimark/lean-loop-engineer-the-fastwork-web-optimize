@@ -22784,7 +22784,10 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-morph-timed.md",
     "results/morph-timed/**",
-    "docs/team/handoffs/morph-timed.md"
+    "docs/team/handoffs/morph-timed.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/site/src/registry/index.ts"
    ]
   },
   {
