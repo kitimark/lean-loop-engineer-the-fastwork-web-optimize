@@ -1,0 +1,27 @@
+{
+  "id": "morph.geom",
+  "slot": "morph",
+  "anchors": ["morph-geom"],
+  "experiment": true,
+  "impls": [],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": {
+        "original": "_app/immutable/nodes/2.DyWL8TcE.js:12683-12701,12999-13089"
+      }
+    },
+    "on": {
+      "kind": "proposal",
+      "visClass": "L",
+      "provenance": {
+        "lean": "Fw.Parts.MorphGeom clip_eq, net_ok_bands, rect_eq, fill_eq, panel_eq, fade_eq, earn_eq, accelerable_bands, noTransition_bands, end_eq, mem_bands",
+        "limit": "look change (L): the nav and the panel stay laid out at the final size while a push runs and the pill is cut out of that box by four nested rounded clippers moved by transform; mid-morph text at fractional offsets, the title wrap on desktop and the backdrop edge band differ from the faithful frames (design note 10-27-morph-compositor-geometry.md); a push falls back to the tween when the nav is not on dark or under reduced motion; earn clip and label, backdrop clip and the 60 Hz time tracks for a reversal are not built yet; layout sizes (label width, earn width) use the Lean sample values; memory is over the headroom on several bands (mem_bands)"
+      }
+    }
+  },
+  "requires": {},
+  "conflicts": {}
+}

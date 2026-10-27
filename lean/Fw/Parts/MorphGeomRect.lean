@@ -88,7 +88,6 @@ inductive Item where
   | actions
   | column (i : Nat)
   | image (i j : Nat) (Y h gv : Rat)
-  | veil
   | centre
   | footer (fh : Rat)
   | footerGrad
@@ -103,7 +102,6 @@ def faithful (v : Vp) (m : Rat) : Item → List Rat
   | .image i j Y h gv =>
     [(i : Rat) * (cw v m + colGap v), sImg v m * (Y - (j : Rat) * gv) + (j : Rat) * gv,
       (i : Rat) * (cw v m + colGap v) + cw v m, sImg v m * (Y - (j : Rat) * gv) + (j : Rat) * gv + sImg v m * h]
-  | .veil => [x0 v m, y0 v m, x0 v m + wd v m, y0 v m + ht v m]
   | .centre => [x0 v m + wd v m / 2, y0 v m + ht v m / 2]
   | .footer fh => [x0 v m, y0 v m + ht v m - fh, y0 v m + ht v m]
   | .footerGrad => [x0 v m, x0 v m + wd v m]
@@ -121,9 +119,6 @@ def composed (v : Vp) (m : Rat) : Item → List Rat
     [(i : Rat) * (cw v 1 + colGap v) + ev (colTx v i) m, Y + ev (imgTy v j Y gv) m,
       (i : Rat) * (cw v 1 + colGap v) + ev (colTx v i) m + ev (sImg v) m * cw v 1,
       Y + ev (imgTy v j Y gv) m + ev (sImg v) m * h]
-  | .veil =>
-    [ev (x0 v) m, ev (y0 v) m, ev (x0 v) m + ev (fun x => wd v x / wp v) m * wp v,
-      ev (y0 v) m + ev (fun x => ht v x / hp v) m * hp v]
   | .centre => [wp v / 2, hp v / 2 + ev (dP v) m]
   | .footer fh => [0 + ev (x0 v) m, hp v - fh + ev (fun x => y0 v x + ht v x - hp v) m,
       hp v + ev (fun x => y0 v x + ht v x - hp v) m]
@@ -188,11 +183,6 @@ theorem rect_eq (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) 
     simp only [composed, faithful, et, es, ey]
     unfold colTx imgTy
     have : sImg v m * cw v 1 = cw v m := by unfold sImg; exact Rat.div_mul_cancel (by grind)
-    grind
-  | veil =>
-    simp only [composed, faithful, ex0, ey0, ewd, eht]
-    have a : wd v m / wp v * wp v = wd v m := Rat.div_mul_cancel (by grind)
-    have b : ht v m / hp v * hp v = ht v m := Rat.div_mul_cancel (by grind)
     grind
   | centre => simp only [composed, faithful, edp]; unfold dP; grind
   | footer fh => simp only [composed, faithful, ex0, eft]; grind

@@ -12,6 +12,7 @@ import { matchList } from './media';
 import boxCss from './box.module.css';
 import css from './nav.module.css';
 import { art, GenSvg } from '../../GenSvg';
+import { MorphGeom } from '../morph.geom';
 
 export const NAV_ORDER = 99;
 
@@ -143,6 +144,7 @@ export function Nav({
         </div>
       </div>
       {children}
+      <MorphGeom />
     </header>
   );
 }
