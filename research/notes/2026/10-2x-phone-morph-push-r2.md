@@ -20,7 +20,7 @@ Same real iPhone (WebKit), same fixed XCUITest push pattern, end segment, one in
 
 ## Result (MEASURED, 2026-10-27)
 16 visits, 4 per arm, all first attempt, none lost. Pin: before Nominal (10:10:05 UTC), 36 readings (4 block starts, 16 between lanes, 16 visit ends)
-all Serious with the Lean gate saying go. Cells are median [min-max] over the 4 visits; frame intervals in ms; counts are Timeline records
+all Serious with the Lean gate saying go. Cells are the upper median (3rd of 4 sorted values) [min-max] over the 4 visits; frame intervals in ms; counts are Timeline records
 between each push and its morph end, summed over the 10 pushes of a visit. Label = Lean `pushLabel` against the base.
 
 | arm | n | p95 | p99 | max | frames over 50 ms | style | layout | paint | rAF | label |
@@ -38,14 +38,21 @@ Lean `pushLabel` cell verdicts against the base (a cell is `worse`, `same` or `b
 | geom + geom-timed | same | same | same | same | same | same | same | same |
 | morph.stage:on | same | same | same | worse | worse | worse | worse | worse |
 
+A cell beats or is worse only when the arm's range clears the base's range by more than the base's spread (max - min); otherwise it
+is same, which includes non-overlapping ranges.
+
 - morph.stage:on: worse again, now with its morph read (maxMorph 946-1000 per mille in its 4 visits). Frames over 50 ms 184 vs 55, every count column
   2.0-2.6x the base (style 2.6x, paint 2.2x, layout 2.0x, rAF 2.0x). p95 90 vs 69 ms (ranges 82-109 vs 64-75), but the rule calls that cell same.
   Its counts moved 1-5% against the round-1 medians (style 2435 to 2465, paint 21597 to 22592), so reading the morph did not change them much.
-- morph.geom:on: worse by the rule only through the style count (1912 vs 962). p95, p99 and max medians are lower than the base (58/77/103 vs 69/103/556);
+- morph.geom:on: worse by the rule only through the style count (1912 vs 962); its round-1 'mixed' became 'worse' for the same reason: max no
+  longer beats. p95, p99 and max medians are lower than the base (58/77/103 vs 69/103/556);
   the rule calls those cells same. Visit 15 (round 3, position 3) is unlike its three siblings: over50 164 (others 56-67), paint 5376 (others 8197-8506),
   style 1296 (others 1850-1920); the summary does not show why.
 - geom + geom-timed: same on all eight cells. Round 1 called it better (3 visits, fixed order); with n = 4 and the Latin order its max
-  (145 vs 556) is lower but the rule needs a cell that beats, and none does. The round-1 verdict does not reproduce.
+  (145 vs 556) is lower but the rule needs a cell that beats, and none does. The round-1 verdict (better, from the max cell) is not
+  confirmed: the base max spread rose from 38 ms (333-371) to 318 ms (279-597), so under `Session.verdict` (beats needs arm max + base
+  spread < base min) no arm can beat the base on max in this run. The arm's own max barely moved (132-166 then, 133-158 now). Cell
+  'same' here means undecided within the base spread, not equal.
 - Base max has a wide range (279-597 ms); morph.geom:on and geom + geom-timed stay at 98-158 ms, stage at 281-854.
 
 ## Position check (MEASURED)
