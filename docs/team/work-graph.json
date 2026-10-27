@@ -23302,6 +23302,27 @@
     "results/geom-style-cut/**",
     "docs/team/handoffs/geom-style-cut.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-lane-check",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "The ci/* pre-push hook (apps/runner/src/ci-push.ts) refuses a push that runs no measuring lane: tree equal to main, or a tip message whose Lean Trigger lanes miss the lanes the task names (incident inc-ci-push-no-lane); decision in Lean Fw.Ci, golden-checked.",
+   "writes": [
+    "apps/runner/src/ci-push.ts",
+    "apps/runner/test/ci-push*.test.ts",
+    "lean/Fw/Ci/*.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ci/**",
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-2x-ci-push-lane-check.md",
+    "docs/team/handoffs/ci-push-lane-check.md"
+   ]
   }
  ],
  "deadline": {
