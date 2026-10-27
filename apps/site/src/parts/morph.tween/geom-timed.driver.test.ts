@@ -55,8 +55,10 @@ describe('createTimedGeom', () => {
     s.timed.settle(1);
     expect(s.handles.every((h) => h.cancelled)).toBe(true);
     expect(s.timed.live()).toBe(true);
+    expect(s.goal()).toContain(`html[${GOAL_ATTR}]`);
     expect(setup(false).timed.take(0, 1, 0)).toBe(false);
-    expect(setup().timed.take(1, 0, 0)).toBe(false);
+    expect(setup().timed.take(1, 0, 0)).toBe(true);
+    expect(setup(false).timed.take(1, 0, 0)).toBe(false);
   });
 });
 

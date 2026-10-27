@@ -22975,7 +22975,8 @@
     "research/notes/2026/10-2x-timed-take-retry.md",
     "results/timed-take-retry/**",
     "docs/team/handoffs/timed-take-retry.md"
-   ]
+   ],
+   "evidence": "52c4194"
   },
   {
    "devices": [
