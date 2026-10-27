@@ -143,14 +143,15 @@ def takenFlags : Bool → List TakeEv → Option (List Bool)
 a tick, and `take_never` says a guard that never opens never takes. A push without a chance is not judged. -/
 def pushJudged (chance taken : Bool) : Bool := !chance || taken
 
-/-- At least three of every four pushes had a chance, so that the reading cannot pass by excusing every push. -/
+/-- At least three of every four pushes are covered (had a chance, or were taken anyway), so that the reading cannot pass by excusing every push.
+A taken push is covered without a chance: a runner at one frame in 680 ms has no frame to show the guard open, and the take proves it did. -/
 def judgedEnough (judged total : Nat) : Bool := 0 < total && 3 * total ≤ 4 * judged
 
 def traceOk (evs : List TakeEv) (chances : List Bool) : Bool :=
   match takenFlags false evs with
   | none => false
   | some ts => ts.length == chances.length && (chances.zip ts).all (fun (c, t) => pushJudged c t) &&
-      judgedEnough (chances.filter id).length chances.length
+      judgedEnough ((chances.zip ts).filter (fun (c, t) => c || t)).length chances.length
 
 theorem trace_ok_cycle : traceOk [.push, .take, .push, .take] [true, true] = true := by decide
 
@@ -171,6 +172,12 @@ theorem judged_double_take_fails : traceOk [.push, .take, .take] [true] = false 
 theorem judged_empty_fails : traceOk [] [] = false := by decide
 
 theorem judged_chances_mismatch_fails : traceOk [.push, .take] [true, true] = false := by decide
+
+theorem judged_taken_without_chance_passes :
+    traceOk [.push, .take, .push, .take, .push, .take, .push, .take] [false, false, false, false] = true := by decide
+
+theorem judged_untaken_without_chance_counted_out :
+    traceOk [.push, .take, .push, .take, .push, .push] [false, false, false, false] = false := by decide
 
 theorem push_judged_untaken (taken : Bool) (h : pushJudged true taken = false) : taken = false := by
   cases taken <;> simp_all [pushJudged]

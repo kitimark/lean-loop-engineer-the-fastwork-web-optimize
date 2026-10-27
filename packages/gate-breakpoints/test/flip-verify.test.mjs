@@ -108,3 +108,11 @@ test('a dark frame that is the last one in the window leaves no tick to retry on
   const r = analyseFlipProbe({ frames, trace: [{ kind: 'push', at: 0 }] }, { baseWidth: 984, verify });
   assert.deepEqual(r.a5.chances, [false]);
 });
+
+test('taken pushes on a runner too slow to show the guard open still pass', () => {
+  const four = [{ kind: 'push', at: 0 }, { kind: 'take', el: 1 }, { kind: 'push', at: 700 }, { kind: 'take', el: 1 }, { kind: 'push', at: 1400 }, { kind: 'take', el: 1 }, { kind: 'push', at: 2100 }, { kind: 'take', el: 1 }];
+  const frames = Array.from({ length: 40 }, (_, i) => fr(i * 700, { dark: false }));
+  const r = analyseFlipProbe({ frames, trace: four }, { baseWidth: 984, verify });
+  assert.deepEqual(r.a5.chances, [false, false, false, false]);
+  assert.equal(r.a5.ok, true);
+});

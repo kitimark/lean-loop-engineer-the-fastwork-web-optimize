@@ -90,7 +90,9 @@ def traceCases : List (List TakeEv × List Bool) :=
    ([.push, .take, .push, .take, .push, .take, .push, .take], [true, true, true, true]),
    ([.push, .take, .push, .take, .push, .take, .push], [true, true, true, true]),
    ([.push, .take, .push, .take, .push, .take, .push], [true, true, true, false]),
-   ([.push, .take, .push, .take, .push, .push], [true, true, false, false])]
+   ([.push, .take, .push, .take, .push, .push], [true, true, false, false]),
+   ([.push, .take, .push, .take, .push, .take, .push, .take], [false, false, false, false]),
+   ([.push, .take, .push, .take, .push, .push], [false, false, false, false])]
 
 def verifyLines (_ : Unit) : List String :=
   gline "verify" [] (Json.mkObj [("windowMs", .num ⟨verifyWindowMs, 0⟩), ("frameMs", jdec 4 verifyFrameMs), ("tolPx", jdec 4 verifyTolPx),

@@ -50,11 +50,11 @@ export const pushJudged = (chance, taken) => !chance || taken;
 export const judgedEnough = (judged, total) => total > 0 && 3 * total <= 4 * judged;
 
 // Fw.Parts.MorphGeom.traceOk: every push that had a chance (the guard open in a frame with a later frame in its window) is taken, in order,
-// and at least 3 of every 4 pushes had a chance.
+// and at least 3 of every 4 pushes are covered (had a chance, or were taken anyway).
 export function judgeTrace(events, chances) {
   const ts = takenFlags(events);
   if (ts === null || ts.length !== chances.length) return false;
-  return chances.every((c, i) => pushJudged(c, ts[i])) && judgedEnough(chances.filter(Boolean).length, chances.length);
+  return chances.every((c, i) => pushJudged(c, ts[i])) && judgedEnough(chances.filter((c, i) => c || ts[i]).length, chances.length);
 }
 
 // The mutation each fix gets: the reading that must fail when it is reverted (Fw.Parts.MorphGeom.Mutation).

@@ -58,3 +58,5 @@
 {"fn":"verifyTrace","in":{"chances":[true,true,true,true],"events":["push","take","push","take","push","take","push"]},"out":false}
 {"fn":"verifyTrace","in":{"chances":[true,true,true,false],"events":["push","take","push","take","push","take","push"]},"out":true}
 {"fn":"verifyTrace","in":{"chances":[true,true,false,false],"events":["push","take","push","take","push","push"]},"out":false}
+{"fn":"verifyTrace","in":{"chances":[false,false,false,false],"events":["push","take","push","take","push","take","push","take"]},"out":true}
+{"fn":"verifyTrace","in":{"chances":[false,false,false,false],"events":["push","take","push","take","push","push"]},"out":false}
