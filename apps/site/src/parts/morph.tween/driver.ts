@@ -39,6 +39,7 @@ export interface TweenEnv {
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
   publish(value: number): void;
   flip?(): boolean;
+  syncMorph?(value: number): void;
   onActivate?(): void;
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
@@ -123,6 +124,15 @@ export function createTweenDriver(env: TweenEnv) {
     env.faded?.(fadedZero(st.value));
     p.style.pointerEvents = pointerNone({ m: st.value }) ? 'none' : '';
     if (env.rest && p.hasAttribute && p.toggleAttribute) setRest(p as RestEl, st.value);
+  };
+  const settleTimed = () => {
+    if (!env.timed) return;
+    if (st.value <= 0 && env.flip?.()) {
+      env.syncMorph?.(st.value);
+      const p = env.platform();
+      if (p && !env.fade) p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
+    }
+    env.timed.settle(st.value);
   };
   const isArmed = () => {
     const p = env.platform();
@@ -218,7 +228,7 @@ export function createTweenDriver(env: TweenEnv) {
       timedLive = false;
       env.fade?.settle(st.value);
       env.panel?.settle(st.value);
-      env.timed?.settle(st.value);
+      settleTimed();
     }
     env.publish(st.value);
     updateFade();
@@ -250,7 +260,7 @@ export function createTweenDriver(env: TweenEnv) {
       cancelFrame = null;
       dropTimers();
       timedLive = false;
-      env.timed?.settle(st.value);
+      settleTimed();
       env.fade?.settle(st.value);
       env.panel?.settle(st.value);
       env.publish(st.value);

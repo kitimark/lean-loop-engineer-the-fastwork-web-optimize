@@ -1,0 +1,89 @@
+{
+ "morph.geom:on": {
+  "r1": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2381,
+   "trace.UpdateLayoutTree": 2398,
+   "trace.UpdateLayoutTree.elementCount": 60432,
+   "trace.ScheduleStyleRecalculation": 2414,
+   "trace.Animation.instant": 269,
+   "peakElementCount": 1195
+  },
+  "r2": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2381,
+   "trace.UpdateLayoutTree": 2398,
+   "trace.UpdateLayoutTree.elementCount": 60434,
+   "trace.ScheduleStyleRecalculation": 2414,
+   "trace.Animation.instant": 269,
+   "peakElementCount": 1195
+  },
+  "r3": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2385,
+   "trace.UpdateLayoutTree": 2402,
+   "trace.UpdateLayoutTree.elementCount": 60411,
+   "trace.ScheduleStyleRecalculation": 2418,
+   "trace.Animation.instant": 269,
+   "peakElementCount": 1195
+  }
+ },
+ "morph.geom:on,morph.tween:geom-timed": {
+  "r1": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2383,
+   "trace.UpdateLayoutTree": 2400,
+   "trace.UpdateLayoutTree.elementCount": 58544,
+   "trace.ScheduleStyleRecalculation": 2416,
+   "trace.Animation.instant": 324,
+   "peakElementCount": 743
+  },
+  "r2": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2388,
+   "trace.UpdateLayoutTree": 2405,
+   "trace.UpdateLayoutTree.elementCount": 58643,
+   "trace.ScheduleStyleRecalculation": 2421,
+   "trace.Animation.instant": 324,
+   "peakElementCount": 743
+  },
+  "r3": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2383,
+   "trace.UpdateLayoutTree": 2400,
+   "trace.UpdateLayoutTree.elementCount": 58566,
+   "trace.ScheduleStyleRecalculation": 2416,
+   "trace.Animation.instant": 324,
+   "peakElementCount": 743
+  }
+ },
+ "base": {
+  "r1": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2379,
+   "trace.UpdateLayoutTree": 2396,
+   "trace.UpdateLayoutTree.elementCount": 61549,
+   "trace.ScheduleStyleRecalculation": 2412,
+   "trace.Animation.instant": 263,
+   "peakElementCount": 371
+  },
+  "r2": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2375,
+   "trace.UpdateLayoutTree": 2392,
+   "trace.UpdateLayoutTree.elementCount": 61554,
+   "trace.ScheduleStyleRecalculation": 2408,
+   "trace.Animation.instant": 263,
+   "peakElementCount": 371
+  },
+  "r3": {
+   "frames": 771,
+   "metric.RecalcStyleCount": 2375,
+   "trace.UpdateLayoutTree": 2392,
+   "trace.UpdateLayoutTree.elementCount": 61551,
+   "trace.ScheduleStyleRecalculation": 2408,
+   "trace.Animation.instant": 263,
+   "peakElementCount": 371
+  }
+ }
+}

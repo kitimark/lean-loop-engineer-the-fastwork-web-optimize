@@ -80,6 +80,16 @@ theorem skip_iff (flip : Bool) (m : Rat) : writes flip m = false ↔ flip = true
 /-- Readers of the attribute stay in flip mode, so it is never skipped. -/
 theorem navAttr_read_in_flip : (consumers .navAttr .flip).length = 3 := rfl
 
+
+/-- The flush inside `leave` runs with the flip class already gone, so it reads the stored value: it is exactly the end
+value when the write at `m = 0` came first (the timed settle syncs before it), whatever was stored before. -/
+theorem leave_flush (s : Rat) : seen .base 0 (stored true 0 s) = 0 := by
+  simp [seen, stored, writes]
+
+/-- Without that write the flush reads the stale value: the nav then transitions from it to the end value. -/
+theorem leave_flush_stale (s : Rat) (h : s ≠ 0) : seen .base 0 s ≠ 0 := by
+  simpa [seen] using h
+
 /-- Frames of a push saved by the skip. -/
 def saved (fs : List (Bool × Rat)) : Nat := (fs.filter fun f => !writes f.1 f.2).length
 

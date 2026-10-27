@@ -54,6 +54,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
         nav.dataset.fwMorph = String(value);
       },
       flip: window.__fw?.config.variants['morph.geom'] === 'on' ? () => root.classList.contains(FLIP_CLASS) : undefined,
+      syncMorph: (value) => document.querySelector<HTMLElement>(navSelector)?.style.setProperty('--morph', String(value)),
       lock: scrollLockOf(variant, root),
       rest: platformRest,
       faded: platformFadedPause ? (zero) => fadedBus.set(zero) : undefined,
