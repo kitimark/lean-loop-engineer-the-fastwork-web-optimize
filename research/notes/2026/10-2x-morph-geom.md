@@ -18,9 +18,10 @@ level is still undecided and the decision is stated per level.
 |---|---|---|
 | nav only (level 0) | fits 10 of 12 bands (not 1440x900, 1920x1080) | fits 12 of 12 |
 | nav, panel, platform (level 2) | fits 12 of 12 | fits 12 of 12 |
+| level 2 net bytes, flip (bands in `bandVps` order) | -1806336, -3905280, -9704448, -13428864, 4561920, -23823360, -6243200, -11384832, -12649472, -17327104, -18424832, -18424832 | |
 
 Proved by `decide +kernel` in `MorphGeomCounts.lean`: `net_lvl0_flip` (exact bytes per band), `net_lvl0_flip_fits`,
-`net_lvl0_platform`, `net_lvl0_platform_fits`, `net_phone_fold` (every phone band fits at level 0), `net_lvl2_flip`.
+`net_lvl0_platform`, `net_lvl0_platform_fits`, `net_phone_fold` (every phone band fits at level 0), `net_lvl2_flip`, `net_lvl2_flip_bytes` (exact net bytes per band at level 2).
 Decision: ship the folded veil; the two big desktop bands may stay named over at level 0 (accepted limit, the iPhone bands
 fit). The platform step is taken only if the census shows the faithful page has no platform layer.
 

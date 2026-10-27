@@ -35,4 +35,7 @@ theorem net_phone_fold : (netFits 0 false).take 6 = List.replicate 6 true := by 
 
 theorem net_lvl2_flip : netFits 2 false = List.replicate 12 true := by decide +kernel
 
+/-- Net bytes per band if the faithful page also backs the panel and the platform (level 2, INFERRED), flip as designed. -/
+theorem net_lvl2_flip_bytes : netBands 2 false = [-1806336, -3905280, -9704448, -13428864, 4561920, -23823360, -6243200, -11384832, -12649472, -17327104, -18424832, -18424832] := by decide +kernel
+
 end Fw.Parts.MorphGeom
