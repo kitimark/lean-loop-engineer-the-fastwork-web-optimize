@@ -1,0 +1,6 @@
+branch: worktree-morph-push-sim (CI branch ci/morph-push-sim); worktree: .claude/worktrees/morph-push-sim; last work commit a52e374af, CI push 1 at 9db6ef327 (pushes used 1 of 4)
+CI runs: base arm [throttle:push-cycle-morph:base] toolbar-throttle 40465591949 running; lean 40465592115 running. geom and timed arms not pushed yet (one push each).
+verified: Lean PushCycle.lean builds (window, armVerdict, quietVerdict, 20+ theorems), golden regenerated and --check green, TS twin test/morph-push.test.mjs (7 tests) and push-cycle tests pass, ci-paths test 56 pass.
+open: wait for base, then push geom and timed; pool with results/morph-push-sim/pool.mjs; note research/notes/2026/10-2x-morph-push-sim.md; ledger notes; check.sh via fw slot; measure-webkit tests; land-inputs test; plan lint; dry land; review ready.
+conventions: lane trigger is an empty commit "ci: request [ci:toolbar-throttle] [throttle:push-cycle-morph:<base|geom|timed>] ..." then pnpm -s fw ci push --branch ci/morph-push-sim --lanes toolbar-throttle; wait: pnpm -s fw ci wait --branch ci/morph-push-sim --workflow toolbar-throttle in a background call.
+Read first: lean/Fw/Measure/PushCycle.lean from pushMs; packages/measure-webkit/src/throttle/morph-push.mjs; push-cycle-pass.mjs (morphPush).
