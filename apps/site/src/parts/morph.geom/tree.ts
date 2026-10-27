@@ -1,8 +1,3 @@
-/**
- * DOM side of morph.geom:on: tags the existing elements with `data-mg`, builds the K0..U wrappers and the G and D fills
- * around the nav's children, and takes them down again. Glue only: no decision lives here (the tracks come from
- * tracks.ts, the contract is `data-mg=<el>` plus `data-i`/`data-j` on columns and images from Lean `selector`).
- */
 import { hp, wp, type Layout, type Vp } from './tracks';
 
 export const FLIP_CLASS = 'is-flip';
@@ -31,7 +26,6 @@ export interface Built {
   layout: Layout;
 }
 
-/** The earn button's contents go into earnClip > earnLabel (the time tracks move the clip and the label). */
 function wrapEarn(nav: HTMLElement): void {
   const earn = nav.querySelector<HTMLElement>('[data-mg="earn"]');
   if (!earn || earn.querySelector(':scope > [data-mg="earnClip"]')) return;
@@ -42,7 +36,6 @@ function wrapEarn(nav: HTMLElement): void {
   earn.append(clip);
 }
 
-/** The backdrop's children go into Kb > Ub, the nested clips of its bottom-right edge. */
 function wrapBackdrop(nav: HTMLElement): void {
   const b = nav.querySelector<HTMLElement>('[data-mg="backdropClip"]');
   if (!b || b.querySelector(':scope > [data-mg="Kb"]')) return;
@@ -53,7 +46,6 @@ function wrapBackdrop(nav: HTMLElement): void {
   b.append(kb);
 }
 
-/** Undo `wrapEarn` and `wrapBackdrop`. */
 function unwrap(nav: HTMLElement): void {
   for (const [outer, inner] of [['earnClip', 'earnLabel'], ['Kb', 'Ub']] as const) {
     const o = nav.querySelector<HTMLElement>(`[data-mg="${outer}"]`);
@@ -63,7 +55,6 @@ function unwrap(nav: HTMLElement): void {
   }
 }
 
-/** Tag, wrap and measure. Returns the viewport and the measured layout the tracks are built for. */
 export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
   const root = document.documentElement;
   const vp = { w: window.innerWidth, h: window.innerHeight };
@@ -113,7 +104,6 @@ export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
   };
 }
 
-/** Unwrap: the nav's children go back in order; the flip class leaves. */
 export function leave(nav: HTMLElement): void {
   unwrap(nav);
   const k0 = nav.querySelector<HTMLElement>(':scope > [data-mg="K0"]');

@@ -88,8 +88,7 @@ structure Lyr where
 def imgRows (c : Ctx) : List ((Nat × Nat) × Rat × Rat) :=
   (c.imgs.zipIdx).flatMap fun (col, i) => (col.zipIdx).map fun ((y, h), j) => ((i, j), y, h)
 
-/-- The flip tree of the design note at final size. D is the solid fill and the veil is folded into it (no veil layer;
-the veil's radial shape is dropped, a look change of class L); clippers, counters, the panel and directly composited images paint nothing (`RenderLayerBacking.cpp:3509-3535,3687-3690@862f17d`). -/
+-- clippers, counters, the panel and directly composited images paint nothing: `RenderLayerBacking.cpp:3509-3535,3687-3690@862f17d`
 def layers (v : Vp) (c : Ctx) : List Lyr :=
   let W := wp v; let H := hp v
   [⟨"nav", "", W, H, false⟩, ⟨"K0", "nav", 2 * W, 2 * H, false⟩, ⟨"K1", "K0", 2 * W, 2 * H, false⟩,

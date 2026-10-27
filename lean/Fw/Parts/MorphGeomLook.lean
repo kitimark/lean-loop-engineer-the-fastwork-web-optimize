@@ -1,11 +1,8 @@
 import Fw.Parts.MorphGeomRect
 import Fw.Parts.MorphGeomAnim
-/-! `morph.geom:on`: the rectangle model `composed` reads its track functions from `anims`. Each function `composed`
-evaluates is the function of the named animation, so `rect_eq` speaks about the animations the site builds. -/
 namespace Fw.Parts.MorphGeom
 open Fw.Parts.Nav
 
-/-- The function at `idx` of the first animation with this element, property and key. -/
 def lookFn (as : List Anim) (el : String) (p : AnimProp) (key : Nat × Nat) (idx : Nat) : Option (Rat → Rat) :=
   (as.find? fun a => a.el == el && a.prop == p && a.key == key).bind fun a => a.fns[idx]?
 
@@ -64,8 +61,6 @@ theorem look_column (v : Vp) (c : Ctx) (i : Nat) (hi : i < (nCols v).floor.toNat
   unfold anims
   split <;> split <;> simp only [List.mem_append] <;> grind
 
-/-- An image animation uses a zero row gap; `rect_eq` states the rectangle for any gap and this lemma ties the animated one
-(gap 0) to the animation list. -/
 theorem look_image (v : Vp) (c : Ctx) (i j : Nat) (Y h : Rat) (hm : ((i, j), Y, h) ∈ imgRows c) :
     ∃ a ∈ anims v c, a.el = "image" ∧ a.key = (i, j) ∧ a.prop = .transformList ∧ a.fns[1]? = some (imgTy v j Y 0) ∧
       a.fns[2]? = some (sImg v) := by

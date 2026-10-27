@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// Look report of morph.geom:on: the faithful page (default config, `--morph` written by hand) against the flag page
-// (effects paused at currentTime = 1000 m by the part's own driver), at the pinned m values, per band and region.
-// Reuses the visual-diff launchers/diff and the gate's server/page helpers; nothing new in how a page is loaded.
-//   node src/look.mjs --out DIR [--engine chromium|playwright-webkit] [--bands 320x568,...] [--ms 0,.01,...]
-// Reports facts (max channel delta per region, share of pixels over 12); the look verdict is the user's (class L).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PIN_SRC } from '../../gate-breakpoints/src/page.mjs';
@@ -21,7 +16,6 @@ const out = resolve(opt('out', 'out'));
 const OVER = 12;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Pin the nav at m: the tween's own writes (`--morph`, `data-fw-morph`, `is-on-dark` past 0.2). */
 function pin(m) {
   const nav = document.querySelector('[data-fw="nav"]');
   nav.classList.toggle('is-on-dark', m > 0.2 || !!nav.dataset.fwKeepDark);

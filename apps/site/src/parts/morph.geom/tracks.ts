@@ -1,9 +1,3 @@
-/**
- * Track builder of morph.geom:on (no DOM). Every function restates a Lean definition of
- * lean/Fw/Parts/MorphGeom{,Rect,Earn,Anim}.lean in floats; `tracks.golden.test.ts` replays the `sample` lines of
- * packages/contracts/golden/morph-geom.jsonl against it (1e-6). TS stand-in: the Rat arithmetic and the 40-step bisection
- * are floats here; the Lean statements hold for the rational twins.
- */
 import { tween } from '../morph.tween/logic';
 
 export type Eng = 'webkit' | 'chromium';
@@ -15,7 +9,6 @@ export interface Vp {
   h: number;
 }
 
-/** The measured sizes the tracks depend on (Lean `Ctx`). */
 export interface Layout {
   eng: Eng;
   a: number;
@@ -35,7 +28,6 @@ export interface Anim {
   prop: Prop;
   ks: Ks;
   offsets: number[];
-  /** values[f][k]: function f at knot k */
   values: number[][];
 }
 
@@ -63,7 +55,6 @@ const panelO = (m: number) => clamp01((m - 0.08) / 0.72);
 const fade = (m: number) => 1 - Math.min(1, m / 0.55);
 const mKnot = (v: Vp) => 12 / (v.h - 52);
 
-/** Lean `knots`: the grid whose chords stay within 1/64 px (phone: finer below the radius kink). */
 export function gridKnots(v: Vp): number[] {
   const from = (p: number, h: number, k: number) => Array.from({ length: k + 1 }, (_, i) => p + i * h);
   if (!phone(v.w)) return from(0, 1 / 320, 320);
@@ -103,7 +94,6 @@ const CURVE = [0.33, 0, 0.2, 1];
 const MAXW_TR: Tr = { delay: 0, dur: 680 };
 const OPACITY_TR: Tr = { delay: 120, dur: 320 };
 
-/** Lean `shown`: the retargeted-transition run of one property over the 60 Hz grid (all frames at once). */
 function shownRun(tr: Tr, g: number[]): number[] {
   const value = (r: { f: number; t: number; s: number; live: boolean }, now: number) =>
     r.live ? r.f + (r.t - r.f) * easeBez(CURVE, (now - r.s - tr.delay) / tr.dur) : r.t;
@@ -115,7 +105,6 @@ function shownRun(tr: Tr, g: number[]): number[] {
   });
 }
 
-/** Lean `padRuns`: WebKit never starts the `padding-inline` transition. */
 const padRuns = (e: Eng) => e === 'chromium';
 
 export function buildAnims(v: Vp, c: Layout): Anim[] {
@@ -190,7 +179,6 @@ export function buildAnims(v: Vp, c: Layout): Anim[] {
   return out;
 }
 
-/** Piecewise-linear value of function `f` of `a` at domain position `x` (m, or ms for time tracks). */
 export function evalAt(a: Anim, f: number, x: number): number {
   const u = a.ks === 'time' ? x / TIME_END : x;
   const o = a.offsets;
@@ -202,7 +190,6 @@ export function evalAt(a: Anim, f: number, x: number): number {
 
 const n = (x: number) => String(Math.round(x * 1e4) / 1e4);
 
-/** The CSS value of one keyframe (the shape of Lean `decl`). */
 export function cssValue(p: Prop, xs: number[]): string {
   switch (p) {
     case 'translate':
@@ -224,12 +211,10 @@ export interface Kf {
   [prop: string]: string | number;
 }
 
-/** The keyframes of one effect: one per knot, one function-list shape everywhere, linear easing. */
 export function keyframes(a: Anim): Kf[] {
   return a.offsets.map((offset, k) => ({ offset, [a.prop]: cssValue(a.prop, a.values.map((ys) => ys[k])) }));
 }
 
-/** `data-mg` selector of an effect's element (Lean `selector`). */
 export function selector(a: Anim): string {
   const b = `[data-mg="${a.el}"]`;
   return a.el === 'column' ? `${b}[data-i="${a.i}"]` : a.el === 'image' ? `${b}[data-i="${a.i}"][data-j="${a.j}"]` : b;

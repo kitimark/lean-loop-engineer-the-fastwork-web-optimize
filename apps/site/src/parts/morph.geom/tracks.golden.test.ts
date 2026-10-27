@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildAnims, evalAt, gridKnots, keyframes, selector, TIME_END, type Eng, type Layout, type Prop } from './tracks';
 
-/** Fw.Parts.MorphGeom: the knot tables and `sample` lines of packages/contracts/golden/morph-geom.jsonl. */
 const lines = readFileSync(resolve(__dirname, '../../../../../packages/contracts/golden/morph-geom.jsonl'), 'utf8')
   .trim()
   .split('\n')
@@ -11,7 +10,6 @@ const lines = readFileSync(resolve(__dirname, '../../../../../packages/contracts
 
 const M = [0, 0.01, 0.05, 0.08, 0.15, 0.2, 0.32, 0.5, 0.55, 0.8, 1];
 
-/** Lean `Ctx.sample`. */
 function sample(w: number, eng: Eng): Layout {
   const ph = w <= 640;
   const cols = ph ? 3 : 5;

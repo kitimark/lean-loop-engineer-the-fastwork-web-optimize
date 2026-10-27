@@ -8,7 +8,6 @@ import './geom.css';
 export const GEOM_ON = 'on';
 const NAV = '[data-fw="nav"]';
 
-/** Feature probe, not a UA test: WebKit starts no `padding-inline` transition (Lean `wk_paddingInline_never`). */
 export function probeEngine(): Eng {
   const e = document.createElement('div');
   e.style.cssText = 'position:fixed;visibility:hidden;padding-inline:0;transition:padding-inline 1s';
@@ -23,7 +22,6 @@ export function probeEngine(): Eng {
 
 const CAMEL: Record<string, string> = { 'backdrop-filter': 'backdropFilter' };
 
-/** morph.geom (variant `on`, look change): the nav's end-of-page morph as compositor-only transforms of fixed layers. */
 export function MorphGeom() {
   useEffect(() => {
     if (window.__fw?.config.variants['morph.geom'] !== GEOM_ON) return;

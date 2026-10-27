@@ -1,10 +1,3 @@
-/**
- * Driver of morph.geom:on (no DOM): follows today's tween. The first `--morph` above 0 enters the flip (layer tree, one
- * paused Web Animation per track); each later value only writes `currentTime`; a value of 0 takes the tree down. Track
- * domain: m tracks use duration 1000 and currentTime = 1000 m; the 60 Hz time tracks use duration TIME_END and
- * currentTime = the tween time that shows m (TS stand-in: valid for a push from 0 toward 1; a reversal is
- * morph-timed's job).
- */
 import { DURATION_MS } from '../morph.tween/logic';
 import { buildAnims, keyframes, TIME_END, type Anim, type Kf, type Layout, type Vp } from './tracks';
 
@@ -16,15 +9,12 @@ export interface AnimHandle {
 }
 
 export interface GeomEnv {
-  /** the faithful fallbacks: not on dark, or reduced motion */
   allowed(): boolean;
   enter(): { vp: Vp; layout: Layout };
   leave(): void;
-  /** create a paused effect on the element of `a`; null when the element is absent */
   animate(a: Anim, kf: Kf[], duration: number): AnimHandle | null;
 }
 
-/** Tween time that shows m for an open push (inverse of `1 - (1 - i)^3`), in ms. */
 export const timeOf = (m: number): number => Math.min(TIME_END, DURATION_MS * (1 - Math.cbrt(1 - Math.min(1, Math.max(0, m)))));
 
 export function createGeomDriver(env: GeomEnv) {

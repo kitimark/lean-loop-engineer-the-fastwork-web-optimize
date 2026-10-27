@@ -1,6 +1,6 @@
 # morph.geom:on: the site half (task morph-geom)
 
-Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. Round 3 read the premises, the gate and the Chromium counts and ran the look report locally (see Results).
+Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. Results: round 3.
 
 ## Memory decision (round 2: veil folded)
 The veil is folded into the solid fill D: no veil layer, no veil track, the panel's veil element is `display: none` under
