@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { LEAVE_OPS, MOVE_OPS } from './tree';
 import { buildAnims, evalAt, gridKnots, keyframes, selector, TIME_END, type Eng, type Layout, type Prop } from './tracks';
 
 const lines = readFileSync(resolve(__dirname, '../../../../../packages/contracts/golden/morph-geom.jsonl'), 'utf8')
@@ -92,5 +93,17 @@ describe('morph.geom tracks against the Lean golden', () => {
         for (const a of buildAnims({ w, h }, sample(w, eng))) expect(sels, a.el).toContain(`.is-flip [data-mg="${a.el}"]`);
       }
     }
+  });
+
+  it('geom.css holds the flip layout rules of the golden (A1 flex row, A3b earn transform, A3c actions box)', () => {
+    const css = readFileSync(resolve(__dirname, 'geom.css'), 'utf8').replace(/'/g, '"').replace(/\s+/g, ' ');
+    const rules = lines.find((l) => l.fn === 'layout')!.out as string[];
+    expect(rules.length).toBe(3);
+    for (const r of rules) expect(css, r).toContain(r);
+  });
+
+  it('leave() and the re-parent run the golden op lists', () => {
+    expect([...LEAVE_OPS]).toEqual(lines.find((l) => l.fn === 'leave')!.out);
+    expect([...MOVE_OPS]).toEqual(lines.find((l) => l.fn === 'move')!.out);
   });
 });

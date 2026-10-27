@@ -1,5 +1,6 @@
 // node src/cli.mjs run     --engine chromium|playwright-webkit|both --out out/<label> [--concurrency 4] [--probes id,block,...] [--sweeps id,...|none]
 //                          [--parts engine.scroll,nav.hitTest,hero.countdown,hero.exit]   (pilot part ids of src/anchors.json; default all)
+// node src/cli.mjs flip    --engine chromium|playwright-webkit|both --fw morph.geom:on --out out/flip   (the flip-state cell; src/flip-cell.mjs)
 // node src/cli.mjs gaps    run|summary|device-serve|device-judge --out out/<label>   (the Q33 gaps lane; src/gaps/README.md)
 // node src/cli.mjs summary --out out/<label> [--parts id,...]   (reads <engine>.json files there, writes summary.json, summary.md and
 //   readings-<engine>.json; --parts narrows the verdict to those parts, which the run must have covered; a narrowed run names covered
@@ -185,6 +186,15 @@ if (cmd === 'run') {
   if (judged.length === 0) console.log('gate verdict: no engine file in --out, nothing judged');
   if (narrowed) console.log('gate verdict: narrowed by --parts, so the run never exits 0 (Lean narrowed_never_zero)');
   process.exitCode = runExit(narrowed, judged.map((j) => j.verdict));
+} else if (cmd === 'flip') {
+  // the flip-state cell (src/flip-cell.mjs): column, bar, earn and actions rects of a morph.geom flag against the base page
+  const { runFlipCell } = await import('./flip-cell.mjs');
+  const e = arg('engine', 'both');
+  const engines = e === 'both' ? ['chromium', 'playwright-webkit'] : [e];
+  const bands = argv.includes('--bands') ? arg('bands', '').split(',') : null;
+  let ok = true;
+  for (const engineName of engines) ok = (await runFlipCell({ engineName, fw: arg('fw', 'morph.geom:on'), outDir: out, bandFilter: bands })) && ok;
+  process.exit(ok ? 0 : 1);
 } else if (cmd === 'gaps') {
   // the gaps lane (src/gaps/): the Q33 cells, fractional widths and hover x pointer; see src/gaps/README.md
   const { gapsMain } = await import('./gaps/cli.mjs');

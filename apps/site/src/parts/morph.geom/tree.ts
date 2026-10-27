@@ -1,6 +1,12 @@
 import { hp, wp, type Layout, type Vp } from './tracks';
 
 export const FLIP_CLASS = 'is-flip';
+/** Set on the nav for the length of leave(): no transition runs while the class goes (geom.css). */
+export const QUIET_CLASS = 'is-flip-quiet';
+/** The steps of leave() and of a re-parent, in order (Lean Fw.Parts.MorphGeom leaveNew, moveNew; the `leave` and `move`
+ * golden lines, checked by tracks.golden.test.ts). */
+export const LEAVE_OPS = ['suppress', 'removeFlip', 'flush', 'restore'] as const;
+export const MOVE_OPS = ['save', 'reparent', 'restore'] as const;
 const TAGS: [string, string][] = [
   ['bar', ':scope > div'],
   ['logo', 'a[aria-label="Fastwork home"]'],
@@ -55,9 +61,36 @@ function unwrap(nav: HTMLElement): void {
   }
 }
 
+type Saved = [Element, string | null, string, number][];
+
+/** The currentTime of every CSS animation under `root` (the move op `save`). */
+export function saveAnims(root: HTMLElement): Saved {
+  if (typeof root.getAnimations !== 'function' || typeof CSSAnimation === 'undefined') return [];
+  const out: Saved = [];
+  for (const a of root.getAnimations({ subtree: true })) {
+    const e = a.effect;
+    if (a instanceof CSSAnimation && e instanceof KeyframeEffect && e.target && a.currentTime !== null) {
+      out.push([e.target, e.pseudoElement, a.animationName, Number(a.currentTime)]);
+    }
+  }
+  return out;
+}
+
+/** The move op `restore`: the animations a re-parent restarted get their saved time back. */
+export function restoreAnims(root: HTMLElement, saved: Saved): void {
+  if (saved.length === 0) return;
+  for (const a of root.getAnimations({ subtree: true })) {
+    const e = a.effect;
+    if (!(a instanceof CSSAnimation) || !(e instanceof KeyframeEffect)) continue;
+    const s = saved.find((x) => x[0] === e.target && x[1] === e.pseudoElement && x[2] === a.animationName);
+    if (s) a.currentTime = s[3];
+  }
+}
+
 export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
   const root = document.documentElement;
   const vp = { w: window.innerWidth, h: window.innerHeight };
+  const saved = saveAnims(nav);
   nav.dataset.mg = 'nav';
   root.classList.add(FLIP_CLASS);
   for (const [name, sel] of TAGS) nav.querySelector<HTMLElement>(sel)?.setAttribute('data-mg', name);
@@ -98,6 +131,7 @@ export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
   const lw = nav.querySelector<HTMLElement>('[data-mg="lang"]')?.offsetWidth ?? (ph ? 120 : 144);
   const logoW = nav.querySelector<HTMLElement>('[data-mg="logo"]')?.offsetWidth ?? (ph ? 120 : 160);
   nav.style.setProperty('--mg-logo-w', `${logoW}px`);
+  restoreAnims(nav, saved);
   return {
     vp,
     layout: { eng, a: 0, b: 1, inset: ph ? 16 : 24, logoW, lw, w0, gL: 0, imgs },
@@ -105,6 +139,7 @@ export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
 }
 
 export function leave(nav: HTMLElement): void {
+  const saved = saveAnims(nav);
   unwrap(nav);
   const k0 = nav.querySelector<HTMLElement>(':scope > [data-mg="K0"]');
   const u = nav.querySelector<HTMLElement>('[data-mg="U"]');
@@ -117,7 +152,11 @@ export function leave(nav: HTMLElement): void {
   nav.style.removeProperty('--mg-h');
   nav.style.removeProperty('--mg-logo-w');
   nav.style.removeProperty('--mg-w0');
-  document.documentElement.classList.remove(FLIP_CLASS);
+  nav.classList.add(QUIET_CLASS); // suppress
+  document.documentElement.classList.remove(FLIP_CLASS); // removeFlip
+  void nav.getBoundingClientRect(); // flush: the end values apply with no transition
+  restoreAnims(nav, saved); // move op restore (getAnimations flushes again)
+  nav.classList.remove(QUIET_CLASS); // restore
 }
 
 export function find(a: { el: string; i: number; j: number }): HTMLElement | null {
