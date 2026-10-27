@@ -25,7 +25,8 @@ its goal rules until `leave` (settle(m>0) only drops animations): tested in geom
 ## Measured (local debug runs, not results)
 Chromium, swipe-touch-v1 strokes (10 css px per 16 ms, y 880 to 100) sent by CDP touch to the page end, then a tail and two pull-outs
 (results/timed-take-retry/pushlog.mjs; logs pushlog-before.json, pushlog-after.json). takeFrameMs = ms into the push when the timed
-tracks were taken.
+tracks were taken. Differs from the profile: dpr 1, start 2.5 viewports above the end, wall-clock pacing, two added pull-outs,
+one run with 2 pushes per width.
 
 | width | before (no retry) | after |
 |---|---|---|
