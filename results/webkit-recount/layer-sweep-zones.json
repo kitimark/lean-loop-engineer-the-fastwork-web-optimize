@@ -1,0 +1,182 @@
+[
+ {
+  "zone": "z4500",
+  "steps": 10,
+  "arm": "layer-sweep",
+  "passes": [
+   6,
+   8
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "Paint": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "132-154",
+    "arm": "66-105"
+   },
+   "Layout": {
+    "base": "41-71",
+    "arm": "46-67"
+   },
+   "RecalculateStyles": {
+    "base": "49-60",
+    "arm": "42-59"
+   },
+   "Composite": {
+    "base": "20",
+    "arm": "20"
+   },
+   "FireAnimationFrame": {
+    "base": "53",
+    "arm": "53"
+   },
+   "ObserverCallback": {
+    "base": "10-14",
+    "arm": "10-12"
+   }
+  }
+ },
+ {
+  "zone": "z5000",
+  "steps": 5,
+  "arm": "layer-sweep",
+  "passes": [
+   6,
+   8
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "Paint": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "59-66",
+    "arm": "30-48"
+   },
+   "Layout": {
+    "base": "26-34",
+    "arm": "23-33"
+   },
+   "RecalculateStyles": {
+    "base": "32",
+    "arm": "24-32"
+   },
+   "Composite": {
+    "base": "10",
+    "arm": "10"
+   },
+   "FireAnimationFrame": {
+    "base": "22",
+    "arm": "22-26"
+   },
+   "ObserverCallback": {
+    "base": "4",
+    "arm": "4"
+   }
+  }
+ },
+ {
+  "zone": "finish",
+  "steps": 15,
+  "arm": "layer-sweep",
+  "passes": [
+   6,
+   8
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "Paint": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "196-220",
+    "arm": "112-143"
+   },
+   "Layout": {
+    "base": "68-105",
+    "arm": "72-100"
+   },
+   "RecalculateStyles": {
+    "base": "81-92",
+    "arm": "66-90"
+   },
+   "Composite": {
+    "base": "30",
+    "arm": "30"
+   },
+   "FireAnimationFrame": {
+    "base": "75",
+    "arm": "75-79"
+   },
+   "ObserverCallback": {
+    "base": "14-18",
+    "arm": "14-16"
+   }
+  }
+ },
+ {
+  "zone": "whole",
+  "steps": 105,
+  "arm": "layer-sweep",
+  "passes": [
+   6,
+   8
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "Paint": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "1206-1304",
+    "arm": "1032-1180"
+   },
+   "Layout": {
+    "base": "596-651",
+    "arm": "609-675"
+   },
+   "RecalculateStyles": {
+    "base": "649-678",
+    "arm": "632-673"
+   },
+   "Composite": {
+    "base": "209",
+    "arm": "209"
+   },
+   "FireAnimationFrame": {
+    "base": "664-667",
+    "arm": "665-671"
+   },
+   "ObserverCallback": {
+    "base": "61-66",
+    "arm": "62-68"
+   }
+  }
+ }
+]

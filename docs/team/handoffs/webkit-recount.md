@@ -11,8 +11,11 @@ CI runs (state):
 - entries:probe-off 40418142290: r1 LOST (inspector dead, Safari terminate > 20 s, reboot failed, exit 4), r2 ok, r3 ok -> arm n=2 VMs, UNDECIDED (reader pass rule: gain in all 4 zones). results/webkit-recount/entries-probe-off-zones.json
 - marquee:probe-off 40428340750: success 3 of 3. Reader: noGain in all 4 zones, decided. results/webkit-recount/marquee-probe-off-zones.json
 - layer-sweep retry 40408733016: r1, r2 ok, r3 LOST (Timeline.stop timeout). Good sweep sessions: first run 40366658003 r1, retry r1, retry r2 = VM ids 1,1,2 -> 2 distinct VMs
-- layer-sweep r3 dispatch (the ONE allowed extra run, --runs 3, only r3 needed) 40441397213 running, started 02:40Z; fw run process in background, log wr-scratch/sweep-r3.log. If lost: layer-sweep stays undecided n=2
+- layer-sweep final dispatch 40441397213 (--runs 3): r1 ok, r2 cancelled at artifact upload (no files), r3 LOST (simctl shutdown ETIMEDOUT at Determinism sessions). Layer-sweep stays UNDECIDED, 2 distinct VM ids (r1, r2); no more dispatches allowed.
 Next waves in order: layer-sweep (platform.sweep:layer-sweep), hero.exit:contain, platform.entries:probe-off, platform.marquee:probe-off.
 Lane takes one site config per VM job (no several arms per VM).
 Reader: packages/measure-webkit/src/offscreen-webkit-cli.mjs (zones z4500 z5000 finish whole); hero.exit:contain also results/hero-relayout-boundary/read-webkit.mjs windows.
 Verified: nothing yet. Open: everything after the runs (notes, ledger, recount note, check.sh, dry land, review).
+
+STATE (all runs finished, nothing running): note research/notes/2026/10-2x-webkit-recount.md, results/webkit-recount/*.json (5 arms), ledger webkit fields of 5 rows updated. Decided: marquee:probe-off noGain, hero.exit:contain noGain. Undecided n=3+2: entries:probe-off (pass rule gain), layer-sweep (gain, Paint), fill-release (noGain).
+Open: ledger-merge test, check.sh, merge main, plan lint, dry land, review ready. Scratch: wr-scratch is a symlink into the session scratchpad (untracked, never add).
