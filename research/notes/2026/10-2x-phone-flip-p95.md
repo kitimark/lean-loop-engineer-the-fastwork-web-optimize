@@ -23,7 +23,7 @@ gitignored). The session ran 2026-10-27 18:58 to 20:26 UTC.
   calls `willStartRenderingUpdateDisplay` (record opens) on the main thread; `:431-448` runs `backingStoreFlusher->flush` on `m_commitQueue` and only then
   hops with `RunLoop::mainSingleton().dispatch` to `didCompleteRenderingUpdateDisplay` (`Page.cpp:2600-2609`, record closes). So the span holds the layer-tree
   commit, the off-main flush and the wait for it. The raw data agrees (MEASURED, all 16 tl files): the 789 `Composite` records over 30 ms have no children, other main-thread records
-  (any record type but Composite and RenderingFrame) overlap 15.6% of their time, and only 82 of them (10%) have more than half covered; so most of a long `Composite` span is not main-thread work. Lean `commitWait_not_busy` and `composite_not_busy`; golden kinds `flipwork` (type table) and `flipattr` (`wait` time, Composite cases).
+  (any record type but Composite and RenderingFrame) overlap 15.6% of their time, and only 82 of them (10%) have more than half covered; so most of a long `Composite` span holds no other Timeline record. The source puts the flush off the main thread but the layer-tree build (`RemoteLayerTreeDrawingArea.mm:359-429`) on it, and the Timeline cannot split the two (INFERRED: mostly the off-main flush and the wait for it). Lean `commitWait_not_busy` and `composite_not_busy`; golden kinds `flipwork` (type table) and `flipattr` (`wait` time, Composite cases).
 - Report: `device-flip-report.mjs` (`flipAttribution`, `flipTables`), called from `device-push-cli.mjs reduce --set flip`.
 
 ## Result (MEASURED, 2026-10-27/28)
@@ -73,13 +73,14 @@ intervals between the rAF times of the push spans; the Lean rule decides each on
 p95 tail (frames at or over the visit p95): base 149 frames, all commitWait; geom 76 frames, style 35, idle 37, script 2, commitWait 2; geom-timed 125 frames,
 style 116, idle 7, commitWait 2.
 
-- Base long frames are the CA commit/flush span, mostly off the main thread, not main-thread busy: 424 of 424 (INFERRED from source plus coverage: the
+- Base long frames are not main-thread busy: 424 of 424, of which 407 are the CA commit/flush span (commitWait) and 17 idle (INFERRED from source plus coverage: the
   source says the span ends after the off-main flush, and other main-thread records cover only 15.6% of the long `Composite` spans; the Timeline gives no
   off-main thread time to confirm it). Round 1 counted this span as main-thread busy; that was wrong for iOS.
 - The flip arms keep a main-thread cause: main-busy long frames are 206 of 311 (geom) and 350 of 396 (geom-timed), and `RecalculateStyles` is 203 (99%)
   and 348 (99%) of them; script is 3 and 2, layout and paint none. Style time per long frame is 36 ms (geom) and 45 ms (geom-timed) against 10 ms in the base
   (mean of the record lengths overlapping the interval, tables.md). In the rest of the flip arms' long frames (105 and 46) the main thread is not busy:
-  `Composite` spans fill 24 and 39 of them, 81 and 7 are idle (compositor, GPU or decode wait; nothing on the main thread fills half the frame).
+  `Composite` spans fill 24 and 39 of them, 81 and 7 are idle (cause not in the Timeline: compositor, GPU, decode or unrecorded main-thread work, INFERRED; nothing on the main thread fills half the frame).
+- p95 tail: style owns 116 of 125 tail frames for geom-timed but only 35 of 76 for geom, where 37 (49%) are idle; the style cause explains about half of the geom tail.
 - Layout and paint own no long frame: paint records are many (base 91 per long frame) but short.
 - Which element or property: the Timeline names none. `RecalculateStyles` carries empty data; no child records. The nearest evidence is the invalidation
   that precedes it. In the main-busy long frames the `ScheduleStyleRecalculation` records are 482 (geom) and 796 (geom-timed); the top script frame of the
