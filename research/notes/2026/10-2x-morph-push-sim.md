@@ -43,6 +43,9 @@ rows):
 | geom | 4 (runs 3 and 4, jobs 2 and 3) | 6 each | style 9.5 to 29.8, layout 8 to 27.5, paint 104.7 to 123.7, rAF 2.7 to 4, slow 1.3 to 3.3 |
 | geom-timed | 1 (run 4 job 2) | 6 | 40.5 / 37.7 / 139 / 6.3 / 7.3 |
 
+The two run-3 geom VMs used the host sync mark (sync drift -13 and -9 ms); the run-4 VMs used page stamps (drift -1 to 1 ms). A
+decided verdict should pool only one harness version.
+
 ## Verdicts at minVms 3 (pinned unit: one arm against base, per-push window, real swipes)
 | arm | verdict | n and loss cause |
 |---|---|---|
@@ -67,8 +70,8 @@ rows):
 - A host `Runtime.evaluate` right after a cycle under a running timeline hangs for 120 s on many VMs (pushes 2 and 3);
   the fix (no host call inside a cycle, stamps from the page) delivered passes in 2 of 3 jobs. INFERRED: the page is
   suspended or lost while Safari is not in front after the swipe sequence; not shown.
-- macOS VMs: simctl ETIMEDOUT, push server never ready (420 s), restarts of 4 to 8 minutes. One job in four (run 4 job 1)
-  never ran a pass.
+- macOS VMs: simctl ETIMEDOUT, push server never ready (420 s), restarts of 4 to 8 minutes. Two jobs in six (run 40479824329 job 1,
+  run 40493131946 job 1) never ran a pass.
 - Base needs 3 usable VMs; at about 1 usable pass in 3 that is 9 VMs per arm in 3 pushes.
 
 ## TS stand-ins and limits
