@@ -61,6 +61,32 @@
     position: absolute;
     inset: 0;
   }
+  /* earn: laid out at its full width; the time tracks open the clip, the opacity and the label offset */
+  .is-flip [data-mg='earn'] {
+    max-width: var(--mg-w0) !important;
+    padding-inline: 0 !important;
+  }
+  [data-mg='earnClip'] {
+    display: flex;
+    width: var(--mg-w0);
+    overflow: hidden;
+    justify-content: center;
+  }
+  [data-mg='earnLabel'] {
+    display: flex;
+    width: var(--mg-w0);
+    justify-content: center;
+    white-space: nowrap;
+  }
+  /* backdrop: the clip and its nested edge clips (Lean backdropClip, Kb, Ub) */
+  [data-mg='backdropClip'], [data-mg='Kb'] {
+    overflow: hidden;
+  }
+  [data-mg='Kb'], [data-mg='Ub'] {
+    position: absolute;
+    inset: 0;
+    transform-origin: 0 0;
+  }
   /* the veil is folded into the solid D fill (Lean layers): its own layer is not built */
   .is-flip [data-fw-role='veil'] {
     display: none;
@@ -74,7 +100,7 @@
     translate: none;
     margin-left: calc(var(--mg-logo-w, 0px) / -2);
   }
-  [data-mg='image'], [data-mg='footerGrad'] {
+  [data-mg='image'], [data-mg='footerGrad'], [data-mg='backdropClip'] {
     transform-origin: 0 0;
   }
 }
