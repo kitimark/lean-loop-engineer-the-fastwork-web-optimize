@@ -96,9 +96,11 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
         if (profile === 'push') { // a timeline of its own around each cycle: one recording of the whole pass floods the inspector (run 40465591949)
           tl = await startTimeline(c);
           sync = JSON.parse(await c.evaluate(SYNC_JS(`fwpc:sync${k}`)));
+          log(`${tag}: cycle ${k + 1}: timeline up`);
         }
         const beganPage = await pageNow(c);
         const presses = await askCycle(server, CYCLE_DONE_MS);
+        log(`${tag}: cycle ${k + 1}: asked ${presses === null ? 'without an answer' : 'and answered'}`);
         const endPage = await pageNow(c);
         calls.push({ k, ok: presses !== null, beganMs: Math.round(beganPage), endMs: Math.round(endPage), presses });
         log(`${tag}: cycle ${k + 1} ${presses === null ? 'failed (no answer from the driver)' : `done, presses ${presses.join(' ')} ms`}`);
@@ -106,6 +108,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
           const sync2 = JSON.parse(await c.evaluate(SYNC_JS(`fwpc:sync${k}e`)));
           await sleep(300);
           const rows = await tl.stop();
+          log(`${tag}: cycle ${k + 1}: timeline stopped, ${rows.length} rows`);
           const a = syncOf(rows, `fwpc:sync${k}`, sync.p), b = syncOf(rows, `fwpc:sync${k}e`, sync2.p);
           if (a) segs.push({ rows, sync: a, sync2: b }); else log(`${tag}: cycle ${k + 1}: the timeline has no sync mark`);
         }
