@@ -1,0 +1,612 @@
+{
+ "over": 12,
+ "engine": "playwright-webkit",
+ "rows": [
+  {
+   "band": "390x844",
+   "m": 0,
+   "k": 3,
+   "navBox": {
+    "x": 48,
+    "y": 48,
+    "width": 1074,
+    "height": 156
+   },
+   "pageShare": 2962440,
+   "baseVsFlip": {
+    "page": 0.00005806024763370735,
+    "nav": 0,
+    "outsideNav": 0.00006154075142688672,
+    "strips": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "basefadeVsFlip": {
+    "page": 0,
+    "nav": 0,
+    "outsideNav": 0,
+    "strips": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "baseVsBasefade": {
+    "page": 0.00005806024763370735,
+    "nav": 0,
+    "outsideNav": 0.00006154075142688672,
+    "strips": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "probes": {
+    "base": {
+     "scrollY": 5102,
+     "scrollHeight": 5946,
+     "innerHeight": 844,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -969.109375,
+      "bottom": 844.078125,
+      "left": 0,
+      "right": 390
+     }
+    },
+    "flip": {
+     "scrollY": 5102,
+     "scrollHeight": 5946,
+     "innerHeight": 844,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -969.109375,
+      "bottom": 844.078125,
+      "left": 0,
+      "right": 390
+     }
+    },
+    "basefade": {
+     "scrollY": 5102,
+     "scrollHeight": 5946,
+     "innerHeight": 844,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": "1",
+      "top": -969.109375,
+      "bottom": 844.078125,
+      "left": 0,
+      "right": 390
+     }
+    }
+   }
+  },
+  {
+   "band": "390x844",
+   "m": 1,
+   "k": 3,
+   "navBox": {
+    "x": 36,
+    "y": 36,
+    "width": 1098,
+    "height": 2460
+   },
+   "pageShare": 2962440,
+   "baseVsFlip": {
+    "page": 0.08991709536733233,
+    "nav": 0.0018562945192293454,
+    "outsideNav": 1,
+    "strips": [
+     0.177,
+     0.062,
+     0.062,
+     0.062,
+     0.062,
+     0.062,
+     0.062,
+     0.174
+    ]
+   },
+   "basefadeVsFlip": {
+    "page": 0.0006204345066904308,
+    "nav": 0.000680468553319413,
+    "outsideNav": 0,
+    "strips": [
+     0.005,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "baseVsBasefade": {
+    "page": 0.0892966608606419,
+    "nav": 0.0011758259659099323,
+    "outsideNav": 1,
+    "strips": [
+     0.172,
+     0.062,
+     0.062,
+     0.062,
+     0.062,
+     0.062,
+     0.062,
+     0.174
+    ]
+   },
+   "probes": {
+    "base": {
+     "scrollY": 5102,
+     "scrollHeight": 5946,
+     "innerHeight": 844,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -969.109375,
+      "bottom": 844.078125,
+      "left": 0,
+      "right": 390
+     }
+    },
+    "flip": {
+     "scrollY": 5102,
+     "scrollHeight": 5946,
+     "innerHeight": 844,
+     "platform": {
+      "opacity": "0",
+      "filter": "blur(12px)",
+      "morphFade": null,
+      "top": -969.109375,
+      "bottom": 844.078125,
+      "left": 0,
+      "right": 390
+     }
+    },
+    "basefade": {
+     "scrollY": 5102,
+     "scrollHeight": 5946,
+     "innerHeight": 844,
+     "platform": {
+      "opacity": "0",
+      "filter": "blur(12px)",
+      "morphFade": "0",
+      "top": -969.109375,
+      "bottom": 844.078125,
+      "left": 0,
+      "right": 390
+     }
+    }
+   }
+  },
+  {
+   "band": "1280x800",
+   "m": 0,
+   "k": 1,
+   "navBox": {
+    "x": 148,
+    "y": 16,
+    "width": 984,
+    "height": 64
+   },
+   "pageShare": 1024000,
+   "baseVsFlip": {
+    "page": 0.7117119140625,
+    "nav": 0.7020452235772358,
+    "outsideNav": 0.7123453732685135,
+    "strips": [
+     0.758,
+     0.894,
+     0.567,
+     0.472,
+     0.671,
+     0.887,
+     0.899,
+     0.547
+    ]
+   },
+   "basefadeVsFlip": {
+    "page": 0,
+    "nav": 0,
+    "outsideNav": 0,
+    "strips": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "baseVsBasefade": {
+    "page": 0.7117109375,
+    "nav": 0.7020452235772358,
+    "outsideNav": 0.7123443327117741,
+    "strips": [
+     0.758,
+     0.894,
+     0.567,
+     0.472,
+     0.671,
+     0.887,
+     0.899,
+     0.547
+    ]
+   },
+   "probes": {
+    "base": {
+     "scrollY": 6074,
+     "scrollHeight": 8594,
+     "innerHeight": 800,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": 238.9375,
+      "bottom": 2520.484375,
+      "left": 0,
+      "right": 1280
+     }
+    },
+    "flip": {
+     "scrollY": 7794,
+     "scrollHeight": 8594,
+     "innerHeight": 800,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -1481.0625,
+      "bottom": 800.484375,
+      "left": 0,
+      "right": 1280
+     }
+    },
+    "basefade": {
+     "scrollY": 7794,
+     "scrollHeight": 8594,
+     "innerHeight": 800,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": "1",
+      "top": -1481.0625,
+      "bottom": 800.484375,
+      "left": 0,
+      "right": 1280
+     }
+    }
+   }
+  },
+  {
+   "band": "1280x800",
+   "m": 1,
+   "k": 1,
+   "navBox": {
+    "x": 20,
+    "y": 20,
+    "width": 1240,
+    "height": 760
+   },
+   "pageShare": 1024000,
+   "baseVsFlip": {
+    "page": 0.056861328125,
+    "nav": 0.0009645585738539898,
+    "outsideNav": 0.7024142156862745,
+    "strips": [
+     0.088,
+     0.031,
+     0.031,
+     0.031,
+     0.031,
+     0.031,
+     0.031,
+     0.179
+    ]
+   },
+   "basefadeVsFlip": {
+    "page": 0.0005205078125,
+    "nav": 0.0005655772495755518,
+    "outsideNav": 0,
+    "strips": [
+     0.004,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "baseVsBasefade": {
+    "page": 0.0563408203125,
+    "nav": 0.00039898132427843805,
+    "outsideNav": 0.7024142156862745,
+    "strips": [
+     0.084,
+     0.031,
+     0.031,
+     0.031,
+     0.031,
+     0.031,
+     0.031,
+     0.179
+    ]
+   },
+   "probes": {
+    "base": {
+     "scrollY": 6074,
+     "scrollHeight": 8594,
+     "innerHeight": 800,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": 238.9375,
+      "bottom": 2520.484375,
+      "left": 0,
+      "right": 1280
+     }
+    },
+    "flip": {
+     "scrollY": 7794,
+     "scrollHeight": 8594,
+     "innerHeight": 800,
+     "platform": {
+      "opacity": "0",
+      "filter": "blur(12px)",
+      "morphFade": null,
+      "top": -1481.0625,
+      "bottom": 800.484375,
+      "left": 0,
+      "right": 1280
+     }
+    },
+    "basefade": {
+     "scrollY": 7794,
+     "scrollHeight": 8594,
+     "innerHeight": 800,
+     "platform": {
+      "opacity": "0",
+      "filter": "blur(12px)",
+      "morphFade": "0",
+      "top": -1481.0625,
+      "bottom": 800.484375,
+      "left": 0,
+      "right": 1280
+     }
+    }
+   }
+  },
+  {
+   "band": "1920x1080",
+   "m": 0,
+   "k": 1,
+   "navBox": {
+    "x": 468,
+    "y": 16,
+    "width": 984,
+    "height": 64
+   },
+   "pageShare": 2073600,
+   "baseVsFlip": {
+    "page": 0,
+    "nav": 0,
+    "outsideNav": 0,
+    "strips": [
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "basefadeVsFlip": {
+    "page": 0.00014564043209876543,
+    "nav": 0,
+    "outsideNav": 0.00015020212630506748,
+    "strips": [
+     0,
+     0.001,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "baseVsBasefade": {
+    "page": 0.00014564043209876543,
+    "nav": 0,
+    "outsideNav": 0.00015020212630506748,
+    "strips": [
+     0,
+     0.001,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "probes": {
+    "base": {
+     "scrollY": 9386,
+     "scrollHeight": 10466,
+     "innerHeight": 1080,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -1381.015625,
+      "bottom": 1079.78125,
+      "left": 0,
+      "right": 1920
+     }
+    },
+    "flip": {
+     "scrollY": 9386,
+     "scrollHeight": 10466,
+     "innerHeight": 1080,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -1381.015625,
+      "bottom": 1079.78125,
+      "left": 0,
+      "right": 1920
+     }
+    },
+    "basefade": {
+     "scrollY": 9386,
+     "scrollHeight": 10466,
+     "innerHeight": 1080,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": "1",
+      "top": -1381.015625,
+      "bottom": 1079.78125,
+      "left": 0,
+      "right": 1920
+     }
+    }
+   }
+  },
+  {
+   "band": "1920x1080",
+   "m": 1,
+   "k": 1,
+   "navBox": {
+    "x": 261,
+    "y": 20,
+    "width": 1398,
+    "height": 820
+   },
+   "pageShare": 2073600,
+   "baseVsFlip": {
+    "page": 0.42265239197530863,
+    "nav": 0.0008103911511218116,
+    "outsideNav": 0.9441816573918295,
+    "strips": [
+     0.37,
+     0.272,
+     0.272,
+     0.272,
+     0.272,
+     0.272,
+     0.674,
+     0.978
+    ]
+   },
+   "basefadeVsFlip": {
+    "page": 0.00026572145061728395,
+    "nav": 0.0004806518022261768,
+    "outsideNav": 0,
+    "strips": [
+     0.002,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "baseVsBasefade": {
+    "page": 0.4223857060185185,
+    "nav": 0.0003279946962559754,
+    "outsideNav": 0.9441816573918295,
+    "strips": [
+     0.368,
+     0.272,
+     0.272,
+     0.272,
+     0.272,
+     0.272,
+     0.674,
+     0.978
+    ]
+   },
+   "probes": {
+    "base": {
+     "scrollY": 9386,
+     "scrollHeight": 10466,
+     "innerHeight": 1080,
+     "platform": {
+      "opacity": "1",
+      "filter": "blur(0px)",
+      "morphFade": null,
+      "top": -1381.015625,
+      "bottom": 1079.78125,
+      "left": 0,
+      "right": 1920
+     }
+    },
+    "flip": {
+     "scrollY": 9386,
+     "scrollHeight": 10466,
+     "innerHeight": 1080,
+     "platform": {
+      "opacity": "0",
+      "filter": "blur(12px)",
+      "morphFade": null,
+      "top": -1381.015625,
+      "bottom": 1079.78125,
+      "left": 0,
+      "right": 1920
+     }
+    },
+    "basefade": {
+     "scrollY": 9386,
+     "scrollHeight": 10466,
+     "innerHeight": 1080,
+     "platform": {
+      "opacity": "0",
+      "filter": "blur(12px)",
+      "morphFade": "0",
+      "top": -1381.015625,
+      "bottom": 1079.78125,
+      "left": 0,
+      "right": 1920
+     }
+    }
+   }
+  }
+ ]
+}
