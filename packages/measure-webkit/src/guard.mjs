@@ -8,6 +8,8 @@
 import { BOUNDS, inspectorReply, InspectorDeadError } from './inspector.mjs';
 import { CALL, deviceBooted, rebootDevice } from './sim.mjs';
 import { wait } from './simretry.mjs';
+import { failsIn } from './sim-host.mjs';
+import { hostFreezes } from './watchdog.mjs';
 
 /** `p` rejected with an error after `ms`; the timer never outlives `p`. */
 export function within(ms, what, p) {
@@ -86,10 +88,10 @@ const describe = (p) => `socket ${p.socket ? 'up' : 'gone'}, proxy ${p.proxy ? '
  *   boot the device (null: none can be done); relaunch runs after it. deviceUp: is the device still booted.
  */
 export function createGuard({
-  probe, relaunch, repair = null, reboot = rebootDevice, deviceUp = deviceBooted, log = () => {}, onDead = () => {},
+  probe, relaunch, repair = null, reboot = rebootDevice, deviceUp = deviceBooted, log = () => {}, onDead = () => {}, frozenCount = hostFreezes,
   tickMs = BOUNDS.tickMs, probeMs = BOUNDS.probeMs, relaunchMs = BOUNDS.relaunchMs, rebootMs = RECOVER.rebootS * 1000,
 }) {
-  let st = initPass(), fails = 0, busy = null, dead = null, timer = null;
+  let st = initPass(), fails = 0, busy = null, dead = null, timer = null, seenFreezes = frozenCount();
 
   async function recover(what, first = null) {
     let ev = first;
@@ -110,7 +112,7 @@ export function createGuard({
         log(`rebooting the Simulator once: ${what}`);
         try {
           if (!reboot) throw new Error('no reboot is available');
-          await within(rebootMs, 'the reboot', (async () => { await reboot({ log }); await relaunch(); })());
+          await within(rebootMs, 'the reboot', (async () => { await reboot({ log }); await relaunch({ fresh: true }); })());
           ev = 'rebootOk';
         } catch (e) { rebootError = e; ev = 'rebootFail'; }
       } else break;
@@ -131,9 +133,11 @@ export function createGuard({
   async function decide(why, withRepair) {
     let p;
     try { p = await within(probeMs, 'the probe', probe()); } catch { p = { socket: true, proxy: false, page: false }; }
-    const r = inspectorReply({ relaunched: false, fails, ...p });
+    const frozenNow = frozenCount() !== seenFreezes;
+    seenFreezes = frozenCount();
+    const r = inspectorReply({ relaunched: false, fails: failsIn(frozenNow, fails), ...p });
     fails = r.fails;
-    if (!r.ok) log(`inspector probe failed (${why}): ${describe(p)}; ${fails} failed in a row`);
+    if (!r.ok) log(`inspector probe failed (${why}): ${describe(p)}; ${fails} failed in a row${frozenNow ? ' (the host held the process since the last probe: older failures do not count)' : ''}`);
     if (r.dead) return recover(`the inspector is dead (${describe(p)})`);
     if (!r.ok && withRepair && repair) await repair();
     return { ok: r.ok, relaunched: false };

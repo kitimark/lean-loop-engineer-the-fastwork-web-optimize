@@ -76,6 +76,27 @@ test('a probe that never answers counts as failed once its bound is over', async
   assert.equal((await g.check()).relaunched, true, 'the second timeout makes it dead');
 });
 
+test('a failed probe after a host freeze counts one: stale failures before it are dropped', async () => {
+  let frozenCount = 0, relaunches = 0;
+  const g = createGuard({ probe: script(NO_PROXY), relaunch: async () => { relaunches++; }, reboot: null, deviceUp: async () => true, frozenCount: () => frozenCount });
+  await g.check();
+  assert.equal(g.fails, 1);
+  frozenCount++;
+  assert.equal((await g.check()).relaunched, false, 'the first failure after the freeze');
+  assert.equal(g.fails, 1);
+  assert.equal((await g.check()).relaunched, true, 'two in a row after it are dead');
+  assert.equal(relaunches, 1);
+});
+
+test('the relaunch after a reboot is asked for a fresh start (no Safari to terminate)', async () => {
+  const seen = [];
+  const g = createGuard({
+    probe: script(NO_SOCKET), relaunch: async (o) => { seen.push(o ?? null); }, reboot: async () => {}, deviceUp: async () => false, frozenCount: () => 0,
+  });
+  await g.check();
+  assert.deepEqual(seen, [{ fresh: true }]);
+});
+
 test('a relaunch over its bound gives up', async () => {
   const g = createGuard({ probe: script(NO_SOCKET), relaunch: () => new Promise(() => {}), reboot: null, relaunchMs: 10 });
   await assert.rejects(g.check(), /relaunching Safari failed: the relaunch took longer/);

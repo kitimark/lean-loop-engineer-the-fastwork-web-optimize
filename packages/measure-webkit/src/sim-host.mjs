@@ -29,6 +29,24 @@ export function afterPass(startCenti, endCenti, tries, maxTries, elapsedS, needS
 
 export const centi = (load1) => Math.round(load1 * 100);
 
+export const lagMs = (tickMs, sinceMs) => Math.max(0, sinceMs - tickMs);
+
+export const blocked = (tickMs, sinceMs) => tickMs > 0 && tickMs <= lagMs(tickMs, sinceMs);
+
+export const frozen = (tickMs, sinceMs, hostCalls) => blocked(tickMs, sinceMs) && hostCalls === 0;
+
+export const clockStart = (nowMs, lastOutMs, tickMs, sinceMs, hostCalls) =>
+  (frozen(tickMs, sinceMs, hostCalls) ? Math.min(lastOutMs + lagMs(tickMs, sinceMs), nowMs) : lastOutMs);
+
+export const silenceMs = (nowMs, lastOutMs, tickMs, sinceMs, hostCalls) =>
+  Math.max(0, nowMs - clockStart(nowMs, lastOutMs, tickMs, sinceMs, hostCalls));
+
+export const silenceStalled = (silence, limitMs) => limitMs < silence;
+
+export const failsIn = (isFrozen, fails) => (isFrozen ? 0 : fails);
+
+export const relaunchPlan = (fresh) => GOLDEN.find((g) => g.op === 'plan' && g.fresh === Boolean(fresh)).steps;
+
 export function stepGate(env = process.env, now = Date.now) {
   const t0 = Number(env.FW_MEASURE_T0_MS), stepMin = Number(env.FW_WK_STEP_MIN);
   const ok = env.FW_MEASURE_T0_MS && env.FW_WK_STEP_MIN && Number.isFinite(t0) && Number.isFinite(stepMin) && stepMin > 0;

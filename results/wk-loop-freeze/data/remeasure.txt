@@ -1,0 +1,15 @@
+base run 40390428285 (target rewrite, vms 3)
+r2 completed failure 21:57:06 22:28:25 121811602882 Determinism sessions
+r1 completed cancelled 22:02:41 23:00:41 121811602912 
+r3 completed success 22:43:42 23:08:51 121887135796 
+flag run 40390434234 (target rewrite, fw platform.glint:hold-freeze, vms 3)
+r1 completed success 21:19:07 21:54:41 121811565169 
+r2 completed success 20:30:19 20:49:10 121811565188 
+r3 completed success 22:02:56 22:41:41 121839563252 
+sampler per job (replica, max gap, swap, free)
+40390428285/r1           n=206   maxGap 49s@22:05:51  gaps>30s 2  swapMax 1483MB  swapOuts 119620    memMax 7096   freeMin 8%
+40390428285/r2           n=166   maxGap 34s@22:17:54  gaps>30s 1  swapMax 349MB   swapOuts 26180     memMax 7098   freeMin 11%
+40390428285/r3           n=177   maxGap 40s@22:44:28  gaps>30s 3  swapMax 1469MB  swapOuts 151764    memMax 7095   freeMin 10%
+40390434234/r1           n=159   maxGap 74s@21:22:11  gaps>30s 2  swapMax 1585MB  swapOuts 173940    memMax 7105   freeMin 5%
+40390434234/r2           n=143   maxGap 15s@20:32:22  gaps>30s 0  swapMax 878MB   swapOuts 56292     memMax 7109   freeMin 8%
+40390434234/r3           n=230   maxGap 35s@22:19:11  gaps>30s 1  swapMax 1145MB  swapOuts 135452    memMax 7091   freeMin 7%
