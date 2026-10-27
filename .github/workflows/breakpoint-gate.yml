@@ -298,7 +298,10 @@ jobs:
   # The flip-state cell (task geom-flip-fix, packages/gate-breakpoints/src/flip-cell.mjs; bound, ms and bands from the Lean golden
   # morph-geom.jsonl) and the pixel look report (packages/premise-tests/src/look.mjs: bar, column and page regions against the base
   # page at m in 0, .25, .5, .75, 1), for morph.geom:on and for morph.geom:on with morph.tween:geom-timed, whatever flag set the
-  # gate jobs above run. The morph.geom:on cell fails the job on a finding; the geom-timed cell and the look report exit 0 (reported, not graded); the verdict is the cell's own line in the step log and the JSON artifact.
+  # gate jobs above run. Graded (a finding fails the job): the morph.geom:on cell, the flip verify (A3a time kept, A4 quiet leave, A5
+  # timed take; packages/gate-breakpoints/src/flip-verify.mjs, task flip-verify-auto) and the mutation runs (each fix reverted at run time
+  # must make its own reading fail; --expect-fail). Reported only (exit 0, the line says so): the geom-timed cell and the look report. The
+  # verdict is the cell's own line in the step log and the JSON artifact.
   flip-cell:
     needs: [site]
     concurrency:
@@ -344,14 +347,44 @@ jobs:
         with:
           engine: ${{ matrix.engine }}
       - name: Flip-state cell
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
         env:
           ENGINE: ${{ matrix.engine }}
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
+        run: node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on --out out/flip/on
+      - name: Flip-state cell, geom-timed (reported only)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on,morph.tween:geom-timed --report-only --out out/flip/timed
+      - name: Flip verify (A3a, A4, A5)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        run: node src/cli.mjs verify --engine "$ENGINE" --out out/verify
+      - name: Flip mutation runs (each reverted fix must fail its reading)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        env:
+          ENGINE: ${{ matrix.engine }}
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        shell: bash
         run: |
-          node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on --out out/flip/on
-          node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on,morph.tween:geom-timed --out out/flip/timed || true
+          rc=0
+          for m in A1 A3b A3c; do
+            node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on --bands 390x844,1280x800 --mutation "$m" --expect-fail --out out/mutation || rc=1
+          done
+          for m in A4 A3a A5; do
+            node src/cli.mjs verify --engine "$ENGINE" --bands 390x844,1280x800 --cycles 1 --mutation "$m" --expect-fail --out out/mutation || rc=1
+          done
+          exit $rc
       - name: Pixel look report
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
         env:
           ENGINE: ${{ matrix.engine }}
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -365,6 +398,8 @@ jobs:
           name: flip-cell-${{ matrix.engine }}
           path: |
             packages/gate-breakpoints/out/flip
+            packages/gate-breakpoints/out/verify
+            packages/gate-breakpoints/out/mutation
             packages/premise-tests/out/look/*/look-*.json
           if-no-files-found: error
           retention-days: 14

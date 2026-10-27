@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { GOLDEN, analyseFlipProbe, judgeKept, judgeQuiet, judgeTrace, loadVerify, MUTATION_OWNER, MUTATION_RUN } from '../src/flip-verify.mjs';
+import { GOLDEN, analyseFlipProbe, colorDist, judgeKept, judgeQuiet, judgeTrace, loadVerify, MUTATION_OWNER, MUTATION_RUN } from '../src/flip-verify.mjs';
 
 const lines = readFileSync(GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (fn) => lines.filter((l) => l.fn === fn);
@@ -68,4 +68,22 @@ test('an untaken push fails A5', () => {
 test('a window not covered by frames fails A4 instead of passing vacuously', () => {
   const r = analyseFlipProbe({ frames: quiet.slice(0, 30), trace }, { baseWidth: 984, verify });
   assert.equal(r.a4.ok, false);
+});
+
+test('colours of all three serialisations compare in sRGB', () => {
+  assert.ok(colorDist('rgba(255, 255, 255, 0.1)', 'color(srgb 1 1 1 / 0.1)') < 1e-9);
+  assert.ok(colorDist('color(srgb 1 1 1 / 0.101961)', 'oklab(0.999 0.00004 0.000005 / 0.1021)') < 0.01);
+  assert.ok(colorDist('rgba(0, 0, 0, 0)', 'color(srgb 1 1 1 / 0.1)') > 0.05);
+});
+
+test('a visible background transition fails A4, the base nav residue does not', () => {
+  const bgOff = quiet.map((f, i) => (i > 22 && i < 40 ? { ...f, tr: ['background-color'], bg: 'rgba(0, 0, 0, 0)' } : { ...f, bg: 'color(srgb 1 1 1 / 0.101961)' }));
+  assert.equal(analyseFlipProbe({ frames: bgOff, trace }, { baseWidth: 984, verify }).a4.ok, false);
+  const residue = quiet.map((f, i) => (i > 22 && i < 40 ? { ...f, tr: ['background-color', 'width'], w: 984.2, bg: 'oklab(0.994 0.00002 -0.00009 / 0.1027)' } : { ...f, bg: 'color(srgb 1 1 1 / 0.101961)' }));
+  assert.equal(analyseFlipProbe({ frames: residue, trace }, { baseWidth: 984, verify }).a4.ok, true);
+});
+
+test('a one-frame stall in a slow frame is within that frame, a restart is not', () => {
+  const stall = quiet.map((f, i) => (i >= 20 ? { ...f, ts: f.ts + 8, anims: [{ key: 'nav:up', t: Math.max(0, (i - 1) * 16.7), paused: false }] } : f));
+  assert.equal(analyseFlipProbe({ frames: stall, trace }, { baseWidth: 984, verify }).a3a.ok, true);
 });

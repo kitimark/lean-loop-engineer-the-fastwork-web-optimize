@@ -53,7 +53,7 @@ export const MUTATION_OWNER = {
 export function installFlipProbe() {
   if (window.__fwFlipProbe) return;
   const trace = [];
-  const state = { deny: false, armed: 0 };
+  const state = {};
   const ids = new WeakMap();
   let nid = 0;
   const idOf = (e) => {
@@ -68,10 +68,6 @@ export function installFlipProbe() {
   let running = false;
   window.__fwTakeTrace = (ev) => {
     trace.push({ ...ev, at: performance.now() });
-    if (ev.kind === 'push') {
-      state.deny = ev.to < ev.from;
-      state.armed = 1;
-    }
   };
   const roots = () => [document.querySelector('[data-fw="nav"]'), document.querySelector('[data-fw="morph-columns"]')];
   const anims = () => {
@@ -123,7 +119,7 @@ export function installFlipProbe() {
   };
 }
 
-// Reverts one fix at run time: A1/A3b/A3c/A4 edit the stylesheet rule the fix added, A3a drops the animation-time restore, A5 refuses the close take and every retry.
+// Reverts one fix at run time: A1/A3b/A3c/A4 edit the stylesheet rule the fix added, A3a drops the animation-time restore, A5 makes the take guard read light at every push and every frame after it (no push can take).
 export function mutatePage(name) {
   const rules = [];
   const walk = (list) => {
@@ -160,21 +156,10 @@ export function mutatePage(name) {
     Object.defineProperty(CSSAnimation.prototype, 'currentTime', { configurable: true, get() { return d.get.call(this); }, set() {} });
     n = 1;
   } else if (name === 'A5') {
+    // The nav reads light for the take guard at every push and every frame after it: the unfixed code decided once at push start and never retried, so no push takes the timed path.
     const nav = document.querySelector('[data-fw="nav"]');
     const real = nav.classList.contains.bind(nav.classList);
-    const st = window.__fwFlipProbe.state;
-    Object.defineProperty(nav.classList, 'contains', {
-      configurable: true,
-      value(c) {
-        if (c !== 'is-on-dark') return real(c);
-        if (st.deny) return false;
-        if (st.armed > 0) {
-          st.armed--;
-          return real(c);
-        }
-        return false;
-      },
-    });
+    Object.defineProperty(nav.classList, 'contains', { configurable: true, value: (c) => (c === 'is-on-dark' ? false : real(c)) });
     n = 1;
   } else {
     throw new Error(`unknown mutation ${name}`);
@@ -185,6 +170,28 @@ export function mutatePage(name) {
 // ---- the readings (pure; the phone and Safari macOS lanes call analyseFlipProbe on the raw log of window.__fwFlipProbe.stop()) ----
 
 const MOVING = (p) => p === 'width' || p.startsWith('background');
+
+// Computed colours as sRGB + alpha in 0..1 (getComputedStyle gives rgba(), color(srgb) or oklab() depending on the value).
+export function parseColor(str) {
+  const nums = (str.match(/-?\d*\.?\d+(?:e-?\d+)?/g) || []).map(Number);
+  const alpha = str.includes('/') ? nums[nums.length - 1] : nums.length > 3 ? nums[3] : 1;
+  if (str.startsWith('rgb')) return [nums[0] / 255, nums[1] / 255, nums[2] / 255, alpha];
+  if (str.startsWith('color(srgb')) return [nums[0], nums[1], nums[2], alpha];
+  if (str.startsWith('oklab')) {
+    const [L, a, b] = nums;
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+    const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const sx = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    const lin = [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * sx, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * sx, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * sx];
+    return [...lin.map((c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.abs(c) ** (1 / 2.4) - 0.055)), alpha];
+  }
+  return [0, 0, 0, 0];
+}
+export const colorDist = (a, b) => {
+  const [p, q] = [parseColor(a), parseColor(b)];
+  return Math.max(...p.map((v, i) => Math.abs(v - q[i])));
+};
+const BG_TOL = 0.02;
 
 export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null }) {
   const { frames, trace } = raw;
@@ -197,30 +204,46 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
     const cur = frames[i];
     const dtFrame = cur.ts - prev.ts;
     const pairs = [];
+    const keys = [];
     let lost = 0;
     for (const b of prev.anims) {
       const a = cur.anims.find((x) => x.key === b.key);
       if (!a) lost++;
-      else pairs.push({ dt: b.paused ? 0 : dtFrame, before: b.t, after: a.t });
+      else {
+        keys.push(b.key);
+        pairs.push({ dt: b.paused ? 0 : dtFrame, before: b.t, after: a.t });
+      }
     }
-    return { kind, frame: i, lost, pairs: pairs.length, ok: judgeKept(frameMs, lost, pairs), worst: pairs.reduce((m, p) => Math.max(m, Math.abs(p.after - p.before - p.dt)), 0) };
+    return { kind, frame: i, lost, pairs: pairs.length, ok: judgeKept(Math.max(frameMs, dtFrame), lost, pairs), worst: pairs.reduce((m, p) => Math.max(m, Math.abs(p.after - p.before - p.dt)), 0), detail: pairs.map((p, k) => ({ key: keys[k], dt: Math.round(p.dt * 10) / 10, delta: Math.round((p.after - p.before - p.dt) * 10) / 10 })) };
   });
   const a4 = flips.filter((f) => f.kind === 'leave').map(({ i }) => {
     const t0 = frames[i].ts;
     const win = [];
     for (let j = i; j < frames.length && frames[j].ts - t0 <= verify.windowMs; j++) {
       if (j > i && frames[j].flip) break;
-      win.push({ moving: frames[j].tr.filter(MOVING).length, width: frames[j].w });
+      win.push(j);
     }
+    const endBg = frames[win[win.length - 1]].bg;
+    // a running width or background transition counts only while it is visibly off its end value (the base nav ends the close with a sub-pixel, sub-percent transition of its own)
+    const quietWin = win.map((j) => ({
+      moving: frames[j].tr.filter((p) => MOVING(p) && (p === 'width' ? Math.abs(frames[j].w - baseWidth) > tol : colorDist(frames[j].bg, endBg) > BG_TOL)).length,
+      width: frames[j].w,
+    }));
     const covered = frames[frames.length - 1].ts - t0 >= verify.windowMs;
     return {
       frame: i,
       frames: win.length,
       covered,
-      moving: Math.max(0, ...win.map((f) => f.moving)),
-      maxDev: Math.max(0, ...win.map((f) => Math.abs(f.width - baseWidth))),
+      moving: Math.max(0, ...quietWin.map((f) => f.moving)),
+      maxDev: Math.max(0, ...quietWin.map((f) => Math.abs(f.width - baseWidth))),
+      maxBgDist: Math.max(0, ...win.map((j) => colorDist(frames[j].bg, endBg))),
       props: [...new Set(frames.slice(i, i + win.length).flatMap((f) => f.tr))],
-      ok: covered && judgeQuiet(baseWidth, tol, win),
+      runs: frames.slice(i, i + win.length).reduce((rs, f, k) => {
+        const sig = `${f.tr.join('+') || '-'} w=${Math.round(f.w * 10) / 10}${f.flip ? ' flip' : ''}`;
+        if (!rs.length || rs[rs.length - 1].sig !== sig) rs.push({ at: Math.round(f.ts - t0), sig });
+        return rs;
+      }, []),
+      ok: covered && judgeQuiet(baseWidth, tol, quietWin),
     };
   });
   const events = trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => e.kind);
