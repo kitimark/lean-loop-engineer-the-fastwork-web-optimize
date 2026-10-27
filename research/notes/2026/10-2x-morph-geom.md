@@ -68,7 +68,7 @@ The `composed` to `anims` lookup lemma in Lean is not written.
 
 Chromium counts: the Lean window reader (`OffscreenWindows`, minFrames 34/20/40/60/20/174) defines windows for swipe-touch-v1
 only and refuses these counts.json (profile push-cycle-d1000), so no window verdict exists for this flag. The equal counts
-say the push-cycle profile does not exercise the morph frames (or the flag did not enter the flip there); they are not
+say (INFERRED) the push-cycle profile does not exercise the morph frames (or the flag did not enter the flip there); they are not
 evidence of a saving. A swipe-touch-v1 run of both arms is the follow-up that makes the reader apply.
 
 Look report (LOCAL debug run on this Mac, Chrome stable, not a CI result; script `packages/premise-tests/src/look.mjs`,
@@ -92,14 +92,14 @@ channel delta / share of pixels over 12 (percent), nav rect union of both arms.
 | 1920x1080 | 0/0 | 0/0 | 0/0 | 0/0 | 14/0 | 22/0.5 | 16/0.1 | 7/0 | 9/0 | 80/0.1 | 2/0 |
 
 Reading: E at m = 0 is not pixel-exact in 360x640 and 390x844 (206 and 51 at m = 0, where the flag has no effects: page
-animation drift between two loads, not the flag), at m = 1 the nav differs by at most 43 (430x932) with 0.8 percent over 12 in the
+animation drift between two loads, not the flag; INFERRED, untested), at m = 1 the nav differs by at most 43 (430x932) with 0.8 percent over 12 in the
 three narrow bands 390, 430 and 640x1000. Mid-morph deltas are large only in a few cells (320x568 .05/.08, 768x1024 .08-.5,
 1024x768 .01): the class L look change. The region outside the nav is dominated by page animation drift between the two
-loads and is not reported as a look reading. Accepted limits: one engine (Chromium), one local run, no WebKit look.
+loads (INFERRED) and is not reported as a look reading. Accepted limits: one engine (Chromium), one local run, no WebKit look.
 
 ## Memory decision, final statement
 Per level, proved in `MorphGeomCounts.lean`: level 0 (faithful backs the nav only): flip fits 10 of 12 bands, 12 of 12 with the
 platform dropped; level 2 (nav, panel, platform): 12 of 12. The faithful level stays undecided (no census lane exists), an
 accepted limit; the follow-up task is the faithful morph-frame layer census.
 
-WebKit reading: the flag is no gain on the engine-computation counts of the swipe scroll (the morph is a small part of the 105 steps and the tracks add Layout in the flip-on frames); the saving the design claims is memory and compositor work, which these counts do not show. Not a failure of the pinned unit.
+WebKit reading: the flag is no gain on the engine-computation counts of the swipe scroll (the morph is a small part of the 105 steps and, INFERRED, the tracks add Layout in the flip-on frames); the saving the design claims is memory and compositor work, which these counts do not show. Not a failure of the pinned unit.
