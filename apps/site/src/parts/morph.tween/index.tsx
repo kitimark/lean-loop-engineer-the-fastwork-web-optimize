@@ -61,7 +61,10 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
           ? createPanelEffects(() => document.querySelector<HTMLElement>('[data-fw="morph-panel"]') as unknown as PanelEl | null)
           : undefined,
     };
-    if (variant === GEOM_TIMED) env.timed = timedBus.sink;
+    if (variant === GEOM_TIMED) {
+      env.timed = timedBus.sink;
+      env.trace = (ev) => (window as unknown as { __fwTakeTrace?: (e: object) => void }).__fwTakeTrace?.(ev);
+    }
     let tween: TweenDriver | undefined;
     const hub = isBand(variant) ? touchHub() : undefined;
     const unband = hub ? bandEnv(env, hub, () => (tween ? active(tween.state()) : false)) : undefined;

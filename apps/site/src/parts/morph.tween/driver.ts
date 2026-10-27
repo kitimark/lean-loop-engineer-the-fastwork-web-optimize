@@ -45,6 +45,8 @@ export interface TweenEnv {
   panel?: EffectSink;
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
+  /** Opt-in probe log (a push began; the timed tracks were taken `el` ms into it); never read by the driver. */
+  trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
 }
 
 export interface EffectSink {
@@ -227,6 +229,7 @@ export function createTweenDriver(env: TweenEnv) {
     timedLive = true;
     dropTimers();
     const el = env.now() - st.start;
+    env.trace?.({ kind: 'take', el });
     for (const x of crossings(st.from, st.to)) if (x.ms > el) after(x.ms - el, () => mark(st.start, false));
     after(DURATION_MS - el, () => mark(st.start, true));
     env.publish(st.value);
@@ -254,6 +257,7 @@ export function createTweenDriver(env: TweenEnv) {
       if (!isActive()) arm();
       return;
     }
+    env.trace?.({ kind: 'push', from: st.from, to: st.to, at: st.start });
     env.fade?.push(st.from, st.to, st.start);
     env.panel?.push(st.from, st.to, st.start);
     cancelFrame?.();

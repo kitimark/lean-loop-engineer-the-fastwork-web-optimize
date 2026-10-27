@@ -18,7 +18,7 @@ function replay(sc: Row['in']) {
   let now = 0;
   let push = -1;
   let anims = false;
-  let tick: ((t: number) => void) | null = null;
+  let tick = null as ((t: number) => void) | null;
   const timers: { at: number; cb: () => void }[] = [];
   const taken: (number | null)[] = sc.events.map(() => null);
   const m: number[] = sc.events.map(() => 0);
