@@ -106,6 +106,8 @@ import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
 import Fw.Parts.MorphEndNobounce
 import Fw.Parts.MorphEndNobounceGolden
+import Fw.Parts.MorphStage
+import Fw.Parts.MorphStageGolden
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause

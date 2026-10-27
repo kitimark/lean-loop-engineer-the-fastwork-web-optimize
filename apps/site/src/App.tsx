@@ -3,6 +3,8 @@ import { Hero } from './parts/hero';
 import { EngineScroll } from './parts/engine.scroll';
 import { MorphTween } from './parts/morph.tween';
 import { nobounceProps } from './parts/morph.end.nobounce';
+import { jackOn, MorphStage, stageProps } from './parts/morph.stage';
+import { StageTrack } from './parts/morph.stage/track';
 import { MorphCountdown } from './parts/morph.countdown';
 import { NavHitTest } from './parts/nav.hitTest';
 import { Nav } from './parts/nav';
@@ -30,6 +32,7 @@ export function App({ config }: { config: FwConfig }) {
   const [panel, setPanel] = useState(false); // morph.mount: the panel's DOM insertion (once, never unmounted)
   const [woken, setWoken] = useState(false);
   const mountVariant = config.variants['morph.mount'] ?? 'faithful';
+  const stageV = config.variants['morph.stage'] ?? 'faithful';
   const asleep = isDormantVariant(mountVariant) && dormant(panel, woken);
   const writerRef = useRef<PanelWriter | null>(null); // the nav hands each --morph value to the panel's attribute writer
 
@@ -49,8 +52,14 @@ export function App({ config }: { config: FwConfig }) {
     <>
       <EngineScroll variant={config.variants['engine.scroll'] ?? 'faithful'} />
       <NavHitTest variant={config.variants['nav.hitTest'] ?? 'faithful'} />
-      <MorphMount variant={mountVariant} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} onWake={() => setWoken(true)} />
-      <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} platformFade={config.variants['platform'] === FADE_THREADED} platformFadedPause={config.variants['platform'] === FADED_PAUSE} />
+      {jackOn(stageV) ? (
+        <>
+        <MorphMount variant={mountVariant} targetSelector='[data-fw="platform"]' onMount={() => setPanel(true)} onWake={() => setWoken(true)} />
+        <MorphTween variant={config.variants['morph.tween'] ?? 'faithful'} platformFade={config.variants['platform'] === FADE_THREADED} platformFadedPause={config.variants['platform'] === FADED_PAUSE} />
+        </>
+      ) : (
+        <MorphStage onMount={() => setPanel(true)} />
+      )}
       {/* engine.scene: the platform section is the scene it pauses while it paints nothing (hidden-pause) */}
       <EngineScene variant={config.variants['engine.scene'] ?? 'faithful'} selector='[data-fw="platform"]' />
       {/* The nav hosts the morph panel (as the original does): `--morph` reaches it by inheritance, columns sit in its backdrop. */}
@@ -67,7 +76,7 @@ export function App({ config }: { config: FwConfig }) {
         )}
       </Nav>
 
-      <div data-fw="page-root" {...nobounceProps(config.variants['morph.end.nobounce'] ?? 'faithful')}>
+      <div data-fw="page-root" {...nobounceProps(config.variants['morph.end.nobounce'] ?? 'faithful')} {...stageProps(stageV)}>
       <main>
         <Hero variants={config.variants} />
         <People variants={config.variants} />
@@ -83,6 +92,7 @@ export function App({ config }: { config: FwConfig }) {
             marquee: config.variants['platform.marquee'],
           }}
         />
+        <StageTrack variant={stageV} />
       </main>
       </div>
 
