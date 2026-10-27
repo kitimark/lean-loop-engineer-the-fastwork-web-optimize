@@ -1,7 +1,7 @@
 branch: worktree-wf_563f1ba9-714-1 (CI branch ci/flip-verify-auto)
 worktree: .claude/worktrees/wf_563f1ba9-714-1
 last commit: see `git log -1` (WIP commits carry "flip-verify-auto")
-CI runs: push 1 breakpoint-gate 40525667335 failure (Chromium 320x568 A3a float edge; WebKit no pushes at 1280x800/1920x1080, panel mount timing; mutations caught on Chromium). Push 2 40530697810 (59fd94946): Chromium verify 12/12 and all 6 mutations caught; WebKit verify failed A5 (first open push untaken on slow runner, cause unknown), timed cell m=0 1280x800 base page stayed at scrollY 2236 (scroll-back short). Push 3 (scroll-to-top wait, scroll-to-end loop, dpr 1, a5.log diagnostics, in-job verify repeats, timeout 60): see below.
+CI runs: push 1 breakpoint-gate 40525667335 failure (Chromium 320x568 A3a float edge; WebKit no pushes at 1280x800/1920x1080, panel mount timing; mutations caught on Chromium). Push 2 40530697810 (59fd94946): Chromium verify 12/12 and all 6 mutations caught; WebKit verify failed A5 (first open push untaken on slow runner, cause unknown), timed cell m=0 1280x800 base page stayed at scrollY 2236 (scroll-back short). Push 3 (scroll-to-top wait, scroll-to-end loop, dpr 1, a5.log diagnostics, in-job verify repeats, timeout 60): run 40537879823 (e56ef0507) in progress; wait with `pnpm -s fw ci wait 40537879823` (the --branch --workflow form returned a skipped sibling run).
 
 ## State
 - Lean: lean/Fw/Parts/MorphGeomVerify.lean (quiet leave A4, time kept A3a, take trace A5, Mutation list; one theorem per branch).
