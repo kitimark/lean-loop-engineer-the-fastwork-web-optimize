@@ -2,7 +2,16 @@
 
 Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. Results: round 3.
 
-## Memory decision (round 2: veil folded)
+## Finding: the veil fold premise is refuted (task geom-veil-restore)
+Round 2 folded the veil into D on the premise "at m = 1 D is opaque, so the end state is unchanged". CONFIRMED false: the veil
+paints above the backdrop pictures (apps/site/src/parts/morph.panel/index.tsx paint order: backdrop, then veil, line 54 for the
+veil) while D paints below them (nav layers K0..U, D), so an opaque D never darkens the pictures and they look brighter
+(the user saw it on the iPhone). MEASURED local (cols probe A2): m = 1 differs from base on 8.8-11.7 % of pixels, 0.04-0.13 % with
+the veil back. The veil track, its Lean layer and animation, the counts and the golden rows are restored; the fold stays in
+`MorphGeomCounts.lean` only as a memory bound (`net_lvl0_fold_bytes`). Details: `10-2x-geom-veil-restore.md`.
+The section below records the refuted round-2 decision; its bytes are the memory the restored veil layer costs back.
+
+## Memory decision (round 2: veil folded, REFUTED)
 The veil is folded into the solid fill D: no veil layer, no veil track, the panel's veil element is `display: none` under
 `.is-flip`. A solid fill paints nothing and has no backing, so the veil's W x H backing bytes are gone. The cost is a look
 change of class L: the veil's radial shape (123% x 74%, #131922 to transparent) is dropped; at m = 1 D is opaque #131922
