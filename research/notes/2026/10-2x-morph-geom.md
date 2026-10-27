@@ -3,24 +3,41 @@
 Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. This round built the part and the memory
 decision; the premises, the look report, the gate and the counts were not run (state partial, see Open).
 
-## Memory decision (step 0)
-The Lean census (`mem_bands`) counted every flip backing as new and freed nothing. `MorphGeomCounts.lean` restates it as net
-bytes: flip bytes minus what the faithful page already backs at morph frames, dpr 3 below 641 px and 2 above, the layout of
-`Ctx.sample`. The faithful side is a level: 0 is the nav only (certain: colour-mix fill under a backdrop blur, `will-change`);
-1 adds the panel; 2 adds the platform. Levels 1 and 2 are INFERRED from the CSS. The Simulator census measurement that would
-settle the level was not run (no CI push spent), so no run id exists.
+## Memory decision (round 2: veil folded)
+The veil is folded into the solid fill D: no veil layer, no veil track, the panel's veil element is `display: none` under
+`.is-flip`. A solid fill paints nothing and has no backing, so the veil's W x H backing bytes are gone. The cost is a look
+change of class L: the veil's radial shape (123% x 74%, #131922 to transparent) is dropped; at m = 1 D is opaque #131922
+so the end state is unchanged, mid-morph the box edge region is uniformly filled instead of shaped. (A gradient on D would
+make D paint and take the veil's bytes back, a zero saving.)
 
-| faithful backs | flip as designed | veil folded into D/G | veil folded and platform layer dropped |
-|---|---|---|---|
-| nav only (level 0) | fits 5 of 12 bands | fits 10 of 12 (not 1440x900, 1920x1080) | fits 12 of 12 |
-| nav, panel, platform (level 2) | fits 12 of 12 | fits 12 of 12 | fits 12 of 12 |
+Net bytes = flip bytes minus what the faithful page backs at morph frames (dpr 3 below 641 px, 2 above). Level 0 is the
+nav only (certain); level 2 adds the panel and the platform (INFERRED from the CSS). The Simulator census of the faithful
+layers was not built this round (no lane exists that dumps layer backings of the faithful page at morph frames), so the
+level is still undecided and the decision is stated per level.
 
-Proved by `decide +kernel`: `net_lvl0_flip`, `net_lvl0_fold`, `net_lvl0_fold_platform`, `net_lvl2_flip`, `net_phone_fold`.
-Decision: shrink in the stated order. Step 1 (fold the veil gradient into the fill layer) makes every phone band fit
-(`net_phone_fold`, the accepted limit allows the two big desktop bands to stay named over at level 0). Step 2 (the platform
-fade without its own layer) is taken only if the Simulator shows the faithful page has no platform layer; if it has one the
-flip adds nothing there and step 2 is moot. The Lean `layers`/`anims` still contain the veil as a layer with its own track:
-removing it (gradient on D, D tracks unchanged) is an open Lean change, not done here.
+| faithful backs | flip with the veil folded | plus the platform without its own layer |
+|---|---|---|
+| nav only (level 0) | fits 10 of 12 bands (not 1440x900, 1920x1080) | fits 12 of 12 |
+| nav, panel, platform (level 2) | fits 12 of 12 | fits 12 of 12 |
+
+Proved by `decide +kernel` in `MorphGeomCounts.lean`: `net_lvl0_flip` (exact bytes per band), `net_lvl0_flip_fits`,
+`net_lvl0_platform`, `net_lvl0_platform_fits`, `net_phone_fold` (every phone band fits at level 0), `net_lvl2_flip`.
+Decision: ship the folded veil; the two big desktop bands may stay named over at level 0 (accepted limit, the iPhone bands
+fit). The platform step is taken only if the census shows the faithful page has no platform layer.
+
+## Lean lookup lemma
+`MorphGeomLook.lean`: `lookFn` finds the function at an index of the animation with a given element, property and key;
+`look_bar`, `look_actions`, `look_centre`, `look_footer_x/y`, `look_footerGrad`, `look_footerEnd`, `look_bc_x/y`,
+`look_Kb`, `look_Kb_y` are `rfl`-level (after the two `if`s of `anims`), `look_column` and `look_image` give membership.
+So every function `composed` (rect_eq) evaluates is the function of an animation in `anims`; the image lemma holds for the
+zero row gap the animation uses.
+
+## Premises (registry rows, pages in packages/premise-tests)
+`anim.keytimes` (piecewise linear across key times), `anim.individual-transform` (translate, scale, transform compose in
+order), `clip.nested-radius` (two nested rounded clips, inner composited and translated), `backdrop.masked-ancestor`
+(backdrop blur under a rounded overflow clip equals the unmasked one). The accelerated set itself is CONFIRMED by source
+(GraphicsLayerCA.cpp:1183-1215@862f17d) and by `accelerable_bands`; no page can observe CA acceleration. A debug run on
+Chromium (local, not a result) passed all four.
 
 ## Site part
 * `apps/site/src/parts/morph.geom/` (registered, variant `on`, class L). `tracks.ts` is the track builder (floats restating
@@ -33,9 +50,9 @@ removing it (gradient on D, D tracks unchanged) is an open Lean change, not done
   `is-on-dark`, reduced motion. `tree.ts` tags elements with `data-mg`, wraps the nav children in K0..K3, U, with G and D, and
   unwraps. `geom.css` holds the clipper geometry, `transform-origin`, the transition-none list (the Lean `flip` line) and
   the base-rule resets (`--morph: 1`, actions and logo `translate`). `.is-flip` sits on the root element.
-* Not built: earnClip and earnLabel wrappers, backdropClip/Kb/Ub, the reversal-correct time tracks (morph-timed),
-  measured layout sizes (label and earn widths use the Lean sample values; logo width is measured). Those effects are skipped
-  when their element is absent.
+* Round 2 built the earnClip/earnLabel wrappers (`tree.ts wrapEarn`), backdropClip/Kb/Ub (`wrapBackdrop`), the lang width
+  (measured) and the earn width (11 rem desktop, 9.5 rem phone). Not built: the reversal-correct time tracks (morph-timed).
+  geom.css of these wrappers has never been looked at in a browser.
 
 ## TS stand-ins
 `tracks.ts` (floats, 40-step bisection), `driver.ts`'s `timeOf` (inverse tween for the time tracks), `tree.ts` (DOM glue).

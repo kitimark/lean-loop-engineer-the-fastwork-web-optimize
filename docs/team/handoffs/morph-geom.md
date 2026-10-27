@@ -1,20 +1,13 @@
-branch: worktree-wf_e3f8d34f-d4e-1; worktree: .claude/worktrees/wf_e3f8d34f-d4e-1
-last commit: see git log (the handoff's own commit); CI runs: none (no push spent)
-state: partial
-verified:
-- check.sh green (slot, after regenerating FootprintRows/footprint-diff); dry land with --allow apps/runner/src/land.ts --allow lean/Fw/Parts/FootprintRows.lean ends VERDICT dry morph-geom; without --allow it ends VERDICT scope morph-geom (those 2 files are outside the task writes).
-- runner land-inputs 73/73 and land-scope 17/17 (run directly after the land.ts reads edit), ci-paths 56/56, site test 162 pass.
-- apps/site tracks.golden.test.ts (3 tests) and driver.test.ts (4) pass: all 653 golden sample lines within 1e-6.
-- MorphGeomCounts.lean compiles; net-bytes theorems proved by decide +kernel.
-done:
-- Part apps/site/src/parts/morph.geom (tracks, driver, tree, geom.css, index.tsx, part.json), mounted in Nav, registered
-  (registry/index.ts, footprint regenerated, look-change candidates + ledger row n=91, preset goldens regenerated).
-- Memory decision in research/notes/2026/10-2x-morph-geom.md (veil fold first; level 0 vs 2 table).
-open:
-- Simulator census run for the faithful morph-frame layers (levels 1, 2 are INFERRED); then fold the veil into D in Lean layers/anims.
-- Premises in lean/Fw/Ops/Premise.lean + packages/premise-tests pages (CA timing, nested cornerRadius, backdrop under masks, accelerated set).
-- Per-band look premise (11 m points, both engines); breakpoint gate; Chromium 3 runs and webkit-sim 3 VMs.
-- earnClip/earnLabel and backdropClip/Kb/Ub wrappers; measured layout sizes into the builder; composed-to-anims lemma.
-- Browser check of geom.css (actions/logo translate resets, G top -4px) never run in a browser.
-conventions: tracks.ts restates Lean in floats; change Lean `anims` and regenerate morph-geom.jsonl first, then the TS.
-read first: research/notes/2026/10-2x-morph-geom.md, then tracks.ts and driver.ts.
+branch: worktree-wf_e3f8d34f-d4e-1; worktree: .claude/worktrees/wf_e3f8d34f-d4e-1 (CI branch ci/morph-geom at 81d8d6d2c)
+last commit: see git log (round 2 head, after 81d8d6d2c there is the backdrop-premise fix not yet pushed)
+CI runs (push 1 of 3 used; dispatches by `fw run`, logs in scratchpad/morph-geom/*.log of the session):
+- 40427659737 lean: success. 40427659591 premise-tests: FAILED, one finding (below). 40427659517 breakpoint-gate push (no flag): in progress.
+- 40428166855 breakpoint-gate dispatch --fw morph.geom:on (both engines): queued at last look.
+- 40428218497 chromium-counts base (push-cycle-d1000, 3 runs); 40428270226 chromium-counts flag morph.geom:on: running.
+- webkit-sim base/flag: first dispatch failed at routing (Codemagic app id unset); re-dispatched with --no-route (wkbase2, wkflag2), no run id read yet. Poll >= 120 s, exit 3 = still waiting.
+verified: check.sh green (slot) at ff41866c1; ci-paths 56/56; runner land-inputs + ledger-merge 114 pass; site morph.geom tests 8 pass; premise-tests static 3 pass; local Chromium debug run of the 4 new premises passed (not a result).
+done this round: veil folded into solid D (Lean layers/anims/Rect, golden 679 lines, TS tracks/tree/css); MorphGeomCounts net bytes per band (fold = 10 of 12 at level 0, 12 of 12 with platform dropped); MorphGeomLook.lean lookup lemmas; earnClip/earnLabel/backdropClip/Kb/Ub wrappers in tree.ts + geom.css; four premises + pages.
+finding: premise backdrop.masked-ancestor does not hold on Playwright WebKit (no backdrop-filter; control stripe edge unblurred). Fixed locally by narrowing to chromium in Premise.lean (committed, not pushed); needs the next push to turn the lane green.
+open: (1) read the runs above (gate verdict, Chromium windows with the Lean reader + minFrames, WebKit zones minVms 3); (2) look premise page (11 m points per band and region) NOT built: it needs a built-site pixel harness; (3) WebKit Simulator census of the faithful morph-frame layers NOT built: no lane dumps faithful layer backings, so the faithful level (0 or 2) is undecided, hence net bytes are stated per level; (4) geom.css wrappers never viewed in a browser (earn clip, backdrop Kb/Ub); (5) time tracks right for 0-to-1 only; (6) dry land + review ready not yet run.
+conventions: change Lean `anims`, regenerate packages/contracts/golden/morph-geom.jsonl (lake env lean --run scripts/MorphGeomGolden.lean prints, redirect to the file), then tracks.ts.
+read first: research/notes/2026/10-2x-morph-geom.md.
