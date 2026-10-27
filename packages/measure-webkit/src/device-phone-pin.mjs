@@ -21,6 +21,9 @@ export async function pinnedSession({ target, dir, log, owner, sense, body, sign
   let failure = null;
   try {
     note({ target, profile, source: 'pymobiledevice3 developer dvt condition set --userspace' });
+    let b;
+    try { b = sense(); } catch (e) { b = { state: null, error: e.message }; }
+    note({ before: { at: new Date(now()).toISOString(), state: b.state ?? null, ...(b.error ? { error: b.error } : {}) } });
     await owner.recover();
     const rec = await owner.start({ profile, target });
     note({ owner: { pid: rec.pid, start: rec.start, spawnedAt: rec.spawnedAt } });
@@ -42,7 +45,7 @@ export async function pinnedSession({ target, dir, log, owner, sense, body, sign
   }
   const back = readbacks[readbacks.length - 1].state;
   const end = endVerdict(target, stopped.gone, stopped.acked, back);
-  note({ stoppedAt: new Date(now()).toISOString(), signals: stopped.signals, acked: stopped.acked, readback: readbacks, end, conditionSet: conditionSet(stopped.gone, stopped.acked) });
+  note({ stoppedAt: new Date(now()).toISOString(), signals: stopped.signals, acked: stopped.acked, readback: readbacks, after: readbacks[readbacks.length - 1], end, conditionSet: conditionSet(stopped.gone, stopped.acked) });
   log(`condition owner ${stopped.gone ? (stopped.acked ? 'gone, clear confirmed' : 'gone, clear NOT confirmed') : 'STILL RUNNING'}; reported state after: ${back ?? 'unreadable'}; end ${end}`);
   if (signals) { process.off('SIGINT', onSig); process.off('SIGTERM', onSig); process.off('exit', onExit); }
   if (failure) throw failure;

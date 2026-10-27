@@ -1086,6 +1086,42 @@ theorem noRepeat_rounds : noRepeat (pushRounds minVisits) = true := by decide
 theorem pushRounds_succ (r : Nat) : pushRounds (r + 1) = pushArms ++ pushRounds r := by
   simp [pushRounds, List.replicate_succ]
 
+/-- Which arm index (into `pushArms`) each visit of each round runs. The rows are a Williams square: a 4x4 Latin square in which every
+ordered pair of arms also follows each other exactly once, so a visit's heat is not always inherited from the same predecessor. -/
+def latinIdx : List (List Nat) := [[0, 1, 3, 2], [1, 2, 0, 3], [2, 3, 1, 0], [3, 0, 2, 1]]
+
+def latinRows : List (List Arm) := latinIdx.map fun r => r.map fun j => pushArms.getD j base
+
+def latinOrder : List Arm := latinRows.flatten
+
+def latinRound (i : Nat) : Nat := i / 4
+
+def latinPos (i : Nat) : Nat := i % 4
+
+def latinCol (p : Nat) : List Arm := latinRows.map fun r => r.getD p base
+
+def latinPairs (a b : Arm) : Nat := (latinRows.map fun r => (r.zip r.tail).count (a, b)).sum
+
+theorem latinOrder_length : latinOrder.length = 16 := by decide
+
+theorem latin_rows_once : latinRows.all (fun r => pushArms.all fun a => r.count a == 1) = true := by decide
+
+/-- Each arm takes each of the four positions exactly once. -/
+theorem latin_cols_once : (List.range 4).all (fun p => pushArms.all fun a => (latinCol p).count a == 1) = true := by decide
+
+/-- Every ordered pair of distinct arms follows each other once inside a round; no arm follows itself. -/
+theorem latin_carry : pushArms.all (fun a => pushArms.all fun b => latinPairs a b == (if a == b then 0 else 1)) = true := by decide
+
+theorem latin_ok : pushOk latinOrder = true := by decide
+
+theorem latin_noRepeat : noRepeat latinOrder = true := by decide
+
+theorem latin_base_each : latinRows.all (fun r => r.count base == 1) = true := by decide
+
+/-- Visit `i` of the order sits in round `i / 4` at position `i % 4`. -/
+theorem latin_index : (List.range 16).all (fun i => latinOrder.getD i base == (latinRows.getD (latinRound i) []).getD (latinPos i) base) = true := by
+  decide
+
 private def strsJ (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
 private def armJ (a : Arm) : Json := Json.mkObj [("id", a.id), ("target", a.target.name), ("flags", strsJ a.flags)]
@@ -1272,7 +1308,9 @@ def pushGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "pushconsts"), ("minVisits", minVisits), ("patternAsks", patternAsks), ("burstAsks", burstAsks),
     ("overLimit", overLimit), ("pushes", pushes), ("metrics", strsJ pushMetrics), ("askCycle", strsJ (askCycle.map Step.name)),
     ("pattern", strsJ (pattern.map Step.name)), ("steps", strsJ (visitSteps.map Step.name)),
-    ("arms", Json.arr (pushArms.map armJ).toArray), ("rounds", idsJ (pushRounds minVisits))]).compress] ++
+    ("arms", Json.arr (pushArms.map armJ).toArray), ("rounds", idsJ (pushRounds minVisits)),
+    ("latin", Json.arr (latinRows.map idsJ).toArray), ("order", idsJ latinOrder),
+    ("slots", toJson ((List.range 16).map fun i => [latinRound i, latinPos i]))]).compress] ++
   (spanCases.map fun (n, fs, hi, ts) =>
     (Json.mkObj [("kind", "pushspan"), ("name", n), ("frames", pframesJ fs), ("hiEnd", hi), ("starts", toJson ts),
       ("windows", toJson ((windows hi ts).map fun w => [w.1, w.2])), ("spans", toJson ((spans fs hi ts).map fun s => [s.1, s.2])),
@@ -1287,7 +1325,8 @@ def pushGoldenLines (_ : Unit) : List String :=
       ("off", match clockOff a b c d with | some o => toJson o | none => Json.null)]).compress) ++
   (rowCases.map fun (n, b, a) =>
     (Json.mkObj [("kind", "pushlabel"), ("name", n), ("base", toJson b), ("arm", toJson a), ("label", (pushLabel b a).name)]).compress) ++
-  [(Json.mkObj [("kind", "pushplan"), ("ok3", pushOk (pushRounds 3)), ("ok2", pushOk (pushRounds 2)), ("noRepeat3", noRepeat (pushRounds 3))]).compress]
+  [(Json.mkObj [("kind", "pushplan"), ("ok3", pushOk (pushRounds 3)), ("ok2", pushOk (pushRounds 2)), ("noRepeat3", noRepeat (pushRounds 3)),
+    ("latinOk", pushOk latinOrder), ("latinNoRepeat", noRepeat latinOrder)]).compress]
 
 private def vJ (v : Verdict) : Json := Json.str v.name
 

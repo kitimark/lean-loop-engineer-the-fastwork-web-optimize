@@ -7,7 +7,7 @@ import { startTimeline } from './timeline.mjs';
 import { toHundredths } from './profile/reduce.mjs';
 import { openDriver, TOUCH_PUSH } from './touch-push.mjs';
 import { buildPushDriver, startPhoneServer, stopPhoneServer } from './device-push-chan.mjs';
-import { PUSH, PUSH_ARMS, PUSH_METRICS, COUNT_KINDS, clockOff, columns, pushLabel, visitVals } from './device-push.mjs';
+import { PUSH, PUSH_ARMS, PUSH_METRICS, COUNT_KINDS, clockOff, columns, pushCells, pushLabel, slotOf, visitVals } from './device-push.mjs';
 import { loadState, rawName, whenTabBlank, faultsOfVisit } from './device-phone-run.mjs';
 
 const median = (l) => { const s = [...l].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
@@ -36,7 +36,7 @@ export const FRAMES_START_JS = `(() => {
   const tick = (t) => {
     if (!st.on) return;
     const n = nav();
-    const m = n ? Math.round(Number(n.style.getPropertyValue('--morph') || 0) * 1000) : 0;
+    const m = n ? Math.round(Number(n.style.getPropertyValue('--morph') || n.getAttribute('data-fw-morph') || 0) * 1000) : 0;
     st.f.push([Math.round(t * 100), Math.round(scrollY * 10), m + (n ? anim(n) * 10000 : 0)]);
     requestAnimationFrame(tick);
   };
@@ -193,7 +193,7 @@ export function readVisits(dir) {
     const counts = JSON.parse(readFileSync(join(dir, rawName(v.index, v.arm, 'counts')), 'utf8'));
     const frames = JSON.parse(readFileSync(join(dir, rawName(v.index, v.arm, 'frames')), 'utf8'));
     const vals = valuesOf(counts, frames);
-    return { index: v.index, arm: v.arm, durationS: v.durationS, configHash: counts.fw?.configHash ?? null, nav: frames.nav, vh: vals.vh, maxY: vals.maxY, vals: vals.push,
+    return { index: v.index, arm: v.arm, ...(slotOf(v.index) ?? { round: null, position: null }), durationS: v.durationS, configHash: counts.fw?.configHash ?? null, nav: frames.nav, vh: vals.vh, maxY: vals.maxY, vals: vals.push,
       pushes: frames.ts.length, maxMorph: frames.f.reduce((m, x) => Math.max(m, x[2] % 10000), 0), device: counts.device };
   });
   const lost = st.visits.filter((v) => v.status !== 'done').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts, faults: faultsOfVisit(v) }));
@@ -209,9 +209,21 @@ export function summarize(rows) {
     return {
       id: a.id, flags: a.flags, n: vs.length,
       metrics: Object.fromEntries(PUSH_METRICS.map((m, i) => [m, cols[i].length ? { median: median(cols[i]), min: Math.min(...cols[i]), max: Math.max(...cols[i]), values: cols[i] } : null])),
+      cells: a.id === 'base' ? null : pushCells(base, vs),
       label: a.id === 'base' ? 'base' : pushLabel(base, vs),
     };
   });
 }
 
 export const writeJson = (file, data) => { mkdirSync(resolve(file, '..'), { recursive: true }); writeFileSync(file, JSON.stringify(data, null, 1) + '\n'); };
+
+const cellOf = (rs) => {
+  const cols = columns(PUSH_METRICS.length, rs.map((r) => r.vals));
+  return Object.fromEntries(PUSH_METRICS.map((m, i) => [m, cols[i].length ? { median: median(cols[i]), values: cols[i] } : null]));
+};
+
+export function positionCheck(rows) {
+  const group = (key) => [...new Set(rows.map((r) => r[key]).filter((x) => x !== null))].sort((a, b) => a - b)
+    .map((k) => { const rs = rows.filter((r) => r[key] === k); return { [key]: k, n: rs.length, arms: rs.map((r) => r.arm), metrics: cellOf(rs) }; });
+  return { byPosition: group('position'), byRound: group('round') };
+}

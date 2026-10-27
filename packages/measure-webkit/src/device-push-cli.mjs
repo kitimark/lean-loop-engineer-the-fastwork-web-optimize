@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { runBlock, realDeps, phoneSense } from './device-phone-run.mjs';
 import { pinnedSession } from './device-phone-pin.mjs';
 import { ConditionOwner } from './device-thermal-pin.mjs';
-import { PUSH, PUSH_ARMS, noRepeat, pushOk, pushRounds } from './device-push.mjs';
-import { driverHolder, pushVisit, readVisits, summarize, valuesOf, writeJson } from './device-push-run.mjs';
+import { PUSH, PUSH_ARMS, latinOrder, noRepeat, pushOk } from './device-push.mjs';
+import { driverHolder, positionCheck, pushVisit, readVisits, summarize, valuesOf, writeJson } from './device-push-run.mjs';
 import { pushTables } from './device-push-tables.mjs';
 
 const [cmd, ...rest] = process.argv.slice(2).filter((a) => a !== '--');
@@ -12,14 +12,14 @@ const { values: v } = parseArgs({
   args: rest, allowNegative: true, allowPositionals: true,
   options: {
     site: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, out: { type: 'string' }, pin: { type: 'string' },
-    only: { type: 'string' }, rounds: { type: 'string', default: String(PUSH.minVisits) }, 'max-visits': { type: 'string', default: '4' },
+    only: { type: 'string' }, 'max-visits': { type: 'string', default: '4' },
     all: { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, gap: { type: 'string', default: '100' },
   },
 });
 const log = (s) => console.error(s);
 
 const sessionOf = () => {
-  const order = v.only ? v.only.split(',').map((id) => PUSH_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown arm ${id}`); })()) : pushRounds(Number(v.rounds));
+  const order = v.only ? v.only.split(',').map((id) => PUSH_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown arm ${id}`); })()) : latinOrder();
   if (!v.only && !(pushOk(order) && noRepeat(order))) throw new Error('the session does not satisfy the visit rule');
   return order;
 };
@@ -54,7 +54,7 @@ async function main() {
     const arms = summarize(rows);
     const summary = {
       schema: 'fw.phone.push/1', consts: { minVisits: PUSH.minVisits, pushes: PUSH.pushes, asks: PUSH.patternAsks + PUSH.burstAsks, overLimitCentiMs: PUSH.overLimit, metrics: PUSH.metrics },
-      order: st.session ?? [], visits: rows.map(({ vals, ...r }) => ({ ...r, vals })), notRun: lost, arms,
+      order: st.session ?? [], positions: positionCheck(rows), visits: rows.map(({ vals, ...r }) => ({ ...r, vals })), notRun: lost, arms,
       thermal: st.thermal ?? [], firstTempC: st.firstTemp ?? null, pin: st.pin ?? null,
     };
     writeJson(resolve(v.out, 'summary.json'), summary);
