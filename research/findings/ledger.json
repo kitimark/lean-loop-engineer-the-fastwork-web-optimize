@@ -4574,6 +4574,45 @@
    "next": "Out of v2-proved (look change, class L). The user reviews the end feel and T on the phone; WebKit zones blocked by runner loss, flag stall not excluded for the second r2 hang (flag runs 40366323523 and 40429988675 lost all 6 VMs to VM freeze and a wedged Simulator; base 40366306645 shows the same marks); toolbar lane: toolbar lane run 40365940148: the stage arm has 0 usable passes (restartFailed), undecided; T 696 px at 1280x800 and 768 px at 390x844, class L, no preset",
    "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; lean/Fw/Gate/FlagDelta.lean; gate run 40366243322; chromium-counts 40366262655 and 40366273179",
    "userDecision": "pending"
+  },
+  {
+   "id": "morph.tween:geom-timed",
+   "part": "morph.tween",
+   "flags": [
+    "morph.tween:geom-timed",
+    "morph.geom:on"
+   ],
+   "flag": "morph.tween:geom-timed",
+   "visClass": "L",
+   "candidate": "morph.tween:geom-timed with morph.geom:on: a push is one Web Animation per track on a shared start time (680 ms, easing cubic-bezier(1/3,1,2/3,1) = the tween's own ease), a reversal rebases the keyframes in closed form from the event-time value, the end commits the goal style so the base equals the last keyframe; the geometry then needs no published value and no frame between push and end.",
+   "status": "look-change",
+   "chromium": "gate pass (run 40454266249, both engines); counts swipe-touch-v1 x3 base 40454388920 vs flag 40454426552: every window noGain (Paint, RasterTask, FireAnimationFrame fall; RecalcStyleCount, LayoutCount, PaintImage rise slightly)",
+   "webkit": "gate pass (run 40454266249); Simulator counts base 40454309560 vs flag 40454356842 (3 VMs each): noGain in z4500, z5000, finish, whole with equal counts; the profile dispatches no wheel or touch event so no push runs (INFERRED), the timeline check between push and end is not delivered",
+   "visual": "look change (L) with morph.geom:on: the shown value is the ideal tween at event time; after a reversal the faithful tween restarts from the last frame, at most 3 x (one frame of value) apart (Lean faithful_gap); thresholds and the end are timers at the Lean threshold times, not frames; time tracks of a push other than the one from rest up are sampled at 60 Hz (TS stand-in)",
+   "mechanism": "PROVED in Lean (lean/Fw/Parts/MorphGeomTimed.lean): rebase_eval, rebase_end, timed_eq_ideal, reverse_continuous, faithful_gap, solver_gap, commit_eq, crossMs_some; TS replays packages/contracts/golden/morph-geom-timed.jsonl",
+   "leanFor": [
+    "Fw.Parts.MorphGeomTimed.rebase_eval",
+    "Fw.Parts.MorphGeomTimed.timed_eq_ideal",
+    "Fw.Parts.MorphGeomTimed.reverse_continuous",
+    "Fw.Parts.MorphGeomTimed.faithful_gap",
+    "Fw.Parts.MorphGeomTimed.commit_eq",
+    "Fw.Parts.MorphGeomTimed.crossMs_some"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "faithful memory level (no census lane)",
+    "time tracks for pushes other than the one from rest up"
+   ],
+   "premises": [
+    "shared startTime gives equal currentTime and the bezier ease on both engines: CONFIRMED on run 40454239481 (anim.shared-start)",
+    "a rebased restart at the event time shows no jump on both engines: CONFIRMED on run 40454239481 (anim.reversal-jump)"
+   ],
+   "v1Evidence": "",
+   "lesson": "The scroll-step Simulator profile cannot see a morph that is driven by wheel or touch pushes: equal counts there are no evidence for or against a push-driven change; the push needs its own profile (events) on WebKit.",
+   "next": "a WebKit lane that dispatches wheel or touch pushes; user look review (class L)",
+   "evidence": "research/notes/2026/10-2x-morph-timed.md; apps/site/src/parts/morph.tween/geom-timed.golden.test.ts",
+   "userDecision": "pending",
+   "n": 93
   }
  ],
  "notes": [

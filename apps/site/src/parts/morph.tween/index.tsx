@@ -8,6 +8,7 @@ import { REST_VARIANT, setRest } from '../morph.panel/rest.logic';
 import { THREADED } from '../morph.panel/threaded.logic';
 import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
 import { cfgOf, hooksOf } from './end.hooks';
+import { timedBus } from './geom-timed.bus';
 import { active } from './logic';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
@@ -15,6 +16,7 @@ import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from
 import { fadeCss, PROP_MORPH, registrationsOf, type WaapiArm } from './waapi.logic';
 
 export const MORPH_PIN_ORDER = 110;
+export const GEOM_TIMED = 'geom-timed';
 
 export interface MorphTweenProps {
   variant: string;
@@ -59,6 +61,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
           ? createPanelEffects(() => document.querySelector<HTMLElement>('[data-fw="morph-panel"]') as unknown as PanelEl | null)
           : undefined,
     };
+    if (variant === GEOM_TIMED) env.timed = timedBus.sink;
     let tween: TweenDriver | undefined;
     const hub = isBand(variant) ? touchHub() : undefined;
     const unband = hub ? bandEnv(env, hub, () => (tween ? active(tween.state()) : false)) : undefined;

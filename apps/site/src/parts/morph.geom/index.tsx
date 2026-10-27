@@ -3,6 +3,8 @@ import { matchList } from '../nav/media';
 import { createGeomDriver, type AnimHandle, type GeomEnv } from './driver';
 import { enter, find, leave } from './tree';
 import type { Eng } from './tracks';
+import { createTimedGeom, type TimedAnim } from '../morph.tween/geom-timed.driver';
+import { timedBus } from '../morph.tween/geom-timed.bus';
 import './geom.css';
 
 export const GEOM_ON = 'on';
@@ -21,6 +23,24 @@ export function probeEngine(): Eng {
 }
 
 const CAMEL: Record<string, string> = { 'backdrop-filter': 'backdropFilter' };
+
+let goalStyle: HTMLStyleElement | null = null;
+
+function setGoal(rules: string | null): void {
+  const root = document.documentElement;
+  if (rules === null) {
+    root.removeAttribute('data-mg-goal');
+    goalStyle?.remove();
+    goalStyle = null;
+    return;
+  }
+  if (!goalStyle) {
+    goalStyle = document.createElement('style');
+    document.head.append(goalStyle);
+  }
+  if (goalStyle.textContent !== rules) goalStyle.textContent = rules;
+  root.setAttribute('data-mg-goal', '');
+}
 
 export function MorphGeom() {
   useEffect(() => {
@@ -42,6 +62,24 @@ export function MorphGeom() {
         return anim as AnimHandle;
       },
     };
+    if (window.__fw?.config.variants['morph.tween'] === 'geom-timed') {
+      const timed = createTimedGeom({
+        ...env,
+        animate: (a, kf, opts) => {
+          const target = find(a);
+          if (!target) return null;
+          const frames = kf.map((f) => Object.fromEntries(Object.entries(f).map(([k, v]) => [CAMEL[k] ?? k, v])));
+          return target.animate(frames, opts) as unknown as TimedAnim;
+        },
+        goal: (rules) => setGoal(rules),
+      });
+      timedBus.set(timed);
+      return () => {
+        timedBus.set(null);
+        timed.dispose();
+        setGoal(null);
+      };
+    }
     const driver = createGeomDriver(env);
     const read = () => {
       const m = Number.parseFloat(nav.dataset.fwMorph ?? '');
