@@ -60,9 +60,9 @@ async function main() {
       };
       const plan = { profile: 'full', targetMs: 0 };
       const runner = (profile) => makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
-        firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf: (ctx, o) => pushCyclePass(ctx, { ...o, profile, targetMs: plan.targetMs, restCapMs: Number(v['rest-cap']), morphPush: v['morph-push'] }),
+        firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf: (ctx, o) => pushCyclePass(ctx, { ...o, profile, targetMs: plan.targetMs, restCapMs: Number(v['rest-cap']) }),
         reasonOf: excludeReason, state: { passes, failed, machine }, save });
-      const full = runner('full');
+      const full = runner(v['morph-push'] ? 'push' : 'full');
       const dwell = v.separate ? runner('dwell') : null;
       try {
         if (!v['no-warmup']) await full.warmUp('warm-up');

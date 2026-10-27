@@ -78,12 +78,24 @@ export function buildPush({ rows, sync, sync2, rafs, rec, endP }) {
   };
 }
 
+/** The same for a pass of one timeline per cycle: `segs` are {rows, sync, sync2} (each timeline has its own clock and its own sync marks); `drift` is the largest disagreement of a segment's two marks. */
+export function buildPushSegs({ segs, rafs, rec, endP }) {
+  const starts = pushStarts(rec);
+  const near = (t) => starts.some((t0) => inWin(t0, t));
+  const drifts = segs.filter((g) => g.sync2).map((g) => Math.round(g.sync2.p - pageMs(g.sync2.s, { p: g.sync.p, s: g.sync.s })));
+  return {
+    starts, endMs: Math.round(endP), drift: drifts.reduce((m, d) => (Math.abs(d) > Math.abs(m) ? d : m), 0), segs: segs.length,
+    rows: segs.flatMap((g) => g.rows.filter((r) => r[0] in ROW_TYPES).map((r) => [r[0], pageMs(r[1], { p: g.sync.p, s: g.sync.s })])).filter((r) => near(r[1])),
+    rafs: rafs.map(Math.round).filter(near),
+  };
+}
+
 export const syncOf = (rows, message, page) => {
   const r = rows.find((x) => x[0] === 'TimeStamp' && x[3] === message);
   return r ? { p: page, s: r[1] } : null;
 };
 
-export const passUsable = (p) => p.profile === 'full' && !!p.push && excludeReason(p) === null;
+export const passUsable = (p) => p.profile === 'push' && !!p.push && excludeReason(p) === null;
 export const passRec = (p) => ({ rows: p.push.rows, rafs: p.push.rafs, frames: p.rec.t.map(Math.round), endMs: p.push.endMs });
 
 /** One VM per job file of one run; `vmId` makes the id unique across runs. */

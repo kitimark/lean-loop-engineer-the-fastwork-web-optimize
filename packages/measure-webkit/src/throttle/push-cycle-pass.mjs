@@ -9,7 +9,7 @@ import { startServer, stopServer, logTail } from '../touch-push.mjs';
 import { START_JS, FETCH_JS, nearEndJs } from './finish-page.mjs';
 import { EXTRA_START_JS, EXTRA_FETCH_JS, SYNC_JS } from './push-cycle-page.mjs';
 import { startTimeline } from '../timeline.mjs';
-import { buildPush, syncOf } from './morph-push.mjs';
+import { buildPushSegs, syncOf } from './morph-push.mjs';
 import { GAP_PX, NEAR_END_SETTLE_MS } from './finish-probe.mjs';
 import { restMs, SEP_DWELL_CYCLES } from './push-cycle.mjs';
 
@@ -56,7 +56,7 @@ async function askCycle(server, doneMs) {
  * The census and the rests are recorded as `quiet` page-time ranges: recordCycles does not count their frames. Both profiles take a census
  * before the first touch and after the last; the dwell profile also after every cycle.
  */
-export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, settleMs = 6000, tag = 'pass', profile = 'full', targetMs = 0, restCapMs = 120000, morphPush = false }) {
+export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, settleMs = 6000, tag = 'pass', profile = 'full', targetMs = 0, restCapMs = 120000 }) {
   const { c, log } = ctx;
   await loadFresh(c, { clock: 'pinned', settleMs });
   const info = await pageInfo(c);
@@ -67,9 +67,10 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
   const pre = await censusPoint(c, -1, seen);
   census.push(pre.point); seen = pre.ids;
   const n = profile === 'dwell' ? SEP_DWELL_CYCLES : drag.cycles;
+  const asked = profile === 'dwell' || profile === 'push';
   const pageOut = { ua: info.ua, vw: info.vw, vh: info.vh, dpr: info.dpr, docH: info.docH, fw: info.fw };
   let server = null;
-  if (profile === 'dwell') {
+  if (asked) {
     try {
       server = await startServer(driver, { udid, log: (l) => log(`${tag}: ${l}`), push: { dragPt: drag.dragPt, velocity: drag.velocity, holdMs: drag.holdMs }, maxS: SERVER_MAX_S, readyMs: SERVER_READY_MS, tag: `${tag}-srv`, suite: 'FinishServer' });
     } catch (e) {
@@ -78,11 +79,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     }
   }
   try {
-    let tl = null, sync = null;
-    if (morphPush && profile === 'full') {
-      tl = await startTimeline(c);
-      sync = JSON.parse(await c.evaluate(SYNC_JS('fwpc:sync')));
-    }
+    const segs = [];
     const started = await c.evaluate(START_JS);
     if (started !== 'started') throw new Error(`the recorder did not start (${started})`);
     const extra = await c.evaluate(EXTRA_START_JS);
@@ -91,15 +88,29 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     const t0 = Date.now();
     const calls = [], quiet = [];
     let run = null, tail = null;
-    if (profile === 'dwell') {
+    if (asked) {
       run = { code: 0, timedOut: false, signal: null };
       for (let k = 0; k < n; k++) {
-        const began = Date.now(), beganPage = await pageNow(c);
+        const began = Date.now();
+        let tl = null, sync = null;
+        if (profile === 'push') { // a timeline of its own around each cycle: one recording of the whole pass floods the inspector (run 40465591949)
+          tl = await startTimeline(c);
+          sync = JSON.parse(await c.evaluate(SYNC_JS(`fwpc:sync${k}`)));
+        }
+        const beganPage = await pageNow(c);
         const presses = await askCycle(server, CYCLE_DONE_MS);
         const endPage = await pageNow(c);
         calls.push({ k, ok: presses !== null, beganMs: Math.round(beganPage), endMs: Math.round(endPage), presses });
         log(`${tag}: cycle ${k + 1} ${presses === null ? 'failed (no answer from the driver)' : `done, presses ${presses.join(' ')} ms`}`);
+        if (tl) {
+          const sync2 = JSON.parse(await c.evaluate(SYNC_JS(`fwpc:sync${k}e`)));
+          await sleep(300);
+          const rows = await tl.stop();
+          const a = syncOf(rows, `fwpc:sync${k}`, sync.p), b = syncOf(rows, `fwpc:sync${k}e`, sync2.p);
+          if (a) segs.push({ rows, sync: a, sync2: b }); else log(`${tag}: cycle ${k + 1}: the timeline has no sync mark`);
+        }
         if (presses === null) { run = { code: 1, timedOut: !server.run.state.ended, signal: null }; tail = logTail(server.run.logFile); break; }
+        if (profile === 'push') continue;
         await sleep(CENSUS_SETTLE_MS);
         const cp = await censusPoint(c, k, seen);
         census.push(cp.point); seen = cp.ids;
@@ -114,21 +125,12 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     }
     log(`${tag}: touches ${run.code === 0 ? 'done' : `failed (code ${run.code}${run.timedOut ? ', timed out' : ''})`} in ${Math.round((Date.now() - t0) / 1000)} s`);
     await sleep(500);
-    let push = null;
-    if (tl) {
-      const endP = await pageNow(c);
-      const sync2p = JSON.parse(await c.evaluate(SYNC_JS('fwpc:sync2')));
-      await sleep(300);
-      const rows = await tl.stop();
-      const a = syncOf(rows, 'fwpc:sync', sync.p), b = syncOf(rows, 'fwpc:sync2', sync2p.p);
-      if (!a) throw new Error('the timeline has no sync mark');
-      push = { rows, sync: a, sync2: b, endP };
-    }
+    const endP = await pageNow(c);
     const rec = JSON.parse(await c.evaluate(FETCH_JS));
     if (rec.err) throw new Error(rec.err);
     const x = JSON.parse(await c.evaluate(EXTRA_FETCH_JS));
     if (server) { await stopServer(server); server = null; }
-    const pushOut = push ? buildPush({ ...push, rafs: x.raf ?? [], rec }) : null;
+    const pushOut = profile === 'push' ? buildPushSegs({ segs, endP, rafs: x.raf ?? [], rec }) : null;
     if (pushOut) log(`${tag}: ${pushOut.starts.length} pushes, ${pushOut.rows.length} style/layout/paint rows and ${pushOut.rafs.length} page rAF requests in their windows, sync drift ${pushOut.drift} ms`);
     const post = await censusPoint(c, n, seen);
     census.push(post.point);

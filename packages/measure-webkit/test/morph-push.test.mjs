@@ -68,6 +68,16 @@ test('buildPush keeps only rows and rAF requests inside a push window, in page m
   assert.equal(p.drift, 0);
 });
 
+test('buildPushSegs maps every segment through its own marks and reports the largest drift', () => {
+  const rec = { o: [0, 1, 1, 0], t: [100, 1000, 1016, 1032] };
+  const g1 = { rows: [['Layout', 1.5, null, null]], sync: { p: 500, s: 1 }, sync2: { p: 700, s: 1.2 } };
+  const g2 = { rows: [['Paint', 5.1, null, null], ['Layout', 9, null, null]], sync: { p: 0, s: 5 }, sync2: { p: 4000, s: 9.01 } };
+  const p = M.buildPushSegs({ segs: [g1, g2], rafs: [1100.4], rec, endP: 5000 });
+  assert.deepEqual(p.rows, [['Layout', 1000]]);
+  assert.equal(p.drift, -10);
+  assert.equal(p.segs, 2);
+});
+
 test('the morph arms have their own pages and the base page is the default one', () => {
   assert.equal(searchOf('morph-base'), '');
   assert.equal(searchOf('morph-geom'), '?fw=morph.geom:on');
