@@ -3777,7 +3777,7 @@
     "morph.end.release:on"
    ],
    "chromium": "unknown: not measured here (task morph-end-measure measures every composition)",
-   "webkit": "unknown: not measured here; the effect is on the iPhone touch path, the user's phone review decides",
+   "webkit": "worse on the iPhone (user phone review 2026-10-27): pull in and out at the end of the page raises the scroll bug; INFERRED mechanism: after a close the pin is dropped and the drag moves the page (Lean release_close_free), so the next pull re-opens away from the end and the morph fights a page that is not at the end (morph-end-remeasure: min scrollY 3513-4067 px)",
    "visual": "look change (L), behaviour change at the end of the page: a drag back while the morph closes moves the page under the finger instead of being held at the pin. Lean release_starts, release_close_free, release_quiet, release_after_close, release_open_same (Fw.Parts.MorphEnd) prove the claim; the site test end.golden.test.ts replays packages/contracts/golden/parts/morph.end.jsonl for all 8 combinations. Breakpoint gate with all three bricks on: run 40098851697.",
    "mechanism": "INFERRED from the Lean reducer (faithful_eq_orig, order_free, all_combinations): each brick rewrites one hook of the morph.tween driver (target, allow, release), so the 8 picks compose in any order and add no registry rule (bricks_no_rules). The createTweenDriver path only; waapi and waapi-scoped ignore the bricks.",
    "leanFor": [
@@ -3796,9 +3796,13 @@
    "premises": [],
    "v1Evidence": "none",
    "lesson": "A behaviour fix at the end of the page is a look change even when the work is the same; the three fixes are kept as separate bricks so each can be switched and judged alone.",
-   "next": "Out of v2-proved (look change, class L). morph-end-measure measures the compositions on CI; the user reviews them on the phone through the Compose links (docs/team/handoffs/morph-end-bricks.md).",
+   "next": "Rejected by the user on the phone (userDecision); not a candidate. The end-of-page fix path is morph-stage (sticky end stage, no pin).",
    "evidence": "research/notes/2026/10-2x-morph-end-bricks.md; breakpoint-gate run 40098851697; lean/Fw/Parts/MorphEnd.lean",
-   "userDecision": "pending"
+   "userDecision": {
+    "date": "2026-10-27",
+    "decision": "rejected 2026-10-27: the user tried ?fw=morph.end.release:on on the iPhone and said it raises the end-of-page scroll bug when pulling in and out at the end of the page (source: chat, user words: \"the morph.end.release:on raise the end-of-page scroll bug. when i do pull in/out of the end of page\")",
+    "review": "user phone check through the Compose link; CI runs 40158609202, 40167641467, 40193540518 (task morph-end-remeasure) measured the page drifting away from the end after the first close (min scrollY 3513-4067 px against 4953 px or more on every other arm)"
+   }
   },
   {
    "id": "platform.sweep.offscreen-pause",
@@ -4457,6 +4461,41 @@
    "lesson": "A static CSS rule removes the rubber-band side of the pin fight with no JS; whether the fight drove the slow frames is the measured part (note).",
    "next": "Out of v2-proved (look change, class L). The user reviews the end feel on the phone; the push-cycle replay is a follow-up (push-cycle-separate).",
    "evidence": "research/notes/2026/10-2x-morph-end-nobounce.md; lean/Fw/Parts/MorphEndNobounce.lean; gate run 40283431992",
+   "userDecision": "pending"
+  },
+  {
+   "id": "platform.glint:hold-freeze",
+   "n": 90,
+   "part": "platform.glint",
+   "flags": [
+    "platform.glint:hold-freeze"
+   ],
+   "flag": "platform.glint:hold-freeze",
+   "visClass": "E",
+   "candidate": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
+   "status": "partly-proved",
+   "chromium": "swipe-touch-v1, 3 runs, same commit a5e170b94: base run 40345261186, flag run 40345253392. Lean window reader: approach gain (RasterTask 236 to 225), finish gain (RasterTask 1207 to 1196), end 0-19, 20-59, 60-119, 120+ noGain (no counter differs). MEASURED",
+   "webkit": "Simulator at cf69a9052: flag run 40349914211 (3 VMs), base run 40349930733 (2 VMs, r2 lost twice). Every zone (z4500, z5000, finish, whole) undecided, n=2+3 VMs; the pass rule alone reads z5000 as gain (Paint less, InvalidateLayout less). MEASURED",
+   "visual": "E (Lean PlatformGlintHold.hold_eq_faithful; look premise glint.hold-pixels run 40345059212: worst channel diff 1 on Chromium 156, 0 on WebKit 27.2, bound 12; breakpoint gate run 40345141093 pass on both engines, 0 failing items (box only, SMIL values excluded))",
+   "mechanism": "INFERRED: both engines tick every active non-<set> animation on each SMIL frame; a <set> in its hold segment changes nothing, so the 3 of 5 hold segments per side spend no animated-value writes (Lean ticking_hold, ticking_le). Engine citations in the note.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintHold.hold_premise",
+    "Fw.Parts.PlatformGlintHold.hold_eq_faithful",
+    "Fw.Parts.PlatformGlintHold.ticking_hold",
+    "Fw.Parts.PlatformGlintHold.ticking_le"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "WebKit per-zone counts (see webkit); a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), no flag path seeks backward (createPause seeks forward)"
+   ],
+   "premises": [
+    "the begin chain of the ring keeps one piece active at every instant in both engines: MEASURED by the look premise glint.hold-pixels (run 40345059212), ids without a hyphen",
+    "one SMIL clock writer (createPause) as for platform:faded-pause"
+   ],
+   "v1Evidence": "",
+   "lesson": "A held value costs a per-frame animated-value write only while a non-<set> animation covers it; tiling the cycle with <set> pieces removes the writes without changing a pixel.",
+   "next": "gh run rerun 40349930733 --failed (third base VM), then packages/measure-webkit/src/offscreen-webkit-cli.mjs for the z5000 verdict; then the user preset decision",
+   "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md; runs 40345059212 (premise), 40345141093 (gate), 40345261186 and 40345253392 (Chromium counts)",
    "userDecision": "pending"
   }
  ],
@@ -5150,6 +5189,12 @@
    "task": "push-cycle-16",
    "field": "mechanism",
    "text": "push-cycle-16 (note research/notes/2026/10-2x-push-cycle-16.md; WebKit Simulator real touches, full pass of 16 cycles and dwell pass per arm, two CI pushes 40361916735 and 40412970956, Lean Fw.Measure.PushCycle.sepVerdict): CONFIRMED in Lean: the full-pass cycle count is derived from the measured stretch 2391 permille plus 25 percent (bound 2988, 16 cycles, sepFullCycles), theorem sep_fits (every stretch up to the bound keeps the clock-matched cycle 5 inside the pass), sep_noRoom_only (noRoom implies a stretch beyond the bound); the lane reads the count from the Lean golden. MEASURED: rewrite undecided (pooled 7 full, 6 dwell, stretch 3289 beyond the bound, noRoom; push 1 fewFull with stretch 3934, push 2 fewDwell with 2 dwell passes), user undecided (pooled 7 full, 8 dwell, inseparable: rate by index 167142, by clock 145523, dwell 85666, too close for Lean separable; push 1 inseparable, push 2 fewFull). Neither arm is cycle-driven or clock-driven. Lost passes are named (restartFailed, touchesFailed, notReady, not run, failed with no record). INFERRED: the stretch overshoot comes from single stalled presses (33 to 90 s) in the mean dwell period; a median-based period is the follow-up. Census (Lean across): no rise in layers or resting backing bytes above the threshold in either arm; H4 (IOSurface re-allocation) stays open: this lane cannot count freed bytes. TS stand-ins: periodMs, activeQuiet/activeCycles, sepArm, censusSeries, lostOf/parseFailed/sepTable. CI only; the fix is a later task."
+  },
+  {
+   "entry": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
+   "task": "glint-hold-freeze",
+   "field": "mechanism",
+   "text": "glint-hold-freeze (MEASURED, CI; note research/notes/2026/10-2x-glint-hold-freeze.md): the look premise glint.hold-pixels (run 40345059212) found that ring ids with a hyphen leave every piece after the first unresolved in both engines (the dash never moved after segment 0); ids are now letters and digits. With them the ring is within 1 of 255 of the original on Chromium and 0 on WebKit at 30 forward-seeked times. A backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235) and right in WebKit; no flag path seeks backward (createPause seeks to read plus paused time). Gate both engines pass (40345141093). Chromium counts (base 40345261186, flag 40345253392): approach gains RasterTask 236 to 225 (about 5 percent), finish 1207 to 1196 (under 1 percent), end windows noGain."
   }
  ]
 }

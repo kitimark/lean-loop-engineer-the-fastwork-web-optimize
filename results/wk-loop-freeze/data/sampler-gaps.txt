@@ -1,0 +1,16 @@
+run 40364461242 job 1 (t1) and job 2 (t2)
+n=68
+17:21:43 gap 549s swapOuts undefined -> 591699 (+NaN) free undefined% -> 10%
+17:30:52 gap 153s swapOuts 591699 -> 701411 (+109712) free 10% -> 7%
+n=75
+run 40349930733 job r2, attempts 1-5
+n=77
+18:48:43 gap 91s swapOuts undefined -> 206548 (+NaN) free 12% -> 10%
+18:51:20 gap 95s swapOuts 292850 -> 387686 (+94836) free 11% -> undefined%
+n=111
+18:48:43 gap 91s swapOuts undefined -> 206548 (+NaN) free 12% -> 10%
+18:51:20 gap 95s swapOuts 292850 -> 387686 (+94836) free 11% -> undefined%
+18:52:55 gap 74s swapOuts 387686 -> 434954 (+47268) free undefined% -> 81%
+n=128
+n=298
+n=306

@@ -82,6 +82,11 @@ import Fw.Parts.PeopleCardOpt
 import Fw.Parts.PeopleOPreview
 import Fw.Parts.MorphIdleNone
 import Fw.Parts.MorphColumnsScale
+import Fw.Parts.MorphGeom
+import Fw.Parts.MorphGeomRect
+import Fw.Parts.MorphGeomEarn
+import Fw.Parts.MorphGeomAnim
+import Fw.Parts.MorphGeomGen
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
@@ -101,6 +106,8 @@ import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
+import Fw.Parts.PlatformGlintHold
+import Fw.Parts.PlatformGlintHoldGolden
 import Fw.Parts.PlatformSweepPause
 import Fw.Parts.PlatformSweepPauseGolden
 import Fw.Parts.PlatformFadedPause
@@ -156,6 +163,8 @@ import Fw.Measure.OffscreenWebKit
 import Fw.Measure.OffscreenWebKitGolden
 import Fw.Measure.OffscreenWindows
 import Fw.Measure.OffscreenWindowsGolden
+import Fw.Measure.SwipeEnd
+import Fw.Measure.SwipeEndGolden
 import Fw.Measure.VerdictEvidence
 import Fw.Measure.WalkBudget
 import Fw.Measure.Wire
