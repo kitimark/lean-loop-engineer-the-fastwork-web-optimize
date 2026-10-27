@@ -14,9 +14,9 @@ Cell: packages/gate-breakpoints/src/flip-cell.mjs, job flip-cell, 12 bands x m i
 - Cause (MEASURED by reading the reading, INFERRED to be the whole cause): the phone grid knots end at 0.9999999999999999 for h = 1000
   (12/(h-52) plus 320 steps), so the K clipper tracks have no keyframe at offset 1 and WAAPI ends on the neutral value; the clippers stay 2x. Lean knots are
   exact rationals (last knot 1). Fix: last knot is exactly 1 (apps/site/src/parts/morph.geom/tracks.ts gridKnots, test in tracks.golden.test.ts).
-  Run on the fix: a54d893b8, see the ledger note for its id and result.
+  Run 40512085722 (a54d893b8): morph.geom:on passes 48 of 48 readings on Chromium and WebKit (MEASURED).
 - The job steps end in `|| true`, so a failed cell shows as a green job. Read the artifact flip-cell-<engine>.
-- geom-timed arm (webkit): 4 of 24 readings fail at m=0 after a real scroll back to top (lang, nav, earn edges; at 1280x800 21 images vs base 0, so the flip had not
+- geom-timed arm (webkit), run 40512085722: 2 of 24 readings fail (1280x800 nav/lang/earn, 1920x1080 columns 0 of 5); run 40508656325 had 4 of 24 at m=0 after a real scroll back to top (lang, nav, earn edges; at 1280x800 21 images vs base 0, so the flip had not
   left yet). Chromium timed: 0 fail, 12 of 24 skipped (the take guard, A5, task timed-take-retry). Follow-up: WebKit leave time, timed arm.
 
 ## Look report (MEASURED, pixels differing by more than 12 in a channel, share of the region)
