@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { resolve } from 'node:path';
+import { rawResolve as resolve } from './device-raw-dir.mjs';
 import { runBlock, realDeps, phoneSense } from './device-phone-run.mjs';
 import { pinnedSession } from './device-phone-pin.mjs';
 import { ConditionOwner } from './device-thermal-pin.mjs';

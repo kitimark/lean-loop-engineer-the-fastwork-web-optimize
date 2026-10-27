@@ -9,7 +9,8 @@
 // The source file holds a person's finger path: keep it out of git (.local/ or the scratchpad).
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname } from 'node:path';
+import { rawResolve as resolve } from './device-raw-dir.mjs';
 import { readRecord } from './device-profile.mjs';
 import { replayStrokes, t0Of } from './device-session.mjs';
 import { ofTouches, compile, w3c, actsMs, TICK_MAX, makeProfile, schedule, LIM, simulateEvents } from './device-replay.mjs';

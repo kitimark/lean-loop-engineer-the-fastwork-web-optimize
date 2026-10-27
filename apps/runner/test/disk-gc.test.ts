@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { clsOf, diskGc, diskGcTick, DiskGcUsage, gatherEventFacts, isLink, ownerMarker, parseArgs, worktrees, type Io, type Roots } from "../src/disk-gc.ts";
+import { clsOf, diskGc, localState, diskGcTick, DiskGcUsage, gatherEventFacts, isLink, ownerMarker, parseArgs, worktrees, type Io, type Roots } from "../src/disk-gc.ts";
 import { fwcoreCall } from "../src/run.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -53,7 +53,7 @@ function tree(events = true) {
   const repo = join(t, "repo");
   mkdirSync(repo);
   g(repo, "init", "-q", "-b", "main");
-  writeFileSync(join(repo, ".gitignore"), "node_modules/\n.lake/\n.fw-console/\n.claude/\n");
+  writeFileSync(join(repo, ".gitignore"), "node_modules/\n.lake/\n.fw-console/\n.claude/\n.local/\n");
   file(join(repo, "notes.md"), "kept: scratchpad/cited.\n", false);
   g(repo, "add", "-A"); g(repo, "commit", "-q", "-m", "init");
   const wt = join(repo, ".claude", "worktrees");
@@ -115,6 +115,31 @@ function tree(events = true) {
 describe("fw disk-gc on a temp tree", () => {
   const call = fwcoreCall(root);
   const uid = process.getuid!();
+
+  it("inc-raw-in-worktree: a landed worktree with data under .local is kept, reported with its size, and survives --delete", () => {
+    const x = tree();
+    const w1 = join(x.repo, ".claude", "worktrees", "w1");
+    const raw = join(w1, ".local", "phone", "run1", "frames.jsonl");
+    file(raw, "frame\n".repeat(50), false);
+    expect(localState(w1)).toMatchObject({ entries: 3 });
+    const list = diskGc({ repo: x.repo, args: parseArgs(["--list"]), call, io: x.io, roots: x.roots, uid });
+    expect(list.reply.items.map((i) => i.path)).not.toContain(w1);
+    expect(list.reply.heldLocal).toEqual([{ path: w1, localBytes: localState(w1).bytes, reason: "local-nonempty" }]);
+    const sum = diskGc({ repo: x.repo, args: parseArgs([]), call, io: x.io, roots: x.roots, uid });
+    expect(sum.lines.some((l) => l.startsWith(`disk-gc: kept ${w1}: local-nonempty`))).toBe(true);
+    const del = diskGc({ repo: x.repo, args: parseArgs(["--delete", "--class", "landed"]), call, io: x.io, roots: x.roots, uid });
+    expect(del.deleted).toBe(0);
+    expect(readFileSync(raw, "utf8")).toBe("frame\n".repeat(50));
+  });
+
+  it("inc-raw-in-worktree: an empty .local directory does not keep a landed worktree", () => {
+    const x = tree();
+    const w1 = join(x.repo, ".claude", "worktrees", "w1");
+    mkdirSync(join(w1, ".local"));
+    expect(localState(w1)).toEqual({ entries: 0, bytes: 0 });
+    expect(diskGc({ repo: x.repo, args: parseArgs(["--list"]), call, io: x.io, roots: x.roots, uid }).reply.items.map((i) => i.path)).toContain(w1);
+    expect(localState(join(x.t, "nowhere"))).toEqual({ entries: 0, bytes: 0 });
+  });
 
   it("--list names exactly what each class allows", () => {
     const x = tree();

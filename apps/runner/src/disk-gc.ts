@@ -16,13 +16,13 @@ export type Lock = "free" | "unknown" | { pid: number; start: string };
 export type Cand = {
   cls: Cls; path: string; bytes: number; uid: number | null; tracked: boolean; newest: number; dir: boolean; sym?: boolean;
   owner?: { task: string; run: string } | null;
-  lake?: Fact; branch?: string; merged?: boolean | null; dirty?: boolean | null; lock?: Lock | null; device?: { name: string; state: string };
+  lake?: Fact; branch?: string; merged?: boolean | null; dirty?: boolean | null; localEntries?: number | null; localBytes?: number; lock?: Lock | null; device?: { name: string; state: string };
 };
 export type Roots = { repo: string; lake: string; scratch: string; devices: string; utmp?: string };
 export type Device = { udid: string; name: string; state: string };
 export type Reply = {
   items: { cls: Cls; num: number; path: string; bytes: number }[]; classes: { cls: Cls; num: number; count: number; bytes: number }[];
-  kept: number; rootsOk: { cls: Cls; num: number; ok: boolean }[]; lakeFallback: string | null;
+  kept: number; heldLocal?: { path: string; localBytes: number; reason: string }[]; rootsOk: { cls: Cls; num: number; ok: boolean }[]; lakeFallback: string | null;
 };
 export type Call = (req: Record<string, unknown>) => Record<string, unknown>;
 export type Mode = "summary" | "list" | "json" | "delete";
@@ -204,6 +204,25 @@ export function wtState(wt: string): { dirty: boolean | null; newest: number } {
   return { dirty: files.length > 0, newest };
 }
 
+/** The facts about a worktree's `.local/` (inc-raw-in-worktree): entries and bytes, `null` entries when a read fails. */
+export function localState(wt: string): { entries: number | null; bytes: number } {
+  let entries = 0, bytes = 0;
+  const walk = (dir: string): boolean => {
+    let names: string[];
+    try { names = readdirSync(dir); } catch (e) { return isMissing(e); }
+    for (const n of names) {
+      const p = join(dir, n);
+      try {
+        const st = lstatSync(p);
+        entries++; bytes += st.size;
+        if (st.isDirectory() && !walk(p)) return false;
+      } catch (e) { if (!isMissing(e)) return false; }
+    }
+    return true;
+  };
+  return walk(join(wt, ".local")) ? { entries, bytes } : { entries: null, bytes };
+}
+
 function trackedUnder(top: string, rel: string): Set<string> | null {
   const r = git(top, ["ls-files", "-z", "--", rel]);
   return r.status === 0 ? new Set(r.out.split("\0").filter(Boolean)) : null;
@@ -307,7 +326,8 @@ export function gather(roots: Roots, a: Args, io: Io, now: number, uid: number, 
     for (const w of wts) {
       const merged = w.branch ? landedOf(roots.repo, w.branch) : null;
       const st = wtState(w.path);
-      const facts = { branch: w.branch, merged, dirty: st.dirty, lock: w.lock };
+      const loc = localState(w.path);
+      const facts = { branch: w.branch, merged, dirty: st.dirty, localEntries: loc.entries, localBytes: loc.bytes, lock: w.lock };
       if (on("landed")) {
         cands.push(base("landed", w.path, { ...facts, tracked: trackedIn(tracked, w.path.slice(roots.repo.length + 1)) }));
         lazy.set(`landed ${w.path}`, () => duBytes(w.path));
@@ -455,6 +475,7 @@ export function diskGc(o: RunOpts): RunResult {
   else {
     for (const r of reply.rootsOk) if (o.args.classes.includes(r.cls) && !r.ok) lines.push(`disk-gc: class ${r.num} ${r.cls}: root refused by Lean, nothing listed`);
     for (const c of reply.classes) lines.push(`disk-gc: class ${c.num} ${c.cls}: ${c.count} item(s), ${gib(c.bytes)} GiB`);
+    for (const h of reply.heldLocal ?? []) lines.push(`disk-gc: kept ${h.path}: ${h.reason} (.local holds ${gib(h.localBytes)} GiB of raw data; move or remove it, then it is a candidate)`);
     if (reply.lakeFallback) lines.push(`disk-gc: class 1 lake decided by the age floor (fallback ${reply.lakeFallback})`);
   }
   if (o.args.mode === "delete" && reply.items.length > 0) {

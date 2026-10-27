@@ -69,6 +69,8 @@ structure Cand where
   branch : String := ""
   merged : Option Bool := none
   dirty : Option Bool := none
+  localEntries : Option Nat := none
+  localBytes : Nat := 0
   lock : Lock := .free
   device : Option (String × String) := none
 deriving Repr
@@ -265,8 +267,13 @@ def usedByLive (cfg : Config) (x : Cand) : Bool :=
   | none => true
   | some l => l.any (runOwns · x.path)
 
-def ruleLanded (cfg : Config) (x : Cand) : Bool :=
+def ruleLandedBase (cfg : Config) (x : Cand) : Bool :=
   x.dir && x.branch != "" && (landCommit cfg x || landedByTask cfg x) && x.merged == some true && !usedByLive cfg x && x.dirty == some false
+
+/-- A worktree's `.local/` (device raw lanes, gitignored) holds no entry. An unread directory (`none`) is not clear. -/
+def localClear (x : Cand) : Bool := x.localEntries == some 0
+
+def ruleLanded (cfg : Config) (x : Cand) : Bool := ruleLandedBase cfg x && localClear x
 
 def ruleIdle (cfg : Config) (x : Cand) : Bool :=
   x.dir && x.branch != "" && x.merged == some false && olderThan cfg x (cfg.idleH * 3600)
@@ -312,6 +319,10 @@ def guard (cfg : Config) (x : Cand) : Bool :=
   pathOk cfg.roots x.cls x.path && x.uid == some cfg.uid && !x.tracked && !live cfg x
 
 def chosen (cfg : Config) (x : Cand) : Bool := cfg.classes.contains x.cls && guard cfg x && rule cfg x
+
+/-- A landed worktree that every landed rule but `.local` selects: kept because `.local/` holds data (inc-raw-in-worktree). -/
+def heldLocal (cfg : Config) (x : Cand) : Bool :=
+  x.cls == .landed && cfg.classes.contains x.cls && guard cfg x && ruleLandedBase cfg x && !localClear x
 
 def select (cfg : Config) (xs : List Cand) : List Cand := xs.filter (chosen cfg)
 
@@ -359,7 +370,8 @@ def exScratch (d : String) (newest : Nat) : Cand :=
 #guard !chosen { exCfg with classes := [.lake] } (exScratch "old" 0)
 def exWt (c : Cls) (rel : String) (merged : Bool) (k : Lock) : Cand :=
   { cls := c, path := s!"/u/r/.claude/worktrees/{rel}", bytes := 1, uid := some 1, tracked := false, newest := 0,
-    dir := true, branch := if merged then "b" else "open", merged := some merged, dirty := some false, lock := k }
+    dir := true, branch := if merged then "b" else "open", merged := some merged, dirty := some false,
+    localEntries := some 0, lock := k }
 
 def exSim (n : String) : Cand :=
   { cls := .sim, path := "/u/Library/Developer/CoreSimulator/Devices/0a1b2c3d-0000-1111-2222-333344445555",
@@ -370,6 +382,12 @@ def exConsole (rel : String) : Cand :=
     dir := false, sym := some false }
 
 #guard chosen exCfg (exWt .landed "w1" true .free)
+#guard !chosen exCfg { exWt .landed "w1" true .free with localEntries := some 3, localBytes := 900 }
+#guard !chosen exCfg { exWt .landed "w1" true .free with localEntries := none }
+#guard chosen exCfg { exWt .landed "w1" true .free with localEntries := some 0, localBytes := 0 }
+#guard heldLocal exCfg { exWt .landed "w1" true .free with localEntries := some 3, localBytes := 900 }
+#guard !heldLocal exCfg (exWt .landed "w1" true .free)
+#guard !heldLocal exCfg { exWt .landed "w1" false .free with localEntries := some 3 }
 #guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1/apps"] } (exWt .landed "w1" true .free)
 #guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1"] } (exWt .idle "w1/lean/.lake" false .free)
 #guard !chosen { exCfg with cwds := some ["/u/r/.claude/worktrees/w1/apps"] } (exWt .idle "w1/node_modules" false .free)
@@ -594,11 +612,11 @@ theorem rule_lake (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select c
 
 theorem rule_landed (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
     x.dir = true ∧ x.branch ≠ "" ∧ (landCommit cfg x = true ∨ landedByTask cfg x = true) ∧
-      x.merged = some true ∧ usedByLive cfg x = false ∧ x.dirty = some false := by
+      x.merged = some true ∧ usedByLive cfg x = false ∧ x.dirty = some false ∧ x.localEntries = some 0 := by
   have hr := selected_rule cfg xs x h
-  simp only [rule, hc, ruleLanded, Bool.and_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true',
-    beq_iff_eq] at hr
-  exact ⟨hr.1.1.1.1.1, hr.1.1.1.1.2, hr.1.1.1.2, hr.1.1.2, hr.1.2, hr.2⟩
+  simp only [rule, hc, ruleLanded, ruleLandedBase, localClear, Bool.and_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq,
+    Bool.not_eq_true', beq_iff_eq] at hr
+  exact ⟨hr.1.1.1.1.1.1, hr.1.1.1.1.1.2, hr.1.1.1.1.2, hr.1.1.1.2, hr.1.1.2, hr.1.2, hr.2⟩
 
 theorem landed_by_identity (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .landed) :
     (∃ l, cfg.landSubjects = some l ∧ ("land " ++ x.branch) ∈ l) ∨ remoteLand cfg x = true ∨
@@ -638,15 +656,55 @@ theorem fast_forward_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls
 
 theorem land_commit_selects (cfg : Config) (x : Cand) (hcl : x.cls ∈ cfg.classes) (hc : x.cls = .landed)
     (hg : guard cfg x = true) (hd : x.dir = true) (hb : x.branch ≠ "") (hl : landCommit cfg x = true)
-    (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false) :
-    chosen cfg x = true := by
-  simp [chosen, hg, rule, hc, ruleLanded, hd, hb, hl, hm, hu, hy] at *
+    (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false)
+    (hz : x.localEntries = some 0) : chosen cfg x = true := by
+  simp [chosen, hg, rule, hc, ruleLanded, ruleLandedBase, localClear, hd, hb, hl, hm, hu, hy, hz] at *
   exact hcl
 
 theorem reopened_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
     (hm : x.merged ≠ some true) : x ∉ select cfg xs := by
   intro h
   exact hm (rule_landed cfg xs x h hc).2.2.2.1
+
+/-- inc-raw-in-worktree: a landed worktree whose `.local/` is not known empty is never a delete candidate. -/
+theorem local_data_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
+    (hl : x.localEntries ≠ some 0) : x ∉ select cfg xs := by
+  intro h
+  exact hl (rule_landed cfg xs x h hc).2.2.2.2.2.2
+
+/-- A non-empty `.local/` keeps the worktree, whatever else selects it. -/
+theorem local_nonempty_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed) (n : Nat) (hn : 0 < n)
+    (hl : x.localEntries = some n) : x ∉ select cfg xs :=
+  local_data_kept cfg xs x hc (by rw [hl]; intro e; cases e; omega)
+
+/-- An unread `.local/` keeps the worktree too. -/
+theorem local_unread_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
+    (hl : x.localEntries = none) : x ∉ select cfg xs :=
+  local_data_kept cfg xs x hc (by rw [hl]; intro e; cases e)
+
+/-- A worktree reported as held for its `.local/` is not selected. -/
+theorem held_local_kept (cfg : Config) (xs : List Cand) (x : Cand) (h : heldLocal cfg x = true) : x ∉ select cfg xs := by
+  have hc : x.cls = .landed := by
+    simp only [heldLocal, Bool.and_eq_true, beq_iff_eq] at h; exact h.1.1.1.1
+  refine local_data_kept cfg xs x hc ?_
+  simp only [heldLocal, Bool.and_eq_true, Bool.not_eq_true'] at h
+  intro e
+  simp [localClear, e] at h
+
+/-- The reverse: a held worktree is exactly one the landed rule would take if `.local/` were empty. -/
+theorem held_local_would_select (cfg : Config) (x : Cand) (h : heldLocal cfg x = true) :
+    chosen cfg { x with localEntries := some 0 } = true := by
+  have hg : guard cfg { x with localEntries := some 0 } = guard cfg x := rfl
+  have hb : ruleLandedBase cfg { x with localEntries := some 0 } = ruleLandedBase cfg x := rfl
+  simp only [heldLocal, Bool.and_eq_true, beq_iff_eq] at h
+  obtain ⟨⟨⟨⟨hc, hcl⟩, hg'⟩, hb'⟩, _⟩ := h
+  have hr : rule cfg { x with localEntries := some 0 } = true := by
+    have hrule : ∀ y : Cand, y.cls = .landed → rule cfg y = ruleLanded cfg y := fun y hy => by simp [rule, hy]
+    rw [hrule { x with localEntries := some 0 } hc]
+    simp only [ruleLanded, hb, hb', localClear]
+    rfl
+  simp only [chosen, Bool.and_eq_true]
+  exact ⟨⟨hcl, hg.trans hg'⟩, hr⟩
 
 theorem never_cwd (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) :
     ∃ cs, cfg.cwds = some cs ∧ ∀ c ∈ cs, under x.path c = false ∧
@@ -729,11 +787,11 @@ theorem remote_land_identity (cfg : Config) (x : Cand) (h : remoteLand cfg x = t
 
 theorem remote_land_selects (cfg : Config) (x : Cand) (hcl : x.cls ∈ cfg.classes) (hc : x.cls = .landed)
     (hg : guard cfg x = true) (hd : x.dir = true) (hb : x.branch ≠ "") (hl : remoteLand cfg x = true)
-    (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false) :
-    chosen cfg x = true :=
+    (hm : x.merged = some true) (hu : usedByLive cfg x = false) (hy : x.dirty = some false)
+    (hz : x.localEntries = some 0) : chosen cfg x = true :=
   land_commit_selects cfg x hcl hc hg hd hb (by
       obtain ⟨l, _, hls, _⟩ := remote_land_identity cfg x hl
-      simp [landCommit, hls, hl]) hm hu hy
+      simp [landCommit, hls, hl]) hm hu hy hz
 
 theorem rule_idle (cfg : Config) (xs : List Cand) (x : Cand) (h : x ∈ select cfg xs) (hc : x.cls = .idle) :
     x.dir = true ∧ x.branch ≠ "" ∧ x.merged = some false ∧ x.newest + cfg.idleH * 3600 ≤ cfg.now := by
@@ -1076,7 +1134,8 @@ def candOf (j : Json) : Except String Cand := do
     cls := c, path := ← str j "path", bytes := ← nat j "bytes", uid := optNat j "uid",
     tracked := ← asBool "tracked" (← field j "tracked"), newest := ← nat j "newest",
     dir := ← asBool "dir" (← field j "dir"), sym := ← optBool j "sym", owner, lake, branch := ← strD j "branch" "", merged := ← optBool j "merged",
-    dirty := ← optBool j "dirty", lock := ← lockOf c j, device }
+    dirty := ← optBool j "dirty", localEntries := optNat j "localEntries",
+    localBytes := (optNat j "localBytes").getD 0, lock := ← lockOf c j, device }
 
 def procOf (j : Json) : Except String Proc := do pure ⟨← nat j "pid", ← str j "start"⟩
 
@@ -1124,6 +1183,8 @@ def opDiskGc (req : Json) : Except String Reply := do
       Json.mkObj [("cls", .str c.name), ("num", toJson c.num), ("count", toJson (tally l c).1),
         ("bytes", toJson (tally l c).2)])),
     ("kept", toJson (xs.length - l.length)),
+    ("heldLocal", .arr ((xs.filter (heldLocal cfg)).toArray.map fun x => Json.mkObj [("path", .str x.path),
+      ("localBytes", toJson x.localBytes), ("reason", .str "local-nonempty")])),
     ("rootsOk", .arr (Cls.all.toArray.map fun c =>
       Json.mkObj [("cls", .str c.name), ("num", toJson c.num), ("ok", .bool (rootOk cfg.roots c))])),
     ("lakeFallback", match cfg.lake.bind Fw.Ops.LakeGc.fallback with
