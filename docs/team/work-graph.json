@@ -22814,6 +22814,54 @@
     "docs/team/handoffs/morph-geom-lean.md"
    ],
    "evidence": "b859548"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-morph-push",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-timed"
+   ],
+   "title": "Real iPhone, end of page with real pushes (user connected the phone 2026-10-27): replay one recorded finger push path (WebDriverAgent replay, device-replay*) at the end of the page per arm, thermal pinned (default Serious), arms base, morph.geom:on, morph.geom:on+morph.tween:geom-timed, morph.stage:on; tail stats (p95, p99, max, frames over 50 ms) and main-thread style/layout/paint/rAF between push and morph end, with repeats; verdict per arm under the Lean PhoneArms rule.",
+   "writes": [
+    "lean/Fw/Device/*.lean",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/contracts/golden/device/**",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "research/notes/2026/10-2x-phone-morph-push.md",
+    "research/findings/ledger.json",
+    "results/phone/2026-10-27-morph-push/**",
+    "docs/team/handoffs/phone-morph-push.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-push-sim",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "morph-timed"
+   ],
+   "title": "WebKit Simulator with real pushes for the end-of-page morph: the webkit-sim counts profile sends no push, so morph-geom and morph-timed were equal by construction there. Run base (morph.geom off), morph.geom:on and morph.geom:on+morph.tween:geom-timed on the push-cycle lane (toolbar-throttle.yml, throttle/push-cycle.mjs, XCUITest finger swipes), 3 VMs per arm (VM = one job of one run); per push read main-thread style, layout, paint, rAF and slow frames between push and morph end; verdict per arm in Lean (PushCycle.lean).",
+   "writes": [
+    "lean/Fw/Measure/PushCycle.lean",
+    "lean/scripts/PushCycle*Golden.lean",
+    "packages/contracts/golden/measure/push-cycle.jsonl",
+    "packages/measure-webkit/src/throttle/push-cycle*.mjs",
+    "packages/measure-webkit/src/throttle/driver/**",
+    "packages/measure-webkit/test/push-cycle*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-morph-push-sim.md",
+    "research/findings/ledger.json",
+    "results/morph-push-sim/**",
+    "docs/team/handoffs/morph-push-sim.md"
+   ]
   }
  ],
  "deadline": {
