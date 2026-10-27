@@ -62,6 +62,14 @@ export const LATIN_ROWS = Object.freeze(PUSH.latin.map((r) => Object.freeze(r.ma
 export const latinOrder = () => PUSH.order.map(armById);
 export const slotOf = (i) => (PUSH.slots[i] ? { round: PUSH.slots[i][0], position: PUSH.slots[i][1] } : null);
 
+export const FLIP = Object.freeze(GOLDEN.find((l) => l.kind === 'flipcons'));
+export const FLIP_ARMS = Object.freeze(FLIP.arms.map((a) => Object.freeze(a)));
+const flipById = (id) => FLIP_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown flip arm ${id}`); })();
+export const FLIP_ROWS = Object.freeze(FLIP.latin.map((r) => Object.freeze(r.map(flipById))));
+export const flipOrder = () => FLIP.order.map(flipById);
+export const flipSlotOf = (i) => (FLIP.slots[i] ? { round: FLIP.slots[i][0], position: FLIP.slots[i][1] } : null);
+export const flipOk = (order) => FLIP_ARMS.every((a) => order.filter((x) => x.id === a.id).length >= PUSH.minVisits);
+
 export function pushCells(base, arm) {
   if (base.length < PUSH.minVisits || arm.length < PUSH.minVisits) return null;
   const k = PUSH_METRICS.length;

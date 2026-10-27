@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Device.Session
 import Fw.Measure.WebKitProfile
+import Fw.Device.FlipAttr
 namespace Fw.Device.PhoneArms
 open Lean
 open Fw.Device.Session (Zone zoneOf Verdict verdict spread sameFlags sameFlags_comm sameFlags_refl)
@@ -1485,6 +1486,57 @@ private def traceCases : List (String × List Ev) :=
    ("pushes only", [.push, .push, .push]), ("three taken of four", [.push, .take, .push, .take, .push, .push, .take]),
    ("a second take is not another push", [.push, .take, .take])]
 
+/-! ### Flip session: base, geom and geom-timed in a six-round Latin square (phone-flip-p95)
+
+Three arms need six rounds for a balanced order (an odd square has no Williams form with three rows): the three cyclic
+shifts and their reverses. Each round holds each arm once, each arm takes each position twice, and each ordered pair of
+distinct arms follows each other twice inside the rounds. -/
+
+/-- The three arms of the flip session: the base, the flip, and the flip with the timed tween. -/
+def flipArms : List Arm := pushArms.take 3
+
+/-- The index square of the flip session: the cyclic shifts of 0 1 2, then their reverses. -/
+def flipIdx : List (List Nat) := [[0, 1, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0], [1, 0, 2], [0, 2, 1]]
+
+def flipRows : List (List Arm) := flipIdx.map fun r => r.map fun j => flipArms.getD j base
+
+def flipOrder : List Arm := flipRows.flatten
+
+def flipRound (i : Nat) : Nat := i / 3
+
+def flipPos (i : Nat) : Nat := i % 3
+
+def flipCol (p : Nat) : List Arm := flipRows.map fun r => r.getD p base
+
+def flipPairs (a b : Arm) : Nat := (flipRows.map fun r => (r.zip r.tail).count (a, b)).sum
+
+/-- Every arm of the flip session has at least `minVisits` visits. -/
+def flipOk (order : List Arm) : Bool := flipArms.all fun a => minVisits ≤ order.count a
+
+theorem flipOrder_length : flipOrder.length = 18 := by decide
+
+theorem flip_rows_once : flipRows.all (fun r => flipArms.all fun a => r.count a == 1) = true := by decide
+
+theorem flip_cols_twice : (List.range 3).all (fun p => flipArms.all fun a => (flipCol p).count a == 2) = true := by decide
+
+theorem flip_carry : flipArms.all (fun a => flipArms.all fun b => flipPairs a b == (if a == b then 0 else 2)) = true := by decide
+
+theorem flip_ok : flipOk flipOrder = true := by decide
+
+theorem flip_six_each : flipArms.all (fun a => flipOrder.count a == 6) = true := by decide
+
+theorem flip_noRepeat : noRepeat flipOrder = true := by decide
+
+theorem flip_base_each : flipRows.all (fun r => r.count base == 1) = true := by decide
+
+theorem flip_index : (List.range 18).all (fun i => flipOrder.getD i base == (flipRows.getD (flipRound i) []).getD (flipPos i) base) = true := by
+  decide
+
+def flipGoldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "flipcons"), ("arms", Json.arr (flipArms.map armJ).toArray),
+    ("latin", Json.arr (flipRows.map idsJ).toArray), ("order", idsJ flipOrder),
+    ("slots", toJson ((List.range 18).map fun i => [flipRound i, flipPos i]))]).compress]
+
 def colsGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "colscons"), ("probeFlag", probeFlag), ("arms", Json.arr (colsArms.map armJ).toArray),
     ("latin", Json.arr (colsRows.map idsJ).toArray), ("order", idsJ colsOrder),
@@ -1580,7 +1632,7 @@ def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress] ++
-  pushGoldenLines () ++ colsGoldenLines ()
+  pushGoldenLines () ++ colsGoldenLines () ++ flipGoldenLines () ++ Fw.Device.FlipAttr.goldenLines ()
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 

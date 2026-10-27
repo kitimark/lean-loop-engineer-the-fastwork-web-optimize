@@ -112,3 +112,16 @@ test('a contrast names the label, the verdict and the cause per column', () => {
   assert.equal(r.refSpread.p95, 80);
   assert.equal(D.contrastOf([v(10)], [v(1)]).label, 'unresolved');
 });
+
+test('the flip session: three arms, six rounds, order and slots are read from the golden', () => {
+  const [c] = of('flipcons');
+  assert.deepEqual(D.FLIP_ARMS.map((a) => a.id), ['base', 'morph.geom:on', 'morph.tween:geom-timed']);
+  const ids = D.flipOrder().map((a) => a.id);
+  assert.deepEqual(ids, c.order);
+  assert.equal(ids.length, 18);
+  for (const r of c.latin) assert.deepEqual([...r].sort(), D.FLIP_ARMS.map((a) => a.id).sort());
+  for (let p = 0; p < 3; p++) for (const a of D.FLIP_ARMS) assert.equal(c.latin.filter((r) => r[p] === a.id).length, 2);
+  assert.ok(D.flipOk(D.flipOrder()) && D.noRepeat(D.flipOrder()));
+  assert.deepEqual(D.flipSlotOf(7), { round: 2, position: 1 });
+  assert.equal(D.flipSlotOf(18), null);
+});

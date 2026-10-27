@@ -141,6 +141,7 @@ import Fw.Measure.WkCost
 import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
+import Fw.Device.FlipAttr
 import Fw.Device.PhoneArms
 import Fw.Device.Thermal
 import Fw.Device.StillRuns
