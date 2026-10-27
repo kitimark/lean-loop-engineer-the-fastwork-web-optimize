@@ -1,7 +1,7 @@
 branch: worktree-wf_563f1ba9-714-1 (CI branch ci/flip-verify-auto)
 worktree: .claude/worktrees/wf_563f1ba9-714-1
 last commit: see `git log -1` (WIP commits carry "flip-verify-auto")
-CI runs: push 1 40525667335 failure; push 2 40530697810 failure; push 3 40537879823 (e56ef0507): Chromium all green (verify 12/12 x3 reads, 2 repeats, 6 of 6 mutations caught), WebKit verify 11/12 on A5 (360x640 first open push untaken, guard-late on a 1.5 fps runner), repeats green, 6 of 6 mutations caught, timed cell m=0 12/12 on both engines. Push 4 40544410328 (f08b8c1a0, A5 judges pushes the guard had a chance for, Lean traceOk) in progress; wait with `pnpm -s fw ci wait 40544410328`. Push 4 is the last.
+CI runs: push 1 40525667335 failure; push 2 40530697810 failure; push 3 40537879823 failure (WebKit A5 11/12); push 4 40544410328 failure (WebKit A5 8/12 by my coverage rule; Chromium all green; both engines 6 of 6 mutations caught; timed m=0 12/12). No push 5 (cap 4). After push 4: Lean traceOk counts a taken push as covered (commit 04a75838b), replayed offline on run 4 logs to 12/12; not run on CI. Note and ledger row written. Left: merge main, plan lint, dry land, review ready.
 
 ## State
 - Lean: lean/Fw/Parts/MorphGeomVerify.lean (quiet leave A4, time kept A3a, take trace A5, Mutation list; one theorem per branch).
@@ -23,5 +23,5 @@ CI runs: push 1 40525667335 failure; push 2 40530697810 failure; push 3 40537879
 - A5 mutation: classList.contains('is-on-dark') reads light always (closes do not consult the guard once the flip is entered).
 
 ## Open
-- CI results, 3 runs, note research/notes/2026/10-2x-flip-verify-auto.md, ledger notes, gap 5 cause (WebKit m=0 failures; diagnostics `live`/`recheck` in the timed cell).
+- A5 corrected rule on CI (needs a push beyond the cap); timed cell m=1 rows skipped (no wheel pushes); phone and Safari lanes: probe callable, not run.
 - Do not edit apps/site/src/parts/morph.columns/** (phone-cols-probe).
