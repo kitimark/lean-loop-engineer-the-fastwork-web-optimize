@@ -51,8 +51,7 @@ met: gain. All six windows have enough frames (the 120+ window has 47 against 20
 ## WebKit Simulator zones (webkit-sim, minVms 3): blocked, undecided
 Dispatches: base 40366306645 (3 VMs after reruns, commit 8f2f726bf); flag 40366323523 (8f2f726bf, 0 VMs) and, after merging
 wk-loop-freeze (freeze-aware stall clock), flag 40429988675 (8324e9f89, 0 of 3 VMs: r1, r2, r3 all cancelled at the 58 min
-limit). No `webkit-sim-r` artifact exists for either flag run, so the zone reader has nothing to read on the flag side and
-every zone stays undecided on the Lean minVms 3 rule (never a win). The base harness commit is older than the flag run's.
+limit). No `webkit-sim-r` artifact exists for either flag run, so every zone stays undecided on the Lean minVms 3 rule (never a win). The base harness commit is older than the flag run's.
 
 Cause (MEASURED from the sim-tick console tails of 40429988675 and the job log of 40366323523; base 40366306645 compared at the same steps):
 - Runner side, r1 and r3 of 40429988675 and r1 of 40366323523: the Safari tab never attached ("no tab after 6 to 115 s", openurl
@@ -65,7 +64,7 @@ Cause (MEASURED from the sim-tick console tails of 40429988675 and the job log o
   process (0 s of cpu in 191 s)` just before the first. The base shows the same timeout after y 4500 (r1 tick 5, r3 tick 3 and 4 of 40366306645) and recovered by a
   fresh load, so it is not a flag signature; the two flag hangs hit the freeze marks, so the cause is the VM, not the page.
   Not proved: a local Web Inspector timeline was not taken (no page-side signature to chase), so a flag share in r2's second hang is not excluded.
-Verdict: WebKit zones blocked by runner loss; the cause is named (VM freeze and a wedged Simulator), not a flag stall.
+Verdict: WebKit zones blocked by runner loss; VM freeze and a wedged Simulator, not a flag stall.
 
 ## Toolbar lane (toolbar-throttle, arm `stage`): undecided
 Run 40365940148 (commit message [ci:toolbar-throttle] [throttle:toolbar] [toolbar-plan:stage,stage,stage]). The new arm

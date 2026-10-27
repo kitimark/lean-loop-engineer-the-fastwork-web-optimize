@@ -9,26 +9,21 @@ def attr : String := "data-fw-stage"
 def onV : String := "on"
 def faithfulV : String := "faithful"
 
-/-- The scroll-jack (touch and wheel capture pairs, the pin, the tween) is mounted unless the stage is on. -/
 def jackOn (v : String) : Bool := v != onV
 
 theorem jack_off_iff (v : String) : jackOn v = false ↔ v = onV := by
   simp [jackOn]
 
-/-- The part ids the stage unmounts, each with its anchor (`data-anchor`) in the gate's count items. -/
 def jackAnchors : List (String × String) :=
   [("morph.mount", "morph-mount"), ("morph.tween", "morph-tween")]
 
-/-- An anchor is mounted unless the stage is on and the anchor belongs to a jack part. -/
 def anchorMounted (v anchor : String) : Bool :=
   !(jackAnchors.any fun pa => pa.2 == anchor) || jackOn v
 
-/-- Premise of the gate's replaced-part entries: with the stage on, `morph-mount` and `morph-tween` are not mounted. -/
 theorem stage_unmounts_anchors :
     anchorMounted onV "morph-mount" = false ∧ anchorMounted onV "morph-tween" = false := by
   decide +kernel
 
-/-- With the stage off every jack anchor is mounted, and the stage never unmounts any other anchor. -/
 theorem stage_keeps_others (v anchor : String) (h : (jackAnchors.any fun pa => pa.2 == anchor) = false) :
     anchorMounted v anchor = true := by
   simp [anchorMounted, h]
@@ -91,8 +86,6 @@ theorem div_mono' (x y t : Rat) (ht : 0 < t) (h : x ≤ y) : x / t ≤ y / t := 
   have := (le_div_iff' y (x / t) t ht).2 (by rw [divmul x t ht]; exact h)
   exact this
 
-/-! ## The track length T -/
-
 structure Win where
   vw : Rat
   vh : Rat
@@ -110,7 +103,6 @@ def spanW (w : Win) : Rat := panelW w - pillW w
 def spanH (w : Win) : Rat := panelH w - pillH w
 def blurSpan : Rat := 20
 
-/-- Track length: the largest px change of any nav geometry value between `--morph` 0 and 1. -/
 def trackT (w : Win) : Rat := max (max (spanH w) (spanW w)) blurSpan
 
 theorem trackT_ge (w : Win) : spanH w ≤ trackT w ∧ spanW w ≤ trackT w ∧ blurSpan ≤ trackT w := by
@@ -126,7 +118,6 @@ theorem trackT_pos (w : Win) : 0 < trackT w := by
 theorem trackT_mem (w : Win) : trackT w = spanH w ∨ trackT w = spanW w ∨ trackT w = blurSpan := by
   unfold trackT; grind
 
-/-- A geometry value moving `s` px over `--morph` 0 to 1 moves at most one px per scroll px. -/
 theorem slope_le_one (w : Win) (s p q : Rat) (hst : s ≤ trackT w) (hpq : p ≤ q) :
     s * ((q - p) / trackT w) ≤ q - p := by
   have ht := trackT_pos w
@@ -143,9 +134,6 @@ def trackCss (narrow : Bool) : String :=
 
 def rangeCss : String := "calc(100% - var(--stage-t)) 100%"
 
-/-! ## The range and the progress -/
-
-/-- Progress of the scroll position `y` over `[maxY - t, maxY]`, the range of the scroll timeline. -/
 def progress (y maxY t : Rat) : Rat := clamp01 ((y - (maxY - t)) / t)
 
 theorem progress_below (y maxY t : Rat) (ht : 0 < t) (h : y ≤ maxY - t) : progress y maxY t = 0 := by
@@ -172,14 +160,10 @@ theorem progress_mono (a b maxY t : Rat) (ht : 0 < t) (hab : a ≤ b) : progress
 
 theorem range_len (maxY t : Rat) : maxY - (maxY - t) = t := by grind
 
-/-! ## The page: platform, track, held scene -/
-
-/-- Document height is the platform bottom plus the track; the viewport is `vh` tall. -/
 def maxY (platformBottom t vh : Rat) : Rat := platformBottom + t - vh
 
 theorem range_start_eq (pb t vh : Rat) : maxY pb t vh - t = pb - vh := by unfold maxY; grind
 
-/-- Viewport coordinate of the scene bottom at scroll `y`: sticky holds it at `vh`, the container end releases it. -/
 def sceneBottom (pb t vh y : Rat) : Rat := min (max (pb - y) vh) (pb + t - y)
 
 theorem scene_natural_before (pb t vh y : Rat) (ht : 0 ≤ t) (h : y ≤ pb - vh) : sceneBottom pb t vh y = pb - y := by
@@ -197,14 +181,10 @@ theorem armed_from_range_start (pb t vh h : Rat) (hh : vh * (9 / 20) ≤ h) (y :
   · grind
   · grind
 
-/-! ## Keyframes equal the tween's end states -/
-
 def lerpSeg (o0 v0 o1 v1 p : Rat) : Rat := v0 + (v1 - v0) * ((p - o0) / (o1 - o0))
 
-/-- `--morph` keyframes: offset 0 gives 0, offset 1 gives 1, linear between. -/
 def morphKf (p : Rat) : Rat := lerpSeg 0 0 1 1 p
 
-/-- `--morph-fade` keyframes: offset 0 gives 1, offset 0.55 gives 0, offset 1 gives 0. -/
 def fadeKf (p : Rat) : Rat := if p ≤ fadeEnd then lerpSeg 0 1 fadeEnd 0 p else 0
 
 theorem morphKf_eq (p : Rat) : morphKf p = p := by unfold morphKf lerpSeg; grind
@@ -237,12 +217,8 @@ theorem keyframes_begin (e : Rat) (he : e ≤ 0) :
   rw [tween_start 0 1 e he]
   refine ⟨morphKf_eq 0, fadeKf_eq_fade 0⟩
 
-/-! ## Discrete states as functions of progress -/
-
-/-- The write key: the nine attribute readers' answers and the platform pointer cut. -/
 def key (m : Rat) : List Bool := pointerNone m :: band m
 
-/-- Cut positions in px: reader `r` answers true at scroll `y` iff `y` is past (gt) or before (lt) `maxY - t + θ t`. -/
 def pxTest (r : AttrReader) (y maxY t : Rat) : Bool :=
   match r.cmp with
   | .gt => decide (maxY - t + r.θ * t < y)
@@ -305,7 +281,6 @@ theorem active_cut (y maxY t : Rat) (ht : 0 < t) :
   unfold progress
   simpa using this
 
-/-- The reader writes iff the key differs from the one last written. -/
 def writes (last : List Bool) (m : Rat) : Bool := decide (key m ≠ last)
 
 theorem no_write_same_key (u v : Rat) (h : key u = key v) : writes (key u) v = false := by
@@ -342,8 +317,6 @@ theorem stage_start_eq_tween (y maxY t e : Rat) (ht : 0 < t) (hy : y ≤ maxY - 
 theorem stage_end_eq_tween (y maxY t e : Rat) (ht : 0 < t) (hy : maxY ≤ y) (he : 680 ≤ e) :
     key (progress y maxY t) = key (tween 0 1 e).value := by
   rw [progress_above y maxY t ht hy, tween_end 0 1 e he]
-
-/-! ## Under the flag: operations the stage may perform -/
 
 inductive Op where
   | observe (kind : String)
