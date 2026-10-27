@@ -1,0 +1,19 @@
+{
+  "task": "phone-morph-push",
+  "round": 2,
+  "date": "2026-10-27",
+  "unit": "one arm's phone verdict at the end of the page under the Lean push-visit rule (>= 3 interleaved visits per arm, one thermal state, one fixed push pattern)",
+  "thermalTarget": "Serious",
+  "push": "fixed XCUITest swipe (forward, hold, back, hold, forward), not the user's recorded finger path",
+  "rule": { "minVisits": 3, "rounds": 3, "visitsPlanned": 12, "lean": "Fw.Device.PhoneArms.pushLabel, pushOk, noRepeat" },
+  "status": "undecided",
+  "loss": "the XCUITest run starts on the phone (certificate trusted) but the first accessibility snapshot never returns, for Safari and for SpringBoard; no push ran",
+  "visits": 0,
+  "arms": [
+    { "id": "base", "n": 0, "label": "unresolved" },
+    { "id": "morph.geom:on", "n": 0, "label": "unresolved" },
+    { "id": "morph.tween:geom-timed", "n": 0, "label": "unresolved" },
+    { "id": "morph.stage:on", "n": 0, "label": "unresolved" }
+  ],
+  "thermal": "not pinned: no visit started, no induced condition was set"
+}
