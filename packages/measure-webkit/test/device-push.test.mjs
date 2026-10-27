@@ -84,7 +84,6 @@ test('the column probe session: arms, order and contrasts are read from the gold
   for (const r of c.latin) assert.deepEqual([...r].sort(), D.COLS_ARMS.map((a) => a.id).sort());
   for (let p = 0; p < 4; p++) assert.deepEqual(c.latin.map((r) => r[p]).sort(), D.COLS_ARMS.map((a) => a.id).sort());
   assert.ok(D.colsOk(D.colsOrder()) && D.noRepeat(D.colsOrder()));
-  // the index order is the r2 order: arm j of one set sits where arm j of the other sits
   const [p] = of('pushconsts');
   assert.deepEqual(c.order.map((id) => c.arms.findIndex((a) => a.id === id)), p.order.map((id) => p.arms.findIndex((a) => a.id === id)));
   for (const { ref, arm } of D.COLS_CONTRASTS) {

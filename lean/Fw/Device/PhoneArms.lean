@@ -1117,16 +1117,8 @@ theorem latin_base_each : latinRows.all (fun r => r.count base == 1) = true := b
 theorem latin_index : (List.range 16).all (fun i => latinOrder.getD i base == (latinRows.getD (latinRound i) []).getD (latinPos i) base) = true := by
   decide
 
-/-! ### Column probe session (task phone-cols-probe)
-
-Four arms in the Latin order of the morph push session (`latinIdx`, same index matrix, so each arm takes each position once):
-the base, the column pictures hidden (`morph.columns:probe-off`), the flip (`morph.geom:on`, `morph.tween:geom-timed`) and the flip with the
-pictures hidden. The two contrasts are base against base with the pictures hidden and flip against flip with the pictures hidden. -/
-
-/-- The probe flag that hides the 21 column pictures (visibility hidden; layout and layers stay). -/
 def probeFlag : String := "morph.columns:probe-off"
 
-/-- The four arms of the column probe, in `latinIdx` index order. The ids name the visit files; the flags are the pages. -/
 def colsArms : List Arm :=
   [base, ⟨"cols-off", .rewrite, [probeFlag]⟩, ⟨"flip", .rewrite, ["morph.geom:on", "morph.tween:geom-timed"]⟩,
    ⟨"flip+cols-off", .rewrite, ["morph.geom:on", "morph.tween:geom-timed", probeFlag]⟩]
@@ -1143,7 +1135,6 @@ def colsOk (order : List Arm) : Bool := colsArms.all fun a => decide (minVisits 
 
 theorem colsOrder_length : colsOrder.length = 16 := by decide
 
-/-- The probe session takes the index order of the r2 push session: arm `j` of one list sits where arm `j` of the other sits. -/
 theorem cols_same_order : colsOrder.map (fun a => colsArms.idxOf a) = latinIdx.flatten := by decide
 
 theorem cols_rows_once : colsRows.all (fun r => colsArms.all fun a => r.count a == 1) = true := by decide
@@ -1161,18 +1152,15 @@ theorem cols_base_each : colsRows.all (fun r => r.count base == 1) = true := by 
 theorem cols_index : (List.range 16).all (fun i => colsOrder.getD i base == (colsRows.getD (latinRound i) []).getD (latinPos i) base) = true := by
   decide
 
-/-- The two contrasts: (reference arm id, arm id). The arm is the reference with the pictures hidden. -/
 def colsContrasts : List (String × String) := [("base", "cols-off"), ("flip", "flip+cols-off")]
 
 def armById (id : String) : Option Arm := colsArms.find? (·.id == id)
 
-/-- Each contrast pair differs by the probe flag alone: the arm's flags are the reference's flags and the probe flag. -/
 theorem contrasts_differ_by_probe : colsContrasts.all (fun (r, a) =>
     match armById r, armById a with
     | some x, some y => y.flags == x.flags ++ [probeFlag] && x.target == y.target
     | _, _ => false) = true := by decide
 
-/-- Why a column of a contrast is or is not decided. -/
 inductive Cause where
   | decided | overlap | withinSpread | unresolved
   deriving DecidableEq, Repr
@@ -1180,8 +1168,6 @@ inductive Cause where
 def Cause.name : Cause → String
   | .decided => "decided" | .overlap => "overlap" | .withinSpread => "withinSpread" | .unresolved => "unresolved"
 
-/-- The cause of one column's verdict of `arm` against `ref`: decided (beats or worse), ranges overlap, ranges apart by no more than the
-reference's spread (a wide reference spread), or too few values. -/
 def cause (ref arm : List Int) : Cause :=
   match verdict ref arm with
   | .beats => .decided
@@ -1240,7 +1226,6 @@ theorem cause_apart_gap {ref arm : List Int} (h : cause ref arm = .withinSpread)
       · simp [c, c2] at h
   · exact absurd h (by simp)
 
-/-- The causes of the eight columns of a contrast; every column is unresolved when either side has fewer than `minVisits` visits (as `pushLabel`). -/
 def causes (ref arm : List (List Int)) : List Cause :=
   if minVisits ≤ ref.length ∧ minVisits ≤ arm.length then
     List.zipWith cause (columns pushMetrics.length ref) (columns pushMetrics.length arm)
@@ -1258,7 +1243,6 @@ theorem causes_few_arm (ref : List (List Int)) {arm : List (List Int)} (h : arm.
     causes ref arm = List.replicate pushMetrics.length .unresolved := by
   simp [causes]; intro _ h1; omega
 
-/-- A push event of the geom-timed driver trace: a push starts a move, a take is the flip being taken for it. -/
 inductive Ev where
   | push | take
   deriving DecidableEq, Repr
@@ -1266,7 +1250,6 @@ inductive Ev where
 def Ev.name : Ev → String
   | .push => "push" | .take => "take"
 
-/-- The pushes that were taken: a push whose next event is a take (a later push drops the earlier one). -/
 def takenOf : List Ev → Nat
   | .push :: .take :: rest => 1 + takenOf rest
   | _ :: rest => takenOf rest

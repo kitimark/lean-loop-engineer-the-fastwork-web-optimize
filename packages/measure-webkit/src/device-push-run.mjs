@@ -190,7 +190,6 @@ export function driverHolder({ dir, log, udid = listPhone().udid, push = TOUCH_P
   return { get, stop };
 }
 
-/** Driver trace of one lane: the pushes and takes, and per touch whether a take came before the next touch (TS stand-in for the touch mapping). */
 export function traceOf(ts, tr) {
   const evs = (tr ?? []).map((e) => e[0]);
   const perTouch = ts.map((t, i) => (tr ?? []).some((e) => e[0] === 'take' && t <= e[1] && (i + 1 >= ts.length || e[1] < ts[i + 1])));
@@ -226,13 +225,11 @@ export function summarize(rows, arms = PUSH_ARMS) {
   });
 }
 
-/** The pair contrasts of the column probe, decided per column by Lean `pushLabel` and `cells`; cause names why a column stays undecided. */
 export const contrastsOf = (rows, contrasts) => contrasts.map((c) => {
   const by = (id) => rows.filter((r) => r.arm === id).map((r) => r.vals);
   return { ref: c.ref, arm: c.arm, nRef: by(c.ref).length, nArm: by(c.arm).length, ...contrastOf(by(c.ref), by(c.arm)) };
 });
 
-/** Take share per arm: the driver pushes and takes (Lean `pushesOf`, `takenOf`) and the touches with a take, summed over the visits of the arm. */
 export const takeShareOf = (rows, arms) => arms.map((a) => {
   const vs = rows.filter((r) => r.arm === a.id && r.trace);
   const sum = (lane, k) => vs.reduce((n, r) => n + r.trace[lane][k], 0);

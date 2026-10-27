@@ -68,7 +68,6 @@ export function pushCells(base, arm) {
   return Object.fromEntries(cells(columns(k, base), columns(k, arm)).map((v, i) => [PUSH_METRICS[i], v]));
 }
 
-/** Column probe session (Lean `colsArms`, `colsRows`, `colsContrasts`, `cause`, `causes`, `takenOf`, `pushesOf`). */
 export const COLS = Object.freeze(GOLDEN.find((l) => l.kind === 'colscons'));
 export const COLS_ARMS = Object.freeze(COLS.arms.map((a) => Object.freeze(a)));
 const colsById = (id) => COLS_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown cols arm ${id}`); })();
@@ -95,7 +94,6 @@ export function causes(ref, arm) {
 export const takenOf = (evs) => evs.reduce((n, e, i) => n + (e === 'take' && evs[i - 1] === 'push' ? 1 : 0), 0);
 export const pushesOf = (evs) => evs.filter((e) => e === 'push').length;
 
-/** Pair contrast: the arm (pictures hidden) against its reference, per column: verdict, cause and the reference spread. */
 export function contrastOf(ref, arm) {
   const k = PUSH_METRICS.length;
   const cs = causes(ref, arm);

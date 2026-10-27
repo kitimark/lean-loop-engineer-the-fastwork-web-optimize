@@ -21,7 +21,7 @@ Layout and the track layers with their animations stay.
   reached from `RenderReplaced::paint` at `:267`); the layer's `hasVisibleContent` follows `usedVisibility()` (`RenderLayer.cpp:401`) and feeds
   `setContentsVisible` on its graphics layer (`RenderLayerBacking.cpp:1918`). Backing store is allocated by `containsPaintedContent`
   (`RenderLayerBacking.cpp:2142`), so a track layer with only hidden pictures may lose its backing (INFERRED; not checked on the phone). The probe
-  therefore removes the pictures' paint and raster and possibly the track layers' backing, nothing in layout.
+  removes the pictures' paint and raster and possibly the track layers' backing, nothing in layout.
 - chromium@f842f52: `ReplacedPainter` returns early when `style.Visibility() != EVisibility::kVisible`
   (`third_party/blink/renderer/core/paint/replaced_painter.cc:423`). Whether `visibility: hidden` also skips image decode
   is not checked here (the painters above only gate painting); the probe is read as "no picture paint", not "no decode".
@@ -68,7 +68,7 @@ The non-flip arms install no tween driver, so they have no trace (expected, not 
   reported Critical from its own heat (`end heatRemains`). Battery temperature reads 0 on this phone (proxy unavailable), so no rise gate applied.
 - All 16 visits navigated and reached morph 1000 per mille (`maxMorph`); each arm took each of the 4 positions once (`positions.byPosition`, tables "by position" and "by round" in `tables.md`).
 - First start of the session failed before any visit: xcodebuild reported `Timed out while enabling automation mode` after 60 s (raw kept in
-  `.local/phone/2026-10-27-cols/failed1/`). The same command a minute later started and ran 16 visits. Cause not found; the phone read `passcodeRequired: false` afterwards (INFERRED transient on the phone side).
+  `.local/phone/2026-10-27-cols/failed1/`). A rerun a minute later ran 16 visits. Cause not found; the phone read `passcodeRequired: false` afterwards (INFERRED transient on the phone side).
 
 ## Limits (accepted)
 - The probe arm hides pictures and is never a preset or a look verdict; the flip look lacks the veil and the object-fit image model.
