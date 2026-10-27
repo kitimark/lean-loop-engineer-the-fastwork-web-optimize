@@ -1,5 +1,3 @@
-// Local debug probe (not a result): swipe-touch-v1 strokes (10 css px per 16 ms, y 880..100, 2-frame gap) to the page end,
-// then a tail and two pull-out strokes; logs every push of the tween driver and the frame it took the timed tracks.
 import { join } from 'node:path';
 const REPO = process.env.REPO;
 const { startServer } = await import(join(REPO, 'packages/gate-breakpoints/src/serve.mjs'));

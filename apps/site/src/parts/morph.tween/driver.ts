@@ -45,7 +45,6 @@ export interface TweenEnv {
   panel?: EffectSink;
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
-  /** Opt-in probe log (a push began; the timed tracks were taken `el` ms into it); never read by the driver. */
   trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
 }
 

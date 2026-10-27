@@ -13,7 +13,6 @@ const rows = readFileSync(resolve(__dirname, '../../../../../packages/contracts/
 
 const TICK = 17;
 
-/** Replay one scenario through the real tween driver on a fake clock; the sink takes by the golden's on-dark readings. */
 function replay(sc: Row['in']) {
   let now = 0;
   let push = -1;

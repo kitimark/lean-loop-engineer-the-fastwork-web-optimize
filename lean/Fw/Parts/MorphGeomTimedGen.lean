@@ -37,7 +37,6 @@ def crossLines (_ : Unit) : List String :=
     gline "cross" [("m0", jdec 6 m0), ("g", jdec 6 g), ("c", jdec 6 c)]
       (match crossMs m0 g c with | some n => .num ⟨n, 0⟩ | none => .null)
 
-/-- Take-retry scenarios: events and, per push, the on-dark reading at frames 0, 1, ...; missing frames read light. -/
 def takeScenarios : List (String × List Ev × List (List Bool)) :=
   [("dark-at-start", [⟨0, 1⟩], [[true]]), ("light-then-dark-3", [⟨0, 1⟩], [[false, false, false, true]]),
     ("never-dark", [⟨0, 1⟩], [[]]), ("close-from-rest", [⟨0, 1⟩, ⟨1020, 0⟩], [[], [false, false, true]]),
@@ -47,20 +46,16 @@ def takeScenarios : List (String × List Ev × List (List Bool)) :=
 
 def tickMs : Nat := 17
 
-/-- Frames of push `i`: those before the next event, at most 40 (17 ms ticks inside the 680 ms tween). -/
 def frameCount (evs : List Ev) (i : Nat) : Nat :=
   let e := (evs.getD i ⟨0, 0⟩).e
   let gap : Rat := match evs[i + 1]? with | some n => n.e - e | none => 680
   min 40 (((min gap 680).ceil).toNat / tickMs + 1)
 
-/-- The value a reversal starts from: the event-time ideal where the push before it is on the timed tracks; where it
-ran the faithful tween, the value of its last tick strictly before the event (a tick every `tickMs`, none at frame 0). -/
 def startValue (s : St) (e : Rat) (timed : Bool) : Rat :=
   let el := e - s.start
   if timed || 680 < el then idealM s e
   else idealM s (s.start + ((((el.ceil).toNat - 1) / tickMs * tickMs : Nat) : Rat))
 
-/-- Per push: taken frame (or none) and the ideal value at that frame; `anims` carries over after a take. -/
 def takeRows (evs : List Ev) (darks : List (List Bool)) : List (Option Nat × Rat) :=
   let go := fun (acc : Bool × Bool × St × List (Option Nat × Rat)) (i : Nat) =>
     let ev := evs.getD i ⟨0, 0⟩
