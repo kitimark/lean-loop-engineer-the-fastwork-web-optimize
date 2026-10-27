@@ -1,7 +1,7 @@
 # morph.stage (design rank 1 of 10-26-end-scroll-designs)
 
 Status: measured on CI (Chromium and the gate); WebKit Simulator zones blocked by runner loss (no flag VM finished in 6 of 6 tries). Look change, class L; T
-and the look are for the user's review. Never a preset. Commit 13b09467c on ci/morph-stage (push 1 of 3).
+and the look are for the user's review. Never a preset. CI commits 8f2f726bf (gate, Chromium, WebKit base, first WebKit flag run) and 8324e9f89 (WebKit flag 40429988675).
 
 - Flag `morph.stage:on`: the platform scene is `position: sticky` over T px of added page (T = 696 px at 1280x800,
   768 px at 390x844); `--morph` and `--morph-fade` run on `animation-timeline: scroll(root)` over [maxY - T, maxY].
@@ -12,6 +12,8 @@ and the look are for the user's review. Never a preset. Commit 13b09467c on ci/m
 - Local Playwright WebKit (debug run, not a result): ScrollTimeline present, --morph 0.93 at maxY - 50, 1 at maxY, nav
   width 1240 px at 1280 and 366 px at 390.
 
+Round 1 (13b09467c, superseded):
+
 | item | run | state |
 |---|---|---|
 | lean | 40339107915 | success |
@@ -19,6 +21,18 @@ and the look are for the user's review. Never a preset. Commit 13b09467c on ci/m
 | breakpoint gate, both engines, fw=morph.stage:on | 40339272935 | FAIL |
 | chromium-counts swipe-touch-v1 base, 3 runs | 40339630528 | filed |
 | chromium-counts swipe-touch-v1 morph.stage:on, 3 runs | 40339622735 | filed |
+
+Round 2 (8f2f726bf; 8324e9f89 for the last flag run):
+
+| item | run | state |
+|---|---|---|
+| breakpoint gate, both engines, fw=morph.stage:on | 40366243322 | success |
+| chromium-counts swipe-touch-v1 base, 3 runs | 40366273179 | success |
+| chromium-counts swipe-touch-v1 morph.stage:on, 3 runs | 40366262655 | success |
+| webkit-sim base, 3 VMs | 40366306645 | success |
+| webkit-sim morph.stage:on | 40366323523 | failed |
+| webkit-sim morph.stage:on | 40429988675 | cancelled |
+| toolbar-throttle | 40365940148 | failed |
 
 ## Gate with the flag: pass (round 2, run 40366243322)
 Round 1 (40339272935) failed 28 Chromium and 24 WebKit cells, all in morph.mount and morph.tween: the flag leaves their
@@ -60,11 +74,9 @@ Cause (MEASURED from the sim-tick console tails of 40429988675 and the job log o
   and, in r1 of 40429988675, `the host held the process (it used 0 s of cpu in 65 s)` are the VM-freeze marks of
   research/notes/2026/10-2x-wk-loop-freeze.md.
 - r2 of 40429988675 loaded the flag page: warm-up, census at y 0, 1500, 3000, 4500 (145 layers, 149 MB, within the base's
-  141 to 146 layers and 149 to 160 MB), then `Runtime.evaluate timed out` twice after y 4500 with `the host held the
-  process (0 s of cpu in 191 s)` just before the first. The base shows the same timeout after y 4500 (r1 tick 5, r3 tick 3 and 4 of 40366306645) and recovered by a
-  fresh load, so it is not a flag signature; the two flag hangs hit the freeze marks, so the cause is the VM, not the page.
+  141 to 146 layers and 149 to 160 MB), then a 64 s host hold (0 s of cpu) and `Runtime.evaluate timed out` (pass attempt 1; a 191 s hold came earlier, between y 3000 and 4500); after a fresh load it reached y 4500 again and stalled (no output for 726 s) with no host-held mark before the stall. The base shows the same evaluate timeout after y 4500 (r1 tick 5, r3 tick 3 and 4 of 40366306645) and recovered by a fresh load, so the first hang is not a flag signature and sits on a freeze mark; the second hang has no freeze mark.
   Not proved: a local Web Inspector timeline was not taken (no page-side signature to chase), so a flag share in r2's second hang is not excluded.
-Verdict: WebKit zones blocked by runner loss; VM freeze and a wedged Simulator, not a flag stall.
+Verdict: WebKit zones blocked: 5 of 6 flag VMs lost to the runner (VM freeze, wedged Simulator); a flag stall is not excluded for the second r2 hang.
 
 ## Toolbar lane (toolbar-throttle, arm `stage`): undecided
 Run 40365940148 (commit message [ci:toolbar-throttle] [throttle:toolbar] [toolbar-plan:stage,stage,stage]). The new arm

@@ -1,10 +1,11 @@
 branch: worktree-wf_f50338a2-351-1 (CI branch ci/morph-stage)
 worktree: .claude/worktrees/wf_f50338a2-351-1
 last commit: 8324e9f89 (main merged incl. wk-loop-freeze) + handoff commit after
-Round 3 CI: push 4 = 8324e9f89; webkit-sim flag fw=morph.stage:on run 40429988675 (running, 3 VMs); base 40366306645 (3 VMs, older harness). Earlier: gate 40366243322 SUCCESS, chromium flag 40366262655 / base 40366273179.
+Round 3 CI: push 4 = 8324e9f89; webkit-sim flag fw=morph.stage:on run 40429988675 (finished: r1, r2, r3 cancelled at 58 min, 0 of 3 VMs); base 40366306645 (3 VMs, older harness). Earlier: gate 40366243322 SUCCESS, chromium flag 40366262655 / base 40366273179.
 Round 3 step 1 finding: flag run 40366323523 loss is runner-side. r1 log: event loop blocked 41 s with host calls [] at 22:48:38, simctl openurl ETIMEDOUT, 'no tab after 60-115 s' (page never attached, so the flag page could not have run), warm-up evaluate timeout; r2/r3 cancelled at the 58 min limit. The base run shows the same signature (r3: warm-up evaluate timeout, tick 273 s late, host calls []). Not page-side; no local reproduction needed.
 Run 40429988675 finished: r1, r2, r3 all cancelled at 58 min, 0 of 3 flag VMs, no webkit-sim-r artifact. Cause named in the note (runner: VM freeze, wedged Simulator; r2 loaded the flag page, base shows the same post-y4500 timeout). WebKit zones blocked/undecided. Note, ledger updated. Left: check.sh, plan lint, dry land, review ready.
 ---
+Earlier checkpoint (round 2):
 branch: worktree-wf_f50338a2-351-1 (CI branch ci/morph-stage)
 worktree: .claude/worktrees/wf_f50338a2-351-1
 last commit: see git log -1. Pushes: 13b09467c (1), 808fffbdc (2, no lane markers), toolbar push (3, last).
