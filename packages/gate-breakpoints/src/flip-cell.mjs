@@ -55,8 +55,9 @@ export function readRects() {
 }
 
 /** Judge one reading: the flag arm's rects against the base arm's, each compared edge within tolPx. Pure. Returns the failed readings. */
-export function judgeRects(base, flag, band, tolPx, settled = true) {
+export function judgeRects(base, flag, band, tolPx, settled = true, expectFlip = null) {
   const bad = [];
+  if (expectFlip !== null && flag.flip !== expectFlip) bad.push(`flip class ${flag.flip ? 'on' : 'off'}, expected ${expectFlip ? 'on' : 'off'}`);
   const cmp = (id, a, b, pick = [0, 1, 2, 3]) => {
     if (!a || !b) {
       if (!!a !== !!b) bad.push(`${id}: ${a ? 'flag lacks it' : 'base lacks it'}`);
@@ -90,6 +91,18 @@ function pin(m) {
   nav.dataset.fwMorph = String(m);
 }
 
+/** In the page: scroll to the end or the top of the page in 14 steps (a real scroll path, for the arms whose flip starts from the
+ * scroll push and not from the pinned morph value). */
+async function stepScroll(to) {
+  const end = to === 'bottom' ? document.documentElement.scrollHeight : 0;
+  const from = window.scrollY;
+  for (let i = 1; i <= 14; i++) {
+    window.scrollTo(0, from + ((end - from) * i) / 14);
+    await new Promise((r) => setTimeout(r, 90));
+  }
+  window.scrollTo(0, end);
+}
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function runFlipCell({ engineName, fw, outDir, bandFilter = null }) {
@@ -107,27 +120,39 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null })
         width: band.w, height: band.h, deviceWidth: band.w, deviceHeight: band.h, dpr: band.w <= 640 ? 3 : 1,
         hover: band.w <= 1024 ? 'none' : 'hover', pointer: band.w <= 1024 ? 'coarse' : 'fine', colorScheme: 'light', reducedMotion: 'no-preference',
       };
+      const timed = fw.includes('morph.tween:geom-timed');
       const open = async (path) => {
         const s = await engine.open(env, { origin: server.origin, path, init: PIN_SRC });
         await s.page.evaluate(async () => {
           for (let i = 0; i < 100 && !(window.__fw && window.__fw.hydrated); i++) await new Promise((r) => setTimeout(r, 50));
         });
-        await s.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+        if (!timed) await s.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
         await sleep(1800);
         return s;
       };
       const A = await open('/');
       const B = await open(flag.path + flag.search);
       try {
-        for (const m of cell.ms) {
-          await A.page.evaluate(pin, m);
-          await B.page.evaluate(pin, m);
-          await sleep(1200);
+        // geom-timed starts its flip from the scroll push, which a pinned morph value does not make: those arms are read at the
+        // end of a real scroll to the bottom (m = 1) and back to the top (m = 0)
+        const steps = timed ? [[1, 'bottom'], [0, 'top']] : cell.ms.map((m) => [m, null]);
+        for (const [m, to] of steps) {
+          if (to) {
+            await A.page.evaluate(stepScroll, to);
+            await B.page.evaluate(stepScroll, to);
+            await sleep(2600);
+          } else {
+            await A.page.evaluate(pin, m);
+            await B.page.evaluate(pin, m);
+            await sleep(1200);
+          }
           const base = await A.page.evaluate(readRects);
           const got = await B.page.evaluate(readRects);
-          const bad = judgeRects(base, got, band, cell.tolPx, m === 0 || m === 1);
-          rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(bad.length ? { base, flag: got } : {}) });
-          process.stderr.write(`${band.w}x${band.h} m=${m} flip=${got.flip} variant=${got.variant} ${got.flip ? '' : got.navClass} ${bad.length === 0 ? 'ok' : bad.join('; ')}\n`);
+          // the take guard (A5, task timed-take-retry) leaves a scrolled geom-timed page on the faithful path: no flip to judge
+          const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)' : null;
+          const bad = skipped ? [] : judgeRects(base, got, band, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
+          rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(skipped ? { skipped } : {}), ...(bad.length ? { base, flag: got } : {}) });
+          process.stderr.write(`${band.w}x${band.h} m=${m} flip=${got.flip} variant=${got.variant} ${skipped ? `skipped (${skipped})` : bad.length === 0 ? 'ok' : bad.join('; ')}\n`);
         }
       } finally {
         await A.close().catch(() => {});
@@ -141,6 +166,6 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null })
   mkdirSync(outDir, { recursive: true });
   writeFileSync(join(outDir, `flip-${engineName}.json`), `${JSON.stringify({ fw, engine: engineName, tolPx: cell.tolPx, ms: cell.ms, rows }, null, 1)}\n`);
   const failed = rows.filter((r) => !r.ok).length;
-  console.log(`flip cell ${engineName} ${fw}: ${failed === 0 ? 'pass' : 'fail'} (${rows.length} readings, ${failed} failed)`);
+  console.log(`flip cell ${engineName} ${fw}: ${failed === 0 ? 'pass' : 'fail'} (${rows.length} readings, ${failed} failed, ${rows.filter((r) => r.skipped).length} skipped)`);
   return failed === 0;
 }
