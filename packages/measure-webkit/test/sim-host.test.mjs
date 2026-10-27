@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   END_MARGIN_S, SCROLL_NEED_S, PASS_NEED_S, NAV_WAIT_MS, LOAD_CEIL_CENTI, gateBoundS, retryFits, tabNeedS, tabFits, afterFailure, hostOk, afterPass, centi, stepGate,
+  lagMs, blocked, frozen, clockStart, silenceMs, silenceStalled, failsIn, relaunchPlan,
 } from '../src/sim-host.mjs';
+import { inspectorReply } from '../src/inspector.mjs';
 import { onePassRetrying } from '../src/determinism.mjs';
 import { navigateTab } from '../src/wip.mjs';
 
@@ -99,4 +101,39 @@ test('onePassRetrying: a pass retry decided 1 s after the last admitted second o
   } finally {
     for (const k of ['FW_MEASURE_T0_MS', 'FW_WK_STEP_MIN']) { if (env[k] === undefined) delete process.env[k]; else process.env[k] = env[k]; }
   }
+});
+
+test('sim-host: the stall verdict skips a freeze (a late tick with no host call) and replays the Lean vectors', () => {
+  assert.ok(ops('silence').length >= 10);
+  for (const g of ops('silence')) {
+    assert.equal(lagMs(g.tickMs, g.sinceMs), g.lagMs, JSON.stringify(g));
+    assert.equal(blocked(g.tickMs, g.sinceMs), g.blocked, JSON.stringify(g));
+    assert.equal(frozen(g.tickMs, g.sinceMs, g.hostCalls), g.frozen, JSON.stringify(g));
+    assert.equal(clockStart(g.nowMs, g.lastOutMs, g.tickMs, g.sinceMs, g.hostCalls), g.clockStart, JSON.stringify(g));
+    const silence = silenceMs(g.nowMs, g.lastOutMs, g.tickMs, g.sinceMs, g.hostCalls);
+    assert.equal(silence, g.silenceMs, JSON.stringify(g));
+    assert.equal(silenceStalled(silence, g.limitMs), g.stalled, JSON.stringify(g));
+  }
+  const run1 = ops('silence').find((g) => g.nowMs === 731000 && g.hostCalls === 0 && g.sinceMs === 705000);
+  assert.deepEqual([run1.frozen, run1.stalled], [true, false], 'run 40364461242 job 1 would have gone on');
+});
+
+test('sim-host: failed probes before a freeze do not count, and the inspector reply follows the Lean vectors', () => {
+  assert.ok(ops('streak').length >= 8);
+  for (const g of ops('streak')) {
+    const r = inspectorReply({ relaunched: false, fails: failsIn(g.frozen, g.fails), socket: g.socket, proxy: g.proxy, page: g.page });
+    assert.equal(r.fails, g.next, JSON.stringify(g));
+    assert.equal(r.dead, g.dead, JSON.stringify(g));
+  }
+});
+
+test('sim-host: the relaunch after a reboot has no terminate step; the plan sums are the Lean totals', () => {
+  assert.equal(ops('plan').length, 2);
+  for (const g of ops('plan')) {
+    assert.deepEqual(relaunchPlan(g.fresh), g.steps);
+    assert.equal(relaunchPlan(g.fresh).reduce((a, x) => a + x.ms, 0), g.totalMs);
+  }
+  assert.equal(relaunchPlan(true).some((x) => x.name === 'terminate Safari'), false);
+  assert.equal(relaunchPlan(false)[0].name, 'terminate Safari');
+  assert.deepEqual(relaunchPlan(false).slice(1), relaunchPlan(true));
 });

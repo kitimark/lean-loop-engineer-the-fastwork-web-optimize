@@ -22710,7 +22710,8 @@
     "research/notes/2026/10-2x-wk-loop-freeze.md",
     "results/wk-loop-freeze/**",
     "docs/team/handoffs/wk-loop-freeze.md"
-   ]
+   ],
+   "evidence": "1514fb4"
   },
   {
    "devices": [
@@ -22747,7 +22748,9 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-morph-geom.md",
     "results/morph-geom/**",
-    "docs/team/handoffs/morph-geom.md"
+    "docs/team/handoffs/morph-geom.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/FootprintRows.lean"
    ]
   },
   {

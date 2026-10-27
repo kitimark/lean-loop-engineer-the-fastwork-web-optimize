@@ -147,6 +147,15 @@ def loadCases : List Nat := [0, 100, Seen.loadGreenCenti, Seen.loadAnyCenti, loa
 def passCases : List (Nat × Nat) :=
   [(0, 0), (101592, 100), (100, 101592), (loadCeilCenti, loadCeilCenti), (loadCeilCenti + 1, 0), (0, loadCeilCenti + 1), (500000, 500000)]
 
+def silenceCases : List (Nat × Nat × Nat × Nat × Nat) :=
+  [(30000, 731000, 0, 705000, 0), (30000, 731000, 0, 705000, 1), (30000, 731000, 0, 30000, 0), (30000, 700000, 0, 60000, 0),
+   (30000, 700000, 0, 59999, 0), (30000, 5, 10, 90000, 0), (0, 100000, 0, 90000, 0), (30000, 800000, 0, 60000, 0),
+   (3000, 12000, 6000, 9000, 0), (3000, 12000, 6000, 9000, 2)]
+
+def failsCases : List (Bool × Nat × Bool × Bool × Bool) :=
+  [(false, 0, true, true, true), (false, 1, false, true, false), (true, 1, false, true, false), (true, 0, false, true, true),
+   (true, 5, false, false, false), (false, 1, true, true, false), (true, 1, true, true, true), (false, 0, false, false, true)]
+
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("endMarginS", toJson endMarginS), ("loadCeilCenti", toJson loadCeilCenti),
     ("scrollNeedS", toJson scrollNeedS), ("passNeedS", toJson passNeedS), ("navWaitMs", toJson navWaitMs),
@@ -170,7 +179,22 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("maxTries", toJson 3), ("elapsedS", toJson 400), ("needS", toJson passNeedS), ("boundS", optJson b),
       ("verdict", Json.str (afterPass s e 1 3 400 passNeedS b).name),
       ("counted", .bool (counted (afterPass s e 1 3 400 passNeedS b)))]).compress).flatten
-  [consts] ++ gates ++ fits ++ tabs ++ fails ++ hosts ++ passes
+  let silences := silenceCases.map fun (tick, now, last, since, calls) =>
+    (Json.mkObj [("op", "silence"), ("tickMs", toJson tick), ("nowMs", toJson now), ("lastOutMs", toJson last),
+      ("sinceMs", toJson since), ("hostCalls", toJson calls), ("lagMs", toJson (Freeze.lagMs tick since)),
+      ("blocked", .bool (Freeze.blocked tick since)), ("frozen", .bool (Freeze.frozen tick since calls)),
+      ("clockStart", toJson (Freeze.clockStart now last tick since calls)),
+      ("silenceMs", toJson (Freeze.silenceMs now last tick since calls)), ("limitMs", toJson SimBound.stallMs),
+      ("stalled", .bool (Freeze.stalled (Freeze.silenceMs now last tick since calls) SimBound.stallMs))]).compress
+  let streaks := failsCases.map fun (fz, f, socket, proxy, page) =>
+    let n := SimBound.nextFails (Freeze.failsIn fz f) ⟨socket, proxy, page⟩
+    (Json.mkObj [("op", "streak"), ("frozen", .bool fz), ("fails", toJson f), ("socket", .bool socket), ("proxy", .bool proxy),
+      ("page", .bool page), ("next", toJson n), ("dead", .bool (SimBound.dead socket n))]).compress
+  let plans := [false, true].map fun fresh =>
+    (Json.mkObj [("op", "plan"), ("fresh", .bool fresh),
+      ("steps", Json.arr ((Freeze.relaunchPlan fresh).map fun (n, ms) => Json.mkObj [("name", Json.str n), ("ms", toJson ms)]).toArray),
+      ("totalMs", toJson (Freeze.planMs fresh))]).compress
+  [consts] ++ gates ++ fits ++ tabs ++ fails ++ hosts ++ passes ++ silences ++ streaks ++ plans
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -196,5 +220,8 @@ def write (path : System.FilePath) : IO Unit := IO.FS.writeFile path goldenText
 #guard (afterPass 200000 0 1 3 0 0 none).name == "redo"
 #guard (afterPass 200000 0 3 3 0 0 none).name == "refuse"
 #guard (afterPass 0 0 3 3 99999 99999 (some 0)).name == "count"
+#guard Freeze.silenceMs 731000 0 30000 705000 0 == 56000
+#guard Freeze.silenceMs 731000 0 30000 705000 1 == 731000
+#guard Freeze.planMs true + 20000 == 320000
 
 end Fw.Measure.SimHostGolden
