@@ -39,6 +39,27 @@ test('a healthy process exits by itself and says so', () => {
   assert.doesNotMatch(r.stderr, /forced exit/);
 });
 
+const skewed = (extra) => `
+  let skew = 0; const now = () => Date.now() + skew;
+  setTimeout(() => { skew += 5000; }, 100);
+  watch({ stallMs: 1000, tickMs: 20, graceMs: 100, now, ${extra} });
+  setTimeout(() => { console.error('still here'); process.exit(0); }, 700);
+  setInterval(() => {}, 1000);
+`;
+
+test('a freeze (late tick, no host call) is not silence: the process goes on', () => {
+  const r = run(skewed('pending: () => []'));
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stderr, /still here/);
+  assert.doesNotMatch(r.stderr, /stalled/);
+});
+
+test('a late tick while a host call of ours runs counts in full', () => {
+  const r = run(skewed("pending: () => [{ what: 'simctl list', ageMs: 5000, boundMs: 30000 }]"));
+  assert.match(r.stderr, /stalled: no output for \d+ s/);
+  assert.doesNotMatch(r.stderr, /the host held/);
+});
+
 test('a stall (no output) is reported with the last line and ends the process', () => {
   const r = run(`watch({ stallMs: 400, graceMs: 300 }); console.error('last words'); setInterval(() => {}, 1000);`);
   assert.equal(r.status === 3 || r.signal === 'SIGTERM', true, `status ${r.status} signal ${r.signal}`);

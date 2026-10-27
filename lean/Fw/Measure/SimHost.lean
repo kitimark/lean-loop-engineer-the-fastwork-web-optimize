@@ -374,4 +374,80 @@ theorem best_stop_le (n m b : Nat) (ps : List PassTry)
   runPass_stop_le n m best.scroll best.pass best.tab b ps hin
     (fun p hp => by have := hhead p hp; show _ + Seen.tryS ≤ Seen.headS + Seen.tryS; omega)
 
+namespace Freeze
+
+def lagMs (tickMs sinceMs : Nat) : Nat := sinceMs - tickMs
+
+def blocked (tickMs sinceMs : Nat) : Bool := decide (0 < tickMs ∧ tickMs ≤ lagMs tickMs sinceMs)
+
+def frozen (tickMs sinceMs hostCalls : Nat) : Bool := blocked tickMs sinceMs && decide (hostCalls = 0)
+
+def clockStart (nowMs lastOutMs tickMs sinceMs hostCalls : Nat) : Nat :=
+  if frozen tickMs sinceMs hostCalls then min (lastOutMs + lagMs tickMs sinceMs) nowMs else lastOutMs
+
+def silenceMs (nowMs lastOutMs tickMs sinceMs hostCalls : Nat) : Nat :=
+  nowMs - clockStart nowMs lastOutMs tickMs sinceMs hostCalls
+
+def stalled (silence limitMs : Nat) : Bool := decide (limitMs < silence)
+
+def failsIn (frozen : Bool) (fails : Nat) : Nat := if frozen then 0 else fails
+
+def relaunchPlan (fresh : Bool) : List (String × Nat) :=
+  (if fresh then [] else [("terminate Safari", SimBound.terminateMs)]) ++
+  [("launch Safari", SimBound.launchMs), ("wait for the inspector socket", SimBound.socketMs),
+   ("start the proxy", SimBound.proxyMs), ("wait for the Safari tab", SimBound.tabMs + SimBound.askMs),
+   ("connect to the tab", SimBound.connectMs)]
+
+def planMs (fresh : Bool) : Nat := ((relaunchPlan fresh).map (·.2)).sum
+
+theorem silence_le_raw (n l t s c : Nat) : silenceMs n l t s c ≤ n - l := by
+  unfold silenceMs clockStart; split <;> omega
+
+theorem silence_host_call (n l t s c : Nat) (h : c ≠ 0) : silenceMs n l t s c = n - l := by
+  simp [silenceMs, clockStart, frozen, h]
+
+theorem silence_on_time (n l t s c : Nat) (h : blocked t s = false) : silenceMs n l t s c = n - l := by
+  simp [silenceMs, clockStart, frozen, h]
+
+theorem silence_frozen (n l t s c : Nat) (h : frozen t s c = true) : silenceMs n l t s c = n - lagMs t s - l := by
+  simp only [silenceMs, clockStart, h, ite_true]; omega
+
+theorem frozen_as_on_time (n l t s c : Nat) (h : frozen t s c = true) :
+    silenceMs n l t s c = silenceMs (n - lagMs t s) l t t 0 := by
+  have hb : blocked t t = false := by simp [blocked, lagMs]; omega
+  rw [silence_on_time _ _ _ _ _ hb, silence_frozen _ _ _ _ _ h]
+
+theorem frozen_not_stalled (n l t s c limit : Nat) (h : frozen t s c = true)
+    (hq : n - lagMs t s - l ≤ limit) : stalled (silenceMs n l t s c) limit = false := by
+  rw [silence_frozen _ _ _ _ _ h]; simp [stalled]; omega
+
+theorem carried (n l t s c n2 : Nat) (h : frozen t s c = true) (hn : l + lagMs t s ≤ n) (hn2 : n ≤ n2) :
+    silenceMs n2 (clockStart n l t s c) t t 0 = n2 - n + silenceMs n l t s c := by
+  have hb : blocked t t = false := by simp [blocked, lagMs]; omega
+  rw [silence_on_time _ _ _ _ _ hb]
+  simp only [silenceMs, clockStart, h, ite_true]
+  omega
+
+theorem failsIn_frozen (f : Nat) : failsIn true f = 0 := rfl
+
+theorem failsIn_still (f : Nat) : failsIn false f = f := rfl
+
+theorem frozen_not_dead (p : SimBound.Probe) (f : Nat) (h : p.socket = true) :
+    SimBound.dead p.socket (SimBound.nextFails (failsIn true f) p) = false := by
+  cases hk : p.ok <;> simp [SimBound.dead, SimBound.nextFails, failsIn, hk, h, SimBound.failLimit]
+
+theorem stale_streak_dead : SimBound.dead true (SimBound.nextFails 1 ⟨true, false, false⟩) = true := by decide
+
+theorem plan_full : planMs false = SimBound.relaunchMs := by decide
+
+theorem plan_fresh : planMs true + SimBound.terminateMs = SimBound.relaunchMs := by decide
+
+theorem fresh_no_terminate : "terminate Safari" ∉ (relaunchPlan true).map (·.1) := by decide
+
+theorem run40364461242 :
+    stalled (731000 - 0) SimBound.stallMs = true ∧
+    stalled (silenceMs 731000 0 30000 705000 0) SimBound.stallMs = false := by decide
+
+end Freeze
+
 end Fw.Measure.SimHost
