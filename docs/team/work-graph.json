@@ -22995,7 +22995,8 @@
    "deps": [
     "geom-flip-fix",
     "geom-veil-restore",
-    "timed-take-retry"
+    "timed-take-retry",
+    "geom-image-model"
    ],
    "title": "Column background probe (probe note P1): probe-only flag hiding the column images; arms base, base+off, timed-fixed, timed-fixed+off; per push log whether the flip ran; Chromium CI, WebKit Simulator push lane, iPhone push lane, Safari macOS; decides what P2-P6 can win.",
    "writes": [
@@ -23017,6 +23018,39 @@
     "research/notes/2026/10-2x-cols-probe.md",
     "results/cols-probe/**",
     "docs/team/handoffs/cols-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-image-model",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "geom-flip-fix"
+   ],
+   "title": "morph.geom flip images like base (geom-flip-fix finding): base keeps each picture's height at 0<m<1 (object-fit cover crops it) while the flip scales pictures in both axes; model object-fit cover in Lean (MorphGeom image model), prove the flip's picture rects and crop equal base at every m, then make the flip keep height (counter-scale or crop window) so the column region matches base in pixels; look report on both engines.",
+   "writes": [
+    "apps/site/src/parts/morph.geom/**",
+    "apps/site/src/parts/morph.columns/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/gate-breakpoints/**",
+    "packages/premise-tests/src/look.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-image-model.md",
+    "results/geom-image-model/**",
+    "docs/team/handoffs/geom-image-model.md"
    ]
   }
  ],
