@@ -78,16 +78,13 @@ def cssLines (_ : Unit) : List String :=
   bandVps.flatMap fun v => [Eng.webkit, .chromium].map fun e =>
     gline "goal" (vpIn v ++ [("eng", .str (engTag e))]) (jl ((goalCss v (Ctx.sample v e)).map Json.str))
 
-/-- The CSS of the flip layout rules (A1, A3b, A3c): what `geom.css` must contain, declaration by declaration. -/
 def layoutCss : List String :=
   [s!"[data-mg=\"Kb\"], [data-mg=\"Ub\"] \{ display: flex; gap: {match flipRowGap with | .inherit => "inherit" | .px n => cssNum n}; }",
    ".is-flip [data-mg=\"earn\"] { transform: none !important; }",
    ".is-flip [data-mg=\"actions\"] { top: 0; bottom: 0; translate: none; }"]
 
-/-- Rect tolerance of the flip-state gate cell, in px (layout snaps text widths: the settled language button differs by 0.53 px). -/
 def flipTolPx : Rat := 1
 
-/-- 0, 1/2 and 1 as the task states, and 1/4, the first flipped state past the dark cut (A3b: earn offset). -/
 def flipMs : List Rat := [0, 1 / 4, 1 / 2, 1]
 
 def flipCellLines (_ : Unit) : List String :=

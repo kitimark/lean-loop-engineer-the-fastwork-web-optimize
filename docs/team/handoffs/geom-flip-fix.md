@@ -1,5 +1,5 @@
 Branch: worktree-wf_af4864bd-e6c-1 (CI branch ci/geom-flip-fix). Worktree: .claude/worktrees/wf_af4864bd-e6c-1
-Last commit: see git log (code at a54d893b8; 3 of 3 CI pushes used, none left)
+Code at a54d893b8; 3 of 3 CI pushes used, none left
 CI runs: 40508656325 (fb742cf55) green job, cell failed 640x1000 m=1 (float knot); 40512085722 (a54d893b8) success, flip cell on: 48/48 both engines; timed webkit 2/24 fail at m=0 (follow-up).
 Look report: pixel share differs 57-98% for 0<m<=1 (image model, veil): not within a bound, follow-up. Note research/notes/2026/10-2x-geom-flip-fix.md, ledger note added.
 Left: swipe-touch-v1 base vs flag x3 is a lead dispatch (gh workflow run chromium-counts.yml --ref ci/geom-flip-fix -f profile=swipe-touch-v1 -f runs=3 -f target=rewrite -f fw=morph.geom:on; base: -f fw=''); landing.

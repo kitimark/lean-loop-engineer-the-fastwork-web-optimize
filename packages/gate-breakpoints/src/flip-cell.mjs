@@ -1,8 +1,3 @@
-// The flip-state cell (task geom-flip-fix): with a morph.geom flag, the columns lie side by side and the bar, the earn button
-// and the actions box sit where the base page puts them, at m in {0, 0.5, 1}, at the breakpoint widths, on both engines.
-// The bound, the ms, the elements and the per-width column count come from the Lean golden (morph-geom.jsonl, lines `flipCell`
-// and `flipBand`; Lean Fw.Parts.MorphGeom flip_column_left, earn_flip_fixed, actions_fix_eq). This file holds no list of its own.
-//   node src/cli.mjs flip --engine chromium|playwright-webkit|both --fw morph.geom:on --out out/flip [--bands 390x844,...]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PKG, siteDist, startServer } from './serve.mjs';
@@ -10,7 +5,6 @@ import { PIN_SRC } from './page.mjs';
 
 export const GOLDEN = resolve(PKG, '../contracts/golden/morph-geom.jsonl');
 
-/** The cell definition and the bands of the golden. */
 export function loadFlipCell(path = GOLDEN) {
   const lines = readFileSync(path, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
   const cell = lines.find((l) => l.fn === 'flipCell')?.out;
@@ -21,11 +15,6 @@ export function loadFlipCell(path = GOLDEN) {
 
 const edges = (r) => [r.x, r.y, r.x + r.width, r.y + r.height];
 
-/** Rects of the cell's elements, in page px. Runs in the page. `pill` is the nav box on the base page and the intersection of the
- * four rounded clippers on a flip page (the nav box itself is laid out at the final size there); `images` are the images of the
- * visible columns (compared by their x edges: the flip scales an image in both axes where the base keeps its height and crops,
- * a finding of this task); `lang` and `earn` are compared by their y edges, `lang` by its x edges only where the time tracks are
- * settled (m = 0 and 1), `actions` by its right edge (its box is stretched to the bar in the flip, its buttons are not). */
 export function readRects() {
   const nav = document.querySelector('[data-fw="nav"]');
   const rect = (e) => (e ? e.getBoundingClientRect().toJSON() : null);
@@ -54,7 +43,6 @@ export function readRects() {
   };
 }
 
-/** Judge one reading: the flag arm's rects against the base arm's, each compared edge within tolPx. Pure. Returns the failed readings. */
 export function judgeRects(base, flag, band, tolPx, settled = true, expectFlip = null) {
   const bad = [];
   if (expectFlip !== null && flag.flip !== expectFlip) bad.push(`flip class ${flag.flip ? 'on' : 'off'}, expected ${expectFlip ? 'on' : 'off'}`);
@@ -91,8 +79,6 @@ function pin(m) {
   nav.dataset.fwMorph = String(m);
 }
 
-/** In the page: scroll to the end or the top of the page in 14 steps (a real scroll path, for the arms whose flip starts from the
- * scroll push and not from the pinned morph value). */
 async function stepScroll(to) {
   const end = to === 'bottom' ? document.documentElement.scrollHeight : 0;
   const from = window.scrollY;
@@ -133,8 +119,6 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null })
       const A = await open('/');
       const B = await open(flag.path + flag.search);
       try {
-        // geom-timed starts its flip from the scroll push, which a pinned morph value does not make: those arms are read at the
-        // end of a real scroll to the bottom (m = 1) and back to the top (m = 0)
         const steps = timed ? [[1, 'bottom'], [0, 'top']] : cell.ms.map((m) => [m, null]);
         for (const [m, to] of steps) {
           if (to) {
@@ -148,7 +132,6 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null })
           }
           const base = await A.page.evaluate(readRects);
           const got = await B.page.evaluate(readRects);
-          // the take guard (A5, task timed-take-retry) leaves a scrolled geom-timed page on the faithful path: no flip to judge
           const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)' : null;
           const bad = skipped ? [] : judgeRects(base, got, band, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
           rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(skipped ? { skipped } : {}), ...(bad.length ? { base, flag: got } : {}) });

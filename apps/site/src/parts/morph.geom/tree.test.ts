@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { restoreAnims, saveAnims } from './tree';
 
-// Lean Fw.Parts.MorphGeom moveNew / move_new_keeps: a re-parent restarts a CSS animation at 0 and the saved time is put back.
 class FakeEffect {
   constructor(
     public target: object,

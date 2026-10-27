@@ -11,7 +11,7 @@ Task geom-flip-fix, branch ci/geom-flip-fix. Source: research/notes/2026/10-27-e
 ## Flip-state cell (MEASURED on CI)
 Cell: packages/gate-breakpoints/src/flip-cell.mjs, job flip-cell, 12 bands x m in {0, .25, .5, 1}, bound 1 px from the Lean golden.
 - Run 40508656325 (fb742cf55), morph.geom:on, both engines: 47 of 48 readings pass; the failing one is 640x1000 m=1 (nav 976 px, both engines).
-- Cause (MEASURED by reading the reading, INFERRED to be the whole cause): the phone grid knots end at 0.9999999999999999 for h = 1000
+- Cause (MEASURED, INFERRED to be the whole cause): the phone grid knots end at 0.9999999999999999 for h = 1000
   (12/(h-52) plus 320 steps), so the K clipper tracks have no keyframe at offset 1 and WAAPI ends on the neutral value; the clippers stay 2x. Lean knots are
   exact rationals (last knot 1). Fix: last knot is exactly 1 (apps/site/src/parts/morph.geom/tracks.ts gridKnots, test in tracks.golden.test.ts).
   Run 40512085722 (a54d893b8): morph.geom:on passes 48 of 48 readings on Chromium and WebKit (MEASURED).
@@ -22,7 +22,7 @@ Cell: packages/gate-breakpoints/src/flip-cell.mjs, job flip-cell, 12 bands x m i
 ## Look report (MEASURED, pixels differing by more than 12 in a channel, share of the region)
 Run 40508656325, morph.geom:on vs base, per engine over 12 bands: m = 0 equal (Chromium max 0.23 %, WebKit 1.38 %). For 0 < m <= 1 the columns region differs 65-98 %
 and the nav region 57-88 % on both engines. So the pinned bound (regions equal to base) is not met in pixels although every rect is within 1 px.
-Reasons known: (1) the veil (A2, task geom-veil-restore) and the whole panel at m = 1; (2) images, below.
+Reasons: (1) the veil (A2, task geom-veil-restore) and the whole panel at m = 1; (2) images, below.
 ## Finding: images (follow-up)
 INFERRED from the rects: base keeps an image's height at 0 < m < 1 (object-fit cover crops it), the flip scales images in both axes (the column scale s(m)), so image y edges
 differ; the Lean faithful .image model is wrong in that range. The cell compares images by x edges only. A fix needs the image model changed in Lean (object-fit) first.

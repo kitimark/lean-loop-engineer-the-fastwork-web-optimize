@@ -69,7 +69,6 @@ try {
         if (m > 0) await B.page.evaluate((m) => { const n = document.querySelector('[data-fw="nav"]'); n.dataset.fwMorph = String(m); }, m);
         await sleep(300);
         Object.assign(ra, await A.page.evaluate(pin, m));
-        // the column marquee runs in both pages from different starts: stop every CSS animation at the same time (the flip's own tracks are Web Animations and stay)
         const freeze = () => { for (const a of document.getAnimations()) if (a instanceof CSSAnimation) { a.pause(); a.currentTime = 4000; } };
         await A.page.evaluate(freeze);
         await B.page.evaluate(freeze);

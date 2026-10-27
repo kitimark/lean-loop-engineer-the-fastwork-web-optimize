@@ -1,10 +1,7 @@
 import { hp, wp, type Layout, type Vp } from './tracks';
 
 export const FLIP_CLASS = 'is-flip';
-/** Set on the nav for the length of leave(): no transition runs while the class goes (geom.css). */
 export const QUIET_CLASS = 'is-flip-quiet';
-/** The steps of leave() and of a re-parent, in order (Lean Fw.Parts.MorphGeom leaveNew, moveNew; the `leave` and `move`
- * golden lines, checked by tracks.golden.test.ts). */
 export const LEAVE_OPS = ['suppress', 'removeFlip', 'flush', 'restore'] as const;
 export const MOVE_OPS = ['save', 'reparent', 'restore'] as const;
 const TAGS: [string, string][] = [
@@ -63,7 +60,6 @@ function unwrap(nav: HTMLElement): void {
 
 type Saved = [Element, string | null, string, number][];
 
-/** The currentTime of every CSS animation under `root` (the move op `save`). */
 export function saveAnims(root: HTMLElement): Saved {
   if (typeof root.getAnimations !== 'function' || typeof CSSAnimation === 'undefined') return [];
   const out: Saved = [];
@@ -76,7 +72,6 @@ export function saveAnims(root: HTMLElement): Saved {
   return out;
 }
 
-/** The move op `restore`: the animations a re-parent restarted get their saved time back. */
 export function restoreAnims(root: HTMLElement, saved: Saved): void {
   if (saved.length === 0) return;
   for (const a of root.getAnimations({ subtree: true })) {
@@ -152,11 +147,11 @@ export function leave(nav: HTMLElement): void {
   nav.style.removeProperty('--mg-h');
   nav.style.removeProperty('--mg-logo-w');
   nav.style.removeProperty('--mg-w0');
-  nav.classList.add(QUIET_CLASS); // suppress
-  document.documentElement.classList.remove(FLIP_CLASS); // removeFlip
-  void nav.getBoundingClientRect(); // flush: the end values apply with no transition
-  restoreAnims(nav, saved); // move op restore (getAnimations flushes again)
-  nav.classList.remove(QUIET_CLASS); // restore
+  nav.classList.add(QUIET_CLASS);
+  document.documentElement.classList.remove(FLIP_CLASS);
+  void nav.getBoundingClientRect();
+  restoreAnims(nav, saved);
+  nav.classList.remove(QUIET_CLASS);
 }
 
 export function find(a: { el: string; i: number; j: number }): HTMLElement | null {
