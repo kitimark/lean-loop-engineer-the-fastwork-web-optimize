@@ -22837,7 +22837,8 @@
     "research/findings/ledger.json",
     "results/phone/2026-10-27-morph-push/**",
     "docs/team/handoffs/phone-morph-push.md"
-   ]
+   ],
+   "evidence": "3bbf41f"
   },
   {
    "devices": [
