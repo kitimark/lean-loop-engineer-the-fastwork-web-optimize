@@ -60,9 +60,9 @@ export const touchCountJs = (tailMs) => `(() => {
 })()`;
 export const TOUCH_COUNT_JS = touchCountJs(TOUCH_BUDGET.tailMs);
 
-export async function startServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, readyMs = TOUCH_BUDGET.readyMs, tag = 'serve' }) {
+export async function startServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, readyMs = TOUCH_BUDGET.readyMs, tag = 'serve', suite = 'PushServer' }) {
   const dir = mkdtempSync(join(tmpdir(), 'fw-push-'));
-  const run = serve(driver, { udid, dir, push, maxS, tag });
+  const run = serve(driver, { udid, dir, push, maxS, tag, suite });
   const t0 = Date.now();
   while (!existsSync(join(dir, 'ready'))) {
     if (run.state.ended || Date.now() - t0 > readyMs) {

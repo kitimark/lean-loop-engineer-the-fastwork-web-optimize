@@ -1,0 +1,626 @@
+{
+ "arms": {
+  "stage": [
+   {
+    "window": "approach",
+    "frames": 34,
+    "verdict": "noGain",
+    "usable": true,
+    "less": [
+     "RecalcStyleCount 129 to 95",
+     "FireAnimationFrame 120 to 77"
+    ],
+    "more": [
+     "LayoutCount 6 to 30",
+     "Paint 114 to 272",
+     "RasterTask 236 to 637",
+     "PaintImage 137 to 617"
+    ]
+   },
+   {
+    "window": "end 0-19",
+    "frames": 3,
+    "verdict": "gain",
+    "usable": true,
+    "less": [
+     "RecalcStyleCount 12 to 5",
+     "LayoutCount 4 to 1",
+     "Paint 179 to 9",
+     "RasterTask 115 to 19",
+     "PaintImage 62 to 24",
+     "FireAnimationFrame 11 to 9"
+    ],
+    "more": []
+   },
+   {
+    "window": "end 20-59",
+    "frames": 0,
+    "verdict": "noData",
+    "usable": false,
+    "less": [],
+    "more": []
+   },
+   {
+    "window": "end 60-119",
+    "frames": 0,
+    "verdict": "noData",
+    "usable": false,
+    "less": [],
+    "more": []
+   },
+   {
+    "window": "end 120+",
+    "frames": 0,
+    "verdict": "noData",
+    "usable": false,
+    "less": [],
+    "more": []
+   },
+   {
+    "window": "finish",
+    "frames": 37,
+    "verdict": "noGain",
+    "usable": true,
+    "less": [
+     "RecalcStyleCount 141 to 100",
+     "Paint 293 to 281",
+     "FireAnimationFrame 131 to 86"
+    ],
+    "more": [
+     "LayoutCount 10 to 31",
+     "RasterTask 351 to 656",
+     "PaintImage 199 to 641"
+    ]
+   }
+  ]
+ },
+ "runs": {
+  "base": [
+   {
+    "path": "run 40339630528 chromium-counts-rewrite-r1",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 129,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 114,
+        "trace.RasterTask": 236,
+        "trace.PaintImage": 137,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 43,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 335,
+        "trace.RasterTask": 517,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 141
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 57
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 39
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 319,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 915,
+        "trace.RasterTask": 1207,
+        "trace.PaintImage": 1514,
+        "trace.FireAnimationFrame": 400
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "run 40339630528 chromium-counts-rewrite-r2",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 130,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 114,
+        "trace.RasterTask": 236,
+        "trace.PaintImage": 137,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 43,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 335,
+        "trace.RasterTask": 517,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 142
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 56
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 40
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 320,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 915,
+        "trace.RasterTask": 1207,
+        "trace.PaintImage": 1514,
+        "trace.FireAnimationFrame": 401
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "run 40339630528 chromium-counts-rewrite-r3",
+    "end": 574,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 130,
+        "metric.LayoutCount": 6,
+        "trace.Paint": 114,
+        "trace.RasterTask": 236,
+        "trace.PaintImage": 137,
+        "trace.FireAnimationFrame": 120
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 20,
+       "vals": {
+        "metric.RecalcStyleCount": 43,
+        "metric.LayoutCount": 21,
+        "trace.Paint": 335,
+        "trace.RasterTask": 517,
+        "trace.PaintImage": 495,
+        "trace.FireAnimationFrame": 43
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 40,
+       "vals": {
+        "metric.RecalcStyleCount": 40,
+        "metric.LayoutCount": 25,
+        "trace.Paint": 252,
+        "trace.RasterTask": 454,
+        "trace.PaintImage": 454,
+        "trace.FireAnimationFrame": 142
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 60,
+       "vals": {
+        "metric.RecalcStyleCount": 60,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 120,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 240,
+        "trace.FireAnimationFrame": 56
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 47,
+       "vals": {
+        "metric.RecalcStyleCount": 47,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 94,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 188,
+        "trace.FireAnimationFrame": 40
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 201,
+       "vals": {
+        "metric.RecalcStyleCount": 320,
+        "metric.LayoutCount": 52,
+        "trace.Paint": 915,
+        "trace.RasterTask": 1207,
+        "trace.PaintImage": 1514,
+        "trace.FireAnimationFrame": 401
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "stage": [
+   {
+    "path": "run 40339622735 chromium-counts-rewrite-r1",
+    "search": "?fw=morph.stage:on",
+    "end": 670,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 95,
+        "metric.LayoutCount": 30,
+        "trace.Paint": 272,
+        "trace.RasterTask": 637,
+        "trace.PaintImage": 617,
+        "trace.FireAnimationFrame": 77
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 3,
+       "vals": {
+        "metric.RecalcStyleCount": 5,
+        "metric.LayoutCount": 1,
+        "trace.Paint": 9,
+        "trace.RasterTask": 19,
+        "trace.PaintImage": 24,
+        "trace.FireAnimationFrame": 9
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 37,
+       "vals": {
+        "metric.RecalcStyleCount": 100,
+        "metric.LayoutCount": 31,
+        "trace.Paint": 281,
+        "trace.RasterTask": 656,
+        "trace.PaintImage": 641,
+        "trace.FireAnimationFrame": 86
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "run 40339622735 chromium-counts-rewrite-r2",
+    "search": "?fw=morph.stage:on",
+    "end": 670,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 95,
+        "metric.LayoutCount": 30,
+        "trace.Paint": 272,
+        "trace.RasterTask": 637,
+        "trace.PaintImage": 617,
+        "trace.FireAnimationFrame": 77
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 3,
+       "vals": {
+        "metric.RecalcStyleCount": 5,
+        "metric.LayoutCount": 1,
+        "trace.Paint": 9,
+        "trace.RasterTask": 19,
+        "trace.PaintImage": 24,
+        "trace.FireAnimationFrame": 9
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 37,
+       "vals": {
+        "metric.RecalcStyleCount": 100,
+        "metric.LayoutCount": 31,
+        "trace.Paint": 281,
+        "trace.RasterTask": 656,
+        "trace.PaintImage": 641,
+        "trace.FireAnimationFrame": 86
+       }
+      }
+     }
+    ]
+   },
+   {
+    "path": "run 40339622735 chromium-counts-rewrite-r3",
+    "search": "?fw=morph.stage:on",
+    "end": 670,
+    "windows": [
+     {
+      "name": "approach",
+      "vec": {
+       "n": 34,
+       "vals": {
+        "metric.RecalcStyleCount": 95,
+        "metric.LayoutCount": 30,
+        "trace.Paint": 272,
+        "trace.RasterTask": 637,
+        "trace.PaintImage": 617,
+        "trace.FireAnimationFrame": 77
+       }
+      }
+     },
+     {
+      "name": "end 0-19",
+      "vec": {
+       "n": 3,
+       "vals": {
+        "metric.RecalcStyleCount": 5,
+        "metric.LayoutCount": 1,
+        "trace.Paint": 9,
+        "trace.RasterTask": 19,
+        "trace.PaintImage": 24,
+        "trace.FireAnimationFrame": 9
+       }
+      }
+     },
+     {
+      "name": "end 20-59",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "end 60-119",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "end 120+",
+      "vec": {
+       "n": 0,
+       "vals": {
+        "metric.RecalcStyleCount": 0,
+        "metric.LayoutCount": 0,
+        "trace.Paint": 0,
+        "trace.RasterTask": 0,
+        "trace.PaintImage": 0,
+        "trace.FireAnimationFrame": 0
+       }
+      }
+     },
+     {
+      "name": "finish",
+      "vec": {
+       "n": 37,
+       "vals": {
+        "metric.RecalcStyleCount": 100,
+        "metric.LayoutCount": 31,
+        "trace.Paint": 281,
+        "trace.RasterTask": 656,
+        "trace.PaintImage": 641,
+        "trace.FireAnimationFrame": 86
+       }
+      }
+     }
+    ]
+   }
+  ]
+ }
+}

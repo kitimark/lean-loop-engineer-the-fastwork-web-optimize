@@ -22110,7 +22110,8 @@
     "results/push-cycle-separate/**",
     "research/findings/ledger.json",
     "docs/team/handoffs/push-cycle-separate.md"
-   ]
+   ],
+   "evidence": "9b60789"
   },
   {
    "devices": [
@@ -22172,7 +22173,8 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "toolbar-sim-lane"
+    "toolbar-sim-lane",
+    "push-cycle-16"
    ],
    "title": "Split from toolbar-sim-lane (review r1): measure Layout and RecalcStyle per frame on the Simulator toolbar lane with >= 3 whole gesture-4 cost windows per arm beside same-job default passes (default, engine.scroll:unthrottle, morph.panel:threaded; look-change arms optional), new push budget (at most 2 pushes, free GitHub macOS), Lean cost-evidence rule from toolbar-sim-lane (.undecided below 3 windows). Decides the cost of candidate f (unthrottle: steps ~95 ms to ~50 ms) and whether it may enter a preset.",
    "writes": [
@@ -22283,7 +22285,9 @@
    "deps": [
     "morph-end-nobounce",
     "gate-replaced-parts",
-    "window-own-end"
+    "window-own-end",
+    "profile-end-tail",
+    "window-min-frames"
    ],
    "title": "End-of-page scroll design rank 1 (research/notes/2026/10-26-end-scroll-designs.md): flag morph.stage, replace the end-of-page scroll-jack (two non-passive touch/wheel capture pairs, the per-frame scrollTo pin, the 680 ms rAF tween with 3 MutationObservers) by a sticky stage: a track of T px after the platform with the scene position: sticky (UI-process scrolling-tree node), and --morph on animation-timeline: scroll(root) over [maxY-T, maxY]; discrete states (data-fw-morph classes, POINTER_CUT, ACTIVE_CUT, FADE_END) from the same progress. Look change L (the morph follows the finger over T px instead of a timed 680 ms play), user visual review, never a preset. Lean first: ranges, keyframes equal to the tween's end states, the state cuts as functions of progress, no scrollTo and no non-passive listener under the flag (theorems + golden). Measure: Simulator toolbar lane (reversals, re-opens, pin writes, slow-frame share by cycle), WebKit Simulator zones (3 VMs, Lean minVms), Chromium windows (Lean reader), breakpoint gate both engines; T chosen from the Lean model and the user's review.",
    "writes": [
@@ -22380,7 +22384,8 @@
     "packages/premise-tests/**",
     "lean/Fw/Ops/Premise.lean",
     "packages/contracts/golden/ops/premise.jsonl"
-   ]
+   ],
+   "evidence": "71104d4"
   },
   {
    "devices": [
@@ -22558,7 +22563,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-gate-replaced-parts.md",
     "docs/team/handoffs/gate-replaced-parts.md"
-   ]
+   ],
+   "evidence": "d8b781c"
   },
   {
    "devices": [
@@ -22581,7 +22587,8 @@
     "research/notes/2026/10-2x-window-own-end.md",
     "results/window-own-end/**",
     "docs/team/handoffs/window-own-end.md"
-   ]
+   ],
+   "evidence": "b60e2f0"
   },
   {
    "devices": [
@@ -22604,7 +22611,202 @@
     "research/notes/2026/10-2x-sim-retry-needs.md",
     "results/sim-retry-needs/**",
     "docs/team/handoffs/sim-retry-needs.md"
+   ],
+   "evidence": "9fc756d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "profile-end-tail",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "Chromium swipe profile: a fixed tail after the end frame. Today swipeEnded (packages/measure-chromium/src/profile.mjs:98, run.mjs:420, a TS rule with no Lean) ends a limit end at once but a stalled end only after 2 strokes of idle frames, so a flag that reaches the limit (morph.stage, run 40339622735: 3 frames after its end) has no end windows while base (stalled 4 px short, run 40339630528) has 164. Specify the swipe end in Lean with a tail of a fixed number of frames counted from the end frame for both end kinds (enough for every window of OffscreenWindows, end 120+ included), theorems (equal tail for limit and stalled ends; no window past the tail), golden replayed by profile tests; CI check on swipe-touch-v1 base vs morph.stage (morph-stage branch) showing frames in every end window.",
+   "writes": [
+    "packages/measure-chromium/src/profile.mjs",
+    "packages/measure-chromium/src/run.mjs",
+    "packages/measure-chromium/test/profile*.test.mjs",
+    "lean/Fw/Measure/SwipeEnd*.lean",
+    "packages/contracts/golden/measure/swipe-end.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/scripts/*Golden.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-profile-end-tail.md",
+    "results/profile-end-tail/**",
+    "docs/team/handoffs/profile-end-tail.md"
+   ],
+   "evidence": "a7b9d53"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "window-min-frames",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [],
+   "title": "window-own-end review follow-up: the own-end rule compares a window on as few frames as exist (morph.stage end 0-19 read gain on 3 frames) and commonLen pools all runs of both arms, so one short run cuts every run's window. Add a Lean minFrames per window (noData below it) with a theorem that a gain needs commonLen >= minFrames, golden cases, TS reader replay; state how a short run is handled (drop it below minFrames, or cut, decided in Lean).",
+   "writes": [
+    "lean/Fw/Measure/OffscreenWindows*.lean",
+    "packages/contracts/golden/measure/offscreen-windows*.jsonl",
+    "packages/measure-chromium/src/offscreen-windows*.mjs",
+    "packages/measure-chromium/test/offscreen-windows*.test.mjs",
+    "research/notes/2026/10-2x-window-min-frames.md",
+    "docs/team/handoffs/window-min-frames.md"
+   ],
+   "evidence": "006e394"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "push-cycle-16",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "push-cycle-separate"
+   ],
+   "title": "push-cycle-separate left both arms undecided:noRoom (run 40315679172: the dwell stretch was 2.39 and 2.37, not 2, so the clock-matched cycle 5 fell at index 12, outside the 12-cycle pass). Rerun the separation on the toolbar-throttle lane with a full pass long enough for the measured stretch (16 cycles, or the length the Lean rule derives from the measured stretch with margin, decided in Lean) and give the cycle-driven / clock-driven verdict per arm with n and run ids.",
+   "writes": [
+    "lean/Fw/Measure/PushCycle.lean",
+    "packages/contracts/golden/measure/push-cycle.jsonl",
+    "packages/measure-webkit/src/throttle/push-cycle*.mjs",
+    "packages/measure-webkit/test/push-cycle*.test.mjs",
+    ".github/workflows/toolbar-throttle.yml",
+    "research/notes/2026/10-2x-push-cycle-16.md",
+    "research/findings/ledger.json",
+    "results/push-cycle-16/**",
+    "docs/team/handoffs/push-cycle-16.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "wk-loop-freeze",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [],
+   "title": "webkit-sim still loses VMs after wk-sim-hang (both runs contain a32a50b15): run 40364461242 job 1 logged 'event loop blocked: the 30 s tick came 675 s late; host calls running: []' then 'stalled: no output for 731 s (limit 720 s)' and exit 3; run 40349930733 r2 (glint base, lost 3 times) ended 'the inspector is dead and rebooting the Simulator failed: terminate Safari took longer than 20 s; exit code 4'. Find what blocks the node event loop with no host call running (in-process sync work, GC, or the whole runner VM descheduled: compare with scripts/ci-telemetry tick samples and load at the same minutes), and why the reboot's Safari terminate overruns. Decide in Lean (extend SimHost/SimBound) whether a late tick with no host call is a host freeze that the stall verdict must not count, and the recover rule after a freeze; golden replayed by watchdog/guard tests. Re-measure the per-job loss rate on CI against wk-sim-hang's remeasure (0 of 7) with run ids.",
+   "writes": [
+    "packages/measure-webkit/src/watchdog.mjs",
+    "packages/measure-webkit/src/guard.mjs",
+    "packages/measure-webkit/src/session.mjs",
+    "packages/measure-webkit/src/load.mjs",
+    "packages/measure-webkit/src/sim*.mjs",
+    "packages/measure-webkit/test/watchdog*.test.mjs",
+    "packages/measure-webkit/test/guard*.test.mjs",
+    "packages/measure-webkit/test/sim-host*.test.mjs",
+    "lean/Fw/Measure/SimBound.lean",
+    "lean/Fw/Measure/SimHost*.lean",
+    "packages/contracts/golden/measure/sim-host.jsonl",
+    "packages/contracts/golden/measure/measure.simBounds.jsonl",
+    "lean/scripts/*Golden.lean",
+    ".github/workflows/webkit-sim.yml",
+    "scripts/ci-telemetry/tick*.mjs",
+    "research/notes/2026/10-2x-wk-loop-freeze.md",
+    "results/wk-loop-freeze/**",
+    "docs/team/handoffs/wk-loop-freeze.md"
+   ],
+   "evidence": "1514fb4"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-geom",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "morph-geom-lean"
+   ],
+   "title": "Compositor-only end-of-page morph geometry as new part morph.geom:on (design research/notes/2026/10-27-morph-compositor-geometry.md: corner-door FLIP; nav and panel laid out at the final size during a push, the pill cut out by nested rounded clippers moved only by transform; every --morph reader becomes a Lean-generated piecewise-linear track on transform, opacity or filter, driven from today's tween via currentTime). Lean spec first (exact or bounded per track, accelerable-only allowlist), golden keyframes, premises (CA timing across keyTimes, nested cornerRadius clips, backdrop under masked ancestors, every geom element accelerated), look premise per band at the listed m values (class L expected, E at m=0 and 1), breakpoint gate, Chromium and WebKit Simulator counts per morph frame on CI.",
+   "writes": [
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "apps/site/src/parts/morph.geom/**",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/registry/index.ts",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    ".github/workflows/wktr-fixtures.yml",
+    "packages/gate-breakpoints/src/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-morph-geom.md",
+    "results/morph-geom/**",
+    "docs/team/handoffs/morph-geom.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Parts/FootprintRows.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-timed",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "morph-geom"
+   ],
+   "title": "Timed driver morph.tween:geom-timed on the morph-geom layers (design note 10-27-morph-compositor-geometry.md, Timed variant): keep today's push trigger; per push start one Web Animation per track on a shared start time, 680 ms, cubic-bezier(1/3,1,2/3,1); reversal rebased in closed form; end commit leaves base equal to the last keyframe. Lean MorphGeomTimed (timed_eq_ideal, reversal, end commit) with push-sequence golden; premises for shared start and the reversal jump; WebKit Simulator count shows no morph style, layout, paint or rAF between push and end.",
+   "writes": [
+    "lean/Fw/Parts/MorphGeomTimed*.lean",
+    "lean/scripts/MorphGeomTimedGolden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/morph-geom-timed*.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.geom/**",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/premise-tests/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-morph-timed.md",
+    "results/morph-timed/**",
+    "docs/team/handoffs/morph-timed.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "morph-geom-lean",
+   "owner": "lean-prover",
+   "stream": "site",
+   "deps": [],
+   "title": "Lean half of morph-geom (split after the first builder hit 255k context): finish Fw.Parts.MorphGeom per the design note's Lean list (AnimProp allowlist, layers/anims, rect_eq, fill_eq, panel_eq, fade_eq, earn_eq per engine, logo_err, end_eq, accelerable, noTransition, memBytes budget) and the generators (knot JSON, .is-flip and goal CSS, golden vectors for the TS track builder) with the golden check wired in check.sh and Trigger.lean.",
+   "writes": [
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/contracts/golden/morph-geom/**",
+    "research/notes/2026/10-2x-morph-geom-lean.md",
+    "docs/team/handoffs/morph-geom-lean.md"
+   ],
+   "evidence": "b859548"
   }
  ],
  "deadline": {
