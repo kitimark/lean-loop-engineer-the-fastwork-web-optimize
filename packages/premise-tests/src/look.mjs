@@ -207,12 +207,14 @@ try {
           await sleep(900);
           if (m > 0) await B.page.evaluate((v) => { const n = document.querySelector('[data-fw="nav"]'); n.dataset.fwMorph = String(v); }, m);
         }
-        if (TIMED && m === 0) {
-          // The untouched timed page rests at m=0 at the page bottom, where its engine marks the nav on-dark; base pins on-dark from m (pinNav).
-          note.navOnDarkBefore = await B.page.evaluate(() => { const n = document.querySelector('[data-fw="nav"]'); const was = n.classList.contains('is-on-dark'); n.classList.toggle('is-on-dark', !!n.dataset.fwKeepDark); return was; });
-        }
+        const darkFlip = TIMED && m === 0 ? await B.page.evaluate(() => document.querySelector('[data-fw="nav"]').classList.contains('is-on-dark')) : null;
         await sleep(300);
         Object.assign(ra, await A.page.evaluate(pinNav, m));
+        if (darkFlip !== null) {
+          // The untouched timed page rests at m=0 at the page bottom, where its engine sets the nav on-dark and reads that class back (run 40594241212: clearing it there stopped the wheel tween). Base copies the class; the arm is not touched.
+          await A.page.evaluate((d) => document.querySelector('[data-fw="nav"]').classList.toggle('is-on-dark', d), darkFlip);
+          note.navOnDark = darkFlip;
+        }
         const freeze = () => { for (const a of document.getAnimations()) if (a instanceof CSSAnimation) { a.pause(); a.currentTime = 4000; } };
         await A.page.evaluate(freeze);
         await B.page.evaluate(freeze);
