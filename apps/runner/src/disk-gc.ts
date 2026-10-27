@@ -204,7 +204,6 @@ export function wtState(wt: string): { dirty: boolean | null; newest: number } {
   return { dirty: files.length > 0, newest };
 }
 
-/** The facts about a worktree's `.local/` (inc-raw-in-worktree): entries and bytes, `null` entries when a read fails. */
 export function localState(wt: string): { entries: number | null; bytes: number } {
   let entries = 0, bytes = 0;
   const walk = (dir: string): boolean => {

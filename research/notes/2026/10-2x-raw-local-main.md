@@ -40,6 +40,6 @@ it. Test: `test/device-raw-dir.test.mjs` (a real worktree: `reduce --dir .local/
 
 ## Accepted limits
 
-- TS stand-in: `localState` (I/O) and `rawResolve` (path glue; its rule is one regex). No Lean golden for the resolver.
+- `localState` (I/O) and `rawResolve` (path glue) are TS stand-ins. No Lean golden covers the resolver.
 - A raw dir passed as an absolute path under a worktree is not redirected; the rule is for the documented relative form.
 - The lost lanes are not recoverable; no phone run, no CI push.

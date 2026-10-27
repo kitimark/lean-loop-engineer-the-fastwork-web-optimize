@@ -270,7 +270,6 @@ def usedByLive (cfg : Config) (x : Cand) : Bool :=
 def ruleLandedBase (cfg : Config) (x : Cand) : Bool :=
   x.dir && x.branch != "" && (landCommit cfg x || landedByTask cfg x) && x.merged == some true && !usedByLive cfg x && x.dirty == some false
 
-/-- A worktree's `.local/` (device raw lanes, gitignored) holds no entry. An unread directory (`none`) is not clear. -/
 def localClear (x : Cand) : Bool := x.localEntries == some 0
 
 def ruleLanded (cfg : Config) (x : Cand) : Bool := ruleLandedBase cfg x && localClear x
@@ -320,7 +319,6 @@ def guard (cfg : Config) (x : Cand) : Bool :=
 
 def chosen (cfg : Config) (x : Cand) : Bool := cfg.classes.contains x.cls && guard cfg x && rule cfg x
 
-/-- A landed worktree that every landed rule but `.local` selects: kept because `.local/` holds data (inc-raw-in-worktree). -/
 def heldLocal (cfg : Config) (x : Cand) : Bool :=
   x.cls == .landed && cfg.classes.contains x.cls && guard cfg x && ruleLandedBase cfg x && !localClear x
 
@@ -666,23 +664,19 @@ theorem reopened_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .
   intro h
   exact hm (rule_landed cfg xs x h hc).2.2.2.1
 
-/-- inc-raw-in-worktree: a landed worktree whose `.local/` is not known empty is never a delete candidate. -/
 theorem local_data_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
     (hl : x.localEntries ≠ some 0) : x ∉ select cfg xs := by
   intro h
   exact hl (rule_landed cfg xs x h hc).2.2.2.2.2.2
 
-/-- A non-empty `.local/` keeps the worktree, whatever else selects it. -/
 theorem local_nonempty_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed) (n : Nat) (hn : 0 < n)
     (hl : x.localEntries = some n) : x ∉ select cfg xs :=
   local_data_kept cfg xs x hc (by rw [hl]; intro e; cases e; omega)
 
-/-- An unread `.local/` keeps the worktree too. -/
 theorem local_unread_kept (cfg : Config) (xs : List Cand) (x : Cand) (hc : x.cls = .landed)
     (hl : x.localEntries = none) : x ∉ select cfg xs :=
   local_data_kept cfg xs x hc (by rw [hl]; intro e; cases e)
 
-/-- A worktree reported as held for its `.local/` is not selected. -/
 theorem held_local_kept (cfg : Config) (xs : List Cand) (x : Cand) (h : heldLocal cfg x = true) : x ∉ select cfg xs := by
   have hc : x.cls = .landed := by
     simp only [heldLocal, Bool.and_eq_true, beq_iff_eq] at h; exact h.1.1.1.1
@@ -691,7 +685,6 @@ theorem held_local_kept (cfg : Config) (xs : List Cand) (x : Cand) (h : heldLoca
   intro e
   simp [localClear, e] at h
 
-/-- The reverse: a held worktree is exactly one the landed rule would take if `.local/` were empty. -/
 theorem held_local_would_select (cfg : Config) (x : Cand) (h : heldLocal cfg x = true) :
     chosen cfg { x with localEntries := some 0 } = true := by
   have hg : guard cfg { x with localEntries := some 0 } = guard cfg x := rfl

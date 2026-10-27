@@ -6,7 +6,6 @@
 //   node src/device-replay-cli.mjs plan     --kinds recorded,fast-fling --reps 3 --arms 2     (the passes and the arm order of each)
 //   node src/device-replay-cli.mjs run      --source source.json [--kinds recorded] [--reps 3] --out run.json [--sim <simulator udid>]  (the phone, or an iOS Simulator with --sim)
 // Exit codes: 0 ok, 1 error, 2 usage, 3 a named replay error (replay-stall, wd-timeout): the message names the piece and the call that hung.
-// The source file holds a person's finger path: keep it out of git (.local/ or the scratchpad).
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';

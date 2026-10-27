@@ -10,7 +10,6 @@ import { isLocalRelative, mainCheckout, rawResolveIn } from '../src/device-raw-d
 const src = join(dirname(fileURLToPath(import.meta.url)), '..', 'src');
 const git = (cwd, ...a) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', ...a], { cwd, encoding: 'utf8' });
 
-// inc-raw-in-worktree: a worktree is removed after its land, with every ignored file in it, so raw lanes go to the main checkout.
 test('a relative .local path resolves against the main checkout, any other path against the cwd', () => {
   assert.equal(rawResolveIn('/m', '.local/phone/r1'), '/m/.local/phone/r1');
   assert.equal(rawResolveIn('/m', './.local/phone'), '/m/.local/phone');
