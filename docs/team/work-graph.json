@@ -23154,6 +23154,55 @@
     "lean/scripts/DiskGcGolden.lean"
    ],
    "evidence": "c96e560"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-page-diff",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-veil-restore"
+   ],
+   "title": "Why the whole-page look region at m=1 still differs from base on 5.6-42 % of pixels with morph.geom:on (run 40553185213 look-*/on) while nav and columns are within 3.1 %: find the cause from the CI artifacts (diff images per band, region boxes), say whether it is the site (which element, file:line) or the look harness, prove the reading's region rule in Lean if it decides; investigation only, the fix is a new task.",
+   "writes": [
+    "research/notes/2026/10-2x-geom-page-diff.md",
+    "results/geom-page-diff/**",
+    "docs/team/handoffs/geom-page-diff.md",
+    "research/findings/ledger.json"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timed-m0-webkit",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "geom-image-model"
+   ],
+   "title": "geom-timed on WebKit fails 3 of 24 flip-cell readings at m=0 (run 40553185213: lang edges 80.97 px at 430x932 and 640x1000; columns 0, images 0 at 1920x1080); Chromium 24 of 24: find the cause, fix it Lean first, graded timed cell 24 of 24 on both engines.",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.geom/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/gate-breakpoints/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-timed-m0-webkit.md",
+    "results/timed-m0-webkit/**",
+    "docs/team/handoffs/timed-m0-webkit.md"
+   ]
   }
  ],
  "deadline": {
