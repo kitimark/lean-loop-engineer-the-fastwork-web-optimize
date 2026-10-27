@@ -27,7 +27,7 @@ Task push-cycle-16, follow-up of `10-2x-push-cycle-separate.md` (run 3 there: th
 
 - MEASURED, user pooled (n = 7 full, 8 dwell): mean slow frames per cycle over cycles 3 to 5 (x1000, Lean `rate`) 167142 by cycle index, 145523 by clock-matched index, 85666 in dwell passes. The two predictions are too close for Lean `separable` (the larger is not more than twice the gap), so the pass cannot tell the readings apart. Not a cycle result and not a clock result.
 - MEASURED, rewrite pooled (n = 7 full, 6 dwell): stretch 3289 is above the bound, so the clock-matched cycle 5 falls at index 16 or later, outside the pass; the verdict is `noRoom`, as `sep_noRoom_only` requires. Push 2 alone was inside the bound (2835) but had 2 dwell passes.
-- The pass count stays the limit: all 12 jobs delivered a result file, but push 1 ended with sim 2 and 5 failed and push 2 with sim 1, 3 and 4 failed (a failed job still counts its usable passes).
+- The pass count stays the limit: all 12 jobs delivered a result file, but push 1 ended with sim 2 and 5 failed and push 2 with sim 3 and 4 failed and sim 1 cancelled (a failed job still counts its usable passes).
 
 ## Lost passes
 
