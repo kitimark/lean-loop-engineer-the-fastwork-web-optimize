@@ -14,6 +14,10 @@
   .is-flip [data-mg='platform'] {
     transition: none;
   }
+  /* leave() runs with this class: the class goes and the end values apply with no transition (Lean leaveNew) */
+  .is-flip-quiet, .is-flip-quiet * {
+    transition: none !important;
+  }
   /* the box: final size, no fill, radius, backdrop or clip of its own */
   .is-flip [data-fw='nav'] {
     --morph: 1 !important;
@@ -66,6 +70,8 @@
     max-width: var(--mg-w0) !important;
     padding-inline: 0 !important;
   }
+  /* the base transform (translateY(earn-out * -8px), with --morph held at 1) is off: the earn track owns the offset */
+  .is-flip [data-mg='earn'] { transform: none !important; }
   [data-mg='earnClip'] {
     display: flex;
     width: var(--mg-w0);
@@ -82,6 +88,7 @@
   [data-mg='backdropClip'], [data-mg='Kb'] {
     overflow: hidden;
   }
+  [data-mg='Kb'], [data-mg='Ub'] { display: flex; gap: inherit; }
   [data-mg='Kb'], [data-mg='Ub'] {
     position: absolute;
     inset: 0;
@@ -92,10 +99,7 @@
     display: none;
   }
   /* element-level base rules that clash with the track properties: the tracks own `translate` on these */
-  .is-flip [data-mg='actions'] {
-    translate: none;
-    top: calc(50% - 24px);
-  }
+  .is-flip [data-mg='actions'] { top: 0; bottom: 0; translate: none; }
   .is-flip [data-mg='logo'] {
     translate: none;
     margin-left: calc(var(--mg-logo-w, 0px) / -2);

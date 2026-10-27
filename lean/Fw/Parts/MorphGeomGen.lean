@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Parts.MorphGeomAnim
+import Fw.Parts.MorphGeomLook
 /-! `morph.geom:on` generators: knot tables, track samples for the TS track builder, the `.is-flip` rule and the goal
 CSS, written to `packages/contracts/golden/morph-geom.jsonl`. -/
 namespace Fw.Parts.MorphGeom
@@ -77,7 +78,25 @@ def cssLines (_ : Unit) : List String :=
   bandVps.flatMap fun v => [Eng.webkit, .chromium].map fun e =>
     gline "goal" (vpIn v ++ [("eng", .str (engTag e))]) (jl ((goalCss v (Ctx.sample v e)).map Json.str))
 
-def goldenLines (_ : Unit) : List String := knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines ()
+def layoutCss : List String :=
+  [s!"[data-mg=\"Kb\"], [data-mg=\"Ub\"] \{ display: flex; gap: {match flipRowGap with | .inherit => "inherit" | .px n => cssNum n}; }",
+   ".is-flip [data-mg=\"earn\"] { transform: none !important; }",
+   ".is-flip [data-mg=\"actions\"] { top: 0; bottom: 0; translate: none; }"]
+
+def flipTolPx : Rat := 1
+
+def flipMs : List Rat := [0, 1 / 4, 1 / 2, 1]
+
+def flipCellLines (_ : Unit) : List String :=
+  gline "layout" [] (jl (layoutCss.map Json.str)) ::
+  gline "leave" [] (jl (leaveNew.map fun o => Json.str o.name)) ::
+  gline "move" [] (jl (moveNew.map fun o => Json.str o.name)) ::
+  gline "flipCell" [] (Json.mkObj [("tolPx", jdec 4 flipTolPx), ("ms", jl (flipMs.map (jdec 4))),
+    ("els", jl (["image", "nav", "lang", "earn", "actions"].map Json.str))]) ::
+  bandVps.map fun v => gline "flipBand" (vpIn v)
+    (Json.mkObj [("cols", .num ⟨(nCols v).floor, 0⟩), ("gap", jdec 0 (flipGap v)), ("btnH", jdec 0 (btnH v))])
+
+def goldenLines (_ : Unit) : List String := knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines () ++ flipCellLines ()
 
 def goldenText (_ : Unit) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 

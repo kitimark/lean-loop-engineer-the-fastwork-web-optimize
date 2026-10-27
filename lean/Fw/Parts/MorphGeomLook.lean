@@ -71,4 +71,155 @@ theorem look_image (v : Vp) (c : Ctx) (i j : Nat) (Y h : Rat) (hm : ((i, j), Y, 
   unfold anims
   split <;> split <;> simp only [List.mem_append] <;> grind
 
+inductive GapRule where
+  | px (n : Rat)
+  | inherit
+
+def GapRule.val (r : GapRule) (parent : Rat) : Rat :=
+  match r with
+  | .px n => n
+  | .inherit => parent
+
+def backdropGap (v : Vp) : Rat := if v.w ≤ 640 then 8 else 12
+
+theorem backdropGap_eq (v : Vp) : backdropGap v = colGap v := by
+  unfold backdropGap colGap phone
+  by_cases h : v.w ≤ 640 <;> simp [h]
+
+def flipRowGap : GapRule := .inherit
+
+def flipGap (v : Vp) : Rat := flipRowGap.val (flipRowGap.val (backdropGap v))
+
+def rowLeft (w g : Rat) (i : Nat) : Rat := (i : Rat) * (w + g)
+
+def stackLeft (_w _g : Rat) (_i : Nat) : Rat := 0
+
+theorem flipGap_eq (v : Vp) : flipGap v = colGap v := by
+  unfold flipGap flipRowGap GapRule.val
+  exact backdropGap_eq v
+
+theorem flip_column_left (v : Vp) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) (i : Nat) :
+    rowLeft (cw v 1) (flipGap v) i + ev (colTx v i) m = (i : Rat) * (cw v m + colGap v) := by
+  have et := ev_eq _ (aff_colTx v i) m h0 h1
+  rw [et, flipGap_eq]
+  unfold rowLeft colTx
+  grind
+
+theorem flip_columns_ordered (v : Vp) (hv : Valid v) (i : Nat) :
+    rowLeft (cw v 1) (flipGap v) i < rowLeft (cw v 1) (flipGap v) (i + 1) := by
+  have hc := cw1_pos v hv
+  rw [flipGap_eq]
+  unfold rowLeft colGap
+  have : (0 : Rat) ≤ (if phone v.w = true then 8 else 12) := by split <;> decide
+  push_cast
+  grind
+
+theorem stack_columns_collide (v : Vp) (hv : Valid v) (i : Nat) (hi : 1 ≤ i) :
+    stackLeft (cw v 1) (flipGap v) i + ev (colTx v i) 1 ≠ (i : Rat) * (cw v 1 + colGap v) := by
+  have hc := cw1_pos v hv
+  have et := ev_eq _ (aff_colTx v i) 1 (by decide) (by decide)
+  have h0 : (0 : Rat) ≤ colGap v := by unfold colGap; split <;> decide
+  have : (1 : Rat) ≤ i := by exact_mod_cast hi
+  have hp : 0 < (i : Rat) * (cw v 1 + colGap v) := Rat.mul_pos (by grind) (by grind)
+  unfold stackLeft colTx at *
+  rw [et]
+  grind
+
+def earnTyFlip (base m : Rat) : Rat := base + Track.eval (mk earnShift earnKnots) m
+
+theorem earn_flip_fixed (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) : earnTyFlip 0 m = earnShift m := by
+  unfold earnTyFlip
+  rw [earnShift_pw m h0 h1]
+  grind
+
+theorem earn_flip_old_off : earnTyFlip (earnShift 1) 1 - earnShift 1 = -8 := by
+  have h := earnShift_pw 1 (by decide) (by decide)
+  unfold earnTyFlip
+  rw [h]
+  unfold earnShift earnOut Fw.Parts.MorphTween.clamp01 darkCut
+  decide +kernel
+
+def actionsTopBase (barH h : Rat) : Rat := barH / 2 - h / 2
+
+def actionsTopOld (barH _h : Rat) : Rat := barH / 2 - 24
+
+def actionsTopFix (barH h : Rat) : Rat := 0 + (barH - h) / 2
+
+def btnH (v : Vp) : Rat := if phone v.w then 36 else 48
+
+theorem actions_fix_eq (barH h : Rat) : actionsTopFix barH h = actionsTopBase barH h := by
+  unfold actionsTopFix actionsTopBase; grind
+
+theorem actions_old_phone (v : Vp) (barH : Rat) (hp : phone v.w = true) :
+    actionsTopOld barH (btnH v) - actionsTopBase barH (btnH v) = -6 := by
+  unfold actionsTopOld actionsTopBase btnH; simp [hp]; grind
+
+theorem actions_old_desktop (v : Vp) (barH : Rat) (hp : phone v.w = false) :
+    actionsTopOld barH (btnH v) = actionsTopBase barH (btnH v) := by
+  unfold actionsTopOld actionsTopBase btnH; simp [hp]; grind
+
+inductive LeaveOp where
+  | suppress
+  | removeFlip
+  | flush
+  | restore
+  deriving DecidableEq
+
+def LeaveOp.name : LeaveOp → String
+  | .suppress => "suppress" | .removeFlip => "removeFlip" | .flush => "flush" | .restore => "restore"
+
+structure LeaveSt where
+  trans : Bool
+  dirty : Bool
+  started : Bool
+
+def LeaveSt.step (s : LeaveSt) : LeaveOp → LeaveSt
+  | .suppress => { s with trans := false }
+  | .removeFlip => { s with dirty := true }
+  | .flush => { s with started := s.started || (s.trans && s.dirty), dirty := false }
+  | .restore => { s with trans := true }
+
+def leaveRun (ops : List LeaveOp) : LeaveSt := ops.foldl LeaveSt.step ⟨true, false, false⟩
+
+def leaveOld : List LeaveOp := [.removeFlip, .flush]
+
+def leaveNew : List LeaveOp := [.suppress, .removeFlip, .flush, .restore]
+
+theorem leave_old_starts : (leaveRun leaveOld).started = true := by decide
+
+theorem leave_new_quiet : (leaveRun (leaveNew ++ [.flush])).started = false := by decide
+
+theorem leave_new_restores : (leaveRun (leaveNew ++ [.flush])).trans = true := by decide
+
+inductive MoveOp where
+  | save
+  | reparent
+  | restore
+  deriving DecidableEq
+
+def MoveOp.name : MoveOp → String
+  | .save => "save" | .reparent => "reparent" | .restore => "restore"
+
+structure MoveSt where
+  t : Rat
+  saved : Option Rat
+
+def MoveSt.step (s : MoveSt) : MoveOp → MoveSt
+  | .save => { s with saved := some s.t }
+  | .reparent => { s with t := 0 }
+  | .restore => { s with t := s.saved.getD s.t }
+
+def moveRun (ops : List MoveOp) (t : Rat) : MoveSt := ops.foldl MoveSt.step ⟨t, none⟩
+
+def moveOld : List MoveOp := [.reparent]
+
+def moveNew : List MoveOp := [.save, .reparent, .restore]
+
+theorem move_old_restarts (t : Rat) (ht : 0 < t) : (moveRun moveOld t).t ≠ t := by
+  simp [moveRun, moveOld, MoveSt.step]; grind
+
+theorem move_new_keeps (t : Rat) : (moveRun moveNew t).t = t := by
+  simp [moveRun, moveNew, MoveSt.step]
+
+
 end Fw.Parts.MorphGeom

@@ -56,7 +56,7 @@ const fade = (m: number) => 1 - Math.min(1, m / 0.55);
 const mKnot = (v: Vp) => 12 / (v.h - 52);
 
 export function gridKnots(v: Vp): number[] {
-  const from = (p: number, h: number, k: number) => Array.from({ length: k + 1 }, (_, i) => p + i * h);
+  const from = (p: number, h: number, k: number) => Array.from({ length: k + 1 }, (_, i) => (i === k && p + k * h >= 1 - 1e-9 ? 1 : p + i * h));
   if (!phone(v.w)) return from(0, 1 / 320, 320);
   const mk = mKnot(v);
   const n1 = Math.floor(mk * 320 * 16) + 1;

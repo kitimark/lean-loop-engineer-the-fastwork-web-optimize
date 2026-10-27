@@ -157,7 +157,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-shards.mjs",
     ".github/scripts/gate-jobs.mjs", ".github/scripts/gate-jobs.test.mjs", ".github/scripts/cache-key.mjs", "packages/contracts/golden/gate/schedule.jsonl",
-    "packages/contracts/golden/gate/shards.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/flag-delta.jsonl", "packages/contracts/golden/gate/replaced.jsonl",
+    "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/gate/shards.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/flag-delta.jsonl", "packages/contracts/golden/gate/replaced.jsonl",
     "packages/contracts/golden/gate/search.jsonl", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
@@ -342,7 +342,8 @@ excluded. A run restores caches of its own branch and of the default branch only
 `scripts/ci-paths.mjs` reads the same list from the workflows and their local actions and fails when they differ. -/
 def cacheWriters : List (String × String × String) := [
   ("breakpoint-gate.yml", "gate", "gate-apt"), ("breakpoint-gate.yml", "gate", "ms-playwright"),
-  ("breakpoint-gate.yml", "gate", "hs-zip"), ("engine-premises.yml", "webkit", "wktr-zip"),
+  ("breakpoint-gate.yml", "gate", "hs-zip"), ("breakpoint-gate.yml", "flip-cell", "gate-apt"),
+  ("breakpoint-gate.yml", "flip-cell", "ms-playwright"), ("breakpoint-gate.yml", "flip-cell", "hs-zip"), ("engine-premises.yml", "webkit", "wktr-zip"),
   ("land.yml", "land", "gate-apt"), ("land.yml", "land", "ms-playwright"), ("land.yml", "land", "hs-zip"), ("lean-math.yml", "math", "mathlib"),
   ("lean.yml", "lean", ".lake-cache"), ("premise-tests.yml", "engine", "gate-apt"),
   ("premise-tests.yml", "engine", "ms-playwright"), ("premise-tests.yml", "engine", "hs-zip"),
