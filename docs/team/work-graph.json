@@ -23030,7 +23030,8 @@
    "owner": "part-builder",
    "stream": "site",
    "deps": [
-    "geom-flip-fix"
+    "geom-flip-fix",
+    "geom-look-fade"
    ],
    "title": "morph.geom flip images like base (geom-flip-fix finding): base keeps each picture's height at 0<m<1 (object-fit cover crops it) while the flip scales pictures in both axes; model object-fit cover in Lean (MorphGeom image model), prove the flip's picture rects and crop equal base at every m, then make the flip keep height (counter-scale or crop window) so the column region matches base in pixels; look report on both engines.",
    "writes": [
@@ -23052,7 +23053,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-image-model.md",
     "results/geom-image-model/**",
-    "docs/team/handoffs/geom-image-model.md"
+    "docs/team/handoffs/geom-image-model.md",
+    "apps/site/scripts/part-footprint.mjs"
    ]
   },
   {
@@ -23241,10 +23243,9 @@
    "owner": "measure-engineer",
    "stream": "measure",
    "deps": [
-    "geom-page-diff",
-    "geom-image-model"
+    "geom-page-diff"
    ],
-   "title": "Look harness fix from geom-page-diff: the base arm writes the platform fade (--morph-fade) from the generated FADE_END constants as the driver does, every arm asserts equal scrollY, look/timed starts a real tween or is dropped; re-measure the whole-page region on CI (>= 3 jobs) for morph.geom:on and geom-timed.",
+   "title": "Look harness fix (geom-page-diff, geom-image-model round 1): the base arm writes the platform fade from generated constants, every arm asserts equal scrollY, the flip arm is verified to be at the same m as base, look/timed starts a real tween or is dropped, and each look cell saves per-region PNGs of both arms as CI artifacts with a per-element diff; re-measure main on CI.",
    "writes": [
     "packages/premise-tests/src/look.mjs",
     "packages/premise-tests/test/**",
