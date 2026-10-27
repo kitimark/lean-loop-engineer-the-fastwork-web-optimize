@@ -1,0 +1,2826 @@
+{
+ "schema": "fw.phone.push/1",
+ "consts": {
+  "minVisits": 3,
+  "pushes": 10,
+  "asks": 5,
+  "overLimitCentiMs": 5000,
+  "metrics": [
+   "p95",
+   "p99",
+   "max",
+   "over50",
+   "RecalculateStyles",
+   "Layout",
+   "Paint",
+   "FireAnimationFrame"
+  ]
+ },
+ "order": [
+  "base",
+  "cols-off",
+  "flip+cols-off",
+  "flip",
+  "cols-off",
+  "flip",
+  "base",
+  "flip+cols-off",
+  "flip",
+  "flip+cols-off",
+  "cols-off",
+  "base",
+  "flip+cols-off",
+  "base",
+  "flip",
+  "cols-off"
+ ],
+ "positions": {
+  "byPosition": [
+   {
+    "position": 0,
+    "n": 4,
+    "arms": [
+     "base",
+     "cols-off",
+     "flip",
+     "flip+cols-off"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6800,
+      "values": [
+       6100,
+       7700,
+       6800,
+       6300
+      ]
+     },
+     "p99": {
+      "median": 9800,
+      "values": [
+       9800,
+       9800,
+       10200,
+       8300
+      ]
+     },
+     "max": {
+      "median": 29700,
+      "values": [
+       29700,
+       38200,
+       11900,
+       9700
+      ]
+     },
+     "over50": {
+      "median": 54,
+      "values": [
+       43,
+       57,
+       54,
+       45
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1057,
+      "values": [
+       1057,
+       976,
+       1131,
+       866
+      ]
+     },
+     "Layout": {
+      "median": 888,
+      "values": [
+       888,
+       852,
+       888,
+       733
+      ]
+     },
+     "Paint": {
+      "median": 9600,
+      "values": [
+       9600,
+       10355,
+       4700,
+       3805
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 181,
+      "values": [
+       194,
+       181,
+       110,
+       30
+      ]
+     }
+    }
+   },
+   {
+    "position": 1,
+    "n": 4,
+    "arms": [
+     "cols-off",
+     "flip",
+     "flip+cols-off",
+     "base"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6900,
+      "values": [
+       6700,
+       6900,
+       7300,
+       5600
+      ]
+     },
+     "p99": {
+      "median": 10600,
+      "values": [
+       8400,
+       10600,
+       13400,
+       6700
+      ]
+     },
+     "max": {
+      "median": 20200,
+      "values": [
+       73400,
+       11600,
+       20200,
+       7800
+      ]
+     },
+     "over50": {
+      "median": 52,
+      "values": [
+       52,
+       51,
+       56,
+       47
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1207,
+      "values": [
+       1036,
+       1180,
+       1207,
+       1265
+      ]
+     },
+     "Layout": {
+      "median": 927,
+      "values": [
+       908,
+       909,
+       927,
+       1069
+      ]
+     },
+     "Paint": {
+      "median": 11751,
+      "values": [
+       11751,
+       4724,
+       4703,
+       13104
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 194,
+      "values": [
+       194,
+       139,
+       136,
+       275
+      ]
+     }
+    }
+   },
+   {
+    "position": 2,
+    "n": 4,
+    "arms": [
+     "flip+cols-off",
+     "base",
+     "cols-off",
+     "flip"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6700,
+      "values": [
+       6700,
+       5500,
+       5200,
+       7000
+      ]
+     },
+     "p99": {
+      "median": 9100,
+      "values": [
+       9100,
+       6900,
+       6800,
+       9900
+      ]
+     },
+     "max": {
+      "median": 11500,
+      "values": [
+       11700,
+       8000,
+       8600,
+       11500
+      ]
+     },
+     "over50": {
+      "median": 52,
+      "values": [
+       53,
+       38,
+       32,
+       52
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1249,
+      "values": [
+       1144,
+       1249,
+       1275,
+       1143
+      ]
+     },
+     "Layout": {
+      "median": 1047,
+      "values": [
+       898,
+       1047,
+       1072,
+       890
+      ]
+     },
+     "Paint": {
+      "median": 11889,
+      "values": [
+       4675,
+       11889,
+       13053,
+       4617
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 264,
+      "values": [
+       104,
+       264,
+       290,
+       121
+      ]
+     }
+    }
+   },
+   {
+    "position": 3,
+    "n": 4,
+    "arms": [
+     "flip",
+     "flip+cols-off",
+     "base",
+     "cols-off"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6700,
+      "values": [
+       8800,
+       6700,
+       6700,
+       5600
+      ]
+     },
+     "p99": {
+      "median": 12400,
+      "values": [
+       12400,
+       12700,
+       10500,
+       6400
+      ]
+     },
+     "max": {
+      "median": 15100,
+      "values": [
+       15100,
+       32400,
+       12700,
+       8300
+      ]
+     },
+     "over50": {
+      "median": 60,
+      "values": [
+       87,
+       44,
+       60,
+       40
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1187,
+      "values": [
+       993,
+       1136,
+       1187,
+       1222
+      ]
+     },
+     "Layout": {
+      "median": 1018,
+      "values": [
+       797,
+       898,
+       1018,
+       1021
+      ]
+     },
+     "Paint": {
+      "median": 11696,
+      "values": [
+       4211,
+       4713,
+       12716,
+       11696
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 197,
+      "values": [
+       95,
+       109,
+       197,
+       259
+      ]
+     }
+    }
+   }
+  ],
+  "byRound": [
+   {
+    "round": 0,
+    "n": 4,
+    "arms": [
+     "base",
+     "cols-off",
+     "flip+cols-off",
+     "flip"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6700,
+      "values": [
+       6100,
+       6700,
+       6700,
+       8800
+      ]
+     },
+     "p99": {
+      "median": 9800,
+      "values": [
+       9800,
+       8400,
+       9100,
+       12400
+      ]
+     },
+     "max": {
+      "median": 29700,
+      "values": [
+       29700,
+       73400,
+       11700,
+       15100
+      ]
+     },
+     "over50": {
+      "median": 53,
+      "values": [
+       43,
+       52,
+       53,
+       87
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1057,
+      "values": [
+       1057,
+       1036,
+       1144,
+       993
+      ]
+     },
+     "Layout": {
+      "median": 898,
+      "values": [
+       888,
+       908,
+       898,
+       797
+      ]
+     },
+     "Paint": {
+      "median": 9600,
+      "values": [
+       9600,
+       11751,
+       4675,
+       4211
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 194,
+      "values": [
+       194,
+       194,
+       104,
+       95
+      ]
+     }
+    }
+   },
+   {
+    "round": 1,
+    "n": 4,
+    "arms": [
+     "cols-off",
+     "flip",
+     "base",
+     "flip+cols-off"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6900,
+      "values": [
+       7700,
+       6900,
+       5500,
+       6700
+      ]
+     },
+     "p99": {
+      "median": 10600,
+      "values": [
+       9800,
+       10600,
+       6900,
+       12700
+      ]
+     },
+     "max": {
+      "median": 32400,
+      "values": [
+       38200,
+       11600,
+       8000,
+       32400
+      ]
+     },
+     "over50": {
+      "median": 51,
+      "values": [
+       57,
+       51,
+       38,
+       44
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1180,
+      "values": [
+       976,
+       1180,
+       1249,
+       1136
+      ]
+     },
+     "Layout": {
+      "median": 909,
+      "values": [
+       852,
+       909,
+       1047,
+       898
+      ]
+     },
+     "Paint": {
+      "median": 10355,
+      "values": [
+       10355,
+       4724,
+       11889,
+       4713
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 181,
+      "values": [
+       181,
+       139,
+       264,
+       109
+      ]
+     }
+    }
+   },
+   {
+    "round": 2,
+    "n": 4,
+    "arms": [
+     "flip",
+     "flip+cols-off",
+     "cols-off",
+     "base"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6800,
+      "values": [
+       6800,
+       7300,
+       5200,
+       6700
+      ]
+     },
+     "p99": {
+      "median": 10500,
+      "values": [
+       10200,
+       13400,
+       6800,
+       10500
+      ]
+     },
+     "max": {
+      "median": 12700,
+      "values": [
+       11900,
+       20200,
+       8600,
+       12700
+      ]
+     },
+     "over50": {
+      "median": 56,
+      "values": [
+       54,
+       56,
+       32,
+       60
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1207,
+      "values": [
+       1131,
+       1207,
+       1275,
+       1187
+      ]
+     },
+     "Layout": {
+      "median": 1018,
+      "values": [
+       888,
+       927,
+       1072,
+       1018
+      ]
+     },
+     "Paint": {
+      "median": 12716,
+      "values": [
+       4700,
+       4703,
+       13053,
+       12716
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 197,
+      "values": [
+       110,
+       136,
+       290,
+       197
+      ]
+     }
+    }
+   },
+   {
+    "round": 3,
+    "n": 4,
+    "arms": [
+     "flip+cols-off",
+     "base",
+     "flip",
+     "cols-off"
+    ],
+    "metrics": {
+     "p95": {
+      "median": 6300,
+      "values": [
+       6300,
+       5600,
+       7000,
+       5600
+      ]
+     },
+     "p99": {
+      "median": 8300,
+      "values": [
+       8300,
+       6700,
+       9900,
+       6400
+      ]
+     },
+     "max": {
+      "median": 9700,
+      "values": [
+       9700,
+       7800,
+       11500,
+       8300
+      ]
+     },
+     "over50": {
+      "median": 47,
+      "values": [
+       45,
+       47,
+       52,
+       40
+      ]
+     },
+     "RecalculateStyles": {
+      "median": 1222,
+      "values": [
+       866,
+       1265,
+       1143,
+       1222
+      ]
+     },
+     "Layout": {
+      "median": 1021,
+      "values": [
+       733,
+       1069,
+       890,
+       1021
+      ]
+     },
+     "Paint": {
+      "median": 11696,
+      "values": [
+       3805,
+       13104,
+       4617,
+       11696
+      ]
+     },
+     "FireAnimationFrame": {
+      "median": 259,
+      "values": [
+       30,
+       275,
+       121,
+       259
+      ]
+     }
+    }
+   }
+  ]
+ },
+ "visits": [
+  {
+   "index": 0,
+   "arm": "base",
+   "round": 0,
+   "position": 0,
+   "durationS": 146,
+   "configHash": "d6a37c4bc1645e13",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6100,
+    9800,
+    29700,
+    43,
+    1057,
+    888,
+    9600,
+    194
+   ]
+  },
+  {
+   "index": 1,
+   "arm": "cols-off",
+   "round": 0,
+   "position": 1,
+   "durationS": 133,
+   "configHash": "4b79738f14be8fb6",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6700,
+    8400,
+    73400,
+    52,
+    1036,
+    908,
+    11751,
+    194
+   ]
+  },
+  {
+   "index": 2,
+   "arm": "flip+cols-off",
+   "round": 0,
+   "position": 2,
+   "durationS": 146,
+   "configHash": "8e3999668031c773",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6700,
+    9100,
+    11700,
+    53,
+    1144,
+    898,
+    4675,
+    104
+   ]
+  },
+  {
+   "index": 3,
+   "arm": "flip",
+   "round": 0,
+   "position": 3,
+   "durationS": 129,
+   "configHash": "45dd993e80e172ba",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    8800,
+    12400,
+    15100,
+    87,
+    993,
+    797,
+    4211,
+    95
+   ]
+  },
+  {
+   "index": 4,
+   "arm": "cols-off",
+   "round": 1,
+   "position": 0,
+   "durationS": 132,
+   "configHash": "4b79738f14be8fb6",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5231,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    7700,
+    9800,
+    38200,
+    57,
+    976,
+    852,
+    10355,
+    181
+   ]
+  },
+  {
+   "index": 5,
+   "arm": "flip",
+   "round": 1,
+   "position": 1,
+   "durationS": 144,
+   "configHash": "45dd993e80e172ba",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6900,
+    10600,
+    11600,
+    51,
+    1180,
+    909,
+    4724,
+    139
+   ]
+  },
+  {
+   "index": 6,
+   "arm": "base",
+   "round": 1,
+   "position": 2,
+   "durationS": 127,
+   "configHash": "d6a37c4bc1645e13",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5231,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    5500,
+    6900,
+    8000,
+    38,
+    1249,
+    1047,
+    11889,
+    264
+   ]
+  },
+  {
+   "index": 7,
+   "arm": "flip+cols-off",
+   "round": 1,
+   "position": 3,
+   "durationS": 182,
+   "configHash": "8e3999668031c773",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6700,
+    12700,
+    32400,
+    44,
+    1136,
+    898,
+    4713,
+    109
+   ]
+  },
+  {
+   "index": 8,
+   "arm": "flip",
+   "round": 2,
+   "position": 0,
+   "durationS": 124,
+   "configHash": "45dd993e80e172ba",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6800,
+    10200,
+    11900,
+    54,
+    1131,
+    888,
+    4700,
+    110
+   ]
+  },
+  {
+   "index": 9,
+   "arm": "flip+cols-off",
+   "round": 2,
+   "position": 1,
+   "durationS": 127,
+   "configHash": "8e3999668031c773",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    7300,
+    13400,
+    20200,
+    56,
+    1207,
+    927,
+    4703,
+    136
+   ]
+  },
+  {
+   "index": 10,
+   "arm": "cols-off",
+   "round": 2,
+   "position": 2,
+   "durationS": 127,
+   "configHash": "4b79738f14be8fb6",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    5200,
+    6800,
+    8600,
+    32,
+    1275,
+    1072,
+    13053,
+    290
+   ]
+  },
+  {
+   "index": 11,
+   "arm": "base",
+   "round": 2,
+   "position": 3,
+   "durationS": 127,
+   "configHash": "d6a37c4bc1645e13",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5231,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6700,
+    10500,
+    12700,
+    60,
+    1187,
+    1018,
+    12716,
+    197
+   ]
+  },
+  {
+   "index": 12,
+   "arm": "flip+cols-off",
+   "round": 3,
+   "position": 0,
+   "durationS": 123,
+   "configHash": "8e3999668031c773",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    6300,
+    8300,
+    9700,
+    45,
+    866,
+    733,
+    3805,
+    30
+   ]
+  },
+  {
+   "index": 13,
+   "arm": "base",
+   "round": 3,
+   "position": 1,
+   "durationS": 126,
+   "configHash": "d6a37c4bc1645e13",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    5600,
+    6700,
+    7800,
+    47,
+    1265,
+    1069,
+    13104,
+    275
+   ]
+  },
+  {
+   "index": 14,
+   "arm": "flip",
+   "round": 3,
+   "position": 2,
+   "durationS": 126,
+   "configHash": "45dd993e80e172ba",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    },
+    "counts": {
+     "pushes": 10,
+     "taken": 10,
+     "touches": 10,
+     "touchTaken": 10,
+     "perTouch": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    7000,
+    9900,
+    11500,
+    52,
+    1143,
+    890,
+    4617,
+    121
+   ]
+  },
+  {
+   "index": 15,
+   "arm": "cols-off",
+   "round": 3,
+   "position": 3,
+   "durationS": 130,
+   "configHash": "4b79738f14be8fb6",
+   "nav": true,
+   "vh": 775,
+   "maxY": 5267,
+   "pushes": 10,
+   "trace": {
+    "frames": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    },
+    "counts": {
+     "pushes": 0,
+     "taken": 0,
+     "touches": 10,
+     "touchTaken": 0,
+     "perTouch": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+     ]
+    }
+   },
+   "maxMorph": 1000,
+   "device": {
+    "model": "iPhone 15 Pro Max",
+    "os": "27.0.1",
+    "build": "24A446"
+   },
+   "vals": [
+    5600,
+    6400,
+    8300,
+    40,
+    1222,
+    1021,
+    11696,
+    259
+   ]
+  }
+ ],
+ "notRun": [],
+ "arms": [
+  {
+   "id": "base",
+   "flags": [],
+   "n": 4,
+   "metrics": {
+    "p95": {
+     "median": 6100,
+     "min": 5500,
+     "max": 6700,
+     "values": [
+      6100,
+      5500,
+      6700,
+      5600
+     ]
+    },
+    "p99": {
+     "median": 9800,
+     "min": 6700,
+     "max": 10500,
+     "values": [
+      9800,
+      6900,
+      10500,
+      6700
+     ]
+    },
+    "max": {
+     "median": 12700,
+     "min": 7800,
+     "max": 29700,
+     "values": [
+      29700,
+      8000,
+      12700,
+      7800
+     ]
+    },
+    "over50": {
+     "median": 47,
+     "min": 38,
+     "max": 60,
+     "values": [
+      43,
+      38,
+      60,
+      47
+     ]
+    },
+    "RecalculateStyles": {
+     "median": 1249,
+     "min": 1057,
+     "max": 1265,
+     "values": [
+      1057,
+      1249,
+      1187,
+      1265
+     ]
+    },
+    "Layout": {
+     "median": 1047,
+     "min": 888,
+     "max": 1069,
+     "values": [
+      888,
+      1047,
+      1018,
+      1069
+     ]
+    },
+    "Paint": {
+     "median": 12716,
+     "min": 9600,
+     "max": 13104,
+     "values": [
+      9600,
+      11889,
+      12716,
+      13104
+     ]
+    },
+    "FireAnimationFrame": {
+     "median": 264,
+     "min": 194,
+     "max": 275,
+     "values": [
+      194,
+      264,
+      197,
+      275
+     ]
+    }
+   },
+   "cells": null,
+   "label": "base"
+  },
+  {
+   "id": "cols-off",
+   "flags": [
+    "morph.columns:probe-off"
+   ],
+   "n": 4,
+   "metrics": {
+    "p95": {
+     "median": 6700,
+     "min": 5200,
+     "max": 7700,
+     "values": [
+      6700,
+      7700,
+      5200,
+      5600
+     ]
+    },
+    "p99": {
+     "median": 8400,
+     "min": 6400,
+     "max": 9800,
+     "values": [
+      8400,
+      9800,
+      6800,
+      6400
+     ]
+    },
+    "max": {
+     "median": 38200,
+     "min": 8300,
+     "max": 73400,
+     "values": [
+      73400,
+      38200,
+      8600,
+      8300
+     ]
+    },
+    "over50": {
+     "median": 52,
+     "min": 32,
+     "max": 57,
+     "values": [
+      52,
+      57,
+      32,
+      40
+     ]
+    },
+    "RecalculateStyles": {
+     "median": 1222,
+     "min": 976,
+     "max": 1275,
+     "values": [
+      1036,
+      976,
+      1275,
+      1222
+     ]
+    },
+    "Layout": {
+     "median": 1021,
+     "min": 852,
+     "max": 1072,
+     "values": [
+      908,
+      852,
+      1072,
+      1021
+     ]
+    },
+    "Paint": {
+     "median": 11751,
+     "min": 10355,
+     "max": 13053,
+     "values": [
+      11751,
+      10355,
+      13053,
+      11696
+     ]
+    },
+    "FireAnimationFrame": {
+     "median": 259,
+     "min": 181,
+     "max": 290,
+     "values": [
+      194,
+      181,
+      290,
+      259
+     ]
+    }
+   },
+   "cells": {
+    "p95": "same",
+    "p99": "same",
+    "max": "same",
+    "over50": "same",
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "FireAnimationFrame": "same"
+   },
+   "label": "same"
+  },
+  {
+   "id": "flip",
+   "flags": [
+    "morph.geom:on",
+    "morph.tween:geom-timed"
+   ],
+   "n": 4,
+   "metrics": {
+    "p95": {
+     "median": 7000,
+     "min": 6800,
+     "max": 8800,
+     "values": [
+      8800,
+      6900,
+      6800,
+      7000
+     ]
+    },
+    "p99": {
+     "median": 10600,
+     "min": 9900,
+     "max": 12400,
+     "values": [
+      12400,
+      10600,
+      10200,
+      9900
+     ]
+    },
+    "max": {
+     "median": 11900,
+     "min": 11500,
+     "max": 15100,
+     "values": [
+      15100,
+      11600,
+      11900,
+      11500
+     ]
+    },
+    "over50": {
+     "median": 54,
+     "min": 51,
+     "max": 87,
+     "values": [
+      87,
+      51,
+      54,
+      52
+     ]
+    },
+    "RecalculateStyles": {
+     "median": 1143,
+     "min": 993,
+     "max": 1180,
+     "values": [
+      993,
+      1180,
+      1131,
+      1143
+     ]
+    },
+    "Layout": {
+     "median": 890,
+     "min": 797,
+     "max": 909,
+     "values": [
+      797,
+      909,
+      888,
+      890
+     ]
+    },
+    "Paint": {
+     "median": 4700,
+     "min": 4211,
+     "max": 4724,
+     "values": [
+      4211,
+      4724,
+      4700,
+      4617
+     ]
+    },
+    "FireAnimationFrame": {
+     "median": 121,
+     "min": 95,
+     "max": 139,
+     "values": [
+      95,
+      139,
+      110,
+      121
+     ]
+    }
+   },
+   "cells": {
+    "p95": "same",
+    "p99": "same",
+    "max": "same",
+    "over50": "same",
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "beats",
+    "FireAnimationFrame": "same"
+   },
+   "label": "better"
+  },
+  {
+   "id": "flip+cols-off",
+   "flags": [
+    "morph.geom:on",
+    "morph.tween:geom-timed",
+    "morph.columns:probe-off"
+   ],
+   "n": 4,
+   "metrics": {
+    "p95": {
+     "median": 6700,
+     "min": 6300,
+     "max": 7300,
+     "values": [
+      6700,
+      6700,
+      7300,
+      6300
+     ]
+    },
+    "p99": {
+     "median": 12700,
+     "min": 8300,
+     "max": 13400,
+     "values": [
+      9100,
+      12700,
+      13400,
+      8300
+     ]
+    },
+    "max": {
+     "median": 20200,
+     "min": 9700,
+     "max": 32400,
+     "values": [
+      11700,
+      32400,
+      20200,
+      9700
+     ]
+    },
+    "over50": {
+     "median": 53,
+     "min": 44,
+     "max": 56,
+     "values": [
+      53,
+      44,
+      56,
+      45
+     ]
+    },
+    "RecalculateStyles": {
+     "median": 1144,
+     "min": 866,
+     "max": 1207,
+     "values": [
+      1144,
+      1136,
+      1207,
+      866
+     ]
+    },
+    "Layout": {
+     "median": 898,
+     "min": 733,
+     "max": 927,
+     "values": [
+      898,
+      898,
+      927,
+      733
+     ]
+    },
+    "Paint": {
+     "median": 4703,
+     "min": 3805,
+     "max": 4713,
+     "values": [
+      4675,
+      4713,
+      4703,
+      3805
+     ]
+    },
+    "FireAnimationFrame": {
+     "median": 109,
+     "min": 30,
+     "max": 136,
+     "values": [
+      104,
+      109,
+      136,
+      30
+     ]
+    }
+   },
+   "cells": {
+    "p95": "same",
+    "p99": "same",
+    "max": "same",
+    "over50": "same",
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "beats",
+    "FireAnimationFrame": "same"
+   },
+   "label": "better"
+  }
+ ],
+ "set": "cols",
+ "probeFlag": "morph.columns:probe-off",
+ "contrasts": [
+  {
+   "ref": "base",
+   "arm": "cols-off",
+   "nRef": 4,
+   "nArm": 4,
+   "label": "same",
+   "cells": {
+    "p95": "same",
+    "p99": "same",
+    "max": "same",
+    "over50": "same",
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "FireAnimationFrame": "same"
+   },
+   "causes": {
+    "p95": "overlap",
+    "p99": "overlap",
+    "max": "overlap",
+    "over50": "overlap",
+    "RecalculateStyles": "overlap",
+    "Layout": "overlap",
+    "Paint": "overlap",
+    "FireAnimationFrame": "overlap"
+   },
+   "refSpread": {
+    "p95": 1200,
+    "p99": 3800,
+    "max": 21900,
+    "over50": 22,
+    "RecalculateStyles": 208,
+    "Layout": 181,
+    "Paint": 3504,
+    "FireAnimationFrame": 81
+   }
+  },
+  {
+   "ref": "flip",
+   "arm": "flip+cols-off",
+   "nRef": 4,
+   "nArm": 4,
+   "label": "same",
+   "cells": {
+    "p95": "same",
+    "p99": "same",
+    "max": "same",
+    "over50": "same",
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "FireAnimationFrame": "same"
+   },
+   "causes": {
+    "p95": "overlap",
+    "p99": "overlap",
+    "max": "overlap",
+    "over50": "overlap",
+    "RecalculateStyles": "overlap",
+    "Layout": "overlap",
+    "Paint": "overlap",
+    "FireAnimationFrame": "overlap"
+   },
+   "refSpread": {
+    "p95": 2000,
+    "p99": 2500,
+    "max": 3600,
+    "over50": 36,
+    "RecalculateStyles": 187,
+    "Layout": 112,
+    "Paint": 513,
+    "FireAnimationFrame": 44
+   }
+  }
+ ],
+ "takeShare": [
+  {
+   "id": "base",
+   "visits": 4,
+   "frames": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 40,
+    "touchTaken": 0
+   },
+   "counts": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 40,
+    "touchTaken": 0
+   }
+  },
+  {
+   "id": "cols-off",
+   "visits": 4,
+   "frames": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 40,
+    "touchTaken": 0
+   },
+   "counts": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 40,
+    "touchTaken": 0
+   }
+  },
+  {
+   "id": "flip",
+   "visits": 4,
+   "frames": {
+    "pushes": 40,
+    "taken": 40,
+    "touches": 40,
+    "touchTaken": 40
+   },
+   "counts": {
+    "pushes": 40,
+    "taken": 40,
+    "touches": 40,
+    "touchTaken": 40
+   }
+  },
+  {
+   "id": "flip+cols-off",
+   "visits": 4,
+   "frames": {
+    "pushes": 40,
+    "taken": 40,
+    "touches": 40,
+    "touchTaken": 40
+   },
+   "counts": {
+    "pushes": 40,
+    "taken": 40,
+    "touches": 40,
+    "touchTaken": 40
+   }
+  }
+ ],
+ "thermal": [
+  {
+   "at": "2026-10-27T14:47:34.613Z",
+   "phase": "block-start",
+   "index": null,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:48:47.778Z",
+   "phase": "between-lanes",
+   "index": 0,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:50:00.211Z",
+   "phase": "visit-end",
+   "index": 0,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:51:01.237Z",
+   "phase": "between-lanes",
+   "index": 1,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:52:12.866Z",
+   "phase": "visit-end",
+   "index": 1,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:53:30.378Z",
+   "phase": "between-lanes",
+   "index": 2,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:54:39.128Z",
+   "phase": "visit-end",
+   "index": 2,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:55:38.539Z",
+   "phase": "between-lanes",
+   "index": 3,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:56:47.916Z",
+   "phase": "visit-end",
+   "index": 3,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:56:55.438Z",
+   "phase": "block-start",
+   "index": null,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:57:56.398Z",
+   "phase": "between-lanes",
+   "index": 4,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T14:59:07.320Z",
+   "phase": "visit-end",
+   "index": 4,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:00:23.096Z",
+   "phase": "between-lanes",
+   "index": 5,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:01:30.920Z",
+   "phase": "visit-end",
+   "index": 5,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:02:28.979Z",
+   "phase": "between-lanes",
+   "index": 6,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:03:38.039Z",
+   "phase": "visit-end",
+   "index": 6,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:04:56.365Z",
+   "phase": "between-lanes",
+   "index": 7,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:06:40.139Z",
+   "phase": "visit-end",
+   "index": 7,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:06:47.163Z",
+   "phase": "block-start",
+   "index": null,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:07:44.917Z",
+   "phase": "between-lanes",
+   "index": 8,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:08:51.330Z",
+   "phase": "visit-end",
+   "index": 8,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:09:50.896Z",
+   "phase": "between-lanes",
+   "index": 9,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:10:58.094Z",
+   "phase": "visit-end",
+   "index": 9,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:11:56.804Z",
+   "phase": "between-lanes",
+   "index": 10,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:13:05.301Z",
+   "phase": "visit-end",
+   "index": 10,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:14:04.454Z",
+   "phase": "between-lanes",
+   "index": 11,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:15:12.074Z",
+   "phase": "visit-end",
+   "index": 11,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:15:19.118Z",
+   "phase": "block-start",
+   "index": null,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:16:16.232Z",
+   "phase": "between-lanes",
+   "index": 12,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:17:22.342Z",
+   "phase": "visit-end",
+   "index": 12,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:18:20.189Z",
+   "phase": "between-lanes",
+   "index": 13,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:19:28.255Z",
+   "phase": "visit-end",
+   "index": 13,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:20:27.190Z",
+   "phase": "between-lanes",
+   "index": 14,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:21:33.892Z",
+   "phase": "visit-end",
+   "index": 14,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:22:33.519Z",
+   "phase": "between-lanes",
+   "index": 15,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  },
+  {
+   "at": "2026-10-27T15:23:43.975Z",
+   "phase": "visit-end",
+   "index": 15,
+   "state": "Serious",
+   "tempC": 0,
+   "lock": "unlocked",
+   "held": true,
+   "why": "onTarget",
+   "verdict": "go"
+  }
+ ],
+ "firstTempC": 0,
+ "pin": {
+  "target": "Serious",
+  "profile": "ThermalSerious",
+  "source": "pymobiledevice3 developer dvt condition set --userspace",
+  "before": {
+   "at": "2026-10-27T14:47:25.940Z",
+   "state": "Fair"
+  },
+  "owner": {
+   "pid": 3519,
+   "start": "Tue Oct 27 21:47:27 2026",
+   "spawnedAt": "2026-10-27T14:47:27.064Z"
+  },
+  "stoppedAt": "2026-10-27T15:28:58.624Z",
+  "signals": [
+   "SIGTERM"
+  ],
+  "acked": true,
+  "readback": [
+   {
+    "at": "2026-10-27T15:23:58.887Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:24:13.730Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:24:28.509Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:24:43.321Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:24:58.277Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:25:14.604Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:25:29.368Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:25:43.916Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:25:58.812Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:28:11.812Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:28:23.729Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:28:35.373Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:28:47.013Z",
+    "state": "Critical"
+   },
+   {
+    "at": "2026-10-27T15:28:58.624Z",
+    "state": "Critical"
+   }
+  ],
+  "after": {
+   "at": "2026-10-27T15:28:58.624Z",
+   "state": "Critical"
+  },
+  "end": "heatRemains",
+  "conditionSet": false
+ }
+}

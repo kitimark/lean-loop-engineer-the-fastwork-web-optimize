@@ -33,6 +33,10 @@
   .col:nth-child(2n) .track {
     animation: 16s ease-in-out infinite alternate down;
   }
+  /* probe-off (measurement only): the pictures keep their boxes and layers but paint nothing */
+  .stage[data-fw-variant='probe-off'] img {
+    visibility: hidden;
+  }
   .col img {
     object-fit: cover;
     border-radius: 12px;

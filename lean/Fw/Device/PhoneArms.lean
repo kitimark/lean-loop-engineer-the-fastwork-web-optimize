@@ -1117,6 +1117,180 @@ theorem latin_base_each : latinRows.all (fun r => r.count base == 1) = true := b
 theorem latin_index : (List.range 16).all (fun i => latinOrder.getD i base == (latinRows.getD (latinRound i) []).getD (latinPos i) base) = true := by
   decide
 
+def probeFlag : String := "morph.columns:probe-off"
+
+def colsArms : List Arm :=
+  [base, ⟨"cols-off", .rewrite, [probeFlag]⟩, ⟨"flip", .rewrite, ["morph.geom:on", "morph.tween:geom-timed"]⟩,
+   ⟨"flip+cols-off", .rewrite, ["morph.geom:on", "morph.tween:geom-timed", probeFlag]⟩]
+
+def colsRows : List (List Arm) := latinIdx.map fun r => r.map fun j => colsArms.getD j base
+
+def colsOrder : List Arm := colsRows.flatten
+
+def colsCol (p : Nat) : List Arm := colsRows.map fun r => r.getD p base
+
+def colsPairs (a b : Arm) : Nat := (colsRows.map fun r => (r.zip r.tail).count (a, b)).sum
+
+def colsOk (order : List Arm) : Bool := colsArms.all fun a => decide (minVisits ≤ order.count a)
+
+theorem colsOrder_length : colsOrder.length = 16 := by decide
+
+theorem cols_same_order : colsOrder.map (fun a => colsArms.idxOf a) = latinIdx.flatten := by decide
+
+theorem cols_rows_once : colsRows.all (fun r => colsArms.all fun a => r.count a == 1) = true := by decide
+
+theorem cols_cols_once : (List.range 4).all (fun p => colsArms.all fun a => (colsCol p).count a == 1) = true := by decide
+
+theorem cols_carry : colsArms.all (fun a => colsArms.all fun b => colsPairs a b == (if a == b then 0 else 1)) = true := by decide
+
+theorem cols_ok : colsOk colsOrder = true := by decide
+
+theorem cols_noRepeat : noRepeat colsOrder = true := by decide
+
+theorem cols_base_each : colsRows.all (fun r => r.count base == 1) = true := by decide
+
+theorem cols_index : (List.range 16).all (fun i => colsOrder.getD i base == (colsRows.getD (latinRound i) []).getD (latinPos i) base) = true := by
+  decide
+
+def colsContrasts : List (String × String) := [("base", "cols-off"), ("flip", "flip+cols-off")]
+
+def armById (id : String) : Option Arm := colsArms.find? (·.id == id)
+
+theorem contrasts_differ_by_probe : colsContrasts.all (fun (r, a) =>
+    match armById r, armById a with
+    | some x, some y => y.flags == x.flags ++ [probeFlag] && x.target == y.target
+    | _, _ => false) = true := by decide
+
+inductive Cause where
+  | decided | overlap | withinSpread | unresolved
+  deriving DecidableEq, Repr
+
+def Cause.name : Cause → String
+  | .decided => "decided" | .overlap => "overlap" | .withinSpread => "withinSpread" | .unresolved => "unresolved"
+
+def cause (ref arm : List Int) : Cause :=
+  match verdict ref arm with
+  | .beats => .decided
+  | .worse => .decided
+  | .unresolved => .unresolved
+  | .same =>
+    match ref.min?, ref.max?, arm.min?, arm.max? with
+    | some rLo, some rHi, some aLo, some aHi => if aHi < rLo ∨ rHi < aLo then .withinSpread else .overlap
+    | _, _, _, _ => .unresolved
+
+theorem cause_decided_beats {ref arm : List Int} (h : verdict ref arm = .beats) : cause ref arm = .decided := by
+  simp [cause, h]
+
+theorem cause_decided_worse {ref arm : List Int} (h : verdict ref arm = .worse) : cause ref arm = .decided := by
+  simp [cause, h]
+
+theorem cause_unresolved {ref arm : List Int} (h : verdict ref arm = .unresolved) : cause ref arm = .unresolved := by
+  simp [cause, h]
+
+theorem cause_overlap_same {ref arm : List Int} (h : cause ref arm = .overlap) : verdict ref arm = .same := by
+  unfold cause at h
+  cases hv : verdict ref arm <;> simp_all
+
+theorem cause_overlap_touch {ref arm : List Int} (h : cause ref arm = .overlap) :
+    ∃ rLo rHi aLo aHi, ref.min? = some rLo ∧ ref.max? = some rHi ∧ arm.min? = some aLo ∧ arm.max? = some aHi ∧ aLo ≤ rHi ∧ rLo ≤ aHi := by
+  unfold cause at h
+  cases hv : verdict ref arm <;> simp only [hv] at h <;> try (exact absurd h (by simp))
+  split at h
+  · rename_i rLo rHi aLo aHi hmn hmx amn amx
+    by_cases c : aHi < rLo ∨ rHi < aLo
+    · simp [c] at h
+    · exact ⟨rLo, rHi, aLo, aHi, hmn, hmx, amn, amx, by omega, by omega⟩
+  · exact absurd h (by simp)
+
+theorem cause_apart_same {ref arm : List Int} (h : cause ref arm = .withinSpread) : verdict ref arm = .same := by
+  unfold cause at h
+  cases hv : verdict ref arm <;> simp_all
+
+theorem cause_apart_gap {ref arm : List Int} (h : cause ref arm = .withinSpread) :
+    ∃ rLo rHi aLo aHi, ref.min? = some rLo ∧ ref.max? = some rHi ∧ arm.min? = some aLo ∧ arm.max? = some aHi ∧
+      ((aHi < rLo ∧ rLo ≤ aHi + spread ref) ∨ (rHi < aLo ∧ aLo ≤ rHi + spread ref)) := by
+  unfold cause at h
+  cases hv : verdict ref arm <;> simp only [hv] at h <;> try (exact absurd h (by simp))
+  split at h
+  · rename_i rLo rHi aLo aHi hmn hmx amn amx
+    refine ⟨rLo, rHi, aLo, aHi, hmn, hmx, amn, amx, ?_⟩
+    unfold verdict at hv
+    simp only [hmn, hmx, amn, amx] at hv
+    split at hv <;> try simp at hv
+    split at hv <;> try simp at hv
+    by_cases c : aHi < rLo
+    · left; exact ⟨c, by omega⟩
+    · right
+      by_cases c2 : rHi < aLo
+      · exact ⟨c2, by omega⟩
+      · simp [c, c2] at h
+  · exact absurd h (by simp)
+
+def causes (ref arm : List (List Int)) : List Cause :=
+  if minVisits ≤ ref.length ∧ minVisits ≤ arm.length then
+    List.zipWith cause (columns pushMetrics.length ref) (columns pushMetrics.length arm)
+  else List.replicate pushMetrics.length .unresolved
+
+theorem causes_length (ref arm : List (List Int)) : (causes ref arm).length = pushMetrics.length := by
+  unfold causes
+  split <;> simp [columns]
+
+theorem causes_few_ref {ref : List (List Int)} (arm : List (List Int)) (h : ref.length < minVisits) :
+    causes ref arm = List.replicate pushMetrics.length .unresolved := by
+  simp [causes]; intro h1; omega
+
+theorem causes_few_arm (ref : List (List Int)) {arm : List (List Int)} (h : arm.length < minVisits) :
+    causes ref arm = List.replicate pushMetrics.length .unresolved := by
+  simp [causes]; intro _ h1; omega
+
+inductive Ev where
+  | push | take
+  deriving DecidableEq, Repr
+
+def Ev.name : Ev → String
+  | .push => "push" | .take => "take"
+
+def takenOf : List Ev → Nat
+  | .push :: .take :: rest => 1 + takenOf rest
+  | _ :: rest => takenOf rest
+  | [] => 0
+
+def pushesOf (l : List Ev) : Nat := l.count .push
+
+theorem takenOf_le : ∀ l : List Ev, takenOf l ≤ pushesOf l
+  | [] => by simp [takenOf, pushesOf]
+  | .push :: .take :: rest => by
+    have := takenOf_le rest
+    simp only [takenOf, pushesOf] at this ⊢
+    simp
+    omega
+  | .push :: .push :: rest => by
+    have := takenOf_le (.push :: rest)
+    simp only [takenOf, pushesOf] at this ⊢
+    simp at this ⊢
+    omega
+  | .take :: rest => by
+    have := takenOf_le rest
+    simp only [takenOf, pushesOf] at this ⊢
+    simp
+    omega
+  | [.push] => by simp [takenOf, pushesOf]
+
+theorem takenOf_none (l : List Ev) (h : Ev.take ∉ l) : takenOf l = 0 := by
+  induction l with
+  | nil => rfl
+  | cons a rest ih =>
+    have hr : Ev.take ∉ rest := fun m => h (List.mem_cons_of_mem _ m)
+    cases a with
+    | take => exact absurd (List.mem_cons_self ..) h
+    | push =>
+      cases rest with
+      | nil => rfl
+      | cons b r2 =>
+        cases b with
+        | take => exact absurd (List.mem_cons_self ..) hr
+        | push => simp only [takenOf]; exact ih hr
+
 private def strsJ (l : List String) : Json := Json.arr (l.map Json.str).toArray
 
 private def armJ (a : Arm) : Json := Json.mkObj [("id", a.id), ("target", a.target.name), ("flags", strsJ a.flags)]
@@ -1299,6 +1473,29 @@ private def rowCases : List (String × List (List Int) × List (List Int)) :=
      [[11, 21, 31, 41, 51, 61, 71, 81], [13, 23, 33, 43, 53, 63, 73, 83], [12, 22, 32, 42, 52, 62, 72, 82]]),
    ("none", [], [])]
 
+private def colsCauseCases : List (String × List (List Int) × List (List Int)) :=
+  rowCases ++
+  [("wide reference spread", [[10, 1, 1, 1, 1, 1, 1, 1], [50, 1, 1, 1, 1, 1, 1, 1], [90, 1, 1, 1, 1, 1, 1, 1]],
+     [[160, 1, 1, 1, 1, 1, 1, 1], [165, 1, 1, 1, 1, 1, 1, 1], [170, 1, 1, 1, 1, 1, 1, 1]]),
+   ("beyond the spread", [[10, 1, 1, 1, 1, 1, 1, 1], [50, 1, 1, 1, 1, 1, 1, 1], [90, 1, 1, 1, 1, 1, 1, 1]],
+     [[400, 1, 1, 1, 1, 1, 1, 1], [410, 1, 1, 1, 1, 1, 1, 1], [420, 1, 1, 1, 1, 1, 1, 1]])]
+
+private def traceCases : List (String × List Ev) :=
+  [("none", []), ("one pushed, one taken", [.push, .take]), ("pushed, not taken", [.push, .push, .take]),
+   ("pushes only", [.push, .push, .push]), ("three taken of four", [.push, .take, .push, .take, .push, .push, .take]),
+   ("a second take is not another push", [.push, .take, .take])]
+
+def colsGoldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "colscons"), ("probeFlag", probeFlag), ("arms", Json.arr (colsArms.map armJ).toArray),
+    ("latin", Json.arr (colsRows.map idsJ).toArray), ("order", idsJ colsOrder),
+    ("contrasts", Json.arr (colsContrasts.map fun (r, a) => Json.mkObj [("ref", r), ("arm", a)]).toArray)]).compress] ++
+  (colsCauseCases.map fun (n, b, a) =>
+    (Json.mkObj [("kind", "colscause"), ("name", n), ("ref", toJson b), ("arm", toJson a),
+      ("causes", strsJ ((causes b a).map Cause.name)), ("label", (pushLabel b a).name)]).compress) ++
+  (traceCases.map fun (n, es) =>
+    (Json.mkObj [("kind", "coltrace"), ("name", n), ("events", strsJ (es.map Ev.name)), ("pushes", pushesOf es),
+      ("taken", takenOf es)]).compress)
+
 def pushGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "pushconsts"), ("minVisits", minVisits), ("patternAsks", patternAsks), ("burstAsks", burstAsks),
     ("overLimit", overLimit), ("pushes", pushes), ("metrics", strsJ pushMetrics), ("askCycle", strsJ (askCycle.map Step.name)),
@@ -1383,7 +1580,7 @@ def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress] ++
-  pushGoldenLines ()
+  pushGoldenLines () ++ colsGoldenLines ()
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 

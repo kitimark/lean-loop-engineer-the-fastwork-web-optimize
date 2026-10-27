@@ -30,10 +30,13 @@ def lakeFile (n : String) (links : Nat) : Json :=
     ("links", toJson links), ("mtime", toJson 0), ("ctime", toJson 0), ("size", toJson 100)])] false
 
 def wt (cls : Nat) (rel : String) (newest : Nat) (merged dirty : Bool) (lock : Json := .str "free")
-    (branch := "worktree-w1") : Json :=
+    (branch := "worktree-w1") (localN : Option Nat := some 0) (localBytes : Nat := 0) : Json :=
   let branch := if cls == 2 && !merged && branch == "worktree-w1" then "worktree-open" else branch
-  cand cls s!"{repo}/.claude/worktrees/{rel}" newest [("branch", .str branch), ("merged", .bool merged),
-    ("dirty", .bool dirty), ("lock", lock)]
+  cand cls s!"{repo}/.claude/worktrees/{rel}" newest ([("branch", .str branch), ("merged", .bool merged),
+    ("dirty", .bool dirty), ("lock", lock)] ++
+    (if cls == 2 then (match localN with
+      | some n => [("localEntries", toJson n), ("localBytes", toJson localBytes)]
+      | none => []) else []))
 
 def scratch (d : String) (newest : Nat) (more : List (String × Json) := []) : Json :=
   cand 4 s!"/private/tmp/claude-1/-h-r/s1/scratchpad/{d}" newest more
@@ -67,6 +70,13 @@ def gcCases : List (String × String × Json) := [
     req [("lake", .null)] [lakeFile "a.o" 1]),
   ("class 2: a merged, clean, unlocked worktree is listed; dirty and unmerged ones are kept", "ops.diskGc",
     req [] [wt 2 "w1" 0 true false, wt 2 "w2" 0 true true, wt 2 "w3" 0 false false]),
+  ("class 2 (inc-raw-in-worktree): a worktree whose .local holds files is kept and reported with its size", "ops.diskGc",
+    req [] [wt 2 "w1" 0 true false, wt 2 "w2" 0 true false (.str "free") "worktree-w2" (some 12) 9000,
+      wt 2 "w3" 0 true false (.str "free") "worktree-w3" (some 1) 0]),
+  ("class 2 (inc-raw-in-worktree): an unread .local keeps it; an empty one does not", "ops.diskGc",
+    req [] [wt 2 "w1" 0 true false (.str "free") "worktree-w1" none, wt 2 "w2" 0 true false]),
+  ("class 2 (inc-raw-in-worktree): a .local with a dirty or unmerged worktree is kept without a .local report", "ops.diskGc",
+    req [] [wt 2 "w1" 0 true true (.str "free") "worktree-w1" (some 4) 100, wt 2 "w2" 0 false false (.str "free") "worktree-w2" (some 4) 100]),
   ("class 2: a lock held by a live process keeps it; a lock whose holder is gone does not", "ops.diskGc",
     req [("procs", .arr #[Json.mkObj [("pid", toJson 7), ("start", .str "Mon Oct 9 04:10:25 2026")]])]
       [wt 2 "w1" 0 true false holder, wt 2 "w2" 0 true false (Json.mkObj [("pid", toJson 8),

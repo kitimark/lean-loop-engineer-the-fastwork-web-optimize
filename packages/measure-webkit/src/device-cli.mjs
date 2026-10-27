@@ -11,7 +11,8 @@
 //   node src/device-cli.mjs frames  --target original|rewrite [--site <dist/aot>] [--reps 5] [--speed 800] [--out file]
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { resolve, dirname } from 'node:path';
+import { dirname } from 'node:path';
+import { rawResolve as resolve } from './device-raw-dir.mjs';
 import { withPhone } from './device.mjs';
 import { pageInfo, loadFresh } from './page.mjs';
 import { phoneCounts, phoneFrames } from './device-runs.mjs';
