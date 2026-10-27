@@ -642,4 +642,84 @@ theorem commit_eq (v : Fw.Parts.Nav.Vp) (hv : v ∈ bandVps) (k : Ks) (hk : k �
     · rw [rebase_end 0 (f 0) _ m0 0 hA h0 (by grind) (by grind) (by grind) hne]
       simpa [mk] using e0
 
+def takeOk (_f _t : Rat) (anims dark : Bool) : Bool := anims || dark
+
+theorem takeOk_up (f t : Rat) (_h : f < t) (anims dark : Bool) : takeOk f t anims dark = (anims || dark) := rfl
+
+theorem takeOk_down (f t : Rat) (_h : t < f) (anims dark : Bool) : takeOk f t anims dark = (anims || dark) := rfl
+
+def stepTake (s : Option Nat) (k : Nat) (d : Bool) : Option Nat :=
+  match s with
+  | some j => some j
+  | none => if d then some k else none
+
+def scanTake (P : Nat → Bool) : Nat → Nat → Option Nat → Option Nat
+  | _, 0, s => s
+  | k, n + 1, s => scanTake P (k + 1) n (stepTake s k (P k))
+
+theorem stepTake_taken (j k : Nat) (d : Bool) : stepTake (some j) k d = some j := rfl
+
+theorem scanTake_taken (P : Nat → Bool) : ∀ (n k j : Nat), scanTake P k n (some j) = some j
+  | 0, _, _ => rfl
+  | n + 1, k, j => by simp only [scanTake, stepTake_taken]; exact scanTake_taken P n (k + 1) j
+
+theorem scanTake_none_eq (P : Nat → Bool) : ∀ (n k : Nat), scanTake P k n none = firstFrom P k n
+  | 0, k => rfl
+  | n + 1, k => by
+    by_cases h : P k = true
+    · simp [scanTake, stepTake, firstFrom, h, scanTake_taken]
+    · simp [scanTake, stepTake, firstFrom, h]
+      exact scanTake_none_eq P n (k + 1)
+
+def takeFrame (f t : Rat) (anims : Bool) (dark : Nat → Bool) (n : Nat) : Option Nat :=
+  scanTake (fun k => takeOk f t anims (dark k)) 0 n none
+
+theorem take_at_first_dark (f t : Rat) (dark : Nat → Bool) (n r : Nat) (hr : r < n) (hd : dark r = true)
+    (hb : ∀ j, j < r → dark j = false) : takeFrame f t false dark n = some r := by
+  unfold takeFrame
+  rw [scanTake_none_eq]
+  have key : ∀ (k m : Nat), k ≤ r → r < k + m → firstFrom (fun k => takeOk f t false (dark k)) k m = some r := by
+    intro k m
+    induction m generalizing k with
+    | zero => intro _ h; omega
+    | succ m ih =>
+      intro h1 h2
+      by_cases hk : k = r
+      · subst hk; simp [firstFrom, takeOk, hd]
+      · have : dark k = false := hb k (by omega)
+        simp [firstFrom, takeOk, this]
+        exact ih (k + 1) (by omega) (by omega)
+  exact key 0 n (by omega) (by omega)
+
+theorem take_entered (f t : Rat) (dark : Nat → Bool) (n : Nat) : takeFrame f t true dark (n + 1) = some 0 := by
+  simp [takeFrame, scanTake, stepTake, takeOk, scanTake_taken]
+
+theorem take_never (f t : Rat) (dark : Nat → Bool) (hn : ∀ j, dark j = false) :
+    ∀ n, takeFrame f t false dark n = none := by
+  have g : ∀ (P : Nat → Bool), (∀ j, P j = false) → ∀ (n k : Nat), scanTake P k n none = none := by
+    intro P hP n
+    induction n with
+    | zero => intro k; rfl
+    | succ n ih => intro k; simp only [scanTake, stepTake, hP]; exact ih (k + 1)
+  intro n
+  exact g _ (fun j => by simp [takeOk, hn]) n 0
+
+theorem firstFrom_stable (P : Nat → Bool) : ∀ (k n r m : Nat), firstFrom P n k = some r → firstFrom P n (k + m) = some r
+  | 0, n, r, m, h => by simp [firstFrom] at h
+  | k + 1, n, r, m, h => by
+    by_cases hp : P n = true
+    · have e : k + 1 + m = (k + m) + 1 := by omega
+      rw [e]; simp only [firstFrom, hp, ite_true] at h ⊢; exact h
+    · have e : k + 1 + m = (k + m) + 1 := by omega
+      rw [e]; simp only [firstFrom, hp] at h ⊢
+      exact firstFrom_stable P k (n + 1) r m h
+
+theorem switch_jump_zero (p a : Rat) (rest : Track) (s : St) (t : Rat) (h : Asc ((p, a) :: rest))
+    (hp : p ≤ s.f) (hf : s.f ≤ lastP p rest) (hgp : p ≤ s.t) (hgl : s.t ≤ lastP p rest) (hne : s.f ≠ s.t)
+    (ht0 : s.start ≤ t) (ht1 : t ≤ s.start + 680) :
+    shown ((p, a) :: rest) s t = Track.eval ((p, a) :: rest) (frame s t).value := by
+  rw [timed_eq_ideal_set p a rest s t h hp hf hgp hgl hne ht0 ht1]
+  rfl
+
+
 end Fw.Parts.MorphGeomTimed

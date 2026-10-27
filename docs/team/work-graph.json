@@ -22863,7 +22863,8 @@
     "research/findings/ledger.json",
     "results/morph-push-sim/**",
     "docs/team/handoffs/morph-push-sim.md"
-   ]
+   ],
+   "evidence": "ff43fa0"
   },
   {
    "devices": [
@@ -22916,7 +22917,13 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-flip-fix.md",
     "results/geom-flip-fix/**",
-    "docs/team/handoffs/geom-flip-fix.md"
+    "docs/team/handoffs/geom-flip-fix.md",
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/premise-tests/src/look.mjs",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "packages/contracts/golden/ci/**"
    ]
   },
   {
@@ -22975,7 +22982,8 @@
     "research/notes/2026/10-2x-timed-take-retry.md",
     "results/timed-take-retry/**",
     "docs/team/handoffs/timed-take-retry.md"
-   ]
+   ],
+   "evidence": "52c4194"
   },
   {
    "devices": [

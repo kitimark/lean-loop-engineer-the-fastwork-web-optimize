@@ -46,6 +46,7 @@ export const START_JS = `(() => {
     }
     requestAnimationFrame(f);
   };
+  st.cb = f;
   requestAnimationFrame(f);
   return 'started';
 })()`;

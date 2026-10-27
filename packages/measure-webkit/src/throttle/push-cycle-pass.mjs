@@ -7,7 +7,9 @@ import { takeCensus } from '../census.mjs';
 import { dragPass } from './driver.mjs';
 import { startServer, stopServer, logTail } from '../touch-push.mjs';
 import { START_JS, FETCH_JS, nearEndJs } from './finish-page.mjs';
-import { EXTRA_START_JS, EXTRA_FETCH_JS } from './push-cycle-page.mjs';
+import { EXTRA_START_JS, EXTRA_FETCH_JS, STAMP_JS } from './push-cycle-page.mjs';
+import { startTimeline } from '../timeline.mjs';
+import { buildPushSegs, stampSync } from './morph-push.mjs';
 import { GAP_PX, NEAR_END_SETTLE_MS } from './finish-probe.mjs';
 import { restMs, SEP_DWELL_CYCLES } from './push-cycle.mjs';
 
@@ -65,9 +67,10 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
   const pre = await censusPoint(c, -1, seen);
   census.push(pre.point); seen = pre.ids;
   const n = profile === 'dwell' ? SEP_DWELL_CYCLES : drag.cycles;
+  const asked = profile === 'dwell' || profile === 'push';
   const pageOut = { ua: info.ua, vw: info.vw, vh: info.vh, dpr: info.dpr, docH: info.docH, fw: info.fw };
   let server = null;
-  if (profile === 'dwell') {
+  if (asked) {
     try {
       server = await startServer(driver, { udid, log: (l) => log(`${tag}: ${l}`), push: { dragPt: drag.dragPt, velocity: drag.velocity, holdMs: drag.holdMs }, maxS: SERVER_MAX_S, readyMs: SERVER_READY_MS, tag: `${tag}-srv`, suite: 'FinishServer' });
     } catch (e) {
@@ -76,6 +79,8 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     }
   }
   try {
+    const segs = [];
+    if (profile === 'push') await c.evaluate(STAMP_JS);
     const started = await c.evaluate(START_JS);
     if (started !== 'started') throw new Error(`the recorder did not start (${started})`);
     const extra = await c.evaluate(EXTRA_START_JS);
@@ -84,15 +89,29 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     const t0 = Date.now();
     const calls = [], quiet = [];
     let run = null, tail = null;
-    if (profile === 'dwell') {
+    if (asked) {
       run = { code: 0, timedOut: false, signal: null };
       for (let k = 0; k < n; k++) {
-        const began = Date.now(), beganPage = await pageNow(c);
+        const began = Date.now();
+        const tl = profile === 'push' ? await startTimeline(c).catch((e) => { log(`${tag}: cycle ${k + 1}: no timeline (${e.message})`); return null; }) : null;
+        if (tl) log(`${tag}: cycle ${k + 1}: timeline up`);
+        const beganPage = profile === 'push' ? null : await pageNow(c);
         const presses = await askCycle(server, CYCLE_DONE_MS);
-        const endPage = await pageNow(c);
-        calls.push({ k, ok: presses !== null, beganMs: Math.round(beganPage), endMs: Math.round(endPage), presses });
+        log(`${tag}: cycle ${k + 1}: asked ${presses === null ? 'without an answer' : 'and answered'}`);
+        const endPage = profile === 'push' ? null : await pageNow(c);
+        calls.push({ k, ok: presses !== null, beganMs: beganPage === null ? null : Math.round(beganPage), endMs: endPage === null ? null : Math.round(endPage), presses });
         log(`${tag}: cycle ${k + 1} ${presses === null ? 'failed (no answer from the driver)' : `done, presses ${presses.join(' ')} ms`}`);
+        if (tl) { // no host evaluate in this path: the page stamps itself (STAMP_JS)
+          await sleep(300);
+          try {
+            const rows = await tl.stop();
+            const g = stampSync(rows);
+            log(`${tag}: cycle ${k + 1}: timeline stopped, ${rows.length} rows${g ? '' : ', no stamps'}`);
+            if (g) segs.push({ rows, ...g });
+          } catch (e) { log(`${tag}: cycle ${k + 1}: timeline stop failed (${e.message})`); }
+        }
         if (presses === null) { run = { code: 1, timedOut: !server.run.state.ended, signal: null }; tail = logTail(server.run.logFile); break; }
+        if (profile === 'push') continue;
         await sleep(CENSUS_SETTLE_MS);
         const cp = await censusPoint(c, k, seen);
         census.push(cp.point); seen = cp.ids;
@@ -107,10 +126,13 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     }
     log(`${tag}: touches ${run.code === 0 ? 'done' : `failed (code ${run.code}${run.timedOut ? ', timed out' : ''})`} in ${Math.round((Date.now() - t0) / 1000)} s`);
     await sleep(500);
+    const endP = await pageNow(c);
     const rec = JSON.parse(await c.evaluate(FETCH_JS));
     if (rec.err) throw new Error(rec.err);
     const x = JSON.parse(await c.evaluate(EXTRA_FETCH_JS));
     if (server) { await stopServer(server); server = null; }
+    const pushOut = profile === 'push' ? buildPushSegs({ segs, endP, rafs: x.raf ?? [], rec }) : null;
+    if (pushOut) log(`${tag}: ${pushOut.starts.length} pushes, ${pushOut.rows.length} style/layout/paint rows and ${pushOut.rafs.length} page rAF requests in their windows, sync drift ${pushOut.drift} ms`);
     const post = await censusPoint(c, n, seen);
     census.push(post.point);
     return {
@@ -119,6 +141,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
       drag: { code: run.code, timedOut: run.timedOut, signal: run.signal, tail },
       calls, census,
       rec: { ...rec, rz: x.rz, vvr: x.vvr, vvs: x.vvs, quiet },
+      ...(pushOut ? { push: pushOut } : {}),
     };
   } finally { if (server) await stopServer(server); }
 }

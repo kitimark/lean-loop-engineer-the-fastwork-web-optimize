@@ -14,6 +14,7 @@ import { pushCyclePass } from './push-cycle-pass.mjs';
 import { searchOf, uploadName, periodMs, SEP_FULL_CYCLES } from './push-cycle.mjs';
 import { passFile } from '../session.mjs';
 import { reportMd } from './push-cycle-report.mjs';
+import { morphReportMd } from './morph-push.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -26,7 +27,7 @@ const { values: v } = parseArgs({
     timeout: { type: 'string', default: '480' }, reset: { type: 'boolean', default: false }, 'no-warmup': { type: 'boolean', default: false },
     settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' }, out: { type: 'string' }, driver: { type: 'string' },
     in: { type: 'string' }, md: { type: 'string' }, expect: { type: 'string' }, keep: { type: 'boolean', default: true },
-    separate: { type: 'boolean', default: false }, ratio: { type: 'string', default: '2' }, 'rest-cap': { type: 'string', default: '120000' },
+    separate: { type: 'boolean', default: false }, 'morph-push': { type: 'boolean', default: false }, morph: { type: 'boolean', default: false }, ratio: { type: 'string', default: '2' }, 'rest-cap': { type: 'string', default: '120000' },
   },
   allowNegative: true,
 });
@@ -61,7 +62,7 @@ async function main() {
       const runner = (profile) => makePassRunner({ driver, udid, drag, log, vm: v.vm, keep: v.keep, settleMs: Number(v.settle), outDir, siteOf,
         firstSiteArm: arms.find((x) => x !== 'original') ?? 'original', passOf: (ctx, o) => pushCyclePass(ctx, { ...o, profile, targetMs: plan.targetMs, restCapMs: Number(v['rest-cap']) }),
         reasonOf: excludeReason, state: { passes, failed, machine }, save });
-      const full = runner('full');
+      const full = runner(v['morph-push'] ? 'push' : 'full');
       const dwell = v.separate ? runner('dwell') : null;
       try {
         if (!v['no-warmup']) await full.warmUp('warm-up');
@@ -89,7 +90,7 @@ async function main() {
     case 'report': {
       if (!v.in) throw new Error('usage: report --in a.json,b.json [--md file] [--expect 1,2,3]');
       const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8'))).map((j, i) => ({ ...j, vm: `job ${j.vm ?? i + 1}` }));
-      const md = reportMd(jobs, v.expect ? v.expect.split(',').map((n) => `job ${n}`) : null);
+      const md = v.morph ? morphReportMd(jobs) : reportMd(jobs, v.expect ? v.expect.split(',').map((n) => `job ${n}`) : null);
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }
