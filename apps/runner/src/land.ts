@@ -156,7 +156,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/gate/**", "packages/contracts/golden/parts/**", "packages/contracts/fixtures/trajectory-gpu/**",
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
     "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
-  "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs"],
+  "packages/premise-tests": ["packages/gate-breakpoints/src/align-equiv.mjs", "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/diff.mjs", "packages/visual-diff/src/run.mjs"],
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
