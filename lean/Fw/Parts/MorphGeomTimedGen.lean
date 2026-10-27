@@ -1,4 +1,5 @@
 import Fw.Parts.MorphGeomTimed
+import Fw.Parts.MorphGeomVerify
 namespace Fw.Parts.MorphGeomTimed
 open Lean Fw.Parts.MorphGeom Fw.Parts.MorphTween
 
@@ -74,7 +75,33 @@ def takeLines (_ : Unit) : List String :=
       (Json.mkObj [("taken", jl (rows.map fun r => match r.1 with | some k => .num ⟨k, 0⟩ | none => .null)),
         ("m", jl (rows.map fun r => jdec 6 r.2))])
 
-def goldenText (_ : Unit) : String := String.join ((scenarioLines () ++ rebaseLines () ++ crossLines () ++ takeLines ()).map (· ++ "\n"))
+def quietCases : List (Rat × List (Nat × Rat)) :=
+  [(984, [(0, 984), (0, 984), (0, 984)]), (984, [(0, 984), (2, 984)]), (984, [(0, 984), (0, 990)]), (984, [(0, 983)]),
+   (984, [(0, 982)]), (984, [(0, 984), (0, 984 + 1 / 2)]), (984, [])]
+
+def keptCases : List (Nat × List (Rat × Rat × Rat)) :=
+  [(0, [(50 / 3, 1000, 1000 + 50 / 3)]), (0, [(50 / 3, 1000, 50 / 3)]), (0, []), (1, [(50 / 3, 1000, 1000 + 50 / 3)]),
+   (0, [(50 / 3, 1000, 1000 + 50 / 3), (50 / 3, 1000, 50 / 3)]), (0, [(50 / 3, 0, 50 / 3)]), (0, [(100 / 3, 5000, 5000 + 100 / 3 + 10)]),
+   (0, [(50 / 3, 1000, 1040)])]
+
+def traceCases : List (List TakeEv) :=
+  [[], [.push], [.push, .take], [.push, .push, .take], [.push, .take, .push], [.push, .take, .push, .take], [.take, .push, .take]]
+
+def verifyLines (_ : Unit) : List String :=
+  gline "verify" [] (Json.mkObj [("windowMs", .num ⟨verifyWindowMs, 0⟩), ("frameMs", jdec 4 verifyFrameMs), ("tolPx", jdec 4 verifyTolPx),
+    ("mutations", jl (Mutation.all.map fun m => Json.mkObj [("id", .str m.name), ("reading", .str m.reading)]))]) ::
+  (quietCases.map fun (b, fs) =>
+    gline "verifyQuiet" [("base", jdec 4 b), ("tol", jdec 4 verifyTolPx),
+      ("frames", jl (fs.map fun (n, w) => Json.mkObj [("moving", .num ⟨n, 0⟩), ("width", jdec 4 w)]))]
+      (.bool (quietOk b verifyTolPx (fs.map fun (n, w) => ⟨n, w⟩)))) ++
+  (keptCases.map fun (lost, ps) =>
+    gline "verifyKept" [("frame", jdec 4 verifyFrameMs), ("lost", .num ⟨lost, 0⟩),
+      ("pairs", jl (ps.map fun (dt, b, a) => Json.mkObj [("dt", jdec 4 dt), ("before", jdec 4 b), ("after", jdec 4 a)]))]
+      (.bool (keptAll verifyFrameMs lost ps))) ++
+  (traceCases.map fun evs =>
+    gline "verifyTrace" [("events", jl (evs.map fun e => Json.str e.name))] (.bool (pushesTaken evs)))
+
+def goldenText (_ : Unit) : String := String.join ((scenarioLines () ++ rebaseLines () ++ crossLines () ++ takeLines () ++ verifyLines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with

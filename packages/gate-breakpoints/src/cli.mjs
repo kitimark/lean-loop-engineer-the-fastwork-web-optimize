@@ -192,7 +192,19 @@ if (cmd === 'run') {
   const engines = e === 'both' ? ['chromium', 'playwright-webkit'] : [e];
   const bands = argv.includes('--bands') ? arg('bands', '').split(',') : null;
   let ok = true;
-  for (const engineName of engines) ok = (await runFlipCell({ engineName, fw: arg('fw', 'morph.geom:on'), outDir: out, bandFilter: bands })) && ok;
+  const mutation = argv.includes('--mutation') ? arg('mutation', '') : null;
+  const expectFail = argv.includes('--expect-fail');
+  const reportOnly = argv.includes('--report-only');
+  for (const engineName of engines) ok = (await runFlipCell({ engineName, fw: arg('fw', 'morph.geom:on'), outDir: out, bandFilter: bands, mutation, expectFail, reportOnly })) && ok;
+  process.exit(ok ? 0 : 1);
+} else if (cmd === 'verify') {
+  const { runFlipVerify } = await import('./flip-verify.mjs');
+  const e = arg('engine', 'both');
+  const engines = e === 'both' ? ['chromium', 'playwright-webkit'] : [e];
+  const bands = argv.includes('--bands') ? arg('bands', '').split(',') : null;
+  const mutation = argv.includes('--mutation') ? arg('mutation', '') : null;
+  let ok = true;
+  for (const engineName of engines) ok = (await runFlipVerify({ engineName, fw: arg('fw', 'morph.geom:on,morph.tween:geom-timed'), outDir: out, bandFilter: bands, mutation, expectFail: argv.includes('--expect-fail'), cycles: Number(arg('cycles', '2')) })) && ok;
   process.exit(ok ? 0 : 1);
 } else if (cmd === 'gaps') {
   // the gaps lane (src/gaps/): the Q33 cells, fractional widths and hover x pointer; see src/gaps/README.md
