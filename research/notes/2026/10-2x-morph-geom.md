@@ -63,7 +63,7 @@ The `composed` to `anims` lookup lemma in Lean is not written.
 | premise-tests, push 2 (backdrop.masked-ancestor narrowed to Chromium) | 40430312224 | success |
 | breakpoint gate, `morph.geom:on`, both engines | 40428166855 | chromium pass (504 cells, 0 fail, 7 excused); playwright-webkit pass (504 cells, 0 fail, 291 excused) |
 | Chromium counts, base vs flag, 3 runs each | 40428218497 vs 40428270226 | profile push-cycle-d1000; counts equal to the unit except raster.invalidatedLayers (base 4111/4113/4107, flag 4112/4107/4111) and Layer.deleted (base 29/41/29, flag 29/29/29). No Animation.* count differs |
-| WebKit Simulator counts, base and flag, 3 VMs | 40428422068, 40428440889 | still queued or running at hand-back (pending) |
+| WebKit Simulator counts, base 40428422068 vs flag 40428440889, 3 VMs each (offscreen-webkit-cli.mjs, minVms 3) | both complete | all four zones decided, verdict noGain (z4500 10 steps, z5000 5, finish 15, whole 105); the flag's Paint/Layout/RecalculateStyles ranges overlap or exceed the base (whole: Paint 1310-1359 base, 1254-1338 flag; Layout 601-635, 609-653); Composite and FireAnimationFrame equal |
 
 Chromium counts: the Lean window reader (`OffscreenWindows`, minFrames 34/20/40/60/20/174) defines windows for swipe-touch-v1
 only and refuses these counts.json (profile push-cycle-d1000), so no window verdict exists for this flag. The equal counts
@@ -100,3 +100,5 @@ loads and is not reported as a look reading. Accepted limits: one engine (Chromi
 Per level, proved in `MorphGeomCounts.lean`: level 0 (faithful backs the nav only): flip fits 10 of 12 bands, 12 of 12 with the
 platform dropped; level 2 (nav, panel, platform): 12 of 12. The faithful level stays undecided (no census lane exists), an
 accepted limit; the follow-up task is the faithful morph-frame layer census.
+
+WebKit reading: the flag is no gain on the engine-computation counts of the swipe scroll (the morph is a small part of the 105 steps and the tracks add Layout in the flip-on frames); the saving the design claims is memory and compositor work, which these counts do not show. Not a failure of the pinned unit.
