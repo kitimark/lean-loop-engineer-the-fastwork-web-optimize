@@ -12,7 +12,6 @@ CI runs (state):
 - marquee:probe-off 40428340750: success 3 of 3. Reader: noGain in all 4 zones, decided. results/webkit-recount/marquee-probe-off-zones.json
 - layer-sweep retry 40408733016: r1, r2 ok, r3 LOST (Timeline.stop timeout). Good sweep sessions: 40366658003 r1, 40408733016 r1 and r2, 40441397213 r1 = 4 jobs (linked r11, r21, r22, r31)
 - layer-sweep final dispatch 40441397213 (--runs 3): r1 ok, r2 cancelled at artifact upload (no files), r3 LOST (simctl shutdown ETIMEDOUT at Determinism sessions). Layer-sweep arm = 4 VMs, 6+8 passes: DECIDED gain (Paint less only; class L look change, for the user's review). No more dispatches allowed.
-Next waves in order: layer-sweep (platform.sweep:layer-sweep), hero.exit:contain, platform.entries:probe-off, platform.marquee:probe-off.
 Lane takes one site config per VM job (no several arms per VM).
 Reader: packages/measure-webkit/src/offscreen-webkit-cli.mjs (zones z4500 z5000 finish whole); hero.exit:contain also results/hero-relayout-boundary/read-webkit.mjs windows.
 

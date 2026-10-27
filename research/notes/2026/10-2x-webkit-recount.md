@@ -6,7 +6,7 @@ Date: 2026-10-27. Branch `worktree-wf_60f31c57-bb5-1`, CI branch `ci/webkit-reco
 
 The base is pooled from several runs at the same sha, 3 distinct VM ids, 6 passes: retry run 40360267706 r1, first run 40349554405 r2 and r3 (first-run r1 lost at Determinism sessions: Safari opened no tab, stall watchdog at 748 s). Retry r2 of 40360267706 is a sensitivity extra and is not in the pool. All arms below are read against this one base.
 
-Rule: a VM is one job of one run. Every GitHub job gets a fresh VM, so the slot name `webkit-sim-r<k>` of the reader is not an identity: the same slot in two runs is two VMs. When arms pool jobs from several runs, the session directories are linked under distinct names (`webkit-sim-r11`, `r21`, ...) before the reader counts VMs. Base: three jobs of two runs, 3 VMs.
+Rule: a VM is one job of one run. Every GitHub job gets a fresh VM (CONFIRMED: GitHub Docs, about GitHub-hosted runners: each job runs in a fresh instance of the runner image), so the slot name `webkit-sim-r<k>` of the reader is not an identity: the same slot in two runs is two VMs. When arms pool jobs from several runs, the session directories are linked under distinct names (`webkit-sim-r11`, `r21`, ...) before the reader counts VMs. Base: three jobs of two runs, 3 VMs.
 
 ## Answer
 
