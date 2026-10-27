@@ -18,7 +18,7 @@ name: toolbar-throttle
 # set a smaller top-up. Its table is throttle/toolbar-report.mjs (reducers in Lean Fw.Measure.MorphEndCount, twin throttle/toolbar.mjs).
 # A commit message with [throttle:push-cycle] (task push-cycle-lag; [throttle:push-cycle:1000] for a 1 s dwell) runs six drag-past-the-end cycles per
 # pass on three arms: original, rewrite, and the user's composition (throttle/push-cycle.mjs; the table is throttle/push-cycle-report.mjs).
-# A commit message with [throttle:push-cycle-separate] (task push-cycle-separate) runs, per arm (rewrite, user), a 12-cycle pass and a dwell pass (six one-cycle touch runs with a census
+# A commit message with [throttle:push-cycle-separate] (tasks push-cycle-separate, push-cycle-16) runs, per arm (rewrite, user), a full pass (cycle count from Lean sepFullCycles) and a dwell pass (six one-cycle touch runs with a census
 # and a rest between them) in six jobs, and the report adds the Lean cycle-versus-clock verdict and the per-cycle layer and memory census.
 # Each VM is its own job (an independent sample) and uploads `toolbar-throttle-<vm>`; the report job builds the table from them.
 on:
@@ -254,7 +254,7 @@ jobs:
           # With [throttle:push-cycle-off] the arms are the user's composition and three flag-off pages of it (hero.countdown:strip off takes morph.countdown:strip with it, which requires it).
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
           DWELL_MS: ${{ (contains(github.event.head_commit.message, '[throttle:push-cycle:1000]') || contains(github.event.head_commit.message, '[throttle:push-cycle-separate]')) && '1000' || '300' }}
-          # [throttle:push-cycle-separate] (task push-cycle-separate): per arm (rewrite, user) one 12-cycle pass and one dwell pass (six one-cycle touch runs with a census and a rest
+          # [throttle:push-cycle-separate] (task push-cycle-separate): per arm (rewrite, user) one full pass (Lean sepFullCycles cycles, read by the CLI) and one dwell pass (six one-cycle touch runs with a census and a rest
           # between them), 1 s hold, six jobs; the Lean rule (Fw.Measure.PushCycle.sepVerdict) says cycle-driven, clock-driven or undecided.
           PC_SEPARATE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && '1' || '' }}
           PC_ARMS: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && 'rewrite,user' || contains(github.event.head_commit.message, '[throttle:push-cycle-off]') && 'user,off-hero.countdown:strip,off-morph.countdown:strip,off-engine.scroll:unthrottle' || 'original,rewrite,user' }}
@@ -269,7 +269,7 @@ jobs:
           if [ -n "$TOOLBAR" ]; then
             node src/throttle/toolbar-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --vm "$VM" --message "$MESSAGE" --cycles 4 --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           elif [ -n "$PC_SEPARATE" ]; then
-            node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$PC_ARMS" --rounds 1 --rotate "$((VM - 1))" --separate --cycles 12 --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
+            node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$PC_ARMS" --rounds 1 --rotate "$((VM - 1))" --separate --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           elif [ -n "$PUSH_CYCLE" ]; then
             node src/throttle/push-cycle-cli.mjs run --driver "$RUNNER_TEMP/touch-driver" --site "$SITE_DIR" --arms "$PC_ARMS" --rounds 1 --rotate "$((VM - 1))" --cycles 6 --hold "$DWELL_MS" --timeout 480 --reset --vm "$VM" --keep --out "out/$VM-throttle.json" 2> >(tee "out/$VM-throttle.log" >&2)
           elif [ -n "$MORPH_END" ]; then
@@ -480,13 +480,14 @@ jobs:
           MORPH_END: ${{ contains(github.event.head_commit.message, '[throttle:morph-end]') && '1' || '' }}
           TOOLBAR: ${{ contains(github.event.head_commit.message, '[throttle:toolbar]') && '1' || '' }}
           PUSH_CYCLE: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle') && '1' || '' }}
+          PC_EXPECT: ${{ contains(github.event.head_commit.message, '[throttle:push-cycle-separate]') && '1,2,3,4,5,6' || '' }}
         run: |
           set -euo pipefail
           node --test test/throttle-stillruns.test.mjs test/throttle-parts.test.mjs test/throttle-morph-end.test.mjs test/throttle-toolbar.test.mjs
           files=$(ls "$JOBS"/*/*-throttle.json | paste -sd, -)
           mkdir -p "$RUNNER_TEMP/table"
           if [ -n "$TOOLBAR" ]; then node src/throttle/toolbar-cli.mjs report --in "$files" --md "$RUNNER_TEMP/table/table.md"; echo '{}' > "$RUNNER_TEMP/table/parts.json"
-          elif [ -n "$PUSH_CYCLE" ]; then node src/throttle/push-cycle-cli.mjs report --in "$files" --md "$RUNNER_TEMP/table/table.md"; echo '{}' > "$RUNNER_TEMP/table/parts.json"
+          elif [ -n "$PUSH_CYCLE" ]; then node src/throttle/push-cycle-cli.mjs report --in "$files" ${PC_EXPECT:+--expect "$PC_EXPECT"} --md "$RUNNER_TEMP/table/table.md"; echo '{}' > "$RUNNER_TEMP/table/parts.json"
           elif [ -n "$MORPH_END" ]; then node src/throttle/cli.mjs report --in "$files" --md "$RUNNER_TEMP/table/table.md"; echo '{}' > "$RUNNER_TEMP/table/parts.json"
           else node src/throttle/parts-cli.mjs report --in "$files" --run "$GITHUB_RUN_ID" --md "$RUNNER_TEMP/table/table.md" --json "$RUNNER_TEMP/table/parts.json"; fi
           cat "$RUNNER_TEMP/table/table.md" >> "$GITHUB_STEP_SUMMARY"

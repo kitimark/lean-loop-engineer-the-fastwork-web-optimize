@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // node src/throttle/push-cycle-cli.mjs run --site dir --driver d [--arms original,rewrite,user] [--rounds 1] [--cycles 6] [--hold 600] [--vm n] [--out file]
-// node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file]
+// node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file] [--expect 1,2,3]
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -11,7 +11,7 @@ import { buildDriver, cleanup, findDriver, stop } from './driver.mjs';
 import { makePassRunner } from './pass-run.mjs';
 import { excludeReason } from './finish-report.mjs';
 import { pushCyclePass } from './push-cycle-pass.mjs';
-import { searchOf, uploadName, periodMs } from './push-cycle.mjs';
+import { searchOf, uploadName, periodMs, SEP_FULL_CYCLES } from './push-cycle.mjs';
 import { passFile } from '../session.mjs';
 import { reportMd } from './push-cycle-report.mjs';
 
@@ -25,7 +25,7 @@ const { values: v } = parseArgs({
     drag: { type: 'string', default: '480' }, velocity: { type: 'string', default: '150' }, target: { type: 'string', default: 'springboard' },
     timeout: { type: 'string', default: '480' }, reset: { type: 'boolean', default: false }, 'no-warmup': { type: 'boolean', default: false },
     settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' }, out: { type: 'string' }, driver: { type: 'string' },
-    in: { type: 'string' }, md: { type: 'string' }, keep: { type: 'boolean', default: true },
+    in: { type: 'string' }, md: { type: 'string' }, expect: { type: 'string' }, keep: { type: 'boolean', default: true },
     separate: { type: 'boolean', default: false }, ratio: { type: 'string', default: '2' }, 'rest-cap': { type: 'string', default: '120000' },
   },
   allowNegative: true,
@@ -47,7 +47,7 @@ async function main() {
       const udid = findDevice().udid;
       const driver = v.driver ? findDriver(resolve(v.driver)) : await buildDriver({ udid, log });
       log(`load ${loadavg()[0].toFixed(0)} before the first pass`);
-      const drag = { cycles: Number(v.cycles), dragPt: Number(v.drag), velocity: Number(v.velocity), holdMs: Number(v.hold), mode: 'finish', target: v.target };
+      const drag = { cycles: v.separate ? SEP_FULL_CYCLES : Number(v.cycles), dragPt: Number(v.drag), velocity: Number(v.velocity), holdMs: Number(v.hold), mode: 'finish', target: v.target };
       const passes = [], failed = [], machine = [];
       const file = resolve(v.out ?? 'out/push-cycle.json');
       const outDir = dirname(file);
@@ -87,9 +87,9 @@ async function main() {
       break;
     }
     case 'report': {
-      if (!v.in) throw new Error('usage: report --in a.json,b.json [--md file]');
+      if (!v.in) throw new Error('usage: report --in a.json,b.json [--md file] [--expect 1,2,3]');
       const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8'))).map((j, i) => ({ ...j, vm: `job ${j.vm ?? i + 1}` }));
-      const md = reportMd(jobs);
+      const md = reportMd(jobs, v.expect ? v.expect.split(',').map((n) => `job ${n}`) : null);
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }

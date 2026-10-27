@@ -1,0 +1,383 @@
+{
+ "schema": "hero-relayout-boundary-webkit/1",
+ "rows": [
+  {
+   "window": "hero-exit",
+   "lo": 0,
+   "hi": 1000,
+   "steps": [
+    21,
+    21
+   ],
+   "passes": [
+    6,
+    6
+   ],
+   "vms": [
+    3,
+    3
+   ],
+   "undecided": false,
+   "verdict": "noGain",
+   "passVerdict": "noGain",
+   "cmp": {
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "Composite": "same",
+    "RenderingFrame": "same",
+    "FireAnimationFrame": "same",
+    "TimerFire": "same",
+    "ObserverCallback": "same",
+    "EventDispatch": "same",
+    "FunctionCall": "same",
+    "ScheduleStyleRecalculation": "same",
+    "InvalidateLayout": "same"
+   },
+   "counts": {
+    "Layout": {
+     "base": [
+      153,
+      160,
+      150,
+      140,
+      152,
+      147
+     ],
+     "flag": [
+      147,
+      158,
+      153,
+      158,
+      139,
+      146
+     ]
+    },
+    "RecalculateStyles": {
+     "base": [
+      151,
+      153,
+      143,
+      139,
+      144,
+      142
+     ],
+     "flag": [
+      142,
+      154,
+      146,
+      151,
+      136,
+      141
+     ]
+    },
+    "Paint": {
+     "base": [
+      430,
+      362,
+      398,
+      389,
+      427,
+      408
+     ],
+     "flag": [
+      404,
+      367,
+      424,
+      413,
+      409,
+      409
+     ]
+    },
+    "InvalidateLayout": {
+     "base": [
+      152,
+      160,
+      145,
+      135,
+      141,
+      136
+     ],
+     "flag": [
+      133,
+      147,
+      151,
+      150,
+      136,
+      149
+     ]
+    },
+    "Composite": {
+     "base": [
+      41,
+      41,
+      41,
+      41,
+      41,
+      41
+     ],
+     "flag": [
+      41,
+      41,
+      41,
+      41,
+      41,
+      41
+     ]
+    }
+   }
+  },
+  {
+   "window": "after-exit",
+   "lo": 1001,
+   "hi": 2500,
+   "steps": [
+    30,
+    30
+   ],
+   "passes": [
+    6,
+    6
+   ],
+   "vms": [
+    3,
+    3
+   ],
+   "undecided": false,
+   "verdict": "noGain",
+   "passVerdict": "noGain",
+   "cmp": {
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "Composite": "same",
+    "RenderingFrame": "same",
+    "FireAnimationFrame": "same",
+    "TimerFire": "same",
+    "ObserverCallback": "same",
+    "EventDispatch": "same",
+    "FunctionCall": "same",
+    "ScheduleStyleRecalculation": "same",
+    "InvalidateLayout": "same"
+   },
+   "counts": {
+    "Layout": {
+     "base": [
+      192,
+      190,
+      202,
+      171,
+      194,
+      188
+     ],
+     "flag": [
+      166,
+      193,
+      195,
+      191,
+      171,
+      169
+     ]
+    },
+    "RecalculateStyles": {
+     "base": [
+      162,
+      166,
+      168,
+      154,
+      170,
+      161
+     ],
+     "flag": [
+      164,
+      167,
+      168,
+      167,
+      157,
+      157
+     ]
+    },
+    "Paint": {
+     "base": [
+      306,
+      294,
+      287,
+      347,
+      282,
+      259
+     ],
+     "flag": [
+      334,
+      287,
+      290,
+      303,
+      335,
+      358
+     ]
+    },
+    "InvalidateLayout": {
+     "base": [
+      149,
+      150,
+      150,
+      119,
+      146,
+      146
+     ],
+     "flag": [
+      133,
+      142,
+      153,
+      147,
+      123,
+      120
+     ]
+    },
+    "Composite": {
+     "base": [
+      60,
+      60,
+      60,
+      60,
+      60,
+      60
+     ],
+     "flag": [
+      60,
+      60,
+      60,
+      60,
+      60,
+      60
+     ]
+    }
+   }
+  },
+  {
+   "window": "whole",
+   "lo": 0,
+   "hi": 5200,
+   "steps": [
+    105,
+    105
+   ],
+   "passes": [
+    6,
+    6
+   ],
+   "vms": [
+    3,
+    3
+   ],
+   "undecided": false,
+   "verdict": "noGain",
+   "passVerdict": "noGain",
+   "cmp": {
+    "RecalculateStyles": "same",
+    "Layout": "same",
+    "Paint": "same",
+    "Composite": "same",
+    "RenderingFrame": "same",
+    "FireAnimationFrame": "same",
+    "TimerFire": "same",
+    "ObserverCallback": "same",
+    "EventDispatch": "same",
+    "FunctionCall": "same",
+    "ScheduleStyleRecalculation": "same",
+    "InvalidateLayout": "same"
+   },
+   "counts": {
+    "Layout": {
+     "base": [
+      620,
+      651,
+      633,
+      596,
+      615,
+      599
+     ],
+     "flag": [
+      607,
+      628,
+      627,
+      638,
+      593,
+      606
+     ]
+    },
+    "RecalculateStyles": {
+     "base": [
+      668,
+      678,
+      667,
+      649,
+      666,
+      654
+     ],
+     "flag": [
+      662,
+      684,
+      669,
+      675,
+      650,
+      655
+     ]
+    },
+    "Paint": {
+     "base": [
+      1304,
+      1206,
+      1264,
+      1302,
+      1277,
+      1218
+     ],
+     "flag": [
+      1336,
+      1246,
+      1279,
+      1278,
+      1343,
+      1356
+     ]
+    },
+    "InvalidateLayout": {
+     "base": [
+      514,
+      560,
+      505,
+      478,
+      488,
+      490
+     ],
+     "flag": [
+      481,
+      510,
+      523,
+      537,
+      481,
+      495
+     ]
+    },
+    "Composite": {
+     "base": [
+      209,
+      209,
+      209,
+      209,
+      209,
+      209
+     ],
+     "flag": [
+      209,
+      209,
+      209,
+      209,
+      209,
+      209
+     ]
+    }
+   }
+  }
+ ]
+}
