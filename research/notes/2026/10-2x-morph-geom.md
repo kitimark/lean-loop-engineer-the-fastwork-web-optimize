@@ -4,7 +4,7 @@ Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. 
 
 ## Finding: the veil fold premise is refuted (task geom-veil-restore)
 Round 2 folded the veil into D on the premise "at m = 1 D is opaque, so the end state is unchanged". CONFIRMED false: the veil
-paints above the backdrop pictures (apps/site/src/parts/morph.panel/index.tsx paint order: backdrop, then veil, line 54 for the
+paints above the backdrop pictures (apps/site/src/parts/morph.panel/index.tsx paint order: backdrop, then veil, lines 51-54, the
 veil) while D paints below them (nav layers K0..U, D), so an opaque D never darkens the pictures and they look brighter
 (the user saw it on the iPhone). MEASURED local (cols probe A2): m = 1 differs from base on 8.8-11.7 % of pixels, 0.04-0.13 % with
 the veil back. The veil track, its Lean layer and animation, the counts and the golden rows are restored; the fold stays in

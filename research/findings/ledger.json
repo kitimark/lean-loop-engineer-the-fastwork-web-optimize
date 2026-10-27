@@ -5385,6 +5385,12 @@
    "task": "raw-local-main",
    "field": "lesson",
    "text": "raw-local-main: why the per-frame timelines of the three phone tasks are gone, and what keeps the next ones.\nCONFIRMED (apps/runner/src/disk-gc.ts deleteItem, class landed): phone-morph-push, phone-morph-push-r2 and phone-cols-probe wrote their raw lanes to <worktree>/.local/phone/... (gitignored). disk-gc removed each landed worktree with the git worktree removal command, which deletes ignored files too, so the raw lanes are gone; the committed summaries keep the per-visit statistics only. Not recoverable.\nFix (Lean first): Fw.Ops.DiskGc.ruleLanded now needs localClear (the worktree's .local holds no entry; an unread .local does not count as empty). Theorems local_data_kept, local_nonempty_kept, local_unread_kept and held_local_kept: such a worktree is never a delete candidate and is reported with its .local size and the reason local-nonempty. The device CLIs (device-cli, device-push-cli, device-replay-cli) resolve a relative .local/ path against the main checkout (parent of git rev-parse --path-format=absolute --git-common-dir), so new raw lanes never sit in a worktree.\nGeneral lesson: a delete rule that keys on 'clean' must also ask whether ignored files hold data nobody can rebuild; raw measurement data belongs in a place no cleanup rule owns."
+  },
+  {
+   "entry": "morph.geom:on: the end-of-page morph as compositor-only layers: nav and panel stay laid out at the final size while a push runs, the pill is cut out by four nested rounded clippers moved by transform, every --morph read becomes a piecewise-linear track on transform, opacity or filter driven from today's tween by currentTime",
+   "task": "geom-veil-restore",
+   "field": "premises",
+   "text": "geom-veil-restore: the premise 'folding the veil into D leaves the m = 1 end state unchanged' is REFUTED.\nCONFIRMED (apps/site/src/parts/morph.panel/index.tsx:51-54): the panel paints the backdrop pictures, then the veil, so the veil is above the pictures; D (nav layers) paints below them. An opaque D therefore never darkens the pictures.\nMEASURED local (research/notes/2026/10-27-end-columns-probe.md A2): m = 1 differs from base on 8.8-11.7 % of pixels, 0.04-0.13 % with the veil back. Restored: veil track, Lean layer, animation and golden rows; proved veil_rect_base and veil_no_opacity (lean/Fw/Parts/MorphGeomLook.lean).\nGeneral lesson: a fold that removes a layer must name the paint order of every layer between the two, not only the end value of the one that stays."
   }
  ]
 }
