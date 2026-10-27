@@ -26,9 +26,7 @@ export interface TouchLike {
 }
 export interface TweenEnv {
   clock: { subscribe(tick: (t: number) => void, opts?: { own?: boolean }): () => void; interval?(ms: number, cb: () => void): () => void };
-  /** `performance.now()` at the moment of a push (the start of the tween). */
   now(): number;
-  /** `prefers-reduced-motion: reduce`, read at each push. */
   reduced(): boolean;
   /** `visualViewport.height`, else `innerHeight` (N2:13067). */
   viewportHeight(): number;
@@ -45,7 +43,6 @@ export interface TweenEnv {
   faded?: (zero: boolean) => void;
   rest?: boolean;
   panel?: EffectSink;
-  /** geom-timed: the geometry as Web Animations on the event time; `take` is false where the faithful tween must run. */
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
 }
@@ -205,7 +202,6 @@ export function createTweenDriver(env: TweenEnv) {
     });
     timers.push(off);
   };
-  /** A threshold of the timed push, or its end: the value at this moment is published once, with the fade writes. */
   const mark = (start: number, last: boolean) => {
     const z = last ? { value: st.to, pending: false } : { value: idealAt(st.from, st.to, env.now() - start), pending: true };
     const was = isActive();

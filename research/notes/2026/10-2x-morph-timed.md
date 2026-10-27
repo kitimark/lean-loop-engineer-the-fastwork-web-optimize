@@ -31,8 +31,8 @@ clock, so no per-frame JS writes the morph value between push and end?
 | WebKit Simulator, 3 VMs each, base vs flag | 40454309560 (one VM rerun) vs 40454356842 | z4500, z5000, finish, whole all noGain, counts equal (results/morph-timed/webkit-zones.md) |
 
 Chromium windows: Paint, RasterTask and FireAnimationFrame fall (end 0-19: Paint 243 to 177, RasterTask 319 to 124,
-FireAnimationFrame 43 to 23) but RecalcStyleCount, LayoutCount and PaintImage rise a little, so no window is a gain under the
-Lean rule (every counter not above).
+FireAnimationFrame 43 to 23) but RecalcStyleCount, LayoutCount and PaintImage rise a little, so no window is a gain (the Lean rule
+requires every counter not above).
 
 ## Not delivered
 - The WebKit key check (no morph style, layout, paint or rAF between push and end on the Simulator timeline): the webkit-sim

@@ -1,10 +1,7 @@
 import Fw.Parts.MorphGeomTimed
-/-! `morph.tween:geom-timed` golden vectors: push sequences, rebased keyframes and threshold times, written to
-`packages/contracts/golden/morph-geom-timed.jsonl`. -/
 namespace Fw.Parts.MorphGeomTimed
 open Lean Fw.Parts.MorphGeom Fw.Parts.MorphTween
 
-/-- The ideal `m` at `t`: the tween of the last push at or before `t`, sampled at `t`. -/
 def idealAt (evs : List Ev) (t : Rat) : Rat := idealM (run (evs.filter fun ev => ev.e ≤ t)) t
 
 def scenarios : List (String × List Ev) :=
