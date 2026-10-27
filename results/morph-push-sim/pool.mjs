@@ -1,24 +1,24 @@
-// node results/morph-push-sim/pool.mjs base=<dir> geom=<dir> timed=<dir> ... > pooled.md
-// <dir> holds the toolbar-throttle-<job> artifacts of one dispatch of an arm; a VM is one job of one run, so the id is the dispatch index and the job.
+// node results/morph-push-sim/pool.mjs <dir> [<dir> ...] > pooled.md
+// <dir> holds the toolbar-throttle-<job> artifacts of one run (any arms); a VM is one job of one run, so the id is the run index and the job.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import * as M from '../../packages/measure-webkit/src/throttle/morph-push.mjs';
 
 const LABELS = { base: 'morph-base', geom: 'morph-geom', timed: 'morph-timed' };
-const byLabel = {}, lost = [];
-const labels = process.argv.slice(2).map((a) => a.split('='));
-labels.forEach(([label, dir], di) => {
+const byLabel = { base: [], geom: [], timed: [] }, lost = [], runs = [];
+process.argv.slice(2).forEach((dir, di) => {
   const jobs = [];
   for (const job of [1, 2, 3]) {
-    const d = join(resolve(dir), `toolbar-throttle-${job}`);
-    let files = [];
-    try { files = readdirSync(d).filter((f) => f === `${job}-throttle.json`); } catch { files = []; }
-    if (!files.length) { lost.push(`${label} job ${job}: no result file`); continue; }
-    jobs.push({ ...JSON.parse(readFileSync(join(d, files[0]), 'utf8')), job });
+    const f = join(resolve(dir), `toolbar-throttle-${job}`, `${job}-throttle.json`);
+    let j;
+    try { j = JSON.parse(readFileSync(f, 'utf8')); } catch { lost.push(`run ${di + 1} job ${job}: no result file`); continue; }
+    jobs.push({ ...j, job });
+    for (const x of j.failed ?? []) lost.push(`run ${di + 1} job ${job}: ${x}`);
   }
-  byLabel[label] = M.vmsOf(jobs, LABELS[label], (j) => (di + 1) * 100 + j.job);
-  for (const j of jobs) for (const f of j.failed ?? []) lost.push(`${label} job ${j.job}: ${f}`);
+  runs.push(`run ${di + 1} = ${dir.split('/').pop()}`);
+  for (const [label, arm] of Object.entries(LABELS)) byLabel[label].push(...M.vmsOf(jobs, arm, (j) => (di + 1) * 100 + j.job));
 });
+const labels = Object.keys(LABELS).map((l) => [l]);
 
 const out = ['# Morph push on the Simulator: per-push windows (Lean PushCycle.armVerdict, minVms 3)', ''];
 out.push('| arm | VMs (>= 3 windows) | job:passes:windows | style | layout | paint | rAF | slow |', '| --- | --- | --- | --- | --- | --- | --- | --- |');
