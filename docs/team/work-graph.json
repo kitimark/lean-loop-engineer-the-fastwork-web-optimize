@@ -23126,6 +23126,30 @@
     "results/flip-verify-auto/**",
     "docs/team/handoffs/flip-verify-auto.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "raw-local-main",
+   "owner": "measure-engineer",
+   "stream": "tooling",
+   "deps": [],
+   "title": "Keep device raw data across lands (incident 10-27: raw phone lanes under <worktree>/.local were deleted when disk-gc removed the landed worktrees): device CLIs write raw dirs under the main checkout's .local (git-common-dir parent); disk-gc keeps a landed worktree whose .local/ is non-empty and reports it (Lean rule in Fw.Ops.DiskGc + golden + TS test).",
+   "writes": [
+    "lean/Fw/Ops/DiskGc.lean",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/src/disk-gc.ts",
+    "apps/runner/test/disk-gc.test.ts",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-raw-local-main.md",
+    "docs/team/handoffs/raw-local-main.md",
+    "docs/team/incidents/ledger.json"
+   ]
   }
  ],
  "deadline": {
