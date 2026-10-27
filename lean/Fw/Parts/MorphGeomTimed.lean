@@ -1,28 +1,21 @@
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.MorphTweenOpt
-/-! `morph.tween:geom-timed`: one Web Animation per track, started at the event time, with the bezier easing and
-keyframes rebased onto the part of the track the push still has to travel. -/
 namespace Fw.Parts.MorphGeomTimed
 open Fw.Parts.MorphGeom Fw.Parts.MorphTween
 open Fw.Parts.MorphTweenOpt (curveX curveY bezier_eq_ease curveY_eq_ease solver_exact curveY_sub slope_mem)
 
-/-! ## Rebasing a track -/
 
-/-- Strictly ascending knot positions. -/
 def Asc : Track → Prop
   | (p, _) :: (q, b) :: rest => p < q ∧ Asc ((q, b) :: rest)
   | _ => True
 
-/-- The value at `m` on the line through `(p, a)` and `(q, b)`. -/
 def lin (p a q b m : Rat) : Rat := a + (b - a) * (m - p) / (q - p)
 
-/-- Drop the knots before `m0`, putting a knot at `m0` on the segment that holds it. -/
 def cutL : Track → Rat → Track
   | (p, a) :: (q, b) :: rest, m0 =>
     if m0 < q then (m0, lin p a q b m0) :: (q, b) :: rest else cutL ((q, b) :: rest) m0
   | l, _ => l
 
-/-- Drop the knots after `g`, putting a knot at `g` on the segment that holds it. -/
 def cutR : Track → Rat → Track
   | (p, a) :: (q, b) :: rest, g =>
     if g ≤ q then [(p, a), (g, lin p a q b g)] else (p, a) :: cutR ((q, b) :: rest) g
@@ -134,7 +127,6 @@ theorem eval_cutR : ∀ (rest : Track) (p a g m : Rat), Asc ((p, a) :: rest) →
         simp only [Track.eval, hmq, ite_false]
         exact this
 
-/-- The part of the track a push from `m0` to `g > m0` travels. -/
 def trim (l : Track) (m0 g : Rat) : Track := cutR (cutL l m0) g
 
 theorem eval_trim (p a : Rat) (rest : Track) (m0 m g : Rat) (h : Asc ((p, a) :: rest)) (hp : p ≤ m0)
@@ -148,7 +140,6 @@ theorem eval_trim (p a : Rat) (rest : Track) (m0 m g : Rat) (h : Asc ((p, a) :: 
   rw [eval_cutR r' p' a' g m hA (by grind) h2, ← hc]
   exact eval_cutL _ m0 m h h1
 
-/-- Pull knots back onto the push's progress `u` (offset 0 at `m0`, offset 1 at `m0 + c`). -/
 def pull (l : Track) (m0 c : Rat) : Track := l.map fun x => ((x.1 - m0) / c, x.2)
 
 theorem eval_pull : ∀ (l : Track) (m0 c u : Rat), Asc l → 0 < c →
@@ -184,7 +175,6 @@ theorem eval_pull : ∀ (l : Track) (m0 c u : Rat), Asc l → 0 < c →
       simp only [hq, hq', ite_false]
       exact ih
 
-/-- Keyframes (offset, value) of a push from `m0` up to `g`: the trimmed track pulled back onto `[0, 1]`. -/
 def rebaseUp (l : Track) (m0 g : Rat) : Track := pull (trim l m0 g) m0 (g - m0)
 
 theorem asc_cutR : ∀ (rest : Track) (p a g : Rat), Asc ((p, a) :: rest) → p < g → Asc (cutR ((p, a) :: rest) g)
@@ -218,12 +208,9 @@ theorem rebaseUp_eval (p a : Rat) (rest : Track) (m0 g u : Rat) (h : Asc ((p, a)
     grind
   exact eval_trim p a rest m0 _ g h hp hm1 hm2
 
-/-! ## A push down is a push up on the mirrored track -/
 
-/-- The track read backwards: positions negated, order reversed. -/
 def mirror (l : Track) : Track := l.reverse.map fun x => (-x.1, x.2)
 
-/-- The last knot position, starting from the head `p`. -/
 def lastP : Rat → Track → Rat
   | p, [] => p
   | _, (q, _) :: r => lastP q r
@@ -339,12 +326,9 @@ theorem eval_mirror : ∀ (F : Track) (p a m : Rat), Asc ((p, a) :: F) → p ≤
       unfold lin; grind
 
 
-/-- Keyframes (offset, value) of a push from `m0` to `g`: up is the trimmed track pulled back, down is the same on the
-mirrored track, so offsets always ascend. -/
 def rebase (l : Track) (m0 g : Rat) : Track :=
   if m0 < g then rebaseUp l m0 g else rebaseUp (mirror l) (-m0) (-g)
 
-/-- `rebase_eval`: the keyframes at progress `u` are the track at `m0 + (g - m0) u`, up or down. -/
 theorem rebase_eval (p a : Rat) (rest : Track) (m0 g u : Rat) (h : Asc ((p, a) :: rest)) (hp : p ≤ m0)
     (hm : m0 ≤ lastP p rest) (hgp : p ≤ g) (_hgl : g ≤ lastP p rest) (hne : m0 ≠ g) (hu0 : 0 ≤ u) (hu1 : u ≤ 1) :
     Track.eval (rebase ((p, a) :: rest) m0 g) u = Track.eval ((p, a) :: rest) (m0 + (g - m0) * u) := by
@@ -370,7 +354,6 @@ theorem rebase_eval (p a : Rat) (rest : Track) (m0 g u : Rat) (h : Asc ((p, a) :
     rw [e]
     exact eval_mirror rest p a _ h hmid0 hmid1
 
-/-! ## The push on the clock -/
 
 theorem clamp01_mem (x : Rat) : 0 ≤ clamp01 x ∧ clamp01 x ≤ 1 := by unfold clamp01; grind
 
@@ -385,7 +368,6 @@ theorem ease_mem (x : Rat) : 0 ≤ ease x ∧ ease x ≤ 1 := by
   have b0 : 0 ≤ c * c * c := Rat.mul_nonneg a0 hc.1
   grind
 
-/-- The tween value is the start plus the eased share of the distance, also past the end. -/
 theorem tween_value (f t el : Rat) : (tween f t el).value = f + (t - f) * ease (el / duration) := by
   have hc := clamp01_mem (el / duration)
   by_cases h : 1 ≤ clamp01 (el / duration)
@@ -398,12 +380,9 @@ theorem tween_value (f t el : Rat) : (tween f t el).value = f + (t - f) * ease (
     simp only [tween, h, ite_false, h2]
 
 
-/-! ## Event-time pushes: the part against the ideal tween -/
 
-/-- The tween at time `t` of the push `s`, with no frame between (the value the browser shows). -/
 def idealM (s : St) (t : Rat) : Rat := (tween s.f s.t (t - s.start)).value
 
-/-- A taken push at event time `e`: it starts from the ideal value at `e`, not from the last frame. -/
 def pushAt (s : St) (g e : Rat) : St := push { s with value := idealM s e } g false e
 
 structure Ev where
@@ -412,7 +391,6 @@ structure Ev where
 
 def run (evs : List Ev) : St := evs.foldl (fun s ev => pushAt s ev.g ev.e) MorphTween.rest
 
-/-- What the compositor shows for one track: its rebased keyframes at the bezier output of the elapsed share. -/
 def shown (tr : Track) (s : St) (t : Rat) : Rat :=
   Track.eval (rebase tr s.f s.t) (curveY ((t - s.start) / duration))
 
@@ -425,7 +403,6 @@ theorem frac_mem (el : Rat) (h0 : 0 ≤ el) (h1 : el ≤ 680) : 0 ≤ el / durat
     rw [Rat.div_def]; exact Rat.mul_nonneg h0 (by grind)
   grind
 
-/-- `timed_eq_ideal`: one set shows the ideal tween at every time of its 680 ms. -/
 theorem timed_eq_ideal_set (p a : Rat) (rest : Track) (s : St) (t : Rat) (h : Asc ((p, a) :: rest))
     (hp : p ≤ s.f) (hf : s.f ≤ lastP p rest) (hgp : p ≤ s.t) (hgl : s.t ≤ lastP p rest) (hne : s.f ≠ s.t)
     (ht0 : s.start ≤ t) (ht1 : t ≤ s.start + 680) :
@@ -436,7 +413,6 @@ theorem timed_eq_ideal_set (p a : Rat) (rest : Track) (s : St) (t : Rat) (h : As
   rw [(curveY_eq_ease _ hx.1 hx.2 : curveY ((t - s.start) / duration) = ease ((t - s.start) / duration)),
     rebase_eval p a rest s.f s.t _ h hp hf hgp hgl hne hy.1 hy.2, tween_value]
 
-/-- `reverse_continuous`: the new set at its start shows what the old set shows there. -/
 theorem reverse_continuous (p a : Rat) (rest : Track) (s : St) (g e : Rat) (h : Asc ((p, a) :: rest))
     (hs : InUnit s) (hg0 : 0 ≤ g) (hg1 : g ≤ 1) (hp : p ≤ 0) (hl : 1 ≤ lastP p rest) (hne : s.t ≠ g)
     (hne' : idealM s e ≠ g) (he0 : s.start ≤ e) (he1 : e ≤ s.start + 680) (hmem : 0 ≤ idealM s e ∧ idealM s e ≤ 1)
@@ -458,7 +434,6 @@ theorem reverse_continuous (p a : Rat) (rest : Track) (s : St) (g e : Rat) (h : 
     rw [z]; grind
   rw [this]
 
-/-! ## The faithful frame against the ideal -/
 
 theorem clamp_lip (x y d : Rat) (h1 : x - y ≤ d) (h2 : y - x ≤ d) :
     clamp01 x - clamp01 y ≤ d ∧ clamp01 y - clamp01 x ≤ d := by
@@ -492,13 +467,10 @@ theorem ease_lip_half (x y d : Rat) (h1 : x - y ≤ d) (h2 : y - x ≤ d) : ease
   have b5 : 0 ≤ (3 - w) * d := Rat.mul_nonneg (by grind) (by grind)
   grind
 
-/-- The ease has slope at most 3 per unit of progress. -/
 theorem ease_lip (x y d : Rat) (h1 : x - y ≤ d) (h2 : y - x ≤ d) :
     ease x - ease y ≤ 3 * d ∧ ease y - ease x ≤ 3 * d :=
   ⟨ease_lip_half x y d h1 h2, ease_lip_half y x d h2 h1⟩
 
-/-- `faithful_gap`: after a reversal the faithful push (from the last frame's value) and the event-time push differ by
-at most `3 Δ / 680` at every later time, `Δ` the frame interval. -/
 theorem faithful_gap (s : St) (fr e g t Δ : Rat) (hs : InUnit s)
     (h2 : fr ≤ e) (h3 : e - fr ≤ Δ) :
     (tween (idealM s fr) g (t - e)).value - (tween (idealM s e) g (t - e)).value ≤ 3 * Δ / 680 ∧
@@ -518,7 +490,6 @@ theorem faithful_gap (s : St) (fr e g t Δ : Rat) (hs : InUnit s)
   constructor <;> grind
 
 
-/-! ## Sequences, the end state and threshold times -/
 
 theorem idealM_mem (s : St) (t : Rat) (hs : InUnit s) : 0 ≤ idealM s t ∧ idealM s t ≤ 1 := by
   have hE := ease_mem ((t - s.start) / duration)
@@ -550,8 +521,6 @@ theorem run_in (evs : List Ev) (hg : ∀ ev ∈ evs, 0 ≤ ev.g ∧ ev.g ≤ 1) 
     intro s hs hl
     exact ih _ (pushAt_in s ev.g ev.e hs (hl ev (by simp)).1 (hl ev (by simp)).2) (fun x hx => hl x (by simp [hx]))
 
-/-- `timed_eq_ideal`: after any push sequence, each track shows the ideal tween of the last push at every time of its
-680 ms (the tween sampled at event time, never at a frame). -/
 theorem timed_eq_ideal (evs : List Ev) (hg : ∀ ev ∈ evs, 0 ≤ ev.g ∧ ev.g ≤ 1) (p a : Rat) (rest : Track)
     (h : Asc ((p, a) :: rest)) (hp : p ≤ 0) (hl : 1 ≤ lastP p rest) (t : Rat) (hne : (run evs).f ≠ (run evs).t)
     (ht0 : (run evs).start ≤ t) (ht1 : t ≤ (run evs).start + 680) :
@@ -560,8 +529,6 @@ theorem timed_eq_ideal (evs : List Ev) (hg : ∀ ev ∈ evs, 0 ≤ ev.g ∧ ev.g
   exact timed_eq_ideal_set p a rest _ t h (by grind [InUnit]) (by grind [InUnit]) (by grind [InUnit])
     (by grind [InUnit]) hne ht0 ht1
 
-/-- `rebase_end`: the last keyframe is the track at the goal, so a goal style equal to it leaves the base equal to the
-end of the animation. -/
 theorem rebase_end (p a : Rat) (rest : Track) (m0 g : Rat) (h : Asc ((p, a) :: rest)) (hp : p ≤ m0)
     (hm : m0 ≤ lastP p rest) (hgp : p ≤ g) (hgl : g ≤ lastP p rest) (hne : m0 ≠ g) :
     Track.eval (rebase ((p, a) :: rest) m0 g) 1 = Track.eval ((p, a) :: rest) g := by
@@ -574,8 +541,6 @@ theorem rebase_start (p a : Rat) (rest : Track) (m0 g : Rat) (h : Asc ((p, a) ::
   rw [rebase_eval p a rest m0 g 0 h hp hm hgp hgl hne (by decide) (by decide)]
   congr 1; grind
 
-/-- `solver_gap`: if WebKit's solver leaves `curveX s` within `ε` of the progress, the shown `m` is within `3 ε` of
-the ideal, because the push covers at most the unit interval. -/
 theorem solver_gap (m0 g s x ε : Rat) (hm0 : 0 ≤ m0) (hm1 : m0 ≤ 1) (hg0 : 0 ≤ g) (hg1 : g ≤ 1) (hs0 : 0 ≤ s)
     (hs1 : s ≤ 1) (hx0 : 0 ≤ x) (hx1 : x ≤ 1) (hlo : -ε < curveX s - x) (hhi : curveX s - x < ε) :
     (m0 + (g - m0) * curveY s) - (m0 + (g - m0) * ease x) ≤ 3 * ε ∧
@@ -584,9 +549,7 @@ theorem solver_gap (m0 g s x ε : Rat) (hm0 : 0 ≤ m0) (hm1 : m0 ≤ 1) (hg0 : 
   have hm := mul_bd (g - m0) (curveY s - ease x) (3 * ε) (by grind) (by grind) (by grind)
   constructor <;> grind
 
-/-! ## When a threshold is crossed -/
 
-/-- The first `n` in `[k, k + fuel)` with `P n`. -/
 def firstFrom (P : Nat → Bool) : Nat → Nat → Option Nat
   | _, 0 => none
   | n, k + 1 => if P n then some n else firstFrom P (n + 1) k
@@ -607,15 +570,12 @@ theorem firstFrom_spec (P : Nat → Bool) : ∀ (k n r : Nat), firstFrom P n k =
       · subst hj; simpa using hp
       · exact c j (by omega) h2
 
-/-- Whether the tween from `m0` to `g` has reached `c` after `n` ms (up: at or above, down: at or below). -/
 def crossedAt (m0 g c : Rat) (n : Nat) : Bool :=
   let v := m0 + (g - m0) * ease ((n : Rat) / duration)
   if m0 ≤ g then decide (c ≤ v) else decide (v ≤ c)
 
-/-- `crossTime`: the first whole millisecond of the push at which the tween has reached `c`. -/
 def crossMs (m0 g c : Rat) : Option Nat := firstFrom (crossedAt m0 g c) 0 681
 
-/-- A threshold between the ends is reached no later than the end of the 680 ms. -/
 theorem crossMs_some (m0 g c : Rat) (h : (m0 ≤ c ∧ c ≤ g) ∨ (g ≤ c ∧ c ≤ m0)) : (crossMs m0 g c).isSome = true := by
   have e : ease ((680 : Nat) / duration) = 1 := by unfold ease clamp01 duration; decide +kernel
   have hP : crossedAt m0 g c 680 = true := by
@@ -640,7 +600,6 @@ theorem crossMs_some (m0 g c : Rat) (h : (m0 ≤ c ∧ c ≤ g) ∨ (g ≤ c ∧
       · exact ih (n + 1) (by omega) (by omega)
 
 
-/-! ## The goal style is the last keyframe -/
 
 theorem asc_mk (f : Rat → Rat) : ∀ ps : List Rat, sortedB ps = true → Asc (mk f ps)
   | [], _ => trivial
@@ -658,9 +617,6 @@ theorem lastP_mk (f : Rat → Rat) : ∀ (ps : List Rat) (p : Rat), lastP p (mk 
     rw [ih]
     cases r <;> simp [lastL]
 
-/-- `commit_eq`: for every non-time track of every band, the last keyframe of a push up to 1 (from any `m0 < 1`) is
-`f 1`, the value the generated goal CSS writes (`goalCss`), and of a push down to 0 (from any `m0 > 0`) is `f 0`, the
-rest value. Time tracks end at 680 ms, not at `Ks.last`, and have their own goal. -/
 theorem commit_eq (v : Fw.Parts.Nav.Vp) (hv : v ∈ bandVps) (k : Ks) (hk : k ≠ .time) (f : Rat → Rat) (m0 : Rat)
     (h0 : 0 ≤ m0) (h1 : m0 ≤ 1) :
     (m0 ≠ 1 → Track.eval (rebase (mk f (k.list v)) m0 1) 1 = f k.last) ∧
@@ -685,5 +641,85 @@ theorem commit_eq (v : Fw.Parts.Nav.Vp) (hv : v ∈ bandVps) (k : Ks) (hk : k �
       rw [hl1]; simpa [mk] using e1
     · rw [rebase_end 0 (f 0) _ m0 0 hA h0 (by grind) (by grind) (by grind) hne]
       simpa [mk] using e0
+
+def takeOk (_f _t : Rat) (anims dark : Bool) : Bool := anims || dark
+
+theorem takeOk_up (f t : Rat) (_h : f < t) (anims dark : Bool) : takeOk f t anims dark = (anims || dark) := rfl
+
+theorem takeOk_down (f t : Rat) (_h : t < f) (anims dark : Bool) : takeOk f t anims dark = (anims || dark) := rfl
+
+def stepTake (s : Option Nat) (k : Nat) (d : Bool) : Option Nat :=
+  match s with
+  | some j => some j
+  | none => if d then some k else none
+
+def scanTake (P : Nat → Bool) : Nat → Nat → Option Nat → Option Nat
+  | _, 0, s => s
+  | k, n + 1, s => scanTake P (k + 1) n (stepTake s k (P k))
+
+theorem stepTake_taken (j k : Nat) (d : Bool) : stepTake (some j) k d = some j := rfl
+
+theorem scanTake_taken (P : Nat → Bool) : ∀ (n k j : Nat), scanTake P k n (some j) = some j
+  | 0, _, _ => rfl
+  | n + 1, k, j => by simp only [scanTake, stepTake_taken]; exact scanTake_taken P n (k + 1) j
+
+theorem scanTake_none_eq (P : Nat → Bool) : ∀ (n k : Nat), scanTake P k n none = firstFrom P k n
+  | 0, k => rfl
+  | n + 1, k => by
+    by_cases h : P k = true
+    · simp [scanTake, stepTake, firstFrom, h, scanTake_taken]
+    · simp [scanTake, stepTake, firstFrom, h]
+      exact scanTake_none_eq P n (k + 1)
+
+def takeFrame (f t : Rat) (anims : Bool) (dark : Nat → Bool) (n : Nat) : Option Nat :=
+  scanTake (fun k => takeOk f t anims (dark k)) 0 n none
+
+theorem take_at_first_dark (f t : Rat) (dark : Nat → Bool) (n r : Nat) (hr : r < n) (hd : dark r = true)
+    (hb : ∀ j, j < r → dark j = false) : takeFrame f t false dark n = some r := by
+  unfold takeFrame
+  rw [scanTake_none_eq]
+  have key : ∀ (k m : Nat), k ≤ r → r < k + m → firstFrom (fun k => takeOk f t false (dark k)) k m = some r := by
+    intro k m
+    induction m generalizing k with
+    | zero => intro _ h; omega
+    | succ m ih =>
+      intro h1 h2
+      by_cases hk : k = r
+      · subst hk; simp [firstFrom, takeOk, hd]
+      · have : dark k = false := hb k (by omega)
+        simp [firstFrom, takeOk, this]
+        exact ih (k + 1) (by omega) (by omega)
+  exact key 0 n (by omega) (by omega)
+
+theorem take_entered (f t : Rat) (dark : Nat → Bool) (n : Nat) : takeFrame f t true dark (n + 1) = some 0 := by
+  simp [takeFrame, scanTake, stepTake, takeOk, scanTake_taken]
+
+theorem take_never (f t : Rat) (dark : Nat → Bool) (hn : ∀ j, dark j = false) :
+    ∀ n, takeFrame f t false dark n = none := by
+  have g : ∀ (P : Nat → Bool), (∀ j, P j = false) → ∀ (n k : Nat), scanTake P k n none = none := by
+    intro P hP n
+    induction n with
+    | zero => intro k; rfl
+    | succ n ih => intro k; simp only [scanTake, stepTake, hP]; exact ih (k + 1)
+  intro n
+  exact g _ (fun j => by simp [takeOk, hn]) n 0
+
+theorem firstFrom_stable (P : Nat → Bool) : ∀ (k n r m : Nat), firstFrom P n k = some r → firstFrom P n (k + m) = some r
+  | 0, n, r, m, h => by simp [firstFrom] at h
+  | k + 1, n, r, m, h => by
+    by_cases hp : P n = true
+    · have e : k + 1 + m = (k + m) + 1 := by omega
+      rw [e]; simp only [firstFrom, hp, ite_true] at h ⊢; exact h
+    · have e : k + 1 + m = (k + m) + 1 := by omega
+      rw [e]; simp only [firstFrom, hp] at h ⊢
+      exact firstFrom_stable P k (n + 1) r m h
+
+theorem switch_jump_zero (p a : Rat) (rest : Track) (s : St) (t : Rat) (h : Asc ((p, a) :: rest))
+    (hp : p ≤ s.f) (hf : s.f ≤ lastP p rest) (hgp : p ≤ s.t) (hgl : s.t ≤ lastP p rest) (hne : s.f ≠ s.t)
+    (ht0 : s.start ≤ t) (ht1 : t ≤ s.start + 680) :
+    shown ((p, a) :: rest) s t = Track.eval ((p, a) :: rest) (frame s t).value := by
+  rw [timed_eq_ideal_set p a rest s t h hp hf hgp hgl hne ht0 ht1]
+  rfl
+
 
 end Fw.Parts.MorphGeomTimed

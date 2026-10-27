@@ -1,0 +1,1 @@
+{"390x844":{"pushes":[{"from":0,"to":1,"takeFrameMs":null},{"from":1,"to":0,"takeFrameMs":20}]},"1280x800":{"pushes":[{"from":0,"to":1,"takeFrameMs":20},{"from":1,"to":0,"takeFrameMs":13}]},"note":"retry disabled (tick retry line off), close allowed; local debug run, not a result"}

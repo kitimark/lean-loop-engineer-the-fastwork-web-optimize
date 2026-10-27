@@ -26,9 +26,7 @@ export interface TouchLike {
 }
 export interface TweenEnv {
   clock: { subscribe(tick: (t: number) => void, opts?: { own?: boolean }): () => void; interval?(ms: number, cb: () => void): () => void };
-  /** `performance.now()` at the moment of a push (the start of the tween). */
   now(): number;
-  /** `prefers-reduced-motion: reduce`, read at each push. */
   reduced(): boolean;
   /** `visualViewport.height`, else `innerHeight` (N2:13067). */
   viewportHeight(): number;
@@ -45,9 +43,9 @@ export interface TweenEnv {
   faded?: (zero: boolean) => void;
   rest?: boolean;
   panel?: EffectSink;
-  /** geom-timed: the geometry as Web Animations on the event time; `take` is false where the faithful tween must run. */
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
+  trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
 }
 
 export interface EffectSink {
@@ -192,6 +190,10 @@ export function createTweenDriver(env: TweenEnv) {
     updateFade();
     syncLock();
     if (!isActive()) arm();
+    if (st.pending && cancelFrame && startTimed()) {
+      cancelFrame();
+      cancelFrame = null;
+    }
   };
 
   const dropTimers = () => {
@@ -205,7 +207,6 @@ export function createTweenDriver(env: TweenEnv) {
     });
     timers.push(off);
   };
-  /** A threshold of the timed push, or its end: the value at this moment is published once, with the fade writes. */
   const mark = (start: number, last: boolean) => {
     const z = last ? { value: st.to, pending: false } : { value: idealAt(st.from, st.to, env.now() - start), pending: true };
     const was = isActive();
@@ -227,6 +228,7 @@ export function createTweenDriver(env: TweenEnv) {
     timedLive = true;
     dropTimers();
     const el = env.now() - st.start;
+    env.trace?.({ kind: 'take', el });
     for (const x of crossings(st.from, st.to)) if (x.ms > el) after(x.ms - el, () => mark(st.start, false));
     after(DURATION_MS - el, () => mark(st.start, true));
     env.publish(st.value);
@@ -254,6 +256,7 @@ export function createTweenDriver(env: TweenEnv) {
       if (!isActive()) arm();
       return;
     }
+    env.trace?.({ kind: 'push', from: st.from, to: st.to, at: st.start });
     env.fade?.push(st.from, st.to, st.start);
     env.panel?.push(st.from, st.to, st.start);
     cancelFrame?.();

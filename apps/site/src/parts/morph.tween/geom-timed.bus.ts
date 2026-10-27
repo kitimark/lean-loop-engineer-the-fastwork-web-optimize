@@ -4,7 +4,6 @@ export type TimedSink = EffectSink & { take(from: number, to: number, start: num
 
 let current: TimedSink | null = null;
 
-/** Where the timed geometry (built by `morph.geom`, which owns that DOM) meets the tween driver; `take` is false while none is set. */
 export const timedBus = {
   set(sink: TimedSink | null): void {
     current = sink;

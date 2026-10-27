@@ -26,7 +26,6 @@ const CAMEL: Record<string, string> = { 'backdrop-filter': 'backdropFilter' };
 
 let goalStyle: HTMLStyleElement | null = null;
 
-/** The goal rules as the base style of the root (attribute `data-mg-goal`), or removed. */
 function setGoal(rules: string | null): void {
   const root = document.documentElement;
   if (rules === null) {
@@ -64,7 +63,6 @@ export function MorphGeom() {
       },
     };
     if (window.__fw?.config.variants['morph.tween'] === 'geom-timed') {
-      // morph.tween:geom-timed drives the geometry by the push, not by the published value: no observer
       const timed = createTimedGeom({
         ...env,
         animate: (a, kf, opts) => {

@@ -22790,7 +22790,8 @@
     "apps/runner/src/land.ts",
     "lean/Fw/Parts/FootprintRows.lean",
     "apps/site/src/registry/index.ts"
-   ]
+   ],
+   "evidence": "c9b4d63"
   },
   {
    "devices": [
@@ -22836,7 +22837,8 @@
     "research/findings/ledger.json",
     "results/phone/2026-10-27-morph-push/**",
     "docs/team/handoffs/phone-morph-push.md"
-   ]
+   ],
+   "evidence": "3bbf41f"
   },
   {
    "devices": [
@@ -22861,6 +22863,159 @@
     "research/findings/ledger.json",
     "results/morph-push-sim/**",
     "docs/team/handoffs/morph-push-sim.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-morph-push-r2",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-morph-push"
+   ],
+   "title": "Rerun of phone-morph-push with a balanced arm order (user 2026-10-27): 4 rounds as a 4x4 Latin square, so each arm takes each position once (16 visits, n=4 per arm), Serious pinned, thermal read before and after the session, stage recorder also reads data-fw-morph; Lean order rule and verdict per arm.",
+   "writes": [
+    "lean/Fw/Device/*.lean",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/contracts/golden/device/**",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "research/notes/2026/10-2x-phone-morph-push-r2.md",
+    "research/findings/ledger.json",
+    "results/phone/2026-10-27-morph-push-r2/**",
+    "docs/team/handoffs/phone-morph-push-r2.md"
+   ],
+   "evidence": "0d0a4ca"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-flip-fix",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [],
+   "title": "Fix the morph.geom flip look bugs (research/notes/2026/10-27-end-columns-probe.md A1, A3, A4): columns stack in Ub (flex row), earn -8 px double transform, phone actions 24 px inset, nav width/background transitions firing after leave(), CSS animations restarted by re-parenting (keep currentTime); add a flip-state column and nav rect cell to the gate; Lean first for the rect cells.",
+   "writes": [
+    "apps/site/src/parts/morph.geom/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "lean/Fw/Gate/**",
+    "packages/contracts/golden/gate/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-flip-fix.md",
+    "results/geom-flip-fix/**",
+    "docs/team/handoffs/geom-flip-fix.md",
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/premise-tests/src/look.mjs",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "packages/contracts/golden/ci/**"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-veil-restore",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "geom-flip-fix"
+   ],
+   "title": "Restore the veil track in morph.geom (probe note A2): the fold into D was a false premise (D paints under the images); revert the site part of 6b376eba6 and the Lean anims, counts and golden rows; close the fold premise as a finding.",
+   "writes": [
+    "apps/site/src/parts/morph.geom/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-veil-restore.md",
+    "results/geom-veil-restore/**",
+    "docs/team/handoffs/geom-veil-restore.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "timed-take-retry",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [],
+   "title": "geom-timed take guard (probe note A5): decided once at push start by is-on-dark, so a light hit test sends the whole push and the pull-out to the faithful per-frame path (valid look, laggy). Lean: allow to<from and retry while pending until is-on-dark, start time kept, continuity proof; then the driver change.",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**",
+    "lean/Fw/Parts/MorphGeomTimed*.lean",
+    "lean/scripts/MorphGeomTimedGolden.lean",
+    "packages/contracts/golden/morph-geom-timed*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-timed-take-retry.md",
+    "results/timed-take-retry/**",
+    "docs/team/handoffs/timed-take-retry.md"
+   ],
+   "evidence": "52c4194"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "cols-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-flip-fix",
+    "geom-veil-restore",
+    "timed-take-retry"
+   ],
+   "title": "Column background probe (probe note P1): probe-only flag hiding the column images; arms base, base+off, timed-fixed, timed-fixed+off; per push log whether the flip ran; Chromium CI, WebKit Simulator push lane, iPhone push lane, Safari macOS; decides what P2-P6 can win.",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    "packages/measure-chromium/**",
+    "lean/Fw/Device/*.lean",
+    "packages/contracts/golden/device/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-cols-probe.md",
+    "results/cols-probe/**",
+    "docs/team/handoffs/cols-probe.md"
    ]
   }
  ],

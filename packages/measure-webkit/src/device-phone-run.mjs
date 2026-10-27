@@ -12,7 +12,7 @@ import { PIN, PinStop, WHY_TEXT, pinWhy, visitOk, whyPin } from './device-therma
 
 const slug = (id) => id.replace(/[^A-Za-z0-9.-]+/g, '_');
 const pad = (i) => String(i).padStart(2, '0');
-const rawName = (i, id, lane) => `${pad(i)}-${slug(id)}.${lane}.json`;
+export const rawName = (i, id, lane) => `${pad(i)}-${slug(id)}.${lane}.json`;
 
 export const loadState = (dir) => {
   const f = join(dir, 'state.json');
@@ -88,7 +88,7 @@ export function planText(distDir, session = P.SESSION) {
 
 export const phoneSense = () => realDeps().sense;
 
-const realDeps = () => {
+export const realDeps = () => {
   let udid = null;
   const id = () => (udid ??= listPhone().udid);
   return {
@@ -110,12 +110,12 @@ const realDeps = () => {
   };
 };
 
-export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null, session = P.SESSION, pin = null, deps = realDeps() }) {
+export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, clock = 'pinned', settle = 6000, blocked = null, session = P.SESSION, pin = null, deps = realDeps(), arms = P.KEPT, values = P.visitValues, visitS = P.PA.visitMin * 60 }) {
   const others = deps.others();
   if (others.length > 0) throw new Error(`another device-cli.mjs is running (pid ${others.join(', ')}); one phone run at a time`);
   mkdirSync(dir, { recursive: true });
   const writeBlocked = (msg) => { if (blocked) { mkdirSync(resolve(blocked, '..'), { recursive: true }); writeFileSync(blocked, msg + '\n'); } };
-  const pages = P.pagesOf(site);
+  const pages = P.pagesOf(site, arms);
   const st = loadState(dir);
   const ids = session.map((a) => a.id);
   if (st.session && JSON.stringify(st.session) !== JSON.stringify(ids)) throw new Error(`this raw dir holds the session plan [${st.session.join(' | ')}], not [${ids.join(' | ')}]`);
@@ -188,7 +188,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
   saveState(dir, st);
 
   const t0 = deps.now();
-  let longest = P.PA.visitMin * 60;
+  let longest = visitS;
   let ready = true;
   let over = false;
   for (const { a, index } of todo) {
@@ -234,7 +234,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
         st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'done', attempts: attempts + 1, faults: prior[prior.length - 1]?.faults ?? [], durationS, endedMs: deps.now() }]);
         st.lastEndMs = deps.now();
         saveState(dir, st);
-        const vals = P.visitValues(r.counts, r.frames);
+        const vals = values(r.counts, r.frames);
         const bat = batteryOf(r.frames, r.counts);
         ran.push({ index, arm: a.id, durationS, vh: vals.vh, maxY: vals.maxY, hash: r.counts.fw?.configHash ?? null, hashOk: a.target === 'original' || r.counts.fw?.configHash === row.hash, battery: bat });
         console.log(JSON.stringify(ran[ran.length - 1]));
