@@ -41,7 +41,7 @@ describe('morph.geom tracks against the Lean golden', () => {
 
   it('every sample line is reproduced within 1e-6', () => {
     const rows = lines.filter((l) => l.fn === 'sample');
-    expect(rows.length).toBe(641);
+    expect(rows.length).toBe(653);
     const cache = new Map<string, ReturnType<typeof buildAnims>>();
     for (const r of rows) {
       const i = r.in as { w: number; h: number; eng: Eng; el: string; i: number; j: number; prop: Prop; ks: string };

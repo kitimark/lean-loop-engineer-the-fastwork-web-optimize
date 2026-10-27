@@ -12,6 +12,7 @@ const TAGS: [string, string][] = [
   ['earn', '[data-fw="nav-earn"]'],
   ['panel', '[data-fw="morph-panel"]'],
   ['backdropClip', '[data-fw-role="backdrop"]'],
+  ['veil', '[data-fw-role="veil"]'],
   ['centre', '[data-fw-role="center"]'],
   ['footer', '[data-fw-role="footer"]'],
   ['footerGrad', '[data-fw-role="grad"]'],
