@@ -1,0 +1,6172 @@
+{
+ "schema": "fw.phone.flip-attr/1",
+ "limitCentiMs": 5000,
+ "works": [
+  "script",
+  "style",
+  "layout",
+  "paint",
+  "commit",
+  "idle"
+ ],
+ "visits": [
+  {
+   "index": 0,
+   "arm": "base",
+   "round": 0,
+   "position": 0,
+   "intervals": 341,
+   "p95": 10100,
+   "max": 18400,
+   "over": 83,
+   "overByWork": {
+    "script": 0,
+    "style": 1,
+    "layout": 0,
+    "paint": 0,
+    "commit": 81,
+    "idle": 1
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 18,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 3,
+    "layout": 0,
+    "paint": 0,
+    "commit": 331,
+    "idle": 7
+   },
+   "overMs": 6676,
+   "busyShareOver": 83,
+   "byTime": {
+    "0": {
+     "long": 43,
+     "all": 98
+    },
+    "1": {
+     "long": 39,
+     "all": 94
+    },
+    "2": {
+     "long": 0,
+     "all": 118
+    },
+    "3": {
+     "long": 1,
+     "all": 16
+    },
+    "4": {
+     "long": 0,
+     "all": 15
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 83,
+     "clips": 6771,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 2383,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 121,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 400,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 141,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 277,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 117,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 63,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 42,
+      "visuals-module_invoiceCardIn": 402,
+      "no animated box": 1753,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 150,
+      "sweep-module_sweepDoc": 133,
+      "visuals-module_invoiceIRowIn": 781,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 8
+     },
+     "n": {
+      "RecalculateStyles": 397,
+      "Layout": 398,
+      "Paint": 6771,
+      "Composite": 83,
+      "ScheduleStyleRecalculation": 173,
+      "InvalidateLayout": 580
+     },
+     "cs": {
+      "RecalculateStyles": 111912,
+      "Layout": 18298,
+      "Paint": 17866,
+      "Composite": 426001,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1584,
+      "transition": 722,
+      "animation": 74
+     }
+    },
+    "rest": {
+     "frames": 258,
+     "clips": 2580,
+     "owners": {
+      "sweep-module_sweepDoc": 356,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 502,
+      "visuals-module_invoiceCardIn": 168,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 127,
+      "visuals-module_secureNetworkRingsIn": 332,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 10,
+      "no animated box": 547,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 201,
+      "visuals-module_invoiceIRowIn": 316,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 5,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 2,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 7,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 7
+     },
+     "n": {
+      "RecalculateStyles": 726,
+      "Layout": 579,
+      "Paint": 2580,
+      "Composite": 258,
+      "ScheduleStyleRecalculation": 320,
+      "InvalidateLayout": 778
+     },
+     "cs": {
+      "RecalculateStyles": 87759,
+      "Layout": 19804,
+      "Paint": 23111,
+      "Composite": 461199,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 462,
+      "transition": 317,
+      "animation": 91
+     }
+    }
+   },
+   "framesTl": {
+    "n": 341,
+    "p95": 10100,
+    "p99": 15000,
+    "max": 18400,
+    "over": 83
+   },
+   "framesLane": {
+    "n": 448,
+    "p95": 8500,
+    "p99": 10600,
+    "max": 19800,
+    "over": 57
+   },
+   "leads": {
+    "commit: Composite": 81,
+    "idle: -": 1,
+    "style: RecalculateStyles": 1
+   },
+   "idleBusyPct": [
+    18,
+    21,
+    41,
+    46,
+    38,
+    35,
+    34
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 3,
+     "d": 18400,
+     "work": "commit",
+     "times": {
+      "script": 576,
+      "style": 2836,
+      "layout": 423,
+      "paint": 351,
+      "commit": 11422
+     },
+     "busy": 15608,
+     "lead": {
+      "t": 11422,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 7,
+     "d": 16900,
+     "work": "commit",
+     "times": {
+      "script": 708,
+      "style": 3007,
+      "layout": 418,
+      "paint": 440,
+      "commit": 9465
+     },
+     "busy": 14038,
+     "lead": {
+      "t": 9465,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 7,
+     "d": 15900,
+     "work": "commit",
+     "times": {
+      "script": 739,
+      "style": 1243,
+      "layout": 513,
+      "paint": 387,
+      "commit": 9790
+     },
+     "busy": 12672,
+     "lead": {
+      "t": 9790,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 3,
+     "d": 15000,
+     "work": "commit",
+     "times": {
+      "script": 580,
+      "style": 1055,
+      "layout": 418,
+      "paint": 379,
+      "commit": 9523
+     },
+     "busy": 11955,
+     "lead": {
+      "t": 9523,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 13700,
+     "work": "commit",
+     "times": {
+      "script": 303,
+      "style": 1411,
+      "layout": 290,
+      "paint": 252,
+      "commit": 9001
+     },
+     "busy": 11257,
+     "lead": {
+      "t": 9001,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 1,
+   "arm": "morph.geom:on",
+   "round": 0,
+   "position": 1,
+   "intervals": 287,
+   "p95": 7000,
+   "max": 14400,
+   "over": 45,
+   "overByWork": {
+    "script": 0,
+    "style": 27,
+    "layout": 0,
+    "paint": 0,
+    "commit": 17,
+    "idle": 1
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 9,
+    "layout": 0,
+    "paint": 0,
+    "commit": 10,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 108,
+    "layout": 0,
+    "paint": 0,
+    "commit": 158,
+    "idle": 21
+   },
+   "overMs": 3148,
+   "busyShareOver": 83,
+   "byTime": {
+    "0": {
+     "long": 32,
+     "all": 137
+    },
+    "1": {
+     "long": 12,
+     "all": 57
+    },
+    "2": {
+     "long": 1,
+     "all": 28
+    },
+    "3": {
+     "long": 0,
+     "all": 26
+    },
+    "4": {
+     "long": 0,
+     "all": 25
+    },
+    "5": {
+     "long": 0,
+     "all": 14
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 45,
+     "clips": 1765,
+     "owners": {
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 32,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 41,
+      "visuals-module_secureNetworkRingsIn": 696,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 88,
+      "visuals-module_invoiceCardIn": 100,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 42,
+      "no animated box": 480,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 25,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 14,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 81,
+      "sweep-module_sweepDoc": 80,
+      "visuals-module_invoiceIRowIn": 78,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8
+     },
+     "n": {
+      "RecalculateStyles": 212,
+      "Layout": 159,
+      "Paint": 1765,
+      "Composite": 45,
+      "ScheduleStyleRecalculation": 122,
+      "InvalidateLayout": 227
+     },
+     "cs": {
+      "RecalculateStyles": 151823,
+      "Layout": 6071,
+      "Paint": 4648,
+      "Composite": 91416,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 624,
+      "transition": 191,
+      "animation": 88
+     }
+    },
+    "rest": {
+     "frames": 242,
+     "clips": 1128,
+     "owners": {
+      "sweep-module_sweepDoc": 457,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 462,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 3,
+      "visuals-module_invoiceCardIn": 28,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 19,
+      "no animated box": 60,
+      "visuals-module_invoiceIRowIn": 4,
+      "visuals-module_secureNetworkRingsIn": 90,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 2,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 2,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 762,
+      "Layout": 406,
+      "Paint": 1128,
+      "Composite": 243,
+      "ScheduleStyleRecalculation": 426,
+      "InvalidateLayout": 560
+     },
+     "cs": {
+      "RecalculateStyles": 330913,
+      "Layout": 9727,
+      "Paint": 13707,
+      "Composite": 214053,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 882,
+      "transition": 113,
+      "animation": 97
+     }
+    }
+   },
+   "framesTl": {
+    "n": 287,
+    "p95": 7000,
+    "p99": 10300,
+    "max": 14400,
+    "over": 45
+   },
+   "framesLane": {
+    "n": 327,
+    "p95": 6200,
+    "p99": 9000,
+    "max": 10900,
+    "over": 27
+   },
+   "leads": {
+    "commit: Composite": 17,
+    "style: RecalculateStyles": 27,
+    "idle: -": 1
+   },
+   "idleBusyPct": [
+    39,
+    50,
+    28,
+    41,
+    47,
+    48,
+    24,
+    43,
+    30,
+    41,
+    36,
+    49,
+    42,
+    23,
+    42,
+    38,
+    45,
+    42,
+    34,
+    43,
+    37
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 14400,
+     "work": "commit",
+     "times": {
+      "script": 3459,
+      "style": 3564,
+      "layout": 866,
+      "paint": 203,
+      "commit": 4518
+     },
+     "busy": 12610,
+     "lead": {
+      "t": 4518,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 0,
+     "d": 10800,
+     "work": "style",
+     "times": {
+      "script": 1836,
+      "style": 6735,
+      "layout": 78,
+      "paint": 368,
+      "commit": 1226
+     },
+     "busy": 10243,
+     "lead": {
+      "t": 2000,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 8,
+     "d": 10300,
+     "work": "commit",
+     "times": {
+      "script": 1862,
+      "style": 1919,
+      "layout": 370,
+      "paint": 157,
+      "commit": 2796
+     },
+     "busy": 7104,
+     "lead": {
+      "t": 2796,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 0,
+     "d": 10000,
+     "work": "style",
+     "times": {
+      "script": 1829,
+      "style": 6809,
+      "layout": 110,
+      "paint": 70,
+      "commit": 881
+     },
+     "busy": 9699,
+     "lead": {
+      "t": 1795,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 2,
+     "d": 10000,
+     "work": "commit",
+     "times": {
+      "script": 1753,
+      "style": 1629,
+      "layout": 340,
+      "paint": 181,
+      "commit": 2775
+     },
+     "busy": 6678,
+     "lead": {
+      "t": 2775,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 2,
+   "arm": "morph.tween:geom-timed",
+   "round": 0,
+   "position": 2,
+   "intervals": 475,
+   "p95": 7900,
+   "max": 19100,
+   "over": 77,
+   "overByWork": {
+    "script": 0,
+    "style": 69,
+    "layout": 0,
+    "paint": 0,
+    "commit": 8,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 24,
+    "layout": 0,
+    "paint": 0,
+    "commit": 1,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 97,
+    "layout": 0,
+    "paint": 0,
+    "commit": 348,
+    "idle": 30
+   },
+   "overMs": 5786,
+   "busyShareOver": 87,
+   "byTime": {
+    "0": {
+     "long": 46,
+     "all": 114
+    },
+    "1": {
+     "long": 31,
+     "all": 104
+    },
+    "2": {
+     "long": 0,
+     "all": 179
+    },
+    "3": {
+     "long": 0,
+     "all": 35
+    },
+    "4": {
+     "long": 0,
+     "all": 30
+    },
+    "5": {
+     "long": 0,
+     "all": 13
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 77,
+     "clips": 2698,
+     "owners": {
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 133,
+      "sweep-module_sweepDoc": 114,
+      "no animated box": 777,
+      "visuals-module_invoiceIRowIn": 255,
+      "visuals-module_secureNetworkRingsIn": 960,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 61,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 122,
+      "visuals-module_invoiceCardIn": 97,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 28,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 4,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 36,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 65,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 38,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8
+     },
+     "n": {
+      "RecalculateStyles": 280,
+      "Layout": 245,
+      "Paint": 2698,
+      "Composite": 78,
+      "ScheduleStyleRecalculation": 176,
+      "InvalidateLayout": 368
+     },
+     "cs": {
+      "RecalculateStyles": 341363,
+      "Layout": 15089,
+      "Paint": 14843,
+      "Composite": 197037,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1094,
+      "transition": 418,
+      "animation": 116
+     }
+    },
+    "rest": {
+     "frames": 398,
+     "clips": 1967,
+     "owners": {
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 734,
+      "sweep-module_sweepDoc": 526,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 9,
+      "visuals-module_invoiceCardIn": 33,
+      "visuals-module_secureNetworkRingsIn": 365,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 263,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 1,
+      "no animated box": 20,
+      "visuals-module_invoiceIRowIn": 3,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 12,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 1035,
+      "Layout": 756,
+      "Paint": 1967,
+      "Composite": 398,
+      "ScheduleStyleRecalculation": 491,
+      "InvalidateLayout": 1017
+     },
+     "cs": {
+      "RecalculateStyles": 159548,
+      "Layout": 17680,
+      "Paint": 20600,
+      "Composite": 383550,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 365,
+      "transition": 204,
+      "animation": 185
+     }
+    }
+   },
+   "framesTl": {
+    "n": 475,
+    "p95": 7900,
+    "p99": 11400,
+    "max": 19100,
+    "over": 77
+   },
+   "framesLane": {
+    "n": 500,
+    "p95": 6800,
+    "p99": 10800,
+    "max": 13100,
+    "over": 53
+   },
+   "leads": {
+    "style: RecalculateStyles": 69,
+    "commit: Composite": 8
+   },
+   "idleBusyPct": [
+    46,
+    39,
+    49,
+    48,
+    16,
+    13,
+    24,
+    15,
+    36,
+    37,
+    40,
+    12,
+    46,
+    37,
+    47,
+    39,
+    17,
+    36,
+    36,
+    45,
+    47,
+    41,
+    11,
+    44,
+    49,
+    39,
+    12,
+    37,
+    42,
+    44
+   ],
+   "trace": {
+    "pushes": 10,
+    "taken": 10,
+    "touches": 10,
+    "touchTaken": 10,
+    "perTouch": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 19100,
+     "work": "style",
+     "times": {
+      "script": 2086,
+      "style": 9769,
+      "layout": 171,
+      "paint": 677,
+      "commit": 3445
+     },
+     "busy": 16148,
+     "lead": {
+      "t": 3233,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 1,
+     "d": 13900,
+     "work": "style",
+     "times": {
+      "script": 247,
+      "style": 10379,
+      "layout": 135,
+      "paint": 838,
+      "commit": 1237
+     },
+     "busy": 12836,
+     "lead": {
+      "t": 3933,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 8,
+     "d": 12200,
+     "work": "style",
+     "times": {
+      "script": 2519,
+      "style": 5696,
+      "layout": 469,
+      "paint": 158,
+      "commit": 2211
+     },
+     "busy": 11053,
+     "lead": {
+      "t": 2175,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 4,
+     "d": 11400,
+     "work": "style",
+     "times": {
+      "script": 2299,
+      "style": 5179,
+      "layout": 344,
+      "paint": 119,
+      "commit": 2928
+     },
+     "busy": 10869,
+     "lead": {
+      "t": 2097,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 6,
+     "d": 11400,
+     "work": "style",
+     "times": {
+      "script": 2283,
+      "style": 5561,
+      "layout": 406,
+      "paint": 184,
+      "commit": 1627
+     },
+     "busy": 10061,
+     "lead": {
+      "t": 2224,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 3,
+   "arm": "morph.geom:on",
+   "round": 1,
+   "position": 0,
+   "intervals": 269,
+   "p95": 7700,
+   "max": 14700,
+   "over": 71,
+   "overByWork": {
+    "script": 1,
+    "style": 51,
+    "layout": 0,
+    "paint": 0,
+    "commit": 19,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 5,
+    "layout": 0,
+    "paint": 0,
+    "commit": 9,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 1,
+    "style": 98,
+    "layout": 0,
+    "paint": 0,
+    "commit": 156,
+    "idle": 14
+   },
+   "overMs": 4588,
+   "busyShareOver": 86,
+   "byTime": {
+    "0": {
+     "long": 47,
+     "all": 127
+    },
+    "1": {
+     "long": 23,
+     "all": 55
+    },
+    "2": {
+     "long": 1,
+     "all": 27
+    },
+    "3": {
+     "long": 0,
+     "all": 27
+    },
+    "4": {
+     "long": 0,
+     "all": 23
+    },
+    "5": {
+     "long": 0,
+     "all": 10
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 71,
+     "clips": 1939,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 733,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 24,
+      "no animated box": 518,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 44,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 83,
+      "visuals-module_invoiceCardIn": 109,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 24,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 32,
+      "sweep-module_sweepDoc": 106,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 133,
+      "visuals-module_invoiceIRowIn": 83,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 40,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 2
+     },
+     "n": {
+      "RecalculateStyles": 281,
+      "Layout": 222,
+      "Paint": 1939,
+      "Composite": 74,
+      "ScheduleStyleRecalculation": 167,
+      "InvalidateLayout": 312
+     },
+     "cs": {
+      "RecalculateStyles": 247530,
+      "Layout": 7187,
+      "Paint": 6937,
+      "Composite": 126667,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 887,
+      "transition": 260,
+      "animation": 126
+     }
+    },
+    "rest": {
+     "frames": 198,
+     "clips": 883,
+     "owners": {
+      "sweep-module_sweepDoc": 401,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 376,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 3,
+      "visuals-module_invoiceCardIn": 11,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 9,
+      "no animated box": 42,
+      "visuals-module_secureNetworkRingsIn": 37,
+      "visuals-module_invoiceIRowIn": 3,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 587,
+      "Layout": 323,
+      "Paint": 883,
+      "Composite": 200,
+      "ScheduleStyleRecalculation": 331,
+      "InvalidateLayout": 455
+     },
+     "cs": {
+      "RecalculateStyles": 215475,
+      "Layout": 7948,
+      "Paint": 11283,
+      "Composite": 186531,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 554,
+      "transition": 46,
+      "animation": 55
+     }
+    }
+   },
+   "framesTl": {
+    "n": 269,
+    "p95": 7700,
+    "p99": 10500,
+    "max": 14700,
+    "over": 71
+   },
+   "framesLane": {
+    "n": 318,
+    "p95": 6100,
+    "p99": 9200,
+    "max": 10500,
+    "over": 38
+   },
+   "leads": {
+    "commit: Composite": 19,
+    "style: RecalculateStyles": 51,
+    "script: FunctionCall entry-client-DN21yM_l.js:9:96013": 1
+   },
+   "idleBusyPct": [
+    38,
+    48,
+    22,
+    48,
+    32,
+    45,
+    32,
+    30,
+    37,
+    32,
+    42,
+    49,
+    27,
+    49
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 14700,
+     "work": "commit",
+     "times": {
+      "script": 3573,
+      "style": 3590,
+      "layout": 842,
+      "paint": 500,
+      "commit": 4574
+     },
+     "busy": 13079,
+     "lead": {
+      "t": 4574,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 11400,
+     "work": "commit",
+     "times": {
+      "script": 2099,
+      "style": 2200,
+      "layout": 424,
+      "paint": 162,
+      "commit": 3175
+     },
+     "busy": 8060,
+     "lead": {
+      "t": 3175,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 6,
+     "d": 10500,
+     "work": "commit",
+     "times": {
+      "script": 1955,
+      "style": 1851,
+      "layout": 445,
+      "paint": 116,
+      "commit": 2873
+     },
+     "busy": 7240,
+     "lead": {
+      "t": 2873,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 10300,
+     "work": "style",
+     "times": {
+      "script": 225,
+      "style": 3436,
+      "layout": 123,
+      "paint": 138,
+      "commit": 3013
+     },
+     "busy": 6935,
+     "lead": {
+      "t": 3101,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 2,
+     "d": 10300,
+     "work": "commit",
+     "times": {
+      "script": 1887,
+      "style": 1723,
+      "layout": 337,
+      "paint": 149,
+      "commit": 2975
+     },
+     "busy": 7071,
+     "lead": {
+      "t": 2975,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 4,
+   "arm": "morph.tween:geom-timed",
+   "round": 1,
+   "position": 1,
+   "intervals": 464,
+   "p95": 7700,
+   "max": 13600,
+   "over": 83,
+   "overByWork": {
+    "script": 0,
+    "style": 76,
+    "layout": 0,
+    "paint": 0,
+    "commit": 7,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 29,
+    "layout": 0,
+    "paint": 0,
+    "commit": 0,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 99,
+    "layout": 0,
+    "paint": 0,
+    "commit": 342,
+    "idle": 23
+   },
+   "overMs": 6126,
+   "busyShareOver": 87,
+   "byTime": {
+    "0": {
+     "long": 47,
+     "all": 112
+    },
+    "1": {
+     "long": 36,
+     "all": 102
+    },
+    "2": {
+     "long": 0,
+     "all": 178
+    },
+    "3": {
+     "long": 0,
+     "all": 32
+    },
+    "4": {
+     "long": 0,
+     "all": 30
+    },
+    "5": {
+     "long": 0,
+     "all": 10
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 83,
+     "clips": 2632,
+     "owners": {
+      "sweep-module_sweepDoc": 120,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 146,
+      "no animated box": 743,
+      "visuals-module_invoiceCardIn": 95,
+      "visuals-module_secureNetworkRingsIn": 941,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 60,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 32,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 109,
+      "visuals-module_invoiceIRowIn": 239,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 35,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 58,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 7,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 39,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8
+     },
+     "n": {
+      "RecalculateStyles": 292,
+      "Layout": 240,
+      "Paint": 2632,
+      "Composite": 87,
+      "ScheduleStyleRecalculation": 184,
+      "InvalidateLayout": 367
+     },
+     "cs": {
+      "RecalculateStyles": 379628,
+      "Layout": 15564,
+      "Paint": 15308,
+      "Composite": 196073,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1090,
+      "transition": 345,
+      "animation": 142
+     }
+    },
+    "rest": {
+     "frames": 381,
+     "clips": 1918,
+     "owners": {
+      "sweep-module_sweepDoc": 505,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 706,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 8,
+      "visuals-module_invoiceCardIn": 32,
+      "no animated box": 27,
+      "visuals-module_secureNetworkRingsIn": 367,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 1,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 259,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 11,
+      "visuals-module_invoiceIRowIn": 1,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 922,
+      "Layout": 738,
+      "Paint": 1918,
+      "Composite": 381,
+      "ScheduleStyleRecalculation": 466,
+      "InvalidateLayout": 971
+     },
+     "cs": {
+      "RecalculateStyles": 133914,
+      "Layout": 17507,
+      "Paint": 20403,
+      "Composite": 383208,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 298,
+      "transition": 265,
+      "animation": 170
+     }
+    }
+   },
+   "framesTl": {
+    "n": 464,
+    "p95": 7700,
+    "p99": 11800,
+    "max": 13600,
+    "over": 83
+   },
+   "framesLane": {
+    "n": 500,
+    "p95": 7100,
+    "p99": 10700,
+    "max": 11400,
+    "over": 52
+   },
+   "leads": {
+    "style: RecalculateStyles": 76,
+    "commit: Composite": 7
+   },
+   "idleBusyPct": [
+    33,
+    13,
+    17,
+    13,
+    38,
+    39,
+    14,
+    48,
+    38,
+    37,
+    47,
+    33,
+    13,
+    32,
+    17,
+    36,
+    49,
+    32,
+    31,
+    39,
+    20,
+    47,
+    33
+   ],
+   "trace": {
+    "pushes": 10,
+    "taken": 10,
+    "touches": 10,
+    "touchTaken": 10,
+    "perTouch": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 13600,
+     "work": "style",
+     "times": {
+      "script": 246,
+      "style": 7525,
+      "layout": 123,
+      "paint": 1067,
+      "commit": 2190
+     },
+     "busy": 11151,
+     "lead": {
+      "t": 4769,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 13000,
+     "work": "style",
+     "times": {
+      "script": 2177,
+      "style": 4376,
+      "layout": 144,
+      "paint": 825,
+      "commit": 4054
+     },
+     "busy": 11576,
+     "lead": {
+      "t": 3714,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 12000,
+     "work": "style",
+     "times": {
+      "script": 379,
+      "style": 9787,
+      "layout": 333,
+      "paint": 296,
+      "commit": 253
+     },
+     "busy": 11048,
+     "lead": {
+      "t": 3530,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 4,
+     "d": 11800,
+     "work": "style",
+     "times": {
+      "script": 2485,
+      "style": 5776,
+      "layout": 386,
+      "paint": 103,
+      "commit": 2602
+     },
+     "busy": 11352,
+     "lead": {
+      "t": 2232,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 6,
+     "d": 11800,
+     "work": "style",
+     "times": {
+      "script": 2613,
+      "style": 6373,
+      "layout": 389,
+      "paint": 117,
+      "commit": 614
+     },
+     "busy": 10106,
+     "lead": {
+      "t": 2705,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 5,
+   "arm": "base",
+   "round": 1,
+   "position": 2,
+   "intervals": 487,
+   "p95": 6900,
+   "max": 13600,
+   "over": 64,
+   "overByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 64,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 26,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 1,
+    "layout": 0,
+    "paint": 0,
+    "commit": 474,
+    "idle": 12
+   },
+   "overMs": 4267,
+   "busyShareOver": 83,
+   "byTime": {
+    "0": {
+     "long": 44,
+     "all": 131
+    },
+    "1": {
+     "long": 20,
+     "all": 133
+    },
+    "2": {
+     "long": 0,
+     "all": 157
+    },
+    "3": {
+     "long": 0,
+     "all": 24
+    },
+    "4": {
+     "long": 0,
+     "all": 22
+    },
+    "5": {
+     "long": 0,
+     "all": 20
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 64,
+     "clips": 5968,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 316,
+      "visuals-module_secureNetworkRingsIn": 2038,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 105,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 227,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 159,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 110,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 38,
+      "no animated box": 1662,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 30,
+      "visuals-module_invoiceCardIn": 328,
+      "sweep-module_sweepDoc": 123,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 116,
+      "visuals-module_invoiceIRowIn": 713,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 3
+     },
+     "n": {
+      "RecalculateStyles": 314,
+      "Layout": 320,
+      "Paint": 5968,
+      "Composite": 64,
+      "ScheduleStyleRecalculation": 132,
+      "InvalidateLayout": 471
+     },
+     "cs": {
+      "RecalculateStyles": 56610,
+      "Layout": 12616,
+      "Paint": 9295,
+      "Composite": 289658,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1420,
+      "transition": 384,
+      "animation": 38
+     }
+    },
+    "rest": {
+     "frames": 423,
+     "clips": 7019,
+     "owners": {
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 226,
+      "sweep-module_sweepDoc": 566,
+      "visuals-module_invoiceCardIn": 391,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 811,
+      "no animated box": 1251,
+      "visuals-module_secureNetworkRingsIn": 2093,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 101,
+      "visuals-module_invoiceIRowIn": 692,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 99,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 45,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 592,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 110,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 4,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 38
+     },
+     "n": {
+      "RecalculateStyles": 1080,
+      "Layout": 989,
+      "Paint": 7019,
+      "Composite": 435,
+      "ScheduleStyleRecalculation": 620,
+      "InvalidateLayout": 1277
+     },
+     "cs": {
+      "RecalculateStyles": 143485,
+      "Layout": 26487,
+      "Paint": 30684,
+      "Composite": 607347,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 813,
+      "transition": 836,
+      "animation": 110
+     }
+    }
+   },
+   "framesTl": {
+    "n": 487,
+    "p95": 6900,
+    "p99": 8100,
+    "max": 13600,
+    "over": 64
+   },
+   "framesLane": {
+    "n": 579,
+    "p95": 5700,
+    "p99": 6800,
+    "max": 9200,
+    "over": 42
+   },
+   "leads": {
+    "commit: Composite": 64
+   },
+   "idleBusyPct": [
+    30,
+    50,
+    14,
+    35,
+    12,
+    45,
+    17,
+    48,
+    11,
+    46,
+    23,
+    27
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 13600,
+     "work": "commit",
+     "times": {
+      "script": 603,
+      "style": 1410,
+      "layout": 380,
+      "paint": 189,
+      "commit": 8630
+     },
+     "busy": 11212,
+     "lead": {
+      "t": 8630,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 12100,
+     "work": "commit",
+     "times": {
+      "script": 1356,
+      "style": 608,
+      "layout": 382,
+      "paint": 182,
+      "commit": 7196
+     },
+     "busy": 9724,
+     "lead": {
+      "t": 7196,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 8500,
+     "work": "commit",
+     "times": {
+      "script": 399,
+      "style": 1413,
+      "layout": 297,
+      "paint": 166,
+      "commit": 5000
+     },
+     "busy": 7275,
+     "lead": {
+      "t": 5000,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 8200,
+     "work": "commit",
+     "times": {
+      "script": 248,
+      "style": 1246,
+      "layout": 476,
+      "paint": 157,
+      "commit": 4498
+     },
+     "busy": 6625,
+     "lead": {
+      "t": 4498,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 8100,
+     "work": "commit",
+     "times": {
+      "script": 256,
+      "style": 886,
+      "layout": 228,
+      "paint": 141,
+      "commit": 5328
+     },
+     "busy": 6839,
+     "lead": {
+      "t": 5328,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 6,
+   "arm": "morph.tween:geom-timed",
+   "round": 2,
+   "position": 0,
+   "intervals": 458,
+   "p95": 8100,
+   "max": 17200,
+   "over": 81,
+   "overByWork": {
+    "script": 1,
+    "style": 73,
+    "layout": 0,
+    "paint": 0,
+    "commit": 7,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 22,
+    "layout": 0,
+    "paint": 0,
+    "commit": 1,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 1,
+    "style": 95,
+    "layout": 0,
+    "paint": 0,
+    "commit": 338,
+    "idle": 24
+   },
+   "overMs": 6096,
+   "busyShareOver": 87,
+   "byTime": {
+    "0": {
+     "long": 49,
+     "all": 112
+    },
+    "1": {
+     "long": 32,
+     "all": 103
+    },
+    "2": {
+     "long": 0,
+     "all": 178
+    },
+    "3": {
+     "long": 0,
+     "all": 34
+    },
+    "4": {
+     "long": 0,
+     "all": 30
+    },
+    "5": {
+     "long": 0,
+     "all": 1
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 81,
+     "clips": 2619,
+     "owners": {
+      "sweep-module_sweepDoc": 116,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 139,
+      "no animated box": 715,
+      "visuals-module_invoiceCardIn": 98,
+      "visuals-module_secureNetworkRingsIn": 939,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 71,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 68,
+      "visuals-module_invoiceIRowIn": 252,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 28,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 33,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 110,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 36,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 6
+     },
+     "n": {
+      "RecalculateStyles": 283,
+      "Layout": 245,
+      "Paint": 2619,
+      "Composite": 90,
+      "ScheduleStyleRecalculation": 180,
+      "InvalidateLayout": 368
+     },
+     "cs": {
+      "RecalculateStyles": 374447,
+      "Layout": 14844,
+      "Paint": 14799,
+      "Composite": 198674,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1061,
+      "transition": 344,
+      "animation": 145
+     }
+    },
+    "rest": {
+     "frames": 377,
+     "clips": 1941,
+     "owners": {
+      "sweep-module_sweepDoc": 518,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 699,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 9,
+      "visuals-module_invoiceCardIn": 35,
+      "visuals-module_secureNetworkRingsIn": 367,
+      "no animated box": 27,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 266,
+      "visuals-module_invoiceIRowIn": 2,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 1,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 14,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 1,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 2
+     },
+     "n": {
+      "RecalculateStyles": 886,
+      "Layout": 734,
+      "Paint": 1941,
+      "Composite": 383,
+      "ScheduleStyleRecalculation": 459,
+      "InvalidateLayout": 977
+     },
+     "cs": {
+      "RecalculateStyles": 136719,
+      "Layout": 16852,
+      "Paint": 19398,
+      "Composite": 381121,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 311,
+      "transition": 270,
+      "animation": 174
+     }
+    }
+   },
+   "framesTl": {
+    "n": 458,
+    "p95": 8100,
+    "p99": 12700,
+    "max": 17200,
+    "over": 81
+   },
+   "framesLane": {
+    "n": 499,
+    "p95": 6800,
+    "p99": 10800,
+    "max": 13400,
+    "over": 53
+   },
+   "leads": {
+    "script: FunctionCall entry-client-DN21yM_l.js:47:14476": 1,
+    "style: RecalculateStyles": 73,
+    "commit: Composite": 7
+   },
+   "idleBusyPct": [
+    38,
+    30,
+    13,
+    15,
+    39,
+    13,
+    46,
+    33,
+    13,
+    36,
+    27,
+    48,
+    50,
+    46,
+    39,
+    11,
+    32,
+    49,
+    34,
+    37,
+    39,
+    26,
+    16,
+    22
+   ],
+   "trace": {
+    "pushes": 10,
+    "taken": 10,
+    "touches": 10,
+    "touchTaken": 10,
+    "perTouch": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 17200,
+     "work": "style",
+     "times": {
+      "script": 2029,
+      "style": 12987,
+      "layout": 425,
+      "paint": 309,
+      "commit": 221
+     },
+     "busy": 15971,
+     "lead": {
+      "t": 3221,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 17000,
+     "work": "style",
+     "times": {
+      "script": 1758,
+      "style": 6466,
+      "layout": 77,
+      "paint": 836,
+      "commit": 5522
+     },
+     "busy": 14659,
+     "lead": {
+      "t": 3288,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 13300,
+     "work": "style",
+     "times": {
+      "script": 255,
+      "style": 7815,
+      "layout": 88,
+      "paint": 822,
+      "commit": 2686
+     },
+     "busy": 11666,
+     "lead": {
+      "t": 3803,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 1,
+     "d": 12800,
+     "work": "style",
+     "times": {
+      "script": 277,
+      "style": 8402,
+      "layout": 102,
+      "paint": 923,
+      "commit": 1638
+     },
+     "busy": 11342,
+     "lead": {
+      "t": 4407,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 4,
+     "d": 12700,
+     "work": "style",
+     "times": {
+      "script": 2405,
+      "style": 5485,
+      "layout": 366,
+      "paint": 119,
+      "commit": 3978
+     },
+     "busy": 12353,
+     "lead": {
+      "t": 2262,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    }
+   ],
+   "anim": {
+    "n": 40,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_feedPanelIn_o-4K1r on div.deck-module_feedPanel_Kk2WOe [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 7,
+   "arm": "base",
+   "round": 2,
+   "position": 1,
+   "intervals": 463,
+   "p95": 7300,
+   "max": 13200,
+   "over": 72,
+   "overByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 72,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 27,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 1,
+    "layout": 0,
+    "paint": 0,
+    "commit": 450,
+    "idle": 12
+   },
+   "overMs": 5186,
+   "busyShareOver": 84,
+   "byTime": {
+    "0": {
+     "long": 50,
+     "all": 126
+    },
+    "1": {
+     "long": 22,
+     "all": 118
+    },
+    "2": {
+     "long": 0,
+     "all": 154
+    },
+    "3": {
+     "long": 0,
+     "all": 27
+    },
+    "4": {
+     "long": 0,
+     "all": 22
+    },
+    "5": {
+     "long": 0,
+     "all": 16
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 72,
+     "clips": 6707,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 2544,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 46,
+      "sweep-module_sweepDoc": 132,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 219,
+      "visuals-module_invoiceCardIn": 350,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 40,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 412,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 145,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 135,
+      "no animated box": 1704,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 135,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 8,
+      "visuals-module_invoiceIRowIn": 697,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 140
+     },
+     "n": {
+      "RecalculateStyles": 367,
+      "Layout": 362,
+      "Paint": 6707,
+      "Composite": 72,
+      "ScheduleStyleRecalculation": 147,
+      "InvalidateLayout": 546
+     },
+     "cs": {
+      "RecalculateStyles": 67493,
+      "Layout": 13700,
+      "Paint": 11406,
+      "Composite": 360211,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1591,
+      "transition": 544,
+      "animation": 43
+     }
+    },
+    "rest": {
+     "frames": 391,
+     "clips": 4795,
+     "owners": {
+      "sweep-module_sweepDoc": 519,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 752,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 190,
+      "visuals-module_invoiceCardIn": 274,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 393,
+      "no animated box": 868,
+      "visuals-module_invoiceIRowIn": 523,
+      "visuals-module_secureNetworkRingsIn": 1084,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 56,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 22,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 49,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 18,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 46,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 1051,
+      "Layout": 863,
+      "Paint": 4795,
+      "Composite": 392,
+      "ScheduleStyleRecalculation": 543,
+      "InvalidateLayout": 1136
+     },
+     "cs": {
+      "RecalculateStyles": 116274,
+      "Layout": 23263,
+      "Paint": 26391,
+      "Composite": 552192,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 664,
+      "transition": 591,
+      "animation": 116
+     }
+    }
+   },
+   "framesTl": {
+    "n": 463,
+    "p95": 7300,
+    "p99": 9300,
+    "max": 13200,
+    "over": 72
+   },
+   "framesLane": {
+    "n": 566,
+    "p95": 5800,
+    "p99": 7200,
+    "max": 10500,
+    "over": 52
+   },
+   "leads": {
+    "commit: Composite": 72
+   },
+   "idleBusyPct": [
+    45,
+    15,
+    37,
+    44,
+    44,
+    10,
+    39,
+    13,
+    41,
+    13,
+    49,
+    17
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 13200,
+     "work": "commit",
+     "times": {
+      "script": 1427,
+      "style": 597,
+      "layout": 436,
+      "paint": 182,
+      "commit": 8113
+     },
+     "busy": 10755,
+     "lead": {
+      "t": 8113,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 12700,
+     "work": "commit",
+     "times": {
+      "script": 842,
+      "style": 1470,
+      "layout": 211,
+      "paint": 337,
+      "commit": 7524
+     },
+     "busy": 10384,
+     "lead": {
+      "t": 7524,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 12300,
+     "work": "commit",
+     "times": {
+      "script": 328,
+      "style": 1435,
+      "layout": 266,
+      "paint": 217,
+      "commit": 7732
+     },
+     "busy": 9978,
+     "lead": {
+      "t": 7732,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 9800,
+     "work": "commit",
+     "times": {
+      "script": 142,
+      "style": 1568,
+      "layout": 184,
+      "paint": 424,
+      "commit": 5555
+     },
+     "busy": 7873,
+     "lead": {
+      "t": 5555,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 0,
+     "d": 9300,
+     "work": "commit",
+     "times": {
+      "script": 46,
+      "style": 462,
+      "layout": 167,
+      "paint": 139,
+      "commit": 7909
+     },
+     "busy": 8723,
+     "lead": {
+      "t": 7909,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 8,
+   "arm": "morph.geom:on",
+   "round": 2,
+   "position": 2,
+   "intervals": 258,
+   "p95": 8000,
+   "max": 13000,
+   "over": 72,
+   "overByWork": {
+    "script": 1,
+    "style": 48,
+    "layout": 0,
+    "paint": 0,
+    "commit": 23,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 1,
+    "style": 6,
+    "layout": 0,
+    "paint": 0,
+    "commit": 6,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 1,
+    "style": 96,
+    "layout": 0,
+    "paint": 0,
+    "commit": 150,
+    "idle": 11
+   },
+   "overMs": 4815,
+   "busyShareOver": 86,
+   "byTime": {
+    "0": {
+     "long": 50,
+     "all": 131
+    },
+    "1": {
+     "long": 19,
+     "all": 53
+    },
+    "2": {
+     "long": 3,
+     "all": 16
+    },
+    "3": {
+     "long": 0,
+     "all": 24
+    },
+    "4": {
+     "long": 0,
+     "all": 22
+    },
+    "5": {
+     "long": 0,
+     "all": 12
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 72,
+     "clips": 1952,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 83,
+      "visuals-module_secureNetworkRingsIn": 734,
+      "visuals-module_invoiceCardIn": 102,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 23,
+      "no animated box": 551,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 24,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 33,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 136,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 33,
+      "sweep-module_sweepDoc": 105,
+      "visuals-module_invoiceIRowIn": 79,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 40,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 301,
+      "Layout": 220,
+      "Paint": 1952,
+      "Composite": 72,
+      "ScheduleStyleRecalculation": 167,
+      "InvalidateLayout": 316
+     },
+     "cs": {
+      "RecalculateStyles": 246120,
+      "Layout": 7399,
+      "Paint": 7746,
+      "Composite": 148409,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 918,
+      "transition": 239,
+      "animation": 138
+     }
+    },
+    "rest": {
+     "frames": 186,
+     "clips": 828,
+     "owners": {
+      "sweep-module_sweepDoc": 376,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 356,
+      "visuals-module_invoiceCardIn": 10,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 3,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 12,
+      "no animated box": 29,
+      "visuals-module_secureNetworkRingsIn": 37,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 1,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 1,
+      "visuals-module_invoiceIRowIn": 2,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 596,
+      "Layout": 309,
+      "Paint": 828,
+      "Composite": 187,
+      "ScheduleStyleRecalculation": 331,
+      "InvalidateLayout": 433
+     },
+     "cs": {
+      "RecalculateStyles": 220312,
+      "Layout": 7712,
+      "Paint": 11479,
+      "Composite": 172912,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 545,
+      "transition": 69,
+      "animation": 55
+     }
+    }
+   },
+   "framesTl": {
+    "n": 258,
+    "p95": 8000,
+    "p99": 10600,
+    "max": 13000,
+    "over": 72
+   },
+   "framesLane": {
+    "n": 325,
+    "p95": 5600,
+    "p99": 9100,
+    "max": 10300,
+    "over": 26
+   },
+   "leads": {
+    "script: FunctionCall entry-client-DN21yM_l.js:47:46699": 1,
+    "style: RecalculateStyles": 48,
+    "commit: Composite": 23
+   },
+   "idleBusyPct": [
+    41,
+    49,
+    30,
+    23,
+    43,
+    43,
+    44,
+    43,
+    42,
+    26,
+    46
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 13000,
+     "work": "script",
+     "times": {
+      "script": 3742,
+      "style": 3493,
+      "layout": 753,
+      "paint": 248,
+      "commit": 3486
+     },
+     "busy": 11722,
+     "lead": {
+      "t": 1916,
+      "type": "FunctionCall",
+      "where": "FunctionCall entry-client-DN21yM_l.js:47:46699"
+     }
+    },
+    {
+     "push": 0,
+     "d": 10700,
+     "work": "style",
+     "times": {
+      "script": 316,
+      "style": 7272,
+      "layout": 71,
+      "paint": 320,
+      "commit": 2500
+     },
+     "busy": 10479,
+     "lead": {
+      "t": 2044,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 6,
+     "d": 10600,
+     "work": "commit",
+     "times": {
+      "script": 2002,
+      "style": 1829,
+      "layout": 345,
+      "paint": 165,
+      "commit": 2799
+     },
+     "busy": 7140,
+     "lead": {
+      "t": 2799,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 10400,
+     "work": "style",
+     "times": {
+      "script": 283,
+      "style": 3449,
+      "layout": 118,
+      "paint": 176,
+      "commit": 3158
+     },
+     "busy": 7184,
+     "lead": {
+      "t": 3111,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 10200,
+     "work": "commit",
+     "times": {
+      "script": 164,
+      "style": 3952,
+      "layout": 25,
+      "paint": 94,
+      "commit": 5697
+     },
+     "busy": 9932,
+     "lead": {
+      "t": 5697,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 9,
+   "arm": "morph.tween:geom-timed",
+   "round": 3,
+   "position": 0,
+   "intervals": 465,
+   "p95": 8200,
+   "max": 17500,
+   "over": 73,
+   "overByWork": {
+    "script": 0,
+    "style": 65,
+    "layout": 0,
+    "paint": 0,
+    "commit": 8,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 24,
+    "layout": 0,
+    "paint": 0,
+    "commit": 0,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 99,
+    "layout": 0,
+    "paint": 0,
+    "commit": 347,
+    "idle": 19
+   },
+   "overMs": 5701,
+   "busyShareOver": 87,
+   "byTime": {
+    "0": {
+     "long": 47,
+     "all": 101
+    },
+    "1": {
+     "long": 26,
+     "all": 107
+    },
+    "2": {
+     "long": 0,
+     "all": 181
+    },
+    "3": {
+     "long": 0,
+     "all": 32
+    },
+    "4": {
+     "long": 0,
+     "all": 30
+    },
+    "5": {
+     "long": 0,
+     "all": 14
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 73,
+     "clips": 2485,
+     "owners": {
+      "sweep-module_sweepDoc": 110,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 72,
+      "visuals-module_invoiceCardIn": 97,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 128,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 29,
+      "visuals-module_secureNetworkRingsIn": 890,
+      "no animated box": 677,
+      "visuals-module_invoiceIRowIn": 260,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 23,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 101,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 54,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 32,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 4
+     },
+     "n": {
+      "RecalculateStyles": 263,
+      "Layout": 228,
+      "Paint": 2485,
+      "Composite": 74,
+      "ScheduleStyleRecalculation": 162,
+      "InvalidateLayout": 353
+     },
+     "cs": {
+      "RecalculateStyles": 328281,
+      "Layout": 13626,
+      "Paint": 14265,
+      "Composite": 207868,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1087,
+      "transition": 316,
+      "animation": 144
+     }
+    },
+    "rest": {
+     "frames": 392,
+     "clips": 2021,
+     "owners": {
+      "sweep-module_sweepDoc": 506,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 724,
+      "visuals-module_invoiceCardIn": 38,
+      "visuals-module_secureNetworkRingsIn": 405,
+      "no animated box": 27,
+      "visuals-module_invoiceIRowIn": 4,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 279,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 5,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 17,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 12,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 2,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 2
+     },
+     "n": {
+      "RecalculateStyles": 1021,
+      "Layout": 774,
+      "Paint": 2021,
+      "Composite": 395,
+      "ScheduleStyleRecalculation": 504,
+      "InvalidateLayout": 1026
+     },
+     "cs": {
+      "RecalculateStyles": 166763,
+      "Layout": 18012,
+      "Paint": 20153,
+      "Composite": 407566,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 263,
+      "transition": 302,
+      "animation": 157
+     }
+    }
+   },
+   "framesTl": {
+    "n": 465,
+    "p95": 8200,
+    "p99": 12800,
+    "max": 17500,
+    "over": 73
+   },
+   "framesLane": {
+    "n": 428,
+    "p95": 9800,
+    "p99": 13700,
+    "max": 16000,
+    "over": 74
+   },
+   "leads": {
+    "commit: Composite": 8,
+    "style: RecalculateStyles": 65
+   },
+   "idleBusyPct": [
+    15,
+    15,
+    23,
+    23,
+    50,
+    14,
+    49,
+    49,
+    47,
+    16,
+    48,
+    47,
+    15,
+    12,
+    32,
+    13,
+    32,
+    10,
+    38
+   ],
+   "trace": {
+    "pushes": 10,
+    "taken": 10,
+    "touches": 10,
+    "touchTaken": 10,
+    "perTouch": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 17500,
+     "work": "style",
+     "times": {
+      "script": 2346,
+      "style": 12919,
+      "layout": 413,
+      "paint": 360,
+      "commit": 514
+     },
+     "busy": 16552,
+     "lead": {
+      "t": 3843,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 14500,
+     "work": "style",
+     "times": {
+      "script": 225,
+      "style": 7290,
+      "layout": 74,
+      "paint": 887,
+      "commit": 4090
+     },
+     "busy": 12566,
+     "lead": {
+      "t": 3637,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 3,
+     "d": 14000,
+     "work": "style",
+     "times": {
+      "script": 382,
+      "style": 11037,
+      "layout": 202,
+      "paint": 726,
+      "commit": 537
+     },
+     "busy": 12884,
+     "lead": {
+      "t": 3537,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 8,
+     "d": 13800,
+     "work": "style",
+     "times": {
+      "script": 3022,
+      "style": 5879,
+      "layout": 368,
+      "paint": 128,
+      "commit": 3817
+     },
+     "busy": 13214,
+     "lead": {
+      "t": 2432,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 2,
+     "d": 12800,
+     "work": "style",
+     "times": {
+      "script": 2680,
+      "style": 6206,
+      "layout": 398,
+      "paint": 140,
+      "commit": 1886
+     },
+     "busy": 11310,
+     "lead": {
+      "t": 2500,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 10,
+   "arm": "morph.geom:on",
+   "round": 3,
+   "position": 1,
+   "intervals": 264,
+   "p95": 8100,
+   "max": 15900,
+   "over": 69,
+   "overByWork": {
+    "script": 0,
+    "style": 51,
+    "layout": 0,
+    "paint": 0,
+    "commit": 18,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 8,
+    "layout": 0,
+    "paint": 0,
+    "commit": 6,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 97,
+    "layout": 0,
+    "paint": 0,
+    "commit": 154,
+    "idle": 13
+   },
+   "overMs": 4826,
+   "busyShareOver": 86,
+   "byTime": {
+    "0": {
+     "long": 46,
+     "all": 126
+    },
+    "1": {
+     "long": 22,
+     "all": 53
+    },
+    "2": {
+     "long": 1,
+     "all": 26
+    },
+    "3": {
+     "long": 0,
+     "all": 24
+    },
+    "4": {
+     "long": 0,
+     "all": 24
+    },
+    "5": {
+     "long": 0,
+     "all": 11
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 69,
+     "clips": 1913,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 749,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 33,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 79,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 23,
+      "visuals-module_invoiceCardIn": 109,
+      "no animated box": 499,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 42,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 30,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 22,
+      "sweep-module_sweepDoc": 101,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 131,
+      "visuals-module_invoiceIRowIn": 87,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8
+     },
+     "n": {
+      "RecalculateStyles": 289,
+      "Layout": 223,
+      "Paint": 1913,
+      "Composite": 69,
+      "ScheduleStyleRecalculation": 165,
+      "InvalidateLayout": 312
+     },
+     "cs": {
+      "RecalculateStyles": 265910,
+      "Layout": 8389,
+      "Paint": 7393,
+      "Composite": 123646,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 812,
+      "transition": 254,
+      "animation": 135
+     }
+    },
+    "rest": {
+     "frames": 195,
+     "clips": 882,
+     "owners": {
+      "sweep-module_sweepDoc": 401,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 372,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 3,
+      "visuals-module_invoiceCardIn": 10,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 10,
+      "no animated box": 46,
+      "visuals-module_secureNetworkRingsIn": 34,
+      "visuals-module_invoiceIRowIn": 4,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 1,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 612,
+      "Layout": 303,
+      "Paint": 882,
+      "Composite": 196,
+      "ScheduleStyleRecalculation": 322,
+      "InvalidateLayout": 445
+     },
+     "cs": {
+      "RecalculateStyles": 207880,
+      "Layout": 7346,
+      "Paint": 12124,
+      "Composite": 187838,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 571,
+      "transition": 55,
+      "animation": 49
+     }
+    }
+   },
+   "framesTl": {
+    "n": 264,
+    "p95": 8100,
+    "p99": 11300,
+    "max": 15900,
+    "over": 69
+   },
+   "framesLane": {
+    "n": 314,
+    "p95": 6500,
+    "p99": 9600,
+    "max": 13800,
+    "over": 37
+   },
+   "leads": {
+    "commit: Composite": 18,
+    "style: RecalculateStyles": 51
+   },
+   "idleBusyPct": [
+    39,
+    17,
+    34,
+    47,
+    32,
+    45,
+    35,
+    42,
+    37,
+    44,
+    48,
+    28,
+    46
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 15900,
+     "work": "commit",
+     "times": {
+      "script": 3752,
+      "style": 3902,
+      "layout": 745,
+      "paint": 198,
+      "commit": 4184
+     },
+     "busy": 12781,
+     "lead": {
+      "t": 4184,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 0,
+     "d": 11600,
+     "work": "style",
+     "times": {
+      "script": 2314,
+      "style": 7911,
+      "layout": 97,
+      "paint": 88,
+      "commit": 791
+     },
+     "busy": 11201,
+     "lead": {
+      "t": 2125,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 6,
+     "d": 11300,
+     "work": "commit",
+     "times": {
+      "script": 2016,
+      "style": 1755,
+      "layout": 419,
+      "paint": 165,
+      "commit": 3242
+     },
+     "busy": 7597,
+     "lead": {
+      "t": 3242,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 11200,
+     "work": "commit",
+     "times": {
+      "script": 2086,
+      "style": 2092,
+      "layout": 440,
+      "paint": 156,
+      "commit": 3118
+     },
+     "busy": 7892,
+     "lead": {
+      "t": 3118,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 4,
+     "d": 11000,
+     "work": "commit",
+     "times": {
+      "script": 1967,
+      "style": 1937,
+      "layout": 402,
+      "paint": 117,
+      "commit": 2984
+     },
+     "busy": 7407,
+     "lead": {
+      "t": 2984,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 11,
+   "arm": "base",
+   "round": 3,
+   "position": 2,
+   "intervals": 483,
+   "p95": 6900,
+   "max": 13300,
+   "over": 69,
+   "overByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 69,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 27,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 1,
+    "layout": 0,
+    "paint": 0,
+    "commit": 470,
+    "idle": 12
+   },
+   "overMs": 4706,
+   "busyShareOver": 83,
+   "byTime": {
+    "0": {
+     "long": 45,
+     "all": 133
+    },
+    "1": {
+     "long": 24,
+     "all": 122
+    },
+    "2": {
+     "long": 0,
+     "all": 161
+    },
+    "3": {
+     "long": 0,
+     "all": 25
+    },
+    "4": {
+     "long": 0,
+     "all": 22
+    },
+    "5": {
+     "long": 0,
+     "all": 20
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 69,
+     "clips": 6261,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 2276,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 132,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 29,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 395,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 126,
+      "visuals-module_invoiceCardIn": 346,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 34,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 221,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 142,
+      "no animated box": 1608,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 128,
+      "sweep-module_sweepDoc": 123,
+      "visuals-module_invoiceIRowIn": 690,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 11
+     },
+     "n": {
+      "RecalculateStyles": 334,
+      "Layout": 322,
+      "Paint": 6261,
+      "Composite": 69,
+      "ScheduleStyleRecalculation": 141,
+      "InvalidateLayout": 485
+     },
+     "cs": {
+      "RecalculateStyles": 61611,
+      "Layout": 12212,
+      "Paint": 9463,
+      "Composite": 323997,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1462,
+      "transition": 415,
+      "animation": 44
+     }
+    },
+    "rest": {
+     "frames": 414,
+     "clips": 6203,
+     "owners": {
+      "sweep-module_sweepDoc": 564,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 782,
+      "visuals-module_invoiceCardIn": 337,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 224,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 55,
+      "visuals-module_secureNetworkRingsIn": 1627,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 445,
+      "visuals-module_invoiceIRowIn": 667,
+      "no animated box": 1278,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 65,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 9,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 65,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 59,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 26
+     },
+     "n": {
+      "RecalculateStyles": 1133,
+      "Layout": 946,
+      "Paint": 6203,
+      "Composite": 417,
+      "ScheduleStyleRecalculation": 600,
+      "InvalidateLayout": 1239
+     },
+     "cs": {
+      "RecalculateStyles": 127749,
+      "Layout": 24926,
+      "Paint": 28103,
+      "Composite": 575211,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 853,
+      "transition": 745,
+      "animation": 128
+     }
+    }
+   },
+   "framesTl": {
+    "n": 483,
+    "p95": 6900,
+    "p99": 8900,
+    "max": 13300,
+    "over": 69
+   },
+   "framesLane": {
+    "n": 571,
+    "p95": 5800,
+    "p99": 7000,
+    "max": 8200,
+    "over": 54
+   },
+   "leads": {
+    "commit: Composite": 69
+   },
+   "idleBusyPct": [
+    22,
+    50,
+    21,
+    13,
+    39,
+    14,
+    44,
+    14,
+    17,
+    37,
+    38,
+    16
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 13300,
+     "work": "commit",
+     "times": {
+      "script": 483,
+      "style": 606,
+      "layout": 361,
+      "paint": 225,
+      "commit": 9281
+     },
+     "busy": 10956,
+     "lead": {
+      "t": 9281,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 12000,
+     "work": "commit",
+     "times": {
+      "script": 235,
+      "style": 1428,
+      "layout": 182,
+      "paint": 214,
+      "commit": 7652
+     },
+     "busy": 9711,
+     "lead": {
+      "t": 7652,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 11600,
+     "work": "commit",
+     "times": {
+      "script": 123,
+      "style": 1473,
+      "layout": 172,
+      "paint": 149,
+      "commit": 7563
+     },
+     "busy": 9480,
+     "lead": {
+      "t": 7563,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 8900,
+     "work": "commit",
+     "times": {
+      "script": 309,
+      "style": 1350,
+      "layout": 240,
+      "paint": 164,
+      "commit": 5649
+     },
+     "busy": 7712,
+     "lead": {
+      "t": 5649,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 8900,
+     "work": "commit",
+     "times": {
+      "script": 243,
+      "style": 1081,
+      "layout": 180,
+      "paint": 135,
+      "commit": 6049
+     },
+     "busy": 7688,
+     "lead": {
+      "t": 6049,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 40,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_feedPanelIn_o-4K1r on div.deck-module_feedPanel_Kk2WOe [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 12,
+   "arm": "morph.geom:on",
+   "round": 4,
+   "position": 0,
+   "intervals": 276,
+   "p95": 7700,
+   "max": 12900,
+   "over": 54,
+   "overByWork": {
+    "script": 0,
+    "style": 37,
+    "layout": 0,
+    "paint": 0,
+    "commit": 16,
+    "idle": 1
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 9,
+    "layout": 0,
+    "paint": 0,
+    "commit": 7,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 104,
+    "layout": 0,
+    "paint": 0,
+    "commit": 156,
+    "idle": 16
+   },
+   "overMs": 3698,
+   "busyShareOver": 85,
+   "byTime": {
+    "0": {
+     "long": 33,
+     "all": 131
+    },
+    "1": {
+     "long": 21,
+     "all": 58
+    },
+    "2": {
+     "long": 0,
+     "all": 28
+    },
+    "3": {
+     "long": 0,
+     "all": 25
+    },
+    "4": {
+     "long": 0,
+     "all": 23
+    },
+    "5": {
+     "long": 0,
+     "all": 11
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 54,
+     "clips": 1819,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 680,
+      "visuals-module_invoiceCardIn": 93,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 36,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 96,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 27,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 18,
+      "no animated box": 507,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 45,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 100,
+      "sweep-module_sweepDoc": 91,
+      "visuals-module_invoiceIRowIn": 78,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 36,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 8,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 4
+     },
+     "n": {
+      "RecalculateStyles": 229,
+      "Layout": 182,
+      "Paint": 1819,
+      "Composite": 56,
+      "ScheduleStyleRecalculation": 134,
+      "InvalidateLayout": 248
+     },
+     "cs": {
+      "RecalculateStyles": 195401,
+      "Layout": 6386,
+      "Paint": 5614,
+      "Composite": 99098,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 696,
+      "transition": 198,
+      "animation": 101
+     }
+    },
+    "rest": {
+     "frames": 222,
+     "clips": 1025,
+     "owners": {
+      "sweep-module_sweepDoc": 422,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 3,
+      "visuals-module_invoiceCardIn": 24,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 422,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 11,
+      "no animated box": 58,
+      "visuals-module_secureNetworkRingsIn": 79,
+      "visuals-module_invoiceIRowIn": 4,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 1,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 670,
+      "Layout": 357,
+      "Paint": 1025,
+      "Composite": 225,
+      "ScheduleStyleRecalculation": 375,
+      "InvalidateLayout": 521
+     },
+     "cs": {
+      "RecalculateStyles": 283469,
+      "Layout": 9362,
+      "Paint": 13212,
+      "Composite": 208886,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 833,
+      "transition": 101,
+      "animation": 94
+     }
+    }
+   },
+   "framesTl": {
+    "n": 276,
+    "p95": 7700,
+    "p99": 10400,
+    "max": 12900,
+    "over": 54
+   },
+   "framesLane": {
+    "n": 317,
+    "p95": 6400,
+    "p99": 9200,
+    "max": 11200,
+    "over": 36
+   },
+   "leads": {
+    "commit: Composite": 16,
+    "style: RecalculateStyles": 37,
+    "idle: -": 1
+   },
+   "idleBusyPct": [
+    20,
+    44,
+    43,
+    45,
+    20,
+    41,
+    45,
+    24,
+    47,
+    41,
+    49,
+    41,
+    43,
+    37,
+    35,
+    44
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 0,
+     "d": 12900,
+     "work": "commit",
+     "times": {
+      "script": 3555,
+      "style": 3289,
+      "layout": 772,
+      "paint": 185,
+      "commit": 3779
+     },
+     "busy": 11580,
+     "lead": {
+      "t": 3779,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 6,
+     "d": 11000,
+     "work": "commit",
+     "times": {
+      "script": 2081,
+      "style": 1947,
+      "layout": 381,
+      "paint": 162,
+      "commit": 3028
+     },
+     "busy": 7599,
+     "lead": {
+      "t": 3028,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 2,
+     "d": 10400,
+     "work": "commit",
+     "times": {
+      "script": 1906,
+      "style": 1732,
+      "layout": 341,
+      "paint": 150,
+      "commit": 2816
+     },
+     "busy": 6945,
+     "lead": {
+      "t": 2816,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 10300,
+     "work": "commit",
+     "times": {
+      "script": 1815,
+      "style": 2016,
+      "layout": 367,
+      "paint": 188,
+      "commit": 2814
+     },
+     "busy": 7200,
+     "lead": {
+      "t": 2814,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 10200,
+     "work": "style",
+     "times": {
+      "script": 239,
+      "style": 3369,
+      "layout": 146,
+      "paint": 140,
+      "commit": 2959
+     },
+     "busy": 6853,
+     "lead": {
+      "t": 3026,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 13,
+   "arm": "base",
+   "round": 4,
+   "position": 1,
+   "intervals": 465,
+   "p95": 7300,
+   "max": 12800,
+   "over": 73,
+   "overByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 73,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 27,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 450,
+    "idle": 15
+   },
+   "overMs": 5077,
+   "busyShareOver": 84,
+   "byTime": {
+    "0": {
+     "long": 48,
+     "all": 126
+    },
+    "1": {
+     "long": 25,
+     "all": 121
+    },
+    "2": {
+     "long": 0,
+     "all": 155
+    },
+    "3": {
+     "long": 0,
+     "all": 24
+    },
+    "4": {
+     "long": 0,
+     "all": 22
+    },
+    "5": {
+     "long": 0,
+     "all": 17
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 73,
+     "clips": 6901,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 2546,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 137,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 162,
+      "no animated box": 1785,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 131,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 391,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 246,
+      "visuals-module_invoiceCardIn": 378,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 44,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 57,
+      "sweep-module_sweepDoc": 136,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 12,
+      "visuals-module_invoiceIRowIn": 737,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 139
+     },
+     "n": {
+      "RecalculateStyles": 367,
+      "Layout": 363,
+      "Paint": 6901,
+      "Composite": 73,
+      "ScheduleStyleRecalculation": 144,
+      "InvalidateLayout": 554
+     },
+     "cs": {
+      "RecalculateStyles": 65809,
+      "Layout": 14073,
+      "Paint": 10427,
+      "Composite": 350098,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1685,
+      "transition": 381,
+      "animation": 39
+     }
+    },
+    "rest": {
+     "frames": 392,
+     "clips": 4224,
+     "owners": {
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 746,
+      "sweep-module_sweepDoc": 508,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 125,
+      "visuals-module_invoiceCardIn": 201,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 397,
+      "visuals-module_secureNetworkRingsIn": 989,
+      "no animated box": 689,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 21,
+      "visuals-module_invoiceIRowIn": 407,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 47,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 43,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 37,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 14
+     },
+     "n": {
+      "RecalculateStyles": 1004,
+      "Layout": 896,
+      "Paint": 4224,
+      "Composite": 396,
+      "ScheduleStyleRecalculation": 549,
+      "InvalidateLayout": 1138
+     },
+     "cs": {
+      "RecalculateStyles": 123070,
+      "Layout": 22867,
+      "Paint": 26636,
+      "Composite": 569174,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 535,
+      "transition": 836,
+      "animation": 121
+     }
+    }
+   },
+   "framesTl": {
+    "n": 465,
+    "p95": 7300,
+    "p99": 9000,
+    "max": 12800,
+    "over": 73
+   },
+   "framesLane": {
+    "n": 564,
+    "p95": 5700,
+    "p99": 6800,
+    "max": 8900,
+    "over": 42
+   },
+   "leads": {
+    "commit: Composite": 73
+   },
+   "idleBusyPct": [
+    41,
+    46,
+    49,
+    41,
+    50,
+    16,
+    49,
+    10,
+    18,
+    36,
+    41,
+    40,
+    23,
+    34,
+    50
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 12800,
+     "work": "commit",
+     "times": {
+      "script": 237,
+      "style": 1448,
+      "layout": 278,
+      "paint": 217,
+      "commit": 8315
+     },
+     "busy": 10495,
+     "lead": {
+      "t": 8315,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 12300,
+     "work": "commit",
+     "times": {
+      "script": 1050,
+      "style": 652,
+      "layout": 430,
+      "paint": 147,
+      "commit": 7675
+     },
+     "busy": 9954,
+     "lead": {
+      "t": 7675,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 2,
+     "d": 9200,
+     "work": "commit",
+     "times": {
+      "script": 201,
+      "style": 1037,
+      "layout": 224,
+      "paint": 234,
+      "commit": 6026
+     },
+     "busy": 7722,
+     "lead": {
+      "t": 6026,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 8,
+     "d": 9100,
+     "work": "commit",
+     "times": {
+      "script": 163,
+      "style": 465,
+      "layout": 143,
+      "paint": 169,
+      "commit": 6417
+     },
+     "busy": 7357,
+     "lead": {
+      "t": 6417,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 2,
+     "d": 9000,
+     "work": "commit",
+     "times": {
+      "script": 220,
+      "style": 1006,
+      "layout": 222,
+      "paint": 150,
+      "commit": 5799
+     },
+     "busy": 7397,
+     "lead": {
+      "t": 5799,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 14,
+   "arm": "morph.tween:geom-timed",
+   "round": 4,
+   "position": 2,
+   "intervals": 450,
+   "p95": 8400,
+   "max": 21100,
+   "over": 82,
+   "overByWork": {
+    "script": 1,
+    "style": 72,
+    "layout": 0,
+    "paint": 0,
+    "commit": 9,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 24,
+    "layout": 0,
+    "paint": 0,
+    "commit": 0,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 1,
+    "style": 93,
+    "layout": 0,
+    "paint": 0,
+    "commit": 336,
+    "idle": 20
+   },
+   "overMs": 6321,
+   "busyShareOver": 86,
+   "byTime": {
+    "0": {
+     "long": 45,
+     "all": 105
+    },
+    "1": {
+     "long": 37,
+     "all": 100
+    },
+    "2": {
+     "long": 0,
+     "all": 177
+    },
+    "3": {
+     "long": 0,
+     "all": 34
+    },
+    "4": {
+     "long": 0,
+     "all": 30
+    },
+    "5": {
+     "long": 0,
+     "all": 4
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 82,
+     "clips": 2707,
+     "owners": {
+      "sweep-module_sweepDoc": 126,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 143,
+      "visuals-module_secureNetworkRingsIn": 942,
+      "no animated box": 766,
+      "visuals-module_invoiceCardIn": 97,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 67,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 29,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 42,
+      "visuals-module_invoiceIRowIn": 232,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 79,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 130,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 42,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 10,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 2
+     },
+     "n": {
+      "RecalculateStyles": 303,
+      "Layout": 261,
+      "Paint": 2707,
+      "Composite": 83,
+      "ScheduleStyleRecalculation": 178,
+      "InvalidateLayout": 378
+     },
+     "cs": {
+      "RecalculateStyles": 374691,
+      "Layout": 15990,
+      "Paint": 16339,
+      "Composite": 209782,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1090,
+      "transition": 405,
+      "animation": 184
+     }
+    },
+    "rest": {
+     "frames": 368,
+     "clips": 1842,
+     "owners": {
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 8,
+      "sweep-module_sweepDoc": 492,
+      "visuals-module_invoiceCardIn": 28,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 689,
+      "visuals-module_secureNetworkRingsIn": 349,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 248,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 10,
+      "no animated box": 17,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 1
+     },
+     "n": {
+      "RecalculateStyles": 979,
+      "Layout": 708,
+      "Paint": 1842,
+      "Composite": 368,
+      "ScheduleStyleRecalculation": 442,
+      "InvalidateLayout": 957
+     },
+     "cs": {
+      "RecalculateStyles": 130827,
+      "Layout": 16220,
+      "Paint": 20045,
+      "Composite": 391652,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 248,
+      "transition": 209,
+      "animation": 132
+     }
+    }
+   },
+   "framesTl": {
+    "n": 450,
+    "p95": 8400,
+    "p99": 12900,
+    "max": 21100,
+    "over": 82
+   },
+   "framesLane": {
+    "n": 487,
+    "p95": 6900,
+    "p99": 11700,
+    "max": 15100,
+    "over": 59
+   },
+   "leads": {
+    "script: FunctionCall entry-client-DN21yM_l.js:47:14476": 1,
+    "style: RecalculateStyles": 72,
+    "commit: Composite": 9
+   },
+   "idleBusyPct": [
+    34,
+    35,
+    14,
+    17,
+    34,
+    14,
+    32,
+    33,
+    15,
+    40,
+    43,
+    29,
+    8,
+    46,
+    47,
+    48,
+    36,
+    10,
+    35,
+    10
+   ],
+   "trace": {
+    "pushes": 10,
+    "taken": 10,
+    "touches": 10,
+    "touchTaken": 10,
+    "perTouch": [
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 21100,
+     "work": "style",
+     "times": {
+      "script": 437,
+      "style": 11816,
+      "layout": 165,
+      "paint": 1133,
+      "commit": 3459
+     },
+     "busy": 17010,
+     "lead": {
+      "t": 5268,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 0,
+     "d": 14000,
+     "work": "style",
+     "times": {
+      "script": 545,
+      "style": 7416,
+      "layout": 82,
+      "paint": 854,
+      "commit": 2852
+     },
+     "busy": 11749,
+     "lead": {
+      "t": 3513,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 8,
+     "d": 13400,
+     "work": "style",
+     "times": {
+      "script": 2799,
+      "style": 6227,
+      "layout": 421,
+      "paint": 152,
+      "commit": 1862
+     },
+     "busy": 11461,
+     "lead": {
+      "t": 2516,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 1,
+     "d": 13000,
+     "work": "style",
+     "times": {
+      "script": 2744,
+      "style": 5571,
+      "layout": 2297,
+      "paint": 40,
+      "commit": 1109
+     },
+     "busy": 11761,
+     "lead": {
+      "t": 5037,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    },
+    {
+     "push": 6,
+     "d": 12900,
+     "work": "style",
+     "times": {
+      "script": 2388,
+      "style": 5378,
+      "layout": 389,
+      "paint": 116,
+      "commit": 3978
+     },
+     "busy": 12249,
+     "lead": {
+      "t": 2148,
+      "type": "RecalculateStyles",
+      "where": "RecalculateStyles"
+     }
+    }
+   ],
+   "anim": {
+    "n": 38,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "index": 15,
+   "arm": "base",
+   "round": 5,
+   "position": 0,
+   "intervals": 467,
+   "p95": 7100,
+   "max": 12000,
+   "over": 63,
+   "overByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 63,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 24,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 3,
+    "layout": 0,
+    "paint": 0,
+    "commit": 453,
+    "idle": 11
+   },
+   "overMs": 4438,
+   "busyShareOver": 83,
+   "byTime": {
+    "0": {
+     "long": 42,
+     "all": 132
+    },
+    "1": {
+     "long": 21,
+     "all": 120
+    },
+    "2": {
+     "long": 0,
+     "all": 153
+    },
+    "3": {
+     "long": 0,
+     "all": 24
+    },
+    "4": {
+     "long": 0,
+     "all": 22
+    },
+    "5": {
+     "long": 0,
+     "all": 16
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 63,
+     "clips": 5870,
+     "owners": {
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 153,
+      "visuals-module_secureNetworkRingsIn": 1999,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 28,
+      "sweep-module_sweepDoc": 118,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 294,
+      "no animated box": 1672,
+      "visuals-module_invoiceCardIn": 312,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 49,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 99,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 109,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 224,
+      "visuals-module_invoiceIRowIn": 693,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 113,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 7
+     },
+     "n": {
+      "RecalculateStyles": 308,
+      "Layout": 295,
+      "Paint": 5870,
+      "Composite": 63,
+      "ScheduleStyleRecalculation": 128,
+      "InvalidateLayout": 451
+     },
+     "cs": {
+      "RecalculateStyles": 61320,
+      "Layout": 11703,
+      "Paint": 10117,
+      "Composite": 300379,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1427,
+      "transition": 374,
+      "animation": 33
+     }
+    },
+    "rest": {
+     "frames": 404,
+     "clips": 6021,
+     "owners": {
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 780,
+      "sweep-module_sweepDoc": 540,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 210,
+      "visuals-module_invoiceCardIn": 345,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 516,
+      "visuals-module_secureNetworkRingsIn": 1693,
+      "no animated box": 1059,
+      "visuals-module_invoiceIRowIn": 576,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 8,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 41,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 81,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 62,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 80,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 30
+     },
+     "n": {
+      "RecalculateStyles": 1124,
+      "Layout": 915,
+      "Paint": 6021,
+      "Composite": 405,
+      "ScheduleStyleRecalculation": 573,
+      "InvalidateLayout": 1224
+     },
+     "cs": {
+      "RecalculateStyles": 142223,
+      "Layout": 24845,
+      "Paint": 29018,
+      "Composite": 599972,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 795,
+      "transition": 868,
+      "animation": 126
+     }
+    }
+   },
+   "framesTl": {
+    "n": 467,
+    "p95": 7100,
+    "p99": 9500,
+    "max": 12000,
+    "over": 63
+   },
+   "framesLane": {
+    "n": 566,
+    "p95": 5900,
+    "p99": 7400,
+    "max": 8200,
+    "over": 49
+   },
+   "leads": {
+    "commit: Composite": 63
+   },
+   "idleBusyPct": [
+    42,
+    40,
+    16,
+    38,
+    39,
+    16,
+    39,
+    18,
+    41,
+    34,
+    16
+   ],
+   "trace": {
+    "pushes": 0,
+    "taken": 0,
+    "touches": 10,
+    "touchTaken": 0,
+    "perTouch": [
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "worst": [
+    {
+     "push": 1,
+     "d": 12000,
+     "work": "commit",
+     "times": {
+      "script": 383,
+      "style": 583,
+      "layout": 385,
+      "paint": 113,
+      "commit": 8157
+     },
+     "busy": 9621,
+     "lead": {
+      "t": 8157,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 11400,
+     "work": "commit",
+     "times": {
+      "script": 174,
+      "style": 1415,
+      "layout": 179,
+      "paint": 1039,
+      "commit": 6250
+     },
+     "busy": 9057,
+     "lead": {
+      "t": 6250,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 10800,
+     "work": "commit",
+     "times": {
+      "script": 358,
+      "style": 1501,
+      "layout": 207,
+      "paint": 171,
+      "commit": 6908
+     },
+     "busy": 9145,
+     "lead": {
+      "t": 6908,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 1,
+     "d": 10800,
+     "work": "commit",
+     "times": {
+      "script": 132,
+      "style": 1420,
+      "layout": 96,
+      "paint": 154,
+      "commit": 6832
+     },
+     "busy": 8634,
+     "lead": {
+      "t": 6832,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    },
+    {
+     "push": 6,
+     "d": 9500,
+     "work": "commit",
+     "times": {
+      "script": 194,
+      "style": 1269,
+      "layout": 272,
+      "paint": 180,
+      "commit": 5510
+     },
+     "busy": 7425,
+     "lead": {
+      "t": 5510,
+      "type": "Composite",
+      "where": "Composite"
+     }
+    }
+   ],
+   "anim": {
+    "n": 40,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_feedPanelIn_o-4K1r on div.deck-module_feedPanel_Kk2WOe [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     }
+    ]
+   }
+  }
+ ],
+ "perArm": [
+  {
+   "byTime": {
+    "0": {
+     "long": 272,
+     "all": 746
+    },
+    "1": {
+     "long": 151,
+     "all": 708
+    },
+    "2": {
+     "long": 0,
+     "all": 898
+    },
+    "3": {
+     "long": 1,
+     "all": 140
+    },
+    "4": {
+     "long": 0,
+     "all": 125
+    },
+    "5": {
+     "long": 0,
+     "all": 89
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 424,
+     "clips": 38478,
+     "owners": {
+      "visuals-module_secureNetworkRingsIn": 13786,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 754,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 2208,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 897,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 1414,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 713,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 282,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 218,
+      "visuals-module_invoiceCardIn": 2116,
+      "no animated box": 10184,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 781,
+      "sweep-module_sweepDoc": 765,
+      "visuals-module_invoiceIRowIn": 4311,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 49
+     },
+     "n": {
+      "RecalculateStyles": 2087,
+      "Layout": 2060,
+      "Paint": 38478,
+      "Composite": 424,
+      "ScheduleStyleRecalculation": 865,
+      "InvalidateLayout": 3087
+     },
+     "cs": {
+      "RecalculateStyles": 424755,
+      "Layout": 82602,
+      "Paint": 68574,
+      "Composite": 2050344,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 9169,
+      "transition": 2820,
+      "animation": 271
+     }
+    },
+    "rest": {
+     "frames": 2282,
+     "clips": 30842,
+     "owners": {
+      "sweep-module_sweepDoc": 3053,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 4373,
+      "visuals-module_invoiceCardIn": 1716,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 1102,
+      "visuals-module_secureNetworkRingsIn": 7818,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 194,
+      "no animated box": 5692,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 2544,
+      "visuals-module_invoiceIRowIn": 3181,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 353,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 24,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 336,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 330,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 126
+     },
+     "n": {
+      "RecalculateStyles": 6118,
+      "Layout": 5188,
+      "Paint": 30842,
+      "Composite": 2303,
+      "ScheduleStyleRecalculation": 3205,
+      "InvalidateLayout": 6792
+     },
+     "cs": {
+      "RecalculateStyles": 740560,
+      "Layout": 142192,
+      "Paint": 163943,
+      "Composite": 3365095,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 4122,
+      "transition": 4193,
+      "animation": 692
+     }
+    }
+   },
+   "id": "base",
+   "n": 6,
+   "over": 424,
+   "overByWork": {
+    "script": 0,
+    "style": 1,
+    "layout": 0,
+    "paint": 0,
+    "commit": 422,
+    "idle": 1
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 0,
+    "layout": 0,
+    "paint": 0,
+    "commit": 149,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 0,
+    "style": 9,
+    "layout": 0,
+    "paint": 0,
+    "commit": 2628,
+    "idle": 69
+   },
+   "intervals": 2706,
+   "p95Tl": 7300,
+   "maxTl": 18400,
+   "busyShareOver": 83,
+   "leads": [
+    {
+     "k": "commit: Composite",
+     "n": 422
+    },
+    {
+     "k": "idle: -",
+     "n": 1
+    },
+    {
+     "k": "style: RecalculateStyles",
+     "n": 1
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "byTime": {
+    "0": {
+     "long": 208,
+     "all": 652
+    },
+    "1": {
+     "long": 97,
+     "all": 276
+    },
+    "2": {
+     "long": 6,
+     "all": 125
+    },
+    "3": {
+     "long": 0,
+     "all": 126
+    },
+    "4": {
+     "long": 0,
+     "all": 117
+    },
+    "5": {
+     "long": 0,
+     "all": 58
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 311,
+     "clips": 9388,
+     "owners": {
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 163,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 190,
+      "visuals-module_secureNetworkRingsIn": 3592,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 429,
+      "visuals-module_invoiceCardIn": 513,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 206,
+      "no animated box": 2555,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 122,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 102,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 581,
+      "sweep-module_sweepDoc": 483,
+      "visuals-module_invoiceIRowIn": 405,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 40,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 7
+     },
+     "n": {
+      "RecalculateStyles": 1312,
+      "Layout": 1006,
+      "Paint": 9388,
+      "Composite": 316,
+      "ScheduleStyleRecalculation": 755,
+      "InvalidateLayout": 1415
+     },
+     "cs": {
+      "RecalculateStyles": 1106784,
+      "Layout": 35432,
+      "Paint": 32338,
+      "Composite": 589236,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 3937,
+      "transition": 1142,
+      "animation": 588
+     }
+    },
+    "rest": {
+     "frames": 1043,
+     "clips": 4746,
+     "owners": {
+      "sweep-module_sweepDoc": 2057,
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 1988,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 15,
+      "visuals-module_invoiceCardIn": 83,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 61,
+      "no animated box": 235,
+      "visuals-module_invoiceIRowIn": 17,
+      "visuals-module_secureNetworkRingsIn": 277,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 3,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 3,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 3,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 4
+     },
+     "n": {
+      "RecalculateStyles": 3227,
+      "Layout": 1698,
+      "Paint": 4746,
+      "Composite": 1051,
+      "ScheduleStyleRecalculation": 1785,
+      "InvalidateLayout": 2414
+     },
+     "cs": {
+      "RecalculateStyles": 1258049,
+      "Layout": 42095,
+      "Paint": 61805,
+      "Composite": 970220,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 3385,
+      "transition": 384,
+      "animation": 350
+     }
+    }
+   },
+   "id": "morph.geom:on",
+   "n": 5,
+   "over": 311,
+   "overByWork": {
+    "script": 2,
+    "style": 214,
+    "layout": 0,
+    "paint": 0,
+    "commit": 93,
+    "idle": 2
+   },
+   "tailByWork": {
+    "script": 1,
+    "style": 37,
+    "layout": 0,
+    "paint": 0,
+    "commit": 38,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 2,
+    "style": 503,
+    "layout": 0,
+    "paint": 0,
+    "commit": 774,
+    "idle": 75
+   },
+   "intervals": 1354,
+   "p95Tl": 7700,
+   "maxTl": 15900,
+   "busyShareOver": 86,
+   "leads": [
+    {
+     "k": "style: RecalculateStyles",
+     "n": 214
+    },
+    {
+     "k": "commit: Composite",
+     "n": 93
+    },
+    {
+     "k": "idle: -",
+     "n": 2
+    },
+    {
+     "k": "script: FunctionCall entry-client-DN21yM_l.js:9:96013",
+     "n": 1
+    },
+    {
+     "k": "script: FunctionCall entry-client-DN21yM_l.js:47:46699",
+     "n": 1
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  },
+  {
+   "byTime": {
+    "0": {
+     "long": 234,
+     "all": 544
+    },
+    "1": {
+     "long": 162,
+     "all": 516
+    },
+    "2": {
+     "long": 0,
+     "all": 893
+    },
+    "3": {
+     "long": 0,
+     "all": 167
+    },
+    "4": {
+     "long": 0,
+     "all": 150
+    },
+    "5": {
+     "long": 0,
+     "all": 42
+    }
+   },
+   "mix": {
+    "long": {
+     "frames": 396,
+     "clips": 13141,
+     "owners": {
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 689,
+      "sweep-module_sweepDoc": 586,
+      "no animated box": 3678,
+      "visuals-module_invoiceIRowIn": 1238,
+      "visuals-module_secureNetworkRingsIn": 4672,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 328,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 572,
+      "visuals-module_invoiceCardIn": 484,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 140,
+      "sweep-module_sweepDoc+visuals-module_secureNetworkRingsIn": 23,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 175,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 327,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 187,
+      "nav-module_earn-sheen+nav-module_earn-unmask+visuals-module_secureNetworkRingsIn": 42
+     },
+     "n": {
+      "RecalculateStyles": 1421,
+      "Layout": 1219,
+      "Paint": 13141,
+      "Composite": 412,
+      "ScheduleStyleRecalculation": 880,
+      "InvalidateLayout": 1834
+     },
+     "cs": {
+      "RecalculateStyles": 1798410,
+      "Layout": 75113,
+      "Paint": 75554,
+      "Composite": 1009434,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 5422,
+      "transition": 1828,
+      "animation": 731
+     }
+    },
+    "rest": {
+     "frames": 1916,
+     "clips": 9689,
+     "owners": {
+      "visuals-module_secureNetworkDashIn+visuals-module_secureNetworkRingsIn": 3552,
+      "sweep-module_sweepDoc": 2547,
+      "visuals-module_invoiceCardIn+visuals-module_invoiceIRowIn": 46,
+      "visuals-module_invoiceCardIn": 166,
+      "visuals-module_secureNetworkRingsIn": 1853,
+      "visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 1315,
+      "visuals-module_secureNetworkFaceLeftIn+visuals-module_secureNetworkRingsIn": 9,
+      "no animated box": 118,
+      "visuals-module_invoiceIRowIn": 10,
+      "visuals-module_secureNetworkLogoIn+visuals-module_secureNetworkRingsIn+visuals-module_secureNetworkShieldIn": 64,
+      "visuals-module_secureNetworkFlagIn+visuals-module_secureNetworkRingsIn": 5,
+      "visuals-module_secureNetworkFaceRightIn+visuals-module_secureNetworkRingsIn": 4
+     },
+     "n": {
+      "RecalculateStyles": 4843,
+      "Layout": 3710,
+      "Paint": 9689,
+      "Composite": 1925,
+      "ScheduleStyleRecalculation": 2362,
+      "InvalidateLayout": 4948
+     },
+     "cs": {
+      "RecalculateStyles": 727771,
+      "Layout": 86271,
+      "Paint": 100599,
+      "Composite": 1947097,
+      "ScheduleStyleRecalculation": 0,
+      "InvalidateLayout": 0
+     },
+     "ev": {
+      "touch": 1485,
+      "transition": 1250,
+      "animation": 818
+     }
+    }
+   },
+   "id": "morph.tween:geom-timed",
+   "n": 5,
+   "over": 396,
+   "overByWork": {
+    "script": 2,
+    "style": 355,
+    "layout": 0,
+    "paint": 0,
+    "commit": 39,
+    "idle": 0
+   },
+   "tailByWork": {
+    "script": 0,
+    "style": 123,
+    "layout": 0,
+    "paint": 0,
+    "commit": 2,
+    "idle": 0
+   },
+   "allByWork": {
+    "script": 2,
+    "style": 483,
+    "layout": 0,
+    "paint": 0,
+    "commit": 1711,
+    "idle": 116
+   },
+   "intervals": 2312,
+   "p95Tl": 8100,
+   "maxTl": 21100,
+   "busyShareOver": 87,
+   "leads": [
+    {
+     "k": "style: RecalculateStyles",
+     "n": 355
+    },
+    {
+     "k": "commit: Composite",
+     "n": 39
+    },
+    {
+     "k": "script: FunctionCall entry-client-DN21yM_l.js:47:14476",
+     "n": 2
+    }
+   ],
+   "anim": {
+    "n": 39,
+    "error": null,
+    "nav": "header.nav-module_nav_fsb7in.is-hero-chrome-ready[data-fw=nav]",
+    "groups": [
+     {
+      "k": "CSSAnimation visuals-module_secureNetworkFlagIn_aRoy3y on span.visuals-module_flag_iB99gw.visuals-module_flagBordered_FJGe1F [transform,opacity] finished",
+      "n": 5
+     },
+     {
+      "k": "CSSAnimation visuals-module_invoiceIRowIn_3lnIkg on li.visuals-module_order_WtwPir [transform,opacity] finished",
+      "n": 4
+     },
+     {
+      "k": "CSSAnimation sweep-module_sweepDoc_zGc1tE on span.platform-module_word_p8Lg-4.sweep-module_sweep_6bRkbr [backgroundPositionY,backgroundPositionX] running",
+      "n": 3
+     },
+     {
+      "k": "CSSAnimation morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation deck-module_profileFade_bvnD7G on div.deck-module_body_KfX5hf [transform,opacity] paused",
+      "n": 2
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [webkitMaskPositionY,webkitMaskPositionX] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ.nav-module_earn_opGnJj[data-fw=nav-earn] [transform] finished",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation morph-module_down_PJRywW on div.morph-module_track_CO8LmY [transform] paused",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle0_t7SI92 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle1_a3NQoa on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation accent-module_idle2_Q1MyP3 on svg [opacity] running",
+      "n": 1
+     },
+     {
+      "k": "CSSAnimation cue-module_copyIn_j26lO8 on button.cue-module_cue_AuR-MH[data-fw=hero-cue] [] finished",
+      "n": 1
+     }
+    ]
+   }
+  }
+ ]
+}
