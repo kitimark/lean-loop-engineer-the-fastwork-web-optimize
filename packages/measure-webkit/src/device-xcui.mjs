@@ -6,10 +6,8 @@ import { fileURLToPath } from 'node:url';
 
 const DRIVER_SRC = fileURLToPath(new URL('./throttle/driver/', import.meta.url));
 
-/** The development team id in the subject of a signing certificate (`OU=` field of `openssl x509 -subject`), or null. */
 export const teamOfSubject = (subject) => /(?:^|[^A-Za-z])OU\s*=\s*([A-Z0-9]{10})(?:[,/\s]|$)/.exec(subject)?.[1] ?? null;
 
-/** The xcodebuild arguments that build the push driver for one real device and sign it with `team` (project.yml turns signing off for the Simulator). */
 export function deviceBuildArgs({ udid, team, derived }) {
   if (!udid || !team) throw new Error('deviceBuildArgs needs a device id and a team id');
   return ['build-for-testing', '-project', 'FwThrottleDriver.xcodeproj', '-scheme', 'FwThrottleDriver', '-destination', `id=${udid}`,
@@ -17,7 +15,6 @@ export function deviceBuildArgs({ udid, team, derived }) {
     'CODE_SIGNING_ALLOWED=YES', 'CODE_SIGNING_REQUIRED=YES'];
 }
 
-/** The team of the first Apple Development certificate in the keychain (null when there is none). */
 export function keychainTeam(run = spawnSync) {
   const pem = run('security', ['find-certificate', '-c', 'Apple Development', '-p'], { encoding: 'utf8' });
   if (pem.status !== 0) return null;
@@ -25,7 +22,6 @@ export function keychainTeam(run = spawnSync) {
   return sub.status === 0 ? teamOfSubject(sub.stdout) : null;
 }
 
-/** Build and sign the push driver for a real device into `dir`; returns {dir, xctestrun} like throttle/driver.mjs buildDriver. */
 export async function buildDeviceDriver({ udid, dir, team = keychainTeam(), log = () => {}, timeoutMs = 600000 }) {
   mkdirSync(dir, { recursive: true });
   cpSync(DRIVER_SRC, dir, { recursive: true });

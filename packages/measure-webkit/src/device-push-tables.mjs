@@ -1,10 +1,8 @@
-// Markdown tables of the phone push summary (formatting only; the labels come from device-push.mjs `pushLabel`).
 import { PUSH_METRICS } from './device-push.mjs';
 
 const ms = (cs) => (cs / 100).toFixed(1);
 const cell = (m, c) => (c === null ? '-' : m === 'over50' || /^[A-Z]/.test(m) ? `${c.median} [${c.min}-${c.max}]` : `${ms(c.median)} [${ms(c.min)}-${ms(c.max)}]`);
 
-/** Per-arm table: median [min-max] over visits for each metric, n and the label. Times in ms. */
 export function pushTables(sum) {
   const out = [];
   out.push('Cells: median [min-max] over the visits of the arm. p95, p99 and max are frame intervals in ms inside the push spans; over50 is frames over 50 ms;',

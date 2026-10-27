@@ -1,9 +1,3 @@
-// Real-iPhone channel of the push driver (task phone-morph-push). I/O only.
-// throttle/driver/UITests/PushServer.swift talks to the Mac through files under FW_DIR, which is the Mac's file system on the Simulator.
-// On a real iPhone the XCUITest runner has its own sandbox, so that channel never connects. Here the test reads `go-<n>` and `stop` from
-// the Documents folder of its own container and prints marker lines (`FWPUSH ready <h>`, `FWPUSH done <n> ok <up ms> <down ms>`) to the
-// xcodebuild output. This module copies the Mac-side `go-<n>`/`stop` files into that container (`devicectl device copy to`) and turns the
-// marker lines back into the Mac-side `ready` and `done-<n>` files, so touch-push.mjs-style callers keep the one file protocol.
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -72,7 +66,6 @@ final class PushServer: XCTestCase {
 }
 `;
 
-/** The marker lines of a driver log -> {ready: height|null, done: Map(n -> 'ok up down'), steps}. */
 export function parseMarkers(text) {
   const out = { ready: null, done: new Map(), steps: [] };
   for (const m of text.matchAll(/FWPUSH (ready (\d+)|done (\d+) (ok \d+ \d+)|step (\w+)|stopped)/g)) {
@@ -83,7 +76,6 @@ export function parseMarkers(text) {
   return out;
 }
 
-/** Build and sign the phone push driver (its PushServer.swift replaced by PUSH_SWIFT) into `dir`. */
 export async function buildPushDriver({ udid, dir, team = keychainTeam(), log = () => {}, timeoutMs = 600000 }) {
   mkdirSync(dir, { recursive: true });
   cpSync(DRIVER_SRC, dir, { recursive: true });
@@ -101,7 +93,6 @@ export async function buildPushDriver({ udid, dir, team = keychainTeam(), log = 
 const copyToPhone = (udid, src, name) => spawnSync('xcrun', ['devicectl', 'device', 'copy', 'to', '--device', udid, '--source', src,
   '--destination', `Documents/${name}`, '--domain-type', 'appDataContainer', '--domain-identifier', RUNNER_ID], { encoding: 'utf8', timeout: 30000 });
 
-/** Start the driver and the bridge. Returns {dir, run, next, bridge} where dir holds the Mac-side `ready`, `go-<n>`, `done-<n>`, `stop` files. */
 export async function startPhoneServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, readyMs = 120000, tag = 'push', pollMs = 100 }) {
   const dir = mkdtempSync(join(tmpdir(), 'fw-push-'));
   rmSync(join(driver.dir, `${tag}.log`), { force: true });

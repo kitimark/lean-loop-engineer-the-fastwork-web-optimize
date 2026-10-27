@@ -1,6 +1,3 @@
-// The push visit on the real iPhone (task phone-morph-push). I/O only: the XCUITest push driver asks for the fixed pushes, the page
-// records frames (frames lane) or the Timeline records main-thread work (counts lane); every decision (spans, tail stats, counts,
-// clock offset, visit rule, label) is in device-push.mjs, the twin of lean/Fw/Device/PhoneArms.lean.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { withPhone, listPhone } from './device.mjs';
@@ -23,7 +20,6 @@ export const SERVER_MAX_S = 3300;
 
 const NAV = 'header.start-selling-top-nav, [data-fw="nav"]';
 
-/** Frames lane recorder: [rAF time, scroll y, morph amount] per frame (hundredths of ms, tenth px, per mille + running animation time) and the touch starts. */
 export const FRAMES_START_JS = `(() => {
   const st = window.__fwPush = { f: [], ts: [], on: true, nav: null };
   const nav = () => (st.nav && st.nav.isConnected ? st.nav : (st.nav = document.querySelector(${JSON.stringify(NAV)})));
@@ -55,7 +51,6 @@ export const FRAMES_STOP_JS = `(() => {
   return JSON.stringify({ f: st.f, ts: st.ts, nav: !!st.nav, maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
 })()`;
 
-/** Counts lane page side: no rAF loop (its own FireAnimationFrame count stays the page's), the touch starts and the two marks. */
 export const COUNTS_START_JS = `(() => {
   const st = window.__fwPushC = { ts: [], a: 0, b: 0 };
   addEventListener('touchstart', (e) => { const n = performance.now(); st.ts.push(Math.round((Math.abs(n - e.timeStamp) < 1000 ? e.timeStamp : n) * 100)); }, { capture: true, passive: true });
@@ -80,7 +75,6 @@ export const nearEndJs = (gap) => `(() => {
   return JSON.stringify({ maxY, y: scrollY, vh: innerHeight });
 })()`;
 
-/** Timeline rows to the counted records `[kind, t]` (hundredths of ms) and the two marks' Timeline times. */
 export function recordsOf(rows) {
   const marks = {};
   const rs = [];
@@ -91,7 +85,6 @@ export function recordsOf(rows) {
   return { rs, tlA: marks['wk:a'] ?? null, tlB: marks['wk:b'] ?? null };
 }
 
-/** The values of one visit from its two lanes (see device-push.mjs `visitVals`); throws when a lane did not see every push or the clocks disagree. */
 export function valuesOf(counts, frames) {
   if (frames.ts.length !== PUSH.pushes) throw new Error(`the frames lane saw ${frames.ts.length} touch starts, not ${PUSH.pushes}`);
   if (counts.ts.length !== PUSH.pushes) throw new Error(`the counts lane saw ${counts.ts.length} touch starts, not ${PUSH.pushes}`);
@@ -102,7 +95,6 @@ export function valuesOf(counts, frames) {
 }
 
 const PRESS_WAIT_MS = 60000;
-/** One driver request: write go-<n>, wait for done-<n>; the press durations, or null when the driver ended or did not answer. */
 export async function ask(server, variant = 'springboard', waitMs = PRESS_WAIT_MS) {
   const n = server.next++;
   writeFileSync(join(server.dir, `go-${n}`), variant);
@@ -124,7 +116,6 @@ async function pushes(server, log, tag) {
   return presses;
 }
 
-/** The frames lane: fresh load, near the end, recorder, the pushes, a tail for the morph to finish. */
 export async function framesLane(ctx, { server, settleMs, clock, log, gap = GAP_PX }) {
   const readouts = [ctx.readout()];
   await loadFresh(ctx.c, { clock, settleMs, timers: 'live' });
@@ -140,7 +131,6 @@ export async function framesLane(ctx, { server, settleMs, clock, log, gap = GAP_
   return { schema: 'fw.phone.push-frames/1', device: ctx.device, readouts, near, presses, nav: r.nav, vh: r.vh, maxY: r.maxY, endY: r.y, hiEnd, ts: r.ts, f: r.f };
 }
 
-/** The counts lane: fresh load, near the end, Timeline on, the pushes, the end mark. */
 export async function countsLane(ctx, { server, settleMs, clock, log, gap = GAP_PX }) {
   const readouts = [ctx.readout()];
   await loadFresh(ctx.c, { clock, settleMs, timers: 'live' });
@@ -165,7 +155,6 @@ export async function countsLane(ctx, { server, settleMs, clock, log, gap = GAP_
   return { schema: 'fw.phone.push-counts/1', device: ctx.device, readouts, near, presses: r.presses, vh: r.vh, maxY: r.maxY, endY: r.y, ts: r.ts, a: r.a, b: r.b, tlA, tlB, rs };
 }
 
-/** `deps.visit` of `runBlock`: both lanes of one arm's visit on the phone, with the gate between them. `server()` returns the live push driver, started before the page loads (the driver's first accessibility snapshot of Safari does not return while Safari shows the page, MEASURED 2026-10-27). */
 export const pushVisit = ({ server, gapPx = GAP_PX }) => async ({ row, site, settle, clock, log, gate }) => {
   const srv = await server();
   return whenTabBlank(() => withPhone(async (ctx) => {
@@ -178,7 +167,6 @@ export const pushVisit = ({ server, gapPx = GAP_PX }) => async ({ row, site, set
   }, { site: { dir: site, search: row.search }, log }), log);
 };
 
-/** A push driver that is built once, started on first use and again when it has ended or run long. */
 export function driverHolder({ dir, log, udid = listPhone().udid, push = TOUCH_PUSH }) {
   let driver = null;
   let srv = null;
@@ -198,7 +186,6 @@ export function driverHolder({ dir, log, udid = listPhone().udid, push = TOUCH_P
   return { get, stop };
 }
 
-/** Read every done visit of a raw dir: the values per arm (rows are per visit, in the order of PUSH_METRICS). */
 export function readVisits(dir) {
   const st = loadState(dir);
   const done = st.visits.filter((v) => v.status === 'done').sort((a, b) => a.index - b.index);
@@ -213,7 +200,6 @@ export function readVisits(dir) {
   return { st, rows, lost };
 }
 
-/** Per-arm summary: n, per metric median [min, max], and the label against the base. */
 export function summarize(rows) {
   const by = (id) => rows.filter((r) => r.arm === id).map((r) => r.vals);
   const base = by('base');

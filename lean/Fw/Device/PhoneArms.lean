@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Device.Session
 import Fw.Measure.WebKitProfile
-/-!
-# The phone end-of-page session: arm plan and per-arm verdict
--/
 namespace Fw.Device.PhoneArms
 open Lean
 open Fw.Device.Session (Zone zoneOf Verdict verdict spread sameFlags sameFlags_comm sameFlags_refl)
@@ -775,64 +772,46 @@ theorem cell_not_beats_within {base arm : List Int} {o a : Int} (ho : o ∈ base
     (h : o ≤ a + spread base) : verdict base arm ≠ .beats :=
   Fw.Device.Session.not_beats_within ho ha h
 
-/-! ## The push visit on the real phone (task phone-morph-push)
-One visit loads the arm's page, scrolls near the end, and asks the XCUITest driver for pushes while the page records frames and the Timeline records main-thread work. -/
-
-/-- One touch of the fixed XCUITest push pattern. -/
 inductive Step where
   | fwd | hold | back
   deriving DecidableEq, Repr
 
-/-- The name written in the output. -/
 def Step.name : Step → String
   | .fwd => "fwd" | .hold => "hold" | .back => "back"
 
-/-- One driver request (`PushServer.swift`): a forward push, a hold, a push back, a hold. -/
 def askCycle : List Step := [.fwd, .hold, .back, .hold]
 
-/-- The fixed pattern: forward push, hold, back, hold, forward again. It is the first five steps of two requests in a row. -/
 def pattern : List Step := [.fwd, .hold, .back, .hold, .fwd]
 
-/-- Requests that make the pattern: one cycle and the first push of the next. -/
 def patternAsks : Nat := 2
 
-/-- The back-to-back worst case: further requests with no rest between them. -/
 def burstAsks : Nat := 3
 
-/-- The touch steps a visit asks of the driver, in order. -/
 def visitSteps : List Step := (List.replicate (patternAsks + burstAsks) askCycle).flatten
 
-/-- The pattern is the head of two cycles in a row. -/
 theorem pattern_prefix : pattern <+: (List.replicate patternAsks askCycle).flatten := by decide
 
 theorem visitSteps_length : visitSteps.length = 20 := by decide
 
-/-- Forward and back pushes of a visit: each starts a touch the page records. -/
 def pushes : Nat := (visitSteps.filter fun s => s != .hold).length
 
 theorem pushes_eq : pushes = 10 := by decide
 
 theorem pushes_split : pushes = 2 * (patternAsks + burstAsks) := by decide
 
-/-- The least number of visits of an arm, and of the base, for a verdict. -/
 def minVisits : Nat := 3
 
-/-- Metrics of one visit, in the order of its values: tail stats of the frame intervals inside the push windows, then the main-thread
-counts between each push and its morph end. -/
 def pushMetrics : List String :=
   ["p95", "p99", "max", "over50", "RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"]
 
-/-- The frame interval limit, hundredths of a ms: 50 ms. -/
 def overLimit : Int := 5000
 
-/-- A frame of the push recorder: rAF time (hundredths of a ms), scroll position (tenth px), morph amount (per mille). -/
 structure PFrame where
   t : Int
   y : Int
   r : Int
   deriving DecidableEq, Repr
 
-/-- Times of the frames whose scroll position or morph amount differs from the frame before. -/
 def changeTimes : List PFrame → List Int
   | a :: b :: rest => (if a.y == b.y && a.r == b.r then [] else [b.t]) ++ changeTimes (b :: rest)
   | _ => []
@@ -873,7 +852,6 @@ theorem foldl_max_mem (a : Int) : ∀ (l : List Int), l.foldl max a = a ∨ l.fo
         exact Or.inl (h.trans this)
     · exact Or.inr (List.mem_cons_of_mem _ h)
 
-/-- The morph end of the window `[lo, hi)`: the last time in it at which the page still changed, or `lo` when it did not. -/
 def morphEnd (lo hi : Int) (fs : List PFrame) : Int :=
   ((changeTimes fs).filter fun t => decide (lo ≤ t ∧ t < hi)).foldl max lo
 
@@ -899,7 +877,6 @@ theorem morphEnd_after {lo hi t : Int} {fs : List PFrame} (ht : t ∈ changeTime
     t ≤ morphEnd lo hi fs :=
   foldl_max_ub lo _ t (List.mem_filter.mpr ⟨ht, by simp [h1, h2]⟩)
 
-/-- The windows between touch starts: each runs from one touch start to the next, the last to `hiEnd`. -/
 def windows (hiEnd : Int) : List Int → List (Int × Int)
   | a :: b :: rest => (a, b) :: windows hiEnd (b :: rest)
   | [a] => [(a, hiEnd)]
@@ -921,7 +898,6 @@ theorem windows_starts (hiEnd : Int) : ∀ ts : List Int, (windows hiEnd ts).map
     simp only [windows, List.map_cons] at this ⊢
     rw [this]
 
-/-- The span of each push: its touch start to its morph end. -/
 def spans (fs : List PFrame) (hiEnd : Int) (ts : List Int) : List (Int × Int) :=
   (windows hiEnd ts).map fun w => (w.1, morphEnd w.1 w.2 fs)
 
@@ -933,7 +909,6 @@ theorem spans_ordered (fs : List PFrame) (hiEnd : Int) (ts : List Int) : ∀ s �
   obtain ⟨w, _, rfl⟩ := List.mem_map.mp hs
   exact morphEnd_ge _ _ _
 
-/-- Intervals between neighbouring frames. -/
 def dts : List PFrame → List Int
   | a :: b :: rest => (b.t - a.t) :: dts (b :: rest)
   | _ => []
@@ -946,13 +921,10 @@ theorem dts_length : ∀ fs : List PFrame, (dts fs).length = fs.length - 1
     simp [dts] at this ⊢
     omega
 
-/-- Frames inside a span, ends included. -/
 def framesIn (s : Int × Int) (fs : List PFrame) : List PFrame := fs.filter fun f => decide (s.1 ≤ f.t ∧ f.t ≤ s.2)
 
-/-- Every frame interval inside the spans (pushes are cut apart, no interval spans a gap between two). -/
 def spanDts (sps : List (Int × Int)) (fs : List PFrame) : List Int := sps.flatMap fun s => dts (framesIn s fs)
 
-/-- The nearest-rank percentile (`p` in 1..100) of a list; 0 for the empty list. -/
 def pct (p : Nat) (xs : List Int) : Int :=
   (xs.mergeSort (fun a b => decide (a ≤ b))).getD ((p * xs.length + 99) / 100 - 1) 0
 
@@ -972,20 +944,17 @@ theorem pct_mem {p : Nat} {xs : List Int} (hp : p ≤ 100) (hx : xs ≠ []) : pc
 theorem pct_le_max {p : Nat} {xs : List Int} {m : Int} (hp : p ≤ 100) (hx : xs ≠ []) (hm : ∀ x ∈ xs, x ≤ m) : pct p xs ≤ m :=
   hm _ (pct_mem hp hx)
 
-/-- How many values exceed `lim`. -/
 def over (lim : Int) (xs : List Int) : Nat := (xs.filter fun x => decide (lim < x)).length
 
 theorem over_le (lim : Int) (xs : List Int) : over lim xs ≤ xs.length := List.length_filter_le _ _
 
 theorem over_nil (lim : Int) : over lim [] = 0 := rfl
 
-/-- A Timeline record: its kind and start on the Timeline clock (hundredths of a ms). -/
 structure Rec where
   kind : String
   t : Int
   deriving DecidableEq, Repr
 
-/-- Records of `kind` inside a span, ends included, after moving the Timeline clock to the page clock by `off`. -/
 def countIn (kind : String) (off : Int) (s : Int × Int) (rs : List Rec) : Nat :=
   (rs.filter fun r => r.kind == kind && decide (s.1 ≤ r.t - off ∧ r.t - off ≤ s.2)).length
 
@@ -1001,13 +970,10 @@ theorem countIn_empty (kind : String) (off : Int) {s : Int × Int} (rs : List Re
 theorem countIn_le (kind : String) (off : Int) (s : Int × Int) (rs : List Rec) : countIn kind off s rs ≤ rs.length :=
   List.length_filter_le _ _
 
-/-- The records of `kind` over all spans of a visit. -/
 def countsOf (kind : String) (off : Int) (sps : List (Int × Int)) (rs : List Rec) : Nat := (sps.map fun s => countIn kind off s rs).sum
 
 theorem countsOf_nil (kind : String) (off : Int) (rs : List Rec) : countsOf kind off [] rs = 0 := rfl
 
-/-- Spans of the counts lane: its touch starts, each as long as the span of the same push in the frames lane (the counts lane runs no
-recorder frame loop, so it cannot see the morph end itself). -/
 def shifted (ts durs : List Int) : List (Int × Int) := List.zipWith (fun t d => (t, t + d)) ts durs
 
 theorem shifted_length (ts durs : List Int) : (shifted ts durs).length = min ts.length durs.length := by
@@ -1020,7 +986,6 @@ theorem shifted_ordered {ts durs : List Int} (h : ∀ d ∈ durs, 0 ≤ d) : ∀
   have := h (durs[i]'(by simp [shifted] at hi; omega)) (List.getElem_mem _)
   omega
 
-/-- The length of each span. -/
 def durations (sps : List (Int × Int)) : List Int := sps.map fun s => s.2 - s.1
 
 theorem durations_nonneg (fs : List PFrame) (hiEnd : Int) (ts : List Int) : ∀ d ∈ durations (spans fs hiEnd ts), 0 ≤ d := by
@@ -1029,8 +994,6 @@ theorem durations_nonneg (fs : List PFrame) (hiEnd : Int) (ts : List Int) : ∀ 
   have := spans_ordered fs hiEnd ts s hs
   omega
 
-/-- The values of one visit, in the order of `pushMetrics`: tail stats of the frames lane inside its spans, and the counts lane's records
-inside its own touch starts followed by the same lengths. -/
 def visitVals (fs : List PFrame) (hiEnd : Int) (ts : List Int) (tsC : List Int) (off : Int) (rs : List Rec) : List Int :=
   let sps := spans fs hiEnd ts
   let d := spanDts sps fs
@@ -1042,7 +1005,6 @@ theorem visitVals_length (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (o
     (visitVals fs hiEnd ts tsC off rs).length = pushMetrics.length := by
   simp [visitVals, pushMetrics]
 
-/-- The Timeline clock is tied to the page clock only when the start and end marks agree (as for the zone profiles). -/
 def clockOff (tlA tlB pgA pgB : Int) : Option Int :=
   if driftOk (offsetOf tlA pgA) (offsetOf tlB pgB) then some (meanOffset (offsetOf tlA pgA) (offsetOf tlB pgB)) else none
 
@@ -1054,7 +1016,6 @@ theorem clockOff_refuse {tlA tlB pgA pgB : Int} (h : driftOk (offsetOf tlA pgA) 
     clockOff tlA tlB pgA pgB = none := by
   simp [clockOff, h]
 
-/-- Columns of per-visit rows: one list over visits per metric. -/
 def columns (k : Nat) (vs : List (List Int)) : List (List Int) := (List.range k).map fun i => vs.map (·.getD i 0)
 
 theorem columns_length (k : Nat) (vs : List (List Int)) : (columns k vs).length = k := by simp [columns]
@@ -1064,7 +1025,6 @@ theorem columns_len (k : Nat) (vs : List (List Int)) : ∀ c ∈ columns k vs, c
   obtain ⟨i, _, rfl⟩ := List.mem_map.mp hc
   simp
 
-/-- The label of one arm: the cells over its visits, but only when base and arm both have `minVisits` visits. -/
 def pushLabel (base arm : List (List Int)) : Label :=
   if minVisits ≤ base.length ∧ minVisits ≤ arm.length then
     armLabel (columns pushMetrics.length base) (columns pushMetrics.length arm)
@@ -1094,12 +1054,10 @@ theorem pushLabel_worse {base arm : List (List Int)} (hb : minVisits ≤ base.le
   rw [pushLabel_enough hb ha]
   exact labelOf_worse_iff _
 
-/-- The arms of the push session. -/
 def pushArms : List Arm :=
   [base, ⟨"morph.geom:on", .rewrite, ["morph.geom:on"]⟩,
    ⟨"morph.tween:geom-timed", .rewrite, ["morph.geom:on", "morph.tween:geom-timed"]⟩, ⟨"morph.stage:on", .rewrite, ["morph.stage:on"]⟩]
 
-/-- Rounds of all arms, the base first in each: the visits are interleaved and the base is repeated once per round. -/
 def pushRounds (r : Nat) : List Arm := (List.replicate r pushArms).flatten
 
 theorem pushRounds_length (r : Nat) : (pushRounds r).length = 4 * r := by
@@ -1112,7 +1070,6 @@ theorem pushRounds_count (r : Nat) (a : Arm) (hn : (pushArms.count a) = 1) :
 theorem pushRounds_base (r : Nat) : (pushRounds r).count base = r := by
   exact pushRounds_count r base (by decide)
 
-/-- The session meets the visit rule when every arm has at least `minVisits` visits, so three rounds. -/
 def pushOk (order : List Arm) : Bool := pushArms.all fun a => decide (minVisits ≤ order.count a)
 
 theorem pushOk_rounds : pushOk (pushRounds minVisits) = true := by decide
@@ -1120,7 +1077,6 @@ theorem pushOk_rounds : pushOk (pushRounds minVisits) = true := by decide
 theorem pushOk_short : pushOk (pushRounds (minVisits - 1)) = false := by decide
 
 
-/-- Neighbouring visits are of different arms. -/
 def noRepeat : List Arm → Bool
   | a :: b :: rest => !(a == b) && noRepeat (b :: rest)
   | _ => true
@@ -1271,7 +1227,6 @@ private def recsJ' (rs : List Rec) : Json := Json.arr (rs.map fun r => Json.arr 
 
 private def fr (rows : List (Int × Int × Int)) : List PFrame := rows.map fun (t, y, r) => ⟨t, y, r⟩
 
-/-- A push at 60 Hz: still, the morph climbs for a few frames, still; then a push back. Times in hundredths of a ms. -/
 private def pushFrames : List PFrame :=
   fr [(0, 5000, 0), (1667, 5000, 0), (3333, 5000, 0), (5000, 5040, 0), (6667, 5080, 120), (8333, 5080, 400), (10000, 5080, 800),
       (11667, 5080, 1000), (13333, 5080, 1000), (15000, 5080, 1000), (16667, 5080, 1000), (18333, 5080, 800), (20000, 5080, 300),
@@ -1313,7 +1268,6 @@ private def rowCases : List (String × List (List Int) × List (List Int)) :=
      [[11, 21, 31, 41, 51, 61, 71, 81], [13, 23, 33, 43, 53, 63, 73, 83], [12, 22, 32, 42, 52, 62, 72, 82]]),
    ("none", [], [])]
 
-/-- The golden lines of the push visit. -/
 def pushGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "pushconsts"), ("minVisits", minVisits), ("patternAsks", patternAsks), ("burstAsks", burstAsks),
     ("overLimit", overLimit), ("pushes", pushes), ("metrics", strsJ pushMetrics), ("askCycle", strsJ (askCycle.map Step.name)),

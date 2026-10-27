@@ -31,7 +31,7 @@ The labels are the Lean rule `pushLabel` (`armLabel` over the columns against th
   thermal state. n = 3 per arm is the rule's minimum; ranges overlap for p95 and p99 between arms, so only max and the count
   columns separate them.
 - Pin end: our condition owner stopped and the clear was confirmed; the phone still read Critical for 5 minutes from its own heat
-  (`end heatRemains`) and read Fair afterwards. Nothing of ours remains induced.
+  (`end heatRemains`) and read Fair afterwards.
 
 ## Cause of the round-2 hang (MEASURED, 2026-10-27)
 Round 2 blamed the automation switch. With UI Automation on, the driver works, and the real cause was the driver's file channel:
@@ -42,15 +42,13 @@ phone copy of the server (embedded source, built into a copy of the driver) that
 container and prints `FWPUSH ready` / `FWPUSH done <n> ok <up ms> <down ms>` marker lines; the Mac side copies request files in with
 `xcrun devicectl device copy to` (about 0.5 s) and turns marker lines into `ready` / `done-<n>` files. The driver starts before the
 page loads (a Safari showing the loaded page made a snapshot of Safari hang in a separate probe; SpringBoard supplies the touch
-coordinates). A stale driver log (appended across runs) first made `done-<n>` appear without a push; the log is now removed before
-each start (found in a trial: identical press times).
+coordinates). The driver log is removed before each start, because a stale log appended across runs made `done-<n>` appear without a push.
 
 ## Limits (INFERRED unless noted)
 - morph.stage:on writes `data-fw-morph`, not the inline `--morph` the frames recorder reads, so its morph amount reads 0 and its span
   end is the last frame where the scroll position changed. Its counts are likely understated, not overstated, so "worse" holds in
-  direction; the span definition is the same rule for all arms but sees less of the stage morph.
+  direction.
 - The recorder calls `getAnimations` once per frame (its own cost, same for all arms).
-- Class L arms stay the user's visual review; the felt-smoothness verdict is the user's.
 
 ## What was built (CONFIRMED in code)
 - Lean `lean/Fw/Device/PhoneArms.lean` push-visit section, golden `packages/contracts/golden/device/phone-arms.jsonl`, twin

@@ -1,4 +1,3 @@
-// The pure parts of the phone push run: Timeline rows to records, the two lanes to one visit's values, the per-arm summary, the tables.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { recordsOf, valuesOf, summarize, nearEndJs } from '../src/device-push-run.mjs';
@@ -13,7 +12,6 @@ test('recordsOf keeps the counted kinds and the first wk:a and wk:b marks', () =
   assert.equal(r.tlB, 400000);
 });
 
-// ten touch starts 500 ms apart; one frame every 10 ms; the page changes for 100 ms after each touch
 const touches = Array.from({ length: PUSH.pushes }, (_, i) => 100000 + i * 50000);
 const frames = (() => {
   const f = [];

@@ -1,4 +1,3 @@
-// The push-visit twin against the Lean golden (Fw.Device.PhoneArms, packages/contracts/golden/device/phone-arms.jsonl).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

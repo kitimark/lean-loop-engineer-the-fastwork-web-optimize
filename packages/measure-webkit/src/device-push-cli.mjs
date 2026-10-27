@@ -1,7 +1,3 @@
-// Command line of the phone push run (task phone-morph-push); I/O only.
-//   node src/device-push-cli.mjs run --site <dist/aot> --dir <raw dir> --driver <driver dir> [--pin Serious] [--only a,b] [--rounds 3] [--max-visits N] [--all]
-//   node src/device-push-cli.mjs reduce --dir <raw dir> --out <results dir>
-//   node src/device-push-cli.mjs plan
 import { parseArgs } from 'node:util';
 import { resolve } from 'node:path';
 import { runBlock, realDeps, phoneSense } from './device-phone-run.mjs';
