@@ -1,6 +1,6 @@
 # morph.stage (design rank 1 of 10-26-end-scroll-designs)
 
-Status: measured on CI (Chromium and the gate); WebKit Simulator lanes waiting for wk-sim-hang. Look change, class L; T
+Status: measured on CI (Chromium and the gate); WebKit Simulator zones blocked by runner loss (no flag VM finished in 6 of 6 tries). Look change, class L; T
 and the look are for the user's review. Never a preset. Commit 13b09467c on ci/morph-stage (push 1 of 3).
 
 - Flag `morph.stage:on`: the platform scene is `position: sticky` over T px of added page (T = 696 px at 1280x800,
@@ -48,13 +48,24 @@ timeline do work the base does not do while the page approaches the end) and les
 FireAnimationFrame: noGain. Every window from the end frame has a counter less and none more with the minimum frames
 met: gain. All six windows have enough frames (the 120+ window has 47 against 20).
 
-## WebKit Simulator zones (webkit-sim, minVms 3): undecided
-Dispatched at 8f2f726bf, 3 VMs per side: base 40366306645, flag 40366323523. macOS runners were scarce for hours: VM jobs
-were cancelled or failed after about an hour, and the failed jobs were re-run (the rerun is still queued). At the time of
-writing the base has all 3 VMs (after reruns) and the flag has none with a result, so every zone is undecided on the Lean minVms 3 rule
-(never a win). Both runs stay pending; read them with
-`node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<webkit-sim-r dirs> --arm stage=<dirs>`
-once each side has 3 VMs.
+## WebKit Simulator zones (webkit-sim, minVms 3): blocked, undecided
+Dispatches: base 40366306645 (3 VMs after reruns, commit 8f2f726bf); flag 40366323523 (8f2f726bf, 0 VMs) and, after merging
+wk-loop-freeze (freeze-aware stall clock), flag 40429988675 (8324e9f89, 0 of 3 VMs: r1, r2, r3 all cancelled at the 58 min
+limit). No `webkit-sim-r` artifact exists for either flag run, so the zone reader has nothing to read on the flag side and
+every zone stays undecided on the Lean minVms 3 rule (never a win). The base harness commit is older than the flag run's.
+
+Cause (MEASURED from the sim-tick console tails of 40429988675 and the job log of 40366323523; base 40366306645 compared at the same steps):
+- Runner side, r1 and r3 of 40429988675 and r1 of 40366323523: the Safari tab never attached ("no tab after 6 to 115 s", openurl
+  asked again 7 to 19 times, `warm-up ... Runtime.evaluate timed out after 120000 ms`), then `simctl shutdown failed (ETIMEDOUT)`
+  and exit 4 / exit 1. The flag page had not loaded, so the flag cannot be the cause. `event loop blocked ... host calls running: []`
+  and, in r1 of 40429988675, `the host held the process (it used 0 s of cpu in 65 s)` are the VM-freeze marks of
+  research/notes/2026/10-2x-wk-loop-freeze.md.
+- r2 of 40429988675 loaded the flag page: warm-up, census at y 0, 1500, 3000, 4500 (145 layers, 149 MB, within the base's
+  141 to 146 layers and 149 to 160 MB), then `Runtime.evaluate timed out` twice after y 4500 with `the host held the
+  process (0 s of cpu in 191 s)` just before the first. The base shows the same timeout after y 4500 (r1 tick 5, r3 tick 3 and 4 of 40366306645) and recovered by a
+  fresh load, so it is not a flag signature; the two flag hangs hit the freeze marks, so the cause is the VM, not the page.
+  Not proved: a local Web Inspector timeline was not taken (no page-side signature to chase), so a flag share in r2's second hang is not excluded.
+Verdict: WebKit zones blocked by runner loss; the cause is named (VM freeze and a wedged Simulator), not a flag stall.
 
 ## Toolbar lane (toolbar-throttle, arm `stage`): undecided
 Run 40365940148 (commit message [ci:toolbar-throttle] [throttle:toolbar] [toolbar-plan:stage,stage,stage]). The new arm
