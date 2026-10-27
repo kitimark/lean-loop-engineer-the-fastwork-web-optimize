@@ -101,19 +101,18 @@ test('golden: the Timeline window phase', () => {
 });
 
 test('the arms: one search per arm; the three mount flags and nobounce are look-change', () => {
-  assert.deepEqual(ARM_ORDER, ['default', 'touch-first', 'open-once', 'unthrottle', 'overscroll-lock', 'threaded', 'nobounce', 'stage']);
+  assert.deepEqual(ARM_ORDER, ['default', 'touch-first', 'open-once', 'unthrottle', 'overscroll-lock', 'threaded', 'nobounce']);
   assert.equal(ARMS.nobounce, '?fw=morph.end.nobounce:on');
-  assert.equal(ARMS.stage, '?fw=morph.stage:on');
   assert.equal(ARMS.default, '');
   assert.equal(ARMS.unthrottle, '?fw=engine.scroll:unthrottle');
-  assert.deepEqual([...LOOK_CHANGE].sort(), ['nobounce', 'open-once', 'overscroll-lock', 'stage', 'touch-first']);
+  assert.deepEqual([...LOOK_CHANGE].sort(), ['nobounce', 'open-once', 'overscroll-lock', 'touch-first']);
 });
 
 test('the plan: default first, ten jobs cover each flag arm four times, both positions', () => {
   const plan = planOf('');
   assert.equal(plan.length, 10);
   assert.ok(plan.every((a) => a[0] === 'default' && a.length === 3 && a[1] !== a[2]));
-  for (const arm of FLAG_ARMS.filter((a) => a !== 'nobounce' && a !== 'stage')) {
+  for (const arm of FLAG_ARMS.filter((a) => a !== 'nobounce')) {
     assert.equal(plan.filter((a) => a.includes(arm)).length, 4, arm);
     assert.ok(plan.some((a) => a[1] === arm) && plan.some((a) => a[2] === arm), `${arm} in both positions`);
   }

@@ -7,3 +7,4 @@ Round 2 state: main merged; Lean ReplacedPart entries stage-mount/stage-tween (p
 Open: gate rerun with fw=morph.stage:on; Chromium base vs flag 3 runs each with the new tail, read with offscreen-windows-cli.mjs and minFrames 34/20/40/60/20/174; webkit-sim zones minVms 3; toolbar lane stage arm; T and class L in note and ledger; user look review (class L, never a preset).
 Read first: research/notes/2026/10-2x-morph-stage.md, lean/Fw/Parts/MorphStage.lean, lean/Fw/Gate/Replaced.lean.
 Final state: toolbar stage arm 0 usable passes (restartFailed), undecided; T 696 px (1280x800) / 768 px (390x844), class L, no preset. Round 2 ended at commit see git log; ledger row n 90 and the note hold the same.
+Toolbar arm files (toolbar.mjs and its test) are at CI commit 8f2f726bf only; reverted at the tip because they are outside the task writes (dry scope refusal).

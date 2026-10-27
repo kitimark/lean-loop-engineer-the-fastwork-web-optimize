@@ -58,7 +58,7 @@ once each side has 3 VMs.
 
 ## Toolbar lane (toolbar-throttle, arm `stage`): undecided
 Run 40365940148 (commit message [ci:toolbar-throttle] [throttle:toolbar] [toolbar-plan:stage,stage,stage]). The new arm
-`stage` (`?fw=morph.stage:on`, look change) is in `packages/measure-webkit/src/throttle/toolbar.mjs`. Of the jobs that
+`stage` (`?fw=morph.stage:on`, look change) was added to `packages/measure-webkit/src/throttle/toolbar.mjs` and its test at commit 8f2f726bf (the CI commit); those two files are outside this task's writes, so the branch tip does not carry them (follow-up for the lead: re-add them with the arm if the lane is run again). Of the jobs that
 uploaded, the stage pass of job 3 ended `restartFailed` (Simulator not ready after 1295 s), so the stage arm has 0 usable
 passes and the report (toolbar-cli.mjs report) has a verdict row for no flag. Read the three uploaded jobs: default arm only,
 3 passes, 1 usable. Undecided; six sim jobs failed or were cancelled.
