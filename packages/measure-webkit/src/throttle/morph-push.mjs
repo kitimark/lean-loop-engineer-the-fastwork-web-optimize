@@ -90,6 +90,12 @@ export function buildPushSegs({ segs, rafs, rec, endP }) {
   };
 }
 
+/** The page-side stamps `fwpc:<page ms>` of a segment: the first and the last as sync marks {p, s}, or null with fewer than two. */
+export function stampSync(rows) {
+  const st = rows.filter((r) => r[0] === 'TimeStamp' && /^fwpc:\d+(\.\d+)?$/.test(r[3] ?? '')).map((r) => ({ p: Number(r[3].slice(5)), s: r[1] }));
+  return st.length < 2 ? null : { sync: st[0], sync2: st[st.length - 1] };
+}
+
 export const syncOf = (rows, message, page) => {
   const r = rows.find((x) => x[0] === 'TimeStamp' && x[3] === message);
   return r ? { p: page, s: r[1] } : null;

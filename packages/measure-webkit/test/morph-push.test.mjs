@@ -78,6 +78,12 @@ test('buildPushSegs maps every segment through its own marks and reports the lar
   assert.equal(p.segs, 2);
 });
 
+test('stampSync takes the first and last page-side stamp of a segment', () => {
+  const rows = [['TimeStamp', 1, null, 'fwpc:100.5'], ['Layout', 1.2, null, null], ['TimeStamp', 1.5, null, 'fwpc:600.2'], ['TimeStamp', 2, null, 'other'], ['TimeStamp', 9.25, null, 'fwpc:8300']];
+  assert.deepEqual(M.stampSync(rows), { sync: { p: 100.5, s: 1 }, sync2: { p: 8300, s: 9.25 } });
+  assert.equal(M.stampSync(rows.slice(0, 2)), null);
+});
+
 test('the morph arms have their own pages and the base page is the default one', () => {
   assert.equal(searchOf('morph-base'), '');
   assert.equal(searchOf('morph-geom'), '?fw=morph.geom:on');

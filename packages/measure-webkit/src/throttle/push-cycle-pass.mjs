@@ -7,9 +7,9 @@ import { takeCensus } from '../census.mjs';
 import { dragPass } from './driver.mjs';
 import { startServer, stopServer, logTail } from '../touch-push.mjs';
 import { START_JS, FETCH_JS, nearEndJs } from './finish-page.mjs';
-import { EXTRA_START_JS, EXTRA_FETCH_JS, SYNC_JS } from './push-cycle-page.mjs';
+import { EXTRA_START_JS, EXTRA_FETCH_JS, STAMP_JS } from './push-cycle-page.mjs';
 import { startTimeline } from '../timeline.mjs';
-import { buildPushSegs, syncOf } from './morph-push.mjs';
+import { buildPushSegs, stampSync } from './morph-push.mjs';
 import { GAP_PX, NEAR_END_SETTLE_MS } from './finish-probe.mjs';
 import { restMs, SEP_DWELL_CYCLES } from './push-cycle.mjs';
 
@@ -80,6 +80,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
   }
   try {
     const segs = [];
+    if (profile === 'push') await c.evaluate(STAMP_JS);
     const started = await c.evaluate(START_JS);
     if (started !== 'started') throw new Error(`the recorder did not start (${started})`);
     const extra = await c.evaluate(EXTRA_START_JS);
@@ -92,25 +93,22 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
       run = { code: 0, timedOut: false, signal: null };
       for (let k = 0; k < n; k++) {
         const began = Date.now();
-        let tl = null, sync = null;
-        if (profile === 'push') { // a timeline of its own around each cycle: one recording of the whole pass floods the inspector (run 40465591949)
-          tl = await startTimeline(c);
-          sync = JSON.parse(await c.evaluate(SYNC_JS(`fwpc:sync${k}`)));
-          log(`${tag}: cycle ${k + 1}: timeline up`);
-        }
-        const beganPage = await pageNow(c);
+        const tl = profile === 'push' ? await startTimeline(c).catch((e) => { log(`${tag}: cycle ${k + 1}: no timeline (${e.message})`); return null; }) : null;
+        if (tl) log(`${tag}: cycle ${k + 1}: timeline up`);
+        const beganPage = profile === 'push' ? null : await pageNow(c);
         const presses = await askCycle(server, CYCLE_DONE_MS);
         log(`${tag}: cycle ${k + 1}: asked ${presses === null ? 'without an answer' : 'and answered'}`);
-        const endPage = await pageNow(c);
-        calls.push({ k, ok: presses !== null, beganMs: Math.round(beganPage), endMs: Math.round(endPage), presses });
+        const endPage = profile === 'push' ? null : await pageNow(c);
+        calls.push({ k, ok: presses !== null, beganMs: beganPage === null ? null : Math.round(beganPage), endMs: endPage === null ? null : Math.round(endPage), presses });
         log(`${tag}: cycle ${k + 1} ${presses === null ? 'failed (no answer from the driver)' : `done, presses ${presses.join(' ')} ms`}`);
-        if (tl) {
-          const sync2 = JSON.parse(await c.evaluate(SYNC_JS(`fwpc:sync${k}e`)));
+        if (tl) { // no host evaluate in this path: the page stamps itself (STAMP_JS)
           await sleep(300);
-          const rows = await tl.stop();
-          log(`${tag}: cycle ${k + 1}: timeline stopped, ${rows.length} rows`);
-          const a = syncOf(rows, `fwpc:sync${k}`, sync.p), b = syncOf(rows, `fwpc:sync${k}e`, sync2.p);
-          if (a) segs.push({ rows, sync: a, sync2: b }); else log(`${tag}: cycle ${k + 1}: the timeline has no sync mark`);
+          try {
+            const rows = await tl.stop();
+            const g = stampSync(rows);
+            log(`${tag}: cycle ${k + 1}: timeline stopped, ${rows.length} rows${g ? '' : ', no stamps'}`);
+            if (g) segs.push({ rows, ...g });
+          } catch (e) { log(`${tag}: cycle ${k + 1}: timeline stop failed (${e.message})`); }
         }
         if (presses === null) { run = { code: 1, timedOut: !server.run.state.ended, signal: null }; tail = logTail(server.run.logFile); break; }
         if (profile === 'push') continue;
