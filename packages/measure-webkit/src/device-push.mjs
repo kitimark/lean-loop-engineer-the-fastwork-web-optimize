@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { armLabel, cells } from './device-phone-arms.mjs';
+import { spread, verdict } from './device-session.mjs';
 import { driftOk, meanOffset, offsetOf } from './profile/reduce.mjs';
 
 const GOLDEN = readFileSync(new URL('../../contracts/golden/device/phone-arms.jsonl', import.meta.url), 'utf8')
@@ -65,4 +66,42 @@ export function pushCells(base, arm) {
   if (base.length < PUSH.minVisits || arm.length < PUSH.minVisits) return null;
   const k = PUSH_METRICS.length;
   return Object.fromEntries(cells(columns(k, base), columns(k, arm)).map((v, i) => [PUSH_METRICS[i], v]));
+}
+
+/** Column probe session (Lean `colsArms`, `colsRows`, `colsContrasts`, `cause`, `causes`, `takenOf`, `pushesOf`). */
+export const COLS = Object.freeze(GOLDEN.find((l) => l.kind === 'colscons'));
+export const COLS_ARMS = Object.freeze(COLS.arms.map((a) => Object.freeze(a)));
+const colsById = (id) => COLS_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown cols arm ${id}`); })();
+export const COLS_ROWS = Object.freeze(COLS.latin.map((r) => Object.freeze(r.map(colsById))));
+export const colsOrder = () => COLS.order.map(colsById);
+export const COLS_CONTRASTS = Object.freeze(COLS.contrasts.map((c) => Object.freeze({ ...c })));
+export const colsOk = (order) => COLS_ARMS.every((a) => order.filter((x) => x.id === a.id).length >= PUSH.minVisits);
+
+export function cause(ref, arm) {
+  const v = verdict(ref, arm);
+  if (v === 'beats' || v === 'worse') return 'decided';
+  if (v === 'unresolved') return 'unresolved';
+  const [rLo, rHi, aLo, aHi] = [Math.min(...ref), Math.max(...ref), Math.min(...arm), Math.max(...arm)];
+  return aHi < rLo || rHi < aLo ? 'withinSpread' : 'overlap';
+}
+
+export function causes(ref, arm) {
+  const k = PUSH_METRICS.length;
+  if (ref.length < PUSH.minVisits || arm.length < PUSH.minVisits) return Array.from({ length: k }, () => 'unresolved');
+  const [rc, ac] = [columns(k, ref), columns(k, arm)];
+  return rc.map((c, i) => cause(c, ac[i]));
+}
+
+export const takenOf = (evs) => evs.reduce((n, e, i) => n + (e === 'take' && evs[i - 1] === 'push' ? 1 : 0), 0);
+export const pushesOf = (evs) => evs.filter((e) => e === 'push').length;
+
+/** Pair contrast: the arm (pictures hidden) against its reference, per column: verdict, cause and the reference spread. */
+export function contrastOf(ref, arm) {
+  const k = PUSH_METRICS.length;
+  const cs = causes(ref, arm);
+  const cl = ref.length >= PUSH.minVisits && arm.length >= PUSH.minVisits ? columns(k, ref) : null;
+  return {
+    label: pushLabel(ref, arm), cells: pushCells(ref, arm), causes: Object.fromEntries(PUSH_METRICS.map((m, i) => [m, cs[i]])),
+    refSpread: cl ? Object.fromEntries(PUSH_METRICS.map((m, i) => [m, spread(cl[i])])) : null,
+  };
 }

@@ -73,3 +73,43 @@ test('the Latin-square order is read from the golden: each arm once per round an
   assert.equal(pl.latinOk, true);
   assert.equal(pl.latinNoRepeat, true);
 });
+
+test('the column probe session: arms, order and contrasts are read from the golden', () => {
+  const [c] = of('colscons');
+  assert.equal(c.probeFlag, 'morph.columns:probe-off');
+  assert.deepEqual(D.COLS_ARMS.map((a) => a.id), ['base', 'cols-off', 'flip', 'flip+cols-off']);
+  const ids = D.colsOrder().map((a) => a.id);
+  assert.deepEqual(ids, c.order);
+  assert.equal(ids.length, 16);
+  for (const r of c.latin) assert.deepEqual([...r].sort(), D.COLS_ARMS.map((a) => a.id).sort());
+  for (let p = 0; p < 4; p++) assert.deepEqual(c.latin.map((r) => r[p]).sort(), D.COLS_ARMS.map((a) => a.id).sort());
+  assert.ok(D.colsOk(D.colsOrder()) && D.noRepeat(D.colsOrder()));
+  // the index order is the r2 order: arm j of one set sits where arm j of the other sits
+  const [p] = of('pushconsts');
+  assert.deepEqual(c.order.map((id) => c.arms.findIndex((a) => a.id === id)), p.order.map((id) => p.arms.findIndex((a) => a.id === id)));
+  for (const { ref, arm } of D.COLS_CONTRASTS) {
+    const [x, y] = [ref, arm].map((id) => D.COLS_ARMS.find((a) => a.id === id));
+    assert.deepEqual(y.flags, [...x.flags, c.probeFlag]);
+  }
+});
+
+test('contrast causes and the take count follow the golden', () => {
+  for (const g of of('colscause')) {
+    assert.deepEqual(D.causes(g.ref, g.arm), g.causes, g.name);
+    assert.equal(D.pushLabel(g.ref, g.arm), g.label, g.name);
+  }
+  for (const g of of('coltrace')) {
+    assert.equal(D.pushesOf(g.events), g.pushes, g.name);
+    assert.equal(D.takenOf(g.events), g.taken, g.name);
+  }
+});
+
+test('a contrast names the label, the verdict and the cause per column', () => {
+  const v = (x) => [x, 1, 1, 1, 1, 1, 1, 1];
+  const r = D.contrastOf([v(10), v(50), v(90)], [v(160), v(165), v(170)]);
+  assert.equal(r.label, 'same');
+  assert.equal(r.cells.p95, 'same');
+  assert.equal(r.causes.p95, 'withinSpread');
+  assert.equal(r.refSpread.p95, 80);
+  assert.equal(D.contrastOf([v(10)], [v(1)]).label, 'unresolved');
+});

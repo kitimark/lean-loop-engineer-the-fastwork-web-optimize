@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { recordsOf, valuesOf, summarize, nearEndJs, positionCheck, FRAMES_START_JS } from '../src/device-push-run.mjs';
+import { recordsOf, valuesOf, summarize, nearEndJs, positionCheck, FRAMES_START_JS, COUNTS_START_JS, TRACE_HOOK_JS, traceOf, contrastsOf, takeShareOf } from '../src/device-push-run.mjs';
 import { pushTables } from '../src/device-push-tables.mjs';
-import { PUSH, PUSH_ARMS, PUSH_METRICS } from '../src/device-push.mjs';
+import { PUSH, PUSH_ARMS, PUSH_METRICS, COLS_ARMS, COLS_CONTRASTS } from '../src/device-push.mjs';
 
 test('recordsOf keeps the counted kinds and the first wk:a and wk:b marks', () => {
   const rows = [['TimeStamp', 1, 1, 'wk:a'], ['Layout', 2, 2.1, ''], ['Paint', 3, 3, ''], ['ScheduleStyleRecalculation', 3, 3, ''], ['TimeStamp', 4, 4, 'wk:b'], ['TimeStamp', 5, 5, 'wk:b']];
@@ -85,4 +85,42 @@ test('summarize adds the Lean cell verdicts per metric for each non-base arm', (
   const s = summarize(rows);
   assert.equal(s[0].cells, null);
   assert.deepEqual(Object.keys(s[1].cells), PUSH_METRICS);
+});
+
+test('both recorders install the take trace hook, and the hook stores push and take events', () => {
+  assert.match(FRAMES_START_JS, /__fwTakeTrace/);
+  assert.match(COUNTS_START_JS, /__fwTakeTrace/);
+  const st = { tr: [] };
+  const win = {};
+  new Function('st', 'window', 'performance', `${TRACE_HOOK_JS}`)(st, win, { now: () => 5 });
+  win.__fwTakeTrace({ kind: 'push', from: 0.25, to: 1, at: 1 });
+  win.__fwTakeTrace({ kind: 'take', el: 17.5 });
+  assert.deepEqual(st.tr, [['push', 500, 250, 1000], ['take', 500, 1750, 0]]);
+});
+
+test('traceOf: driver pushes and takes, and the touches that saw a take', () => {
+  const ts = [1000, 2000, 3000];
+  const tr = [['push', 1010, 0, 1000], ['take', 1100, 1, 0], ['push', 2010, 1000, 0], ['push', 3010, 0, 1000], ['take', 3200, 1, 0]];
+  const t = traceOf(ts, tr);
+  assert.deepEqual([t.pushes, t.taken, t.touches, t.touchTaken], [3, 2, 3, 2]);
+  assert.deepEqual(t.perTouch, [true, false, true]);
+  assert.deepEqual(traceOf(ts, undefined), { pushes: 0, taken: 0, touches: 3, touchTaken: 0, perTouch: [false, false, false] });
+});
+
+test('contrastsOf and takeShareOf: the two pair contrasts and the take share per arm', () => {
+  const rows = [];
+  const tr = { frames: { pushes: 10, taken: 7, touches: 10, touchTaken: 6 }, counts: { pushes: 10, taken: 8, touches: 10, touchTaken: 8 } };
+  for (let i = 0; i < 3; i++) for (const a of COLS_ARMS) rows.push({ arm: a.id, vals: [a.id.endsWith('cols-off') ? 1500 : 3000, 0, 0, 0, 10, 10, 10, 10], trace: tr });
+  const cs = contrastsOf(rows, COLS_CONTRASTS);
+  assert.deepEqual(cs.map((c) => [c.ref, c.arm, c.nRef, c.nArm]), [['base', 'cols-off', 3, 3], ['flip', 'flip+cols-off', 3, 3]]);
+  assert.equal(cs[0].label, 'better');
+  assert.equal(cs[0].causes.p95, 'decided');
+  assert.equal(cs[0].causes.p99, 'overlap');
+  const sh = takeShareOf(rows, COLS_ARMS);
+  assert.equal(sh.length, 4);
+  assert.deepEqual(sh[2].frames, { pushes: 30, taken: 21, touches: 30, touchTaken: 18 });
+  const md = pushTables({ arms: summarize(rows, COLS_ARMS), visits: [], notRun: [], contrasts: cs, takeShare: sh });
+  assert.match(md, /Pair contrasts/);
+  assert.match(md, /\| base \| cols-off \| 3\/3 \| better \|/);
+  assert.match(md, /Take share/);
 });

@@ -1240,12 +1240,23 @@ theorem cause_apart_gap {ref arm : List Int} (h : cause ref arm = .withinSpread)
       · simp [c, c2] at h
   · exact absurd h (by simp)
 
-/-- The causes of the eight columns of a contrast. -/
+/-- The causes of the eight columns of a contrast; every column is unresolved when either side has fewer than `minVisits` visits (as `pushLabel`). -/
 def causes (ref arm : List (List Int)) : List Cause :=
-  List.zipWith cause (columns pushMetrics.length ref) (columns pushMetrics.length arm)
+  if minVisits ≤ ref.length ∧ minVisits ≤ arm.length then
+    List.zipWith cause (columns pushMetrics.length ref) (columns pushMetrics.length arm)
+  else List.replicate pushMetrics.length .unresolved
 
 theorem causes_length (ref arm : List (List Int)) : (causes ref arm).length = pushMetrics.length := by
-  simp [causes, columns]
+  unfold causes
+  split <;> simp [columns]
+
+theorem causes_few_ref {ref : List (List Int)} (arm : List (List Int)) (h : ref.length < minVisits) :
+    causes ref arm = List.replicate pushMetrics.length .unresolved := by
+  simp [causes]; intro h1; omega
+
+theorem causes_few_arm (ref : List (List Int)) {arm : List (List Int)} (h : arm.length < minVisits) :
+    causes ref arm = List.replicate pushMetrics.length .unresolved := by
+  simp [causes]; intro _ h1; omega
 
 /-- A push event of the geom-timed driver trace: a push starts a move, a take is the flip being taken for it. -/
 inductive Ev where
