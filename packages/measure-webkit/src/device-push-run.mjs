@@ -7,7 +7,7 @@ import { startTimeline } from './timeline.mjs';
 import { toHundredths } from './profile/reduce.mjs';
 import { openDriver, TOUCH_PUSH } from './touch-push.mjs';
 import { buildPushDriver, startPhoneServer, stopPhoneServer } from './device-push-chan.mjs';
-import { PUSH, PUSH_ARMS, PUSH_METRICS, COUNT_KINDS, clockOff, columns, pushCells, pushLabel, slotOf, visitVals } from './device-push.mjs';
+import { PUSH, PUSH_ARMS, PUSH_METRICS, COUNT_KINDS, clockOff, columns, contrastOf, pushCells, pushLabel, pushesOf, slotOf, takenOf, visitVals } from './device-push.mjs';
 import { loadState, rawName, whenTabBlank, faultsOfVisit } from './device-phone-run.mjs';
 
 const median = (l) => { const s = [...l].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
@@ -20,8 +20,11 @@ export const SERVER_MAX_S = 3300;
 
 const NAV = 'header.start-selling-top-nav, [data-fw="nav"]';
 
+export const TRACE_HOOK_JS = `window.__fwTakeTrace = (e) => { st.tr.push([e.kind, Math.round(performance.now() * 100), e.kind === 'take' ? Math.round(e.el * 100) : Math.round(e.from * 1000), e.kind === 'push' ? Math.round(e.to * 1000) : 0]); };`;
+
 export const FRAMES_START_JS = `(() => {
-  const st = window.__fwPush = { f: [], ts: [], on: true, nav: null };
+  const st = window.__fwPush = { f: [], ts: [], tr: [], on: true, nav: null };
+  ${TRACE_HOOK_JS}
   const nav = () => (st.nav && st.nav.isConnected ? st.nav : (st.nav = document.querySelector(${JSON.stringify(NAV)})));
   addEventListener('touchstart', (e) => { const n = performance.now(); st.ts.push(Math.round((Math.abs(n - e.timeStamp) < 1000 ? e.timeStamp : n) * 100)); }, { capture: true, passive: true });
   const anim = (n) => {
@@ -48,11 +51,12 @@ export const FRAMES_STOP_JS = `(() => {
   const st = window.__fwPush;
   if (!st) return JSON.stringify({ err: 'recorder not started' });
   st.on = false;
-  return JSON.stringify({ f: st.f, ts: st.ts, nav: !!st.nav, maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
+  return JSON.stringify({ f: st.f, ts: st.ts, tr: st.tr, nav: !!st.nav, maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
 })()`;
 
 export const COUNTS_START_JS = `(() => {
-  const st = window.__fwPushC = { ts: [], a: 0, b: 0 };
+  const st = window.__fwPushC = { ts: [], tr: [], a: 0, b: 0 };
+  ${TRACE_HOOK_JS}
   addEventListener('touchstart', (e) => { const n = performance.now(); st.ts.push(Math.round((Math.abs(n - e.timeStamp) < 1000 ? e.timeStamp : n) * 100)); }, { capture: true, passive: true });
   performance.clearMarks('wk:a');
   performance.mark('wk:a');
@@ -66,7 +70,7 @@ export const COUNTS_STOP_JS = `(() => {
   performance.clearMarks('wk:b');
   performance.mark('wk:b');
   st.b = performance.getEntriesByName('wk:b').pop().startTime;
-  return JSON.stringify({ ts: st.ts, a: Math.round(st.a * 100), b: Math.round(st.b * 100), maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
+  return JSON.stringify({ ts: st.ts, tr: st.tr, a: Math.round(st.a * 100), b: Math.round(st.b * 100), maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
 })()`;
 
 export const nearEndJs = (gap) => `(() => {
@@ -128,7 +132,7 @@ export async function framesLane(ctx, { server, settleMs, clock, log, gap = GAP_
   if (r.err) throw new Error(r.err);
   readouts.push(ctx.readout());
   const hiEnd = r.f.length ? r.f[r.f.length - 1][0] + 1 : 0;
-  return { schema: 'fw.phone.push-frames/1', device: ctx.device, readouts, near, presses, nav: r.nav, vh: r.vh, maxY: r.maxY, endY: r.y, hiEnd, ts: r.ts, f: r.f };
+  return { schema: 'fw.phone.push-frames/1', device: ctx.device, readouts, near, presses, nav: r.nav, vh: r.vh, maxY: r.maxY, endY: r.y, hiEnd, ts: r.ts, tr: r.tr ?? [], f: r.f };
 }
 
 export async function countsLane(ctx, { server, settleMs, clock, log, gap = GAP_PX }) {
@@ -152,7 +156,7 @@ export async function countsLane(ctx, { server, settleMs, clock, log, gap = GAP_
   if (!rows) throw new Error('the Timeline did not stop');
   const { rs, tlA, tlB } = recordsOf(rows);
   readouts.push(ctx.readout());
-  return { schema: 'fw.phone.push-counts/1', device: ctx.device, readouts, near, presses: r.presses, vh: r.vh, maxY: r.maxY, endY: r.y, ts: r.ts, a: r.a, b: r.b, tlA, tlB, rs };
+  return { schema: 'fw.phone.push-counts/1', device: ctx.device, readouts, near, presses: r.presses, vh: r.vh, maxY: r.maxY, endY: r.y, ts: r.ts, tr: r.tr ?? [], a: r.a, b: r.b, tlA, tlB, rs };
 }
 
 export const pushVisit = ({ server, gapPx = GAP_PX }) => async ({ row, site, settle, clock, log, gate }) => {
@@ -186,6 +190,12 @@ export function driverHolder({ dir, log, udid = listPhone().udid, push = TOUCH_P
   return { get, stop };
 }
 
+export function traceOf(ts, tr) {
+  const evs = (tr ?? []).map((e) => e[0]);
+  const perTouch = ts.map((t, i) => (tr ?? []).some((e) => e[0] === 'take' && t <= e[1] && (i + 1 >= ts.length || e[1] < ts[i + 1])));
+  return { pushes: pushesOf(evs), taken: takenOf(evs), touches: perTouch.length, touchTaken: perTouch.filter(Boolean).length, perTouch };
+}
+
 export function readVisits(dir) {
   const st = loadState(dir);
   const done = st.visits.filter((v) => v.status === 'done').sort((a, b) => a.index - b.index);
@@ -194,16 +204,16 @@ export function readVisits(dir) {
     const frames = JSON.parse(readFileSync(join(dir, rawName(v.index, v.arm, 'frames')), 'utf8'));
     const vals = valuesOf(counts, frames);
     return { index: v.index, arm: v.arm, ...(slotOf(v.index) ?? { round: null, position: null }), durationS: v.durationS, configHash: counts.fw?.configHash ?? null, nav: frames.nav, vh: vals.vh, maxY: vals.maxY, vals: vals.push,
-      pushes: frames.ts.length, maxMorph: frames.f.reduce((m, x) => Math.max(m, x[2] % 10000), 0), device: counts.device };
+      pushes: frames.ts.length, trace: { frames: traceOf(frames.ts, frames.tr), counts: traceOf(counts.ts, counts.tr) }, maxMorph: frames.f.reduce((m, x) => Math.max(m, x[2] % 10000), 0), device: counts.device };
   });
   const lost = st.visits.filter((v) => v.status !== 'done').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts, faults: faultsOfVisit(v) }));
   return { st, rows, lost };
 }
 
-export function summarize(rows) {
+export function summarize(rows, arms = PUSH_ARMS) {
   const by = (id) => rows.filter((r) => r.arm === id).map((r) => r.vals);
   const base = by('base');
-  return PUSH_ARMS.map((a) => {
+  return arms.map((a) => {
     const vs = by(a.id);
     const cols = columns(PUSH_METRICS.length, vs);
     return {
@@ -214,6 +224,18 @@ export function summarize(rows) {
     };
   });
 }
+
+export const contrastsOf = (rows, contrasts) => contrasts.map((c) => {
+  const by = (id) => rows.filter((r) => r.arm === id).map((r) => r.vals);
+  return { ref: c.ref, arm: c.arm, nRef: by(c.ref).length, nArm: by(c.arm).length, ...contrastOf(by(c.ref), by(c.arm)) };
+});
+
+export const takeShareOf = (rows, arms) => arms.map((a) => {
+  const vs = rows.filter((r) => r.arm === a.id && r.trace);
+  const sum = (lane, k) => vs.reduce((n, r) => n + r.trace[lane][k], 0);
+  return { id: a.id, visits: vs.length, frames: { pushes: sum('frames', 'pushes'), taken: sum('frames', 'taken'), touches: sum('frames', 'touches'), touchTaken: sum('frames', 'touchTaken') },
+    counts: { pushes: sum('counts', 'pushes'), taken: sum('counts', 'taken'), touches: sum('counts', 'touches'), touchTaken: sum('counts', 'touchTaken') } };
+});
 
 export const writeJson = (file, data) => { mkdirSync(resolve(file, '..'), { recursive: true }); writeFileSync(file, JSON.stringify(data, null, 1) + '\n'); };
 

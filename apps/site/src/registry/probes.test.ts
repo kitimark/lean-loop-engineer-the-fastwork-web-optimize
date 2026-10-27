@@ -3,6 +3,7 @@ import { createElement } from 'react';
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { App } from '../App';
+import { MorphColumns } from '../parts/morph.columns';
 import { parts, presets, resolveSearch } from './index';
 import { resolve } from './resolve';
 
@@ -21,6 +22,7 @@ describe('probe class', () => {
   it('the golden lists exactly the registered probes, none a member or a look candidate', () => {
     expect(golden.map((g) => g.flag)).toEqual(registered);
     expect(registered).toEqual([
+      'morph.columns:probe-off',
       'platform.entries:probe-off',
       'platform.glint:probe-off',
       'platform.marquee:probe-off',
@@ -60,6 +62,12 @@ describe('probe class', () => {
     expect(sw).toMatch(/_still_/);
     expect(base).not.toMatch(/_still_/);
     expect(count(sw, 'data-fw-sweep')).toBe(count(base, 'data-fw-sweep'));
+    const cols = (v: string) => renderToString(createElement(MorphColumns, { variant: v }));
+    expect(cols('probe-off')).toContain('data-fw-variant="probe-off"');
+    expect(count(cols('probe-off'), '<img')).toBe(count(cols('faithful'), '<img'));
+    expect(readFileSync(new URL('../parts/morph.columns/morph.module.css', import.meta.url), 'utf8')).toMatch(
+      /data-fw-variant='probe-off'\] img \{\s*visibility: hidden;\s*\}/,
+    );
     expect(html('?fw=platform.glint:probe-off')).toBeTypeOf('string');
     expect(html('?fw=platform.entries:probe-off')).toBeTypeOf('string');
   });

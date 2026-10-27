@@ -23088,7 +23088,8 @@
     "docs/team/handoffs/phone-cols-probe.md",
     "apps/site/src/registry/probes.test.ts",
     "packages/contracts/golden/preset/probes.jsonl"
-   ]
+   ],
+   "evidence": "89f4a5c"
   },
   {
    "devices": [

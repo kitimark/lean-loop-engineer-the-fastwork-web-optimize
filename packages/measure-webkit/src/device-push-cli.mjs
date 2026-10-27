@@ -3,8 +3,8 @@ import { resolve } from 'node:path';
 import { runBlock, realDeps, phoneSense } from './device-phone-run.mjs';
 import { pinnedSession } from './device-phone-pin.mjs';
 import { ConditionOwner } from './device-thermal-pin.mjs';
-import { PUSH, PUSH_ARMS, latinOrder, noRepeat, pushOk } from './device-push.mjs';
-import { driverHolder, positionCheck, pushVisit, readVisits, summarize, valuesOf, writeJson } from './device-push-run.mjs';
+import { PUSH, PUSH_ARMS, COLS, COLS_ARMS, COLS_CONTRASTS, colsOk, colsOrder, latinOrder, noRepeat, pushOk } from './device-push.mjs';
+import { contrastsOf, driverHolder, positionCheck, pushVisit, readVisits, summarize, takeShareOf, valuesOf, writeJson } from './device-push-run.mjs';
 import { pushTables } from './device-push-tables.mjs';
 
 const [cmd, ...rest] = process.argv.slice(2).filter((a) => a !== '--');
@@ -12,15 +12,19 @@ const { values: v } = parseArgs({
   args: rest, allowNegative: true, allowPositionals: true,
   options: {
     site: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, out: { type: 'string' }, pin: { type: 'string' },
-    only: { type: 'string' }, 'max-visits': { type: 'string', default: '4' },
+    only: { type: 'string' }, set: { type: 'string', default: 'morph' }, 'max-visits': { type: 'string', default: '4' },
     all: { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, gap: { type: 'string', default: '100' },
   },
 });
 const log = (s) => console.error(s);
 
+const SETS = { morph: { arms: PUSH_ARMS, order: latinOrder, ok: pushOk }, cols: { arms: COLS_ARMS, order: colsOrder, ok: colsOk } };
+const setOf = () => SETS[v.set] ?? (() => { throw new Error(`unknown --set ${v.set}: morph | cols`); })();
+
 const sessionOf = () => {
-  const order = v.only ? v.only.split(',').map((id) => PUSH_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown arm ${id}`); })()) : latinOrder();
-  if (!v.only && !(pushOk(order) && noRepeat(order))) throw new Error('the session does not satisfy the visit rule');
+  const { arms, order: orderOf, ok } = setOf();
+  const order = v.only ? v.only.split(',').map((id) => arms.find((a) => a.id === id) ?? (() => { throw new Error(`unknown arm ${id}`); })()) : orderOf();
+  if (!v.only && !(ok(order) && noRepeat(order))) throw new Error('the session does not satisfy the visit rule');
   return order;
 };
 
@@ -36,7 +40,7 @@ async function main() {
     const session = sessionOf();
     const body = async (pin) => {
       for (;;) {
-        const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), session, pin, deps, arms: PUSH_ARMS, values: valuesOf, visitS: 240, maxVisits: Number(v['max-visits']) });
+        const r = await runBlock({ site: resolve(v.site), dir: resolve(v.dir), log, clock: v.clock, settle: Number(v.settle), session, pin, deps, arms: setOf().arms, values: valuesOf, visitS: 240, maxVisits: Number(v['max-visits']) });
         console.log(JSON.stringify({ ran: r.ran.length, remaining: r.remaining, stopped: r.stopped }));
         if (r.stopped) { process.exitCode = 3; break; }
         if (!v.all || r.remaining <= 0 || r.ran.length === 0) break;
@@ -51,10 +55,11 @@ async function main() {
   if (cmd === 'reduce') {
     if (!v.dir || !v.out) throw new Error('reduce needs --dir <raw dir> and --out <results dir>');
     const { st, rows, lost } = readVisits(resolve(v.dir));
-    const arms = summarize(rows);
+    const arms = summarize(rows, setOf().arms);
     const summary = {
       schema: 'fw.phone.push/1', consts: { minVisits: PUSH.minVisits, pushes: PUSH.pushes, asks: PUSH.patternAsks + PUSH.burstAsks, overLimitCentiMs: PUSH.overLimit, metrics: PUSH.metrics },
       order: st.session ?? [], positions: positionCheck(rows), visits: rows.map(({ vals, ...r }) => ({ ...r, vals })), notRun: lost, arms,
+      ...(v.set === 'cols' ? { set: 'cols', probeFlag: COLS.probeFlag, contrasts: contrastsOf(rows, COLS_CONTRASTS), takeShare: takeShareOf(rows, COLS_ARMS) } : {}),
       thermal: st.thermal ?? [], firstTempC: st.firstTemp ?? null, pin: st.pin ?? null,
     };
     writeJson(resolve(v.out, 'summary.json'), summary);

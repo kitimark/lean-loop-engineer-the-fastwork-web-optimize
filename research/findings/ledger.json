@@ -4617,6 +4617,28 @@
     "review": "real iPhone via the console Builds tab, search ?fw=morph.geom:on,morph.tween:geom-timed; the bugs reproduce on Chromium, Safari on macOS and the iPhone (user)"
    },
    "n": 93
+  },
+  {
+   "n": 94,
+   "id": "morph.columns.probe-off",
+   "part": "morph.columns",
+   "candidate": "morph.columns:probe-off: measurement-only arm that hides the 21 column pictures (visibility hidden; layout, track layers and their animations unchanged) to attribute their cost on the real phone (never promoted, never in a preset or a look verdict)",
+   "status": "measured probe (not a candidate)",
+   "flags": [
+    "morph.columns:probe-off"
+   ],
+   "chromium": "not measured (the question is the WebKit lag on the phone; Chromium source: replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint) skips the paint of a hidden replaced element)",
+   "webkit": "undecided on the real iPhone (MEASURED, Serious pin, 16 visits, n = 4 per arm, Latin order): base vs base + probe-off and flip vs flip + probe-off are same in all 8 metrics by the Lean pushLabel rule, cause overlap; the base spread is wide (max 78 to 297 ms, paint 9600 to 13104). results/phone/2026-10-27-cols-probe/summary.json, research/notes/2026/10-2x-phone-cols-probe.md",
+   "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
+   "mechanism": "CONFIRMED from source: a hidden replaced element is not painted (WebKit@862f17d RenderReplaced.cpp:411; chromium@f842f52 replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint)). MEASURED: the paint records do not fall with the pictures hidden (base 12716 vs 11751; flip 4700 vs 4703); decode skipping is not checked.",
+   "leanFor": [],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "At n = 4 a wide reference spread (Paint 9600 to 13104) hides any effect of hiding the pictures; decide with a larger n or a lower base spread, and separate decode from paint with a second probe.",
+   "next": "A larger n or a lower base spread to decide the base contrast; a decode-versus-paint probe.",
+   "evidence": "research/notes/2026/10-2x-phone-cols-probe.md (task phone-cols-probe)"
   }
  ],
  "notes": [
@@ -5351,6 +5373,12 @@
    "task": "timed-take-retry",
    "field": "mechanism",
    "text": "timed-take-retry: the timed take is retried every frame while a push is pending, and a close takes like an open (probe note A5).\nCONFIRMED in Lean (Fw.Parts.MorphGeomTimed take_at_first_dark, take_entered, take_never, scanTake_taken, firstFrom_stable, switch_jump_zero, takeOk_up, takeOk_down): the machine takes at the first frame the nav reads on-dark, at frame 0 when a timed set is already entered, never when it never reads dark, and once taken the answer cannot change; the shown value across the switch equals the faithful frame value (jump exactly 0, because the retaken set keeps the push's start time). Golden: 7 take scenarios (packages/contracts/golden/morph-geom-timed.jsonl); the TS tween driver replays them with equal taken frame and value (apps/site/src/parts/morph.tween/geom-timed.take.golden.test.ts).\nMEASURED local (debug run, not a result; Chromium, swipe-touch-v1 strokes by CDP touch, results/timed-take-retry/pushlog-*.json): before the retry the open at 390 fell back to the faithful path; after it every push took the timed path at 390 (open taken 119 ms in), 430 and 1280.\nINFERRED point settled: settle(m>0) in the panel effects drops its tracks without goal rules, but the panel reads --morph from CSS and mark/tick publish the value in the same task, so no frame shows the dropped state; the timed geometry keeps its goal rules until leave (test: geom-timed.driver.test.ts settle at 1).\nNot done here: the flagged breakpoint gate and the Chromium base-vs-flag counts need a dispatch with fw inputs (lead).\nMEASURED on CI (ci/timed-take-retry at 8e667f5): breakpoint gate with morph.geom:on,morph.tween:geom-timed on both engines, run 40503716001, success (all 3 chromium and 4 playwright-webkit jobs). Chromium swipe-touch-v1 x3, rewrite base vs flag: runs 40503734787 vs 40503729708, Lean OffscreenWindows reader (results/timed-take-retry/chromium-windows.md): every window noGain, as for the earlier timed arm (run 40454426552); counters less in the flag arm (end 0-19: LayoutCount 21 to 7, RasterTask 517 to 124) are not paired with a gain because RecalcStyleCount is higher (43 to 51); end 60-119 has more Paint (120 to 151)."
+  },
+  {
+   "entry": "morph.columns:probe-off: measurement-only arm that hides the 21 column pictures (visibility hidden; layout, track layers and their animations unchanged) to attribute their cost on the real phone (never promoted, never in a preset or a look verdict)",
+   "task": "phone-cols-probe",
+   "field": "lesson",
+   "text": "phone-cols-probe: do the 21 end-of-page column pictures cause the WebKit lag? Undecided on the real iPhone (Serious pin, 16 visits, n=4 per arm).\nMEASURED (results/phone/2026-10-27-cols-probe/summary.json): morph.columns:probe-off (visibility hidden on the pictures; layout and the track layers stay; kind probe, never in a preset) against base, and the flip (morph.geom:on + morph.tween:geom-timed) against flip + probe-off, each in a Latin order. Both contrasts are same in all 8 metrics by the Lean pushLabel rule, cause overlap; the base spread is wide (max 78 to 297 ms, paint 9600 to 13104). Paint records do not fall with the pictures hidden (base 12716 vs 11751; flip 4700 vs 4703). The flip was taken on 40 of 40 pushes in both lanes, and lowers paint to 37 percent of base but not p95, p99 or frames over 50 ms.\nCONFIRMED (WebKit@862f17d RenderReplaced.cpp:411, chromium@f842f52 replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint)): visibility hidden skips the replaced paint; decode is not shown to be skipped (not checked).\nLimits: fixed XCUITest swipe, one thermal state, phone read Fair before and Critical after (own heat), a first start failed once on the phone (automation mode timeout) and the rerun worked.\nLesson: a paint-count that does not move when the pictures stop painting says the per-frame Paint records are not the pictures' raster; decide with a larger n or a probe that separates decode from paint. Note research/notes/2026/10-2x-phone-cols-probe.md."
   }
  ]
 }
