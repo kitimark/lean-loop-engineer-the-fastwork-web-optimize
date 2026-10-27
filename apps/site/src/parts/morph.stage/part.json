@@ -1,0 +1,49 @@
+{
+  "id": "morph.stage",
+  "slot": "morph",
+  "anchors": [
+    "morph-stage"
+  ],
+  "experiment": true,
+  "impls": [],
+  "muiStates": [],
+  "variants": {
+    "faithful": {
+      "kind": "faithful",
+      "tier": "T1",
+      "provenance": {
+        "original": "_app/immutable/nodes/2.DyWL8TcE.js:13017-13090"
+      }
+    },
+    "on": {
+      "kind": "proposal",
+      "visClass": "L",
+      "provenance": {
+        "lean": "Fw.Parts.MorphStage trackT_ge, trackT_least, progress_inside, scene_held, armed_from_range_start, keyframes_end, key_eq_tween, stage_start_eq_tween, stage_end_eq_tween, write_at_crossing, no_scrollTo, no_nonpassive, jack_off_iff",
+        "limit": "look change (L): the end-of-page morph follows the finger over T px of added page (the track after the platform, T = the largest px change of any nav geometry value between --morph 0 and 1, 696 px at 1280x800, 768 px at 390x844) instead of a timed 680 ms play after a push; the platform scene is position: sticky; --morph and --morph-fade run on animation-timeline: scroll(root) over [maxY - T, maxY] (WebKit ScrollTimeline.cpp:363-380, ThreadedScrollDrivenAnimationsEnabled UnifiedWebPreferences.yaml:8518-8531@862f17d); no scrollTo, no non-passive listener; the morph.mount and morph.tween scroll-jack is not mounted; T is open for the user's visual review; browsers without animation-timeline keep the faithful page; for the user's visual review, never into a preset"
+      }
+    }
+  },
+  "requires": {},
+  "conflicts": {
+    "morph.stage:on": [
+      "morph.tween:waapi",
+      "morph.tween:waapi-scoped",
+      "morph.tween:scroll-lock",
+      "morph.tween:band",
+      "morph.mount:shift",
+      "morph.mount:shift-dormant",
+      "morph.mount:band",
+      "morph.mount:touch-first",
+      "morph.mount:open-once",
+      "morph.mount:overscroll-lock",
+      "morph.mount:arm-late",
+      "morph.panel:rest",
+      "morph.panel:threaded",
+      "morph.end.clamp:on",
+      "morph.end.flip:on",
+      "morph.end.release:on",
+      "morph.end.nobounce:on"
+    ]
+  }
+}

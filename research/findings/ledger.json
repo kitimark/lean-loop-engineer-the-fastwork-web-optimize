@@ -4464,6 +4464,41 @@
    "userDecision": "pending"
   },
   {
+   "n": 90,
+   "id": "morph.stage",
+   "part": "morph.stage",
+   "candidate": "morph.stage:on: the end-of-page morph follows the finger over T px of added sticky page (scroll-driven animation) instead of a timed play after a push",
+   "status": "look-change",
+   "flag": "morph.stage:on",
+   "visClass": "L",
+   "flags": [
+    "morph.stage:on"
+   ],
+   "chromium": "MEASURED swipe-touch-v1 with the swipe-end tail, 3 runs per arm, commit 8f2f726bf (base 40366273179, flag 40366262655), Lean reader with minFrames 34/20/40/60/20/174: approach noGain (RecalcStyleCount and FireAnimationFrame less; LayoutCount, Paint, RasterTask, PaintImage more); end 0-19, 20-59, 60-119, 120+ and finish all gain (a counter less, none more, minimum frames met)",
+   "webkit": "blocked, undecided: webkit-sim zones need minVms 3 per side; base 40366306645 has 3 VMs (older harness commit 8f2f726bf); flag 40366323523 and 40429988675 have 0 of 3 VMs each (runner loss: Safari tab never attached, VM freeze marks, simctl ETIMEDOUT); a flag share in the second r2 hang of 40429988675 is not excluded",
+   "visual": "look change (L): the morph runs with the finger over a track of T px (T = 696 at 1280x800, 768 at 390x844; the user chooses T) instead of a 680 ms play; never in a preset",
+   "mechanism": "INFERRED from WebKit ScrollTimeline.cpp:363-380 and ThreadedScrollDrivenAnimationsEnabled: --morph and --morph-fade run on animation-timeline scroll(root) over [maxY-T, maxY]",
+   "leanFor": [
+    "Fw.Parts.MorphStage.keyframes_end",
+    "Fw.Parts.MorphStage.key_eq_tween",
+    "Fw.Parts.MorphStage.no_scrollTo",
+    "Fw.Parts.MorphStage.no_nonpassive",
+    "Fw.Parts.MorphStage.stage_unmounts_anchors",
+    "Fw.Parts.MorphStage.stage_keeps_others",
+    "Fw.Parts.MorphStage.faithful_mounts_anchors"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change and T are reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A flag that unmounts a part passes the breakpoint gate only through a Replaced entry backed by a premise theorem naming the unmounted anchors (stage_unmounts_anchors): gate run 40366243322 passes, excusing only the target and scroller count items of morph.mount and morph.tween. The approach window pays for the sticky scene (more layout, paint, raster) while every end window gains.",
+   "next": "Out of v2-proved (look change, class L). The user reviews the end feel and T on the phone; WebKit zones blocked by runner loss, flag stall not excluded for the second r2 hang (flag runs 40366323523 and 40429988675 lost all 6 VMs to VM freeze and a wedged Simulator; base 40366306645 shows the same marks); toolbar lane: toolbar lane run 40365940148: the stage arm has 0 usable passes (restartFailed), undecided; T 696 px at 1280x800 and 768 px at 390x844, class L, no preset",
+   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; lean/Fw/Gate/FlagDelta.lean; gate run 40366243322; chromium-counts 40366262655 and 40366273179",
+   "userDecision": "pending"
+  },
+  {
    "id": "platform.glint:hold-freeze",
    "n": 90,
    "part": "platform.glint",

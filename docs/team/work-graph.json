@@ -22312,7 +22312,8 @@
     "lean/Fw/Parts/FootprintData.lean",
     "lean/Fw/Parts/FootprintRows.lean",
     "packages/contracts/golden/parts/footprint*.gen.json"
-   ]
+   ],
+   "evidence": "548bf9f"
   },
   {
    "devices": [
