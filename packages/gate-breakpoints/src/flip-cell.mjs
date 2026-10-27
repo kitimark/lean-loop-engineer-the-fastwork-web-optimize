@@ -80,18 +80,66 @@ function pin(m) {
 }
 
 async function stepScroll(to) {
-  const end = to === 'bottom' ? document.documentElement.scrollHeight : 0;
+  const target = () => (to === 'bottom' ? document.documentElement.scrollHeight - window.innerHeight : 0);
   const from = window.scrollY;
   for (let i = 1; i <= 14; i++) {
-    window.scrollTo(0, from + ((end - from) * i) / 14);
+    window.scrollTo(0, from + ((target() - from) * i) / 14);
     await new Promise((r) => setTimeout(r, 90));
   }
-  window.scrollTo(0, end);
+  let steady = 0;
+  let tries = 0;
+  for (; tries < 80 && steady < 3; tries++) {
+    window.scrollTo(0, target());
+    await new Promise((r) => setTimeout(r, 250));
+    steady = Math.abs(window.scrollY - target()) < 2 ? steady + 1 : 0;
+  }
+  return { reached: steady >= 3, y: Math.round(window.scrollY), tries };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function runFlipCell({ engineName, fw, outDir, bandFilter = null }) {
+export async function readLive() {
+  const hz = await new Promise((res) => {
+    let n = 0;
+    const t0 = performance.now();
+    const f = () => {
+      n++;
+      if (performance.now() - t0 < 300) requestAnimationFrame(f);
+      else res(n / ((performance.now() - t0) / 1000));
+    };
+    requestAnimationFrame(f);
+  });
+  const attrs = (e) => (e ? [...e.attributes].map((a) => `${a.name}=${a.value}`).filter((a) => !a.startsWith('style') && !a.startsWith('class')).join(' ') : null);
+  const nav = document.querySelector('[data-fw="nav"]');
+  return {
+    vis: document.visibilityState,
+    focus: document.hasFocus(),
+    hz: Math.round(hz),
+    scrollY: Math.round(window.scrollY),
+    maxY: Math.round(document.documentElement.scrollHeight - window.innerHeight),
+    panel: attrs(document.querySelector('[data-fw="morph-panel"]')),
+    nav: attrs(nav),
+    navClass: nav ? nav.className : null,
+    morph: nav ? nav.dataset.fwMorph ?? null : null,
+  };
+}
+
+export async function waitMountAgree(a, b, limitMs = 20000) {
+  const mounted = (pg) => pg.evaluate(() => !!document.querySelector('[data-fw="morph-panel"]'));
+  const t0 = Date.now();
+  let run = 0;
+  let last = [null, null];
+  while (Date.now() - t0 < limitMs) {
+    last = [await mounted(a), await mounted(b)];
+    run = last[0] === last[1] ? run + 1 : 0;
+    if (run >= 3) return { agree: true, a: last[0], b: last[1], waitedMs: Date.now() - t0 };
+    await sleep(500);
+  }
+  return { agree: false, a: last[0], b: last[1], waitedMs: Date.now() - t0 };
+}
+
+export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, mutation = null, expectFail = false, reportOnly = false }) {
+  const { mutatePage, MUTATION_OWNER } = await import('./flip-verify.mjs');
   const { rewritePathFor } = await import('../../visual-diff/src/run.mjs');
   const { LAUNCHERS } = await import('../../visual-diff/src/engines.mjs');
   const cell = loadFlipCell();
@@ -119,22 +167,42 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null })
       const A = await open('/');
       const B = await open(flag.path + flag.search);
       try {
+        const applied = mutation ? await B.page.evaluate(mutatePage, mutation) : null;
+        if (mutation && !applied) process.stderr.write(`mutation ${mutation} changed nothing on ${band.w}x${band.h}\n`);
+        let mount = null;
         const steps = timed ? [[1, 'bottom'], [0, 'top']] : cell.ms.map((m) => [m, null]);
         for (const [m, to] of steps) {
           if (to) {
-            await A.page.evaluate(stepScroll, to);
-            await B.page.evaluate(stepScroll, to);
+            const sa = await A.page.evaluate(stepScroll, to);
+            const sb = await B.page.evaluate(stepScroll, to);
             await sleep(2600);
+            mount = { ...(await waitMountAgree(A.page, B.page)), scroll: { base: sa, flag: sb } };
           } else {
             await A.page.evaluate(pin, m);
             await B.page.evaluate(pin, m);
             await sleep(1200);
           }
+          const liveA = timed ? await A.page.evaluate(readLive) : null;
+          const liveB = timed ? await B.page.evaluate(readLive) : null;
           const base = await A.page.evaluate(readRects);
           const got = await B.page.evaluate(readRects);
-          const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)' : null;
-          const bad = skipped ? [] : judgeRects(base, got, band, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
-          rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(skipped ? { skipped } : {}), ...(bad.length ? { base, flag: got } : {}) });
+          const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)'
+            : timed && mount && !(mount.scroll.base.reached && mount.scroll.flag.reached) ? `scroll did not reach ${to} (base y ${mount.scroll.base.y}, flag y ${mount.scroll.flag.y}): the pages are not at the same place`
+            : timed && mount && !mount.agree ? `panel mounted on one page only (base ${mount.a}, flag ${mount.b}): its lazy mount is timer-driven, not the flip` : null;
+          const bandNow = timed && mount && mount.agree && !mount.b ? { ...band, cols: 0 } : band;
+          const bad = skipped ? [] : judgeRects(base, got, bandNow, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
+          let recheck = null;
+          if (timed && bad.length) {
+            await A.page.bringToFront();
+            await sleep(1500);
+            await B.page.bringToFront();
+            await sleep(1500);
+            const base2 = await A.page.evaluate(readRects);
+            const got2 = await B.page.evaluate(readRects);
+            const bad2 = judgeRects(base2, got2, bandNow, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
+            recheck = { ok: bad2.length === 0, bad: bad2, live: [await A.page.evaluate(readLive), await B.page.evaluate(readLive)] };
+          }
+          rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(skipped ? { skipped } : {}), ...(bad.length ? { base, flag: got } : {}), ...(timed ? { live: { base: liveA, flag: liveB }, mount } : {}), ...(recheck ? { recheck } : {}), ...(mutation ? { applied } : {}) });
           process.stderr.write(`${band.w}x${band.h} m=${m} flip=${got.flip} variant=${got.variant} ${skipped ? `skipped (${skipped})` : bad.length === 0 ? 'ok' : bad.join('; ')}\n`);
         }
       } finally {
@@ -147,8 +215,15 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null })
     server.close?.();
   }
   mkdirSync(outDir, { recursive: true });
-  writeFileSync(join(outDir, `flip-${engineName}.json`), `${JSON.stringify({ fw, engine: engineName, tolPx: cell.tolPx, ms: cell.ms, rows }, null, 1)}\n`);
+  writeFileSync(join(outDir, `flip-${engineName}${mutation ? `-${mutation}` : ''}.json`), `${JSON.stringify({ fw, engine: engineName, mutation, tolPx: cell.tolPx, ms: cell.ms, rows }, null, 1)}\n`);
   const failed = rows.filter((r) => !r.ok).length;
-  console.log(`flip cell ${engineName} ${fw}: ${failed === 0 ? 'pass' : 'fail'} (${rows.length} readings, ${failed} failed, ${rows.filter((r) => r.skipped).length} skipped)`);
-  return failed === 0;
+  const skipped = rows.filter((r) => r.skipped).length;
+  if (mutation) {
+    const owner = MUTATION_OWNER[mutation];
+    const hit = rows.filter((r) => r.bad.some(owner)).length;
+    console.log(`flip cell ${engineName} mutation ${mutation}: ${hit > 0 ? 'caught' : 'NOT caught'} (${hit} of ${rows.length} readings fail on its reading; ${failed} fail in all)`);
+    return expectFail ? hit > 0 : true;
+  }
+  console.log(`flip cell ${engineName} ${fw}: ${failed === 0 ? 'pass' : 'fail'} (${rows.length} readings, ${failed} failed, ${skipped} skipped)${reportOnly ? ' reported only, exit 0' : ''}`);
+  return reportOnly || failed === 0;
 }
