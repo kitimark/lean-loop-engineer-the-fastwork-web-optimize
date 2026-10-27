@@ -1,26 +1,23 @@
-# phone-morph-push handoff (round 2: partial, phone driver blocked)
+# phone-morph-push handoff (round 3: decided on the phone)
 
 branch: worktree-phone-morph-push; worktree: .claude/worktrees/phone-morph-push; last sha: `git log -1`; CI runs: none (no CI push needed).
-Verified: Lean push-visit rule + golden + TS twin + 8 tests (commits cd3b0a811, 20d1c2181); unit undecided, 0 visits. Open: see below.
-
-## Open (one user step)
-Phone: Settings > Developer > turn on Enable UI Automation (keep it unlocked). Then restart the task.
+Verified: 12 phone visits (3 per arm, interleaved, Serious held in all 27 readings, first attempts), reduced into
+`results/phone/2026-10-27-morph-push/`; labels from the Lean twin: geom-timed better, geom mixed, stage worse. Check, tests, dry land: see the report.
+Open: nothing for the user; the felt-smoothness verdict and the class L look review stay the user's.
 
 ## State
-- Lean: `lean/Fw/Device/PhoneArms.lean` push section (pattern, visitSteps, windows/morphEnd, tail stats, counts lane, `visitVals`,
-  `pushRounds`, `pushOk`, `noRepeat`, `pushLabel`); golden `packages/contracts/golden/device/phone-arms.jsonl` (regenerate with
-  `lake env lean --run scripts/PhoneArmsGolden.lean` in lean/); twin `packages/measure-webkit/src/device-push.mjs`, test `device-push.test.mjs`.
-- Phone (MEASURED): the certificate is trusted and the XCUITest run starts, but the first accessibility snapshot never returns
-  (Safari, restarted Safari, SpringBoard; 4-7 min each). No push ran, no thermal pin set, nothing induced. Logs in
-  `.local/phone/2026-10-27/` (gitignored). Results: `results/phone/2026-10-27-morph-push/`; note `research/notes/2026/10-2x-phone-morph-push.md`.
+- Lean rule/golden/twin: `lean/Fw/Device/PhoneArms.lean`, `packages/contracts/golden/device/phone-arms.jsonl`, `src/device-push.mjs`.
+- I/O (no decisions): `src/device-push-run.mjs` (lanes, `pushVisit`, `driverHolder`, `summarize`), `device-push-cli.mjs`
+  (`plan`, `run`, `reduce`), `device-push-tables.mjs`, `device-push-chan.mjs`; `runBlock` in `device-phone-run.mjs` takes arms/values/visitS.
+- Cause of the round-2 hang: the Simulator driver's file channel cannot work on a real phone (runner sandbox). `device-push-chan.mjs`
+  embeds a phone PushServer (requests = files in its Documents container via `xcrun devicectl device copy to`, answers = `FWPUSH`
+  marker lines in the xcodebuild log). Do not edit `src/throttle/driver/**` (task morph-push-sim).
+- Run again: `node src/device-push-cli.mjs run --site ../../apps/site/dist/aot --dir <raw> --driver <driver dir> --pin Serious --all`,
+  then `reduce --dir <raw> --out <results>`. Raw files stay in `.local/phone/2026-10-27/`.
 
-## Next, once a driver answers
-1. `buildDeviceDriver` (src/device-xcui.mjs), `startServer` (src/touch-push.mjs, HOLD_MS fixed per start), expect `ready`.
-2. Write `src/device-push-run.mjs`: a push visit as `deps.visit` of `runBlock` (src/device-phone-run.mjs) with `pin` Serious
-   (device-thermal-pin.mjs), session = `pushRounds()` from device-push.mjs; frames pass (rAF recorder) and counts pass
-   (Timeline, no rAF recorder), `go-<n>` files per `visitSteps`; feed `columns`/`pushLabel`.
-3. Raw to `.local/phone/<date>/`, then summary.json, tables.md, note, ledger row, check.sh via fw slot, dry land.
+## Read first
+`research/notes/2026/10-2x-phone-morph-push.md` (table, cause, limits).
 
-## Conventions
-Team id from the keychain at run time (never committed). Kill only PIDs this task started. The push is a fixed XCUITest swipe,
-not the user's recorded finger path. If the switch is on and it still hangs, a driver change (src/throttle/driver/UITests) is outside this task's writes.
+## Limits
+Fixed XCUITest swipe, not the user's finger path; Serious only; n = 3 per arm; stage's morph is not read by the recorder
+(`data-fw-morph`, not `--morph`), so its spans end at the last scroll change; no CI pushes.

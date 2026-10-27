@@ -104,6 +104,7 @@ const copyToPhone = (udid, src, name) => spawnSync('xcrun', ['devicectl', 'devic
 /** Start the driver and the bridge. Returns {dir, run, next, bridge} where dir holds the Mac-side `ready`, `go-<n>`, `done-<n>`, `stop` files. */
 export async function startPhoneServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, readyMs = 120000, tag = 'push', pollMs = 100 }) {
   const dir = mkdtempSync(join(tmpdir(), 'fw-push-'));
+  rmSync(join(driver.dir, `${tag}.log`), { force: true });
   const run = serve(driver, { udid, dir, push, maxS, tag, suite: 'PushServer' });
   const sent = new Set();
   let live = true;
