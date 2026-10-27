@@ -36,6 +36,8 @@ import morphEndClamp from '../parts/morph.end.clamp/part.json';
 import morphEndFlip from '../parts/morph.end.flip/part.json';
 import morphEndRelease from '../parts/morph.end.release/part.json';
 import morphEndNobounce from '../parts/morph.end.nobounce/part.json';
+import morphStage from '../parts/morph.stage/part.json';
+import morphGeom from '../parts/morph.geom/part.json';
 import morphEndAll from './presets/morph-end-all.json';
 import original from './presets/original.json';
 import stripDemo from './presets/strip-demo.json';
@@ -43,7 +45,7 @@ import v2Proved from './presets/v2-proved.json';
 import { resolve } from './resolve';
 import type { PartDef, PresetDef, ResolveResult } from './types';
 
-export const parts: PartDef[] = [heroCountdown as PartDef, heroExit as PartDef, engineScroll as PartDef, navHitTest as PartDef, morphMount as PartDef, morphCountdown as PartDef, morphColumns as PartDef, morphTween as PartDef, peopleCard as PartDef, peopleO as PartDef, peopleDeck as PartDef, peopleCarousel as PartDef, pain as PartDef, painNotes as PartDef, commission as PartDef, commissionTyping as PartDef, platform as PartDef, morphPanel as PartDef, nav as PartDef, navLangMenu as PartDef, overlaysDrawer as PartDef, overlaysSignup as PartDef, hero as PartDef, heroOrbit as PartDef, heroDeck as PartDef, heroAccent as PartDef, heroCue as PartDef, platformSweep as PartDef, platformGlint as PartDef, platformEntries as PartDef, platformStageBg as PartDef, platformMarquee as PartDef, engineScene as PartDef, morphEndClamp as PartDef, morphEndFlip as PartDef, morphEndRelease as PartDef, morphEndNobounce as PartDef, engineEvents as PartDef];
+export const parts: PartDef[] = [heroCountdown as PartDef, heroExit as PartDef, engineScroll as PartDef, navHitTest as PartDef, morphMount as PartDef, morphCountdown as PartDef, morphColumns as PartDef, morphTween as PartDef, peopleCard as PartDef, peopleO as PartDef, peopleDeck as PartDef, peopleCarousel as PartDef, pain as PartDef, painNotes as PartDef, commission as PartDef, commissionTyping as PartDef, platform as PartDef, morphPanel as PartDef, nav as PartDef, navLangMenu as PartDef, overlaysDrawer as PartDef, overlaysSignup as PartDef, hero as PartDef, heroOrbit as PartDef, heroDeck as PartDef, heroAccent as PartDef, heroCue as PartDef, platformSweep as PartDef, platformGlint as PartDef, platformEntries as PartDef, platformStageBg as PartDef, platformMarquee as PartDef, engineScene as PartDef, morphEndClamp as PartDef, morphEndFlip as PartDef, morphEndRelease as PartDef, morphEndNobounce as PartDef, morphStage as PartDef, engineEvents as PartDef, morphGeom as PartDef];
 export const presets: Record<string, PresetDef> = {
   original: original as PresetDef,
   'strip-demo': stripDemo as PresetDef,

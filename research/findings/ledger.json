@@ -4497,6 +4497,83 @@
    "next": "gh run rerun 40349930733 --failed (third base VM), then packages/measure-webkit/src/offscreen-webkit-cli.mjs for the z5000 verdict; then the user preset decision",
    "evidence": "research/notes/2026/10-2x-glint-hold-freeze.md; runs 40345059212 (premise), 40345141093 (gate), 40345261186 and 40345253392 (Chromium counts)",
    "userDecision": "pending"
+  },
+  {
+   "n": 92,
+   "id": "morph.stage",
+   "part": "morph.stage",
+   "candidate": "morph.stage:on: the end-of-page morph follows the finger over T px of added sticky page (scroll-driven animation) instead of a timed play after a push",
+   "status": "look-change",
+   "flag": "morph.stage:on",
+   "visClass": "L",
+   "flags": [
+    "morph.stage:on"
+   ],
+   "chromium": "MEASURED swipe-touch-v1 with the swipe-end tail, 3 runs per arm, commit 8f2f726bf (base 40366273179, flag 40366262655), Lean reader with minFrames 34/20/40/60/20/174: approach noGain (RecalcStyleCount and FireAnimationFrame less; LayoutCount, Paint, RasterTask, PaintImage more); end 0-19, 20-59, 60-119, 120+ and finish all gain (a counter less, none more, minimum frames met)",
+   "webkit": "blocked, undecided: webkit-sim zones need minVms 3 per side; base 40366306645 has 3 VMs (older harness commit 8f2f726bf); flag 40366323523 and 40429988675 have 0 of 3 VMs each (runner loss: Safari tab never attached, VM freeze marks, simctl ETIMEDOUT); a flag share in the second r2 hang of 40429988675 is not excluded",
+   "visual": "look change (L): the morph runs with the finger over a track of T px (T = 696 at 1280x800, 768 at 390x844; the user chooses T) instead of a 680 ms play; never in a preset",
+   "mechanism": "INFERRED from WebKit ScrollTimeline.cpp:363-380 and ThreadedScrollDrivenAnimationsEnabled: --morph and --morph-fade run on animation-timeline scroll(root) over [maxY-T, maxY]",
+   "leanFor": [
+    "Fw.Parts.MorphStage.keyframes_end",
+    "Fw.Parts.MorphStage.key_eq_tween",
+    "Fw.Parts.MorphStage.no_scrollTo",
+    "Fw.Parts.MorphStage.no_nonpassive",
+    "Fw.Parts.MorphStage.stage_unmounts_anchors",
+    "Fw.Parts.MorphStage.stage_keeps_others",
+    "Fw.Parts.MorphStage.faithful_mounts_anchors"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change and T are reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A flag that unmounts a part passes the breakpoint gate only through a Replaced entry backed by a premise theorem naming the unmounted anchors (stage_unmounts_anchors): gate run 40366243322 passes, excusing only the target and scroller count items of morph.mount and morph.tween. The approach window pays for the sticky scene (more layout, paint, raster) while every end window gains.",
+   "next": "Out of v2-proved (look change, class L). The user reviews the end feel and T on the phone; WebKit zones blocked by runner loss, flag stall not excluded for the second r2 hang (flag runs 40366323523 and 40429988675 lost all 6 VMs to VM freeze and a wedged Simulator; base 40366306645 shows the same marks); toolbar lane: toolbar lane run 40365940148: the stage arm has 0 usable passes (restartFailed), undecided; T 696 px at 1280x800 and 768 px at 390x844, class L, no preset",
+   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; lean/Fw/Gate/FlagDelta.lean; gate run 40366243322; chromium-counts 40366262655 and 40366273179",
+   "userDecision": "pending"
+  },
+  {
+   "id": "morph.geom:on",
+   "n": 91,
+   "part": "morph.geom",
+   "flags": [
+    "morph.geom:on"
+   ],
+   "flag": "morph.geom:on",
+   "visClass": "L",
+   "candidate": "morph.geom:on: the end-of-page morph as compositor-only layers: nav and panel stay laid out at the final size while a push runs, the pill is cut out by four nested rounded clippers moved by transform, every --morph read becomes a piecewise-linear track on transform, opacity or filter driven from today's tween by currentTime",
+   "status": "look-change",
+   "chromium": "gate pass (run 40428166855, 504 cells, 0 fail); counts base 40428218497 vs flag 40428270226 equal on profile push-cycle-d1000, which does not exercise the morph (the Lean window reader needs swipe-touch-v1); premises green on run 40430312224",
+   "webkit": "gate pass (run 40428166855, 0 fail, 291 excused); Simulator counts base 40428422068 vs flag 40428440889 (3 VMs each): noGain in z4500, z5000, finish and whole; INFERRED from WebKit 862f17d GraphicsLayerCA.cpp:1183-1215 that the tracks run as CA animations",
+   "visual": "look change (L), expected: end states E by construction (Lean end_eq), mid-morph text at fractional offsets, the desktop title wrap and the backdrop edge band differ (design note 10-27-morph-compositor-geometry.md); the per-band look report ran locally on Chromium only (results/morph-geom/look-chromium-local.json)",
+   "mechanism": "INFERRED from the Lean spec (clip_eq, net_ok_bands, rect_eq, fill_eq, accelerable_bands, noTransition_bands) and WebKit source; the site half is built (parts/morph.geom: tracks.ts replays the Lean golden within 1e-6, the driver writes currentTime only). Memory: gross flip census over budget on 7 of 12 bands (mem_bands); net bytes per level in MorphGeomCounts.lean: level 0 fits 10 of 12, level 2 fits 12 of 12; faithful level undecided",
+   "leanFor": [
+    "Fw.Parts.MorphGeom.clip_eq",
+    "Fw.Parts.MorphGeom.net_ok_bands",
+    "Fw.Parts.MorphGeom.rect_eq",
+    "Fw.Parts.MorphGeom.fill_eq",
+    "Fw.Parts.MorphGeom.accelerable_bands",
+    "Fw.Parts.MorphGeom.noTransition_bands",
+    "Fw.Parts.MorphGeom.end_eq",
+    "Fw.Parts.MorphGeom.net_lvl0_flip_fits",
+    "Fw.Parts.MorphGeom.net_lvl2_flip"
+   ],
+   "leanAgainst": [
+    "Fw.Parts.MorphGeom.mem_bands"
+   ],
+   "missingWhy": [
+    "faithful morph-frame layer census (no lane), a swipe-touch-v1 Chromium pair, reversal time tracks"
+   ],
+   "premises": [
+    "CA applies the effect easing across all keyTimes: CONFIRMED on run 40430312224 (anim.keytimes)",
+    "nested cornerRadius clips intersect: CONFIRMED on run 40430312224 (clip.nested-radius); a backdrop filter is clipped under masked ancestors: CONFIRMED on run 40430312224 on Chromium only (backdrop.masked-ancestor)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A Lean golden of sample points is enough to check a track builder for the closed-form geometry, but the measured layout sizes (label, earn width) must enter the builder or the Lean context, or the tracks are right only for the sample layout.",
+   "next": "faithful morph-frame layer census (level 0 vs 2); swipe-touch-v1 Chromium pair for the Lean window reader; WebKit look report; user look review (class L)",
+   "evidence": "research/notes/2026/10-2x-morph-geom.md; apps/site/src/parts/morph.geom/tracks.golden.test.ts",
+   "userDecision": "pending"
   }
  ],
  "notes": [

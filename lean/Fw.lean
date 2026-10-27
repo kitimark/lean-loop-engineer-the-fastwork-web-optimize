@@ -86,6 +86,8 @@ import Fw.Parts.MorphGeom
 import Fw.Parts.MorphGeomRect
 import Fw.Parts.MorphGeomEarn
 import Fw.Parts.MorphGeomAnim
+import Fw.Parts.MorphGeomCounts
+import Fw.Parts.MorphGeomLook
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
@@ -102,6 +104,8 @@ import Fw.Parts.MorphEnd
 import Fw.Parts.MorphEndGolden
 import Fw.Parts.MorphEndNobounce
 import Fw.Parts.MorphEndNobounceGolden
+import Fw.Parts.MorphStage
+import Fw.Parts.MorphStageGolden
 import Fw.Parts.ComboScroll
 import Fw.Parts.MorphEndComboGolden
 import Fw.Parts.PlatformGlintPause

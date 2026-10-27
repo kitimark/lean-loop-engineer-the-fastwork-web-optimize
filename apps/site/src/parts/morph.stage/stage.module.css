@@ -1,0 +1,56 @@
+/* morph.stage (look change L). Spec: lean/Fw/Parts/MorphStage.lean (track length, range, keyframes). Everything is scoped to
+   the root that carries [data-fw-stage]; without the flag no rule here matches. */
+@layer parts {
+  @supports ((animation-timeline: scroll(root)) and (animation-range-start: 1px)) {
+    :global(html:has([data-fw-stage])) {
+      --stage-t: max(min(820px, 100vh - 40px) - 64px, min(1398px, 100vw - 40px) - min(984px, 100vw - 48px), 20px);
+    }
+    @media (width<=640px) {
+      :global(html:has([data-fw-stage])) {
+        --stage-t: max(100vh - 76px, 100vw - 24px - min(984px, 100vw - 32px), 20px);
+      }
+    }
+    .track {
+      height: var(--stage-t);
+    }
+    :global(html:has([data-fw-stage])) :global([data-fw='platform']) {
+      position: sticky;
+      top: calc(100% - var(--stage-h, 100vh));
+      animation-name: stageFade;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+      animation-range-start: calc(100% - var(--stage-t));
+      animation-range-end: 100%;
+    }
+    :global(html:has([data-fw-stage])) :global([data-fw='nav']) {
+      animation-name: stageMorph;
+      animation-duration: auto;
+      animation-timing-function: linear;
+      animation-fill-mode: both;
+      animation-timeline: scroll(root block);
+      animation-range-start: calc(100% - var(--stage-t));
+      animation-range-end: 100%;
+    }
+    @keyframes stageMorph {
+      from {
+        --morph: 0;
+      }
+      to {
+        --morph: 1;
+      }
+    }
+    @keyframes stageFade {
+      0% {
+        --morph-fade: 1;
+      }
+      55% {
+        --morph-fade: 0;
+      }
+      100% {
+        --morph-fade: 0;
+      }
+    }
+  }
+}
