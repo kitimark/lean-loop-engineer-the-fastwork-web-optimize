@@ -302,7 +302,7 @@ jobs:
   flip-cell:
     needs: [site]
     concurrency:
-      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:flip:${{ strategy.job-index }}
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:flip-cell:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     name: flip-cell ${{ matrix.engine }}
@@ -311,12 +311,31 @@ jobs:
       matrix:
         engine: [chromium, playwright-webkit]
     steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-pnpm
         with:
           filter: '@fw/gate-breakpoints @fw/premise-tests'
+      - uses: ./.github/actions/telemetry
+        with:
+          mode: start
+          label: flip-cell-${{ matrix.engine }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site-dist
@@ -341,7 +360,7 @@ jobs:
           node src/look.mjs --engine "$ENGINE" --fw morph.geom:on --out out/look/on
           node src/look.mjs --engine "$ENGINE" --fw morph.geom:on,morph.tween:geom-timed --out out/look/timed
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() }}
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:
           name: flip-cell-${{ matrix.engine }}
           path: |
@@ -349,6 +368,11 @@ jobs:
             packages/premise-tests/out/look/*/look-*.json
           if-no-files-found: error
           retention-days: 14
+      - uses: ./.github/actions/telemetry
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          mode: finish
+          label: flip-cell-${{ matrix.engine }}
 
   # One merge job for the engines: `fwcore` is built once (a merge job per engine built it twice, 36 s each, and took a second
   # runner of the shared 20: Fw.Gate.Schedule.Fixed.work_saved). Each engine is merged and summarized on its own, so a failing
