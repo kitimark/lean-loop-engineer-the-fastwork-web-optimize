@@ -298,7 +298,7 @@ jobs:
   # The flip-state cell (task geom-flip-fix, packages/gate-breakpoints/src/flip-cell.mjs; bound, ms and bands from the Lean golden
   # morph-geom.jsonl) and the pixel look report (packages/premise-tests/src/look.mjs: bar, column and page regions against the base
   # page at m in 0, .25, .5, .75, 1), for morph.geom:on and for morph.geom:on with morph.tween:geom-timed, whatever flag set the
-  # gate jobs above run. Both exit 0 on a finding; the verdict is the cell's own line in the step log and the JSON artifact.
+  # gate jobs above run. The morph.geom:on cell fails the job on a finding; the geom-timed cell and the look report exit 0 (reported, not graded); the verdict is the cell's own line in the step log and the JSON artifact.
   flip-cell:
     needs: [site]
     concurrency:
@@ -349,7 +349,7 @@ jobs:
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
         working-directory: packages/gate-breakpoints
         run: |
-          node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on --out out/flip/on || true
+          node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on --out out/flip/on
           node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on,morph.tween:geom-timed --out out/flip/timed || true
       - name: Pixel look report
         env:

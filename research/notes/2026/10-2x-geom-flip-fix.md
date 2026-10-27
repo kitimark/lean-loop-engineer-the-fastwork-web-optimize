@@ -16,8 +16,9 @@ Cell: packages/gate-breakpoints/src/flip-cell.mjs, job flip-cell, 12 bands x m i
   exact rationals (last knot 1). Fix: last knot is exactly 1 (apps/site/src/parts/morph.geom/tracks.ts gridKnots, test in tracks.golden.test.ts).
   Run 40512085722 (a54d893b8): morph.geom:on passes 48 of 48 readings on Chromium and WebKit (MEASURED).
 - The job steps end in `|| true`, so a failed cell shows as a green job. Read the artifact flip-cell-<engine>.
-- geom-timed arm (webkit), run 40512085722: 2 of 24 readings fail (1280x800 nav/lang/earn, 1920x1080 columns 0 of 5); run 40508656325 had 4 of 24 at m=0 after a real scroll back to top (lang, nav, earn edges; at 1280x800 21 images vs base 0, so the flip had not
-  left yet). Chromium timed: 0 fail, 12 of 24 skipped (the take guard, A5, task timed-take-retry). Follow-up: WebKit leave time, timed arm.
+- geom-timed arm (webkit), run 40512085722: 2 of 24 readings fail (1280x800 nav/lang/earn: base pill hidden at y -72, flag at y 16;
+  1920x1080 flag shows 0 of 5 columns; flip class off on both pages in both readings, cause not shown); run 40508656325 had 4 of 24 at m=0 after a real scroll back to top (lang, nav, earn edges; at 1280x800 21 images vs base 0, so, for run 40508656325 only, the flip had
+  not left yet, INFERRED). Chromium timed: 0 fail, 12 of 24 skipped (the take guard, A5, task timed-take-retry). Follow-up: WebKit leave time, timed arm.
 
 ## Look report (MEASURED, pixels differing by more than 12 in a channel, share of the region)
 Run 40508656325, morph.geom:on vs base, per engine over 12 bands: m = 0 equal (Chromium max 0.23 %, WebKit 1.38 %). For 0 < m <= 1 the columns region differs 65-98 %
