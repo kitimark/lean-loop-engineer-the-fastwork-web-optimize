@@ -22864,6 +22864,29 @@
     "results/morph-push-sim/**",
     "docs/team/handoffs/morph-push-sim.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-morph-push-r2",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-morph-push"
+   ],
+   "title": "Rerun of phone-morph-push with a balanced arm order (user 2026-10-27): 4 rounds as a 4x4 Latin square, so each arm takes each position once (16 visits, n=4 per arm), Serious pinned, thermal read before and after the session, stage recorder also reads data-fw-morph; Lean order rule and verdict per arm.",
+   "writes": [
+    "lean/Fw/Device/*.lean",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/contracts/golden/device/**",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "research/notes/2026/10-2x-phone-morph-push-r2.md",
+    "research/findings/ledger.json",
+    "results/phone/2026-10-27-morph-push-r2/**",
+    "docs/team/handoffs/phone-morph-push-r2.md"
+   ]
   }
  ],
  "deadline": {
