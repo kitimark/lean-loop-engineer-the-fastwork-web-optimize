@@ -1,0 +1,26 @@
+1-throttle.json vm 1 failed [] passes 4
+  rewrite full code 0 period 22022 dur 698 target null
+  rewrite dwell code 0 period 50438 dur 409 target 44044
+  user full code 0 period 19999 dur 503 target null
+  user dwell code 0 period 43800 dur 332 target 39998
+2-throttle.json vm 2 failed [] passes 2
+  user full code 0 period 21116 dur 993 target null
+  user dwell code 0 period 67795 dur 437 target 42232
+3-throttle.json vm 3 failed ["user-r1: failed:restartFailed"] passes 4
+  rewrite full code 0 period 20943 dur 707 target null
+  rewrite dwell code 0 period 119557 dur 805 target 41886
+  user full code null period 0 dur NaN target null
+  user dwell code 0 period 53757 dur 437 target 40000
+4-throttle.json vm 4 failed ["rewrite-r1: failed:restartFailed"] passes 4
+  user full code 0 period 35327 dur 766 target null
+  user dwell code 0 period 72129 dur 555 target 70654
+  rewrite full code null period 0 dur NaN target null
+  rewrite dwell code 0 period 100195 dur 686 target 40000
+5-throttle.json vm 5 failed ["rewrite-r1: failed:touchesFailed"] passes 3
+  rewrite full code null period 0 dur NaN target null
+  rewrite dwell code 0 period 67875 dur 667 target 40000
+  user full code 0 period 36582 dur 554 target null
+6-throttle.json vm 6 failed ["rewrite-r1: failed:restartFailed","rewrite-r2: failed:restartFailed"] passes 3
+  user full code 0 period 17944 dur 440 target null
+  user dwell code 0 period 40975 dur 319 target 35888
+  rewrite dwell code 1 period null dur null target 40000

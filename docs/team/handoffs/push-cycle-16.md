@@ -1,12 +1,9 @@
 branch: worktree-wf_cf598a19-7f5-1 (CI branch ci/push-cycle-16)
 worktree: .claude/worktrees/wf_cf598a19-7f5-1 (under the repo root)
-last commit: bf4a3244a (push 1 of at most 2)
-runs: 40361916735 (push 1, bf4a3244a, complete: failure because sim 2 and 5 failed; 6 result files): rewrite 2 full 4 dwell undecided:fewFull (stretch 3934, beyond the bound), user 5 full 5 dwell undecided:inseparable (stretch 2126). Push 2 follows (same measurement code, report code changed: lostOf names every lost pass). Push 2 = run 40412970956 (ci/push-cycle-16 at dcc008d97), started 22:30 UTC, expect ~5.5 h; if you restart: wait with fw ci wait --branch ci/push-cycle-16 --workflow toolbar-throttle, download with gh run download <id> -p toolbar-throttle-*, pool both runs with push-cycle-cli.mjs report --in a,b --expect.
-verified: Lean file elaborates (lake env lean), golden regenerated and --check green, TS twin test push-cycle.test.mjs 20 of 20; check.sh green (fw slot), measure-webkit test 928 pass; dry land not yet run
-open: push 2 result and pooled table, note 10-2x-push-cycle-16.md, ledger row, results, dry land, review ready
-
-What was built
-- lean/Fw/Measure/PushCycle.lean: fullCyclesFor r = clockIndex r 5 + 1; sepStretchBound = 2391 + 25 percent = 2988; sepFullCycles = fullCyclesFor bound = 16; theorems sep_fits (window fits for every r up to the bound), sep_fits_index, sep_margin, sep_noRoom_only (noRoom implies stretch beyond the bound).
-- golden packages/contracts/golden/measure/push-cycle.jsonl regenerated (fullCycles op, new constants); twin in packages/measure-webkit/src/throttle/push-cycle.mjs; CLI --separate reads SEP_FULL_CYCLES (no --cycles 12 in the workflow).
-- report: failedOnly/missingJobs make failed passes and jobs without a result file part of the lost list (--expect 1,2,3,4,5,6).
-Read first: lean/Fw/Measure/PushCycle.lean from fullCyclesFor, then research/notes/2026/10-2x-push-cycle-separate.md.
+state: both pushes done and read; note, ledger row and results written; merge of main, check.sh, dry land and review ready follow (see open)
+runs: push 1 = 40361916735 (bf4a3244a), push 2 = 40412970956 (dcc008d97); both finished with failed sim jobs (push 1: sim 2, 5; push 2: sim 1, 3, 4) but all 12 jobs have result files
+verdict (Lean sepVerdict, cycles 3 to 5, > 50 ms): rewrite undecided (pooled 7 full 6 dwell, stretch 3289 beyond bound 2988, noRoom); user undecided (pooled 7 full 8 dwell, inseparable). Per push: rewrite fewFull / fewDwell, user inseparable / fewFull. H4 stays open.
+verified: Lean file elaborates, golden regenerated and --check green, TS twin test push-cycle.test.mjs 20 of 20, check.sh green earlier (fw slot), measure-webkit tests green
+open: merge main (92 commits behind at last fetch), lake build, check.sh again, plan lint, dry land, review ready; follow-up task: stall-robust (median) period so the stretch does not overshoot the bound
+conventions: pool runs with node results/push-cycle-16/pool.mjs p1=<dir> p2=<dir>; lost passes come from lostOf in push-cycle-report.mjs; the cycle count is sepFullCycles (Lean), never typed in the workflow
+Read first: research/notes/2026/10-2x-push-cycle-16.md, then lean/Fw/Measure/PushCycle.lean from fullCyclesFor, then results/push-cycle-16/pooled.md
