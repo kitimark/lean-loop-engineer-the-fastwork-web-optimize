@@ -23259,7 +23259,12 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-look-fade.md",
     "results/geom-look-fade/**",
-    "docs/team/handoffs/geom-look-fade.md"
+    "docs/team/handoffs/geom-look-fade.md",
+    ".github/workflows/breakpoint-gate.yml",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/premise-tests/src/look-rule.mjs"
    ]
   },
   {
