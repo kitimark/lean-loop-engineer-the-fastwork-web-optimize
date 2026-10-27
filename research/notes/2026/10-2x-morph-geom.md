@@ -2,7 +2,7 @@
 
 Design: `10-27-morph-compositor-geometry.md`. Lean: `10-2x-morph-geom-lean.md`. Results: round 3.
 
-## Memory decision (round 2: veil folded)
+## Memory decision (round 2: veil folded; SUPERSEDED, premise refuted in 10-2x-geom-veil-restore.md)
 The veil is folded into the solid fill D: no veil layer, no veil track, the panel's veil element is `display: none` under
 `.is-flip`. A solid fill paints nothing and has no backing, so the veil's W x H backing bytes are gone. The cost is a look
 change of class L: the veil's radial shape (123% x 74%, #131922 to transparent) is dropped; at m = 1 D is opaque #131922
@@ -98,7 +98,7 @@ three narrow bands 390, 430 and 640x1000. Mid-morph deltas are large only in a f
 loads (INFERRED) and is not reported as a look reading. Accepted limits: one engine (Chromium), one local run, no WebKit look.
 
 ## Memory decision, final statement
-Per level, proved in `MorphGeomCounts.lean`: level 0 (faithful backs the nav only): flip fits 10 of 12 bands, 12 of 12 with the
+Per level, proved in `MorphGeomCounts.lean`: level 0 (faithful backs the nav only): flip with the veil restored fits 5 of 12 bands (net_lvl0_flip); the refuted fold fit 10 of 12 (net_lvl0_fold), 12 of 12 with the
 platform dropped; level 2 (nav, panel, platform): 12 of 12. The faithful level stays undecided (no census lane exists), an
 accepted limit; the follow-up task is the faithful morph-frame layer census.
 
