@@ -15,7 +15,6 @@ CI runs (state):
 Next waves in order: layer-sweep (platform.sweep:layer-sweep), hero.exit:contain, platform.entries:probe-off, platform.marquee:probe-off.
 Lane takes one site config per VM job (no several arms per VM).
 Reader: packages/measure-webkit/src/offscreen-webkit-cli.mjs (zones z4500 z5000 finish whole); hero.exit:contain also results/hero-relayout-boundary/read-webkit.mjs windows.
-Verified: nothing yet. Open: everything after the runs (notes, ledger, recount note, check.sh, dry land, review).
 
 STATE (all runs finished, nothing running): note research/notes/2026/10-2x-webkit-recount.md, results/webkit-recount/*.json (5 arms), ledger webkit fields of 5 rows updated. Decided: marquee:probe-off noGain, hero.exit:contain noGain, layer-sweep gain (Paint less only, n=3+4), fill-release noGain (n=3+3). Undecided n=3+2: entries:probe-off only (one run, 2 jobs; pass rule gain).
 Open: ledger-merge test, check.sh, merge main, plan lint, dry land, review ready. Scratch: wr-scratch is a symlink into the session scratchpad (untracked, never add).

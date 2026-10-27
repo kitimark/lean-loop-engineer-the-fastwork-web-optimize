@@ -18,7 +18,7 @@ Rule: a VM is one job of one run. Every GitHub job gets a fresh VM, so the slot 
 | platform.sweep:layer-sweep | gain x4, Paint less only (decided; class L look change, for the user's review) | 3+4 | 40366658003 r1, 40408733016 r1 and r2, 40441397213 r1 |
 | platform.entries:fill-release | noGain x4 (decided) | 3+3 | 40349566685 r2 and r3, 40364461242 r2 |
 
-One of five arms stays undecided: entries:probe-off lost r1 in its one run (2 jobs), below 3 VMs; its counts are listed as readings and no claim of gain or no-gain is made. Layer-sweep is a gain (Paint less only) and fill-release a noGain once VMs are counted as jobs. Accepted limits of this task: no more dispatches, no phone run, no seeking.
+One of five arms stays undecided: entries:probe-off lost r1 in its one run (2 jobs), below 3 VMs; its counts are listed as readings and no claim of gain or no-gain is made. Accepted limits of this task: no more dispatches, no phone run, no seeking.
 
 ## platform.marquee:probe-off
 
@@ -37,7 +37,7 @@ Run 40428340750 (3 of 3 VMs good). Base and arm sides are VM counts after the `+
 
 Decided: noGain in all four zones and in the three hero windows (below).
 
-Run 40372868559 (3 of 3 VMs good). Base and arm sides are VM counts after the `+`; counts are per scroll window, range over passes (base / arm).
+Run 40372868559 (3 of 3 VMs good).
 
 | zone | steps | passes | VMs | verdict | pass rule only | Paint | Layout | RecalculateStyles | Composite | FireAnimationFrame | ObserverCallback |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -58,7 +58,7 @@ Hero windows (`results/hero-relayout-boundary/read-webkit.mjs` reduction, 6+6 pa
 
 Undecided in all four zones: n = 3+2 VMs, below minVms 3. Loss: run 40418142290 r1 (Safari terminate over 20 s, simctl reboot failed, exit 4; no session file). The pass rule alone reads gain; a reading, not a verdict.
 
-Run 40418142290 (r2, r3 good, r1 lost). No second dispatch: the one extra run went to layer-sweep. Base and arm sides are VM counts after the `+`; counts are per scroll window, range over passes (base / arm).
+Run 40418142290 (r2, r3 good, r1 lost). No second dispatch.
 
 | zone | steps | passes | VMs | verdict | pass rule only | Paint | Layout | RecalculateStyles | Composite | FireAnimationFrame | ObserverCallback |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ Pass-rule differing counters: z4500 RecalculateStyles, Paint, FireAnimationFrame
 
 Decided: gain in all four zones, Paint less only (class L look change: the user reviews the look). n = 3+4 VMs, 6+8 passes.
 
-The arm VMs are four jobs of three runs: 40366658003 r1, 40408733016 r1 and r2, 40441397213 r1 (linked as `webkit-sim-r11`, `r21`, `r22`, `r31`). Lost: 40366658003 r2 (inspector dead, simctl shutdown ETIMEDOUT) and r3 (warm-up Runtime.evaluate timeouts); 40408733016 r3 (Timeline.stop timeout); 40441397213 r3 (simctl shutdown ETIMEDOUT, Determinism sessions) and r2 (cancelled at artifact upload, no files). Base and arm sides are VM counts after the `+`; counts are per scroll window, range over passes (base / arm).
+The arm VMs are four jobs of three runs: 40366658003 r1, 40408733016 r1 and r2, 40441397213 r1 (linked as `webkit-sim-r11`, `r21`, `r22`, `r31`). Lost: 40366658003 r2 (inspector dead, simctl shutdown ETIMEDOUT) and r3 (warm-up Runtime.evaluate timeouts); 40408733016 r3 (Timeline.stop timeout); 40441397213 r3 (simctl shutdown ETIMEDOUT, Determinism sessions) and r2 (cancelled at artifact upload, no files).
 
 | zone | steps | passes | VMs | verdict | pass rule only | Paint | Layout | RecalculateStyles | Composite | FireAnimationFrame | ObserverCallback |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ Only Paint differs (less) in every zone; Layout, RecalculateStyles, Composite, F
 
 Decided: noGain in all four zones. n = 3+3 VMs, 6+6 passes.
 
-The arm VMs are three jobs of two runs: 40349566685 r2 and r3, and retry 40364461242 r2 (linked as `webkit-sim-r12`, `r13`, `r22`; the retry r2 is a different job, hence a different VM, from the first run r2). r1 was lost at Determinism sessions in 40349566685 and again in 40364461242 (event loop blocked in a host lsof call, stall watchdog at 731 s). Base and arm sides are VM counts after the `+`; counts are per scroll window, range over passes (base / arm).
+The arm VMs are three jobs of two runs: 40349566685 r2 and r3, and retry 40364461242 r2 (linked as `webkit-sim-r12`, `r13`, `r22`; the retry r2 is a different job, hence a different VM, from the first run r2). r1 was lost at Determinism sessions in 40349566685 and again in 40364461242 (event loop blocked in a host lsof call, stall watchdog at 731 s).
 
 | zone | steps | passes | VMs | verdict | pass rule only | Paint | Layout | RecalculateStyles | Composite | FireAnimationFrame | ObserverCallback |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
