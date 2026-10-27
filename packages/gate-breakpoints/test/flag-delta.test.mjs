@@ -63,7 +63,10 @@ test('wireItem keeps string values and nulls the others', () => {
 
 test('the replaced-part list is the reviewed one (Lean Fw.Gate.FlagDelta.replacedParts)', () => {
   assert.deepEqual(loadReplaced(), of('replaced'));
-  assert.deepEqual(of('replaced').map((e) => [e.flag, e.part, e.premise]), []);
+  assert.deepEqual(of('replaced').map((e) => [e.flag, e.part, e.premise]), [
+    ['morph.stage:on', 'morph.mount', 'Fw.Parts.MorphStage.stage_unmounts_anchors'],
+    ['morph.stage:on', 'morph.tween', 'Fw.Parts.MorphStage.stage_unmounts_anchors'],
+  ]);
 });
 
 const evOf = (rows, fails) => ({ rows: { ...rows }, fails: Object.fromEntries(Object.entries(fails).map(([k, v]) => [k, [...v]])) });

@@ -4539,6 +4539,41 @@
    "next": "faithful morph-frame layer census (level 0 vs 2); swipe-touch-v1 Chromium pair for the Lean window reader; WebKit look report; user look review (class L)",
    "evidence": "research/notes/2026/10-2x-morph-geom.md; apps/site/src/parts/morph.geom/tracks.golden.test.ts",
    "userDecision": "pending"
+  },
+  {
+   "n": 92,
+   "id": "morph.stage",
+   "part": "morph.stage",
+   "candidate": "morph.stage:on: the end-of-page morph follows the finger over T px of added sticky page (scroll-driven animation) instead of a timed play after a push",
+   "status": "look-change",
+   "flag": "morph.stage:on",
+   "visClass": "L",
+   "flags": [
+    "morph.stage:on"
+   ],
+   "chromium": "MEASURED swipe-touch-v1 with the swipe-end tail, 3 runs per arm, commit 8f2f726bf (base 40366273179, flag 40366262655), Lean reader with minFrames 34/20/40/60/20/174: approach noGain (RecalcStyleCount and FireAnimationFrame less; LayoutCount, Paint, RasterTask, PaintImage more); end 0-19, 20-59, 60-119, 120+ and finish all gain (a counter less, none more, minimum frames met)",
+   "webkit": "blocked, undecided: webkit-sim zones need minVms 3 per side; base 40366306645 has 3 VMs (older harness commit 8f2f726bf); flag 40366323523 and 40429988675 have 0 of 3 VMs each (runner loss: Safari tab never attached, VM freeze marks, simctl ETIMEDOUT); a flag share in the second r2 hang of 40429988675 is not excluded",
+   "visual": "look change (L): the morph runs with the finger over a track of T px (T = 696 at 1280x800, 768 at 390x844; the user chooses T) instead of a 680 ms play; never in a preset",
+   "mechanism": "INFERRED from WebKit ScrollTimeline.cpp:363-380 and ThreadedScrollDrivenAnimationsEnabled: --morph and --morph-fade run on animation-timeline scroll(root) over [maxY-T, maxY]",
+   "leanFor": [
+    "Fw.Parts.MorphStage.keyframes_end",
+    "Fw.Parts.MorphStage.key_eq_tween",
+    "Fw.Parts.MorphStage.no_scrollTo",
+    "Fw.Parts.MorphStage.no_nonpassive",
+    "Fw.Parts.MorphStage.stage_unmounts_anchors",
+    "Fw.Parts.MorphStage.stage_keeps_others",
+    "Fw.Parts.MorphStage.faithful_mounts_anchors"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "not a same-look claim: the look change and T are reviewed by the user"
+   ],
+   "premises": [],
+   "v1Evidence": "none",
+   "lesson": "A flag that unmounts a part passes the breakpoint gate only through a Replaced entry backed by a premise theorem naming the unmounted anchors (stage_unmounts_anchors): gate run 40366243322 passes, excusing only the target and scroller count items of morph.mount and morph.tween. The approach window pays for the sticky scene (more layout, paint, raster) while every end window gains.",
+   "next": "Out of v2-proved (look change, class L). The user reviews the end feel and T on the phone; WebKit zones blocked by runner loss, flag stall not excluded for the second r2 hang (flag runs 40366323523 and 40429988675 lost all 6 VMs to VM freeze and a wedged Simulator; base 40366306645 shows the same marks); toolbar lane: toolbar lane run 40365940148: the stage arm has 0 usable passes (restartFailed), undecided; T 696 px at 1280x800 and 768 px at 390x844, class L, no preset",
+   "evidence": "research/notes/2026/10-2x-morph-stage.md; lean/Fw/Parts/MorphStage.lean; lean/Fw/Gate/FlagDelta.lean; gate run 40366243322; chromium-counts 40366262655 and 40366273179",
+   "userDecision": "pending"
   }
  ],
  "notes": [
@@ -5231,6 +5266,12 @@
    "task": "glint-hold-freeze",
    "field": "mechanism",
    "text": "glint-hold-freeze (MEASURED, CI; note research/notes/2026/10-2x-glint-hold-freeze.md): the look premise glint.hold-pixels (run 40345059212) found that ring ids with a hyphen leave every piece after the first unresolved in both engines (the dash never moved after segment 0); ids are now letters and digits. With them the ring is within 1 of 255 of the original on Chromium and 0 on WebKit at 30 forward-seeked times. A backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235) and right in WebKit; no flag path seeks backward (createPause seeks to read plus paused time). Gate both engines pass (40345141093). Chromium counts (base 40345261186, flag 40345253392): approach gains RasterTask 236 to 225 (about 5 percent), finish 1207 to 1196 (under 1 percent), end windows noGain."
+  },
+  {
+   "entry": "engine.scroll:unthrottle: ship the throttle-lift element (one absolute 1 px opacity-0 element with a root scroll-driven animation of a registered custom property, inside @supports and (pointer: coarse)) so Mobile Safari stops holding visible-rect updates to 100 ms while the toolbar collapses",
+   "task": "push-cycle-16",
+   "field": "mechanism",
+   "text": "push-cycle-16 (note research/notes/2026/10-2x-push-cycle-16.md; WebKit Simulator real touches, full pass of 16 cycles and dwell pass per arm, two CI pushes 40361916735 and 40412970956, Lean Fw.Measure.PushCycle.sepVerdict): CONFIRMED in Lean: the full-pass cycle count is derived from the measured stretch 2391 permille plus 25 percent (bound 2988, 16 cycles, sepFullCycles), theorem sep_fits (every stretch up to the bound keeps the clock-matched cycle 5 inside the pass), sep_noRoom_only (noRoom implies a stretch beyond the bound); the lane reads the count from the Lean golden. MEASURED: rewrite undecided (pooled 7 full, 6 dwell, stretch 3289 beyond the bound, noRoom; push 1 fewFull with stretch 3934, push 2 fewDwell with 2 dwell passes), user undecided (pooled 7 full, 8 dwell, inseparable: rate by index 167142, by clock 145523, dwell 85666, too close for Lean separable; push 1 inseparable, push 2 fewFull). Neither arm is cycle-driven or clock-driven. Lost passes are named (restartFailed, touchesFailed, notReady, not run, failed with no record). INFERRED: the stretch overshoot comes from single stalled presses (33 to 90 s) in the mean dwell period; a median-based period is the follow-up. Census (Lean across): no rise in layers or resting backing bytes above the threshold in either arm; H4 (IOSurface re-allocation) stays open: this lane cannot count freed bytes. TS stand-ins: periodMs, activeQuiet/activeCycles, sepArm, censusSeries, lostOf/parseFailed/sepTable. CI only; the fix is a later task."
   }
  ]
 }
