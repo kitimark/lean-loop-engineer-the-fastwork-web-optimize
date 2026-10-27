@@ -24,7 +24,7 @@ const CAMEL: Record<string, string> = { 'backdrop-filter': 'backdropFilter' };
 
 export function MorphGeom() {
   useEffect(() => {
-    if (window.__fw?.config.variants['morph.geom'] !== GEOM_ON) return;
+    if (window.__fw?.config.variants['morph.geom'] !== GEOM_ON || window.__fw?.config.variants['morph.tween'] === 'geom-timed') return;
     const nav = document.querySelector<HTMLElement>(NAV);
     if (!nav) return;
     const reduce = matchList('mq.rm-reduce');

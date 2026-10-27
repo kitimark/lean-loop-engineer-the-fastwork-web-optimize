@@ -8,6 +8,9 @@ import { REST_VARIANT, setRest } from '../morph.panel/rest.logic';
 import { THREADED } from '../morph.panel/threaded.logic';
 import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
 import { cfgOf, hooksOf } from './end.hooks';
+import { createTimedGeom, type TimedAnim } from './geom-timed.driver';
+import { enter, find, leave } from '../morph.geom/tree';
+import { probeEngine } from '../morph.geom';
 import { active } from './logic';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
@@ -15,6 +18,8 @@ import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from
 import { fadeCss, PROP_MORPH, registrationsOf, type WaapiArm } from './waapi.logic';
 
 export const MORPH_PIN_ORDER = 110;
+export const GEOM_TIMED = 'geom-timed';
+const CAMEL: Record<string, string> = { 'backdrop-filter': 'backdropFilter' };
 
 export interface MorphTweenProps {
   variant: string;
@@ -59,6 +64,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
           ? createPanelEffects(() => document.querySelector<HTMLElement>('[data-fw="morph-panel"]') as unknown as PanelEl | null)
           : undefined,
     };
+    if (variant === GEOM_TIMED) env.timed = timedEnv(root);
     let tween: TweenDriver | undefined;
     const hub = isBand(variant) ? touchHub() : undefined;
     const unband = hub ? bandEnv(env, hub, () => (tween ? active(tween.state()) : false)) : undefined;
@@ -80,6 +86,42 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
     };
   }, [variant, platformSelector, navSelector, platformFade, platformFadedPause]);
   return null;
+}
+
+/** The geometry of `morph.geom:on`, driven by the push (Web Animations on the event time) instead of the published value. */
+function timedEnv(root: HTMLElement): NonNullable<TweenEnv['timed']> {
+  const nav = () => document.querySelector<HTMLElement>('[data-fw="nav"]');
+  const reduce = matchList('mq.rm-reduce');
+  const eng = probeEngine();
+  let style: HTMLStyleElement | null = null;
+  return createTimedGeom({
+    allowed: () => window.__fw?.config.variants['morph.geom'] === 'on' && !!nav()?.classList.contains('is-on-dark') && !(reduce?.matches ?? false),
+    enter: () => enter(nav() as HTMLElement, eng),
+    leave: () => {
+      const n = nav();
+      if (n) leave(n);
+    },
+    animate: (a, kf, opts) => {
+      const target = find(a);
+      if (!target) return null;
+      const frames = kf.map((f) => Object.fromEntries(Object.entries(f).map(([k, v]) => [CAMEL[k] ?? k, v])));
+      return target.animate(frames, opts) as unknown as TimedAnim;
+    },
+    goal: (rules) => {
+      if (rules === null) {
+        root.removeAttribute('data-mg-goal');
+        style?.remove();
+        style = null;
+        return;
+      }
+      if (!style) {
+        style = document.createElement('style');
+        document.head.append(style);
+      }
+      if (style.textContent !== rules) style.textContent = rules;
+      root.setAttribute('data-mg-goal', '');
+    },
+  });
 }
 
 function bandEnv(env: TweenEnv, hub: TouchHub, isActive: () => boolean): () => void {

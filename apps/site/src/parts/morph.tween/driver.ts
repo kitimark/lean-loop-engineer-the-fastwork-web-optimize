@@ -4,6 +4,7 @@ import { active, armed, DURATION_MS, fade, frame, pointerNone, REST, type St } f
 import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
+import { crossings, idealAt } from './geom-timed.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -24,7 +25,7 @@ export interface TouchLike {
   preventDefault(): void;
 }
 export interface TweenEnv {
-  clock: { subscribe(tick: (t: number) => void, opts?: { own?: boolean }): () => void };
+  clock: { subscribe(tick: (t: number) => void, opts?: { own?: boolean }): () => void; interval?(ms: number, cb: () => void): () => void };
   /** `performance.now()` at the moment of a push (the start of the tween). */
   now(): number;
   /** `prefers-reduced-motion: reduce`, read at each push. */
@@ -44,6 +45,8 @@ export interface TweenEnv {
   faded?: (zero: boolean) => void;
   rest?: boolean;
   panel?: EffectSink;
+  /** geom-timed: the geometry as Web Animations on the event time; `take` is false where the faithful tween must run. */
+  timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
 }
 
@@ -99,6 +102,8 @@ export function createTweenDriver(env: TweenEnv) {
   let cancelFrame: (() => void) | null = null;
   let locked = false;
   let overlay = false;
+  let timedLive = false;
+  let timers: (() => void)[] = [];
 
   const isActive = () => active({ target: st.target, value: st.value });
   const readOverlay = (was: boolean, now: boolean) => {
@@ -140,6 +145,7 @@ export function createTweenDriver(env: TweenEnv) {
         return env.reduced();
       },
     };
+    if (timedLive && st.pending) st = { ...st, value: idealAt(st.from, st.to, env.now() - st.start) };
     const [next, out] = moveStep(hooks, { ...end, tw: st }, delta, read);
     if (out.prevent && cancelable) e.preventDefault();
     end = hold(hooks, next, e.defaultPrevented, () => read.scrollY);
@@ -188,6 +194,46 @@ export function createTweenDriver(env: TweenEnv) {
     if (!isActive()) arm();
   };
 
+  const dropTimers = () => {
+    for (const off of timers) off();
+    timers = [];
+  };
+  const after = (ms: number, cb: () => void) => {
+    const off = env.clock.interval!(Math.max(1, Math.round(ms)), () => {
+      off();
+      cb();
+    });
+    timers.push(off);
+  };
+  /** A threshold of the timed push, or its end: the value at this moment is published once, with the fade writes. */
+  const mark = (start: number, last: boolean) => {
+    const z = last ? { value: st.to, pending: false } : { value: idealAt(st.from, st.to, env.now() - start), pending: true };
+    const was = isActive();
+    st = { ...st, ...z };
+    readOverlay(was, isActive());
+    if (last) {
+      timedLive = false;
+      env.fade?.settle(st.value);
+      env.panel?.settle(st.value);
+      env.timed?.settle(st.value);
+    }
+    env.publish(st.value);
+    updateFade();
+    syncLock();
+    if (last && !isActive()) arm();
+  };
+  const startTimed = (): boolean => {
+    if (!env.timed?.take(st.from, st.to, st.start)) return false;
+    timedLive = true;
+    dropTimers();
+    const el = env.now() - st.start;
+    for (const x of crossings(st.from, st.to)) if (x.ms > el) after(x.ms - el, () => mark(st.start, false));
+    after(DURATION_MS - el, () => mark(st.start, true));
+    env.publish(st.value);
+    updateFade();
+    return true;
+  };
+
   function apply(next: St) {
     if (next === st) return;
     const reduced = env.reduced();
@@ -198,6 +244,9 @@ export function createTweenDriver(env: TweenEnv) {
     if (reduced) {
       cancelFrame?.();
       cancelFrame = null;
+      dropTimers();
+      timedLive = false;
+      env.timed?.settle(st.value);
       env.fade?.settle(st.value);
       env.panel?.settle(st.value);
       env.publish(st.value);
@@ -208,6 +257,8 @@ export function createTweenDriver(env: TweenEnv) {
     env.fade?.push(st.from, st.to, st.start);
     env.panel?.push(st.from, st.to, st.start);
     cancelFrame?.();
+    cancelFrame = null;
+    if (startTimed()) return;
     cancelFrame = env.clock.subscribe(tick, { own: true });
   }
 
@@ -230,6 +281,8 @@ export function createTweenDriver(env: TweenEnv) {
       cancelFrame = null;
       env.fade?.dispose();
       env.panel?.dispose();
+      dropTimers();
+      env.timed?.dispose();
       if (locked) {
         locked = false;
         env.lock?.set(false);
