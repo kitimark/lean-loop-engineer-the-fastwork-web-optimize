@@ -5,6 +5,7 @@ import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphColumnsScale
 import Fw.Parts.PlatformSweepLayer
 import Fw.Parts.HeroContainOpt
+import Fw.Parts.MorphStage
 namespace Fw.Gate.FlagDelta
 open Fw.Gate
 
@@ -103,7 +104,13 @@ structure ReplacedPart where
   reason : String
   premise : Lean.Name
 
-def replacedParts : List ReplacedPart := []
+def replacedParts : List ReplacedPart :=
+  [ { id := "stage-mount", flag := "morph.stage:on", part := "morph.mount",
+      reason := "the sticky stage replaces the scroll-jack; the morph-mount anchor is not mounted under the flag",
+      premise := ``Fw.Parts.MorphStage.stage_unmounts_anchors },
+    { id := "stage-tween", flag := "morph.stage:on", part := "morph.tween",
+      reason := "the sticky stage replaces the scroll-jack; the morph-tween anchor is not mounted under the flag",
+      premise := ``Fw.Parts.MorphStage.stage_unmounts_anchors } ]
 
 structure DItem where
   cls : Cls
