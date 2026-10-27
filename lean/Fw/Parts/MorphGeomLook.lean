@@ -52,6 +52,30 @@ theorem look_Kb_y (v : Vp) (c : Ctx) : lookFn (anims v c) "Kb" .translate (0, 0)
   unfold lookFn anims
   by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
 
+theorem look_veil_x (v : Vp) (c : Ctx) : lookFn (anims v c) "veil" .transformList (0, 0) 0 = some (x0 v) := by
+  unfold lookFn anims
+  by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
+theorem look_veil_y (v : Vp) (c : Ctx) : lookFn (anims v c) "veil" .transformList (0, 0) 1 = some (y0 v) := by
+  unfold lookFn anims
+  by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
+theorem look_veil_sx (v : Vp) (c : Ctx) :
+    lookFn (anims v c) "veil" .transformList (0, 0) 2 = some (fun x => wd v x / wp v) := by
+  unfold lookFn anims
+  by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
+theorem look_veil_sy (v : Vp) (c : Ctx) :
+    lookFn (anims v c) "veil" .transformList (0, 0) 3 = some (fun x => ht v x / hp v) := by
+  unfold lookFn anims
+  by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
+
+theorem veil_rect_base (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
+    composed v m .veil = faithful v m .veil := rect_eq v hv m h0 h1 .veil
+
+theorem veil_no_opacity (v : Vp) (c : Ctx) : ∀ a ∈ anims v c, a.el = "veil" → a.prop = .transformList := by
+  intro a ha hel
+  unfold anims at ha
+  split at ha <;> split at ha <;> simp only [List.mem_append, List.mem_map, List.mem_cons, List.not_mem_nil, or_false] at ha <;>
+    grind (splits := 400) [anim]
+
 theorem look_column (v : Vp) (c : Ctx) (i : Nat) (hi : i < (nCols v).floor.toNat) :
     ∃ a ∈ anims v c, a.el = "column" ∧ a.key = (i, 0) ∧ a.prop = .translate ∧ a.fns[0]? = some (colTx v i) := by
   refine ⟨anim "column" .translate .unit [colTx v i, fun _ => 0] (i, 0), ?_, rfl, rfl, rfl, rfl⟩

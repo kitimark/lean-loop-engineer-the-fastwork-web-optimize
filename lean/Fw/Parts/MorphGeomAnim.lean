@@ -88,7 +88,7 @@ structure Lyr where
 def imgRows (c : Ctx) : List ((Nat × Nat) × Rat × Rat) :=
   (c.imgs.zipIdx).flatMap fun (col, i) => (col.zipIdx).map fun ((y, h), j) => ((i, j), y, h)
 
--- clippers, counters, the panel and directly composited images paint nothing: `RenderLayerBacking.cpp:3509-3535,3687-3690@862f17d`
+-- clippers, counters, solid fills, the panel and directly composited images paint nothing: `RenderLayerBacking.cpp:3509-3535,3687-3690@862f17d`
 def layers (v : Vp) (c : Ctx) : List Lyr :=
   let W := wp v; let H := hp v
   [⟨"nav", "", W, H, false⟩, ⟨"K0", "nav", 2 * W, 2 * H, false⟩, ⟨"K1", "K0", 2 * W, 2 * H, false⟩,
@@ -101,7 +101,7 @@ def layers (v : Vp) (c : Ctx) : List Lyr :=
     ⟨"Kb", "backdropClip", 53 / 50 * W, H, false⟩, ⟨"Ub", "Kb", 53 / 50 * W, H, false⟩] ++
   ((List.range (nCols v).floor.toNat).map fun i => ⟨s!"column{i}", "Ub", cw v 1, H, false⟩) ++
   ((imgRows c).map fun ((i, j), _, h) => ⟨s!"image{i}.{j}", s!"column{i}", cw v 1, h, false⟩) ++
-  [⟨"centre", "panel", W, c.centreH, true⟩, ⟨"footer", "panel", W, c.footH, true⟩,
+  [⟨"veil", "panel", W, H, true⟩, ⟨"centre", "panel", W, c.centreH, true⟩, ⟨"footer", "panel", W, c.footH, true⟩,
     ⟨"footerGrad", "footer", W, c.footH, true⟩, ⟨"footerEnd", "footer", W, c.footH, true⟩,
     ⟨"platform", "", v.w, c.platH, true⟩]
 
@@ -137,7 +137,8 @@ def anims (v : Vp) (c : Ctx) : List Anim :=
   ((List.range (nCols v).floor.toNat).map fun i => anim "column" .translate .unit [colTx v i, fun _ => 0] (i, 0)) ++
   ((imgRows c).map fun ((i, j), y, _) =>
     anim "image" .transformList .unit [fun _ => 0, imgTy v j y 0, sImg v, sImg v] (i, j)) ++
-  [anim "centre" .translate .unit [fun _ => 0, dP v],
+  [anim "veil" .transformList .unit [x0 v, y0 v, fun x => wd v x / wp v, fun x => ht v x / hp v],
+    anim "centre" .translate .unit [fun _ => 0, dP v],
     anim "footer" .translate .unit [x0 v, fun x => y0 v x + ht v x - hp v],
     anim "footerGrad" .scale .unit [fun x => wd v x / wp v, fun _ => 1],
     anim "footerEnd" .translate .unit [fun x => -2 * x0 v x, fun _ => 0],
@@ -167,7 +168,7 @@ def accelerable (v : Vp) (as : List Anim) : Bool :=
 
 def flipEls : List String :=
   ["nav", "K0", "K1", "K2", "K3", "U", "G", "D", "bar", "logo", "actions", "lang", "earn", "earnClip", "earnLabel",
-    "panel", "backdropClip", "Kb", "Ub", "column", "image", "centre", "footer", "footerGrad", "footerEnd",
+    "panel", "backdropClip", "Kb", "Ub", "column", "image", "veil", "centre", "footer", "footerGrad", "footerEnd",
     "platform"]
 
 def noTransition (as : List Anim) : Bool := as.all fun a => flipEls.contains a.el
@@ -197,7 +198,7 @@ theorem layers_cover_anims :
 #guard offsetsOk [0, 1 / 2, 1] && !offsetsOk [0, 1 / 2] && !offsetsOk [1 / 10, 1]
 #guard easingOk (.cubic (1 / 3) 1 (2 / 3) 1) && !easingOk (.cubic (1 / 3) (-1 / 10) (2 / 3) 1)
 #guard accelOne (anim "D" .opacity .unit [fun x => x]) && !accelOne (anim "D" .translate .unit [fun x => x])
-#guard noTransition [anim "centre" .opacity .unit [fun x => x]] && !noTransition [anim "title" .opacity .unit [fun x => x]]
+#guard noTransition [anim "veil" .opacity .unit [fun x => x]] && !noTransition [anim "title" .opacity .unit [fun x => x]]
 
 
 def dprOf (v : Vp) : Nat := if phone v.w then 3 else 2
@@ -214,10 +215,10 @@ theorem memBudget_eq : memBudget = 23055555 := by decide
 
 theorem mem_bands :
     bandVps.map (fun v => memOk v (Ctx.sample v .webkit)) =
-      [true, true, false, false, false, false, true, true, true, false, false, false] := by
+      [true, false, false, false, false, false, true, false, false, false, false, false] := by
   decide +kernel
 
-theorem mem_phone_390 : memBytes ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webkit) = 23753952 := by decide +kernel
+theorem mem_phone_390 : memBytes ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webkit) = 34558272 := by decide +kernel
 
 #guard dprOf ⟨390, 844⟩ == 3 && dprOf ⟨1280, 800⟩ == 2
 #guard memOk ⟨320, 568⟩ (Ctx.sample ⟨320, 568⟩ .webkit) && !memOk ⟨390, 844⟩ (Ctx.sample ⟨390, 844⟩ .webkit)
