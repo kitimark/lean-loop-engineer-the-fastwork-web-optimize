@@ -21,6 +21,7 @@ process.argv.slice(2).forEach((dir, di) => {
 const labels = Object.keys(LABELS).map((l) => [l]);
 
 const out = ['# Morph push on the Simulator: per-push windows (Lean PushCycle.armVerdict, minVms 3)', ''];
+out.push('Runs: ' + runs.join(', ') + ' (run N here = the Nth directory given).', '');
 out.push('| arm | VMs (>= 3 windows) | job:passes:windows | style | layout | paint | rAF | slow |', '| --- | --- | --- | --- | --- | --- | --- | --- |');
 for (const [label] of labels) {
   const vs = byLabel[label];
@@ -28,7 +29,7 @@ for (const [label] of labels) {
   out.push(`| ${label} | ${M.vmCount(vs)} | ${vs.map((v) => `${v.vm % 100}:${v.passes}:${v.wins.length}`).join(' ')} | ${cols.join(' | ')} |`);
 }
 out.push('', 'Counts per push window (mean over the VM windows), one value per VM.', '');
-out.push('| arm against | verdict | counters (style, layout, paint, rAF, slow) |', '| --- | --- | --- |');
+out.push('| arm against | verdict | counter spreads (style, layout, paint, rAF, slow; raw, a verdict only with 3 VMs in both arms) |', '| --- | --- | --- |');
 const pairs = [['geom', 'base'], ['timed', 'base'], ['timed', 'geom']];
 for (const [a, b] of pairs) {
   if (!byLabel[a] || !byLabel[b]) continue;
