@@ -40,7 +40,7 @@ test('percentile and the over-limit count', () => {
 });
 
 test('the values of a visit', () => {
-  for (const g of of('pushvisit')) assert.deepEqual(D.visitVals(g.frames, g.hiEnd, g.starts, g.off, g.recs), g.values, g.name);
+  for (const g of of('pushvisit')) assert.deepEqual(D.visitVals(g.frames, g.hiEnd, g.starts, g.startsC, g.off, g.recs), g.values, g.name);
   assert.equal(D.PUSH_METRICS.length, of('pushvisit')[0].values.length);
 });
 

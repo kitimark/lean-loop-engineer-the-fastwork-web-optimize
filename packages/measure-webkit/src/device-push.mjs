@@ -38,11 +38,16 @@ export const over = (lim, xs) => xs.filter((x) => lim < x).length;
 export const countIn = (kind, off, s, rs) => rs.filter((r) => r[0] === kind && s[0] <= r[1] - off && r[1] - off <= s[1]).length;
 export const countsOf = (kind, off, sps, rs) => sps.reduce((n, s) => n + countIn(kind, off, s, rs), 0);
 
-/** The values of one visit, in the order of PUSH_METRICS. */
-export function visitVals(fs, hiEnd, ts, off, rs) {
+/** The counts lane's spans: its touch starts, each as long as the span of the same push in the frames lane. */
+export const shifted = (ts, durs) => ts.slice(0, Math.min(ts.length, durs.length)).map((t, i) => [t, t + durs[i]]);
+export const durations = (sps) => sps.map((s) => s[1] - s[0]);
+
+/** The values of one visit, in the order of PUSH_METRICS: tail stats from the frames lane, counts from the counts lane. */
+export function visitVals(fs, hiEnd, ts, tsC, off, rs) {
   const sps = spans(fs, hiEnd, ts);
   const d = spanDts(sps, fs);
-  return [pct(95, d), pct(99, d), pct(100, d), over(PUSH.overLimit, d), ...COUNT_KINDS.map((k) => countsOf(k, off, sps, rs))];
+  const spsC = shifted(tsC, durations(sps));
+  return [pct(95, d), pct(99, d), pct(100, d), over(PUSH.overLimit, d), ...COUNT_KINDS.map((k) => countsOf(k, off, spsC, rs))];
 }
 
 /** The Timeline-to-page clock offset, or null when the two marks disagree. */

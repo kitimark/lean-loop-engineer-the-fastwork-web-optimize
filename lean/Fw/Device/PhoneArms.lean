@@ -1006,15 +1006,40 @@ def countsOf (kind : String) (off : Int) (sps : List (Int × Int)) (rs : List Re
 
 theorem countsOf_nil (kind : String) (off : Int) (rs : List Rec) : countsOf kind off [] rs = 0 := rfl
 
-/-- The values of one visit, in the order of `pushMetrics`. -/
-def visitVals (fs : List PFrame) (hiEnd : Int) (ts : List Int) (off : Int) (rs : List Rec) : List Int :=
+/-- Spans of the counts lane: its touch starts, each as long as the span of the same push in the frames lane (the counts lane runs no
+recorder frame loop, so it cannot see the morph end itself). -/
+def shifted (ts durs : List Int) : List (Int × Int) := List.zipWith (fun t d => (t, t + d)) ts durs
+
+theorem shifted_length (ts durs : List Int) : (shifted ts durs).length = min ts.length durs.length := by
+  simp [shifted]
+
+theorem shifted_ordered {ts durs : List Int} (h : ∀ d ∈ durs, 0 ≤ d) : ∀ s ∈ shifted ts durs, s.1 ≤ s.2 := by
+  intro s hs
+  obtain ⟨i, hi, rfl⟩ := List.mem_iff_getElem.mp hs
+  simp only [shifted, List.getElem_zipWith]
+  have := h (durs[i]'(by simp [shifted] at hi; omega)) (List.getElem_mem _)
+  omega
+
+/-- The length of each span. -/
+def durations (sps : List (Int × Int)) : List Int := sps.map fun s => s.2 - s.1
+
+theorem durations_nonneg (fs : List PFrame) (hiEnd : Int) (ts : List Int) : ∀ d ∈ durations (spans fs hiEnd ts), 0 ≤ d := by
+  intro d hd
+  obtain ⟨s, hs, rfl⟩ := List.mem_map.mp hd
+  have := spans_ordered fs hiEnd ts s hs
+  omega
+
+/-- The values of one visit, in the order of `pushMetrics`: tail stats of the frames lane inside its spans, and the counts lane's records
+inside its own touch starts followed by the same lengths. -/
+def visitVals (fs : List PFrame) (hiEnd : Int) (ts : List Int) (tsC : List Int) (off : Int) (rs : List Rec) : List Int :=
   let sps := spans fs hiEnd ts
   let d := spanDts sps fs
+  let spsC := shifted tsC (durations sps)
   [pct 95 d, pct 99 d, pct 100 d, over overLimit d] ++
-    (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off sps rs : Nat) : Int))
+    (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off spsC rs : Nat) : Int))
 
-theorem visitVals_length (fs : List PFrame) (hiEnd : Int) (ts : List Int) (off : Int) (rs : List Rec) :
-    (visitVals fs hiEnd ts off rs).length = pushMetrics.length := by
+theorem visitVals_length (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (off : Int) (rs : List Rec) :
+    (visitVals fs hiEnd ts tsC off rs).length = pushMetrics.length := by
   simp [visitVals, pushMetrics]
 
 /-- The Timeline clock is tied to the page clock only when the start and end marks agree (as for the zone profiles). -/
@@ -1262,12 +1287,15 @@ private def pctCases : List (Nat × List Int) :=
    (99, (List.range 20).map fun (i : Nat) => (Int.ofNat i + 1) * 100), (50, [5, 1, 4, 2, 3]), (1, [5, 1, 4, 2, 3]),
    (95, [1667, 1667, 1666, 5100, 1667, 9000, 1667, 1667, 1667, 1667])]
 
-private def pushVisitCases : List (String × List PFrame × Int × List Int × Int × List Rec) :=
-  [("window", pushFrames, 25001, [3000, 16000], 100000,
+private def pushVisitCases : List (String × List PFrame × Int × List Int × List Int × Int × List Rec) :=
+  [("window", pushFrames, 25001, [3000, 16000], [3000, 16000], 100000,
      [⟨"Layout", 103000⟩, ⟨"Layout", 108000⟩, ⟨"Layout", 140000⟩, ⟨"Paint", 108300⟩, ⟨"Paint", 113400⟩, ⟨"RecalculateStyles", 108300⟩,
       ⟨"FireAnimationFrame", 106700⟩, ⟨"FireAnimationFrame", 108400⟩, ⟨"FireAnimationFrame", 125000⟩, ⟨"Composite", 108000⟩]),
-   ("no records", pushFrames, 25001, [3000, 16000], 0, []), ("no push", pushFrames, 25001, [], 0, [⟨"Layout", 5000⟩]),
-   ("gap", fr [(0, 0, 0), (1667, 0, 100), (3333, 0, 300), (15333, 0, 500), (17000, 0, 500)], 17001, [0], 0,
+   ("counts lane starts later", pushFrames, 25001, [3000, 16000], [4000, 17500], 0,
+     [⟨"Layout", 4000⟩, ⟨"Layout", 12000⟩, ⟨"Layout", 12700⟩, ⟨"Paint", 17500⟩, ⟨"Paint", 23100⟩, ⟨"Paint", 23200⟩]),
+   ("no records", pushFrames, 25001, [3000, 16000], [3000, 16000], 0, []), ("no push", pushFrames, 25001, [], [], 0, [⟨"Layout", 5000⟩]),
+   ("fewer starts in the counts lane", pushFrames, 25001, [3000, 16000], [3000], 0, [⟨"Layout", 5000⟩, ⟨"Layout", 19000⟩]),
+   ("gap", fr [(0, 0, 0), (1667, 0, 100), (3333, 0, 300), (15333, 0, 500), (17000, 0, 500)], 17001, [0], [0], 0,
      [⟨"Paint", 0⟩, ⟨"Paint", 3333⟩, ⟨"Paint", 15333⟩, ⟨"Paint", 16000⟩])]
 
 private def clockCases : List (Int × Int × Int × Int) :=
@@ -1297,9 +1325,9 @@ def pushGoldenLines (_ : Unit) : List String :=
       ("changes", toJson (changeTimes fs)), ("dts", toJson (spanDts (spans fs hi ts) fs))]).compress) ++
   (pctCases.map fun (p, xs) =>
     (Json.mkObj [("kind", "pushpct"), ("p", p), ("values", toJson xs), ("pct", pct p xs), ("over", over overLimit xs)]).compress) ++
-  (pushVisitCases.map fun (n, fs, hi, ts, off, rs) =>
-    (Json.mkObj [("kind", "pushvisit"), ("name", n), ("frames", pframesJ fs), ("hiEnd", hi), ("starts", toJson ts), ("off", off),
-      ("recs", recsJ' rs), ("values", toJson (visitVals fs hi ts off rs))]).compress) ++
+  (pushVisitCases.map fun (n, fs, hi, ts, tsC, off, rs) =>
+    (Json.mkObj [("kind", "pushvisit"), ("name", n), ("frames", pframesJ fs), ("hiEnd", hi), ("starts", toJson ts), ("startsC", toJson tsC),
+      ("off", off), ("recs", recsJ' rs), ("values", toJson (visitVals fs hi ts tsC off rs))]).compress) ++
   (clockCases.map fun (a, b, c, d) =>
     (Json.mkObj [("kind", "pushclock"), ("tlA", a), ("tlB", b), ("pgA", c), ("pgB", d),
       ("off", match clockOff a b c d with | some o => toJson o | none => Json.null)]).compress) ++
