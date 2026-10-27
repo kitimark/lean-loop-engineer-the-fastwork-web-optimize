@@ -3,9 +3,10 @@ import { rawResolve as resolve } from './device-raw-dir.mjs';
 import { runBlock, realDeps, phoneSense } from './device-phone-run.mjs';
 import { pinnedSession } from './device-phone-pin.mjs';
 import { ConditionOwner } from './device-thermal-pin.mjs';
-import { PUSH, PUSH_ARMS, COLS, COLS_ARMS, COLS_CONTRASTS, colsOk, colsOrder, latinOrder, noRepeat, pushOk } from './device-push.mjs';
+import { PUSH, PUSH_ARMS, COLS, COLS_ARMS, COLS_CONTRASTS, FLIP_ARMS, flipSlotOf, colsOk, colsOrder, flipOk, flipOrder, latinOrder, noRepeat, pushOk } from './device-push.mjs';
 import { contrastsOf, driverHolder, positionCheck, pushVisit, readVisits, summarize, takeShareOf, valuesOf, writeJson } from './device-push-run.mjs';
 import { pushTables } from './device-push-tables.mjs';
+import { flipAttribution, flipTables } from './device-flip-report.mjs';
 
 const [cmd, ...rest] = process.argv.slice(2).filter((a) => a !== '--');
 const { values: v } = parseArgs({
@@ -13,13 +14,13 @@ const { values: v } = parseArgs({
   options: {
     site: { type: 'string' }, dir: { type: 'string' }, driver: { type: 'string' }, out: { type: 'string' }, pin: { type: 'string' },
     only: { type: 'string' }, set: { type: 'string', default: 'morph' }, 'max-visits': { type: 'string', default: '4' },
-    all: { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, gap: { type: 'string', default: '100' },
+    all: { type: 'boolean', default: false }, tl: { type: 'boolean', default: false }, settle: { type: 'string', default: '6000' }, clock: { type: 'string', default: 'pinned' }, gap: { type: 'string', default: '100' },
   },
 });
 const log = (s) => console.error(s);
 
-const SETS = { morph: { arms: PUSH_ARMS, order: latinOrder, ok: pushOk }, cols: { arms: COLS_ARMS, order: colsOrder, ok: colsOk } };
-const setOf = () => SETS[v.set] ?? (() => { throw new Error(`unknown --set ${v.set}: morph | cols`); })();
+const SETS = { morph: { arms: PUSH_ARMS, order: latinOrder, ok: pushOk }, cols: { arms: COLS_ARMS, order: colsOrder, ok: colsOk }, flip: { arms: FLIP_ARMS, order: flipOrder, ok: flipOk } };
+const setOf = () => SETS[v.set] ?? (() => { throw new Error(`unknown --set ${v.set}: morph | cols | flip`); })();
 
 const sessionOf = () => {
   const { arms, order: orderOf, ok } = setOf();
@@ -36,7 +37,7 @@ async function main() {
   if (cmd === 'run') {
     if (!v.site || !v.dir || !v.driver) throw new Error('run needs --site <dist/aot>, --dir <raw dir> and --driver <driver dir>');
     const holder = driverHolder({ dir: resolve(v.driver), log });
-    const deps = { ...realDeps(), visit: pushVisit({ server: holder.get, gapPx: Number(v.gap) }) };
+    const deps = { ...realDeps(), visit: pushVisit({ server: holder.get, gapPx: Number(v.gap), tl: v.tl || v.set === 'flip' }) };
     const session = sessionOf();
     const body = async (pin) => {
       for (;;) {
@@ -54,7 +55,7 @@ async function main() {
   }
   if (cmd === 'reduce') {
     if (!v.dir || !v.out) throw new Error('reduce needs --dir <raw dir> and --out <results dir>');
-    const { st, rows, lost } = readVisits(resolve(v.dir));
+    const { st, rows, lost } = readVisits(resolve(v.dir), v.set === 'flip' ? flipSlotOf : undefined);
     const arms = summarize(rows, setOf().arms);
     const summary = {
       schema: 'fw.phone.push/1', consts: { minVisits: PUSH.minVisits, pushes: PUSH.pushes, asks: PUSH.patternAsks + PUSH.burstAsks, overLimitCentiMs: PUSH.overLimit, metrics: PUSH.metrics },
@@ -64,7 +65,13 @@ async function main() {
     };
     writeJson(resolve(v.out, 'summary.json'), summary);
     const { writeFileSync } = await import('node:fs');
-    writeFileSync(resolve(v.out, 'tables.md'), pushTables(summary));
+    let text = pushTables(summary);
+    if (v.set === 'flip') {
+      const attr = flipAttribution(resolve(v.dir), rows, setOf().arms);
+      writeJson(resolve(v.out, 'attribution.json'), attr);
+      text += flipTables(attr, summary);
+    }
+    writeFileSync(resolve(v.out, 'tables.md'), text);
     console.log(JSON.stringify({ visits: rows.length, arms: arms.map((a) => `${a.id}:${a.n}:${a.label}`) }));
     return;
   }

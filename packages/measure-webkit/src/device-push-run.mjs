@@ -7,7 +7,7 @@ import { startTimeline } from './timeline.mjs';
 import { toHundredths } from './profile/reduce.mjs';
 import { openDriver, TOUCH_PUSH } from './touch-push.mjs';
 import { buildPushDriver, startPhoneServer, stopPhoneServer } from './device-push-chan.mjs';
-import { PUSH, PUSH_ARMS, PUSH_METRICS, COUNT_KINDS, clockOff, columns, contrastOf, pushCells, pushLabel, pushesOf, slotOf, takenOf, visitVals } from './device-push.mjs';
+import { PUSH, PUSH_ARMS, PUSH_METRICS, COUNT_KINDS, clockOff, columns, contrastOf, flipSlotOf, pushCells, pushLabel, pushesOf, slotOf, takenOf, visitVals } from './device-push.mjs';
 import { loadState, rawName, whenTabBlank, faultsOfVisit } from './device-phone-run.mjs';
 
 const median = (l) => { const s = [...l].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
@@ -71,6 +71,21 @@ export const COUNTS_STOP_JS = `(() => {
   performance.mark('wk:b');
   st.b = performance.getEntriesByName('wk:b').pop().startTime;
   return JSON.stringify({ ts: st.ts, tr: st.tr, a: Math.round(st.a * 100), b: Math.round(st.b * 100), maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
+})()`;
+
+export const ANIM_SNAPSHOT_JS = `(() => {
+  const name = (el) => { if (!el) return null; const c = typeof el.className === 'string' ? el.className.trim().split(/\\s+/).slice(0, 2).join('.') : ''; const d = el.getAttribute && el.getAttribute('data-fw'); return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (c ? '.' + c : '') + (d ? '[data-fw=' + d + ']' : ''); };
+  const box = (el) => { const r = el ? el.getBoundingClientRect() : null; return r ? [Math.round(r.left), Math.round(r.top + scrollY), Math.round(r.width), Math.round(r.height)] : null; };
+  const skip = ['offset', 'easing', 'composite', 'computedOffset'];
+  const out = [];
+  for (const a of document.getAnimations()) {
+    const t = a.effect && a.effect.target;
+    const kf = a.effect && a.effect.getKeyframes ? a.effect.getKeyframes() : [];
+    const ct = a.effect && a.effect.getComputedTiming ? a.effect.getComputedTiming() : null;
+    out.push({ kind: a.constructor.name, name: a.animationName || a.transitionProperty || a.id || null, play: a.playState, target: name(t), props: [...new Set(kf.flatMap((k) => Object.keys(k).filter((x) => !skip.includes(x))))], rect: box(t), dur: ct ? ct.duration : null, it: ct ? ct.iterations : null });
+  }
+  const nav = document.querySelector(${JSON.stringify(NAV)});
+  return JSON.stringify({ n: out.length, anims: out.slice(0, 120), nav: name(nav), navRect: box(nav), scrollY, scrollHeight: document.documentElement.scrollHeight });
 })()`;
 
 export const nearEndJs = (gap) => `(() => {
@@ -159,7 +174,38 @@ export async function countsLane(ctx, { server, settleMs, clock, log, gap = GAP_
   return { schema: 'fw.phone.push-counts/1', device: ctx.device, readouts, near, presses: r.presses, vh: r.vh, maxY: r.maxY, endY: r.y, ts: r.ts, tr: r.tr ?? [], a: r.a, b: r.b, tlA, tlB, rs };
 }
 
-export const pushVisit = ({ server, gapPx = GAP_PX }) => async ({ row, site, settle, clock, log, gate }) => {
+export async function tlLane(ctx, { server, settleMs, clock, log, gap = GAP_PX }) {
+  const readouts = [ctx.readout()];
+  await loadFresh(ctx.c, { clock, settleMs, timers: 'live' });
+  const near = JSON.parse(await ctx.c.evaluate(nearEndJs(gap)));
+  await sleep(SETTLE_AFTER_SCROLL_MS);
+  const tl = await startTimeline(ctx.c);
+  let f;
+  let c;
+  let presses;
+  let rows;
+  let anim = null;
+  try {
+    if ((await ctx.c.evaluate(COUNTS_START_JS)) !== 'started') throw new Error('the counts recorder did not start');
+    if ((await ctx.c.evaluate(FRAMES_START_JS)) !== 'started') throw new Error('the frame recorder did not start');
+    try { anim = JSON.parse(await ctx.c.evaluate(ANIM_SNAPSHOT_JS)); } catch (e) { anim = { error: String(e.message).slice(0, 200) }; }
+    presses = await pushes(server, log, 'tl');
+    await sleep(TAIL_MS);
+    f = JSON.parse(await ctx.c.evaluate(FRAMES_STOP_JS));
+    c = JSON.parse(await ctx.c.evaluate(COUNTS_STOP_JS));
+  } finally {
+    rows = await tl.stop().catch(() => null);
+  }
+  if (f.err) throw new Error(f.err);
+  if (c.err) throw new Error(c.err);
+  if (!rows) throw new Error('the Timeline did not stop');
+  const { tlA, tlB } = recordsOf(rows);
+  readouts.push(ctx.readout());
+  const hiEnd = f.f.length ? f.f[f.f.length - 1][0] + 1 : 0;
+  return { schema: 'fw.phone.push-tl/1', device: ctx.device, readouts, near, presses, nav: f.nav, vh: f.vh, maxY: f.maxY, endY: f.y, hiEnd, ts: f.ts, tsC: c.ts, tr: f.tr ?? [], f: f.f, a: c.a, b: c.b, tlA, tlB, anim, tree: tl.top };
+}
+
+export const pushVisit = ({ server, gapPx = GAP_PX, tl = false }) => async ({ row, site, settle, clock, log, gate }) => {
   const srv = await server();
   return whenTabBlank(() => withPhone(async (ctx) => {
     const frames = await framesLane(ctx, { server: srv, settleMs: settle, clock, log: ctx.log, gap: gapPx });
@@ -167,7 +213,10 @@ export const pushVisit = ({ server, gapPx = GAP_PX }) => async ({ row, site, set
     const counts = await countsLane(ctx, { server: srv, settleMs: settle, clock, log: ctx.log, gap: gapPx });
     counts.fw = { configHash: row.hash };
     valuesOf(counts, frames);
-    return { frames, counts };
+    if (!tl) return { frames, counts };
+    if (gate) await gate();
+    const tlr = await tlLane(ctx, { server: srv, settleMs: settle, clock, log: ctx.log, gap: gapPx });
+    return { frames, counts, tl: tlr };
   }, { site: { dir: site, search: row.search }, log }), log);
 };
 
@@ -196,14 +245,14 @@ export function traceOf(ts, tr) {
   return { pushes: pushesOf(evs), taken: takenOf(evs), touches: perTouch.length, touchTaken: perTouch.filter(Boolean).length, perTouch };
 }
 
-export function readVisits(dir) {
+export function readVisits(dir, slots = slotOf) {
   const st = loadState(dir);
   const done = st.visits.filter((v) => v.status === 'done').sort((a, b) => a.index - b.index);
   const rows = done.map((v) => {
     const counts = JSON.parse(readFileSync(join(dir, rawName(v.index, v.arm, 'counts')), 'utf8'));
     const frames = JSON.parse(readFileSync(join(dir, rawName(v.index, v.arm, 'frames')), 'utf8'));
     const vals = valuesOf(counts, frames);
-    return { index: v.index, arm: v.arm, ...(slotOf(v.index) ?? { round: null, position: null }), durationS: v.durationS, configHash: counts.fw?.configHash ?? null, nav: frames.nav, vh: vals.vh, maxY: vals.maxY, vals: vals.push,
+    return { index: v.index, arm: v.arm, ...(slots(v.index) ?? { round: null, position: null }), durationS: v.durationS, configHash: counts.fw?.configHash ?? null, nav: frames.nav, vh: vals.vh, maxY: vals.maxY, vals: vals.push,
       pushes: frames.ts.length, trace: { frames: traceOf(frames.ts, frames.tr), counts: traceOf(counts.ts, counts.tr) }, maxMorph: frames.f.reduce((m, x) => Math.max(m, x[2] % 10000), 0), device: counts.device };
   });
   const lost = st.visits.filter((v) => v.status !== 'done').map((v) => ({ index: v.index, arm: v.arm, status: v.status, attempts: v.attempts, faults: faultsOfVisit(v) }));

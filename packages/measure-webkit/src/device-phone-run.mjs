@@ -229,6 +229,7 @@ export async function runBlock({ site, dir, log, maxVisits = P.PA.perBlock, cloc
         }
         putJson(join(dir, rawName(index, a.id, 'counts')), { target: a.target, arm: a.id, ...r.counts });
         putJson(join(dir, rawName(index, a.id, 'frames')), { target: a.target, arm: a.id, ...r.frames });
+        if (r.tl) putJson(join(dir, rawName(index, a.id, 'tl')), { target: a.target, arm: a.id, ...r.tl });
         const durationS = Math.round((deps.now() - start) / 1000);
         longest = Math.max(longest, durationS);
         st.visits = st.visits.filter((v) => v.index !== index).concat([{ index, arm: a.id, status: 'done', attempts: attempts + 1, faults: prior[prior.length - 1]?.faults ?? [], durationS, endedMs: deps.now() }]);

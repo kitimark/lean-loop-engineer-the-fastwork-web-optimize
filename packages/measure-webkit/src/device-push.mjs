@@ -26,6 +26,7 @@ export function pct(p, xs) {
   return s[Math.floor((p * xs.length + 99) / 100) - 1] ?? 0;
 }
 export const over = (lim, xs) => xs.filter((x) => lim < x).length;
+export const rate = (o, n) => (n === 0 ? 0 : Math.floor((o * 1000) / n));
 
 export const countIn = (kind, off, s, rs) => rs.filter((r) => r[0] === kind && s[0] <= r[1] - off && r[1] - off <= s[1]).length;
 export const countsOf = (kind, off, sps, rs) => sps.reduce((n, s) => n + countIn(kind, off, s, rs), 0);
@@ -37,7 +38,7 @@ export function visitVals(fs, hiEnd, ts, tsC, off, rs) {
   const sps = spans(fs, hiEnd, ts);
   const d = spanDts(sps, fs);
   const spsC = shifted(tsC, durations(sps));
-  return [pct(95, d), pct(99, d), pct(100, d), over(PUSH.overLimit, d), ...COUNT_KINDS.map((k) => countsOf(k, off, spsC, rs))];
+  return [pct(95, d), pct(99, d), pct(100, d), over(PUSH.overLimit, d), ...COUNT_KINDS.map((k) => countsOf(k, off, spsC, rs)), rate(over(PUSH.overLimit, d), d.length)];
 }
 
 export const clockOff = (tlA, tlB, pgA, pgB) => {
@@ -61,6 +62,14 @@ const armById = (id) => PUSH_ARMS.find((a) => a.id === id) ?? (() => { throw new
 export const LATIN_ROWS = Object.freeze(PUSH.latin.map((r) => Object.freeze(r.map(armById))));
 export const latinOrder = () => PUSH.order.map(armById);
 export const slotOf = (i) => (PUSH.slots[i] ? { round: PUSH.slots[i][0], position: PUSH.slots[i][1] } : null);
+
+export const FLIP = Object.freeze(GOLDEN.find((l) => l.kind === 'flipcons'));
+export const FLIP_ARMS = Object.freeze(FLIP.arms.map((a) => Object.freeze(a)));
+const flipById = (id) => FLIP_ARMS.find((a) => a.id === id) ?? (() => { throw new Error(`unknown flip arm ${id}`); })();
+export const FLIP_ROWS = Object.freeze(FLIP.latin.map((r) => Object.freeze(r.map(flipById))));
+export const flipOrder = () => FLIP.order.map(flipById);
+export const flipSlotOf = (i) => (FLIP.slots[i] ? { round: FLIP.slots[i][0], position: FLIP.slots[i][1] } : null);
+export const flipOk = (order) => FLIP_ARMS.every((a) => order.filter((x) => x.id === a.id).length >= PUSH.minVisits);
 
 export function pushCells(base, arm) {
   if (base.length < PUSH.minVisits || arm.length < PUSH.minVisits) return null;

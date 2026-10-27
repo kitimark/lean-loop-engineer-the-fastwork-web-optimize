@@ -23233,7 +23233,8 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
-   ]
+   ],
+   "evidence": "66e11f1"
   },
   {
    "devices": [
@@ -23259,6 +23260,42 @@
     "research/notes/2026/10-2x-geom-look-fade.md",
     "results/geom-look-fade/**",
     "docs/team/handoffs/geom-look-fade.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-style-cut",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "phone-flip-p95"
+   ],
+   "title": "Cut the flip's per-frame style recalc (phone-flip-p95: 99 % of the flip arms' main-busy long frames are RecalculateStyles from setProperty): count which writes run per frame with morph.geom:on and geom-timed (--morph and data-fw-morph on the nav, --morph-fade, --cs-*), prove in Lean which have no consumer in geom mode, remove them or make them non-inherited with the same look, and measure style recalc on CI (Chromium, WebKit Simulator).",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.stage/**",
+    "lean/Fw/Parts/MorphStyle*.lean",
+    "lean/scripts/MorphStyle*Golden.lean",
+    "packages/contracts/golden/morph-style*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/site/scripts/part-footprint.mjs",
+    "packages/measure-chromium/**",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-style-cut.md",
+    "results/geom-style-cut/**",
+    "docs/team/handoffs/geom-style-cut.md"
    ]
   }
  ],
