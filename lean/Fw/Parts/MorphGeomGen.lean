@@ -2,8 +2,6 @@ import Lean.Data.Json
 import Fw.Parts.MorphGeomAnim
 import Fw.Parts.MorphGeomLook
 import Fw.Parts.MorphGeomLookRule
-/-! `morph.geom:on` generators: knot tables, track samples for the TS track builder, the `.is-flip` rule and the goal
-CSS, written to `packages/contracts/golden/morph-geom.jsonl`. -/
 namespace Fw.Parts.MorphGeom
 open Lean Fw.Parts.Nav Fw.Engine.TransitionStart
 open Fw.Parts.NavEarnOpt (frameMs frames)

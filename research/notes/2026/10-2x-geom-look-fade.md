@@ -24,7 +24,7 @@ Task geom-look-fade (graph r546). Follows geom-page-diff (note 10-2x-geom-page-d
 | 40594241212 | push 3 (7775f52b4) | timed Chromium only, bands flushed, 22 min budget | Chromium on (identical to runs 1, 2), WebKit on, Chromium timed m=0 equalised but m=1 tween did not start on 9 bands |
 | 40599995604 | push 4 (0f3242fb7) | on-dark copied onto base, nav colour wait; lanes breakpoint-gate and lean | success (all 11 jobs): Chromium on equal to runs 1-3, WebKit on (3rd JSON), Chromium timed m=0 near 0 and m=1 tween verified at 12 of 12 bands |
 
-Pushes: 4 of 4 (one wasted on the missing marker). Chromium 'on': 3 jobs on separate CI jobs, equal to 4 digits (page share differs by at most 0.0001 between jobs). Chromium 'on' now 4 jobs (runs 1-4, page m=1 within 0.0001). WebKit 'on': 3 jobs with a JSON (runs 1, 3, 4; page m=1 equal to 4 digits in all 12 bands; run 4 also equal in m=0). The count of 3 is met for both engines. Tables: results/geom-look-fade/table-*.md, owners.md, look-summary.json.
+Pushes: 4 of 4. Chromium 'on': 3 jobs on separate CI jobs, equal to 4 digits (page share differs by at most 0.0001 between jobs). Chromium 'on' now 4 jobs (runs 1-4, page m=1 within 0.0001). WebKit 'on': 3 jobs with a JSON (runs 1, 3, 4; page m=1 equal to 4 digits in all 12 bands; run 4 also equal in m=0). The count of 3 is met for both engines. Tables: results/geom-look-fade/table-*.md, owners.md, look-summary.json.
 
 ## Result: page share (pixels over 12 in the whole viewport), flip vs base
 

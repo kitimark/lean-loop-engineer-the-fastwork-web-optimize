@@ -1,4 +1,3 @@
-// TS stand-in (plain JS) for lean/Fw/Parts/MorphGeomLookRule.lean; test/look-rule.test.mjs checks every function against the golden lines.
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,7 +43,6 @@ export const fadeShows = (cell, golden, o, m) => {
   return o - f <= cell.fadeTol && f - o <= cell.fadeTol;
 };
 
-/** Largest channel difference per pixel of two RGBA images of one size; a pixel differs when this is above `cell.over` (pixelOver). */
 export function diffMap(a, b) {
   const n = a.width * a.height;
   const out = new Uint8Array(n);
@@ -55,7 +53,6 @@ export function diffMap(a, b) {
   return out;
 }
 
-/** Count and share of differing pixels in a box (CSS-free pixel box { x, y, width, height }) of a W x H diff map. */
 export function regionStats(cell, map, W, H, box) {
   const xr = pxRange(W, box.x, box.width), yr = pxRange(H, box.y, box.height);
   let max = 0, over = 0, n = 0;
@@ -68,10 +65,6 @@ export function regionStats(cell, map, W, H, box) {
   return { max, share: share(over, n), px: n, over };
 }
 
-/**
- * Differing pixels per element box. `own` counts a pixel for the smallest box that holds it (ties: the later box), `over` for every box that holds it,
- * `unowned` the pixels in no box. Reporting only: no verdict reads it.
- */
 export function elementTable(cell, map, W, H, boxes) {
   const ranges = boxes.map((b) => ({ b, xr: pxRange(W, b.x, b.width), yr: pxRange(H, b.y, b.height) }))
     .map((r) => ({ ...r, area: Math.max(0, r.xr.hi - r.xr.lo) * Math.max(0, r.yr.hi - r.yr.lo) }))

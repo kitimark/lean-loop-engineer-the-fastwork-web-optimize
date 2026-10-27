@@ -157,7 +157,6 @@ const diffImage = (map, W, box, over) => {
 
 const DEADLINE = Date.now() + Number(opt('budget-min', '22')) * 60000;
 if (TIMED && engineName !== 'chromium') {
-  // The wheel did not start a tween on WebKit in run 40585231399 (3 bands took 33 min), so the timed look is a Chromium report only.
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, complete: false, cells: 0, unverified: 0, skipped: 'geom-timed look: its tween does not start from a wheel on this engine (WebKit); Chromium only', rows: [] }, null, 1) + '\n');
   process.stderr.write(`look ${FW} ${engineName}: skipped (timed look is Chromium only)\n`);
@@ -168,7 +167,6 @@ const flag = rewritePathFor(dist, FW);
 const server = await startServer(dist);
 const engine = await LAUNCHERS[engineName]();
 const rows = [];
-// Written after every band so a job timeout keeps the finished bands.
 const flush = (complete) => writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, complete, cells: rows.length, unverified: rows.filter((r) => r.verify && !r.verify.ok).length, rows }, null, 1) + '\n');
 mkdirSync(out, { recursive: true });
 try {
@@ -210,7 +208,6 @@ try {
         const darkFlip = TIMED && m === 0 ? await B.page.evaluate(() => document.querySelector('[data-fw="nav"]').classList.contains('is-on-dark')) : null;
         Object.assign(ra, await A.page.evaluate(pinNav, m));
         if (darkFlip !== null) {
-          // The untouched timed page rests at m=0 at the page bottom, where its engine sets the nav on-dark and reads that class back (run 40594241212: clearing it there stopped the wheel tween). Base copies the class; the arm is not touched. The wait below lets the nav colour transition end.
           await A.page.evaluate((d) => document.querySelector('[data-fw="nav"]').classList.toggle('is-on-dark', d), darkFlip);
           note.navOnDark = darkFlip;
         }

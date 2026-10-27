@@ -1,4 +1,3 @@
-// The look report's decision rules in JS equal the Lean golden (lean/Fw/Parts/MorphGeomLookRule.lean, packages/contracts/golden/morph-geom.jsonl).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
