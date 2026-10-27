@@ -1,10 +1,10 @@
 branch: worktree-wf_e3f8d34f-d4e-1; worktree: .claude/worktrees/wf_e3f8d34f-d4e-1 (CI branch ci/morph-geom at 81d8d6d2c)
 last commit: see git log (round 2 head, after 81d8d6d2c there is the backdrop-premise fix not yet pushed)
 CI runs (push 1 of 3 used; dispatches by `fw run`, logs in scratchpad/morph-geom/*.log of the session):
-- 40427659737 lean: success. 40427659591 premise-tests: FAILED, one finding (below). 40427659517 breakpoint-gate push (no flag): in progress.
+- 40427659737 lean: success. 40427659591 premise-tests: FAILED, one finding (below). 40427659517 breakpoint-gate push (no flag): success.
 - 40428166855 breakpoint-gate dispatch --fw morph.geom:on (both engines): queued at last look.
-- 40428218497 chromium-counts base (push-cycle-d1000, 3 runs); 40428270226 chromium-counts flag morph.geom:on: running.
-- webkit-sim base/flag: first dispatch failed at routing (Codemagic app id unset); re-dispatched with --no-route (wkbase2, wkflag2), no run id read yet. Poll >= 120 s, exit 3 = still waiting.
+- 40428218497 chromium-counts base (push-cycle-d1000, 3 runs): success, filed; 40428270226 chromium-counts flag morph.geom:on: running at last look.
+- webkit-sim (3 VMs each, --no-route because the Codemagic app id is unset): 40428422068 (nonce fb2ce1c6e784643f, base) and 40428440889 (nonce bb4308f135c5f629, flag morph.geom:on), both queued at last look. Wait with `pnpm -s fw ci wait --branch ci/morph-geom --workflow webkit-sim --nonce <n>`, poll >= 120 s, exit 3 = still waiting. Read with `pnpm -s fw run ... --from-run webkit=<id>`.
 verified: check.sh green (slot) at ff41866c1; ci-paths 56/56; runner land-inputs + ledger-merge 114 pass; site morph.geom tests 8 pass; premise-tests static 3 pass; local Chromium debug run of the 4 new premises passed (not a result).
 done this round: veil folded into solid D (Lean layers/anims/Rect, golden 679 lines, TS tracks/tree/css); MorphGeomCounts net bytes per band (fold = 10 of 12 at level 0, 12 of 12 with platform dropped); MorphGeomLook.lean lookup lemmas; earnClip/earnLabel/backdropClip/Kb/Ub wrappers in tree.ts + geom.css; four premises + pages.
 finding: premise backdrop.masked-ancestor does not hold on Playwright WebKit (no backdrop-filter; control stripe edge unblurred). Fixed locally by narrowing to chromium in Premise.lean (committed, not pushed); needs the next push to turn the lane green.
