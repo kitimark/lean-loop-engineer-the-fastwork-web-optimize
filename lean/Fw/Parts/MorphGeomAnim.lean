@@ -89,7 +89,6 @@ def imgRows (c : Ctx) : List ((Nat × Nat) × Rat × Rat) :=
   (c.imgs.zipIdx).flatMap fun (col, i) => (col.zipIdx).map fun ((y, h), j) => ((i, j), y, h)
 
 -- clippers, counters, solid fills, the panel and directly composited images paint nothing: `RenderLayerBacking.cpp:3509-3535,3687-3690@862f17d`
--- the veil is its own layer: it paints above the backdrop pictures while D paints below them, so it cannot be folded into D
 def layers (v : Vp) (c : Ctx) : List Lyr :=
   let W := wp v; let H := hp v
   [⟨"nav", "", W, H, false⟩, ⟨"K0", "nav", 2 * W, 2 * H, false⟩, ⟨"K1", "K0", 2 * W, 2 * H, false⟩,

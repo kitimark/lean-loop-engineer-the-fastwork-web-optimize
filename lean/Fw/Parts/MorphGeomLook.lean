@@ -52,8 +52,6 @@ theorem look_Kb_y (v : Vp) (c : Ctx) : lookFn (anims v c) "Kb" .translate (0, 0)
   unfold lookFn anims
   by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
 
-/-- The veil track: translate x, y and scale x, y are the faithful box's corner and its size ratios, the functions `composed`
-evaluates for `.veil`. -/
 theorem look_veil_x (v : Vp) (c : Ctx) : lookFn (anims v c) "veil" .transformList (0, 0) 0 = some (x0 v) := by
   unfold lookFn anims
   by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
@@ -69,13 +67,9 @@ theorem look_veil_sy (v : Vp) (c : Ctx) :
   unfold lookFn anims
   by_cases h1 : padRuns c.eng = true <;> by_cases h2 : v.w ≤ 720 <;> simp [anim, h1, h2, List.find?_append, List.find?_map, find_map_none, find_false, Function.comp_def]
 
-/-- The veil rectangle the animations draw equals the faithful one at every m in [0, 1]: `composed` reads exactly the
-functions `look_veil_*` name. -/
 theorem veil_rect_base (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) :
     composed v m .veil = faithful v m .veil := rect_eq v hv m h0 h1 .veil
 
-/-- Opacity: no animation of the veil sets opacity (its only animation is the box transform), so the veil keeps the opacity
-the base page gives it, that of the panel group. -/
 theorem veil_no_opacity (v : Vp) (c : Ctx) : ∀ a ∈ anims v c, a.el = "veil" → a.prop = .transformList := by
   intro a ha hel
   unfold anims at ha

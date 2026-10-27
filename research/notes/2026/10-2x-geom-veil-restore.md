@@ -12,7 +12,7 @@ this task's writes, so its heading is not edited here; the lead may mark it). Th
 
 ## What changed
 - Site: tracks.ts veil track (transform, unit), tree.ts TAGS veil, geom.css veil in the no-transition list and the 0 0 origin
-  list, the `display: none` rule removed. Revert of the site part of 6b376eba6 by hand (a git revert conflicted with later edits).
+  list, the `display: none` rule removed. This reverts the site part of 6b376eba6 by hand.
 - Lean: `layers` and `anims` have the veil again (MorphGeomAnim), `flipEls` has it; `Item.veil` with its `faithful`/`composed` rows and the
   `rect_eq` case are back (MorphGeomRect); MorphGeomCounts has the fold shrink again (as a bound) plus exact byte theorems.
 - Golden `morph-geom.jsonl` regenerated (707 lines; 653 sample rows, 12 of them veil).
