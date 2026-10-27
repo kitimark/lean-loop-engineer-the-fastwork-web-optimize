@@ -7,7 +7,7 @@ verified: Lean check.sh green; @fw/site test 8449 pass; ci-paths 56 pass; runner
   push log (results/timed-take-retry/): every push takes the timed path at 390, 430, 1280.
 open: dispatch (lead), after the push of ci/timed-take-retry is green:
   breakpoint gate (see docs/team/tools/fw-run.md for the gate form): --fw morph.geom:on,morph.tween:geom-timed --ref ci/timed-take-retry
-  pnpm -s fw run --engines chromium --target both --profile swipe-touch-v1 --runs 3 --target rewrite --fw morph.geom:on,morph.tween:geom-timed --ref ci/timed-take-retry
+  pnpm -s fw run --engines chromium --profile swipe-touch-v1 --runs 3 --target rewrite --fw morph.geom:on,morph.tween:geom-timed --ref ci/timed-take-retry
   then base vs flag x3 with Lean OffscreenWindows reader (packages/measure-chromium/src/offscreen-windows-cli.mjs).
   Class L look stays the user's review. Why the hit test reads light at 390 in Chromium but dark in WebKit stays open.
 
