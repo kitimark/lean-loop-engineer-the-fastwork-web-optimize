@@ -19,3 +19,4 @@ Verified: nothing yet. Open: everything after the runs (notes, ledger, recount n
 
 STATE (all runs finished, nothing running): note research/notes/2026/10-2x-webkit-recount.md, results/webkit-recount/*.json (5 arms), ledger webkit fields of 5 rows updated. Decided: marquee:probe-off noGain, hero.exit:contain noGain. Undecided n=3+2: entries:probe-off (pass rule gain), layer-sweep (gain, Paint), fill-release (noGain).
 Open: ledger-merge test, check.sh, merge main, plan lint, dry land, review ready. Scratch: wr-scratch is a symlink into the session scratchpad (untracked, never add).
+Done: ledger-merge + land-inputs + ci-paths + measure-webkit tests green; check.sh green; plan lint 0 errors; dry land VERDICT dry webkit-recount. Follow-up: each source note's WebKit table (sweep-layer, fill-release, attribution, hero-relayout) not edited; ledger rows carry the verdicts. No process left running.
