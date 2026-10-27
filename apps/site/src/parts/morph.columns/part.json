@@ -9,7 +9,14 @@
     "faithful": { "kind": "faithful", "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:12887-12935,13125-13152; assets/2.gBuqKVzi.css:10559-10607,10812-10825,10983-10988" } },
     "hidden-pause": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "lean/Fw/Parts/HiddenPause.lean" } },
     "final-scale": { "kind": "proposal", "files": ["index.tsx", "morph.module.css", "scale.ts", "media.ts"], "visClass": "L", "provenance": { "lean": "Fw.Parts.MorphColumnsScale edges_eq, css_eq, a_range, sx_range, radius_bound, squeeze_bound, variant_no_layout, base_width_moves, a_desktop", "limit": "look change (L): at widths up to 1000 px the five columns (three up to 640 px) keep the layout of the final width and a horizontal scale gives them the base edges at every morph value; pictures are squeezed, not re-cropped, by at most 3 % between 314 and 1000 px (the 0.97 bound at 390 px holds, a = 0.9767, proved on the Lean rows); the corner radius is 12 px vertically and 12 times the scale horizontally; heights, the 12 px gap between pictures and the 56 px drift are exact; above 1000 px the arm is the base layout (a desktop bound fails: 0.69 at 1440 px); below 314 px the bound is not proved (0.96 at 280 px)" } },
-    "idle-none": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphIdleNone" } }
+    "idle-none": { "kind": "optimized", "tier": "T0", "provenance": { "lean": "Fw.Parts.MorphIdleNone" } },
+    "probe-off": {
+      "kind": "probe",
+      "provenance": {
+        "lean": "Fw.Preset.V2Proved probe_not_mem, probe_not_isOpt; Fw.Preset.Gen probe_not_mem_lookCandidates",
+        "limit": "measurement only, never in a preset or a look verdict (task phone-cols-probe): the 21 column pictures get visibility hidden; layout, the track layers and their animations are unchanged, so it removes the decode, raster and composite of the pictures and nothing else"
+      }
+    }
   },
   "requires": {},
   "conflicts": {}
