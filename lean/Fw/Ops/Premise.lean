@@ -459,7 +459,17 @@ def registry : List Premise := [
     statement := "for the left and the right dash, at 30 times after a beginElement on a paused SVG timeline (every key-time boundary of the first 5 s cycle (a sample either side of 1, 2, 3, 4, 5) and the later boundaries 6, 10, 11, 12, 15, 16 and 20, none earlier than the one before; every third reached by unpauseAnimations, setCurrentTime, pauseAnimations in one task), every channel of a strip filled by a gradient whose x1 and x2 are a ring of five animate and set pieces per attribute (fill freeze, each beginning at the end of the one before, the first also at indefinite) is within 12 of 255 of the strip filled by the two repeating animate of the original, and the colour band is drawn"
     theorems := ["Fw.Parts.PlatformGlintHold.hold_eq_faithful"]
     engines := both
-    testId := "prem.glint.hold-pixels" }
+    testId := "prem.glint.hold-pixels" },
+  { id := "anim.shared-start"
+    statement := "Web Animations on different elements, created in one task with the same startTime and duration 680 and easing cubic-bezier(1/3, 1, 2/3, 1), have the same currentTime, and each shows its keyframes at the progress 1 - (1 - t/680)^3 (within 1 px of 100)"
+    theorems := ["Fw.Parts.MorphGeomTimed.timed_eq_ideal", "Fw.Parts.MorphGeomTimed.rebase_eval"]
+    engines := both
+    testId := "prem.anim.shared-start" },
+  { id := "anim.reversal-jump"
+    statement := "cancelling a running animation and starting one on the same startTime read in that task, whose first keyframe is the closed-form value of the old one at that time, shows the same translate before and after (within 0.5 px), and the new one follows the ideal tween from there"
+    theorems := ["Fw.Parts.MorphGeomTimed.reverse_continuous", "Fw.Parts.MorphGeomTimed.rebase_eval"]
+    engines := both
+    testId := "prem.anim.reversal-jump" }
 ]
 
 theorem registry_ids_nodup : (registry.map (·.id)).Nodup := by decide

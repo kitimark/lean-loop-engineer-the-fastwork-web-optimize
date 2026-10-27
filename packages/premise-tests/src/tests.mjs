@@ -674,4 +674,61 @@ export const TESTS = [
       return o;
     },
   },
+  {
+    id: 'prem.anim.shared-start', premise: 'anim.shared-start', page: 'anim.shared-start.html',
+    async run({ page }) {
+      const o = await page.evaluate(() => {
+        const EASE = 'cubic-bezier(0.3333333333333333,1,0.6666666666666666,1)';
+        const t0 = document.timeline.currentTime;
+        const rows = [];
+        const as = ['a', 'b', 'c'].map((id, i) => {
+          const e = document.getElementById(id);
+          const a = e.animate([{ translate: '0px 0px' }, { translate: `${100 * (i + 1)}px 0px` }], { duration: 680, easing: EASE, fill: 'backwards' });
+          a.startTime = t0 - 340;
+          return { e, a, k: i + 1 };
+        });
+        const now = document.timeline.currentTime;
+        for (const { e, a, k } of as) {
+          const x = (now - (t0 - 340)) / 680;
+          rows.push({ time: Number(a.currentTime), x, got: Number.parseFloat(getComputedStyle(e).translate) || 0, want: 100 * k * (1 - (1 - x) ** 3) });
+        }
+        return { rows, now };
+      });
+      try {
+        for (const r of o.rows) assert.ok(Math.abs(r.time - o.rows[0].time) < 1e-6, `currentTime ${r.time} vs ${o.rows[0].time}`);
+        for (const r of o.rows) assert.ok(Math.abs(r.got - r.want) < 1, `translate ${r.got} vs ${r.want} (the cubic-bezier(1/3,1,2/3,1) ease)`);
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
+  {
+    id: 'prem.anim.reversal-jump', premise: 'anim.reversal-jump', page: 'anim.reversal-jump.html',
+    async run({ page }) {
+      const o = await page.evaluate(() => {
+        const EASE = 'cubic-bezier(0.3333333333333333,1,0.6666666666666666,1)';
+        const e = document.getElementById('e');
+        const val = () => Number.parseFloat(getComputedStyle(e).translate) || 0;
+        const ideal = (f, g, ms) => f + (g - f) * (1 - (1 - Math.min(1, ms / 680)) ** 3);
+        const t0 = document.timeline.currentTime;
+        const up = e.animate([{ translate: '0px 0px' }, { translate: '100px 0px' }], { duration: 680, easing: EASE, fill: 'backwards' });
+        up.startTime = t0 - 300;
+        const now = document.timeline.currentTime;
+        const before = val();
+        const m0 = ideal(0, 100, now - (t0 - 300));
+        up.cancel();
+        const down = e.animate([{ translate: `${m0}px 0px` }, { translate: '0px 0px' }], { duration: 680, easing: EASE, fill: 'backwards' });
+        down.startTime = now;
+        const after = val();
+        down.startTime = now - 200;
+        const later = val();
+        return { before, m0, after, later, wantLater: ideal(m0, 0, 200) };
+      });
+      try {
+        assert.ok(Math.abs(o.before - o.m0) < 1, `the up set shows the ideal value ${o.before} vs ${o.m0}`);
+        assert.ok(Math.abs(o.after - o.before) < 0.5, `no jump at the reversal: ${o.before} then ${o.after}`);
+        assert.ok(Math.abs(o.later - o.wantLater) < 1, `the rebased set follows the ideal value: ${o.later} vs ${o.wantLater}`);
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
 ];
