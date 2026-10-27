@@ -4,7 +4,7 @@ Question: with the veil layer back in the flip look (main at ca812241f), what ar
 and `morph.geom:on,morph.tween:geom-timed` on the real iPhone, and which kind of work (style, layout, paint, script, commit, idle main thread =
 compositor/GPU) owns each over-50 ms frame and the p95 tail of the flip arms? Same phone (WebKit), same fixed XCUITest push pattern as
 `research/notes/2026/10-2x-phone-morph-push-r2.md`, end segment, one induced thermal state (Serious), raw per-frame timelines kept.
-Every number below is in `results/phone/2026-10-28-flip-p95/{summary.json,attribution.json,tables.md}` (raw lanes in `.local/phone/2026-10-28-flip/`,
+Every number below is in `results/phone-flip-p95/{summary.json,attribution.json,tables.md}` (raw lanes in `.local/phone/2026-10-28-flip/`,
 gitignored). The session ran 2026-10-27 18:58 to 20:26 UTC.
 
 ## What changed (CONFIRMED in code)
