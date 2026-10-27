@@ -22916,7 +22916,13 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-flip-fix.md",
     "results/geom-flip-fix/**",
-    "docs/team/handoffs/geom-flip-fix.md"
+    "docs/team/handoffs/geom-flip-fix.md",
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "packages/premise-tests/src/look.mjs",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "packages/contracts/golden/ci/**"
    ]
   },
   {
