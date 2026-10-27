@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Per-band table for task geom-page-diff: reads the four look JSONs of CI run 40553185213 (ci-40553185213/) and prints
-// markdown to stdout. outside = share of the pixels outside the nav box that differ, derived from the page and nav rows:
-//   outside = (page.share * page.px - nav.share * nav.px) / (page.px - nav.px)   (the nav box lies inside the page box)
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -71,9 +71,8 @@ before installing the `data-fw-morph` observer (index.tsx:83-89); the tween, not
 pages are unflipped and equal. That arm needs the tween to run (task timed-m0-webkit covers the timed cell; the timed look is a follow-up).
 
 ## Lean
-No decision rule is the cause: the regions and the 12-step threshold behave as written, the page region contains the nav region, and
-the difference is a pixel fact of a missing write in glue code (look.mjs is I/O, no decision logic). No Lean lemma or decide example is
-written for it. The fix task should take the fade value from the Lean-generated tween constants (`fade` in `morph.tween/logic`, FADE_END 0.55)
+No decision rule is the cause: the regions and the 12-step threshold behave as written, and the difference is a missing write in
+glue code (look.mjs is I/O, no decision logic). No Lean lemma is written. The fix task should take the fade value from the Lean-generated tween constants (`fade` in `morph.tween/logic`, FADE_END 0.55)
 rather than restate it in the harness.
 
 ## Proposed fix task (new; not done here)
@@ -83,7 +82,6 @@ expected: page share at m=1 <= nav-region level (0.1-3 %). Separately, make look
 Mid-morph picture differences stay with geom-image-model; WebKit timed m=0 stays with timed-m0-webkit.
 
 ## Limits
-- Images are from a local WebKit debug run on this Mac (not Chromium, not CI); the CI numbers are from run 40553185213. No CI push was made:
-  the existing artifacts carry the numbers and the site-dist, and a local run of the same bytes answered the question; the fix task measures on CI.
+- Images are from a local WebKit debug run on this Mac (not Chromium, not CI); the CI numbers are from run 40553185213. No CI push was made; the fix task measures on CI.
 - 641x700 Chromium nav 0.031 is not explained (not run locally).
 - Mid-morph rows (m 0.25-0.75) differ on the whole page for the same reason plus picture scaling; not separated here.

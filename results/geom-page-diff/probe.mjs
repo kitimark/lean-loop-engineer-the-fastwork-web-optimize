@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// Diagnostic for task geom-page-diff (investigation only; not a gate, not a harness change).
-// Replays the look report's capture (packages/premise-tests/src/look.mjs) at m=0 and m=1 for a few bands and adds a third
-// arm "base+fade": the base page pinned the same way, plus the one write the tween driver does and look.mjs does not
-// (--morph-fade on the platform section, apps/site/src/parts/morph.tween/driver.ts:120).
-// Output: per-band JSON (strips, platform probes) and diff PNGs (red = channel difference > 12, grey = equal).
-//   FW_SITE_DIST=<aot dir> node results/geom-page-diff/probe.mjs --engine chromium|playwright-webkit --out <dir> [--bands 390x844,...]
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PIN_SRC } from '../../packages/gate-breakpoints/src/page.mjs';
@@ -47,7 +41,6 @@ function over(a, b, i) {
   const d = Math.max(Math.abs(a.data[i] - b.data[i]), Math.abs(a.data[i + 1] - b.data[i + 1]), Math.abs(a.data[i + 2] - b.data[i + 2]));
   return d > OVER;
 }
-// Share of pixels differing in a region; `skip` (optional rect) is left out of it.
 function share(a, b, rect, skip) {
   let n = 0, c = 0;
   const x0 = Math.max(0, Math.floor(rect.x)), y0 = Math.max(0, Math.floor(rect.y));

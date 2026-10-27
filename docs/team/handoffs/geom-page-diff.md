@@ -11,7 +11,7 @@ Local WebKit debug run (not a result): with the fade written on base, page share
 Verified: numbers per band from the four look JSONs (results/geom-page-diff/bands.md, table.mjs); diff images as text maps in results/geom-page-diff/local-debug/maps.txt (PNGs are refused by the render guard, not committed).
 Other findings: look/timed measures nothing (0 differences; geom-timed branch installs no data-fw-morph observer, index.tsx:65-82); base scroll can land short
 (local 1280x800, scrollY 6074 vs 7794; CI m=0 equal 24 of 24); 641x700 Chromium nav 0.031 unexplained.
-No Lean lemma: no decision rule is the cause (glue code). Writes outside the task's graph writes: results/geom-page-diff/probe.mjs and table.mjs are inside results/geom-page-diff/**; none outside.
+No Lean lemma: no decision rule is the cause (glue code). Writes: results/geom-page-diff/probe.mjs and table.mjs, none outside results/geom-page-diff/**.
 
 Open: fix task geom-look-fade (look.mjs writes the platform fade on base from generated constants, asserts equal scrollY, re-measure on CI over >= 3 jobs; timed look starts a real tween or is dropped).
 Read first: research/notes/2026/10-2x-geom-page-diff.md. Ledger note: research/findings/ledger.json (task geom-page-diff).

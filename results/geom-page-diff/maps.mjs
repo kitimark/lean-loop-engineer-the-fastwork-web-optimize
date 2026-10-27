@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// Text maps of the probe's diff images (the render guard keeps images out of git). Each cell is one block of the page; its
-// character is the share of red (differs by more than 12) pixels in it: ' ' < 5 %, '.' < 25 %, 'o' < 50 %, 'O' < 75 %, '#' >= 75 %.
-// The probe's diff images paint pixels inside the nav box light blue (200, 215, 235), so they never count as red.
-//   node maps.mjs <dir with the probe's img/> > maps.txt
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { decode } from '../../packages/visual-diff/src/diff.mjs';
