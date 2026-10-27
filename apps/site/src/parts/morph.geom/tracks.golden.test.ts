@@ -107,3 +107,15 @@ describe('morph.geom tracks against the Lean golden', () => {
     expect([...MOVE_OPS]).toEqual(lines.find((l) => l.fn === 'move')!.out);
   });
 });
+
+describe('morph.geom grid knots end at 1', () => {
+  // 640x1000 summed to 0.9999999999999999 in floats, so WAAPI ended the track on its neutral value at m = 1 (flip cell run 40508656325)
+  it('every band: first knot 0, last knot exactly 1, strictly increasing', () => {
+    for (const [w, h] of [[320, 568], [390, 844], [640, 360], [640, 1000], [641, 700], [1280, 800], [1920, 1080]]) {
+      const k = gridKnots({ w, h });
+      expect(k[0]).toBe(0);
+      expect(k[k.length - 1]).toBe(1);
+      expect(k.every((x, i) => i === 0 || x > k[i - 1])).toBe(true);
+    }
+  });
+});
