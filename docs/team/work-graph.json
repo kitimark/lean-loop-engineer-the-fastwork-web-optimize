@@ -23085,7 +23085,9 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-phone-cols-probe.md",
     "results/phone-cols-probe/**",
-    "docs/team/handoffs/phone-cols-probe.md"
+    "docs/team/handoffs/phone-cols-probe.md",
+    "apps/site/src/registry/probes.test.ts",
+    "packages/contracts/golden/preset/probes.jsonl"
    ]
   },
   {
