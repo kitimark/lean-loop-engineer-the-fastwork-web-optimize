@@ -1,7 +1,7 @@
 branch: worktree-wf_008d44e4-abb-1 (CI copy ci/timed-take-retry)
 worktree: .claude/worktrees/wf_008d44e4-abb-1
 last commit: 1781540dc (code), handoff commit follows
-CI runs (round 2, dispatched by builder from ci/timed-take-retry at 8e667f5ab): gate run 40503716001 (queued); chromium-counts flag + base swipe-touch-v1 x3 dispatched (ids below when known).
+CI runs (round 2, dispatched by builder from ci/timed-take-retry at 8e667f5ab): gate run 40503716001 success; chromium-counts swipe-touch-v1 x3 base 40503734787 and flag 40503729708 both success; windows read: all noGain (results/timed-take-retry/chromium-windows.md). Round 2 done, awaiting review.
 CI runs (round 1): push of ci/timed-take-retry: 'lean' running (check on push); every other push workflow skipped by its guard. The flagged gate
   and counts are not started (they need dispatch inputs).
 verified: Lean check.sh green; @fw/site test 8449 pass; ci-paths 56 pass; runner land-inputs 73 pass; ledger tests pass; local Chromium
