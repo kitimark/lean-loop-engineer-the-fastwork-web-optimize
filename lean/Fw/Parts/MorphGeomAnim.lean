@@ -1,4 +1,5 @@
 import Fw.Parts.MorphGeomEarn
+import Fw.Parts.MorphGeomPic
 import Fw.Engine.ResourceFlags
 /-! `morph.geom:on`: the flip layers, their Web Animations, the WebKit acceleration rules they meet, end states and
 the backing bytes they add. -/
@@ -33,11 +34,14 @@ inductive PlayDir where
 
 inductive Ks where
   | grid | unit | earn | panel | fade | time
+  /-- Unit knots plus one at the crossing `q` (`kinkKnots`). -/
+  | kink (q : Rat)
   deriving DecidableEq, Repr
 
 def Ks.list (v : Vp) : Ks → List Rat
   | .grid => knots v | .unit => [0, 1] | .earn => earnKnots | .panel => panelKnots | .fade => fadeKnots
   | .time => gridFrom 0 frameMs frames
+  | .kink q => kinkKnots q
 
 def timeEnd : Rat := (frames : Rat) * frameMs
 
@@ -74,7 +78,7 @@ structure Ctx where
   centreH : Rat
   footH : Rat
   platH : Rat
-  imgs : List (List (Rat × Rat))
+  imgs : List (List Pic)
 
 
 structure Lyr where
@@ -85,8 +89,8 @@ structure Lyr where
   backed : Bool
   deriving Repr
 
-def imgRows (c : Ctx) : List ((Nat × Nat) × Rat × Rat) :=
-  (c.imgs.zipIdx).flatMap fun (col, i) => (col.zipIdx).map fun ((y, h), j) => ((i, j), y, h)
+def imgRows (c : Ctx) : List ((Nat × Nat) × Pic) :=
+  (c.imgs.zipIdx).flatMap fun (col, i) => (col.zipIdx).map fun (p, j) => ((i, j), p)
 
 -- clippers, counters, solid fills, the panel and directly composited images paint nothing: `RenderLayerBacking.cpp:3509-3535,3687-3690@862f17d`
 def layers (v : Vp) (c : Ctx) : List Lyr :=
@@ -100,7 +104,11 @@ def layers (v : Vp) (c : Ctx) : List Lyr :=
     ⟨"panel", "U", W, H, false⟩, ⟨"backdropClip", "panel", 53 / 50 * W, H, false⟩,
     ⟨"Kb", "backdropClip", 53 / 50 * W, H, false⟩, ⟨"Ub", "Kb", 53 / 50 * W, H, false⟩] ++
   ((List.range (nCols v).floor.toNat).map fun i => ⟨s!"column{i}", "Ub", cw v 1, H, false⟩) ++
-  ((imgRows c).map fun ((i, j), _, h) => ⟨s!"image{i}.{j}", s!"column{i}", cw v 1, h, false⟩) ++
+  ((List.range (nCols v).floor.toNat).flatMap fun i =>
+    [⟨s!"Kc{i}", s!"column{i}", cw v 1, H, false⟩, ⟨s!"Uc{i}", s!"Kc{i}", cw v 1, H, false⟩]) ++
+  ((imgRows c).flatMap fun ((i, j), p) =>
+    [⟨s!"pic{i}.{j}", s!"Uc{i}", cw v 1, p.h, false⟩,
+      ⟨s!"image{i}.{j}", s!"pic{i}.{j}", (layRect v p).r - (layRect v p).l, (layRect v p).b - (layRect v p).t, false⟩]) ++
   [⟨"veil", "panel", W, H, true⟩, ⟨"centre", "panel", W, c.centreH, true⟩, ⟨"footer", "panel", W, c.footH, true⟩,
     ⟨"footerGrad", "footer", W, c.footH, true⟩, ⟨"footerEnd", "footer", W, c.footH, true⟩,
     ⟨"platform", "", v.w, c.platH, true⟩]
@@ -135,8 +143,10 @@ def anims (v : Vp) (c : Ctx) : List Anim :=
     anim "Kb" .translate .unit [fun x => -(106 / 50) * x0 v x, fun x => ht v x - hp v],
     anim "Ub" .translate .unit [fun x => 106 / 50 * x0 v x, fun x => hp v - ht v x]] ++
   ((List.range (nCols v).floor.toNat).map fun i => anim "column" .translate .unit [colTx v i, fun _ => 0] (i, 0)) ++
-  ((imgRows c).map fun ((i, j), y, _) =>
-    anim "image" .transformList .unit [fun _ => 0, imgTy v j y 0, sImg v, sImg v] (i, j)) ++
+  ((List.range (nCols v).floor.toNat).map fun i => anim "Kc" .translate .unit [kcTx v, fun _ => 0] (i, 0)) ++
+  ((List.range (nCols v).floor.toNat).map fun i => anim "Uc" .translate .unit [fun x => -kcTx v x, fun _ => 0] (i, 0)) ++
+  ((imgRows c).map fun ((i, j), p) =>
+    anim "image" .transformList (.kink (qImg v p)) [imgTx v, fun _ => 0, uImg v p, uImg v p] (i, j)) ++
   [anim "veil" .transformList .unit [x0 v, y0 v, fun x => wd v x / wp v, fun x => ht v x / hp v],
     anim "centre" .translate .unit [fun _ => 0, dP v],
     anim "footer" .translate .unit [x0 v, fun x => y0 v x + ht v x - hp v],
@@ -164,20 +174,23 @@ def accelOne (a : Anim) : Bool :=
 def keysOf (as : List Anim) : List (String × (Nat × Nat) × AnimProp) := as.map fun a => (a.el, a.key, a.prop)
 
 def accelerable (v : Vp) (as : List Anim) : Bool :=
-  as.all accelOne && (keysOf as).Nodup && [Ks.grid, .unit, .earn, .panel, .fade, .time].all (offsetsOk ∘ Ks.offsets v)
+  as.all accelOne && (keysOf as).Nodup && as.all fun a => offsetsOk (a.ks.offsets v)
 
 def flipEls : List String :=
   ["nav", "K0", "K1", "K2", "K3", "U", "G", "D", "bar", "logo", "actions", "lang", "earn", "earnClip", "earnLabel",
-    "panel", "backdropClip", "Kb", "Ub", "column", "image", "veil", "centre", "footer", "footerGrad", "footerEnd",
+    "panel", "backdropClip", "Kb", "Ub", "column", "Kc", "Uc", "image", "veil", "centre", "footer", "footerGrad", "footerEnd",
     "platform"]
 
 def noTransition (as : List Anim) : Bool := as.all fun a => flipEls.contains a.el
+
+/-- Per column: a width-limited, a height-limited and (at desktop bands) a crossing picture. -/
+def samplePics : List Pic := [⟨0, 200, 300, 1000⟩, ⟨200, 200, 2000, 1000⟩, ⟨400, 200, 1100, 1000⟩]
 
 def Ctx.sample (v : Vp) (e : Eng) : Ctx :=
   let ph := phone v.w
   ⟨e, 0, 1, if ph then 16 else 24, if ph then 120 else 160, if ph then 32 else 40, 100,
     if ph then 120 else 144, earnMaxW v false 0, actionsGap v false 1, if ph then 360 else 420,
-    if ph then 160 else 68, v.h, List.replicate (nCols v).floor.toNat [(0, 200), (200, 200), (400, 200)]⟩
+    if ph then 160 else 68, v.h, List.replicate (nCols v).floor.toNat samplePics⟩
 
 theorem accelerable_bands :
     bandVps.all (fun v => [Eng.webkit, .chromium].all fun e => accelerable v (anims v (Ctx.sample v e))) = true := by
@@ -275,9 +288,14 @@ theorem ends_bands : bandVps.all (fun v => allKs.all (endsOk v)) = true := by de
 
 theorem valid_bands : bandVps.all (fun v => decide (320 ≤ v.w ∧ 300 ≤ v.h)) = true := by decide +kernel
 
-theorem track_ends (v : Vp) (hv : v ∈ bandVps) (k : Ks) (f : Rat → Rat) :
+theorem ends_anims :
+    bandVps.all (fun v => [Eng.webkit, .chromium].all fun e =>
+      (anims v (Ctx.sample v e)).all fun a => endsOk v a.ks) = true := by
+  decide +kernel
+
+theorem track_ends (v : Vp) (k : Ks) (hk : endsOk v k = true) (f : Rat → Rat) :
     Track.eval (mk f (k.list v)) 0 = f 0 ∧ Track.eval (mk f (k.list v)) k.last = f k.last := by
-  have h := List.all_eq_true.mp (List.all_eq_true.mp ends_bands v hv) k (by cases k <;> simp [allKs])
+  have h := hk
   unfold endsOk at h
   generalize k.list v = ks at h ⊢
   cases ks with
@@ -292,10 +310,11 @@ theorem nav_ends (v : Vp) (hv : v ∈ bandVps) (m u : Rat) (hm : m = 0 ∨ m = 1
   have hV : 320 ≤ v.w ∧ 300 ≤ v.h := of_decide_eq_true (List.all_eq_true.mp valid_bands v hv)
   have h0 : 0 ≤ m := by grind
   have h1 : m ≤ 1 := by grind
+  have hg : endsOk v .grid = true := List.all_eq_true.mp (List.all_eq_true.mp ends_bands v hv) .grid (by simp [allKs])
   have ev : ∀ f, Track.eval (mk f (knots v)) m = f m := fun f => by
     rcases hm with rfl | rfl
-    · exact (track_ends v hv .grid f).1
-    · exact (track_ends v hv .grid f).2
+    · exact (track_ends v .grid hg f).1
+    · exact (track_ends v .grid hg f).2
   have hs := sU_exact v hV m h0 h1
   have hx := tUx_exact v hV m h0 h1
   have hy := tUy_exact v hV m h0 h1
@@ -303,8 +322,8 @@ theorem nav_ends (v : Vp) (hv : v ∈ bandVps) (m u : Rat) (hm : m = 0 ∨ m = 1
   simp only [ev]
   constructor <;> grind
 
-theorem content_end (v : Vp) (hv : Valid v) (i j : Nat) (Y inset lw : Rat) :
-    x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧ imgTy v j Y 0 1 = 0 ∧
+theorem content_end (v : Vp) (hv : Valid v) (i : Nat) (inset lw : Rat) :
+    x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧ imgTx v 1 = 0 ∧ kcTx v 1 = 0 ∧
       wd v 1 / wp v = 1 ∧ ht v 1 / hp v = 1 ∧ ht v 1 - hp v = 0 ∧ logoT v inset lw 1 = 0 ∧ panelO 1 = 1 ∧
       panelBlur v 1 = 0 := by
   have hw := wd_eq v 1; have hh := ht_eq v 1
@@ -312,7 +331,7 @@ theorem content_end (v : Vp) (hv : Valid v) (i j : Nat) (Y inset lw : Rat) :
   have hx : x0 v 1 = 0 := by unfold x0; grind
   have hy : y0 v 1 = 0 := by unfold y0; grind
   have hsI : sImg v 1 = 1 := by unfold sImg; exact div_one_of _ (by grind)
-  refine ⟨hx, hy, by unfold dP; grind, by unfold pS; grind, hsI, by unfold colTx; grind, by unfold imgTy; grind,
+  refine ⟨hx, hy, by unfold dP; grind, by unfold pS; grind, hsI, by unfold colTx; grind, by unfold imgTx; grind, by unfold kcTx; grind,
     by rw [show wd v 1 = wp v by grind]; exact div_one_of _ (by grind),
     by rw [show ht v 1 = hp v by grind]; exact div_one_of _ (by grind), by grind,
     by unfold logoT logoLeft; grind, by decide +kernel, ?_⟩
@@ -323,12 +342,17 @@ theorem end_eq (v : Vp) (hv : v ∈ bandVps) :
     (∀ a ∈ anims v (Ctx.sample v .webkit) ++ anims v (Ctx.sample v .chromium), ∀ f ∈ a.fns,
       Track.eval (mk f (a.ks.list v)) 0 = f 0 ∧ Track.eval (mk f (a.ks.list v)) a.ks.last = f a.ks.last) ∧
     (∀ m u, (m = 0 ∨ m = 1) → navX v m u = u ∧ navY v m u = u) ∧
-    (∀ i j Y inset lw, x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧
-      imgTy v j Y 0 1 = 0 ∧ wd v 1 / wp v = 1 ∧ ht v 1 / hp v = 1 ∧ ht v 1 - hp v = 0 ∧ logoT v inset lw 1 = 0 ∧
+    (∀ i inset lw, x0 v 1 = 0 ∧ y0 v 1 = 0 ∧ dP v 1 = 0 ∧ pS 1 = 1 ∧ sImg v 1 = 1 ∧ colTx v i 1 = 0 ∧
+      imgTx v 1 = 0 ∧ kcTx v 1 = 0 ∧ wd v 1 / wp v = 1 ∧ ht v 1 / hp v = 1 ∧ ht v 1 - hp v = 0 ∧ logoT v inset lw 1 = 0 ∧
       panelO 1 = 1 ∧ panelBlur v 1 = 0) := by
   have hV : 320 ≤ v.w ∧ 300 ≤ v.h := of_decide_eq_true (List.all_eq_true.mp valid_bands v hv)
-  exact ⟨fun a _ f _ => track_ends v hv a.ks f, fun m u hm => nav_ends v hv m u hm,
-    fun i j Y inset lw => content_end v hV i j Y inset lw⟩
+  refine ⟨fun a ha f _ => track_ends v a.ks ?_ f, fun m u hm => nav_ends v hv m u hm,
+    fun i inset lw => content_end v hV i inset lw⟩
+  have h := List.all_eq_true.mp (List.all_eq_true.mp ends_anims v hv)
+  simp only [List.mem_append] at ha
+  rcases ha with ha | ha
+  · exact List.all_eq_true.mp (h .webkit (by simp)) a ha
+  · exact List.all_eq_true.mp (h .chromium (by simp)) a ha
 
 #guard endsOk ⟨390, 844⟩ .grid && endsOk ⟨390, 844⟩ .time && Ks.last .time == 1500
 

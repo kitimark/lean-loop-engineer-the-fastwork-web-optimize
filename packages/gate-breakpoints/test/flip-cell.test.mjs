@@ -32,3 +32,11 @@ test('an earn button 8 px high (A3b) and a language button 6 px high (A3c) fail'
 test('a wrong column count fails', () => {
   assert.ok(judgeRects(ok, { ...ok, columns: [ok.columns[0]] }, band, 1).some((b) => b.startsWith('columns:')));
 });
+
+test('pictures: the drawn rectangle and the crop window are compared on all four edges (y relative to the crop top)', () => {
+  const pic = { ...ok, images: [r(-10, -20, 120, 240)], crops: [r(0, 0, 100, 200)] };
+  assert.deepEqual(judgeRects(pic, pic, band, 1), []);
+  assert.ok(judgeRects(pic, { ...pic, images: [r(-10, -20, 120, 200)] }, band, 1).some((b) => b.startsWith('image0')));
+  assert.ok(judgeRects(pic, { ...pic, crops: [r(0, 0, 100, 100)] }, band, 1).some((b) => b.startsWith('crop0')));
+  assert.ok(judgeRects(pic, { ...pic, crops: [r(0, 0, 80, 200)] }, band, 1).some((b) => b.startsWith('crop0')));
+});

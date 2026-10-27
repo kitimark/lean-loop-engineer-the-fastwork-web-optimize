@@ -9,7 +9,8 @@
   .is-flip [data-mg='U'], .is-flip [data-mg='G'], .is-flip [data-mg='D'], .is-flip [data-mg='bar'], .is-flip [data-mg='logo'],
   .is-flip [data-mg='actions'], .is-flip [data-mg='lang'], .is-flip [data-mg='earn'], .is-flip [data-mg='earnClip'],
   .is-flip [data-mg='earnLabel'], .is-flip [data-mg='panel'], .is-flip [data-mg='backdropClip'], .is-flip [data-mg='Kb'],
-  .is-flip [data-mg='Ub'], .is-flip [data-mg='column'], .is-flip [data-mg='image'], .is-flip [data-mg='veil'],
+  .is-flip [data-mg='Ub'], .is-flip [data-mg='column'], .is-flip [data-mg='Kc'], .is-flip [data-mg='Uc'],
+  .is-flip [data-mg='image'], .is-flip [data-mg='veil'],
   .is-flip [data-mg='centre'], .is-flip [data-mg='footer'], .is-flip [data-mg='footerGrad'], .is-flip [data-mg='footerEnd'],
   .is-flip [data-mg='platform'] {
     transition: none;
@@ -100,7 +101,11 @@
     translate: none;
     margin-left: calc(var(--mg-logo-w, 0px) / -2);
   }
-  [data-mg='image'], [data-mg='veil'], [data-mg='footerGrad'], [data-mg='backdropClip'] {
+  [data-mg='veil'], [data-mg='footerGrad'], [data-mg='backdropClip'] {
     transform-origin: 0 0;
   }
+  /* column pictures (Lean MorphGeomPic): Kc moves its right edge and Uc moves back; the pic box clips the other edges */
+  [data-mg='Kc'] { overflow: hidden; padding-block: 64px; margin-block: -64px; }
+  [data-mg='pic'] { position: relative; flex: none; overflow: hidden; border-radius: 12px; }
+  .is-flip [data-mg='image'] { position: absolute; left: var(--pic-l); top: var(--pic-t); width: var(--pic-w); height: var(--pic-h) !important; max-width: none; object-fit: fill; border-radius: 0; transform-origin: 50% 50%; }
 }

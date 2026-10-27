@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { LEAVE_OPS, MOVE_OPS } from './tree';
-import { buildAnims, evalAt, gridKnots, keyframes, selector, TIME_END, type Eng, type Layout, type Prop } from './tracks';
+import { buildAnims, cw, evalAt, gridKnots, keyframes, selector, TIME_END, type Eng, type Layout, type Prop } from './tracks';
+import { cropAt, drawn, xform } from './pic';
 
 const lines = readFileSync(resolve(__dirname, '../../../../../packages/contracts/golden/morph-geom.jsonl'), 'utf8')
   .trim()
@@ -23,7 +24,7 @@ function sample(w: number, eng: Eng): Layout {
     lw: ph ? 120 : 144,
     w0: ph ? 152 : 176,
     gL: 0,
-    imgs: Array.from({ length: cols }, () => [[0, 200], [200, 200], [400, 200]]),
+    imgs: Array.from({ length: cols }, () => [[0, 200, 300, 1000], [200, 200, 2000, 1000], [400, 200, 1100, 1000]]),
   };
 }
 
@@ -41,7 +42,7 @@ describe('morph.geom tracks against the Lean golden', () => {
 
   it('every sample line is reproduced within 1e-6', () => {
     const rows = lines.filter((l) => l.fn === 'sample');
-    expect(rows.length).toBe(653);
+    expect(rows.length).toBe(749);
     const cache = new Map<string, ReturnType<typeof buildAnims>>();
     for (const r of rows) {
       const i = r.in as { w: number; h: number; eng: Eng; el: string; i: number; j: number; prop: Prop; ks: string };
@@ -98,7 +99,7 @@ describe('morph.geom tracks against the Lean golden', () => {
   it('geom.css holds the flip layout rules of the golden (A1 flex row, A3b earn transform, A3c actions box)', () => {
     const css = readFileSync(resolve(__dirname, 'geom.css'), 'utf8').replace(/'/g, '"').replace(/\s+/g, ' ');
     const rules = lines.find((l) => l.fn === 'layout')!.out as string[];
-    expect(rules.length).toBe(3);
+    expect(rules.length).toBe(6);
     for (const r of rules) expect(css, r).toContain(r);
   });
 
@@ -115,6 +116,62 @@ describe('morph.geom grid knots end at 1', () => {
       expect(k[0]).toBe(0);
       expect(k[k.length - 1]).toBe(1);
       expect(k.every((x, i) => i === 0 || x > k[i - 1])).toBe(true);
+    }
+  });
+});
+
+describe('morph.geom pictures against the Lean object-fit model', () => {
+  const rows = lines.filter((l) => l.fn === 'pic');
+  const near = (got: { l: number; t: number; r: number; b: number }, want: number[], tol: number, what: string) => {
+    expect(Math.abs(got.l - want[0]), `${what} l`).toBeLessThan(tol);
+    expect(Math.abs(got.t - want[1]), `${what} t`).toBeLessThan(tol);
+    expect(Math.abs(got.r - want[2]), `${what} r`).toBeLessThan(tol);
+    expect(Math.abs(got.b - want[3]), `${what} b`).toBeLessThan(tol);
+  };
+
+  it('has 3 pictures in each of the 12 bands', () => {
+    expect(rows.length).toBe(36);
+  });
+
+  it('the cover rectangle at rest equals the golden', () => {
+    for (const r of rows) {
+      const i = r.in as { w: number; h: number; iw: number; ih: number; boxH: number };
+      const o = r.out as { lay: number[] };
+      near(drawn(cw({ w: i.w, h: i.h }, 1), i.boxH, i.iw, i.ih), o.lay, 1e-5, `${i.w}x${i.h} ${i.iw}`);
+    }
+  });
+
+  it('the flip tracks draw the base picture rectangle and crop window at every sample m (the unit of decision)', () => {
+    for (const r of rows) {
+      const i = r.in as { w: number; h: number; iw: number; ih: number; boxH: number };
+      const o = r.out as { lay: number[]; pic: number[][]; crop: number[][] };
+      const v = { w: i.w, h: i.h };
+      const lay: Layout = { ...sample(i.w, 'webkit'), imgs: [[[0, i.boxH, i.iw, i.ih]]] };
+      const as = buildAnims(v, lay);
+      const img = as.find((a) => a.el === 'image' && a.i === 0 && a.j === 0)!;
+      const kc = as.find((a) => a.el === 'Kc' && a.i === 0)!;
+      const uc = as.find((a) => a.el === 'Uc' && a.i === 0)!;
+      const rest = drawn(cw(v, 1), i.boxH, i.iw, i.ih);
+      M.forEach((m, p) => {
+        const at = (a: (typeof as)[number], f: number) => evalAt(a, f, m);
+        const got = xform(rest, at(img, 0), at(img, 1), at(img, 2), at(img, 3));
+        near(got, o.pic[p], 1e-4, `${i.w}x${i.h} ${i.iw} m${m} picture`);
+        near(cropAt(at(kc, 0), cw(v, 1), i.boxH), o.crop[p], 1e-4, `${i.w}x${i.h} m${m} crop`);
+        expect(at(uc, 0) + at(kc, 0), 'Uc undoes Kc').toBeCloseTo(0, 9);
+        expect(at(img, 2)).toBe(at(img, 3));
+      });
+    }
+  });
+
+  it('the picture track has a knot at the crossing only inside (0, 1)', () => {
+    for (const r of rows) {
+      const i = r.in as { w: number; h: number; iw: number; ih: number; boxH: number };
+      const q = (r.out as { q: number }).q;
+      const lay: Layout = { ...sample(i.w, 'webkit'), imgs: [[[0, i.boxH, i.iw, i.ih]]] };
+      const img = buildAnims({ w: i.w, h: i.h }, lay).find((a) => a.el === 'image')!;
+      expect(img.ks).toBe('kink');
+      expect(img.offsets.length).toBe(q > 0 && q < 1 ? 3 : 2);
+      if (q > 0 && q < 1) expect(Math.abs(img.offsets[1] - q)).toBeLessThan(1e-5);
     }
   });
 });

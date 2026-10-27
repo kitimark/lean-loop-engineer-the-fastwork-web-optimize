@@ -617,11 +617,11 @@ theorem lastP_mk (f : Rat → Rat) : ∀ (ps : List Rat) (p : Rat), lastP p (mk 
     rw [ih]
     cases r <;> simp [lastL]
 
-theorem commit_eq (v : Fw.Parts.Nav.Vp) (hv : v ∈ bandVps) (k : Ks) (hk : k ≠ .time) (f : Rat → Rat) (m0 : Rat)
+theorem commit_eq (v : Fw.Parts.Nav.Vp) (k : Ks) (he : endsOk v k = true) (hk : k ≠ .time) (f : Rat → Rat) (m0 : Rat)
     (h0 : 0 ≤ m0) (h1 : m0 ≤ 1) :
     (m0 ≠ 1 → Track.eval (rebase (mk f (k.list v)) m0 1) 1 = f k.last) ∧
     (m0 ≠ 0 → Track.eval (rebase (mk f (k.list v)) m0 0) 1 = f 0) := by
-  have h := List.all_eq_true.mp (List.all_eq_true.mp ends_bands v hv) k (by cases k <;> simp [allKs])
+  have h := he
   have hl1 : k.last = 1 := by unfold Ks.last; simp [hk]
   unfold endsOk at h
   generalize k.list v = ks at h ⊢

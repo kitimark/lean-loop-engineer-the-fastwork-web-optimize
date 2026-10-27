@@ -3,7 +3,7 @@ import { createGeomDriver, M_DURATION, timeOf, type AnimHandle, type GeomEnv } f
 import { TIME_END, type Anim, type Layout } from './tracks';
 import { tween } from '../morph.tween/logic';
 
-const layout: Layout = { eng: 'webkit', a: 0, b: 1, inset: 24, logoW: 160, lw: 144, w0: 176, gL: 0, imgs: [[[0, 200]]] };
+const layout: Layout = { eng: 'webkit', a: 0, b: 1, inset: 24, logoW: 160, lw: 144, w0: 176, gL: 0, imgs: [[[0, 200, 300, 1000]]] };
 
 function fake(allowed = true) {
   const log: string[] = [];

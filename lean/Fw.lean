@@ -84,6 +84,7 @@ import Fw.Parts.MorphIdleNone
 import Fw.Parts.MorphColumnsScale
 import Fw.Parts.MorphGeom
 import Fw.Parts.MorphGeomRect
+import Fw.Parts.MorphGeomPic
 import Fw.Parts.MorphGeomEarn
 import Fw.Parts.MorphGeomAnim
 import Fw.Parts.MorphGeomCounts

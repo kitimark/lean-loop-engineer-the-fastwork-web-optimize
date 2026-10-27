@@ -30,9 +30,34 @@ export function readRects() {
   }
   const cols = [...document.querySelectorAll('[data-fw="morph-columns"] > div')].filter((c) => getComputedStyle(c).display !== 'none');
   const lang = nav.querySelector('[data-fw="nav-actions"] > :first-child');
+  // Each picture is read as two rectangles with y relative to the crop window's top (the track drifts on its own clock, so
+  // absolute y differs between two live pages): the drawn picture and the crop window. Base: the object-fit: cover rectangle
+  // of the img box, and the box. Flip: the img (object-fit: fill), and the pic box cut by the column clipper Kc.
+  const pictures = cols.flatMap((c) =>
+    [...c.querySelectorAll('img')].map((img) => {
+      const r = rect(img);
+      const pic = img.parentElement && img.parentElement.dataset.mg === 'pic' ? img.parentElement : null;
+      let crop = r;
+      let drawn = r;
+      if (pic) {
+        const b = rect(pic);
+        const kc = pic.closest('[data-mg="Kc"]');
+        const k = kc ? rect(kc) : b;
+        const x = Math.max(b.x, k.x);
+        crop = { x, y: b.y, width: Math.min(b.x + b.width, k.x + k.width) - x, height: b.height };
+      } else if (img.naturalWidth && img.naturalHeight) {
+        const k = Math.max(r.width / img.naturalWidth, r.height / img.naturalHeight);
+        const w = img.naturalWidth * k;
+        const h = img.naturalHeight * k;
+        drawn = { x: r.x + (r.width - w) / 2, y: r.y + (r.height - h) / 2, width: w, height: h };
+      }
+      return { drawn: { ...drawn, y: drawn.y - crop.y }, crop: { ...crop, y: 0 } };
+    }),
+  );
   return {
     columns: cols.map(rect),
-    images: cols.flatMap((c) => [...c.querySelectorAll('img')].map(rect)),
+    images: pictures.map((p) => p.drawn),
+    crops: pictures.map((p) => p.crop),
     pill,
     lang: rect(lang),
     earn: rect(nav.querySelector('[data-fw="nav-earn"]')),
@@ -61,7 +86,9 @@ export function judgeRects(base, flag, band, tolPx, settled = true, expectFlip =
   cmp('actions', base.actions, flag.actions, [2]);
   if (base.images.length !== flag.images.length) bad.push(`images: ${flag.images.length}, base ${base.images.length}`);
   const n = Math.min(base.images.length, flag.images.length);
-  for (let i = 0; i < n; i++) cmp(`image${i}`, base.images[i], flag.images[i], [0, 2]);
+  for (let i = 0; i < n; i++) cmp(`image${i}`, base.images[i], flag.images[i]);
+  const nc = Math.min((base.crops ?? []).length, (flag.crops ?? []).length);
+  for (let i = 0; i < nc; i++) cmp(`crop${i}`, base.crops[i], flag.crops[i]);
   const m = Math.min(base.columns.length, flag.columns.length);
   for (let i = 0; i < m; i++) cmp(`column${i}`, base.columns[i], flag.columns[i], [0]);
   for (let i = 1; i < flag.columns.length; i++) {

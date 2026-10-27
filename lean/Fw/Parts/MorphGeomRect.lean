@@ -49,8 +49,6 @@ def sImg (v : Vp) (m : Rat) : Rat := cw v m / cw v 1
 
 def colTx (v : Vp) (i : Nat) (m : Rat) : Rat := (i : Rat) * (cw v m - cw v 1)
 
-def imgTy (v : Vp) (j : Nat) (Y gv : Rat) (m : Rat) : Rat := (sImg v m - 1) * (Y - (j : Rat) * gv)
-
 theorem cw1_pos (v : Vp) (hv : Valid v) : 0 < cw v 1 := by
   obtain ⟨hv1, _⟩ := hv
   have s := sizes v
@@ -78,16 +76,11 @@ theorem aff_colTx (v : Vp) (i : Nat) : Aff (colTx v i) := by
   obtain ⟨a, b, h⟩ := aff_cw v
   exact ⟨(i : Rat) * (a - cw v 1), (i : Rat) * b, fun x => by unfold colTx; rw [h x]; grind⟩
 
-theorem aff_imgTy (v : Vp) (j : Nat) (Y gv : Rat) : Aff (imgTy v j Y gv) := by
-  obtain ⟨a, b, h⟩ := aff_sImg v
-  exact ⟨(a - 1) * (Y - (j : Rat) * gv), b * (Y - (j : Rat) * gv), fun x => by unfold imgTy; rw [h x]; grind⟩
-
 
 inductive Item where
   | bar
   | actions
   | column (i : Nat)
-  | image (i j : Nat) (Y h gv : Rat)
   | veil
   | centre
   | footer (fh : Rat)
@@ -100,9 +93,6 @@ def faithful (v : Vp) (m : Rat) : Item → List Rat
   | .bar => [y0 v m, y0 v m + pillH v]
   | .actions => [x0 v m + wd v m - 8, y0 v m + pillH v / 2]
   | .column i => [(i : Rat) * (cw v m + colGap v), (i : Rat) * (cw v m + colGap v) + cw v m]
-  | .image i j Y h gv =>
-    [(i : Rat) * (cw v m + colGap v), sImg v m * (Y - (j : Rat) * gv) + (j : Rat) * gv,
-      (i : Rat) * (cw v m + colGap v) + cw v m, sImg v m * (Y - (j : Rat) * gv) + (j : Rat) * gv + sImg v m * h]
   | .veil => [x0 v m, y0 v m, x0 v m + wd v m, y0 v m + ht v m]
   | .centre => [x0 v m + wd v m / 2, y0 v m + ht v m / 2]
   | .footer fh => [x0 v m, y0 v m + ht v m - fh, y0 v m + ht v m]
@@ -117,10 +107,6 @@ def composed (v : Vp) (m : Rat) : Item → List Rat
   | .column i =>
     [(i : Rat) * (cw v 1 + colGap v) + ev (colTx v i) m,
       (i : Rat) * (cw v 1 + colGap v) + ev (colTx v i) m + ev (sImg v) m * cw v 1]
-  | .image i j Y h gv =>
-    [(i : Rat) * (cw v 1 + colGap v) + ev (colTx v i) m, Y + ev (imgTy v j Y gv) m,
-      (i : Rat) * (cw v 1 + colGap v) + ev (colTx v i) m + ev (sImg v) m * cw v 1,
-      Y + ev (imgTy v j Y gv) m + ev (sImg v) m * h]
   | .veil =>
     [ev (x0 v) m, ev (y0 v) m, ev (x0 v) m + ev (fun x => wd v x / wp v) m * wp v,
       ev (y0 v) m + ev (fun x => ht v x / hp v) m * hp v]
@@ -181,13 +167,6 @@ theorem rect_eq (v : Vp) (hv : Valid v) (m : Rat) (h0 : 0 ≤ m) (h1 : m ≤ 1) 
     simp only [composed, faithful, et, es]
     unfold colTx sImg
     have : cw v m / cw v 1 * cw v 1 = cw v m := Rat.div_mul_cancel (by grind)
-    grind
-  | image i j Y h gv =>
-    have et := ev_eq _ (aff_colTx v i) m h0 h1
-    have ey := ev_eq _ (aff_imgTy v j Y gv) m h0 h1
-    simp only [composed, faithful, et, es, ey]
-    unfold colTx imgTy
-    have : sImg v m * cw v 1 = cw v m := by unfold sImg; exact Rat.div_mul_cancel (by grind)
     grind
   | veil =>
     simp only [composed, faithful, ex0, ey0, ewd, eht]

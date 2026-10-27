@@ -85,13 +85,34 @@ theorem look_column (v : Vp) (c : Ctx) (i : Nat) (hi : i < (nCols v).floor.toNat
   unfold anims
   split <;> split <;> simp only [List.mem_append] <;> grind
 
-theorem look_image (v : Vp) (c : Ctx) (i j : Nat) (Y h : Rat) (hm : ((i, j), Y, h) ∈ imgRows c) :
-    ∃ a ∈ anims v c, a.el = "image" ∧ a.key = (i, j) ∧ a.prop = .transformList ∧ a.fns[1]? = some (imgTy v j Y 0) ∧
-      a.fns[2]? = some (sImg v) := by
-  refine ⟨anim "image" .transformList .unit [fun _ => 0, imgTy v j Y 0, sImg v, sImg v] (i, j), ?_, rfl, rfl, rfl, rfl, rfl⟩
-  have hw : anim "image" .transformList .unit [fun _ => 0, imgTy v j Y 0, sImg v, sImg v] (i, j) ∈
-      (imgRows c).map fun ((i, j), y, _) => anim "image" .transformList .unit [fun _ => 0, imgTy v j y 0, sImg v, sImg v] (i, j) :=
-    List.mem_map.mpr ⟨((i, j), Y, h), hm, rfl⟩
+theorem look_image (v : Vp) (c : Ctx) (i j : Nat) (p : Pic) (hm : ((i, j), p) ∈ imgRows c) :
+    ∃ a ∈ anims v c, a.el = "image" ∧ a.key = (i, j) ∧ a.prop = .transformList ∧ a.ks = .kink (qImg v p) ∧
+      a.fns[0]? = some (imgTx v) ∧ a.fns[1]? = some (fun _ => 0) ∧ a.fns[2]? = some (uImg v p) ∧
+      a.fns[3]? = some (uImg v p) := by
+  refine ⟨anim "image" .transformList (.kink (qImg v p)) [imgTx v, fun _ => 0, uImg v p, uImg v p] (i, j), ?_,
+    rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+  have hw : anim "image" .transformList (.kink (qImg v p)) [imgTx v, fun _ => 0, uImg v p, uImg v p] (i, j) ∈
+      (imgRows c).map fun ((i, j), p) =>
+        anim "image" .transformList (.kink (qImg v p)) [imgTx v, fun _ => 0, uImg v p, uImg v p] (i, j) :=
+    List.mem_map.mpr ⟨((i, j), p), hm, rfl⟩
+  unfold anims
+  split <;> split <;> simp only [List.mem_append] <;> grind
+
+theorem look_Kc (v : Vp) (c : Ctx) (i : Nat) (hi : i ∈ List.range (nCols v).floor.toNat) :
+    ∃ a ∈ anims v c, a.el = "Kc" ∧ a.key = (i, 0) ∧ a.prop = .translate ∧ a.fns[0]? = some (kcTx v) := by
+  refine ⟨anim "Kc" .translate .unit [kcTx v, fun _ => 0] (i, 0), ?_, rfl, rfl, rfl, rfl⟩
+  have hw : anim "Kc" .translate .unit [kcTx v, fun _ => 0] (i, 0) ∈
+      (List.range (nCols v).floor.toNat).map fun i => anim "Kc" .translate .unit [kcTx v, fun _ => 0] (i, 0) :=
+    List.mem_map.mpr ⟨i, hi, rfl⟩
+  unfold anims
+  split <;> split <;> simp only [List.mem_append] <;> grind
+
+theorem look_Uc (v : Vp) (c : Ctx) (i : Nat) (hi : i ∈ List.range (nCols v).floor.toNat) :
+    ∃ a ∈ anims v c, a.el = "Uc" ∧ a.key = (i, 0) ∧ a.prop = .translate ∧ a.fns[0]? = some (fun x => -kcTx v x) := by
+  refine ⟨anim "Uc" .translate .unit [fun x => -kcTx v x, fun _ => 0] (i, 0), ?_, rfl, rfl, rfl, rfl⟩
+  have hw : anim "Uc" .translate .unit [fun x => -kcTx v x, fun _ => 0] (i, 0) ∈
+      (List.range (nCols v).floor.toNat).map fun i => anim "Uc" .translate .unit [fun x => -kcTx v x, fun _ => 0] (i, 0) :=
+    List.mem_map.mpr ⟨i, hi, rfl⟩
   unfold anims
   split <;> split <;> simp only [List.mem_append] <;> grind
 

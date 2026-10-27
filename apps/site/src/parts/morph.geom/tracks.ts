@@ -1,8 +1,9 @@
 import { tween } from '../morph.tween/logic';
+import { coverK, kinkKnots } from './pic';
 
 export type Eng = 'webkit' | 'chromium';
 export type Prop = 'translate' | 'scale' | 'transform' | 'opacity' | 'filter' | 'backdrop-filter';
-export type Ks = 'grid' | 'unit' | 'earn' | 'panel' | 'fade' | 'time';
+export type Ks = 'grid' | 'unit' | 'earn' | 'panel' | 'fade' | 'time' | 'kink';
 
 export interface Vp {
   w: number;
@@ -18,7 +19,8 @@ export interface Layout {
   lw: number;
   w0: number;
   gL: number;
-  imgs: [number, number][][];
+  /** per column, per picture: top in the track, box height, intrinsic width, intrinsic height (absent: the box's own aspect) */
+  imgs: [number, number, number?, number?][][];
 }
 
 export interface Anim {
@@ -50,7 +52,7 @@ const rad = (v: Vp, m: number) => Math.min(32 - 12 * m, ht(v, m) / 2, wd(v, m) /
 const earnOut = (m: number) => clamp01(m / DARK_CUT);
 const dP = (v: Vp, m: number) => y0(v, m) + ht(v, m) / 2 - hp(v) / 2;
 const nCols = (v: Vp) => (phone(v.w) ? 3 : 5);
-const cw = (v: Vp, m: number) => (1.06 * wd(v, m) - (nCols(v) - 1) * (phone(v.w) ? 8 : 12)) / nCols(v);
+export const cw = (v: Vp, m: number) => (1.06 * wd(v, m) - (nCols(v) - 1) * (phone(v.w) ? 8 : 12)) / nCols(v);
 const panelO = (m: number) => clamp01((m - 0.08) / 0.72);
 const fade = (m: number) => 1 - Math.min(1, m / 0.55);
 const mKnot = (v: Vp) => 12 / (v.h - 52);
@@ -64,7 +66,7 @@ export function gridKnots(v: Vp): number[] {
   return [...Array.from({ length: n1 }, (_, i) => i * a), ...from(mk, (1 - mk) / 320, 320)];
 }
 
-const KNOTS: Record<Exclude<Ks, 'grid'>, number[]> = {
+const KNOTS: Record<Exclude<Ks, 'grid' | 'kink'>, number[]> = {
   unit: [0, 1],
   earn: [0, 0.2, 1],
   panel: [0, 0.08, 0.8, 1],
@@ -110,8 +112,8 @@ const padRuns = (e: Eng) => e === 'chromium';
 export function buildAnims(v: Vp, c: Layout): Anim[] {
   const ph = phone(v.w);
   const grid = gridKnots(v);
-  const one = (el: string, prop: Prop, ks: Ks, fns: ((x: number) => number)[], key: [number, number] = [0, 0]): Anim => {
-    const xs = ks === 'grid' ? grid : KNOTS[ks];
+  const one = (el: string, prop: Prop, ks: Ks, fns: ((x: number) => number)[], key: [number, number] = [0, 0], kink?: number[]): Anim => {
+    const xs = ks === 'grid' ? grid : ks === 'kink' ? (kink as number[]) : KNOTS[ks];
     return { el, i: key[0], j: key[1], prop, ks, offsets: ks === 'time' ? xs.map((t) => t / TIME_END) : xs, values: fns.map((f) => xs.map(f)) };
   };
   const zero = () => 0;
@@ -167,7 +169,17 @@ export function buildAnims(v: Vp, c: Layout): Anim[] {
     one('Ub', 'translate', 'unit', [(m) => 2.12 * x0(v, m), (m) => hp(v) - ht(v, m)]),
   );
   for (let i = 0; i < nCols(v); i++) out.push(one('column', 'translate', 'unit', [(m) => i * (cw(v, m) - cw(v, 1)), zero], [i, 0]));
-  c.imgs.forEach((col, i) => col.forEach(([y], j) => out.push(one('image', 'transform', 'unit', [zero, (m) => (s(m) - 1) * y, s, s], [i, j]))));
+  const c1 = cw(v, 1);
+  for (let i = 0; i < nCols(v); i++) out.push(one('Kc', 'translate', 'unit', [(m) => (s(m) - 1) * c1, zero], [i, 0]));
+  for (let i = 0; i < nCols(v); i++) out.push(one('Uc', 'translate', 'unit', [(m) => -(s(m) - 1) * c1, zero], [i, 0]));
+  c.imgs.forEach((col, i) =>
+    col.forEach(([, h, iw = c1, ih = h], j) => {
+      const k1 = coverK(c1, h, iw, ih);
+      const u = (m: number) => coverK(cw(v, m), h, iw, ih) / k1;
+      const q = (iw * h / ih - cw(v, 0)) / (c1 - cw(v, 0));
+      out.push(one('image', 'transform', 'kink', [(m) => ((s(m) - 1) * c1) / 2, zero, u, u], [i, j], kinkKnots(q)));
+    }),
+  );
   out.push(
     one('veil', 'transform', 'unit', [(m) => x0(v, m), (m) => y0(v, m), (m) => wd(v, m) / wp(v), (m) => ht(v, m) / hp(v)]),
     one('centre', 'translate', 'unit', [zero, (m) => dP(v, m)]),
@@ -218,5 +230,5 @@ export function keyframes(a: Anim): Kf[] {
 
 export function selector(a: Anim): string {
   const b = `[data-mg="${a.el}"]`;
-  return a.el === 'column' ? `${b}[data-i="${a.i}"]` : a.el === 'image' ? `${b}[data-i="${a.i}"][data-j="${a.j}"]` : b;
+  return a.el === 'column' || a.el === 'Kc' || a.el === 'Uc' ? `${b}[data-i="${a.i}"]` : a.el === 'image' ? `${b}[data-i="${a.i}"][data-j="${a.j}"]` : b;
 }

@@ -1,4 +1,5 @@
-import { hp, wp, type Layout, type Vp } from './tracks';
+import { cw, hp, wp, type Layout, type Vp } from './tracks';
+import { drawn, type Rc } from './pic';
 
 export const FLIP_CLASS = 'is-flip';
 export const QUIET_CLASS = 'is-flip-quiet';
@@ -19,9 +20,10 @@ const TAGS: [string, string][] = [
   ['footerEnd', '[data-fw-role="footer-end"]'],
 ];
 
-const el = (tag = 'div', mg = ''): HTMLElement => {
+const el = (tag = 'div', mg = '', i?: number): HTMLElement => {
   const e = document.createElement(tag);
   if (mg) e.dataset.mg = mg;
+  if (i !== undefined) e.dataset.i = String(i);
   return e;
 };
 
@@ -59,6 +61,30 @@ function unwrap(nav: HTMLElement): void {
   }
 }
 
+const wrapIn = (node: Element, outer: HTMLElement): void => {
+  node.replaceWith(outer);
+  outer.append(node);
+};
+
+function wrapPic(img: HTMLElement, h: number, r: Rc): void {
+  if (img.parentElement?.dataset.mg === 'pic') return;
+  const box = el('div', 'pic');
+  box.style.cssText = `height:${h}px;--pic-l:${r.l}px;--pic-t:${r.t}px;--pic-w:${r.r - r.l}px;--pic-h:${r.b - r.t}px`;
+  wrapIn(img, box);
+}
+
+function wrapColumn(col: HTMLElement, i: number): void {
+  const track = col.firstElementChild;
+  if (!track || track.parentElement?.dataset.mg === 'Uc') return;
+  const uc = el('div', 'Uc', i);
+  wrapIn(track, uc);
+  wrapIn(uc, el('div', 'Kc', i));
+}
+
+function unwrapPics(nav: HTMLElement): void {
+  for (const w of nav.querySelectorAll<HTMLElement>('[data-mg="Kc"],[data-mg="Uc"],[data-mg="pic"]')) w.replaceWith(...w.childNodes);
+}
+
 type Saved = [Element, string | null, string, number][];
 
 export function saveAnims(root: HTMLElement): Saved {
@@ -91,20 +117,25 @@ export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
   root.classList.add(FLIP_CLASS);
   for (const [name, sel] of TAGS) nav.querySelector<HTMLElement>(sel)?.setAttribute('data-mg', name);
   document.querySelector('[data-fw="platform"]')?.setAttribute('data-mg', 'platform');
-  const imgs: [number, number][][] = [];
+  const imgs: Layout['imgs'] = [];
+  const c1 = cw(vp, 1);
   document.querySelectorAll<HTMLElement>('[data-fw="morph-columns"] > div').forEach((col, i) => {
     col.dataset.mg = 'column';
     col.dataset.i = String(i);
     let y = 0;
-    const rows: [number, number][] = [];
-    col.querySelectorAll<HTMLElement>('img').forEach((img, j) => {
+    const rows: Layout['imgs'][number] = [];
+    col.querySelectorAll<HTMLImageElement>('img').forEach((img, j) => {
       img.dataset.mg = 'image';
       img.dataset.i = String(i);
       img.dataset.j = String(j);
       const h = Number.parseFloat(img.style.height) || img.offsetHeight;
-      rows.push([y, h]);
+      const iw = img.naturalWidth || c1;
+      const ih = img.naturalHeight || h;
+      wrapPic(img, h, drawn(c1, h, iw, ih));
+      rows.push([y, h, iw, ih]);
       y += h + 12;
     });
+    wrapColumn(col, i);
     imgs.push(rows);
   });
   nav.style.setProperty('--mg-w', `${wp(vp)}px`);
@@ -136,6 +167,7 @@ export function enter(nav: HTMLElement, eng: Layout['eng']): Built {
 
 export function leave(nav: HTMLElement): void {
   const saved = saveAnims(nav);
+  unwrapPics(nav);
   unwrap(nav);
   const k0 = nav.querySelector<HTMLElement>(':scope > [data-mg="K0"]');
   const u = nav.querySelector<HTMLElement>('[data-mg="U"]');
@@ -157,6 +189,6 @@ export function leave(nav: HTMLElement): void {
 
 export function find(a: { el: string; i: number; j: number }): HTMLElement | null {
   const b = `[data-mg="${a.el}"]`;
-  const s = a.el === 'column' ? `${b}[data-i="${a.i}"]` : a.el === 'image' ? `${b}[data-i="${a.i}"][data-j="${a.j}"]` : b;
+  const s = a.el === 'column' || a.el === 'Kc' || a.el === 'Uc' ? `${b}[data-i="${a.i}"]` : a.el === 'image' ? `${b}[data-i="${a.i}"][data-j="${a.j}"]` : b;
   return document.querySelector<HTMLElement>(s);
 }

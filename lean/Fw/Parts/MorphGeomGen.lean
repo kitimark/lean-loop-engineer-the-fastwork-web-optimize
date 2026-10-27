@@ -23,7 +23,7 @@ def gline (fn : String) (inp : List (String × Json)) (out : Json) : String :=
   (Json.mkObj [("fn", .str fn), ("in", Json.mkObj inp), ("out", out)]).compress
 
 def Ks.name : Ks → String
-  | .grid => "grid" | .unit => "unit" | .earn => "earn" | .panel => "panel" | .fade => "fade" | .time => "time"
+  | .grid => "grid" | .unit => "unit" | .earn => "earn" | .panel => "panel" | .fade => "fade" | .time => "time" | .kink _ => "kink"
 
 def engTag : Eng → String
   | .webkit => "webkit" | .chromium => "chromium"
@@ -37,7 +37,7 @@ def engDep (a : Anim) : Bool := ["lang", "earn", "earnClip", "earnLabel"].contai
 def selector (a : Anim) : String :=
   let base := s!"[data-mg=\"{a.el}\"]"
   match a.el with
-  | "column" => base ++ s!"[data-i=\"{a.key.1}\"]"
+  | "column" | "Kc" | "Uc" => base ++ s!"[data-i=\"{a.key.1}\"]"
   | "image" => base ++ s!"[data-i=\"{a.key.1}\"][data-j=\"{a.key.2}\"]"
   | _ => base
 
@@ -80,6 +80,9 @@ def cssLines (_ : Unit) : List String :=
 
 def layoutCss : List String :=
   [s!"[data-mg=\"Kb\"], [data-mg=\"Ub\"] \{ display: flex; gap: {match flipRowGap with | .inherit => "inherit" | .px n => cssNum n}; }",
+   s!"[data-mg=\"Kc\"] \{ overflow: hidden; padding-block: {cssNum clipPad}px; margin-block: -{cssNum clipPad}px; }",
+   "[data-mg=\"pic\"] { position: relative; flex: none; overflow: hidden; border-radius: 12px; }",
+   ".is-flip [data-mg=\"image\"] { position: absolute; left: var(--pic-l); top: var(--pic-t); width: var(--pic-w); height: var(--pic-h) !important; max-width: none; object-fit: fill; border-radius: 0; transform-origin: 50% 50%; }",
    ".is-flip [data-mg=\"earn\"] { transform: none !important; }",
    ".is-flip [data-mg=\"actions\"] { top: 0; bottom: 0; translate: none; }"]
 
@@ -96,7 +99,23 @@ def flipCellLines (_ : Unit) : List String :=
   bandVps.map fun v => gline "flipBand" (vpIn v)
     (Json.mkObj [("cols", .num ⟨(nCols v).floor, 0⟩), ("gap", jdec 0 (flipGap v)), ("btnH", jdec 0 (btnH v))])
 
-def goldenLines (_ : Unit) : List String := knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines () ++ flipCellLines ()
+def rcJson (r : Rc) : Json := jl [jdec 6 r.l, jdec 6 r.t, jdec 6 r.r, jdec 6 r.b]
+
+/-- Pictures of a golden band: tall (width-limited), wide (height-limited), and one whose fit ratios cross at the middle of
+the morph (integer intrinsic sizes, so the golden inputs are exact). -/
+def bandPics (v : Vp) : List Pic :=
+  [⟨0, 200, 300, 1000⟩, ⟨0, 200, 2000, 1000⟩, ⟨0, 200, ((cw v 0 + cw v 1) * 5 / 2).floor, 1000⟩]
+
+/-- Per band and picture: the base's rectangle and crop at each sample `m`, and the rectangle at rest. -/
+def picLines (_ : Unit) : List String :=
+  bandVps.flatMap fun v => (bandPics v).map fun p =>
+    gline "pic" (vpIn v ++ [("iw", jdec 0 p.iw), ("ih", jdec 0 p.ih), ("boxH", jdec 0 p.h)])
+      (Json.mkObj [("lay", rcJson (layRect v p)), ("q", jdec 6 (qImg v p)),
+        ("pic", jl (samples.map fun m => rcJson (basePic v p m))),
+        ("crop", jl (samples.map fun m => rcJson (baseCrop v p m)))])
+
+def goldenLines (_ : Unit) : List String :=
+  knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines () ++ flipCellLines () ++ picLines ()
 
 def goldenText (_ : Unit) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 
