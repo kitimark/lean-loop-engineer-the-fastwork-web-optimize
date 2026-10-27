@@ -5,6 +5,7 @@ import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, typ
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 import { crossings, idealAt } from './geom-timed.logic';
+import { writes } from './style.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -37,6 +38,7 @@ export interface TweenEnv {
   addListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void, passive: boolean): void;
   removeListener(type: 'wheel' | 'touchstart' | 'touchmove', fn: (e: never) => void): void;
   publish(value: number): void;
+  flip?(): boolean;
   onActivate?(): void;
   lock?: { overlay(): boolean; set(on: boolean): void };
   fade?: EffectSink;
@@ -117,7 +119,7 @@ export function createTweenDriver(env: TweenEnv) {
   const updateFade = () => {
     const p = env.platform();
     if (!p) return;
-    if (!env.fade) p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
+    if (!env.fade && writes(env.flip?.() ?? false, st.value)) p.style.setProperty('--morph-fade', String(fade({ m: st.value })));
     env.faded?.(fadedZero(st.value));
     p.style.pointerEvents = pointerNone({ m: st.value }) ? 'none' : '';
     if (env.rest && p.hasAttribute && p.toggleAttribute) setRest(p as RestEl, st.value);

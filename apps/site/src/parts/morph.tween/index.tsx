@@ -13,6 +13,7 @@ import { active } from './logic';
 import { matchList } from './media';
 import { hoverNoneOf, lockAllowed, overlayOf } from './scroll-lock.logic';
 import { createWaapiDriver, type AnimLike, type AnimTarget, type WaapiEnv } from './waapi.driver';
+import { FLIP_CLASS, writes } from './style.logic';
 import { fadeCss, PROP_MORPH, registrationsOf, type WaapiArm } from './waapi.logic';
 
 export const MORPH_PIN_ORDER = 110;
@@ -49,9 +50,10 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
       publish: (value) => {
         const nav = document.querySelector<HTMLElement>(navSelector);
         if (!nav) return;
-        nav.style.setProperty('--morph', String(value));
+        if (writes(env.flip?.() ?? false, value)) nav.style.setProperty('--morph', String(value));
         nav.dataset.fwMorph = String(value);
       },
+      flip: window.__fw?.config.variants['morph.geom'] === 'on' ? () => root.classList.contains(FLIP_CLASS) : undefined,
       lock: scrollLockOf(variant, root),
       rest: platformRest,
       faded: platformFadedPause ? (zero) => fadedBus.set(zero) : undefined,
