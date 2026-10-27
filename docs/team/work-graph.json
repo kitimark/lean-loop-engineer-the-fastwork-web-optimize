@@ -23148,7 +23148,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-raw-local-main.md",
     "docs/team/handoffs/raw-local-main.md",
-    "docs/team/incidents/ledger.json"
+    "docs/team/incidents/ledger.json",
+    "lean/scripts/DiskGcGolden.lean"
    ]
   }
  ],
