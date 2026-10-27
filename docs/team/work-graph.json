@@ -23171,7 +23171,8 @@
     "results/geom-page-diff/**",
     "docs/team/handoffs/geom-page-diff.md",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "cc0c048"
   },
   {
    "devices": [
@@ -23230,6 +23231,33 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-look-fade",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-page-diff",
+    "geom-image-model"
+   ],
+   "title": "Look harness fix from geom-page-diff: the base arm writes the platform fade (--morph-fade) from the generated FADE_END constants as the driver does, every arm asserts equal scrollY, look/timed starts a real tween or is dropped; re-measure the whole-page region on CI (>= 3 jobs) for morph.geom:on and geom-timed.",
+   "writes": [
+    "packages/premise-tests/src/look.mjs",
+    "packages/premise-tests/test/**",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-look-fade.md",
+    "results/geom-look-fade/**",
+    "docs/team/handoffs/geom-look-fade.md"
    ]
   }
  ],

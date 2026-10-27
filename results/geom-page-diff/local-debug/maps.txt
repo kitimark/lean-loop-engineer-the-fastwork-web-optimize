@@ -1,0 +1,156 @@
+
+1280x800-m1-diff-base-vs-flip.png (1280x800, 64x24 cells; blank cells inside the nav box count as equal)
+|##o    .ooOOOOOOOOOO.       . ....... ..                     oO#|
+|#.                                                        ... .#|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#                                                              #|
+|#OOOOOOOOo ..  .      .. oOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO#|
+
+1280x800-m1-diff-basefade-vs-flip.png (1280x800, 64x24 cells; blank cells inside the nav box count as equal)
+|                                                                |
+| .                                                        ... . |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+
+1920x1080-m1-diff-base-vs-flip.png (1920x1080, 64x24 cells; blank cells inside the nav box count as equal)
+|#########oo...o.....ooooooooooooooooooooooooooooooooooo#########|
+|########O                                           ...O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|########O                                              O########|
+|#########oooooooooooooooooooooooo........        .ooooo#########|
+|#################################o. ..       ... O##############|
+|#################################o.......   .OO#OO##############|
+|##################################OOOOOOOOOO####################|
+|################################################################|
+|################################################################|
+
+1920x1080-m1-diff-basefade-vs-flip.png (1920x1080, 64x24 cells; blank cells inside the nav box count as equal)
+|                                                                |
+|                                                    ...         |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+
+390x844-m1-diff-base-vs-flip.png (1170x2532, 64x24 cells; blank cells inside the nav box count as equal)
+|##OooooooooooooooooooooooooooooooooooooooooooooooooooooooooooO##|
+|##                                                ..   .  . . ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##                                                            ##|
+|##OooooooooooooooooooooooooooooooooooooooooooooooooooooooooooO##|
+
+390x844-m1-diff-basefade-vs-flip.png (1170x2532, 64x24 cells; blank cells inside the nav box count as equal)
+|                                                                |
+|                                                  ..   .  . .   |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
+|                                                                |
