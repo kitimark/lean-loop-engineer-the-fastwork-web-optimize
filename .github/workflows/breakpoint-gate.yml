@@ -416,6 +416,7 @@ jobs:
             packages/gate-breakpoints/out/verify-rep3
             packages/gate-breakpoints/out/mutation
             packages/premise-tests/out/look/*/look-*.json
+            packages/premise-tests/out/look/*/img
           if-no-files-found: error
           retention-days: 14
       - uses: ./.github/actions/telemetry
