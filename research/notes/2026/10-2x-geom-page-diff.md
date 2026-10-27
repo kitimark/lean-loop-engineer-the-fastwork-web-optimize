@@ -65,7 +65,7 @@ differed at m=0 as well (page 0.712 at m=0, against 0.000 for base+fade vs flip)
 did not happen there, but the look has no check that both arms share a scroll position. Follow-up: assert `scrollY` equality per reading.
 
 ## Timed arm measures nothing (MEASURED zeros, INFERRED cause)
-look/timed (`morph.geom:on,morph.tween:geom-timed`) shows 0.000 differences in every band, m and region on both engines. With
+look/timed (`morph.geom:on,morph.tween:geom-timed`) shows at most 0.001 in every region at m=1 on both engines; mid-m and m=0 rows reach 0.040 (nav, 768x1024 m=0.25, Chromium; 0.039 WebKit), not explained here. With
 `morph.tween:geom-timed` the geom component takes the timed branch (apps/site/src/parts/morph.geom/index.tsx:65-82) and returns
 before installing the `data-fw-morph` observer (index.tsx:83-89); the tween, not the pin, starts a flip there. The pin starts none, so both
 pages are unflipped and equal. That arm needs the tween to run (task timed-m0-webkit covers the timed cell; the timed look is a follow-up).

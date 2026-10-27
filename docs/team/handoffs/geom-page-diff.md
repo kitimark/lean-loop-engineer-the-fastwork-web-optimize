@@ -9,7 +9,7 @@ At the page bottom the platform fills the viewport, so ~75-100 % of the pixels o
 Local WebKit debug run (not a result): with the fade written on base, page share at m=1 drops 0.090/0.423 to 0.001/0.000 (390x844, 1920x1080).
 
 Verified: numbers per band from the four look JSONs (results/geom-page-diff/bands.md, table.mjs); diff images as text maps in results/geom-page-diff/local-debug/maps.txt (PNGs are refused by the render guard, not committed).
-Other findings: look/timed measures nothing (0 differences; geom-timed branch installs no data-fw-morph observer, index.tsx:65-82); base scroll can land short
+Other findings: look/timed measures nothing (<= 0.001 at m=1; geom-timed branch installs no data-fw-morph observer, index.tsx:65-82); base scroll can land short
 (local 1280x800, scrollY 6074 vs 7794; CI m=0 equal 24 of 24); 641x700 Chromium nav 0.031 unexplained.
 No Lean lemma: no decision rule is the cause (glue code). Writes: results/geom-page-diff/probe.mjs and table.mjs, none outside results/geom-page-diff/**.
 
