@@ -331,7 +331,7 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-pnpm
         with:
-          filter: '@fw/gate-breakpoints @fw/premise-tests'
+          filter: '@fw/gate-breakpoints @fw/premise-tests @fw/visual-diff'
       - uses: ./.github/actions/telemetry
         with:
           mode: start
