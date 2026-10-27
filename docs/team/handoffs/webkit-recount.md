@@ -8,7 +8,10 @@ CI runs (state):
 - layer-sweep 3 VMs: 40366658003 (queued behind other tasks' macOS jobs 17:18Z-19:47Z; r1 ok, r2 LOST at Determinism sessions (reason pending), r3 running at 22:00Z). The `fw run` wrapper gave up after its 4 h cap: download artifacts by hand with gh run download --repo kitimark/lean-loop-engineer-the-fastwork-web-optimize
 - hero.exit:contain 3 VMs: 40372868559 success 3 of 3. Reader zones and hero windows (3+3 VMs, 6+6 passes): noGain everywhere, decided. results/webkit-recount/contain-zones.json, hero-exit-contain.json
 - layer-sweep first run lost r2 (inspector dead, simctl shutdown ETIMEDOUT) and r3 (warm-up Runtime.evaluate timeouts x2); only r1 good. Retry (3 VMs, needs r2 and r3) 40408733016 queued
-- entries:probe-off 3 VMs dispatched at 00:10Z (id: gh run list); marquee:probe-off not yet
+- entries:probe-off 40418142290: r1 LOST (inspector dead, Safari terminate > 20 s, reboot failed, exit 4), r2 ok, r3 ok -> arm n=2 VMs, UNDECIDED (reader pass rule: gain in all 4 zones). results/webkit-recount/entries-probe-off-zones.json
+- marquee:probe-off 40428340750: success 3 of 3. Reader: noGain in all 4 zones, decided. results/webkit-recount/marquee-probe-off-zones.json
+- layer-sweep retry 40408733016: r1, r2 ok, r3 LOST (Timeline.stop timeout). Good sweep sessions: first run 40366658003 r1, retry r1, retry r2 = VM ids 1,1,2 -> 2 distinct VMs
+- layer-sweep r3 dispatch (the ONE allowed extra run, --runs 3, only r3 needed) 40441397213 running, started 02:40Z; fw run process in background, log wr-scratch/sweep-r3.log. If lost: layer-sweep stays undecided n=2
 Next waves in order: layer-sweep (platform.sweep:layer-sweep), hero.exit:contain, platform.entries:probe-off, platform.marquee:probe-off.
 Lane takes one site config per VM job (no several arms per VM).
 Reader: packages/measure-webkit/src/offscreen-webkit-cli.mjs (zones z4500 z5000 finish whole); hero.exit:contain also results/hero-relayout-boundary/read-webkit.mjs windows.

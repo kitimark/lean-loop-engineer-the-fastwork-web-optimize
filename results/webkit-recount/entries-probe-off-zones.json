@@ -1,0 +1,199 @@
+[
+ {
+  "zone": "z4500",
+  "steps": 10,
+  "arm": "entries-probe-off",
+  "passes": [
+   6,
+   4
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "RecalculateStyles": "less",
+   "Paint": "less",
+   "FireAnimationFrame": "less",
+   "ObserverCallback": "less",
+   "ScheduleStyleRecalculation": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "132-154",
+    "arm": "99-115"
+   },
+   "Layout": {
+    "base": "41-71",
+    "arm": "33-44"
+   },
+   "RecalculateStyles": {
+    "base": "49-60",
+    "arm": "44-48"
+   },
+   "Composite": {
+    "base": "20",
+    "arm": "20"
+   },
+   "FireAnimationFrame": {
+    "base": "53",
+    "arm": "50-51"
+   },
+   "ObserverCallback": {
+    "base": "10-14",
+    "arm": "5"
+   }
+  }
+ },
+ {
+  "zone": "z5000",
+  "steps": 5,
+  "arm": "entries-probe-off",
+  "passes": [
+   6,
+   4
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "RecalculateStyles": "less",
+   "Layout": "less",
+   "Paint": "less",
+   "ObserverCallback": "less",
+   "InvalidateLayout": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "59-66",
+    "arm": "50-55"
+   },
+   "Layout": {
+    "base": "26-34",
+    "arm": "18-25"
+   },
+   "RecalculateStyles": {
+    "base": "32",
+    "arm": "21-31"
+   },
+   "Composite": {
+    "base": "10",
+    "arm": "10"
+   },
+   "FireAnimationFrame": {
+    "base": "22",
+    "arm": "21-26"
+   },
+   "ObserverCallback": {
+    "base": "4",
+    "arm": "1"
+   }
+  }
+ },
+ {
+  "zone": "finish",
+  "steps": 15,
+  "arm": "entries-probe-off",
+  "passes": [
+   6,
+   4
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "RecalculateStyles": "less",
+   "Paint": "less",
+   "ObserverCallback": "less",
+   "ScheduleStyleRecalculation": "less",
+   "InvalidateLayout": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "196-220",
+    "arm": "149-170"
+   },
+   "Layout": {
+    "base": "68-105",
+    "arm": "51-69"
+   },
+   "RecalculateStyles": {
+    "base": "81-92",
+    "arm": "65-79"
+   },
+   "Composite": {
+    "base": "30",
+    "arm": "30"
+   },
+   "FireAnimationFrame": {
+    "base": "75",
+    "arm": "71-77"
+   },
+   "ObserverCallback": {
+    "base": "14-18",
+    "arm": "6"
+   }
+  }
+ },
+ {
+  "zone": "whole",
+  "steps": 105,
+  "arm": "entries-probe-off",
+  "passes": [
+   6,
+   4
+  ],
+  "vms": [
+   3,
+   2
+  ],
+  "undecided": true,
+  "verdict": "noData",
+  "passVerdict": "gain",
+  "differing": {
+   "RecalculateStyles": "less",
+   "Layout": "less",
+   "FireAnimationFrame": "less",
+   "ObserverCallback": "less",
+   "ScheduleStyleRecalculation": "less",
+   "InvalidateLayout": "less"
+  },
+  "ranges": {
+   "Paint": {
+    "base": "1206-1304",
+    "arm": "1204-1233"
+   },
+   "Layout": {
+    "base": "596-651",
+    "arm": "558-581"
+   },
+   "RecalculateStyles": {
+    "base": "649-678",
+    "arm": "616-641"
+   },
+   "Composite": {
+    "base": "209",
+    "arm": "209"
+   },
+   "FireAnimationFrame": {
+    "base": "664-667",
+    "arm": "655-659"
+   },
+   "ObserverCallback": {
+    "base": "61-66",
+    "arm": "45-47"
+   }
+  }
+ }
+]
