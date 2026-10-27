@@ -23233,7 +23233,8 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
-   ]
+   ],
+   "evidence": "66e11f1"
   },
   {
    "devices": [
