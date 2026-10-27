@@ -3,6 +3,8 @@ import { matchList } from '../nav/media';
 import { createGeomDriver, type AnimHandle, type GeomEnv } from './driver';
 import { enter, find, leave } from './tree';
 import type { Eng } from './tracks';
+import { createTimedGeom, type TimedAnim } from '../morph.tween/geom-timed.driver';
+import { timedBus } from '../morph.tween/geom-timed.bus';
 import './geom.css';
 
 export const GEOM_ON = 'on';
@@ -22,9 +24,28 @@ export function probeEngine(): Eng {
 
 const CAMEL: Record<string, string> = { 'backdrop-filter': 'backdropFilter' };
 
+let goalStyle: HTMLStyleElement | null = null;
+
+/** The goal rules as the base style of the root (attribute `data-mg-goal`), or removed. */
+function setGoal(rules: string | null): void {
+  const root = document.documentElement;
+  if (rules === null) {
+    root.removeAttribute('data-mg-goal');
+    goalStyle?.remove();
+    goalStyle = null;
+    return;
+  }
+  if (!goalStyle) {
+    goalStyle = document.createElement('style');
+    document.head.append(goalStyle);
+  }
+  if (goalStyle.textContent !== rules) goalStyle.textContent = rules;
+  root.setAttribute('data-mg-goal', '');
+}
+
 export function MorphGeom() {
   useEffect(() => {
-    if (window.__fw?.config.variants['morph.geom'] !== GEOM_ON || window.__fw?.config.variants['morph.tween'] === 'geom-timed') return;
+    if (window.__fw?.config.variants['morph.geom'] !== GEOM_ON) return;
     const nav = document.querySelector<HTMLElement>(NAV);
     if (!nav) return;
     const reduce = matchList('mq.rm-reduce');
@@ -42,6 +63,25 @@ export function MorphGeom() {
         return anim as AnimHandle;
       },
     };
+    if (window.__fw?.config.variants['morph.tween'] === 'geom-timed') {
+      // morph.tween:geom-timed drives the geometry by the push, not by the published value: no observer
+      const timed = createTimedGeom({
+        ...env,
+        animate: (a, kf, opts) => {
+          const target = find(a);
+          if (!target) return null;
+          const frames = kf.map((f) => Object.fromEntries(Object.entries(f).map(([k, v]) => [CAMEL[k] ?? k, v])));
+          return target.animate(frames, opts) as unknown as TimedAnim;
+        },
+        goal: (rules) => setGoal(rules),
+      });
+      timedBus.set(timed);
+      return () => {
+        timedBus.set(null);
+        timed.dispose();
+        setGoal(null);
+      };
+    }
     const driver = createGeomDriver(env);
     const read = () => {
       const m = Number.parseFloat(nav.dataset.fwMorph ?? '');
