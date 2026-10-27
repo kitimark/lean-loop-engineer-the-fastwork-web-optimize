@@ -23,7 +23,7 @@ Layout and the track layers with their animations stay.
   (`RenderLayerBacking.cpp:2142`), so a track layer with only hidden pictures may lose its backing (INFERRED; not checked on the phone). The probe
   removes the pictures' paint and raster and possibly the track layers' backing, nothing in layout.
 - chromium@f842f52: `ReplacedPainter` returns early when `style.Visibility() != EVisibility::kVisible`
-  (`third_party/blink/renderer/core/paint/replaced_painter.cc:423`). Whether `visibility: hidden` also skips image decode
+  (`third_party/blink/renderer/core/paint/replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint)`). Whether `visibility: hidden` also skips image decode
   is not checked here (the painters above only gate painting); the probe is read as "no picture paint", not "no decode".
 
 ## Session (MEASURED)
@@ -49,8 +49,8 @@ its morph end, summed over the 10 pushes of a visit. Label = Lean `pushLabel` ag
 | flip | flip + probe-off | 4/4 | same | same, cause overlap | 20 ms / 25 ms / 36 ms / 36 / 513 |
 
 Per the pinned unit of decision both contrasts are undecided, not "no effect": the ranges overlap and, for base, the spread is wide. The
-flip reference spread is narrower for paint (513) and the +off arm still sits inside it (4703 against 4700), so for paint the flip contrast says the
-pictures add no paint records in the flip look (MEASURED for this count only).
+flip reference spread is narrower for paint (513) and the +off arm sits inside it (4703 against 4700); the Lean rule still calls it same
+(overlap), so it stays undecided.
 
 ### Take share (driver trace `window.__fwTakeTrace`)
 | arm | visits | frames lane: driver pushes / taken | counts lane: driver pushes / taken | touches with a take |

@@ -14,7 +14,7 @@
       "kind": "probe",
       "provenance": {
         "lean": "Fw.Preset.V2Proved probe_not_mem, probe_not_isOpt; Fw.Preset.Gen probe_not_mem_lookCandidates",
-        "limit": "measurement only, never in a preset or a look verdict (task phone-cols-probe): the 21 column pictures get visibility hidden; layout, the track layers and their animations are unchanged, so it removes the decode, raster and composite of the pictures and nothing else"
+        "limit": "measurement only, never in a preset or a look verdict (task phone-cols-probe): the 21 column pictures get visibility hidden; so it removes the paint (and raster) of the pictures; decode is not checked; layout, the track layers and their animations are unchanged"
       }
     }
   },

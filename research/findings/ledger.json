@@ -4627,16 +4627,16 @@
    "flags": [
     "morph.columns:probe-off"
    ],
-   "chromium": "not measured (the question is the WebKit lag on the phone; Chromium source: replaced_painter.cc:423 skips the paint of a hidden replaced element)",
+   "chromium": "not measured (the question is the WebKit lag on the phone; Chromium source: replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint) skips the paint of a hidden replaced element)",
    "webkit": "undecided on the real iPhone (MEASURED, Serious pin, 16 visits, n = 4 per arm, Latin order): base vs base + probe-off and flip vs flip + probe-off are same in all 8 metrics by the Lean pushLabel rule, cause overlap; the base spread is wide (max 78 to 297 ms, paint 9600 to 13104). results/phone/2026-10-27-cols-probe/summary.json, research/notes/2026/10-2x-phone-cols-probe.md",
    "visual": "not applicable: a probe arm changes the look and is never shown or promoted (Lean Kind.probe: probe_not_mem, probe_not_mem_lookCandidates, probe_not_isOpt; golden preset/probes.jsonl)",
-   "mechanism": "CONFIRMED from source: a hidden replaced element is not painted (WebKit@862f17d RenderReplaced.cpp:411; chromium@f842f52 replaced_painter.cc:423). MEASURED: the paint records do not fall with the pictures hidden (base 12716 vs 11751; flip 4700 vs 4703); decode skipping is not checked.",
+   "mechanism": "CONFIRMED from source: a hidden replaced element is not painted (WebKit@862f17d RenderReplaced.cpp:411; chromium@f842f52 replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint)). MEASURED: the paint records do not fall with the pictures hidden (base 12716 vs 11751; flip 4700 vs 4703); decode skipping is not checked.",
    "leanFor": [],
    "leanAgainst": [],
    "missingWhy": [],
    "premises": [],
    "v1Evidence": "none",
-   "lesson": "A paint count that does not move when the pictures stop painting says the per-frame Paint records are not the pictures' raster; decide with a larger n or a probe that separates decode from paint.",
+   "lesson": "At n = 4 a wide reference spread (Paint 9600 to 13104) hides any effect of hiding the pictures; decide with a larger n or a lower base spread, and separate decode from paint with a second probe.",
    "next": "A larger n or a lower base spread to decide the base contrast; a decode-versus-paint probe.",
    "evidence": "research/notes/2026/10-2x-phone-cols-probe.md (task phone-cols-probe)"
   }
@@ -5378,7 +5378,7 @@
    "entry": "morph.columns:probe-off: measurement-only arm that hides the 21 column pictures (visibility hidden; layout, track layers and their animations unchanged) to attribute their cost on the real phone (never promoted, never in a preset or a look verdict)",
    "task": "phone-cols-probe",
    "field": "lesson",
-   "text": "phone-cols-probe: do the 21 end-of-page column pictures cause the WebKit lag? Undecided on the real iPhone (Serious pin, 16 visits, n=4 per arm).\nMEASURED (results/phone/2026-10-27-cols-probe/summary.json): morph.columns:probe-off (visibility hidden on the pictures; layout and the track layers stay; kind probe, never in a preset) against base, and the flip (morph.geom:on + morph.tween:geom-timed) against flip + probe-off, each in a Latin order. Both contrasts are same in all 8 metrics by the Lean pushLabel rule, cause overlap; the base spread is wide (max 78 to 297 ms, paint 9600 to 13104). Paint records do not fall with the pictures hidden (base 12716 vs 11751; flip 4700 vs 4703). The flip was taken on 40 of 40 pushes in both lanes, and lowers paint to 37 percent of base but not p95, p99 or frames over 50 ms.\nCONFIRMED (WebKit@862f17d RenderReplaced.cpp:411, chromium@f842f52 replaced_painter.cc:423): visibility hidden skips the replaced paint; decode is not shown to be skipped (not checked).\nLimits: fixed XCUITest swipe, one thermal state, phone read Fair before and Critical after (own heat), a first start failed once on the phone (automation mode timeout) and the rerun worked.\nLesson: a paint-count that does not move when the pictures stop painting says the per-frame Paint records are not the pictures' raster; decide with a larger n or a probe that separates decode from paint. Note research/notes/2026/10-2x-phone-cols-probe.md."
+   "text": "phone-cols-probe: do the 21 end-of-page column pictures cause the WebKit lag? Undecided on the real iPhone (Serious pin, 16 visits, n=4 per arm).\nMEASURED (results/phone/2026-10-27-cols-probe/summary.json): morph.columns:probe-off (visibility hidden on the pictures; layout and the track layers stay; kind probe, never in a preset) against base, and the flip (morph.geom:on + morph.tween:geom-timed) against flip + probe-off, each in a Latin order. Both contrasts are same in all 8 metrics by the Lean pushLabel rule, cause overlap; the base spread is wide (max 78 to 297 ms, paint 9600 to 13104). Paint records do not fall with the pictures hidden (base 12716 vs 11751; flip 4700 vs 4703). The flip was taken on 40 of 40 pushes in both lanes, and lowers paint to 37 percent of base but not p95, p99 or frames over 50 ms.\nCONFIRMED (WebKit@862f17d RenderReplaced.cpp:411, chromium@f842f52 replaced_painter.cc:406-409 (ReplacedPainter::ShouldPaint)): visibility hidden skips the replaced paint; decode is not shown to be skipped (not checked).\nLimits: fixed XCUITest swipe, one thermal state, phone read Fair before and Critical after (own heat), a first start failed once on the phone (automation mode timeout) and the rerun worked.\nLesson: a paint-count that does not move when the pictures stop painting says the per-frame Paint records are not the pictures' raster; decide with a larger n or a probe that separates decode from paint. Note research/notes/2026/10-2x-phone-cols-probe.md."
   }
  ]
 }
