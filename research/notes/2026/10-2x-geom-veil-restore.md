@@ -1,6 +1,6 @@
 # geom-veil-restore: the veil track is back (task geom-veil-restore)
 
-Source: `10-27-end-columns-probe.md` A2, `10-2x-geom-flip-fix.md`, finding in `10-2x-morph-geom.md`.
+Source: `10-27-end-columns-probe.md` A2, `10-2x-geom-flip-fix.md`.
 
 ## Finding: the veil fold premise is refuted
 Round 2 (6b376eba6) folded the veil into D on the premise "at m = 1 D is opaque, so the end state is unchanged". CONFIRMED false:
@@ -26,8 +26,8 @@ this task's writes, so its heading is not edited here; the lead may mark it). Th
 ## Memory and layers (MEASURED by Lean `decide`)
 One more backed layer (the veil, final box at viewport size). Net bytes at level 0 (faithful backs the nav only), 12 bands in
 `bandVps` order, `net_lvl0_veil_bytes`: 16330752, 19291392, 23753952, 27541152, 27758592, 42504192, 13629120, 20300800, 22856704,
-29213696, 57072640, 73849856 (folded: `net_lvl0_fold_bytes`, about 10.8 MB less at 390x844). `mem_bands`: 2 of 12 bands inside the
-23055555 byte budget (390x844 `mem_phone_390` = 34558272). At level 2 (INFERRED, the faithful page backs panel and platform) the veil
+29213696, 57072640, 73849856 (folded: `net_lvl0_fold_bytes`, about 10.8 MB less at 390x844). `net_lvl0_flip`: 5 of 12 bands inside the
+23055555 byte budget (390x844 net 23753952); gross, without the faithful nav subtracted, `mem_bands` is 2 of 12 (390x844 `mem_phone_390` = 34558272). At level 2 (INFERRED, the faithful page backs panel and platform) the veil
 replaces the panel's backing exactly: `net_lvl2_flip_bytes` = the folded values, all 12 bands fit. The census lane that decides
 the level still does not exist; the memory trade is accepted (user note: more GPU memory is fine when the work leaves the main thread).
 
