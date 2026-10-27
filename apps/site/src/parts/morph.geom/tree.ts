@@ -13,7 +13,6 @@ const TAGS: [string, string][] = [
   ['lang', '[data-fw="nav-actions"] > :first-child'],
   ['earn', '[data-fw="nav-earn"]'],
   ['panel', '[data-fw="morph-panel"]'],
-  ['veil', '[data-fw-role="veil"]'],
   ['centre', '[data-fw-role="center"]'],
   ['footer', '[data-fw-role="footer"]'],
   ['footerGrad', '[data-fw-role="grad"]'],

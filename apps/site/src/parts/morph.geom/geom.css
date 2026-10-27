@@ -9,7 +9,7 @@
   .is-flip [data-mg='U'], .is-flip [data-mg='G'], .is-flip [data-mg='D'], .is-flip [data-mg='bar'], .is-flip [data-mg='logo'],
   .is-flip [data-mg='actions'], .is-flip [data-mg='lang'], .is-flip [data-mg='earn'], .is-flip [data-mg='earnClip'],
   .is-flip [data-mg='earnLabel'], .is-flip [data-mg='panel'], .is-flip [data-mg='backdropClip'], .is-flip [data-mg='Kb'],
-  .is-flip [data-mg='Ub'], .is-flip [data-mg='column'], .is-flip [data-mg='image'], .is-flip [data-mg='veil'],
+  .is-flip [data-mg='Ub'], .is-flip [data-mg='column'], .is-flip [data-mg='image'],
   .is-flip [data-mg='centre'], .is-flip [data-mg='footer'], .is-flip [data-mg='footerGrad'], .is-flip [data-mg='footerEnd'],
   .is-flip [data-mg='platform'] {
     transition: none;
@@ -61,6 +61,10 @@
     position: absolute;
     inset: 0;
   }
+  /* the veil is folded into the solid D fill (Lean layers): its own layer is not built */
+  .is-flip [data-fw-role='veil'] {
+    display: none;
+  }
   /* element-level base rules that clash with the track properties: the tracks own `translate` on these */
   .is-flip [data-mg='actions'] {
     translate: none;
@@ -70,7 +74,7 @@
     translate: none;
     margin-left: calc(var(--mg-logo-w, 0px) / -2);
   }
-  [data-mg='image'], [data-mg='veil'], [data-mg='footerGrad'] {
+  [data-mg='image'], [data-mg='footerGrad'] {
     transform-origin: 0 0;
   }
 }

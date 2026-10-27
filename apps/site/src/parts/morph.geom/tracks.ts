@@ -180,7 +180,6 @@ export function buildAnims(v: Vp, c: Layout): Anim[] {
   for (let i = 0; i < nCols(v); i++) out.push(one('column', 'translate', 'unit', [(m) => i * (cw(v, m) - cw(v, 1)), zero], [i, 0]));
   c.imgs.forEach((col, i) => col.forEach(([y], j) => out.push(one('image', 'transform', 'unit', [zero, (m) => (s(m) - 1) * y, s, s], [i, j]))));
   out.push(
-    one('veil', 'transform', 'unit', [(m) => x0(v, m), (m) => y0(v, m), (m) => wd(v, m) / wp(v), (m) => ht(v, m) / hp(v)]),
     one('centre', 'translate', 'unit', [zero, (m) => dP(v, m)]),
     one('footer', 'translate', 'unit', [(m) => x0(v, m), (m) => y0(v, m) + ht(v, m) - hp(v)]),
     one('footerGrad', 'scale', 'unit', [(m) => wd(v, m) / wp(v), unit]),
