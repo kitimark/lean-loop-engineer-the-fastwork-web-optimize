@@ -14,7 +14,7 @@ Task push-cycle-16, follow-up of `10-2x-push-cycle-separate.md` (run 3 there: th
 ## Answer
 
 - CONFIRMED (Lean, `lean/Fw/Measure/PushCycle.lean`): the full-pass cycle count is derived, not typed. `fullCyclesFor r = clockIndex r 5 + 1`; measured stretch 2391 permille plus a 25 percent margin gives the bound `sepStretchBound = 2988` and `sepFullCycles = 16` (`sepFullCycles_eq`). Theorem `sep_fits`: every stretch r up to the bound has `clockIndex r 5 < 16`. `sep_margin`: every stretch up to the measured one leaves 3 cycles spare. `sep_noRoom_only`: `undecided:noRoom` implies a stretch beyond the bound. The lane (`--separate`) reads the count from Lean through the golden; the workflow carries no `--cycles`.
-- MEASURED (Simulator, GitHub macOS, real touches, two pushes, 6 jobs each, pooled with `results/push-cycle-16/pool.mjs`): **rewrite undecided, user undecided.** Neither arm earns cycle-driven or clock-driven.
+- MEASURED (Simulator, GitHub macOS, real touches, two pushes, 6 jobs each, pooled with `results/push-cycle-16/pool.mjs`): rewrite undecided, user undecided. Neither arm earns cycle-driven or clock-driven.
 
 | Arm | Run | Full | Dwell | Stretch (permille) | Verdict |
 |---|---|---|---|---|---|
@@ -29,7 +29,7 @@ Task push-cycle-16, follow-up of `10-2x-push-cycle-separate.md` (run 3 there: th
 - MEASURED, rewrite pooled (n = 7 full, 6 dwell): stretch 3289 is above the bound, so the clock-matched cycle 5 falls at index 16 or later, outside the pass; the verdict is `noRoom`, as `sep_noRoom_only` requires. Push 2 alone was inside the bound (2835) but had 2 dwell passes.
 - The pass count stays the limit: all 12 jobs delivered a result file, but push 1 ended with sim 2 and 5 failed and push 2 with sim 1, 3 and 4 failed (a failed job still counts its usable passes).
 
-## Lost passes (named; the report's old `lost()` skipped failed ones)
+## Lost passes
 
 From `results/push-cycle-16/pooled.md` (`lostOf`, per job, arm and profile):
 
@@ -43,7 +43,7 @@ From `results/push-cycle-16/pooled.md` (`lostOf`, per job, arm and profile):
 
 - MEASURED: dwell target periods were 40000 to 70654 ms but several measured dwell periods were 100195, 119557 and 98165 ms (`periods-push1.txt`, `periods-push2.txt`), while full periods were 18000 to 36600 ms.
 - INFERRED: the period is a mean over the presses (`periodMs`), so a single stalled press of 33 to 90 s moves the mean by tens of seconds and the stretch with it. Where the full pass was lost, the dwell target fell back to 40000 ms (several jobs in both pushes: a dwell target of 40000 beside a missing full pass in `periods-push*.txt`), so the planned stretch there was wrong from the start. The rewrite arm hits the bound more often than user.
-- Follow-up (not done here): take the period from the median press gap, not the mean, and plan the rest from it; that is a stall-robust stretch, a separate Lean task.
+- Follow-up: take the period from the median press gap, not the mean, and plan the rest from it.
 
 ## H4 (IOSurface re-allocation) stays open
 
@@ -57,4 +57,4 @@ Per arm (rewrite, user) per VM: one `full` pass of `sepFullCycles` = 16 cycles i
 
 - CI only: Simulator on GitHub macOS, not the iPhone. Two pushes used (the limit). A side under 3 passes is undecided.
 - TS stand-ins with no Lean golden (decision parts stay in TS): `periodMs`, `activeQuiet`/`activeCycles`, `sepArm` (arm grouping and exclusions), `censusSeries`, and the report glue `lostOf`/`parseFailed`/`sepTable`. The verdict, the cycle count, the bound and the census reading (`across`) are Lean and replayed from `packages/contracts/golden/measure/push-cycle.jsonl`.
-- The cycle-versus-clock question stays open on the Simulator; the lane needs more usable passes per side than the runners deliver (7 and 6 or 8 usable passes from 12 jobs). A fix for the rise is a later task.
+- The cycle-versus-clock question stays open on the Simulator; the lane needs more usable passes per side than the runners deliver (7 and 6 or 8 usable passes from 12 jobs).

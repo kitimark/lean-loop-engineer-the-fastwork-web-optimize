@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// --separate: the full pass has SEP_FULL_CYCLES cycles (Lean sepFullCycles), --cycles is not read
 // node src/throttle/push-cycle-cli.mjs run --site dir --driver d [--arms original,rewrite,user] [--rounds 1] [--cycles 6] [--hold 600] [--vm n] [--out file]
 // node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file] [--expect 1,2,3]
 import { parseArgs } from 'node:util';

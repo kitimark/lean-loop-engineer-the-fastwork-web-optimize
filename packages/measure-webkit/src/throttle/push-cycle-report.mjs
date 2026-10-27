@@ -45,10 +45,6 @@ const parseFailed = (f) => {
 
 export const PROFILES = Object.freeze(['full', 'dwell']);
 
-/**
- * Every pass an arm should have had in every job and did not deliver, named: an excluded record (its reason, with the phase of a failed entry),
- * a failed entry with no record, a pass never started because the job ended first, and a job with no result file.
- */
 export function lostOf(jobs, arm, profile, expect = null) {
   const vms = [...new Set([...(expect ?? []), ...jobs.map((j) => j.vm)])];
   return vms.flatMap((vm) => {

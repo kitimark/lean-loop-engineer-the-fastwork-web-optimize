@@ -470,7 +470,6 @@ theorem clockIndex_mono_r (k : Nat) {r r' : Nat} (h : r ≤ r') : clockIndex r k
   simp only [clockIndex]
   exact Nat.div_le_div_right (by have := Nat.mul_le_mul_left k h; omega)
 
-/-- The last cycle the window reads. -/
 def sepLastRead : Nat := 5
 
 theorem sepLastRead_ge : ∀ k ∈ sepWindow, k ≤ sepLastRead := by
@@ -478,19 +477,14 @@ theorem sepLastRead_ge : ∀ k ∈ sepWindow, k ≤ sepLastRead := by
   simp only [sepWindow, List.mem_cons, List.not_mem_nil, or_false] at hk
   simp only [sepLastRead]; omega
 
-/-- Fewest cycles of a full pass whose clock-matched window fits at stretch `r` (permille). -/
 def fullCyclesFor (r : Nat) : Nat := clockIndex r sepLastRead + 1
 
-/-- The largest stretch measured so far (permille): run 40315679172, rewrite arm, 2.39 times. -/
 def sepMeasuredStretch : Nat := 2391
 
-/-- The margin over the measured stretch, in percent. -/
 def sepMarginPct : Nat := 25
 
-/-- The largest stretch the full pass is planned for (permille). -/
 def sepStretchBound : Nat := sepMeasuredStretch + sepMeasuredStretch * sepMarginPct / 100
 
-/-- Cycles of the full pass: the length that fits every stretch up to `sepStretchBound`. -/
 def sepFullCycles : Nat := fullCyclesFor sepStretchBound
 
 theorem sepFullCycles_eq : sepFullCycles = 16 := by decide
@@ -503,7 +497,6 @@ theorem fullCyclesFor_mono {r r' : Nat} (h : r ≤ r') : fullCyclesFor r ≤ ful
 theorem fullCyclesFor_fits (r : Nat) : clockIndex r sepLastRead < fullCyclesFor r := by
   simp only [fullCyclesFor]; omega
 
-/-- The window fits: for every stretch up to the bound, cycle 5 of the clock-matched index falls inside the pass. -/
 theorem sep_fits (r : Nat) (h : r ≤ sepStretchBound) : clockIndex r 5 < sepFullCycles := by
   have h1 := fullCyclesFor_fits r
   have h2 := fullCyclesFor_mono h
@@ -511,7 +504,6 @@ theorem sep_fits (r : Nat) (h : r ≤ sepStretchBound) : clockIndex r 5 < sepFul
   simp only [sepLastRead] at h1
   omega
 
-/-- Every cycle the window reads by index falls inside the pass. -/
 theorem sep_fits_index : ∀ k ∈ sepWindow, k < sepFullCycles := by
   intro k hk
   have := sepLastRead_ge k hk
@@ -519,7 +511,6 @@ theorem sep_fits_index : ∀ k ∈ sepWindow, k < sepFullCycles := by
   simp only [sepLastRead] at this
   omega
 
-/-- The margin: the cycle count measured stretch needs, plus three, is still inside the pass. -/
 theorem sep_margin (r : Nat) (h : r ≤ sepMeasuredStretch) : fullCyclesFor r + 3 ≤ sepFullCycles := by
   have h1 := fullCyclesFor_mono h
   have e : fullCyclesFor sepMeasuredStretch + 3 = sepFullCycles := by decide
@@ -601,7 +592,6 @@ theorem pick_ne_noRoom (i c d : Nat) : pick i c d ≠ .undecided .noRoom := by
   repeat' split
   all_goals simp
 
-/-- `noRoom` fires only for a stretch beyond the bound: within it the clock-matched window always fits. -/
 theorem sep_noRoom_only (s : SepIn) (h : sepVerdict s = .undecided .noRoom) : sepStretchBound < s.r := by
   refine Nat.lt_of_not_le fun hr => ?_
   have hn : ¬ sepFullCycles ≤ clockIndex s.r 5 := by have := sep_fits s.r (by omega); omega

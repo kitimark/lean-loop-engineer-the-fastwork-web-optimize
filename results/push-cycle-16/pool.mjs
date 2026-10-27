@@ -1,5 +1,4 @@
 // node results/push-cycle-16/pool.mjs <label>=<dir of toolbar-throttle-N artifacts> ... > pooled.md
-// One report over the jobs of several runs of the same lane; a job is named "<label> job <vm>", expected jobs are 1 to 6 of every run.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { reportMd } from '../../packages/measure-webkit/src/throttle/push-cycle-report.mjs';
