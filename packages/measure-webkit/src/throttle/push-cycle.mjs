@@ -186,7 +186,6 @@ export const USER_FLAGS = Object.freeze([
 
 const NEEDS = Object.freeze({ 'hero.countdown:strip': ['morph.countdown:strip'] });
 
-/** Arms of task morph-push-sim: the rewrite without the flag, with morph.geom, and with morph.geom and the timed tween. */
 export const MORPH_ARMS = Object.freeze({
   'morph-base': '', 'morph-geom': '?fw=morph.geom:on', 'morph-timed': '?fw=morph.geom:on,morph.tween:geom-timed',
 });

@@ -900,23 +900,19 @@ def censusCases : List (String × List (List Nat)) :=
    ("fall", [[20, 10, 10, 10, 10, 10], [20, 10, 10, 10, 10, 10], [20, 10, 10, 10, 10, 10]]),
    ("empty", [[], [], []])]
 
-/-- The tween duration in ms. -/
 def pushMs : Nat := 680
 
 theorem pushMs_eq : (pushMs : Rat) = Fw.Parts.MorphTween.duration := by
   unfold pushMs Fw.Parts.MorphTween.duration; rfl
 
-/-- The write that starts a push lands before the first recorder frame that sees it. -/
 def pushLeadMs : Nat := 17
 
-/-- The end timer and the last style write land after the tween's duration. -/
 def pushTailMs : Nat := 100
 
 def winStart (t0 : Nat) : Nat := t0 - pushLeadMs
 
 def winEnd (t0 : Nat) : Nat := t0 + pushMs + pushTailMs
 
-/-- A page time `t` lies in the window of the push seen at `t0`. -/
 def inWin (t0 t : Nat) : Bool := decide (winStart t0 ≤ t ∧ t < winEnd t0)
 
 theorem win_len (t0 : Nat) (h : pushLeadMs ≤ t0) : winEnd t0 - winStart t0 = pushLeadMs + pushMs + pushTailMs := by
@@ -947,7 +943,6 @@ theorem countIn_append (t0 : Nat) (a b : List Nat) : countIn t0 (a ++ b) = count
 def rowsIn (t0 : Nat) (ty : String) (rows : List (String × Nat)) : Nat :=
   countIn t0 ((rows.filter (·.1 == ty)).map (·.2))
 
-/-- A frame gap above this many ms is slow. -/
 def slowMs : Nat := 34
 
 def slowIn (t0 : Nat) (ft : List Nat) : Nat :=
@@ -961,7 +956,6 @@ structure PushWin where
   slow : Nat
 deriving Repr, DecidableEq
 
-/-- One pass: timeline rows (type, page ms), page rAF requests, recorder frame times, and the end of the recording. -/
 structure PushRec where
   rows : List (String × Nat)
   rafs : List Nat
@@ -971,7 +965,6 @@ structure PushRec where
 def winOf (r : PushRec) (t0 : Nat) : PushWin :=
   ⟨rowsIn t0 "RecalculateStyles" r.rows, rowsIn t0 "Layout" r.rows, rowsIn t0 "Paint" r.rows, countIn t0 r.rafs, slowIn t0 r.frames⟩
 
-/-- A push counts only when its whole window lies inside the recording. -/
 def complete (r : PushRec) (t0 : Nat) : Bool := decide (winEnd t0 ≤ r.endMs)
 
 def windows (r : PushRec) (starts : List Nat) : List PushWin := (starts.filter (complete r)).map (winOf r)
@@ -987,15 +980,12 @@ theorem windows_complete (r : PushRec) (t0 : Nat) (h : winEnd t0 ≤ r.endMs) : 
   have : complete r t0 = true := by unfold complete; simp; omega
   simp [windows, this]
 
-/-- One VM (one job of one run) and the windows of all its passes of one arm. -/
 structure VmPushes where
   vm : Nat
   wins : List PushWin
 
-/-- A VM counts only with at least this many windows. -/
 def minWins : Nat := 3
 
-/-- An arm and the base each need this many VMs. -/
 def pushMinVms : Nat := 3
 
 def usableVms (vs : List VmPushes) : List VmPushes := vs.filter fun v => decide (minWins ≤ v.wins.length)
@@ -1011,7 +1001,6 @@ def PushWin.get (w : PushWin) : String → Nat
   | "raf" => w.raf
   | _ => w.slow
 
-/-- Per VM, the mean count per window times 1000. -/
 def vmVec (v : VmPushes) : Offscreen.Vec :=
   ⟨v.wins.length, pushKeys.map fun k => (k, rate (v.wins.map (·.get k)))⟩
 
@@ -1040,14 +1029,12 @@ def cmpName : Offscreen.Cmp → String
   | .same => "same"
   | .more => "more"
 
-/-- Any counter above the base is no gain; else any below is a gain. -/
 def fromCmps (cs : List Offscreen.Cmp) : PushVerdict :=
   if Offscreen.Cmp.more ∈ cs then .noGain else if Offscreen.Cmp.less ∈ cs then .gain else .noGain
 
 def armCmps (base arm : List VmPushes) : List Offscreen.Cmp :=
   pushKeys.filterMap (Offscreen.cmpKey Offscreen.slack ((usableVms base).map vmVec) ((usableVms arm).map vmVec))
 
-/-- One arm against the base, per push window, over the VM spreads. -/
 def armVerdict (base arm : List VmPushes) : PushVerdict :=
   if vmCount base < pushMinVms then .undecided .fewBase
   else if vmCount arm < pushMinVms then .undecided .fewArm
@@ -1102,10 +1089,8 @@ theorem armVerdict_gain_sound (base arm : List VmPushes) (h : armVerdict base ar
   · exact ⟨by omega, by omega, a, b⟩
   · simp [a, b] at h
 
-/-- No style, layout, paint or page rAF in the window. -/
 def PushWin.quiet (w : PushWin) : Bool := w.style == 0 && w.layout == 0 && w.paint == 0 && w.raf == 0
 
-/-- No page rAF in the window. -/
 def PushWin.rafFree (w : PushWin) : Bool := w.raf == 0
 
 inductive QuietV where
@@ -1119,7 +1104,6 @@ def QuietV.name : QuietV → String
   | .stirred => "stirred"
   | .undecided => "undecided"
 
-/-- Every window of every usable VM satisfies `p`, on at least `pushMinVms` VMs. -/
 def quietVerdict (p : PushWin → Bool) (vs : List VmPushes) : QuietV :=
   if vmCount vs < pushMinVms then .undecided
   else if (usableVms vs).all (fun v => v.wins.all p) then .quiet else .stirred

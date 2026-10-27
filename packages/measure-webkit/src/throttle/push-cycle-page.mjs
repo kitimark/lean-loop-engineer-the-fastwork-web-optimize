@@ -17,6 +17,5 @@ export const EXTRA_START_JS = `(() => {
 
 export const EXTRA_FETCH_JS = `(() => JSON.stringify(window.__fwPcx || { rz: [], vvr: [], vvs: [], raf: [] }))()`;
 
-/** A page-side stamp every 500 ms: a TimeStamp row `fwpc:<page ms>` in any running timeline, so a segment is synced without a host call (a host evaluate right after a cycle hung for 120 s in runs 40470960001 and 40479824329). */
 export const STAMP_JS = "(() => { if (window.__fwStamp) return 'on'; window.__fwStamp = setInterval(() => { performance.mark('fwpc:' + performance.now().toFixed(1)); performance.clearMarks(); }, 500); return 'on'; })()";
 

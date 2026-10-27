@@ -1,5 +1,3 @@
-// node results/morph-push-sim/pool.mjs <dir> [<dir> ...] > pooled.md
-// <dir> holds the toolbar-throttle-<job> artifacts of one run (any arms); a VM is one job of one run, so the id is the run index and the job.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import * as M from '../../packages/measure-webkit/src/throttle/morph-push.mjs';

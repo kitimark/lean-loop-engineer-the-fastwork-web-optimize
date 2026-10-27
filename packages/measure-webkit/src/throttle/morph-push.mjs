@@ -1,8 +1,6 @@
 import { stretches } from './morph-end.mjs';
 import { excludeReason } from './finish-report.mjs';
 
-// TS twin of the per-push window and the per-arm verdict in lean/Fw/Measure/PushCycle.lean (golden: pushConstants, pushInWin, pushWindows,
-// pushVerdict, pushQuiet). Stand-ins with no Lean golden: the timeline-to-page-time conversion (pageMs), pushStarts, buildPush, the report glue.
 export const PUSH_MS = 680;
 export const LEAD_MS = 17;
 export const TAIL_MS = 100;
@@ -56,16 +54,10 @@ export function quietVerdict(p, vs) {
   return usableVms(vs).every((v) => v.wins.every(p)) ? 'quiet' : 'stirred';
 }
 
-/** Timeline seconds to page ms through the sync mark: page time of the mark `p`, its timeline time `s`. */
 export const pageMs = (t, sync) => Math.round(sync.p + (t - sync.s) * 1000);
 
-/** The page ms of the first recorder frame of every open stretch: the push seen. */
 export const pushStarts = (rec) => stretches(rec.o).map(([a]) => Math.round(rec.t[a]));
 
-/**
- * What a pass keeps of its timeline: the style, layout and paint rows and the page rAF requests that fall inside some push window, in page ms,
- * the push starts and the end of the recording; `drift` is the sync mark's disagreement with a second one at the end (ms).
- */
 export function buildPush({ rows, sync, sync2, rafs, rec, endP }) {
   const starts = pushStarts(rec);
   const near = (t) => starts.some((t0) => inWin(t0, t));
@@ -78,7 +70,6 @@ export function buildPush({ rows, sync, sync2, rafs, rec, endP }) {
   };
 }
 
-/** The same for a pass of one timeline per cycle: `segs` are {rows, sync, sync2} (each timeline has its own clock and its own sync marks); `drift` is the largest disagreement of a segment's two marks. */
 export function buildPushSegs({ segs, rafs, rec, endP }) {
   const starts = pushStarts(rec);
   const near = (t) => starts.some((t0) => inWin(t0, t));
@@ -90,7 +81,6 @@ export function buildPushSegs({ segs, rafs, rec, endP }) {
   };
 }
 
-/** The page-side stamps `fwpc:<page ms>` of a segment: the first and the last as sync marks {p, s}, or null with fewer than two. */
 export function stampSync(rows) {
   const st = rows.filter((r) => r[0] === 'TimeStamp' && /^fwpc:\d+(\.\d+)?$/.test(r[3] ?? '')).map((r) => ({ p: Number(r[3].slice(5)), s: r[1] }));
   return st.length < 2 ? null : { sync: st[0], sync2: st[st.length - 1] };
@@ -104,7 +94,6 @@ export const syncOf = (rows, message, page) => {
 export const passUsable = (p) => p.profile === 'push' && !!p.push && excludeReason(p) === null;
 export const passRec = (p) => ({ rows: p.push.rows, rafs: p.push.rafs, frames: p.rec.t.map(Math.round), endMs: p.push.endMs });
 
-/** One VM per job file of one run; `vmId` makes the id unique across runs. */
 export function vmsOf(jobs, arm, vmId) {
   return jobs.map((j, i) => {
     const ps = (j.passes ?? []).filter((p) => p.arm === arm && passUsable(p));
@@ -114,7 +103,6 @@ export function vmsOf(jobs, arm, vmId) {
 
 const mean = (xs) => (xs.length ? Math.round((sum(xs) * 10) / xs.length) / 10 : null);
 
-/** The table of one dispatch (one arm): per job the passes, windows and the mean counters per window. */
 export function morphReportMd(jobs) {
   const arms = [...new Set(jobs.flatMap((j) => (j.passes ?? []).map((p) => p.arm)))];
   const out = ['# Per-push windows (push to morph end, Lean PushCycle)', ''];

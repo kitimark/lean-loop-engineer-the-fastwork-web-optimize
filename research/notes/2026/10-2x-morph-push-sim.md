@@ -59,7 +59,7 @@ rows):
   26 style rows (summed over its 6 windows) in the first 100 ms and some in every later bin. The window cannot tell a morph row from these.
   So "no morph style, layout, paint or rAF" is neither shown nor refuted on the Simulator; the Chromium reading of the
   morph-timed note (Paint, RasterTask, FireAnimationFrame fall) stands as the only evidence of fewer frames.
-- Note the page rAF requests: base 3, geom 2.7 to 4, timed 6.3 per window: the geom-timed page still requests frames.
+- Page rAF requests per window: base 3, geom 2.7 to 4, timed 6.3, so the geom-timed page still requests frames.
   INFERRED source: the site's other rAF users and the recorder-side wrapper edge cases; not traced.
 
 ## What the lane lost, and why (for the next try)
@@ -69,10 +69,10 @@ rows):
   suspended or lost while Safari is not in front after the swipe sequence; not shown.
 - macOS VMs: simctl ETIMEDOUT, push server never ready (420 s), restarts of 4 to 8 minutes. One job in four (run 4 job 1)
   never ran a pass.
-- Each pass needs 3 usable base VMs: with this loss rate (about 1 usable pass in 3) 9 VMs per arm in 3 pushes would be needed.
+- Base needs 3 usable VMs; at about 1 usable pass in 3 that is 9 VMs per arm in 3 pushes.
 
 ## TS stand-ins and limits
-- TS stand-ins: the lane glue (pass loop, timeline segments, stamp timer, rAF wrapper, report table) is I/O and carries no
+- The lane glue (pass loop, timeline segments, stamp timer, rAF wrapper, report table) is I/O with no
   decision logic; the verdict and the window rules are the Lean ones through the golden. The timeline-to-page-ms mapping
   (`pageMs`, `stampSync`) is TS with unit tests, no Lean spec.
 - Class L arms stay the user's visual review. Toolbar throttle and pin fight are measured as they are, not fixed. No phone run.
