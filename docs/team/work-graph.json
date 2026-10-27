@@ -23053,6 +23053,76 @@
     "results/geom-image-model/**",
     "docs/team/handoffs/geom-image-model.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-cols-probe",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-flip-fix",
+    "timed-take-retry"
+   ],
+   "title": "Column background probe on the real iPhone (user connected the phone 2026-10-27): probe-only flag hiding the column pictures; arms base, base+cols-off, geom+geom-timed, geom+geom-timed+cols-off; 4x4 Latin square, Serious pin, push lane; per-push path log; how much the columns cost on WebKit with and without the flip.",
+   "writes": [
+    "apps/site/src/parts/morph.columns/**",
+    "lean/Fw/Device/*.lean",
+    "lean/scripts/PhoneArmsGolden.lean",
+    "packages/contracts/golden/device/**",
+    "packages/measure-webkit/src/device-*.mjs",
+    "packages/measure-webkit/test/device-*.test.mjs",
+    "results/phone/2026-10-27-cols-probe/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-phone-cols-probe.md",
+    "results/phone-cols-probe/**",
+    "docs/team/handoffs/phone-cols-probe.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "flip-verify-auto",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-flip-fix",
+    "timed-take-retry"
+   ],
+   "title": "Automate verification of the user's flip bugs (user 2026-10-27): CI readings at leave time for A3a (animation currentTime kept) and A4 (no nav width/background transition after the close), a per-push take-path log on CI for both engines (A5), and a mutation run of the flip cell with each fix reverted; Lean statements for each reading; the same probes reusable on the phone and Safari macOS lanes.",
+   "writes": [
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/premise-tests/src/look.mjs",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "packages/contracts/golden/ci/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-flip-verify-auto.md",
+    "results/flip-verify-auto/**",
+    "docs/team/handoffs/flip-verify-auto.md"
+   ]
   }
  ],
  "deadline": {
