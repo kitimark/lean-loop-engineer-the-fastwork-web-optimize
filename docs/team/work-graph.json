@@ -23150,7 +23150,8 @@
     "docs/team/handoffs/raw-local-main.md",
     "docs/team/incidents/ledger.json",
     "lean/scripts/DiskGcGolden.lean"
-   ]
+   ],
+   "evidence": "c96e560"
   }
  ],
  "deadline": {

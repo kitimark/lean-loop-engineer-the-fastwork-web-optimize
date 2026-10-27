@@ -4632,6 +4632,39 @@
    "leanVerdict": "provable",
    "leanReason": "Whether each side holds its minimum evidence is a pure function of the samples; 'an empty or short side is never a win' is a theorem per verdict function.",
    "hardening": "verdict-evidence-audit"
+  },
+  {
+   "id": "inc-raw-in-worktree",
+   "at": "2026-10-27T12:00+07:00",
+   "title": "Raw phone lanes written under a worktree's .local were deleted when disk-gc removed the landed worktree",
+   "symptom": "After the lands of phone-morph-push, phone-morph-push-r2 and phone-cols-probe the per-frame timelines of their visits were gone; only the committed per-visit summaries remained.",
+   "cause": "CONFIRMED (apps/runner/src/disk-gc.ts deleteItem, class landed: the worktree removal command; Fw.Ops.DiskGc.ruleLanded before this fix): the three tasks wrote their raw dirs to <worktree>/.local/phone/..., which is gitignored. A landed, clean worktree is a delete candidate and the removal deletes ignored files too, so the raw data went with it. Clean meant 'no tracked or unignored change', not 'nothing worth keeping'.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/disk-gc.ts",
+     "note": "deleteItem landed branch: worktree removal"
+    },
+    {
+     "kind": "file",
+     "ref": "lean/Fw/Ops/DiskGc.lean",
+     "note": "ruleLanded had no fact about .local"
+    },
+    {
+     "kind": "file",
+     "ref": "docs/team/handoffs/phone-cols-probe.md",
+     "note": "raw lane path under .local/phone"
+    }
+   ],
+   "repro": "Create a landed worktree, write .local/phone/r1/frames.jsonl in it, run `pnpm fw disk-gc --delete --class landed`: the worktree and the file are gone.",
+   "fix": {
+    "task": "raw-local-main"
+   },
+   "regression": "raw-local-main: Lean rule Fw.Ops.DiskGc.local_data_kept (a landed worktree whose .local is not known empty is never selected; also local_nonempty_kept, local_unread_kept, held_local_kept), 3 golden rows in packages/contracts/golden/ops/diskgc.jsonl, the disk-gc.test.ts cases, and the device CLIs resolve .local/ paths against the main checkout (packages/measure-webkit/test/device-raw-dir.test.mjs). The lost raw lanes are not recoverable.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "provable",
+   "leanReason": "Whether a landed worktree is deleted is a pure function of its facts; 'a non-empty or unread .local is never a delete candidate' is the theorem local_data_kept.",
+   "hardening": "raw-local-main"
   }
  ]
 }
