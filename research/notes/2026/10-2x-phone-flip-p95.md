@@ -101,7 +101,7 @@ style 116, idle 7, commitWait 2.
 
 ## Veil cost against r2 (INFERRED)
 r2 (`research/notes/2026/10-2x-phone-morph-push-r2.md`) ran the flip look without the veil (p95 base 69, geom 58, geom-timed 78; over 50 ms 55, 67, 65;
-paint 10398, 8425, 9324; style 962, 1912, 1094). More than the veil differs (another session, another heat history, four arms in r2), so the comparison is INFERRED; each visit here also runs a third tl lane (Timeline on), so visits are longer and heat histories differ; r2 n = 4 per arm against 5 to 6.
+paint 10398, 8425, 9324; style 962, 1912, 1094). More than the veil differs (another session, another heat history, four arms in r2), so the comparison is INFERRED; r2 n = 4 per arm against 5 to 6.
 - The base itself moved between sessions: p95 69 to 58, paint 10.4k to 12.6k, max 556 to 92. Session drift is larger than any arm gap here.
 - Flip arms with the veil: paint 3210 (geom) and 4566 (timed), down 62% and 51% against r2, while the base paint rose 21%. Style fell for geom (1912 to
   834). The veil takes the picture work out of the morph.
@@ -122,7 +122,7 @@ the heat history differs by launch, so a late visit has run in a different state
 cannot remove it with n = 5 to 6.
 
 ## Limits
-- One session, 16 of 18 visits (base 6, geom 5, geom-timed 5); the design is incomplete by visits 16 and 17.
+- One session, 16 of 18 visits (base 6, geom 5, geom-timed 5); visits 16 and 17 are missing.
 - The push is a fixed XCUITest swipe, not the user's finger. One induced thermal state (Serious); real heat above it is not visible during the pin.
 - The tl lane has the Timeline on and is slower than the frames lane; attribution is for that load. Dominance by the innermost record is a rule, not a
   profile of the engine; `RecalculateStyles` and `Composite` carry no element, and the `Composite` span is a wall-clock span, not a measure of work.

@@ -1,6 +1,3 @@
-// Per-frame attribution of the long frames of the phone push (phone-flip-p95). The decision rule is the Lean module
-// lean/Fw/Device/FlipAttr.lean; the constants and cases are read from the golden (kinds flipwork, flipattr, fliptail).
-// Tree walking, clock shifting and the choice of the intervals are glue (TS stand-ins, listed in the handoff).
 import { readFileSync } from 'node:fs';
 import { PUSH, clockOff, framesIn, pct, spans } from './device-push.mjs';
 import { toHundredths } from './profile/reduce.mjs';
@@ -9,7 +6,6 @@ const GOLDEN = readFileSync(new URL('../../contracts/golden/device/phone-arms.js
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 export const WORK = Object.freeze(GOLDEN.find((l) => l.kind === 'flipwork'));
 export const BUSY_WORKS = WORK.busyWorks;
-// WebKit `Composite` is the CA commit and flush span, mostly off the main thread (Page.cpp:2587-2609, RemoteLayerTreeDrawingArea.mm:357,431-448): not busy.
 export const WAIT = 'commitWait';
 
 const SCRIPT = new Set(['EventDispatch', 'TimerFire', 'EvaluateScript', 'FunctionCall', 'FireAnimationFrame', 'ObserverCallback']);
@@ -54,7 +50,6 @@ export const leadOf = (a, b, rs) => { const w = dominant(a, b, rs); return w ===
 
 export const tailOf = (limit, ds) => ds.filter((d) => limit <= d);
 
-/** The records of the Timeline tree as Lean `Rec` rows (page clock, hundredths of a ms), ordered by start then longest first; `src` keeps the protocol record for naming. */
 export function recsOf(tree, off) {
   const out = [];
   const at = (sec) => toHundredths(sec * 1000) - off;
@@ -68,7 +63,6 @@ export function recsOf(tree, off) {
   return out.sort((x, y) => x.s - y.s || y.e - x.e);
 }
 
-/** The long and tail intervals of one visit: each frame interval inside a push span, with the records that overlap it. */
 export function framesOfVisit(tl) {
   const sps = spans(tl.f, tl.hiEnd, tl.ts);
   const off = clockOff(tl.tlA, tl.tlB, tl.a, tl.b);
@@ -81,13 +75,11 @@ export function framesOfVisit(tl) {
   return { ivs, recs, off };
 }
 
-/** The top script frame of a record's stack as `function file:line`, or null when it has none. */
 export function callerOf(rec) {
   const f = rec?.stackTrace?.callFrames?.[0];
   return f ? `${f.functionName || '(anonymous)'} ${String(f.url ?? '').split('/').pop()}:${f.lineNumber ?? '?'}` : null;
 }
 
-/** Attribute every interval: times per work, busy, the dominant work and the lead record (Lean `leadOf`). */
 export function attributeVisit(tl, { limit = PUSH.overLimit } = {}) {
   const { ivs, recs } = framesOfVisit(tl);
   const p95 = pct(95, ivs.map((x) => x.d));

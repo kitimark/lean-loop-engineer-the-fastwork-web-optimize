@@ -26,7 +26,6 @@ export function pct(p, xs) {
   return s[Math.floor((p * xs.length + 99) / 100) - 1] ?? 0;
 }
 export const over = (lim, xs) => xs.filter((x) => lim < x).length;
-/** Lean `rate`: frames over the limit per 1000 intervals, integer; 0 for no interval. */
 export const rate = (o, n) => (n === 0 ? 0 : Math.floor((o * 1000) / n));
 
 export const countIn = (kind, off, s, rs) => rs.filter((r) => r[0] === kind && s[0] <= r[1] - off && r[1] - off <= s[1]).length;

@@ -1,5 +1,3 @@
-// Reduce a flip session (set flip) into the per-frame attribution tables. Decisions are device-flip-attr.mjs (Lean FlipAttr); this file
-// reads raw lanes, groups by arm and prints. TS stand-in: the grouping and the table text.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PUSH, pct, spanDts, spans } from './device-push.mjs';
@@ -31,7 +29,6 @@ const BUCKET = 50000;
 const TYPES = ['RecalculateStyles', 'Layout', 'Paint', 'Composite', 'ScheduleStyleRecalculation', 'InvalidateLayout'];
 const EVENT_GROUPS = { touch: /^(touch|pointer)/, transition: /^transition/, animation: /^animation/ };
 
-/** Where the long frames sit (500 ms buckets since the touch start) and what the long and the other frames hold (record counts, record time clipped to the interval, event counts by group). */
 function shape(tl, rows) {
   const sps = spans(tl.f, tl.hiEnd, tl.ts);
   const { recs } = framesOfVisit(tl);

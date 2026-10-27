@@ -73,7 +73,6 @@ export const COUNTS_STOP_JS = `(() => {
   return JSON.stringify({ ts: st.ts, tr: st.tr, a: Math.round(st.a * 100), b: Math.round(st.b * 100), maxY: document.documentElement.scrollHeight - innerHeight, vh: innerHeight, y: scrollY });
 })()`;
 
-/** The running animations once, before the pushes of the tl lane: target, properties, rect (page px). Names the elements and properties that the Timeline records do not name. */
 export const ANIM_SNAPSHOT_JS = `(() => {
   const name = (el) => { if (!el) return null; const c = typeof el.className === 'string' ? el.className.trim().split(/\\s+/).slice(0, 2).join('.') : ''; const d = el.getAttribute && el.getAttribute('data-fw'); return el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (c ? '.' + c : '') + (d ? '[data-fw=' + d + ']' : ''); };
   const box = (el) => { const r = el ? el.getBoundingClientRect() : null; return r ? [Math.round(r.left), Math.round(r.top + scrollY), Math.round(r.width), Math.round(r.height)] : null; };
@@ -175,7 +174,6 @@ export async function countsLane(ctx, { server, settleMs, clock, log, gap = GAP_
   return { schema: 'fw.phone.push-counts/1', device: ctx.device, readouts, near, presses: r.presses, vh: r.vh, maxY: r.maxY, endY: r.y, ts: r.ts, tr: r.tr ?? [], a: r.a, b: r.b, tlA, tlB, rs };
 }
 
-/** Third lane (set flip): the frame recorder and the Timeline in one page load, keeping the whole record tree for the per-frame attribution. */
 export async function tlLane(ctx, { server, settleMs, clock, log, gap = GAP_PX }) {
   const readouts = [ctx.readout()];
   await loadFresh(ctx.c, { clock, settleMs, timers: 'live' });

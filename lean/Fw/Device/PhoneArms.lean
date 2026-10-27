@@ -951,7 +951,6 @@ theorem over_le (lim : Int) (xs : List Int) : over lim xs ≤ xs.length := List.
 
 theorem over_nil (lim : Int) : over lim [] = 0 := rfl
 
-/-- Frames over the limit per 1000 intervals, as an integer (per mille; per 100 intervals it is a tenth of it); 0 when there is no interval. The visit cell `over50Rate`: a visit with fewer frames is compared with one with more by the share, not the count. -/
 def rate (o n : Nat) : Int := if n = 0 then 0 else ((o * 1000 / n : Nat) : Int)
 
 theorem rate_none (n : Nat) : rate 0 n = 0 := by
@@ -1026,7 +1025,6 @@ def visitVals (fs : List PFrame) (hiEnd : Int) (ts : List Int) (tsC : List Int) 
     (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off spsC rs : Nat) : Int)) ++
     [rate (over overLimit d) d.length]
 
-/-- The last cell of a visit is its `over50Rate`. -/
 theorem visitVals_rate (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (off : Int) (rs : List Rec) :
     (visitVals fs hiEnd ts tsC off rs).getLast? =
       some (rate (over overLimit (spanDts (spans fs hiEnd ts) fs)) (spanDts (spans fs hiEnd ts) fs).length) := by
@@ -1516,16 +1514,8 @@ private def traceCases : List (String × List Ev) :=
    ("pushes only", [.push, .push, .push]), ("three taken of four", [.push, .take, .push, .take, .push, .push, .take]),
    ("a second take is not another push", [.push, .take, .take])]
 
-/-! ### Flip session: base, geom and geom-timed in a six-round Latin square (phone-flip-p95)
-
-Three arms need six rounds for a balanced order (an odd square has no Williams form with three rows): the three cyclic
-shifts and their reverses. Each round holds each arm once, each arm takes each position twice, and each ordered pair of
-distinct arms follows each other twice inside the rounds. -/
-
-/-- The three arms of the flip session: the base, the flip, and the flip with the timed tween. -/
 def flipArms : List Arm := pushArms.take 3
 
-/-- The index square of the flip session: the cyclic shifts of 0 1 2, then their reverses. -/
 def flipIdx : List (List Nat) := [[0, 1, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0], [1, 0, 2], [0, 2, 1]]
 
 def flipRows : List (List Arm) := flipIdx.map fun r => r.map fun j => flipArms.getD j base
@@ -1540,7 +1530,6 @@ def flipCol (p : Nat) : List Arm := flipRows.map fun r => r.getD p base
 
 def flipPairs (a b : Arm) : Nat := (flipRows.map fun r => (r.zip r.tail).count (a, b)).sum
 
-/-- Every arm of the flip session has at least `minVisits` visits. -/
 def flipOk (order : List Arm) : Bool := flipArms.all fun a => minVisits ≤ order.count a
 
 theorem flipOrder_length : flipOrder.length = 18 := by decide

@@ -1,21 +1,9 @@
 import Lean.Data.Json
-/-! Which work holds a long frame of the phone push (phone-flip-p95).
-
-A frame interval runs from one rAF time to the next. The Timeline records that overlap it are cut to the interval,
-the time of a nested record is taken off its parent (self time), and the self times are summed per kind of work. The
-frame is called by the main-thread work with the most time when that work fills at least half of it. Otherwise the frame is not main-thread
-busy: it is called `commitWait` when the WebKit `Composite` span fills at least half of it, else `idle`.
-
-`Composite` is not main-thread work on iOS. WebKit@862f17d `Source/WebCore/page/Page.cpp:2587-2594` opens the record in
-`Page::willStartRenderingUpdateDisplay` (the hooks "wrap the non-WebKit CA commit time which is mostly painting-related") and `:2600-2609`
-closes it in `didCompleteRenderingUpdateDisplay`. `Source/WebKit/WebProcess/WebPage/RemoteLayerTree/RemoteLayerTreeDrawingArea.mm:357` calls
-the opening hook on the main thread; `:431-448` runs the backing-store flush on `m_commitQueue` and calls the closing hook only after a
-`RunLoop::mainSingleton().dispatch` hop. The span therefore holds the layer-tree commit, the off-main flush and the wait for it. -/
+-- WebKit@862f17d Source/WebCore/page/Page.cpp:2587-2594 opens the Composite record in Page::willStartRenderingUpdateDisplay, :2600-2609 closes it in didCompleteRenderingUpdateDisplay.
+-- Source/WebKit/WebProcess/WebPage/RemoteLayerTree/RemoteLayerTreeDrawingArea.mm:357 calls the opening hook on the main thread; :431-448 flushes on m_commitQueue and calls the closing hook after a main-run-loop dispatch hop.
 namespace Fw.Device.FlipAttr
 open Lean
 
-/-- The kinds of work a frame is called by. `commitWait` is the `Composite` span (CA commit and flush, mostly off the main thread); `idle` is
-neither main-thread busy nor in a commit span (compositor, GPU or decode off the main thread). -/
 inductive Work where
   | script | style | layout | paint | commitWait | idle
   deriving DecidableEq, Repr
@@ -23,10 +11,8 @@ inductive Work where
 def Work.name : Work → String
   | .script => "script" | .style => "style" | .layout => "layout" | .paint => "paint" | .commitWait => "commitWait" | .idle => "idle"
 
-/-- The main-thread works, in the order that settles a tie. `commitWait` is not among them. -/
 def busyWorks : List Work := [.script, .style, .layout, .paint]
 
-/-- The work a Timeline record type counts to; `none` for containers and bookkeeping records. -/
 def workOf (t : String) : Option Work :=
   if ["EventDispatch", "TimerFire", "EvaluateScript", "FunctionCall", "FireAnimationFrame", "ObserverCallback"].contains t then some .script
   else if t == "RecalculateStyles" then some .style
@@ -35,28 +21,23 @@ def workOf (t : String) : Option Work :=
   else if t == "Composite" then some .commitWait
   else none
 
-/-- A Timeline record: type, start and end (hundredths of a ms, page clock). A record without an end has `e = s`. -/
 structure Rec where
   type : String
   s : Int
   e : Int
   deriving Repr, DecidableEq
 
-/-- Insert `t` into a list sorted ascending. -/
 def insertSorted (t : Int) : List Int → List Int
   | [] => [t]
   | x :: xs => if t ≤ x then t :: x :: xs else x :: insertSorted t xs
 
-/-- Insertion sort, ascending. -/
 def sortInts : List Int → List Int
   | [] => []
   | x :: xs => insertSorted x (sortInts xs)
 
-/-- The cut points of the frame interval `a..b`: both ends and every record end between them, in order. -/
 def cuts (a b : Int) (rs : List Rec) : List Int :=
   sortInts ([a, b] ++ (rs.flatMap fun r => [r.s, r.e]).filter fun t => a < t && t < b)
 
-/-- The index of the record that holds the piece `x..y` of time: of the records that cover it, the one that started last (the later one in the list on a tie, so a nested record wins over its parent). -/
 def innerIdx (x y : Int) (rs : List Rec) : Option Nat :=
   (List.range rs.length).foldl (fun best i =>
     match rs[i]? with
@@ -66,70 +47,54 @@ def innerIdx (x y : Int) (rs : List Rec) : Option Nat :=
       else best
     | none => best) none
 
-/-- The work the piece `x..y` counts to: the work of its innermost record. -/
 def charged (x y : Int) (rs : List Rec) : Option Work := (innerIdx x y rs).bind fun i => (rs[i]?).bind fun r => workOf r.type
 
-/-- The time of work `w` inside the frame interval: the length of all pieces between cut points whose innermost record counts to `w`. -/
 def workTime (a b : Int) (rs : List Rec) (w : Work) : Int :=
   ((((cuts a b rs).zip (cuts a b rs).tail).filter fun p => charged p.1 p.2 rs == some w).map fun p => p.2 - p.1).sum
 
-/-- The time the record with index `i` holds inside the frame interval (pieces whose innermost record it is). -/
 def held (a b : Int) (rs : List Rec) (i : Nat) : Int :=
   ((((cuts a b rs).zip (cuts a b rs).tail).filter fun p => innerIdx p.1 p.2 rs == some i).map fun p => p.2 - p.1).sum
 
-/-- The record that names a frame called by work `w`: the one of that work that holds the most time (the earliest on a tie); `none` when none holds any. -/
 def lead (a b : Int) (rs : List Rec) (w : Work) : Option Nat :=
   ((List.range rs.length).filter fun i => ((rs[i]?).bind fun r => workOf r.type) == some w).foldl
     (fun best i => match best with
       | none => if 0 < held a b rs i then some i else none
       | some j => if held a b rs j < held a b rs i then some i else best) none
 
-/-- The busy time: the self time of all records that count to a main-thread work. -/
 def busy (a b : Int) (rs : List Rec) : Int := (busyWorks.map (workTime a b rs)).sum
 
-/-- The busy work fills less than this share of the frame (numerator over denominator) for the frame to be not main-thread busy; the `Composite` span fills at least this share for the frame to be `commitWait`. -/
 def idleNum : Int := 1
 def idleDen : Int := 2
 
 def pick (f : Work → Int) (best w : Work) : Work := if f best < f w then w else best
 
-/-- The work a frame is called by. Under half the interval of busy time it is not main-thread busy: `commitWait` when the `Composite` span fills at least half, else `idle`. Otherwise the work with the most time (the earliest in `busyWorks` on a tie). -/
 def dominant (a b : Int) (rs : List Rec) : Work :=
   if busy a b rs * idleDen < (b - a) * idleNum then
     (if (b - a) * idleNum ≤ workTime a b rs .commitWait * idleDen then .commitWait else .idle)
   else busyWorks.foldl (pick (workTime a b rs)) .script
 
-/-- A record inside the interval counts its whole length. -/
 theorem workTime_single : workTime 0 10000 [⟨"FunctionCall", 1000, 9000⟩] .script = 8000 := by decide
 
-/-- A nested record is taken off its parent: the parent keeps the rest. -/
 theorem workTime_nested :
     workTime 0 10000 [⟨"FunctionCall", 1000, 9000⟩, ⟨"Paint", 2000, 8000⟩] .script = 2000 ∧
     workTime 0 10000 [⟨"FunctionCall", 1000, 9000⟩, ⟨"Paint", 2000, 8000⟩] .paint = 6000 := by decide
 
-/-- A record is cut to the interval. -/
 theorem workTime_cut : workTime 5000 15000 [⟨"Layout", 0, 8000⟩] .layout = 3000 := by decide
 
-/-- A record outside the interval counts nothing. -/
 theorem workTime_outside : workTime 0 10000 [⟨"Paint", 20000, 30000⟩] .paint = 0 := by decide
 
-/-- `Composite` counts to `commitWait` and `commitWait` is not a main-thread work. -/
 theorem commitWait_not_busy : workOf "Composite" = some .commitWait ∧ Work.commitWait ∉ busyWorks := by decide
 
-/-- A `Composite` span alone adds no main-thread busy time. -/
 theorem composite_not_busy : busy 0 10000 [⟨"Composite", 0, 10000⟩] = 0 := by decide
 
-/-- Branch 1a: a frame whose busy time is under half of it and whose `Composite` span fills at least half of it is `commitWait`. -/
 theorem dominant_commitWait (a b : Int) (rs : List Rec) (h : busy a b rs * idleDen < (b - a) * idleNum)
     (hw : (b - a) * idleNum ≤ workTime a b rs .commitWait * idleDen) : dominant a b rs = .commitWait := by
   simp [dominant, h, hw]
 
-/-- Branch 1b: a frame whose busy time is under half of it and whose `Composite` span fills less than half of it is idle. -/
 theorem dominant_idle (a b : Int) (rs : List Rec) (h : busy a b rs * idleDen < (b - a) * idleNum)
     (hw : ¬ (b - a) * idleNum ≤ workTime a b rs .commitWait * idleDen) : dominant a b rs = .idle := by
   simp [dominant, h, hw]
 
-/-- Branch 2: otherwise the call is one of the busy works. -/
 theorem dominant_busy (a b : Int) (rs : List Rec) (h : ¬ busy a b rs * idleDen < (b - a) * idleNum) : dominant a b rs ∈ busyWorks := by
   unfold dominant
   simp only [h, ↓reduceIte]
@@ -149,7 +114,6 @@ theorem dominant_busy (a b : Int) (rs : List Rec) (h : ¬ busy a b rs * idleDen 
       · intro w hw; exact hl w (by simp [hw])
   exact key busyWorks .script (by simp [busyWorks]) (fun w hw => hw)
 
-/-- A frame called `commitWait` or `idle` is not main-thread busy. -/
 theorem dominant_not_busy (a b : Int) (rs : List Rec) (h : dominant a b rs = .commitWait ∨ dominant a b rs = .idle) :
     busy a b rs * idleDen < (b - a) * idleNum := by
   refine Decidable.byContradiction fun hb => ?_
@@ -173,7 +137,6 @@ private theorem fold_max (f : Work → Int) : ∀ (l : List Work) (best : Work),
     · omega
     · exact h2 w hw
 
-/-- Branch 2, maximal: the work a busy frame is called by has at least the time of every other work. -/
 theorem dominant_max (a b : Int) (rs : List Rec) (h : ¬ busy a b rs * idleDen < (b - a) * idleNum) :
     ∀ w ∈ busyWorks, workTime a b rs w ≤ workTime a b rs (dominant a b rs) := by
   intro w hw
@@ -194,7 +157,6 @@ private theorem fold_stay (f : Work → Int) (best : Work) : ∀ (l : List Work)
     rw [this]
     exact ih (fun w hw => h w (by simp [hw]))
 
-/-- Branch 2, tie: when script has the most time (also in a tie) a busy frame is called script. -/
 theorem dominant_script (a b : Int) (rs : List Rec) (h : ¬ busy a b rs * idleDen < (b - a) * idleNum)
     (hs : ∀ w ∈ busyWorks, workTime a b rs w ≤ workTime a b rs .script) : dominant a b rs = .script := by
   unfold dominant
@@ -227,7 +189,6 @@ private theorem lead_fold (a b : Int) (rs : List Rec) (w : Work) : ∀ (l : List
       · cases hk; exact hl x (by simp)
       · exact hb k (by simpa using hk)
 
-/-- The record that names a frame is of the work the frame is called by. -/
 theorem lead_work (a b : Int) (rs : List Rec) (w : Work) (i : Nat) (h : lead a b rs w = some i) :
     ((rs[i]?).bind fun r => workOf r.type) == some w := by
   unfold lead at h
@@ -235,16 +196,12 @@ theorem lead_work (a b : Int) (rs : List Rec) (w : Work) (i : Nat) (h : lead a b
   intro i hi
   exact (List.mem_filter.mp hi).2
 
-/-- The record that names a frame: the lead record of its dominant work, none for an idle frame. -/
 def leadOf (a b : Int) (rs : List Rec) : Option Nat := if dominant a b rs = .idle then none else lead a b rs (dominant a b rs)
 
-/-- The records of the tail: the intervals of at least the given length (the p95 of a visit, or the 50 ms limit plus one). -/
 def tailOf (limit : Int) (ds : List Int) : List Int := ds.filter fun d => limit ≤ d
 
 theorem tailOf_mem (limit : Int) (ds : List Int) (d : Int) : d ∈ tailOf limit ds ↔ d ∈ ds ∧ limit ≤ d := by
   simp [tailOf]
-
-/-! ## Golden vectors (packages/contracts/golden/device/phone-arms.jsonl, kinds `flipwork`, `flipattr`, `fliptail`) -/
 
 private def typeCases : List String :=
   ["EventDispatch", "TimerFire", "EvaluateScript", "FunctionCall", "FireAnimationFrame", "ObserverCallback", "RecalculateStyles",
