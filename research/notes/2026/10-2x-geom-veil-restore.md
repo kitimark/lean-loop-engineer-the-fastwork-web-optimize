@@ -2,6 +2,14 @@
 
 Source: `10-27-end-columns-probe.md` A2, `10-2x-geom-flip-fix.md`, finding in `10-2x-morph-geom.md`.
 
+## Finding: the veil fold premise is refuted
+Round 2 (6b376eba6) folded the veil into D on the premise "at m = 1 D is opaque, so the end state is unchanged". CONFIRMED false:
+the veil paints above the backdrop pictures (apps/site/src/parts/morph.panel/index.tsx:51-54, backdrop then veil) while D paints
+below them (the nav layers), so an opaque D never darkens the pictures and they look brighter (seen on the iPhone). MEASURED local
+(10-27-end-columns-probe.md A2): m = 1 differs from base on 8.8-11.7 % of pixels, 0.04-0.13 % with the veil back.
+The section "Memory decision (round 2: veil folded)" in `10-2x-morph-geom.md` is superseded by this finding (that file is outside
+this task's writes, so its heading is not edited here; the lead may mark it). The findings ledger has the note (field premises).
+
 ## What changed
 - Site: tracks.ts veil track (transform, unit), tree.ts TAGS veil, geom.css veil in the no-transition list and the 0 0 origin
   list, the `display: none` rule removed. Revert of the site part of 6b376eba6 by hand (a git revert conflicted with later edits).
