@@ -9,10 +9,10 @@
   ],
   "vms": [
    3,
-   2
+   4
   ],
-  "undecided": true,
-  "verdict": "noData",
+  "undecided": false,
+  "verdict": "gain",
   "passVerdict": "gain",
   "differing": {
    "Paint": "less"
@@ -54,10 +54,10 @@
   ],
   "vms": [
    3,
-   2
+   4
   ],
-  "undecided": true,
-  "verdict": "noData",
+  "undecided": false,
+  "verdict": "gain",
   "passVerdict": "gain",
   "differing": {
    "Paint": "less"
@@ -99,10 +99,10 @@
   ],
   "vms": [
    3,
-   2
+   4
   ],
-  "undecided": true,
-  "verdict": "noData",
+  "undecided": false,
+  "verdict": "gain",
   "passVerdict": "gain",
   "differing": {
    "Paint": "less"
@@ -144,10 +144,10 @@
   ],
   "vms": [
    3,
-   2
+   4
   ],
-  "undecided": true,
-  "verdict": "noData",
+  "undecided": false,
+  "verdict": "gain",
   "passVerdict": "gain",
   "differing": {
    "Paint": "less"
