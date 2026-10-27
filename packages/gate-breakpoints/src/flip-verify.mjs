@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PKG, siteDist, startServer } from './serve.mjs';
 import { PIN_SRC } from './page.mjs';
-import { loadFlipCell } from './flip-cell.mjs';
+import { loadFlipCell, readLive } from './flip-cell.mjs';
 
 export const GOLDEN = resolve(PKG, '../contracts/golden/morph-geom-timed.jsonl');
 
@@ -65,9 +65,11 @@ export function installFlipProbe() {
     return i;
   };
   const frames = [];
+  const all = [];
   let running = false;
   window.__fwTakeTrace = (ev) => {
     trace.push({ ...ev, at: performance.now() });
+    all.push(ev.kind);
   };
   const roots = () => [document.querySelector('[data-fw="nav"]'), document.querySelector('[data-fw="morph-columns"]')];
   const anims = () => {
@@ -111,6 +113,13 @@ export function installFlipProbe() {
     stop() {
       running = false;
       return { frames: frames.slice(), trace: trace.slice() };
+    },
+    // push and take events seen since the page loaded (the warm-up included), for the drive loop's waits
+    count() {
+      return { push: all.filter((e) => e === 'push').length, take: all.filter((e) => e === 'take').length };
+    },
+    listen() {
+      all.length = 0;
     },
     navWidth() {
       return document.querySelector('[data-fw="nav"]').getBoundingClientRect().width;
@@ -214,7 +223,7 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
         pairs.push({ dt: b.paused ? 0 : dtFrame, before: b.t, after: a.t });
       }
     }
-    return { kind, frame: i, lost, pairs: pairs.length, ok: judgeKept(Math.max(frameMs, dtFrame), lost, pairs), worst: pairs.reduce((m, p) => Math.max(m, Math.abs(p.after - p.before - p.dt)), 0), detail: pairs.map((p, k) => ({ key: keys[k], dt: Math.round(p.dt * 10) / 10, delta: Math.round((p.after - p.before - p.dt) * 10) / 10 })) };
+    return { kind, frame: i, lost, pairs: pairs.length, ok: judgeKept(Math.max(frameMs, dtFrame) + 0.01, lost, pairs), worst: pairs.reduce((m, p) => Math.max(m, Math.abs(p.after - p.before - p.dt)), 0), detail: pairs.map((p, k) => ({ key: keys[k], dt: Math.round(p.dt * 10) / 10, delta: Math.round((p.after - p.before - p.dt) * 10) / 10 })) };
   });
   const a4 = flips.filter((f) => f.kind === 'leave').map(({ i }) => {
     const t0 = frames[i].ts;
@@ -263,9 +272,34 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Entry point for every lane that has a Playwright-style page: drives `cycles` push-open and pull-out wheel pairs at the page end and returns the raw log.
-export async function driveFlipProbe(page, { cycles = 2, openMs = 1800, closeMs = 2400 } = {}) {
+// Polls a page-side predicate (source string) every 100 ms; resolves true when it held, false at the timeout.
+const until = (page, src, ms) =>
+  page.evaluate(
+    ([code, limit]) =>
+      new Promise((res) => {
+        const f = new Function(`return (${code})`);
+        const t0 = performance.now();
+        const tick = () => {
+          if (f()) res(true);
+          else if (performance.now() - t0 > limit) res(false);
+          else setTimeout(tick, 100);
+        };
+        tick();
+      }),
+    [src, ms],
+  );
+
+const FLIP_ON = "document.documentElement.classList.contains('is-flip')";
+const FLIP_OFF = `!${FLIP_ON}`;
+const PUSHES = (n) => `window.__fwFlipProbe.count().push >= ${n}`;
+const TAKES = (n) => `window.__fwFlipProbe.count().take >= ${n}`;
+
+// Entry point for every lane that has a Playwright-style page (the phone and the Safari macOS lanes call it with their own page object):
+// scrolls to the page end, warms the wheel listeners up with one unrecorded open and close (they arm late), then records `cycles` pairs of
+// wheel down (open) and wheel up (pull out), each waiting for what it started instead of a fixed time. Returns the raw log and the base width.
+export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, windowMs = 1200, warmTries = 8 } = {}) {
   const size = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+  const diag = { warm: [], cycles: [] };
   await page.evaluate(async () => {
     const end = document.documentElement.scrollHeight;
     const from = window.scrollY;
@@ -276,18 +310,44 @@ export async function driveFlipProbe(page, { cycles = 2, openMs = 1800, closeMs 
     window.scrollTo(0, end);
   });
   await sleep(1200);
-  const baseWidth = await page.evaluate(() => window.__fwFlipProbe.navWidth());
-  await page.evaluate(() => window.__fwFlipProbe.start());
   await page.mouse.move(size.w / 2, size.h / 2);
+  await page.evaluate(() => window.__fwFlipProbe.listen());
+  for (let k = 0; k < warmTries; k++) {
+    await page.mouse.wheel(0, 120);
+    if (await until(page, PUSHES(1), 2500)) {
+      diag.warm.push({ try: k + 1, live: await page.evaluate(readLive) });
+      await until(page, FLIP_ON, 5000);
+      await sleep(settleMs);
+      await page.mouse.wheel(0, -120);
+      await until(page, FLIP_OFF, 8000);
+      await sleep(windowMs);
+      break;
+    }
+    diag.warm.push({ try: k + 1, live: await page.evaluate(readLive), pushed: false });
+    await sleep(1000);
+  }
+  const baseWidth = await page.evaluate(() => window.__fwFlipProbe.navWidth());
+  await page.evaluate(() => {
+    window.__fwFlipProbe.listen();
+    window.__fwFlipProbe.start();
+  });
   await sleep(300);
   for (let c = 0; c < cycles; c++) {
+    const pushed = [];
     await page.mouse.wheel(0, 120);
-    await sleep(openMs);
+    pushed.push(await until(page, PUSHES(2 * c + 1), 3000));
+    pushed.push(await until(page, TAKES(2 * c + 1), 3000));
+    await until(page, FLIP_ON, 6000);
+    await sleep(settleMs);
     await page.mouse.wheel(0, -120);
-    await sleep(closeMs);
+    pushed.push(await until(page, PUSHES(2 * c + 2), 3000));
+    await until(page, FLIP_OFF, 8000);
+    await sleep(windowMs);
+    diag.cycles.push({ cycle: c + 1, openPush: pushed[0], openTake: pushed[1], closePush: pushed[2] });
   }
+  diag.end = await page.evaluate(readLive);
   const raw = await page.evaluate(() => window.__fwFlipProbe.stop());
-  return { raw, baseWidth };
+  return { raw, baseWidth, diag };
 }
 
 export async function runFlipVerify({ engineName, fw, outDir, mutation = null, expectFail = false, bandFilter = null, cycles = 2 }) {
@@ -315,9 +375,9 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
         await sleep(1800);
         let applied = null;
         if (mutation) applied = await B.page.evaluate(mutatePage, mutation);
-        const { raw, baseWidth } = await driveFlipProbe(B.page, { cycles });
+        const { raw, baseWidth, diag } = await driveFlipProbe(B.page, { cycles });
         const res = analyseFlipProbe(raw, { baseWidth, verify, expectedPushes: cycles * 2 });
-        const row = { band: `${band.w}x${band.h}`, baseWidth, applied, ...res };
+        const row = { band: `${band.w}x${band.h}`, baseWidth, applied, diag, ...res };
         rows.push(row);
         process.stderr.write(`${row.band} A3a ${res.a3a.ok ? 'ok' : 'FAIL'} (enter ${res.a3a.enters}, leave ${res.a3a.leaves}) A4 ${res.a4.ok ? 'ok' : 'FAIL'} A5 ${res.a5.ok ? 'ok' : 'FAIL'} [${res.a5.events.join(',')}] take ms ${res.a5.takeMs.join('/')}\n`);
       } finally {

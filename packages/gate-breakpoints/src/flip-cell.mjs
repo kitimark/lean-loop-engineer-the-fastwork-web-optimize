@@ -117,6 +117,22 @@ export async function readLive() {
   };
 }
 
+// The morph panel mounts and unmounts on timers and an IntersectionObserver, so two pages loaded side by side can differ in whether the columns exist
+// at all (run 40525667335: WebKit 1280x800 base unmounted, flag mounted; 1920x1080 the reverse). A reading is only valid once both agree.
+export async function waitMountAgree(a, b, limitMs = 20000) {
+  const mounted = (pg) => pg.evaluate(() => !!document.querySelector('[data-fw="morph-panel"]'));
+  const t0 = Date.now();
+  let run = 0;
+  let last = [null, null];
+  while (Date.now() - t0 < limitMs) {
+    last = [await mounted(a), await mounted(b)];
+    run = last[0] === last[1] ? run + 1 : 0;
+    if (run >= 3) return { agree: true, a: last[0], b: last[1], waitedMs: Date.now() - t0 };
+    await sleep(500);
+  }
+  return { agree: false, a: last[0], b: last[1], waitedMs: Date.now() - t0 };
+}
+
 export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, mutation = null, expectFail = false, reportOnly = false }) {
   const { mutatePage, MUTATION_OWNER } = await import('./flip-verify.mjs');
   const { rewritePathFor } = await import('../../visual-diff/src/run.mjs');
@@ -148,12 +164,14 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, m
       try {
         const applied = mutation ? await B.page.evaluate(mutatePage, mutation) : null;
         if (mutation && !applied) process.stderr.write(`mutation ${mutation} changed nothing on ${band.w}x${band.h}\n`);
+        let mount = null;
         const steps = timed ? [[1, 'bottom'], [0, 'top']] : cell.ms.map((m) => [m, null]);
         for (const [m, to] of steps) {
           if (to) {
             await A.page.evaluate(stepScroll, to);
             await B.page.evaluate(stepScroll, to);
             await sleep(2600);
+            mount = await waitMountAgree(A.page, B.page);
           } else {
             await A.page.evaluate(pin, m);
             await B.page.evaluate(pin, m);
@@ -163,8 +181,10 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, m
           const liveB = timed ? await B.page.evaluate(readLive) : null;
           const base = await A.page.evaluate(readRects);
           const got = await B.page.evaluate(readRects);
-          const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)' : null;
-          const bad = skipped ? [] : judgeRects(base, got, band, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
+          const skipped = timed && m > 0.2 && !got.flip ? 'flip not engaged: the take guard decided at push start (A5)'
+            : timed && mount && !mount.agree ? `panel mounted on one page only (base ${mount.a}, flag ${mount.b}): its lazy mount is timer-driven, not the flip` : null;
+          const bandNow = timed && mount && mount.agree && !mount.b ? { ...band, cols: 0 } : band;
+          const bad = skipped ? [] : judgeRects(base, got, bandNow, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
           let recheck = null;
           if (timed && bad.length) {
             await A.page.bringToFront();
@@ -173,10 +193,10 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, m
             await sleep(1500);
             const base2 = await A.page.evaluate(readRects);
             const got2 = await B.page.evaluate(readRects);
-            const bad2 = judgeRects(base2, got2, band, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
+            const bad2 = judgeRects(base2, got2, bandNow, cell.tolPx, m === 0 || m === 1, m > 0.2 ? true : m === 0 ? false : null);
             recheck = { ok: bad2.length === 0, bad: bad2, live: [await A.page.evaluate(readLive), await B.page.evaluate(readLive)] };
           }
-          rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(skipped ? { skipped } : {}), ...(bad.length ? { base, flag: got } : {}), ...(timed ? { live: { base: liveA, flag: liveB } } : {}), ...(recheck ? { recheck } : {}), ...(mutation ? { applied } : {}) });
+          rows.push({ band: `${band.w}x${band.h}`, m, flipClass: got.flip, ok: bad.length === 0, bad, ...(skipped ? { skipped } : {}), ...(bad.length ? { base, flag: got } : {}), ...(timed ? { live: { base: liveA, flag: liveB }, mount } : {}), ...(recheck ? { recheck } : {}), ...(mutation ? { applied } : {}) });
           process.stderr.write(`${band.w}x${band.h} m=${m} flip=${got.flip} variant=${got.variant} ${skipped ? `skipped (${skipped})` : bad.length === 0 ? 'ok' : bad.join('; ')}\n`);
         }
       } finally {

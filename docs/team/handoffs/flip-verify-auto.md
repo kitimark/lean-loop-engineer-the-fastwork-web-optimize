@@ -1,7 +1,7 @@
 branch: worktree-wf_563f1ba9-714-1 (CI branch ci/flip-verify-auto)
 worktree: .claude/worktrees/wf_563f1ba9-714-1
 last commit: see `git log -1` (WIP commits carry "flip-verify-auto")
-CI runs: none finished yet (push 1 pending, see the end of this file for ids)
+CI runs: push 1 breakpoint-gate 40525667335 failure (verify: Chromium 320x568 A3a float edge; WebKit no pushes at 1280x800/1920x1080, panel mount timing; mutations caught on Chromium). Push 2 pending (warm-up drive, mount-agree wait).
 
 ## State
 - Lean: lean/Fw/Parts/MorphGeomVerify.lean (quiet leave A4, time kept A3a, take trace A5, Mutation list; one theorem per branch).
