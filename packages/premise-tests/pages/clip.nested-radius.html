@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>clip.nested-radius</title>
+<style>
+  body { margin: 0; background: #fff }
+  /* K0 covers 20..220, K1 (a composited child moved by translate) covers 120..320: the intersection is 120..220 with the
+     bottom-right corner rounded by K0 and the top-left corner rounded by K1 */
+  #k0 { position: absolute; left: 20px; top: 20px; width: 200px; height: 200px; border-radius: 40px; overflow: hidden; will-change: transform }
+  #k1 { position: absolute; left: 0; top: 0; width: 200px; height: 200px; border-radius: 40px; overflow: hidden; translate: 100px 100px; will-change: transform }
+  #fill { position: absolute; left: -100px; top: -100px; width: 400px; height: 400px; background: #c00 }
+</style>
+<div id="k0"><div id="k1"><div id="fill"></div></div></div>

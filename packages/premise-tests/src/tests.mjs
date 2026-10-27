@@ -527,6 +527,97 @@ export const TESTS = [
     },
   },
   {
+    id: 'prem.anim.keytimes', premise: 'anim.keytimes', page: 'anim.keytimes.html',
+    async run({ page }) {
+      const o = await page.evaluate(() => {
+        const rows = [];
+        const run = (id, prop, frames, at) => {
+          const e = document.getElementById(id);
+          const a = e.animate(frames, { duration: 1000, fill: 'both', easing: 'linear' });
+          a.pause();
+          for (const p of at) { a.currentTime = 1000 * p; rows.push({ id, p, got: prop === 'translate' ? Number.parseFloat(getComputedStyle(e).translate) || 0 : new DOMMatrixReadOnly(getComputedStyle(e).transform).e }); }
+        };
+        const at = [0, 0.1, 0.3, 0.5, 0.75, 0.9, 1];
+        run('a', 'translate', [{ translate: '0px 0px', offset: 0 }, { translate: '100px 0px', offset: 0.3 }, { translate: '100px 0px', offset: 0.6 }, { translate: '40px 0px', offset: 1 }], at);
+        run('b', 'transform', [{ transform: 'translate(0px, 0px) scale(1, 1)', offset: 0 }, { transform: 'translate(80px, 0px) scale(2, 1)', offset: 0.2 }, { transform: 'translate(20px, 0px) scale(1, 1)', offset: 1 }], at);
+        return rows;
+      });
+      const pw = (xs, p) => { for (let i = 1; i < xs.length; i++) if (p <= xs[i][0]) { const [p0, v0] = xs[i - 1]; const [p1, v1] = xs[i]; return v0 + ((v1 - v0) * (p - p0)) / (p1 - p0); } return xs[xs.length - 1][1]; };
+      const want = { a: [[0, 0], [0.3, 100], [0.6, 100], [1, 40]], b: [[0, 0], [0.2, 80], [1, 20]] };
+      try {
+        for (const r of o) assert.ok(Math.abs(r.got - pw(want[r.id], r.p)) < 0.05, `${r.id} at ${r.p}: ${r.got} vs ${pw(want[r.id], r.p)}`);
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
+  {
+    id: 'prem.anim.individual-transform', premise: 'anim.individual-transform', page: 'anim.individual-transform.html',
+    async run({ page }) {
+      const o = await page.evaluate(() => {
+        const e = document.getElementById('e');
+        const mk = (frames) => { const a = e.animate(frames, { duration: 1000, fill: 'both', easing: 'linear' }); a.pause(); a.currentTime = 500; return a; };
+        mk([{ translate: '0px 0px' }, { translate: '100px 60px' }]);
+        mk([{ scale: '1 1' }, { scale: '2 3' }]);
+        mk([{ transform: 'translate(0px, 0px)' }, { transform: 'translate(40px, 0px)' }]);
+        const b = e.getBoundingClientRect();
+        return { x: b.x, y: b.y, w: b.width, h: b.height };
+      });
+      try {
+        assert.ok(Math.abs(o.w - 150) < 0.05 && Math.abs(o.h - 200) < 0.05, 'scale 1.5 x 2 applies to the box');
+        assert.ok(Math.abs(o.x - (50 + 1.5 * 20)) < 0.05 && Math.abs(o.y - 30) < 0.05, 'translate, then scale, then transform (right to left)');
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
+  {
+    id: 'prem.clip.nested-radius', premise: 'clip.nested-radius', page: 'clip.nested-radius.html',
+    async run({ page }) {
+      await page.setViewportSize({ width: 400, height: 400 });
+      await frames(page, 3);
+      const shot = (await page.screenshot()).toString('base64');
+      const o = await page.evaluate(async (b64) => {
+        const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+        const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+        const s = bmp.width / 400;
+        const at = (x, y) => Array.from(g.getImageData(Math.round(x * s), Math.round(y * s), 1, 1).data);
+        return { inside: at(170, 170), cornerK0: at(218, 218), cornerK1: at(122, 122), edgeIn: at(215, 170), outsideX: at(230, 170), dpr: s };
+      }, shot);
+      const red = (p) => p[0] > 180 && p[1] < 60 && p[2] < 60;
+      const white = (p) => p[0] > 235 && p[1] > 235 && p[2] > 235;
+      try {
+        assert.ok(red(o.inside), 'inside both clips is filled');
+        assert.ok(white(o.cornerK0), 'the bottom-right corner is cut by the radius of the outer clip');
+        assert.ok(white(o.cornerK1), 'the top-left corner is cut by the radius of the moved inner clip');
+        assert.ok(red(o.edgeIn) && white(o.outsideX), 'the straight edge of the outer clip holds');
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
+  {
+    id: 'prem.backdrop.masked-ancestor', premise: 'backdrop.masked-ancestor', page: 'backdrop.masked-ancestor.html',
+    async run({ page }) {
+      await page.setViewportSize({ width: 400, height: 320 });
+      await frames(page, 3);
+      const shot = (await page.screenshot()).toString('base64');
+      const o = await page.evaluate(async (b64) => {
+        const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+        const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+        const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+        const s = bmp.width / 400;
+        const at = (x, y) => Array.from(g.getImageData(Math.round(x * s), Math.round(y * s), 1, 1).data);
+        return { masked: at(146, 70), control: at(146, 210), maskedFar: at(60, 70), dpr: s };
+      }, shot);
+      const mixed = (p) => p[0] > 40 && p[2] > 40 && p[1] < 80;
+      try {
+        assert.ok(mixed(o.control), `the control blur mixes the stripes at their edge (${o.control})`);
+        assert.ok(mixed(o.masked), `the blur under a rounded overflow clip mixes the stripes as well (${o.masked})`);
+        assert.ok(Math.abs(o.masked[0] - o.control[0]) < 12 && Math.abs(o.masked[2] - o.control[2]) < 12, 'masked equals control within 12');
+      } catch (e) { e.observed = o; throw e; }
+      return o;
+    },
+  },
+  {
     id: 'prem.glint.hold-pixels', premise: 'glint.hold-pixels', page: 'glint.hold-pixels.html',
     async run({ page }) {
       await page.setViewportSize({ width: 520, height: 130 });
