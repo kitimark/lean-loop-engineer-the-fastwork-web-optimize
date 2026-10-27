@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>backdrop.masked-ancestor</title>
+<style>
+  body { margin: 0 }
+  #bg { position: absolute; left: 0; top: 0; width: 400px; height: 320px; background: linear-gradient(90deg, #c00 0 150px, #00c 150px 400px) }
+  .k { position: absolute; width: 200px; height: 100px; border-radius: 20px; overflow: hidden; will-change: transform }
+  #k { left: 50px; top: 20px }
+  #c { left: 50px; top: 160px; border-radius: 0; overflow: visible }
+  .g { position: absolute; inset: 0; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px) }
+</style>
+<div id="bg"></div>
+<div id="k" class="k"><div class="g"></div></div>
+<div id="c" class="k"><div class="g"></div></div>

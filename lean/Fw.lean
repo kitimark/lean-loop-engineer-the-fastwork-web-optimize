@@ -86,6 +86,8 @@ import Fw.Parts.MorphGeom
 import Fw.Parts.MorphGeomRect
 import Fw.Parts.MorphGeomEarn
 import Fw.Parts.MorphGeomAnim
+import Fw.Parts.MorphGeomCounts
+import Fw.Parts.MorphGeomLook
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
