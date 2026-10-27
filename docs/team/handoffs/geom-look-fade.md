@@ -1,6 +1,6 @@
 # geom-look-fade handoff
-Branch: worktree-wf_a3cf32ea-bfb-1. Worktree: .claude/worktrees/wf_a3cf32ea-bfb-1. CI branch: ci/geom-look-fade (3 pushes used; the branch tip on origin is 7775f52b4, later commits are not measured).
-CI runs: 40585096601 (push 1, no marker, every workflow skipped), 40585231399 (push 2), 40590730537 (dispatch, WebKit flip-cell cancelled at the timeout), 40594241212 (push 3). Before: 40553185213.
+Branch: worktree-wf_a3cf32ea-bfb-1. Worktree: .claude/worktrees/wf_a3cf32ea-bfb-1. Last commit 0f3242fb7 (empty request commit [ci:breakpoint-gate], main merged). CI branch: ci/geom-look-fade, push 4 of 4 done (tip 0f3242fb7); lanes breakpoint-gate + lean.
+CI runs: 40585096601 (push 1, skipped), 40585231399 (push 2), 40590730537 (dispatch), 40594241212 (push 3), push 4: run id pending (waiting). Before: 40553185213.
 
 State: code, measurement and note done and committed.
 - Lean: lean/Fw/Parts/MorphGeomLookRule.lean (pixel rule, pixel range, share, track value, count, scroll, platform fade, settled); golden `look*` lines in packages/contracts/golden/morph-geom.jsonl.
