@@ -1,5 +1,5 @@
 import { excludeReason } from './finish-report.mjs';
-import { CYCLES, trend, verdictInputs, h1Verdict, h2Verdict, indexSeries, recordCycles, sepArm, SEP_MIN_PASSES } from './push-cycle.mjs';
+import { CYCLES, trend, verdictInputs, h1Verdict, h2Verdict, indexSeries, recordCycles, sepArm, SEP_MIN_PASSES, SEP_FULL_CYCLES, SEP_STRETCH_BOUND } from './push-cycle.mjs';
 
 export const ARM_ORDER = Object.freeze(['original', 'rewrite', 'user']);
 
@@ -38,13 +38,34 @@ export function armTable(jobs) {
   });
 }
 
-export function sepTable(jobs) {
+const parseFailed = (f) => {
+  const m = /^(.+)-r(\d+): (.+)$/.exec(f);
+  return m ? { arm: m[1], round: Number(m[2]), phase: m[3], profile: Number(m[2]) % 2 === 1 ? 'full' : 'dwell' } : null;
+};
+
+export const PROFILES = Object.freeze(['full', 'dwell']);
+
+export function lostOf(jobs, arm, profile, expect = null) {
+  const vms = [...new Set([...(expect ?? []), ...jobs.map((j) => j.vm)])];
+  return vms.flatMap((vm) => {
+    const j = jobs.find((x) => x.vm === vm);
+    if (!j) return [`${vm} no result file`];
+    const mine = (j.passes ?? []).filter((p) => p.arm === arm && p.profile === profile);
+    const failed = (j.failed ?? []).map(parseFailed).filter((f) => f && f.arm === arm && f.profile === profile);
+    const phase = failed.length ? ` (${failed[0].phase})` : '';
+    if (!mine.length) return [`${vm} ${failed.length ? `failed pass${phase}` : 'not run (the job ended first)'}`];
+    return mine.filter((p) => excludeReason(p) !== null).map((p) => `${vm} ${excludeReason(p)}${phase}`);
+  });
+}
+
+export function sepTable(jobs, expect = null) {
   const all = jobs.flatMap((j) => (j.passes ?? []).map((p) => ({ ...p, vm: p.vm ?? j.vm }))).filter((p) => p.profile);
-  const arms = [...new Set(all.map((p) => p.arm))];
+  const failedArms = jobs.flatMap((j) => (j.failed ?? []).map(parseFailed).filter(Boolean).map((f) => f.arm));
+  const arms = [...new Set([...all.map((p) => p.arm), ...failedArms])];
   return arms.map((arm) => {
     const mine = all.filter((p) => p.arm === arm);
     const usable = mine.filter((p) => excludeReason(p) === null);
-    const lost = (profile) => mine.filter((p) => p.profile === profile && excludeReason(p) !== null).map((p) => `${p.vm} ${excludeReason(p)}`);
+    const lost = (profile) => lostOf(jobs, arm, profile, expect);
     const s50 = sepArm(usable, 50), s34 = sepArm(usable, 34);
     const end = (profile) => usable.filter((p) => p.profile === profile).map((p) => p.census?.at(-1)?.bytes).filter((x) => x != null);
     return { arm, full: usable.filter((p) => p.profile === 'full').length, dwell: usable.filter((p) => p.profile === 'dwell').length,
@@ -54,9 +75,9 @@ export function sepTable(jobs) {
 
 function sepMd(rows) {
   const out = ['', '## Cycle versus clock (Lean Fw.Measure.PushCycle.sepVerdict; slow frames > 50 ms per cycle, cycles 3 to 5, counted window = open stretch + 8 s)', ''];
-  out.push('| Arm | Full passes | Dwell passes | Period full ms | Period dwell ms | Stretch r (permille) | Rate by cycle index | Rate by clock-matched index | Rate of dwell passes | Verdict (> 50 ms) | Verdict (> 34 ms) |', '|---|---|---|---|---|---|---|---|---|---|---|');
-  for (const r of rows) out.push(`| ${r.arm} | ${r.full} | ${r.dwell} | ${r.s50.input.periodFull} | ${r.s50.input.periodDwell} | ${r.s50.r} | ${r.s50.rates.idx} | ${r.s50.rates.clk} | ${r.s50.rates.dwell} | ${r.s50.verdict} | ${r.s34.verdict} |`);
-  out.push('', `Minimum ${SEP_MIN_PASSES} usable passes per side; a side below it is undecided, never a win. Lost passes: ${rows.map((r) => `${r.arm} full [${r.lost.full.join('; ') || 'none'}] dwell [${r.lost.dwell.join('; ') || 'none'}]`).join(', ')}.`, '');
+  out.push('| Arm | Full passes | Dwell passes | Period full ms | Period dwell ms | Stretch r (permille) | Within bound | Rate by cycle index | Rate by clock-matched index | Rate of dwell passes | Verdict (> 50 ms) | Verdict (> 34 ms) |', '|---|---|---|---|---|---|---|---|---|---|---|---|');
+  for (const r of rows) out.push(`| ${r.arm} | ${r.full} | ${r.dwell} | ${r.s50.input.periodFull} | ${r.s50.input.periodDwell} | ${r.s50.r} | ${r.s50.fits ? 'yes' : 'no'} | ${r.s50.rates.idx} | ${r.s50.rates.clk} | ${r.s50.rates.dwell} | ${r.s50.verdict} | ${r.s34.verdict} |`);
+  out.push('', `Full pass ${SEP_FULL_CYCLES} cycles and stretch bound ${SEP_STRETCH_BOUND} permille (Lean sepFullCycles, sepStretchBound): within the bound the clock-matched window fits (Lean sep_fits).`, '', `Minimum ${SEP_MIN_PASSES} usable passes per side; a side below it is undecided, never a win. Lost passes: ${rows.map((r) => `${r.arm} full [${r.lost.full.join('; ') || 'none'}] dwell [${r.lost.dwell.join('; ') || 'none'}]`).join(', ')}.`, '');
   out.push('### Census after each cycle of the dwell passes (H4: does memory grow per cycle)', '', '| Arm | Layers | Backing bytes | Layers created | Trend per dwell pass: layers / bytes / created | Mean bytes after (full pass) | Mean bytes after (dwell pass) |', '|---|---|---|---|---|---|---|');
   const mean = (xs) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 'n/a');
   for (const r of rows) {
@@ -67,7 +88,7 @@ function sepMd(rows) {
   return out;
 }
 
-export function reportMd(jobs) {
+export function reportMd(jobs, expect = null) {
   const rows = armTable(jobs);
   const dwell = jobs.find((j) => j.drag)?.drag?.holdMs;
   const out = [`# Push cycles on the Simulator (real touches), dwell ${dwell ?? '?'} ms, ${CYCLES} cycles per pass`, ''];
@@ -79,7 +100,7 @@ export function reportMd(jobs) {
     out.push(`H1 (slow frames near a viewport change): >34 ms ${r.h1_34.verdict}, >50 ms ${r.h1_50.verdict}; inputs ${JSON.stringify(r.h1_34.inputs)}.`);
     out.push(`H2 (fights per open, later against first): ${r.h2.verdict}; inputs ${JSON.stringify(r.h2.inputs)}.`, '');
   }
-  const sep = sepTable(jobs);
+  const sep = sepTable(jobs, expect);
   if (sep.length) out.push(...sepMd(sep));
   return out.join('\n');
 }
