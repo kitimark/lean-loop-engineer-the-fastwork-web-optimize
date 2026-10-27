@@ -214,6 +214,7 @@ run_group() {
   job "const-bounds-counts golden check" lake env lean --run scripts/ConstBoundsCountsGolden.lean --check ../packages/contracts/golden/parts/const-bounds-counts.jsonl ../results/const-bounds-counts/tables.md
   job "morph-columns-scale golden check" lake env lean --run scripts/MorphColumnsScaleGolden.lean --check ../packages/contracts/golden/parts/morph.columns.final-scale.jsonl
   job "morph-geom golden check" lake env lean --run scripts/MorphGeomGolden.lean --check ../packages/contracts/golden/morph-geom.jsonl
+  job "morph-geom-timed golden check" lake env lean --run scripts/MorphGeomTimedGolden.lean --check ../packages/contracts/golden/morph-geom-timed.jsonl
   job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
   job "morph-end-nobounce golden check" lake env lean --run scripts/MorphEndNobounceGolden.lean --check ../packages/contracts/golden/parts/morph-end-nobounce.jsonl
   job "combo-scroll golden check" lake env lean --run scripts/ComboScrollGolden.lean --check ../packages/contracts/golden/parts/combo-scroll.jsonl
