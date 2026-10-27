@@ -1086,8 +1086,6 @@ theorem noRepeat_rounds : noRepeat (pushRounds minVisits) = true := by decide
 theorem pushRounds_succ (r : Nat) : pushRounds (r + 1) = pushArms ++ pushRounds r := by
   simp [pushRounds, List.replicate_succ]
 
-/-- Which arm index (into `pushArms`) each visit of each round runs. The rows are a Williams square: a 4x4 Latin square in which every
-ordered pair of arms also follows each other exactly once, so a visit's heat is not always inherited from the same predecessor. -/
 def latinIdx : List (List Nat) := [[0, 1, 3, 2], [1, 2, 0, 3], [2, 3, 1, 0], [3, 0, 2, 1]]
 
 def latinRows : List (List Arm) := latinIdx.map fun r => r.map fun j => pushArms.getD j base
@@ -1106,10 +1104,8 @@ theorem latinOrder_length : latinOrder.length = 16 := by decide
 
 theorem latin_rows_once : latinRows.all (fun r => pushArms.all fun a => r.count a == 1) = true := by decide
 
-/-- Each arm takes each of the four positions exactly once. -/
 theorem latin_cols_once : (List.range 4).all (fun p => pushArms.all fun a => (latinCol p).count a == 1) = true := by decide
 
-/-- Every ordered pair of distinct arms follows each other once inside a round; no arm follows itself. -/
 theorem latin_carry : pushArms.all (fun a => pushArms.all fun b => latinPairs a b == (if a == b then 0 else 1)) = true := by decide
 
 theorem latin_ok : pushOk latinOrder = true := by decide
@@ -1118,7 +1114,6 @@ theorem latin_noRepeat : noRepeat latinOrder = true := by decide
 
 theorem latin_base_each : latinRows.all (fun r => r.count base == 1) = true := by decide
 
-/-- Visit `i` of the order sits in round `i / 4` at position `i % 4`. -/
 theorem latin_index : (List.range 16).all (fun i => latinOrder.getD i base == (latinRows.getD (latinRound i) []).getD (latinPos i) base) = true := by
   decide
 
