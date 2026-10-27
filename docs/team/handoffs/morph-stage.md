@@ -3,6 +3,7 @@ worktree: .claude/worktrees/wf_f50338a2-351-1
 last commit: 8324e9f89 (main merged incl. wk-loop-freeze) + handoff commit after
 Round 3 CI: push 4 = 8324e9f89; webkit-sim flag fw=morph.stage:on run 40429988675 (running, 3 VMs); base 40366306645 (3 VMs, older harness). Earlier: gate 40366243322 SUCCESS, chromium flag 40366262655 / base 40366273179.
 Round 3 step 1 finding: flag run 40366323523 loss is runner-side. r1 log: event loop blocked 41 s with host calls [] at 22:48:38, simctl openurl ETIMEDOUT, 'no tab after 60-115 s' (page never attached, so the flag page could not have run), warm-up evaluate timeout; r2/r3 cancelled at the 58 min limit. The base run shows the same signature (r3: warm-up evaluate timeout, tick 273 s late, host calls []). Not page-side; no local reproduction needed.
+State 02:12Z: run 40429988675 job r1 cancelled (58 min limit again), r2 running, r3 queued; logs readable only after the run ends.
 Open: read zones from 40429988675 with offscreen-webkit-cli.mjs vs base 40366306645, minVms 3.
 ---
 branch: worktree-wf_f50338a2-351-1 (CI branch ci/morph-stage)
