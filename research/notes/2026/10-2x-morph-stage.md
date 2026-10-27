@@ -51,7 +51,7 @@ met: gain. All six windows have enough frames (the 120+ window has 47 against 20
 ## WebKit Simulator zones (webkit-sim, minVms 3): undecided
 Dispatched at 8f2f726bf, 3 VMs per side: base 40366306645, flag 40366323523. macOS runners were scarce for hours: VM jobs
 were cancelled or failed after about an hour, and the failed jobs were re-run (the rerun is still queued). At the time of
-writing the base has 2 VMs with a result and the flag has none, so every zone is undecided on the Lean minVms 3 rule
+writing the base has all 3 VMs (after reruns) and the flag has none with a result, so every zone is undecided on the Lean minVms 3 rule
 (never a win). Both runs stay pending; read them with
 `node packages/measure-webkit/src/offscreen-webkit-cli.mjs --arm base=<webkit-sim-r dirs> --arm stage=<dirs>`
 once each side has 3 VMs.
