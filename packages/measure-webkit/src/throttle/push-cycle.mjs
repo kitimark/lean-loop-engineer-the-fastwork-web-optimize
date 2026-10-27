@@ -186,10 +186,15 @@ export const USER_FLAGS = Object.freeze([
 
 const NEEDS = Object.freeze({ 'hero.countdown:strip': ['morph.countdown:strip'] });
 
+export const MORPH_ARMS = Object.freeze({
+  'morph-base': '', 'morph-geom': '?fw=morph.geom:on', 'morph-timed': '?fw=morph.geom:on,morph.tween:geom-timed',
+});
+
 export function searchOf(arm) {
   if (arm === 'original') return null;
   if (arm === 'rewrite') return '';
   if (arm === 'user') return `?fw=${USER_FLAGS.join(',')}`;
+  if (arm in MORPH_ARMS) return MORPH_ARMS[arm];
   if (arm.startsWith('off-')) {
     const gone = [arm.slice(4), ...(NEEDS[arm.slice(4)] ?? [])];
     const rest = USER_FLAGS.filter((f) => !gone.includes(f));
@@ -201,7 +206,7 @@ export function searchOf(arm) {
 
 export const uploadName = (name) => name.replace(/[:<>|*?"\\]/g, '_');
 
-export const searchesOf = (arms) => [...new Set(arms.filter((a) => a !== 'original' && a !== 'rewrite').map(searchOf))];
+export const searchesOf = (arms) => [...new Set(arms.filter((a) => a !== 'original' && a !== 'rewrite').map(searchOf))].filter((s) => s !== '');
 
 export const SEP_MIN_PASSES = 3;
 export const SEP_DWELL_CYCLES = 6;
