@@ -1,11 +1,12 @@
 import { PUSH_METRICS } from './device-push.mjs';
 
 const ms = (cs) => (cs / 100).toFixed(1);
-const cell = (m, c) => (c === null ? '-' : m === 'over50' || /^[A-Z]/.test(m) ? `${c.median} [${c.min}-${c.max}]` : `${ms(c.median)} [${ms(c.min)}-${ms(c.max)}]`);
+const isCount = (m) => m === 'over50' || m === 'over50Rate' || /^[A-Z]/.test(m);
+const cell = (m, c) => (c === null ? '-' : isCount(m) ? `${c.median} [${c.min}-${c.max}]` : `${ms(c.median)} [${ms(c.min)}-${ms(c.max)}]`);
 
 export function pushTables(sum) {
   const out = [];
-  out.push('Cells: median [min-max] over the visits of the arm. p95, p99 and max are frame intervals in ms inside the push spans; over50 is frames over 50 ms;',
+  out.push('Cells: median [min-max] over the visits of the arm. p95, p99 and max are frame intervals in ms inside the push spans; over50 is frames over 50 ms; over50Rate is frames over 50 ms per 1000 intervals of the visit (a tenth of it per 100 intervals);',
     'style, layout, paint and rAF are Timeline records between each push and its morph end (RecalculateStyles, Layout, Paint, FireAnimationFrame), summed over the 10 pushes of a visit.',
     'Label: the Lean rule `pushLabel` against the base (better, worse, same, unresolved); unresolved when either side has fewer than 3 visits.', '');
   out.push(`| arm | n | ${PUSH_METRICS.join(' | ')} | label |`, `|---|---|${PUSH_METRICS.map(() => '---').join('|')}|---|`);
@@ -17,7 +18,7 @@ export function pushTables(sum) {
       `| reference | arm | n | label | ${PUSH_METRICS.join(' | ')} |`, `|---|---|---|---|${PUSH_METRICS.map(() => '---').join('|')}|`);
     for (const c of sum.contrasts) {
       out.push(`| ${c.ref} | ${c.arm} | ${c.nRef}/${c.nArm} | ${c.label} | ${PUSH_METRICS.map((m) => (c.cells ? `${c.cells[m]} (${c.causes[m]})` : '-')).join(' | ')} |`);
-      if (c.refSpread) out.push(`| ${c.ref} spread | | | | ${PUSH_METRICS.map((m) => (/^[A-Z]/.test(m) || m === 'over50' ? c.refSpread[m] : ms(c.refSpread[m]))).join(' | ')} |`);
+      if (c.refSpread) out.push(`| ${c.ref} spread | | | | ${PUSH_METRICS.map((m) => (isCount(m) ? c.refSpread[m] : ms(c.refSpread[m]))).join(' | ')} |`);
     }
   }
   if (sum.takeShare) {

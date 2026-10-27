@@ -9,9 +9,11 @@ const GOLDEN = readFileSync(new URL('../../contracts/golden/device/phone-arms.js
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
 export const WORK = Object.freeze(GOLDEN.find((l) => l.kind === 'flipwork'));
 export const BUSY_WORKS = WORK.busyWorks;
+// WebKit `Composite` is the CA commit and flush span, mostly off the main thread (Page.cpp:2587-2609, RemoteLayerTreeDrawingArea.mm:357,431-448): not busy.
+export const WAIT = 'commitWait';
 
 const SCRIPT = new Set(['EventDispatch', 'TimerFire', 'EvaluateScript', 'FunctionCall', 'FireAnimationFrame', 'ObserverCallback']);
-const BY_TYPE = { RecalculateStyles: 'style', Layout: 'layout', Paint: 'paint', Composite: 'commit' };
+const BY_TYPE = { RecalculateStyles: 'style', Layout: 'layout', Paint: 'paint', Composite: 'commitWait' };
 export const workOf = (t) => (SCRIPT.has(t) ? 'script' : BY_TYPE[t] ?? null);
 
 export const cuts = (a, b, rs) => [a, b, ...rs.flatMap((r) => [r.s, r.e]).filter((t) => a < t && t < b)].sort((x, y) => x - y);
@@ -30,7 +32,7 @@ export const held = (a, b, rs, i) => pieces(a, b, rs).filter((p) => p[2] === i).
 export const busy = (a, b, rs) => BUSY_WORKS.reduce((n, w) => n + workTime(a, b, rs, w), 0);
 
 export function dominant(a, b, rs) {
-  if (busy(a, b, rs) * WORK.idleDen < (b - a) * WORK.idleNum) return 'idle';
+  if (busy(a, b, rs) * WORK.idleDen < (b - a) * WORK.idleNum) return (b - a) * WORK.idleNum <= workTime(a, b, rs, WAIT) * WORK.idleDen ? WAIT : 'idle';
   const t = Object.fromEntries(BUSY_WORKS.map((w) => [w, workTime(a, b, rs, w)]));
   let best = 'script';
   for (const w of BUSY_WORKS) if (t[best] < t[w]) best = w;
@@ -79,6 +81,12 @@ export function framesOfVisit(tl) {
   return { ivs, recs, off };
 }
 
+/** The top script frame of a record's stack as `function file:line`, or null when it has none. */
+export function callerOf(rec) {
+  const f = rec?.stackTrace?.callFrames?.[0];
+  return f ? `${f.functionName || '(anonymous)'} ${String(f.url ?? '').split('/').pop()}:${f.lineNumber ?? '?'}` : null;
+}
+
 /** Attribute every interval: times per work, busy, the dominant work and the lead record (Lean `leadOf`). */
 export function attributeVisit(tl, { limit = PUSH.overLimit } = {}) {
   const { ivs, recs } = framesOfVisit(tl);
@@ -88,7 +96,7 @@ export function attributeVisit(tl, { limit = PUSH.overLimit } = {}) {
     const w = dominant(iv.a, iv.b, near);
     const times = Object.fromEntries(BUSY_WORKS.map((k) => [k, workTime(iv.a, iv.b, near, k)]));
     const li = w === 'idle' ? null : lead(iv.a, iv.b, near, w);
-    return { ...iv, work: w, times, busy: busy(iv.a, iv.b, near), lead: li === null ? null : { t: held(iv.a, iv.b, near, li), type: near[li].type, data: near[li].src.data ?? null, stack: near[li].src.stackTrace ?? null }, over: limit < iv.d, tail: p95 <= iv.d };
+    return { ...iv, work: w, times, wait: workTime(iv.a, iv.b, near, WAIT), busy: busy(iv.a, iv.b, near), sched: near.filter((r) => r.type === 'ScheduleStyleRecalculation').map((r) => callerOf(r.src)), lead: li === null ? null : { t: held(iv.a, iv.b, near, li), type: near[li].type, data: near[li].src.data ?? null, stack: near[li].src.stackTrace ?? null }, over: limit < iv.d, tail: p95 <= iv.d };
   });
   return { p95, rows };
 }

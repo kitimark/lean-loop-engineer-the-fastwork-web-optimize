@@ -3,20 +3,28 @@ import Lean.Data.Json
 
 A frame interval runs from one rAF time to the next. The Timeline records that overlap it are cut to the interval,
 the time of a nested record is taken off its parent (self time), and the self times are summed per kind of work. The
-frame is called idle when the busy work fills less than half of it, else it is called by the work with the most time. -/
+frame is called by the main-thread work with the most time when that work fills at least half of it. Otherwise the frame is not main-thread
+busy: it is called `commitWait` when the WebKit `Composite` span fills at least half of it, else `idle`.
+
+`Composite` is not main-thread work on iOS. WebKit@862f17d `Source/WebCore/page/Page.cpp:2587-2594` opens the record in
+`Page::willStartRenderingUpdateDisplay` (the hooks "wrap the non-WebKit CA commit time which is mostly painting-related") and `:2600-2609`
+closes it in `didCompleteRenderingUpdateDisplay`. `Source/WebKit/WebProcess/WebPage/RemoteLayerTree/RemoteLayerTreeDrawingArea.mm:357` calls
+the opening hook on the main thread; `:431-448` runs the backing-store flush on `m_commitQueue` and calls the closing hook only after a
+`RunLoop::mainSingleton().dispatch` hop. The span therefore holds the layer-tree commit, the off-main flush and the wait for it. -/
 namespace Fw.Device.FlipAttr
 open Lean
 
-/-- The kinds of work a frame is called by; `idle` is the main thread waiting (compositor, GPU or decode off the main thread). -/
+/-- The kinds of work a frame is called by. `commitWait` is the `Composite` span (CA commit and flush, mostly off the main thread); `idle` is
+neither main-thread busy nor in a commit span (compositor, GPU or decode off the main thread). -/
 inductive Work where
-  | script | style | layout | paint | commit | idle
+  | script | style | layout | paint | commitWait | idle
   deriving DecidableEq, Repr
 
 def Work.name : Work → String
-  | .script => "script" | .style => "style" | .layout => "layout" | .paint => "paint" | .commit => "commit" | .idle => "idle"
+  | .script => "script" | .style => "style" | .layout => "layout" | .paint => "paint" | .commitWait => "commitWait" | .idle => "idle"
 
-/-- The works a record can count to, in the order that settles a tie. -/
-def busyWorks : List Work := [.script, .style, .layout, .paint, .commit]
+/-- The main-thread works, in the order that settles a tie. `commitWait` is not among them. -/
+def busyWorks : List Work := [.script, .style, .layout, .paint]
 
 /-- The work a Timeline record type counts to; `none` for containers and bookkeeping records. -/
 def workOf (t : String) : Option Work :=
@@ -24,7 +32,7 @@ def workOf (t : String) : Option Work :=
   else if t == "RecalculateStyles" then some .style
   else if t == "Layout" then some .layout
   else if t == "Paint" then some .paint
-  else if t == "Composite" then some .commit
+  else if t == "Composite" then some .commitWait
   else none
 
 /-- A Timeline record: type, start and end (hundredths of a ms, page clock). A record without an end has `e = s`. -/
@@ -76,18 +84,20 @@ def lead (a b : Int) (rs : List Rec) (w : Work) : Option Nat :=
       | none => if 0 < held a b rs i then some i else none
       | some j => if held a b rs j < held a b rs i then some i else best) none
 
-/-- The busy time: the self time of all records that count to a work. -/
+/-- The busy time: the self time of all records that count to a main-thread work. -/
 def busy (a b : Int) (rs : List Rec) : Int := (busyWorks.map (workTime a b rs)).sum
 
-/-- The busy work fills less than this share of the frame (numerator over denominator) for the frame to be idle. -/
+/-- The busy work fills less than this share of the frame (numerator over denominator) for the frame to be not main-thread busy; the `Composite` span fills at least this share for the frame to be `commitWait`. -/
 def idleNum : Int := 1
 def idleDen : Int := 2
 
 def pick (f : Work → Int) (best w : Work) : Work := if f best < f w then w else best
 
-/-- The work a frame is called by: idle when the busy time is under half the interval, else the work with the most time (the earliest in `busyWorks` on a tie). -/
+/-- The work a frame is called by. Under half the interval of busy time it is not main-thread busy: `commitWait` when the `Composite` span fills at least half, else `idle`. Otherwise the work with the most time (the earliest in `busyWorks` on a tie). -/
 def dominant (a b : Int) (rs : List Rec) : Work :=
-  if busy a b rs * idleDen < (b - a) * idleNum then .idle else busyWorks.foldl (pick (workTime a b rs)) .script
+  if busy a b rs * idleDen < (b - a) * idleNum then
+    (if (b - a) * idleNum ≤ workTime a b rs .commitWait * idleDen then .commitWait else .idle)
+  else busyWorks.foldl (pick (workTime a b rs)) .script
 
 /-- A record inside the interval counts its whole length. -/
 theorem workTime_single : workTime 0 10000 [⟨"FunctionCall", 1000, 9000⟩] .script = 8000 := by decide
@@ -103,9 +113,21 @@ theorem workTime_cut : workTime 5000 15000 [⟨"Layout", 0, 8000⟩] .layout = 3
 /-- A record outside the interval counts nothing. -/
 theorem workTime_outside : workTime 0 10000 [⟨"Paint", 20000, 30000⟩] .paint = 0 := by decide
 
-/-- Branch 1: a frame whose busy time is under half of it is idle. -/
-theorem dominant_idle (a b : Int) (rs : List Rec) (h : busy a b rs * idleDen < (b - a) * idleNum) : dominant a b rs = .idle := by
-  simp [dominant, h]
+/-- `Composite` counts to `commitWait` and `commitWait` is not a main-thread work. -/
+theorem commitWait_not_busy : workOf "Composite" = some .commitWait ∧ Work.commitWait ∉ busyWorks := by decide
+
+/-- A `Composite` span alone adds no main-thread busy time. -/
+theorem composite_not_busy : busy 0 10000 [⟨"Composite", 0, 10000⟩] = 0 := by decide
+
+/-- Branch 1a: a frame whose busy time is under half of it and whose `Composite` span fills at least half of it is `commitWait`. -/
+theorem dominant_commitWait (a b : Int) (rs : List Rec) (h : busy a b rs * idleDen < (b - a) * idleNum)
+    (hw : (b - a) * idleNum ≤ workTime a b rs .commitWait * idleDen) : dominant a b rs = .commitWait := by
+  simp [dominant, h, hw]
+
+/-- Branch 1b: a frame whose busy time is under half of it and whose `Composite` span fills less than half of it is idle. -/
+theorem dominant_idle (a b : Int) (rs : List Rec) (h : busy a b rs * idleDen < (b - a) * idleNum)
+    (hw : ¬ (b - a) * idleNum ≤ workTime a b rs .commitWait * idleDen) : dominant a b rs = .idle := by
+  simp [dominant, h, hw]
 
 /-- Branch 2: otherwise the call is one of the busy works. -/
 theorem dominant_busy (a b : Int) (rs : List Rec) (h : ¬ busy a b rs * idleDen < (b - a) * idleNum) : dominant a b rs ∈ busyWorks := by
@@ -126,6 +148,13 @@ theorem dominant_busy (a b : Int) (rs : List Rec) (h : ¬ busy a b rs * idleDen 
         · exact hb
       · intro w hw; exact hl w (by simp [hw])
   exact key busyWorks .script (by simp [busyWorks]) (fun w hw => hw)
+
+/-- A frame called `commitWait` or `idle` is not main-thread busy. -/
+theorem dominant_not_busy (a b : Int) (rs : List Rec) (h : dominant a b rs = .commitWait ∨ dominant a b rs = .idle) :
+    busy a b rs * idleDen < (b - a) * idleNum := by
+  refine Decidable.byContradiction fun hb => ?_
+  have := dominant_busy a b rs hb
+  rcases h with h | h <;> rw [h] at this <;> simp [busyWorks] at this
 
 private theorem fold_max (f : Work → Int) : ∀ (l : List Work) (best : Work),
     f best ≤ f (l.foldl (pick f) best) ∧ ∀ w ∈ l, f w ≤ f (l.foldl (pick f) best) := by
@@ -229,7 +258,13 @@ private def attrCases : List (String × Int × Int × List Rec) :=
    ("busy under half of the frame is idle", 0, 10000, [⟨"Paint", 0, 2000⟩, ⟨"Layout", 3000, 4900⟩]),
    ("busy at half of the frame is not idle", 0, 10000, [⟨"Paint", 0, 5000⟩]),
    ("a tie goes to the earlier work", 0, 10000, [⟨"Layout", 0, 3000⟩, ⟨"RecalculateStyles", 4000, 7000⟩]),
-   ("a later work wins by more time", 0, 10000, [⟨"Layout", 0, 3000⟩, ⟨"Composite", 4000, 7001⟩]),
+   ("a later work wins by more time", 0, 10000, [⟨"Layout", 0, 3000⟩, ⟨"Paint", 4000, 7001⟩]),
+   ("a Composite span of at least half the frame is commitWait, not busy", 0, 10000, [⟨"Composite", 1000, 6000⟩]),
+   ("a Composite span under half of the frame is idle", 0, 10000, [⟨"Composite", 1000, 5999⟩]),
+   ("a Composite span does not make a frame busy", 0, 10000, [⟨"Composite", 0, 9000⟩, ⟨"Layout", 9000, 9500⟩]),
+   ("busy at half with a long Composite span is the busy work", 0, 10000, [⟨"Paint", 0, 5000⟩, ⟨"Composite", 5000, 10000⟩]),
+   ("busy under half with Composite under half is idle", 0, 10000, [⟨"Layout", 0, 4000⟩, ⟨"Composite", 4000, 8000⟩]),
+   ("a record nested in a Composite span is taken off it", 0, 10000, [⟨"Composite", 0, 10000⟩, ⟨"Paint", 2000, 4000⟩]),
    ("a container and an instant count nothing", 0, 10000, [⟨"RenderingFrame", 0, 10000⟩, ⟨"TimeStamp", 500, 500⟩, ⟨"Paint", 1000, 9000⟩]),
    ("script keeps its self time around nested work", 0, 20000,
     [⟨"EventDispatch", 0, 12000⟩, ⟨"Layout", 1000, 5000⟩, ⟨"Paint", 6000, 8000⟩]),
@@ -248,7 +283,7 @@ def goldenLines (_ : Unit) : List String :=
     ("busyWorks", Json.arr (busyWorks.map fun w => Json.str w.name).toArray), ("idleNum", idleNum), ("idleDen", idleDen)]).compress] ++
   (attrCases.map fun (n, a, b, rs) =>
     (Json.mkObj [("kind", "flipattr"), ("name", n), ("a", a), ("b", b), ("recs", Json.arr (rs.map recJ).toArray),
-      ("times", Json.arr (busyWorks.map fun w => toJson (workTime a b rs w)).toArray), ("busy", busy a b rs),
+      ("times", Json.arr (busyWorks.map fun w => toJson (workTime a b rs w)).toArray), ("wait", workTime a b rs .commitWait), ("busy", busy a b rs),
       ("work", (dominant a b rs).name), ("lead", match leadOf a b rs with | some i => toJson i | none => Json.null)]).compress) ++
   (tailCases.map fun (l, ds) =>
     (Json.mkObj [("kind", "fliptail"), ("limit", l), ("ds", toJson ds), ("tail", toJson (tailOf l ds))]).compress)

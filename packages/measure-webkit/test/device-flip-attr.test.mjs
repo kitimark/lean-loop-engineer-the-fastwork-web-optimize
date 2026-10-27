@@ -12,15 +12,18 @@ test('the record type to work table follows the golden', () => {
   const [w] = of('flipwork');
   assert.deepEqual(w.types.map((t) => A.workOf(t)), w.works);
   assert.deepEqual(A.BUSY_WORKS, w.busyWorks);
+  assert.equal(A.workOf('Composite'), A.WAIT);
+  assert.ok(!A.BUSY_WORKS.includes(A.WAIT));
   assert.equal(w.idleNum / w.idleDen, 1 / 2);
 });
 
 test('times per work, busy time, the dominant work and the lead record follow the golden', () => {
   const cases = of('flipattr');
-  assert.ok(cases.length >= 10);
+  assert.ok(cases.length >= 16);
   for (const c of cases) {
     const rs = recs(c.recs);
     assert.deepEqual(A.BUSY_WORKS.map((w) => A.workTime(c.a, c.b, rs, w)), c.times, c.name);
+    assert.equal(A.workTime(c.a, c.b, rs, A.WAIT), c.wait, c.name);
     assert.equal(A.busy(c.a, c.b, rs), c.busy, c.name);
     assert.equal(A.dominant(c.a, c.b, rs), c.work, c.name);
     assert.equal(A.leadOf(c.a, c.b, rs), c.lead, c.name);

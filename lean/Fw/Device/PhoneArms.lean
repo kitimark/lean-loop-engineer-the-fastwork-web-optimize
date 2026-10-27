@@ -803,7 +803,7 @@ theorem pushes_split : pushes = 2 * (patternAsks + burstAsks) := by decide
 def minVisits : Nat := 3
 
 def pushMetrics : List String :=
-  ["p95", "p99", "max", "over50", "RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"]
+  ["p95", "p99", "max", "over50", "RecalculateStyles", "Layout", "Paint", "FireAnimationFrame", "over50Rate"]
 
 def overLimit : Int := 5000
 
@@ -951,6 +951,29 @@ theorem over_le (lim : Int) (xs : List Int) : over lim xs ≤ xs.length := List.
 
 theorem over_nil (lim : Int) : over lim [] = 0 := rfl
 
+/-- Frames over the limit per 1000 intervals, as an integer (per mille; per 100 intervals it is a tenth of it); 0 when there is no interval. The visit cell `over50Rate`: a visit with fewer frames is compared with one with more by the share, not the count. -/
+def rate (o n : Nat) : Int := if n = 0 then 0 else ((o * 1000 / n : Nat) : Int)
+
+theorem rate_none (n : Nat) : rate 0 n = 0 := by
+  simp [rate]
+
+theorem rate_empty (o : Nat) : rate o 0 = 0 := by
+  simp [rate]
+
+theorem rate_all (n : Nat) (h : 0 < n) : rate n n = 1000 := by
+  have hn : n ≠ 0 := by omega
+  simp only [rate, hn, ite_false]
+  have : n * 1000 / n = 1000 := Nat.mul_div_cancel_left 1000 h
+  simp [this]
+
+theorem rate_le (o n : Nat) (h : o ≤ n) : rate o n ≤ 1000 := by
+  unfold rate
+  split
+  · omega
+  · rename_i hn
+    have : o * 1000 / n ≤ 1000 := Nat.div_le_of_le_mul (by omega)
+    omega
+
 structure Rec where
   kind : String
   t : Int
@@ -1000,7 +1023,14 @@ def visitVals (fs : List PFrame) (hiEnd : Int) (ts : List Int) (tsC : List Int) 
   let d := spanDts sps fs
   let spsC := shifted tsC (durations sps)
   [pct 95 d, pct 99 d, pct 100 d, over overLimit d] ++
-    (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off spsC rs : Nat) : Int))
+    (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off spsC rs : Nat) : Int)) ++
+    [rate (over overLimit d) d.length]
+
+/-- The last cell of a visit is its `over50Rate`. -/
+theorem visitVals_rate (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (off : Int) (rs : List Rec) :
+    (visitVals fs hiEnd ts tsC off rs).getLast? =
+      some (rate (over overLimit (spanDts (spans fs hiEnd ts) fs)) (spanDts (spans fs hiEnd ts) fs).length) := by
+  simp [visitVals]
 
 theorem visitVals_length (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (off : Int) (rs : List Rec) :
     (visitVals fs hiEnd ts tsC off rs).length = pushMetrics.length := by

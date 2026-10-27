@@ -26,6 +26,8 @@ export function pct(p, xs) {
   return s[Math.floor((p * xs.length + 99) / 100) - 1] ?? 0;
 }
 export const over = (lim, xs) => xs.filter((x) => lim < x).length;
+/** Lean `rate`: frames over the limit per 1000 intervals, integer; 0 for no interval. */
+export const rate = (o, n) => (n === 0 ? 0 : Math.floor((o * 1000) / n));
 
 export const countIn = (kind, off, s, rs) => rs.filter((r) => r[0] === kind && s[0] <= r[1] - off && r[1] - off <= s[1]).length;
 export const countsOf = (kind, off, sps, rs) => sps.reduce((n, s) => n + countIn(kind, off, s, rs), 0);
@@ -37,7 +39,7 @@ export function visitVals(fs, hiEnd, ts, tsC, off, rs) {
   const sps = spans(fs, hiEnd, ts);
   const d = spanDts(sps, fs);
   const spsC = shifted(tsC, durations(sps));
-  return [pct(95, d), pct(99, d), pct(100, d), over(PUSH.overLimit, d), ...COUNT_KINDS.map((k) => countsOf(k, off, spsC, rs))];
+  return [pct(95, d), pct(99, d), pct(100, d), over(PUSH.overLimit, d), ...COUNT_KINDS.map((k) => countsOf(k, off, spsC, rs)), rate(over(PUSH.overLimit, d), d.length)];
 }
 
 export const clockOff = (tlA, tlB, pgA, pgB) => {

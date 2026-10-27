@@ -4,10 +4,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PUSH, pct, spanDts, spans } from './device-push.mjs';
 import { rawName } from './device-phone-run.mjs';
-import { attributeVisit, BUSY_WORKS, framesOfVisit } from './device-flip-attr.mjs';
+import { attributeVisit, BUSY_WORKS, framesOfVisit, WAIT } from './device-flip-attr.mjs';
 import { traceOf } from './device-push-run.mjs';
 
-const WORKS = [...BUSY_WORKS, 'idle'];
+const WORKS = [...BUSY_WORKS, WAIT, 'idle'];
+const NOT_BUSY = [WAIT, 'idle'];
+const sumWorks = (o, ws) => ws.reduce((n, w) => n + o[w], 0);
 const zero = () => Object.fromEntries(WORKS.map((w) => [w, 0]));
 const med = (l) => { const s = [...l].sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 const where = (lead) => {
@@ -71,10 +73,12 @@ export function visitAttr(dir, v) {
   const lane = framesStats({ f: fr.f, hiEnd: fr.hiEnd, ts: fr.ts });
   const leads = {};
   for (const r of long) { const k = `${r.work}: ${where(r.lead) ?? '-'}`; leads[k] = (leads[k] ?? 0) + 1; }
+  const sched = {};
+  for (const r of long) if (BUSY_WORKS.includes(r.work)) for (const c of r.sched) sched[c ?? 'no script stack'] = (sched[c ?? 'no script stack'] ?? 0) + 1;
   const idleBusy = rows.filter((r) => r.work === 'idle').map((r) => Math.round((100 * r.busy) / r.d));
   return {
     index: v.index, arm: v.arm, round: v.round, position: v.position, intervals: rows.length, p95, max: Math.max(0, ...rows.map((r) => r.d)),
-    over: long.length, overByWork: pick(long), tailByWork: pick(rows.filter((r) => r.tail)), allByWork: pick(rows),
+    over: long.length, overNotBusy: long.filter((r) => !BUSY_WORKS.includes(r.work)).length, sched, overByWork: pick(long), tailByWork: pick(rows.filter((r) => r.tail)), allByWork: pick(rows),
     overMs: long.reduce((n, r) => n + r.d, 0) / 100, busyShareOver: long.length ? Math.round((100 * long.reduce((n, r) => n + r.busy, 0)) / long.reduce((n, r) => n + r.d, 0)) : null,
     ...shape(tl, rows), framesTl: frames, framesLane: lane, leads, idleBusyPct: idleBusy, trace: traceOf(tl.ts, tl.tr),
     worst: [...long].sort((a, b) => b.d - a.d).slice(0, 5).map((r) => ({ push: r.push, d: r.d, work: r.work, times: r.times, busy: r.busy, lead: r.lead && { t: r.lead.t, type: r.lead.type, where: where(r.lead) } })),
@@ -98,6 +102,8 @@ export function flipAttribution(dir, rows, arms) {
     const sum = (key) => Object.fromEntries(WORKS.map((w) => [w, vs.reduce((n, v) => n + v[key][w], 0)]));
     const leads = {};
     for (const v of vs) for (const [k, n] of Object.entries(v.leads)) leads[k] = (leads[k] ?? 0) + n;
+    const sched = {};
+    for (const v of vs) for (const [k, n] of Object.entries(v.sched)) sched[k] = (sched[k] ?? 0) + n;
     const byTime = {};
     const mix = { long: blank(), rest: blank() };
     for (const v of vs) {
@@ -112,7 +118,7 @@ export function flipAttribution(dir, rows, arms) {
       }
     }
     return {
-      byTime, mix, id: a.id, n: vs.length, over: vs.reduce((n, v) => n + v.over, 0), overByWork: sum('overByWork'), tailByWork: sum('tailByWork'), allByWork: sum('allByWork'),
+      byTime, mix, sched: Object.entries(sched).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([k, n]) => ({ k, n })), schedAll: Object.values(sched).reduce((n, x) => n + x, 0), overNotBusy: vs.reduce((n, v) => n + v.overNotBusy, 0), id: a.id, n: vs.length, over: vs.reduce((n, v) => n + v.over, 0), overByWork: sum('overByWork'), tailByWork: sum('tailByWork'), allByWork: sum('allByWork'),
       intervals: vs.reduce((n, v) => n + v.intervals, 0), p95Tl: med(vs.map((v) => v.p95)), maxTl: Math.max(0, ...vs.map((v) => v.max)), busyShareOver: med(vs.map((v) => v.busyShareOver).filter((x) => x !== null)),
       leads: Object.entries(leads).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([k, n]) => ({ k, n })),
       anim: vs.find((v) => v.anim)?.anim ?? null,
@@ -125,12 +131,15 @@ const pctOf = (n, d) => (d ? `${Math.round((100 * n) / d)}%` : '-');
 
 export function flipTables(attr, summary) {
   const out = ['', '## Frame attribution (tl lane: Timeline on, frames cut by the rAF times, work by the innermost record)', ''];
-  out.push('| arm | n | intervals | over 50 ms | ' + WORKS.join(' | ') + ' | busy share of the over-50 frames |', '|---|---|---|---|' + WORKS.map(() => '---').join('|') + '|---|');
-  for (const a of attr.perArm) out.push(`| ${a.id} | ${a.n} | ${a.intervals} | ${a.over} | ${WORKS.map((w) => `${a.overByWork[w]} (${pctOf(a.overByWork[w], a.over)})`).join(' | ')} | ${a.busyShareOver ?? '-'}% |`);
+  out.push('Main-thread busy = script, style, layout, paint. `commitWait` is the WebKit `Composite` span (CA commit and flush; it ends after an off-main flush, so it is not main-thread busy). A frame under half busy is `commitWait` when that span fills half of it, else `idle`.', '');
+  out.push('| arm | n | intervals | over 50 ms | ' + WORKS.join(' | ') + ' | not main-busy (commitWait + idle) | main-thread busy share of the over-50 time |', '|---|---|---|---|' + WORKS.map(() => '---').join('|') + '|---|---|');
+  for (const a of attr.perArm) out.push(`| ${a.id} | ${a.n} | ${a.intervals} | ${a.over} | ${WORKS.map((w) => `${a.overByWork[w]} (${pctOf(a.overByWork[w], a.over)})`).join(' | ')} | ${a.overNotBusy} of ${a.over} | ${a.busyShareOver ?? '-'}% |`);
   out.push('', 'Tail (frames at or over the visit p95 of the tl lane):', '', '| arm | frames | ' + WORKS.join(' | ') + ' |', '|---|---|' + WORKS.map(() => '---').join('|') + '|');
   for (const a of attr.perArm) { const t = WORKS.reduce((n, w) => n + a.tailByWork[w], 0); out.push(`| ${a.id} | ${t} | ${WORKS.map((w) => `${a.tailByWork[w]} (${pctOf(a.tailByWork[w], t)})`).join(' | ')} |`); }
   out.push('', 'Lead records of the over-50 frames (dominant work: record):', '');
   for (const a of attr.perArm) { out.push(`- ${a.id}: ${a.leads.map((l) => `${l.k} x${l.n}`).join('; ') || 'none'}`); }
+  out.push('', 'Style invalidations in the main-busy long frames (ScheduleStyleRecalculation records inside the interval; caller = top script frame of its stack; the Timeline names no element for them):', '');
+  for (const a of attr.perArm) out.push(`- ${a.id}: ${a.schedAll} records; ${a.sched.map((l) => `${l.k} x${l.n}`).join('; ') || 'none'}`);
   out.push('', 'Running animations at the start of the pushes (first visit with a snapshot):', '');
   for (const a of attr.perArm) out.push(`- ${a.id}: ${a.anim ? (a.anim.error ? `error ${a.anim.error}` : `${a.anim.n} animations; ${a.anim.groups.map((g) => `${g.k} x${g.n}`).join('; ')}`) : 'none'}`);
   out.push('', 'Long frames (over 50 ms) by time since the touch start, long / all intervals of the tl lane:', '', '| arm | 0-0.5 s | 0.5-1 s | 1-1.5 s | later |', '|---|---|---|---|---|');
