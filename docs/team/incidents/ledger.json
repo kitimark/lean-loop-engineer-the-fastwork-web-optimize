@@ -4665,6 +4665,34 @@
    "leanVerdict": "provable",
    "leanReason": "Whether a landed worktree is deleted is a pure function of its facts; 'a non-empty or unread .local is never a delete candidate' is the theorem local_data_kept.",
    "hardening": "raw-local-main"
+  },
+  {
+   "id": "inc-ci-push-no-lane",
+   "at": "2026-10-28T06:00+07:00",
+   "title": "Builders spent CI pushes that ran no measuring lane (empty diff skipped by the guard; message without the lane token)",
+   "symptom": "geom-style-cut used 3 of 3 pushes but got one graded gate run: push 1 was an empty commit (0 files differ from main, every lane skipped), push 3 carried no lane token (only lean ran). geom-look-fade's first push (run 40585096601) lacked [ci:breakpoint-gate] and measured nothing. The lead had to authorise extra dispatches and a 4th push.",
+   "cause": "INFERRED: the lane a push runs is decided by Lean Fw.Ci.Intent / Trigger from the commit message token and the diff, but a builder learns it only after the push, from the skipped runs; nothing checks the intended lanes before git push.",
+   "evidence": [
+    {
+     "kind": "ci",
+     "ref": "40594433118",
+     "note": "chromium-counts skipped on ci/geom-style-cut"
+    },
+    {
+     "kind": "ci",
+     "ref": "40585096601",
+     "note": "geom-look-fade push without the lane token"
+    }
+   ],
+   "repro": "Push a ci/<task> branch whose tip message has no [ci:<lane>] token, or whose tree equals main: the measuring lanes report skipped.",
+   "fix": {
+    "task": "ci-push-lane-check"
+   },
+   "regression": "Every CI-measuring task today spent at least one push without a measuring lane.",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "The lane selection is already a Lean function of (message, changed paths); the pre-push refusal is that function plus a subset check against the task's lanes.",
+   "hardening": "ci-push-lane-check"
   }
  ]
 }

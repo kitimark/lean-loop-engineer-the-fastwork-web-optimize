@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Device.Session
 import Fw.Measure.WebKitProfile
+import Fw.Device.FlipAttr
 namespace Fw.Device.PhoneArms
 open Lean
 open Fw.Device.Session (Zone zoneOf Verdict verdict spread sameFlags sameFlags_comm sameFlags_refl)
@@ -802,7 +803,7 @@ theorem pushes_split : pushes = 2 * (patternAsks + burstAsks) := by decide
 def minVisits : Nat := 3
 
 def pushMetrics : List String :=
-  ["p95", "p99", "max", "over50", "RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"]
+  ["p95", "p99", "max", "over50", "RecalculateStyles", "Layout", "Paint", "FireAnimationFrame", "over50Rate"]
 
 def overLimit : Int := 5000
 
@@ -950,6 +951,28 @@ theorem over_le (lim : Int) (xs : List Int) : over lim xs ≤ xs.length := List.
 
 theorem over_nil (lim : Int) : over lim [] = 0 := rfl
 
+def rate (o n : Nat) : Int := if n = 0 then 0 else ((o * 1000 / n : Nat) : Int)
+
+theorem rate_none (n : Nat) : rate 0 n = 0 := by
+  simp [rate]
+
+theorem rate_empty (o : Nat) : rate o 0 = 0 := by
+  simp [rate]
+
+theorem rate_all (n : Nat) (h : 0 < n) : rate n n = 1000 := by
+  have hn : n ≠ 0 := by omega
+  simp only [rate, hn, ite_false]
+  have : n * 1000 / n = 1000 := Nat.mul_div_cancel_left 1000 h
+  simp [this]
+
+theorem rate_le (o n : Nat) (h : o ≤ n) : rate o n ≤ 1000 := by
+  unfold rate
+  split
+  · omega
+  · rename_i hn
+    have : o * 1000 / n ≤ 1000 := Nat.div_le_of_le_mul (by omega)
+    omega
+
 structure Rec where
   kind : String
   t : Int
@@ -999,7 +1022,13 @@ def visitVals (fs : List PFrame) (hiEnd : Int) (ts : List Int) (tsC : List Int) 
   let d := spanDts sps fs
   let spsC := shifted tsC (durations sps)
   [pct 95 d, pct 99 d, pct 100 d, over overLimit d] ++
-    (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off spsC rs : Nat) : Int))
+    (["RecalculateStyles", "Layout", "Paint", "FireAnimationFrame"].map fun k => ((countsOf k off spsC rs : Nat) : Int)) ++
+    [rate (over overLimit d) d.length]
+
+theorem visitVals_rate (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (off : Int) (rs : List Rec) :
+    (visitVals fs hiEnd ts tsC off rs).getLast? =
+      some (rate (over overLimit (spanDts (spans fs hiEnd ts) fs)) (spanDts (spans fs hiEnd ts) fs).length) := by
+  simp [visitVals]
 
 theorem visitVals_length (fs : List PFrame) (hiEnd : Int) (ts tsC : List Int) (off : Int) (rs : List Rec) :
     (visitVals fs hiEnd ts tsC off rs).length = pushMetrics.length := by
@@ -1485,6 +1514,48 @@ private def traceCases : List (String × List Ev) :=
    ("pushes only", [.push, .push, .push]), ("three taken of four", [.push, .take, .push, .take, .push, .push, .take]),
    ("a second take is not another push", [.push, .take, .take])]
 
+def flipArms : List Arm := pushArms.take 3
+
+def flipIdx : List (List Nat) := [[0, 1, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0], [1, 0, 2], [0, 2, 1]]
+
+def flipRows : List (List Arm) := flipIdx.map fun r => r.map fun j => flipArms.getD j base
+
+def flipOrder : List Arm := flipRows.flatten
+
+def flipRound (i : Nat) : Nat := i / 3
+
+def flipPos (i : Nat) : Nat := i % 3
+
+def flipCol (p : Nat) : List Arm := flipRows.map fun r => r.getD p base
+
+def flipPairs (a b : Arm) : Nat := (flipRows.map fun r => (r.zip r.tail).count (a, b)).sum
+
+def flipOk (order : List Arm) : Bool := flipArms.all fun a => minVisits ≤ order.count a
+
+theorem flipOrder_length : flipOrder.length = 18 := by decide
+
+theorem flip_rows_once : flipRows.all (fun r => flipArms.all fun a => r.count a == 1) = true := by decide
+
+theorem flip_cols_twice : (List.range 3).all (fun p => flipArms.all fun a => (flipCol p).count a == 2) = true := by decide
+
+theorem flip_carry : flipArms.all (fun a => flipArms.all fun b => flipPairs a b == (if a == b then 0 else 2)) = true := by decide
+
+theorem flip_ok : flipOk flipOrder = true := by decide
+
+theorem flip_six_each : flipArms.all (fun a => flipOrder.count a == 6) = true := by decide
+
+theorem flip_noRepeat : noRepeat flipOrder = true := by decide
+
+theorem flip_base_each : flipRows.all (fun r => r.count base == 1) = true := by decide
+
+theorem flip_index : (List.range 18).all (fun i => flipOrder.getD i base == (flipRows.getD (flipRound i) []).getD (flipPos i) base) = true := by
+  decide
+
+def flipGoldenLines (_ : Unit) : List String :=
+  [(Json.mkObj [("kind", "flipcons"), ("arms", Json.arr (flipArms.map armJ).toArray),
+    ("latin", Json.arr (flipRows.map idsJ).toArray), ("order", idsJ flipOrder),
+    ("slots", toJson ((List.range 18).map fun i => [flipRound i, flipPos i]))]).compress]
+
 def colsGoldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "colscons"), ("probeFlag", probeFlag), ("arms", Json.arr (colsArms.map armJ).toArray),
     ("latin", Json.arr (colsRows.map idsJ).toArray), ("order", idsJ colsOrder),
@@ -1580,7 +1651,7 @@ def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "table"), ("base", toJson tableBase), ("arms", toJson tableArms),
     ("cells", Json.arr (tableArms.map fun a => strsJ ((cells tableBase a).map (·.name))).toArray),
     ("labels", strsJ ((table tableBase tableArms).map (·.name)))]).compress] ++
-  pushGoldenLines () ++ colsGoldenLines ()
+  pushGoldenLines () ++ colsGoldenLines () ++ flipGoldenLines () ++ Fw.Device.FlipAttr.goldenLines ()
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 

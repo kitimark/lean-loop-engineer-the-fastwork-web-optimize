@@ -1,11 +1,11 @@
 import Lean.Data.Json
 import Fw.Parts.MorphGeomAnim
 import Fw.Parts.MorphGeomLook
-/-! `morph.geom:on` generators: knot tables, track samples for the TS track builder, the `.is-flip` rule and the goal
-CSS, written to `packages/contracts/golden/morph-geom.jsonl`. -/
+import Fw.Parts.MorphGeomLookRule
 namespace Fw.Parts.MorphGeom
 open Lean Fw.Parts.Nav Fw.Engine.TransitionStart
 open Fw.Parts.NavEarnOpt (frameMs frames)
+open Fw.Parts.MorphTween (pointerNone)
 
 def roundTo (d : Nat) (q : Rat) : Int := (q * (10 ^ d : Nat) + 1 / 2).floor
 
@@ -114,8 +114,55 @@ def picLines (_ : Unit) : List String :=
         ("pic", jl (samples.map fun m => rcJson (basePic v p m))),
         ("crop", jl (samples.map fun m => rcJson (baseCrop v p m)))])
 
+def lookMs : List Rat := [0, 1 / 4, 1 / 2, 3 / 4, 1]
+
+def jn (n : Nat) : Json := .num ⟨n, 0⟩
+
+def lookPixels : List ((Nat × Nat × Nat) × (Nat × Nat × Nat)) :=
+  [((10, 20, 30), (10, 20, 30)), ((0, 0, 0), (12, 0, 0)), ((0, 0, 0), (13, 0, 0)), ((0, 0, 0), (0, 13, 0)),
+   ((0, 0, 0), (0, 0, 13)), ((255, 255, 255), (243, 255, 255)), ((255, 255, 255), (242, 255, 255)),
+   ((19, 19, 19), (7, 7, 7)), ((19, 19, 19), (6, 7, 7))]
+
+def lookRanges : List (Nat × Rat × Rat) :=
+  [(100, 21 / 2, 20), (100, -5, 10), (100, 95, 20), (100, 3, 0), (100, 120, 5), (100, 9 / 4, 1 / 2), (100, 0, 100)]
+
+def lookShares : List (Nat × Nat) := [(0, 0), (3, 12), (12, 12), (1, 8)]
+
+def lookTracks : List (Rat × Rat × Rat) :=
+  [(1000, 250, 1 / 4), (1000, 251, 1 / 4), (1000, 253, 1 / 4), (1000, 500, 1 / 4), (1500, 340, 7 / 8), (1500, 340, 1 / 2),
+   (1500, 680, 1), (1500, 0, 0), (1500, 1360, 1), (1000, 1000, 1), (600, 250, 1 / 4), (680, 340, 7 / 8)]
+
+def lookCounts : List (Rat × Nat) := [(0, 0), (0, 3), (1 / 4, 0), (1 / 4, 12)]
+
+def lookScrolls : List (Rat × Rat) := [(7794, 7794), (7794, 7794 + 1 / 200), (7794, 7794 + 1 / 50), (6074, 7794)]
+
+def lookShows : List (Rat × Rat) := [(1, 0), (0, 0), (0, 11 / 20), (11 / 20, 1 / 4), (14 / 25, 1 / 4), (1, 1 / 2)]
+
+def lookFadeMs : List Rat := lookMs ++ [1 / 10, 3 / 10, 11 / 20]
+
+def jdz (d : Nat) (q : Rat) : Json := if q = 0 then jn 0 else jdec d q
+
+def pxJ (p : Nat × Nat × Nat) : Json := jl [jn p.1, jn p.2.1, jn p.2.2]
+
+def lookRuleLines (_ : Unit) : List String :=
+  gline "lookCell" [] (Json.mkObj [("over", jn overStep), ("gridMs", jdz 4 gridMs), ("timeEnd", jdz 4 timeEnd),
+    ("tweenMs", jdz 4 Fw.Parts.MorphTween.duration), ("fadeEnd", jdz 4 Fw.Parts.MorphTween.fadeEnd),
+    ("mTol", jdz 6 mTol), ("scrollTol", jdz 6 scrollTol), ("fadeTol", jdz 6 fadeTol), ("ms", jl (lookMs.map (jdz 4)))]) ::
+  lookPixels.map (fun (a, b) => gline "lookPixel" [("a", pxJ a), ("b", pxJ b)] (.bool (pixelOver a b))) ++
+  lookRanges.map (fun (n, x, w) => gline "lookRange" [("size", jn n), ("x", jdz 4 x), ("w", jdz 4 w)]
+    (Json.mkObj [("lo", jn (pxLo x)), ("hi", jn (pxHi n x w))])) ++
+  lookShares.map (fun (o, n) => gline "lookShare" [("over", jn o), ("n", jn n)] (jdz 6 (share o n))) ++
+  lookTracks.map (fun (d, t, m) => gline "lookTrack" [("dur", jdz 4 d), ("t", jdz 4 t), ("m", jdz 4 m)] (.bool (trackAt d t m))) ++
+  lookCounts.map (fun (m, n) => gline "lookCount" [("m", jdz 4 m), ("n", jn n)] (.bool (tracksOk m n))) ++
+  [(0, false, false, 0), (0, true, false, 0), (1, true, true, 0), (1, true, true, 2), (1, true, false, 0), (1 / 2, true, true, 0)].map
+    (fun (m, f, g, n) => gline "lookSettled" [("m", jdz 4 m), ("flip", .bool f), ("goal", .bool g), ("n", jn n)] (.bool (timedSettled m f g n))) ++
+  lookScrolls.map (fun (a, b) => gline "lookScroll" [("a", jdz 4 a), ("b", jdz 4 b)] (.bool (scrollEq a b))) ++
+  lookShows.map (fun (o, m) => gline "lookShows" [("o", jdz 4 o), ("m", jdz 4 m)] (.bool (fadeShows o m))) ++
+  lookFadeMs.map (fun m => gline "lookFade" [("m", jdz 4 m)]
+    (Json.mkObj [("fade", jdz 12 (Fw.Parts.MorphTween.fade m)), ("pointerNone", .bool (pointerNone m))]))
+
 def goldenLines (_ : Unit) : List String :=
-  knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines () ++ flipCellLines () ++ picLines ()
+  knotLines () ++ [timeLine ()] ++ sampleLines () ++ cssLines () ++ flipCellLines () ++ picLines () ++ lookRuleLines ()
 
 def goldenText (_ : Unit) : String := String.join ((goldenLines ()).map (· ++ "\n"))
 

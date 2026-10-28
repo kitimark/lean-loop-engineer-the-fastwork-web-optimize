@@ -23030,7 +23030,8 @@
    "owner": "part-builder",
    "stream": "site",
    "deps": [
-    "geom-flip-fix"
+    "geom-flip-fix",
+    "geom-look-fade"
    ],
    "title": "morph.geom flip images like base (geom-flip-fix finding): base keeps each picture's height at 0<m<1 (object-fit cover crops it) while the flip scales pictures in both axes; model object-fit cover in Lean (MorphGeom image model), prove the flip's picture rects and crop equal base at every m, then make the flip keep height (counter-scale or crop window) so the column region matches base in pixels; look report on both engines.",
    "writes": [
@@ -23052,7 +23053,8 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-image-model.md",
     "results/geom-image-model/**",
-    "docs/team/handoffs/geom-image-model.md"
+    "docs/team/handoffs/geom-image-model.md",
+    "apps/site/scripts/part-footprint.mjs"
    ]
   },
   {
@@ -23171,7 +23173,8 @@
     "results/geom-page-diff/**",
     "docs/team/handoffs/geom-page-diff.md",
     "research/findings/ledger.json"
-   ]
+   ],
+   "evidence": "cc0c048"
   },
   {
    "devices": [
@@ -23230,6 +23233,122 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl"
+   ],
+   "evidence": "66e11f1"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-look-fade",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-page-diff"
+   ],
+   "title": "Look harness fix (geom-page-diff, geom-image-model round 1): the base arm writes the platform fade from generated constants, every arm asserts equal scrollY, the flip arm is verified to be at the same m as base, look/timed starts a real tween or is dropped, and each look cell saves per-region PNGs of both arms as CI artifacts with a per-element diff; re-measure main on CI.",
+   "writes": [
+    "packages/premise-tests/src/look.mjs",
+    "packages/premise-tests/test/**",
+    "packages/gate-breakpoints/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "lean/scripts/MorphGeom*Golden.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-look-fade.md",
+    "results/geom-look-fade/**",
+    "docs/team/handoffs/geom-look-fade.md",
+    ".github/workflows/breakpoint-gate.yml",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/premise-tests/src/look-rule.mjs"
+   ],
+   "evidence": "e906e6f"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-style-cut",
+   "owner": "part-builder",
+   "stream": "site",
+   "deps": [
+    "phone-flip-p95"
+   ],
+   "title": "PARKED (negative result, note research/notes/2026/10-2x-geom-style-cut.md): Cut the flip's per-frame style recalc (phone-flip-p95: 99 % of the flip arms' main-busy long frames are RecalculateStyles from setProperty): count which writes run per frame with morph.geom:on and geom-timed (--morph and data-fw-morph on the nav, --morph-fade, --cs-*), prove in Lean which have no consumer in geom mode, remove them or make them non-inherited with the same look, and measure style recalc on CI (Chromium, WebKit Simulator).",
+   "writes": [
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/morph.columns/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.stage/**",
+    "lean/Fw/Parts/MorphStyle*.lean",
+    "lean/scripts/MorphStyle*Golden.lean",
+    "packages/contracts/golden/morph-style*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "apps/site/scripts/part-footprint.mjs",
+    "packages/measure-chromium/**",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-style-cut.md",
+    "results/geom-style-cut/**",
+    "docs/team/handoffs/geom-style-cut.md"
+   ],
+   "cut": true
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ci-push-lane-check",
+   "owner": "console-builder",
+   "stream": "ci",
+   "deps": [],
+   "title": "The ci/* pre-push hook (apps/runner/src/ci-push.ts) refuses a push that runs no measuring lane: tree equal to main, or a tip message whose Lean Trigger lanes miss the lanes the task names (incident inc-ci-push-no-lane); decision in Lean Fw.Ci, golden-checked.",
+   "writes": [
+    "apps/runner/src/ci-push.ts",
+    "apps/runner/test/ci-push*.test.ts",
+    "lean/Fw/Ci/*.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ci/**",
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-2x-ci-push-lane-check.md",
+    "docs/team/handoffs/ci-push-lane-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-track-style",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-flip-p95"
+   ],
+   "title": "Investigation: which morph.geom WAAPI tracks run on the main thread each frame (the flip's remaining style cost, phone-flip-p95 and the parked geom-style-cut): per track and property, whether Chromium composites it (CDP Animation / trace compositor failure reasons) and whether WebKit accelerates it (KeyframeEffect accelerable list), on CI, with a Lean table of accelerable properties per engine from pinned source; proposes the same-look fix task.",
+   "writes": [
+    "lean/Fw/Parts/MorphTrackAccel*.lean",
+    "packages/contracts/golden/morph-track-accel*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/measure-chromium/**",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-track-style.md",
+    "results/geom-track-style/**",
+    "docs/team/handoffs/geom-track-style.md"
    ]
   }
  ],

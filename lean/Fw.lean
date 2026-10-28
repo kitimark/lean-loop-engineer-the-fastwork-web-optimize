@@ -89,6 +89,7 @@ import Fw.Parts.MorphGeomEarn
 import Fw.Parts.MorphGeomAnim
 import Fw.Parts.MorphGeomCounts
 import Fw.Parts.MorphGeomLook
+import Fw.Parts.MorphGeomLookRule
 import Fw.Parts.MorphGeomVerify
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.MorphGeomTimed
@@ -142,6 +143,7 @@ import Fw.Measure.WkCost
 import Fw.Measure.Census
 import Fw.Measure.WebKitLag
 import Fw.Device.Session
+import Fw.Device.FlipAttr
 import Fw.Device.PhoneArms
 import Fw.Device.Thermal
 import Fw.Device.StillRuns
