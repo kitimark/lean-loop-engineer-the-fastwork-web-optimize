@@ -37,7 +37,8 @@ reads `waitLanes` and passes only with a pass of lean and of every requested lan
 (`wait_needs_default_pass`, `wait_needs_requested_pass`).
 
 Golden: `packages/contracts/golden/ci/intent.jsonl` (the lanes with their `if:`, the re-check steps, the replay
-cases, the gate vectors and the push vectors), written by `lake test -- --write-ci-trigger-golden`.
+cases, the gate vectors and the push vectors) and `packages/contracts/golden/ci/pushlane.jsonl` (the push lane
+verdicts), written by `lake test -- --write-ci-trigger-golden`.
 -/
 namespace Fw.Ci.Intent
 open Lean Fw.Ops.PathCheck Fw.Ci.Trigger
@@ -539,6 +540,177 @@ def plans : List (List Planned) :=
 def pushVectors : List (Bool × List Planned × Bool) :=
   [false, true].flatMap fun part => plans.map fun ps => (part, ps, pushOk part ps)
 
+def seederFiles : List String := seeders.map Prod.fst
+
+#guard seederFiles == ["lean.yml", "premise-tests.yml"]
+
+def startedNames (S : String → List String) (msg : String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) : List String :=
+  (lanes.filter fun l => start S l ⟨.ciPush, msg, true, landed, diff, differs⟩).map (·.name)
+
+def measuringNames (S : String → List String) (msg : String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) : List String :=
+  ((lanes.filter fun l => start S l ⟨.ciPush, msg, true, landed, diff, differs⟩).filter
+    fun l => !seederFiles.contains l.wf.file).map (·.name)
+
+def lanesTrailer (m : String) : List String :=
+  ((m.toLower.splitOn "[lanes:").drop 1).flatMap fun seg =>
+    match seg.splitOn "]" with
+    | body :: _ :: _ => ((body.split fun c => c == ',' || c == ' ' || c == '\t' || c == '\n').toList.map String.Slice.toString).filter (· != "")
+    | _ => []
+
+def requiredLanes (msgs : List String) : List String := (msgs.flatMap lanesTrailer).eraseDups
+
+def missingLanes (started required : List String) : List String := required.filter fun n => !started.contains n
+
+def sameTree (diff : List String) (differs : String → Bool) : Bool := (effective diff differs).isEmpty
+
+inductive Reason where
+  | ok
+  | sameTree
+  | missing
+  | noMeasuring
+  deriving DecidableEq, Repr
+
+def Reason.tag : Reason → String
+  | .ok => "ok"
+  | .sameTree => "same-tree"
+  | .missing => "missing"
+  | .noMeasuring => "no-measuring"
+
+def tipOf (msgs : List String) : String := msgs.headD ""
+
+def reasonOf (same : Bool) (miss req meas : List String) : Reason :=
+  if same then .sameTree
+  else if !miss.isEmpty then .missing
+  else if meas.isEmpty then .noMeasuring
+  else .ok
+
+theorem reasonOf_ne_ok (same : Bool) (miss req meas : List String) :
+    reasonOf same miss req meas ≠ .ok ↔ same = true ∨ miss ≠ [] ∨ meas = [] := by
+  unfold reasonOf
+  by_cases a : same = true <;> by_cases b : miss = [] <;> by_cases c : req = [] <;> by_cases d : meas = [] <;>
+    simp [a, b, c, d]
+
+/-- The pre-push verdict over the commit messages of `origin/main..tip`, tip first. -/
+def reason (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) : Reason :=
+  reasonOf (sameTree diff differs) (missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs))
+    (requiredLanes msgs) (measuringNames S (tipOf msgs) diff differs landed)
+
+def refuseNoLane (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) : Bool := reason S msgs diff differs landed != .ok
+
+def hookCovers (ref : String) : Bool := isCi "push" ref
+
+def pushRefused (ref : String) (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) : Bool := hookCovers ref && refuseNoLane S msgs diff differs landed
+
+theorem pushRefused_only_ci (ref : String) (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) (h : hookCovers ref = false) :
+    pushRefused ref S msgs diff differs landed = false := by
+  simp [pushRefused, h]
+
+theorem main_never_refused (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) :
+    pushRefused "refs/heads/main" S msgs diff differs landed = false :=
+  pushRefused_only_ci _ S msgs diff differs landed (by decide +kernel)
+
+theorem refuse_iff (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) :
+    refuseNoLane S msgs diff differs landed = true ↔
+      sameTree diff differs = true ∨
+      missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs) ≠ [] ∨
+      measuringNames S (tipOf msgs) diff differs landed = [] := by
+  unfold refuseNoLane reason
+  rw [bne_iff_ne]
+  exact reasonOf_ne_ok _ _ _ _
+
+theorem refuse_same_tree (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) (h : sameTree diff differs = true) :
+    refuseNoLane S msgs diff differs landed = true :=
+  (refuse_iff ..).mpr (Or.inl h)
+
+theorem refuse_missing (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool)
+    (h : missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs) ≠ []) :
+    refuseNoLane S msgs diff differs landed = true :=
+  (refuse_iff ..).mpr (Or.inr (Or.inl h))
+
+theorem refuse_no_measuring (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) 
+    (hm : measuringNames S (tipOf msgs) diff differs landed = []) :
+    refuseNoLane S msgs diff differs landed = true :=
+  (refuse_iff ..).mpr (Or.inr (Or.inr hm))
+
+theorem accept_iff (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) :
+    refuseNoLane S msgs diff differs landed = false ↔
+      sameTree diff differs = false ∧
+      missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs) = [] ∧
+      measuringNames S (tipOf msgs) diff differs landed ≠ [] := by
+  rw [← Bool.not_eq_true, refuse_iff]
+  simp [not_or]
+
+theorem token_lane_runs (S : String → List String) (l : Lane) (hl : l ∈ lanes) (msg : String) (diff : List String)
+    (differs : String → Bool) (hr : requested l.name msg = true)
+    (hs : l.wf.starts S (effective diff differs) = true) :
+    l.name ∈ startedNames S msg diff differs false := by
+  have := tip_starts S l ⟨.ciPush, msg, true, false, diff, differs⟩ rfl hr rfl rfl hs
+  exact List.mem_map.mpr ⟨l, List.mem_filter.mpr ⟨hl, this⟩, rfl⟩
+
+theorem started_requested (S : String → List String) (msg : String) (diff : List String) (differs : String → Bool)
+    (landed : Bool) (n : String) (h : n ∈ startedNames S msg diff differs landed) :
+    requested n msg = true ∨ n = "lean" := by
+  obtain ⟨l, hm, rfl⟩ := List.mem_map.mp h
+  have hs := (List.mem_filter.mp hm).2
+  rcases no_unrequested_start S l _ rfl hs with hr | hd
+  · exact Or.inl hr
+  · right
+    have hl := (List.mem_filter.mp hm).1
+    simp only [lanes, List.mem_map] at hl
+    obtain ⟨w, -, rfl⟩ := hl
+    have := (default_iff_lean w).mp hd
+    show stem w.file = "lean"
+    rw [this]
+    decide +kernel
+
+theorem missing_token_refused (S : String → List String) (msgs : List String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) (n : String) (hreq : n ∈ requiredLanes msgs)
+    (hnl : n ≠ "lean") (hnt : requested n (tipOf msgs) = false) :
+    refuseNoLane S msgs diff differs landed = true := by
+  apply refuse_missing
+  intro hnil
+  have hs : n ∉ startedNames S (tipOf msgs) diff differs landed := fun hm => by
+    rcases started_requested S _ diff differs landed n hm with h | h
+    · simp [hnt] at h
+    · exact hnl h
+  have hc : (startedNames S (tipOf msgs) diff differs landed).contains n = false := by
+    cases hh : (startedNames S (tipOf msgs) diff differs landed).contains n
+    · rfl
+    · exact absurd (List.mem_of_elem_eq_true hh) hs
+  have : n ∈ missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs) :=
+    List.mem_filter.mpr ⟨hreq, by rw [hc]; rfl⟩
+  rw [hnil] at this
+  exact absurd this (by simp)
+
+theorem same_tree_no_measuring (S : String → List String) (msg : String) (diff : List String)
+    (differs : String → Bool) (landed : Bool) (h : sameTree diff differs = true) :
+    measuringNames S msg diff differs landed = [] := by
+  simp only [measuringNames, List.map_eq_nil_iff, List.filter_eq_nil_iff, List.mem_filter, Bool.not_eq_true',
+    and_imp]
+  intro l hl hs
+  have hs' := (start_ci_iff S l ⟨.ciPush, msg, true, landed, diff, differs⟩ rfl).mp hs
+  rcases hs'.2.2.2 with hd | ⟨x, hx, hdx, -⟩
+  · simp only [lanes, List.mem_map] at hl
+    obtain ⟨w, -, rfl⟩ := hl
+    have hf : (laneOf w).wf.file = "lean.yml" := (default_iff_lean w).mp hd
+    simp [hf, seederFiles, seeders]
+  · have hx' : x ∈ effective diff differs := List.mem_filter.mpr ⟨hx, hdx⟩
+    simp only [sameTree, List.isEmpty_iff] at h
+    rw [h] at hx'
+    exact absurd hx' (by simp)
+
 /-! ## Replay cases and golden (`packages/contracts/golden/ci/intent.jsonl`) -/
 
 /-- The decision of every lane under the sample cones (`Trigger.sampleCone`), as (file, tag) with tag `run` or the skip
@@ -677,6 +849,55 @@ def pushLine : Json :=
   Json.mkObj [("kind", "push"), ("rows", .arr (pushVectors.map fun (part, ps, ok) =>
     Json.arr #[.bool part, .arr (ps.map fun p => Json.arr #[.bool p.named, .bool p.run]).toArray, .bool ok]).toArray)]
 
+#guard lanesTrailer "x [lanes: wktr, Breakpoint-Gate]\n[lanes:lean]" == ["wktr", "breakpoint-gate", "lean"]
+#guard lanesTrailer "[lanes: wktr" == [] && lanesTrailer "no trailer" == []
+#guard requiredLanes ["a [lanes: wktr]", "[lanes: wktr lean]"] == ["wktr", "lean"]
+
+def pushLaneCases : List (String × List String × List String × List String × Bool) := [
+  ("empty commit with a token: the tree equals main", ["[ci:wktr] ci: request"], [], [], false),
+  ("a diff that main already has", ["[ci:wktr]"], ["packages/measure-wktr/src/a.mjs"],
+    ["packages/measure-wktr/src/a.mjs"], false),
+  ("no token, a fwcore file: lean only", ["fix x"], ["lean/Fw/Wire.lean"], [], false),
+  ("token and its input differs", ["x [ci:wktr]"], ["packages/measure-wktr/src/a.mjs"], [], false),
+  ("token but no input differs", ["[ci:wktr]"], ["docs/x.md"], [], false),
+  ("task requires wktr, the tip lacks the token", ["fix x", "[lanes: wktr]"], ["packages/measure-wktr/src/a.mjs"],
+    [], false),
+  ("task requires wktr, the tip names it", ["[ci:wktr]", "[lanes: wktr]"], ["packages/measure-wktr/src/a.mjs"], [],
+    false),
+  ("task requires wktr and lean, both start", ["[ci:wktr]", "[lanes: wktr, lean]"],
+    ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"], [], false),
+  ("task requires only lean: the seeder is no measuring lane", ["fix x", "[lanes: lean]"], ["lean/Fw/Wire.lean"], [], false),
+  ("task requires an unknown lane", ["[ci:wktr]", "[lanes: nope]"], ["packages/measure-wktr/src/a.mjs"], [], false),
+  ("upper case token and trailer", ["[CI:WKTR]", "[LANES: WKTR]"], ["packages/measure-wktr/src/a.mjs"], [], false),
+  ("a longer name is not the shorter lane", ["[ci:wktr-fixtures]", "[lanes: wktr]"],
+    ["packages/measure-wktr/src/a.mjs"], [], false),
+  ("none token, docs only", ["handoff [ci:none]"], ["docs/x.md"], [], false),
+  ("landed commit with a token", ["[ci:wktr]"], ["packages/measure-wktr/src/a.mjs"], [], true),
+  ("the trailer is in an older commit, the tip has the token", ["[ci:wktr] more", "work", "[lanes: wktr]"],
+    ["packages/measure-wktr/src/a.mjs"], [], false)]
+
+def pushLaneLine (k : String × List String × List String × List String × Bool) : Json :=
+  let (n, msgs, diff, merged, landed) := k
+  let S := setMap sampleCone
+  let differs : String → Bool := fun x => !merged.contains x
+  Json.mkObj [("kind", "pushLane"), ("name", .str n), ("msgs", strs msgs), ("diff", strs diff), ("merged", strs merged),
+    ("landed", .bool landed),
+    ("cones", Json.mkObj [("Main", strs (sampleCone "Main")), ("BreakgenMain", strs (sampleCone "BreakgenMain"))]),
+    ("runs", strs (startedNames S (tipOf msgs) diff differs landed)),
+    ("measuring", strs (measuringNames S (tipOf msgs) diff differs landed)),
+    ("required", strs (requiredLanes msgs)),
+    ("missing", strs (missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs))),
+    ("reason", .str (reason S msgs diff differs landed).tag), ("refuse", .bool (refuseNoLane S msgs diff differs landed))]
+
+def pushLaneText (_ : Unit := ()) : String :=
+  String.join ((Json.mkObj [("kind", "head"), ("seeders", strs seederFiles)] :: pushLaneCases.map pushLaneLine).map
+    fun j => j.compress ++ "\n")
+
+#guard (pushLaneCases.map fun (_, m, d, e, l) =>
+  (reason (setMap sampleCone) m d (fun x => !e.contains x) l).tag) ==
+  ["same-tree", "same-tree", "no-measuring", "ok", "no-measuring", "missing", "ok", "ok", "no-measuring", "missing", "ok",
+    "missing", "no-measuring", "no-measuring", "ok"]
+
 /-- The golden text. -/
 def goldenText (_ : Unit := ()) : String :=
   String.join (((lanesLine :: cases.map caseLine) ++ lanes.map gateLine ++ [pushLine]).map fun j => j.compress ++ "\n")
@@ -687,10 +908,13 @@ def runGolden (root : System.FilePath) (write : Bool) : IO Nat := do
   if write then
     IO.FS.createDirAll (root / ".." / "packages" / "contracts" / "golden" / "ci")
     IO.FS.writeFile p goldenText
+    IO.FS.writeFile (root / ".." / "packages" / "contracts" / "golden" / "ci" / "pushlane.jsonl") pushLaneText
     IO.println s!"ci intent golden: written {cases.length} cases"
     return 0
+  let q := root / ".." / "packages" / "contracts" / "golden" / "ci" / "pushlane.jsonl"
   let cur ← try IO.FS.readFile p catch _ => pure ""
-  if cur != goldenText then
+  let curQ ← try IO.FS.readFile q catch _ => pure ""
+  if cur != goldenText || curQ != pushLaneText then
     IO.println s!"ci intent golden: {p} is stale (regenerate: cd lean && lake test -- --write-ci-trigger-golden)"
     return 1
   IO.println s!"ci intent golden: {cases.length} cases ok"

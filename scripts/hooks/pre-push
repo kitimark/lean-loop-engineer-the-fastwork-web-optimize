@@ -2,7 +2,8 @@
 # pre-push: a push of any ref except refs/heads/main (other branches and tags) is refused when a commit in
 # origin/main..<pushed sha> adds an image/font/video/audio path outside snapshot/ (Lean console.landRenderGuard, the decision
 # `fw land` makes; apps/runner/src/ci-push.ts). Local refs only, no network. A push to main passes untouched (the lead's own
-# scan covers it). Enabled by scripts/wt-prep.sh via core.hooksPath.
+# scan covers it). A ref under refs/heads/ci/ is also refused when it would run no measuring lane (ci-push.ts, Lean Fw.Ci.Intent
+# `reason`). Enabled by scripts/wt-prep.sh via core.hooksPath.
 here=$(cd "$(dirname "$0")" && pwd) || exit 1
 input=$(cat)
 case "$input" in
