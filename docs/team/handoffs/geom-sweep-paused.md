@@ -1,6 +1,6 @@
 branch: worktree-wf_6cf1ce10-b7b-1 (CI branch ci/geom-sweep-paused); worktree .claude/worktrees/wf_6cf1ce10-b7b-1
-last commit: (set at each commit; see git log)
-CI runs: none yet (push 1 pending)
+last commit: c9fa2502d (see git log)
+CI runs: wktr 40665823632 (push 1, running); 1 of 3 pushes used
 state: Lean verdict + golden + probe arms written, package tests pass (94), no CI evidence yet. 0 of 3 pushes used.
 
 # what exists
