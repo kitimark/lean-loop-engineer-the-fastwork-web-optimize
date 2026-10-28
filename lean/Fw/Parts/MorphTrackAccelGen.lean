@@ -32,7 +32,34 @@ def trackLines (_ : Unit) : List String :=
           ("scrubbedMain", .num ⟨mainTracks e .scrubbed as, 0⟩),
           ("blur", .num ⟨blurTracks as, 0⟩)])
 
-def goldenText (_ : Unit) : String := String.join ((propLines () ++ modeLines () ++ trackLines ()).map (· ++ "\n"))
+def bools : List Bool := [false, true]
+
+def effs (_ : Unit) : List Eff :=
+  bools.flatMap fun a => bools.flatMap fun b => bools.flatMap fun c => bools.flatMap fun d =>
+    bools.flatMap fun e => bools.flatMap fun f => bools.flatMap fun g => bools.map fun h => ⟨a, b, c, d, e, f, g, h⟩
+
+def tickLines (_ : Unit) : List String :=
+  (effs ()).map fun s =>
+    gline "tick" [("pending", .bool s.pending), ("running", .bool s.running), ("active", .bool s.active),
+      ("rendered", .bool s.rendered), ("complete", .bool s.complete), ("accel", .bool s.accel),
+      ("threaded", .bool s.threaded), ("disallowed", .bool s.disallowed)]
+      (Json.mkObj [("continuous", .bool (ticksContinuously s)), ("main", .bool (ticksMain s)), ("kind", .str (tickOf s).name)])
+
+def binLines (_ : Unit) : List String :=
+  ([0, 1, 299, 399, 400, 500, 649, 650, 800, 999, 1000, 1200] : List Nat).map fun (p : Nat) =>
+    gline "bin" [("permille", .num ⟨(p : Int), 0⟩)] (match binOf p with | some (b : Nat) => .num ⟨(b : Int), 0⟩ | none => .null)
+
+def nameLines (_ : Unit) : List String :=
+  [("backdrop-filter", "backdropFilter"), ("translate", "Translate"), ("transform", "scale")].map fun (a, b) =>
+    gline "name" [("a", .str a), ("b", .str b)] (.bool (normName a == normName b))
+
+def clsLines (_ : Unit) : List String :=
+  ([("translate", ["transform"], 1), ("translate", ["transform"], 2), ("transform", ["transform", "transform"], 2), ("scale", ["scale"], 1),
+    ("opacity", ["transform"], 1), ("backdrop-filter", ["backdropFilter"], 1), ("filter", [], 1), ("filter", ["filter"], 0)] :
+      List (String × List String × Nat)).map fun (p, r, n) =>
+    gline "cls" [("prop", .str p), ("reported", .arr (r.map Json.str).toArray), ("tracks", .num ⟨(n : Int), 0⟩)] (.bool (readsAccelCls normName p r n))
+
+def goldenText (_ : Unit) : String := String.join ((propLines () ++ modeLines () ++ trackLines () ++ tickLines () ++ binLines () ++ nameLines () ++ clsLines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with

@@ -1,5 +1,5 @@
 import { bootstrapSource } from '../../measure-webkit/src/page.mjs';
-import { probeSource } from '../../gate-breakpoints/src/track-accel-page.mjs';
+import { probeSource } from './mid-page.mjs';
 
 const RUN_SRC = `(() => {
   const out = (tag, obj) => console.log('FWWKTR ' + tag + ' ' + JSON.stringify(obj));
@@ -12,10 +12,11 @@ const RUN_SRC = `(() => {
   });
 })();`;
 
-export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500 } = {}) {
+export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid } = {}) {
   const pre = 'window.__fwN = { st: window.setTimeout.bind(window) };\n';
   const opts = { mode, sweepFrames, windowMs, settleMs };
   if (arms) opts.arms = arms;
+  if (mid) opts.mid = mid;
   return pre + bootstrapSource({ clock: 'pinned' }) + '\n' + probeSource(opts) + '\n' + RUN_SRC;
 }
 

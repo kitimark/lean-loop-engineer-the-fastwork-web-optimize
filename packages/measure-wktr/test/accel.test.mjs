@@ -15,7 +15,7 @@ test('the harness is one parseable script per mode and carries the shared probe'
 });
 
 test('both modes name flag sets the build prerenders (the Chromium half uses the same two)', () => {
-  assert.deepEqual(Object.keys(MODES), ['scrubbed', 'timed']);
+  assert.deepEqual(Object.keys(MODES), ['scrubbed', 'timed', 'mid', 'mid-thr-off']);
   assert.equal(MODES.scrubbed, 'morph.geom:on');
   assert.equal(MODES.timed, 'morph.geom:on,morph.tween:geom-timed');
 });
