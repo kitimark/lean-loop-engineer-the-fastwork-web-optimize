@@ -243,7 +243,9 @@ def run (args : List String) : IO UInt32 := do
     IO.print (goldenText ())
     return 0
 
-def checkRepo (path : String) : IO Unit := do
-  if (← run ["--check", path]) != 0 then throw (IO.userError "device-sweep-pause golden differs")
+def goldenPath : System.FilePath := ".." / "packages" / "contracts" / "golden" / "device" / "sweep-pause.jsonl"
+
+def checkRepo : IO Unit := do
+  if (← run ["--check", goldenPath.toString]) != 0 then throw (IO.userError "device-sweep-pause golden differs")
 
 end Fw.Device.SweepPause
