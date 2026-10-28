@@ -2114,6 +2114,8 @@
 {"part":"morph.tween","file":"morph.tween/driver.ts","line":209,"op":"clock","name":"interval","owner":"","ctx":"clock","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
 {"part":"morph.tween","file":"morph.tween/driver.ts","line":209,"op":"clock","name":"interval","owner":"","ctx":"listener:touchmove","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
 {"part":"morph.tween","file":"morph.tween/driver.ts","line":209,"op":"clock","name":"interval","owner":"","ctx":"listener:wheel","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
+{"part":"morph.tween","file":"morph.tween/driver.ts","line":230,"op":"clock","name":"after","owner":"","ctx":"callback","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
+{"part":"morph.tween","file":"morph.tween/driver.ts","line":230,"op":"clock","name":"after","owner":"","ctx":"clock","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
 {"part":"morph.tween","file":"morph.tween/driver.ts","line":238,"op":"clock","name":"after","owner":"","ctx":"callback","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
 {"part":"morph.tween","file":"morph.tween/driver.ts","line":238,"op":"clock","name":"after","owner":"","ctx":"clock","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},
 {"part":"morph.tween","file":"morph.tween/driver.ts","line":238,"op":"clock","name":"after","owner":"","ctx":"listener:touchmove","variants":["faithful","waapi","waapi-scoped","scroll-lock","geom-timed","band"]},

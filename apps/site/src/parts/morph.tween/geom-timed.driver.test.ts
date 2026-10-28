@@ -132,9 +132,11 @@ describe('tween driver with the timed geometry', () => {
     s.push(-50);
     const m = 1 - (1 - 300 / 680) ** 3;
     expect(s.calls.at(-1)).toBe(`take ${m.toFixed(3)} 0 300`);
-    s.run(2000);
+    s.run(1500);
     expect(s.published.at(-1)).toBe(0);
-    expect(s.calls.slice(-2)).toEqual(['settle 0', 'warm']);
+    expect(s.calls.at(-1)).toBe('settle 0');
+    s.run(5000);
+    expect(s.calls.at(-1)).toBe('warm');
   });
   it('warms when the platform is near and the page rests; the end of a flip back to 0 warms again; leaving the range cools', () => {
     const s = drv();
@@ -143,7 +145,9 @@ describe('tween driver with the timed geometry', () => {
     s.push(50);
     s.run(1000);
     s.push(-50);
-    s.run(3000);
+    s.run(2000);
+    expect(s.calls.at(-1)).toBe('settle 0');
+    s.run(4000);
     expect(s.calls.filter((c) => c === 'warm').length).toBe(2);
     expect(s.calls.at(-1)).toBe('warm');
     s.d.setNear(false);

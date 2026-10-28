@@ -2124,6 +2124,8 @@ def accesses : List Access := [
   ⟨"morph.tween", "morph.tween/driver.ts", 209, .clock, "interval", "", "clock", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
   ⟨"morph.tween", "morph.tween/driver.ts", 209, .clock, "interval", "", "listener:touchmove", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
   ⟨"morph.tween", "morph.tween/driver.ts", 209, .clock, "interval", "", "listener:wheel", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
+  ⟨"morph.tween", "morph.tween/driver.ts", 230, .clock, "after", "", "callback", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
+  ⟨"morph.tween", "morph.tween/driver.ts", 230, .clock, "after", "", "clock", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
   ⟨"morph.tween", "morph.tween/driver.ts", 238, .clock, "after", "", "callback", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
   ⟨"morph.tween", "morph.tween/driver.ts", 238, .clock, "after", "", "clock", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,
   ⟨"morph.tween", "morph.tween/driver.ts", 238, .clock, "after", "", "listener:touchmove", ["faithful", "waapi", "waapi-scoped", "scroll-lock", "geom-timed", "band"]⟩,

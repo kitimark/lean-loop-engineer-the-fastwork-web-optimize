@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { Layout } from '../morph.geom/tracks';
 import { createTimedGeom, type TimedAnim } from './geom-timed.driver';
+import { REWARM_MS } from './geom-timed.logic';
 
 type Ev = { e: 'warm' } | { e: 'cool' } | { e: 'dispose' } | { e: 'push'; f: number; t: number; allowed: boolean; stale: boolean } | { e: 'settle'; m: number };
 type Step = { sets: number; enters: number; leaves: number; held: boolean; tree: boolean; refSets: number };
@@ -11,6 +12,8 @@ const rows = readFileSync(resolve(__dirname, '../../../../../packages/contracts/
   .trim()
   .split('\n')
   .map((l) => JSON.parse(l) as Row);
+const lifecycle = rows.filter((r) => r.fn === 'lifecycle');
+const timing = rows.find((r) => r.fn === 'rewarm') as unknown as { out: { rewarmMs: number; quietWindowMs: number } };
 
 const layout: Layout = { eng: 'webkit', a: 0, b: 1, inset: 24, logoW: 160, lw: 144, w0: 176, gL: 0, imgs: [[[0, 200]]] };
 
@@ -67,7 +70,7 @@ function run(events: Ev[]) {
 }
 
 describe('createTimedGeom prewarm against the Lean lifecycle golden', () => {
-  it('has the scenarios', () => expect(rows.length).toBe(11));
+  it('has the scenarios', () => expect(lifecycle.length).toBe(11));
   it('a warm holds the 0 to 1 set paused and a push only starts it', () => {
     const { c, timed } = build();
     timed.warm();
@@ -98,7 +101,11 @@ describe('createTimedGeom prewarm against the Lean lifecycle golden', () => {
     expect([n.c.enters, n.timed.live()]).toEqual([0, false]);
     expect(c.enters).toBe(2);
   });
-  for (const r of rows) {
+  it('rewarms after the quiet-leave window of the flip verify', () => {
+    expect(REWARM_MS).toBe(timing.out.rewarmMs);
+    expect(REWARM_MS).toBeGreaterThan(timing.out.quietWindowMs);
+  });
+  for (const r of lifecycle) {
     it(`${r.in.name}: sets, enters, leaves, held and tree per event equal the Lean prewarm driver, whose look equals the landed driver's`, () => {
       expect(r.out.sameLook).toBe(true);
       expect(run(r.in.events)).toEqual(r.out.steps.map(({ sets, enters, leaves, held, tree }) => ({ sets, enters, leaves, held, tree })));

@@ -1,4 +1,5 @@
 import Fw.Parts.MorphTween
+import Fw.Parts.MorphGeomVerify
 /-! Lifecycle of the `geom-timed` flip tracks: prewarmed (held at progress 0) versus created on the push. -/
 namespace Fw.Parts.MorphGeomPrewarm
 open Fw.Parts.MorphTween
@@ -279,5 +280,11 @@ theorem no_warm_same (n : Nat) (t : List Ev) (h : ∀ x ∈ t, x ≠ Ev.warm) :
     simp only [runN, runR, runWith]
     rw [hstep]
     exact ih hes _ (refStep_held n s ev hs)
+
+/-- The delay from the end of a flip back to 0 until the tree is entered and the tracks are held again. -/
+def rewarmMs : Nat := 1000
+
+/-- The flip tree stays out for the whole quiet-leave window (A4) before a rewarm. -/
+theorem rewarm_after_quiet_window : Fw.Parts.MorphGeom.verifyWindowMs < rewarmMs := by decide
 
 end Fw.Parts.MorphGeomPrewarm

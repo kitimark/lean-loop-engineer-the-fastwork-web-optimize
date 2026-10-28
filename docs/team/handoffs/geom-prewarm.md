@@ -1,7 +1,7 @@
 branch: worktree-wf_066a7844-684-1 (CI branch ci/geom-prewarm)
 worktree: .claude/worktrees/wf_066a7844-684-1 (under the main checkout)
 last commit: see `git log -1`
-CI runs: push 1 (4db117d42): wktr 40636360090 success, lean 40636359994 success, breakpoint-gate 40636360067 (see below); push 2: pending
+CI runs: push 1 (4db117d42): wktr 40636360090 success; lean 40636359994 success; breakpoint-gate 40636360067 FAILED flip verify (A3a at desktop: no is-flip transition seen; A4 everywhere: rewarm right after the leave cut the 800 ms quiet window). Push 2: rewarm delayed 1000 ms (Lean rewarmMs); pending.
 
 Push 1 result (wktr, pref OFF, phone width 402): the held set was NOT used. j1 arm all: prewarmed 19 tracks (not 55), createdOnPush 55; arm all-again: prewarmed 55, createdOnPush 55. Cause candidates (fixed in push 2, traced): set built before the images exist (19 nav tracks), and innerHeight differing between warm and push (fresh() false). Push 2 adds: ready() (images exist), fresh() (vp and image count), warm() rebuilds a stale held set, resize cools now and rebuilds after 250 ms, trace hook `__fwPrewarmTrace` (events build/fast/stale-push/stale-warm/resize/create/not-ready) in the probe output `trace`.
 

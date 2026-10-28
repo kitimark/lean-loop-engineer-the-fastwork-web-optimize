@@ -4,7 +4,7 @@ import { active, armed, DURATION_MS, fade, frame, pointerNone, REST, type St } f
 import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, type Hooks, type Read } from './end.logic';
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
-import { crossings, idealAt } from './geom-timed.logic';
+import { REWARM_MS, crossings, idealAt } from './geom-timed.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -227,7 +227,7 @@ export function createTweenDriver(env: TweenEnv) {
     updateFade();
     syncLock();
     if (last && !isActive()) arm();
-    if (last) prewarm();
+    if (last && st.value === 0) after(REWARM_MS, prewarm);
   };
   const startTimed = (): boolean => {
     if (!env.timed?.take(st.from, st.to, st.start)) return false;

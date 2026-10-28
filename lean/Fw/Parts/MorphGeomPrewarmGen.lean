@@ -44,7 +44,9 @@ def lines (_ : Unit) : List String :=
     gline "lifecycle" [("name", .str name), ("events", jl (evs.map evJson))]
       (Json.mkObj [("steps", jl ((xs.zip ys).map fun (a, b) => stepJson a b)), ("sameLook", .bool (sameLookAll xs ys))])
 
-def goldenText (_ : Unit) : String := String.join ((lines ()).map (· ++ "\n"))
+def timingLine (_ : Unit) : String := gline "rewarm" [] (Json.mkObj [("rewarmMs", .num ⟨rewarmMs, 0⟩), ("quietWindowMs", .num ⟨verifyWindowMs, 0⟩)])
+
+def goldenText (_ : Unit) : String := String.join ((lines () ++ [timingLine ()]).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
