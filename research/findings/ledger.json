@@ -5455,7 +5455,7 @@
   {
    "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
    "task": "hero-exit-gate-clear",
-   "field": "gate",
+   "field": "visual",
    "text": "Gate blockers cleared. Note research/notes/2026/10-2x-hero-exit-gate-clear.md.\nMEASURED: trajectory hero walk has 0 failing units after the Lean consumer rule (a node with no box in the band, getClientRects().length == 0, is not compared; lean/Fw/Gate/Consumer.lean) and judgedEqual (rest rows at unequal scrollY skipped): chromium run 40668662980, linux-webkit and mac-webkit runs 40671695274 and 40674554372; morph passes on chromium (40668662980) and mac-webkit (40674554372; run 40671695274 gave no verdict, coverage, sampling noise of the nav morph). Entry gate chromium and gate webkit met; blocker left: proofs (row n 6).\nCONFIRMED: Chromium element.cc:3409-3453@f842f52 and WebKit Element.cpp:2041-2065@862f17d return no rects without a layout object.\nPolicy: Gen.merge now lets a newer run of the same flags, engine and walk replace an older row.\nLesson: judge a consumer by the engine's box answer, not a CSS guess."
   },
   {
