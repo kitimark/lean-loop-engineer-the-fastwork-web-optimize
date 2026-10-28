@@ -826,8 +826,39 @@ def storedOf (run sha : String) (e : Engine) (presetKeys : Option (List String))
              groups := groupsOf (walkWord w) us }
     else none
 
+def replaces (n s : Stored) : Bool :=
+  n.engine == s.engine && n.walk == s.walk &&
+    (n.run == s.run || (n.flags == s.flags && s.run.toNat?.getD 0 ≤ n.run.toNat?.getD 0))
+
 def merge (old new : List Stored) : List Stored :=
-  old.filter (fun s => !new.any fun n => n.run == s.run && n.engine == s.engine && n.walk == s.walk) ++ new
+  old.filter (fun s => !new.any (replaces · s)) ++ new
+
+theorem merge_new_mem {old new : List Stored} {n : Stored} (h : n ∈ new) : n ∈ merge old new :=
+  List.mem_append_right _ h
+
+theorem merge_older_gone {old new : List Stored} {n s : Stored} (hn : n ∈ new) (hr : replaces n s = true)
+    (hs : s ∉ new) : s ∉ merge old new := by
+  intro h
+  rcases List.mem_append.1 h with h | h
+  · have := (List.mem_filter.1 h).2
+    simp only [Bool.not_eq_true', List.any_eq_false] at this
+    exact absurd hr (by simpa using this n hn)
+  · exact hs h
+
+theorem merge_keeps {old new : List Stored} {s : Stored} (hs : s ∈ old) (h : ∀ n ∈ new, replaces n s = false) :
+    s ∈ merge old new :=
+  List.mem_append_left _ (List.mem_filter.2 ⟨hs, by simpa [List.any_eq_false] using h⟩)
+
+theorem replaces_same_run {n s : Stored} (h : n.run = s.run ∧ n.engine = s.engine ∧ n.walk = s.walk) :
+    replaces n s = true := by
+  simp [replaces, h.1, h.2.1, h.2.2]
+
+theorem replaces_older_rerun {n s : Stored} (hf : n.flags = s.flags) (he : n.engine = s.engine) (hw : n.walk = s.walk)
+    (hr : s.run.toNat?.getD 0 ≤ n.run.toNat?.getD 0) : replaces n s = true := by
+  simp [replaces, hf, he, hw, hr]
+
+theorem replaces_other_flags {n s : Stored} (hr : n.run ≠ s.run) (hf : n.flags ≠ s.flags) : replaces n s = false := by
+  simp [replaces, hr, hf]
 
 def record (args : List String) : IO Unit := do
   let (run, sha, pf, dirs) ← match args with
@@ -1009,6 +1040,10 @@ private def unitsJ (refused : Bool) (search : String) : Json :=
   (walkWord s.walk, s.widths, s.groups)) ==
   some [("hero", [390], []), ("morph", [390, 641], [⟨"nav", "opacity", [390], [641]⟩])]
 #guard (merge [stEx, { stEx with walk := .hero }] [{ stEx with groups := [] }]).map (·.groups.length) == [1, 0]
+#guard (merge [stEx] [{ stEx with run := "9", groups := [] }]).map (·.run) == ["9"]
+#guard (merge [stEx] [{ stEx with run := "5", groups := [] }]).map (·.run) == ["7", "5"]
+#guard (merge [stEx] [{ stEx with run := "9", flags := ["b:y"], groups := [] }]).map (·.run) == ["7", "9"]
+#guard (merge [stEx] [{ stEx with run := "9", engine := .chromium, groups := [] }]).map (·.run) == ["7", "9"]
 #guard ((trajJson [stEx] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "pending: trajectory"
 #guard ((trajJson [stBad] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "falsified: trajectory"
 

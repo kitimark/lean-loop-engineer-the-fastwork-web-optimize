@@ -13,10 +13,14 @@ const registries = { hero: [{ id: 'hero.orbit.card', props: [{ id: 'opacity', ki
 const rowOf = (s, y) => ({ step: s.in.step, tag: s.in.step, frame: s.in.frame, y, nodes: { 'hero.orbit.card': [[1]] }, page: [] });
 const armOf = (key) => ({ hero: { rows: judged.map((s) => rowOf(s, s.in[key])), ready: { ready: true } } });
 
-test('hero-exit-offset: the reducer judges exactly the rows Lean judgedNow names', () => {
+test('hero-exit-offset: the reducer judges exactly the rows Lean judgedEqual names and skips the other rest rows', () => {
   assert.ok(judged.length > 0);
   const units = reduceWidth({ width: 390, orig: armOf('yOrig'), rewrite: armOf('yCand'), registries });
   assert.deepEqual(units.map((u) => u.step), judged.filter((s) => s.out.now).map((s) => s.in.step));
+  for (const u of units) {
+    const s = judged.find((x) => x.in.step === u.step);
+    assert.equal(u.verdict === 'skip:noSample', !s.out.equal, u.step);
+  }
 });
 
 test('hero-exit-offset: judgedEqual drops only the rest rows read at unequal offsets', () => {
