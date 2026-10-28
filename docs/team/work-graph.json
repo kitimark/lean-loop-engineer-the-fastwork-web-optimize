@@ -23436,6 +23436,32 @@
     "docs/team/handoffs/geom-prewarm.md"
    ],
    "cut": true
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-pref-off-ticking",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-prewarm"
+   ],
+   "title": "Which geom-timed tracks keep ticking on the WebKit main thread with ThreadedTimeBasedAnimationsEnabled off (the iOS default): geom-prewarm push 3 read 25 accelerated / 30 ticking in every pref-off flip, while geom-webkit-midflip read 47 / 0 in pref-off second flips; on main code, per track key and Lean tick-predicate branch, resolve the contradiction and name the 30.",
+   "writes": [
+    "lean/Fw/Parts/MorphTrackAccel*.lean",
+    "packages/contracts/golden/parts/morph-track-accel.jsonl",
+    "lean/scripts/MorphTrackAccelGolden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    ".github/workflows/wktr.yml",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-pref-off-ticking.md",
+    "results/geom-pref-off-ticking/**",
+    "docs/team/handoffs/geom-pref-off-ticking.md"
+   ]
   }
  ],
  "deadline": {
