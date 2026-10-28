@@ -19,7 +19,6 @@ def modeLines (_ : Unit) : List String :=
   [Mode.scrubbed, .timed].map fun m =>
     gline "mode" [("mode", .str m.name)] (Json.mkObj [("why", .str (playWhy m).name)])
 
-/-- One line per band viewport and engine: every track key, the tracks the main thread keeps in each mode. -/
 def trackLines (_ : Unit) : List String :=
   bandVps.flatMap fun v =>
     [Eng.webkit, .chromium].map fun e =>

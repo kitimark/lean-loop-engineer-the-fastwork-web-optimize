@@ -15,4 +15,4 @@ Verified:
 - WebKit: scrubbed 55/55 paused; timed per-element readout, 5 of 6 after the settle cancel, j3 all-again with all 55 running (translate 20/20, transform 18/26).
 - WebKit source (862f17d): a running, completely accelerated effect schedules no tick (AnimationEffect.cpp:385-396, KeyframeEffect.cpp:2724-2744).
 Open: WebKit question (which rendered tracks are not running accelerated mid-flip; what else writes style per frame on the phone) and the proposed next task geom-webkit-midflip (WKTR, settle cancel after the readout); flip-cell rerun on main; pooled per-property judge.
-Conventions: scratch in the session scratchpad; compound shell commands are refused, use Edit/Write; commit trailers per CLAUDE.md; heavy runs through `pnpm -s fw slot run`.
+Heavy runs go through `pnpm -s fw slot run`.

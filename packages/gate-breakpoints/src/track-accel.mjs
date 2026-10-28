@@ -1,14 +1,4 @@
-// Chromium half of the geom-track-style probe (task geom-track-style): per morph.geom Web Animation track, did Chromium start it on the
-// compositor, and if not why; and how many style recalcs the page pays per arm. Readout: a Chrome trace (devtools.timeline +
-// blink.animations + blink.user_timing) taken over the whole probe run.
-//
-//   compositor decision  The trace "Animation" instant (animation.cc:2653@f842f52, data.compositeFailed = FailureReason bits) is written
-//                        when a checked animation CANNOT run on the compositor; a success writes none (animation.cc:2631-2637). The
-//                        BEGIN event of the same NamedTrack carries data.name = animation.id, which the page probe set to its tag. A tag
-//                        that began and has no failure instant while Running is read as "on the compositor" (a trace has no success event).
-//   style recalcs        trace events named UpdateLayoutTree (the DevTools "Recalculate Style" slice) between the page's own
-//                        `fwx:<arm>:<stage>:start|end` user-timing marks.
-// Chromium only. The page script is shared with the WebKitTestRunner arm (track-accel-page.mjs).
+// animation.cc:2653@f842f52 writes the "Animation" instant with data.compositeFailed only on failure; success writes none (animation.cc:2631-2637@f842f52)
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { chromium } from 'playwright-core';
@@ -35,16 +25,13 @@ export function loadGolden(path = GOLDEN) {
 const CATEGORIES = ['devtools.timeline', 'blink.animations', 'blink.user_timing', 'cc', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.invalidationTracking'];
 const WORK = new Set(['UpdateLayoutTree', 'RecalculateStyles', 'Layout', 'UpdateLayer', 'UpdateLayerTree', 'PrePaint', 'Paint', 'Commit', 'FunctionCall', 'HitTest']);
 
-/** The join key of a trace event on its custom track: id2 / id / thread. */
 export const keyOf = (ev) => (ev.id2 ? JSON.stringify(ev.id2) : ev.id !== undefined ? `id:${ev.id}` : `tid:${ev.pid}:${ev.tid}`);
 
-/** Reduce a Chrome trace to marks, work slices and animation events (pure). */
 export function reduceTrace(events) {
   const marks = events.filter((e) => typeof e.name === 'string' && e.name.startsWith('fwx:')).map((e) => ({ name: e.name, ts: e.ts, pid: e.pid, tid: e.tid }));
   const work = events.filter((e) => WORK.has(e.name) && (e.ph === 'X' || e.ph === 'B')).map((e) => ({ name: e.name, ts: e.ts, dur: e.dur ?? 0, pid: e.pid, tid: e.tid, el: e.args?.elementCount ?? e.args?.beginData?.elementCount ?? 0 }));
   const anim = events.filter((e) => e.name === 'Animation' && e.ph !== 'M').map((e) => ({ ph: e.ph, ts: e.ts, key: keyOf(e), data: e.args?.data ?? null, end: e.args?.endData ?? null }));
   const cc = events.filter((e) => e.name === 'KeyframeModel' && (e.ph === 'b' || e.ph === 'B')).map((e) => ({ ts: e.ts, name: e.args?.Name ?? e.args?.data?.Name ?? '' }));
-  // Why a style recalc was scheduled: the DevTools invalidation-tracking events ({nodeName, reason}); empty when the category is off.
   const inval = events.filter((e) => typeof e.name === 'string' && e.name.endsWith('InvalidationTracking') && e.ph !== 'M')
     .map((e) => ({ name: e.name, ts: e.ts, pid: e.pid, tid: e.tid, reason: e.args?.data?.reason ?? '?', node: e.args?.data?.nodeName ?? '?' }));
   return { marks, work, anim, cc, inval };
@@ -53,7 +40,7 @@ export function reduceTrace(events) {
 /** cc::TargetProperty::Type, cc/trees/target_property.h:15-30@f842f52. */
 export const CC_PROP = ['transform', 'scale', 'rotate', 'translate', 'opacity', 'filter', 'scroll-offset', 'background-color', 'bounds', 'css-custom', 'native', 'backdrop-filter'];
 
-/** cc KeyframeModel BEGIN events (keyframe_model.cc:152-155: written when the compositor starts a model; Name = "<curve>-<TargetProperty>-<group>"). */
+// keyframe_model.cc:152-155@f842f52 writes the KeyframeModel BEGIN with Name = "<curve>-<TargetProperty>-<group>"
 export function ccStarts(cc, t0, t1) {
   const by = {};
   for (const e of cc) {
@@ -65,7 +52,6 @@ export function ccStarts(cc, t0, t1) {
   return by;
 }
 
-/** Windows by mark pair `fwx:<arm>:<stage>:start|end` -> { arm, stage, t0, t1, work: {name: {n, ms}} }. */
 export function windowsOf(marks, work, inval = []) {
   const open = new Map();
   const out = [];
@@ -102,10 +88,7 @@ export function windowsOf(marks, work, inval = []) {
   return out;
 }
 
-/** Per tag: began?, last play state, and the decoded failures of its track. */
 export function decisionsOf(anim, tags) {
-  // A track key is a heap pointer (NamedTrack::FromPointer), so a later Animation can reuse it: a BEGIN opens a new record, the instants
-  // that follow belong to the record open on that key, an END closes it.
   const open = new Map();
   const all = [];
   const tagName = new Map(tags.map((t) => [t.id, t]));
@@ -134,7 +117,6 @@ export function decisionsOf(anim, tags) {
 
 const count = (xs, f) => xs.reduce((m, x) => { const k = f(x); m[k] = (m[k] ?? 0) + 1; return m; }, {});
 
-/** Per arm: page stages joined with the trace windows, the named compositor decisions and the cc compositor starts. Pure. */
 export function armSummary(page, windows, decisions, cc = []) {
   const byArm = {};
   for (const r of page.rows) byArm[r.arm] = { arm: r.arm, tracks: r.tracks ?? 0, engaged: r.engaged ?? true, stages: r.stages, table: r.table ?? null, docAnims: r.docAnims ?? null };
@@ -163,11 +145,6 @@ export function armSummary(page, windows, decisions, cc = []) {
 const keyProp = (k) => k.split(':').slice(-1)[0];
 const keyEl = (k) => k.split(':')[0];
 
-/**
- * Compare the arm `all` against the Lean table (golden `tracks` line of this band). Per property: tracks the page made, tracks Lean puts on the
- * compositor, the trace's named compositor failures, and the cc starts that the geom tracks add (arm `all` minus arm `none`, whose tracks are held).
- * ok (timed only): no named failure on a property Lean puts on the compositor, and every filter track named as failing.
- */
 export function judge(mode, w, arms, golden) {
   const g = golden.find((l) => l.in.w === w && l.in.eng === 'chromium');
   const all = arms.find((a) => a.arm === 'all');
@@ -188,7 +165,6 @@ export function judge(mode, w, arms, golden) {
   const pk = count(tags, (t) => `${t.mg}:${t.prop}`);
   const extraN = {};
   for (const k of Object.keys(pk)) if ((pk[k] ?? 0) > (gk[k] ?? 0)) extraN[k] = pk[k] - (gk[k] ?? 0);
-  // Tracks the page made beyond the Lean sample (image rows of the live layout) are judged apart: their failures are not Lean's.
   const failedKey = count(decided.filter((d) => d.fails.length > 0), (d) => `${d.mg}:${d.prop}`);
   const failedExtra = {};
   for (const [k, n] of Object.entries(failedKey)) if (extraN[k]) failedExtra[keyProp(k)] = (failedExtra[keyProp(k)] ?? 0) + Math.min(n, extraN[k]);

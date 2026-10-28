@@ -46,7 +46,7 @@ Round 1 divided elements by main-thread frames. That is wrong as a comparison: t
 compares different numbers of frames. The decision figure is the total over the flip window. Rule (Lean `MorphTrackAccel`, `counted`, `flipTotal`): window =
 the page marks `fwx:<arm>:flip:start|end` on the renderer main thread, both ends included; a record counts iff it is `UpdateLayoutTree` (or `RecalculateStyles`)
 on that thread inside the window. `frames` = the page's rAF count in the window; `elements` and `ms` = sums over the counted records. Reduction `windowsOf`/`armSummary`
-in `track-accel.mjs` (TS stand-in, no golden). Re-derived from the artifacts of run 40616651357 (track-accel r1..r3; the numbers the reviewer re-read for r1/r2 at 1440 match:
+in `track-accel.mjs` (TS stand-in, no golden). Re-derived from the artifacts of run 40616651357 (track-accel r1..r3; r1/r2 at 1440:
 all 7-8 frames, 641-702 elements, 14.6-15.6 ms; transform paused 31 frames, 1514-1546, 28.5-33.4 ms; translate paused 28-31 frames, 1515-1678, 24.9-33.9 ms; r3 adds 585 elements, 13.7 ms to `all` and 1353, 27.3 ms to transform paused).
 
 390 px (flip window 560-650 ms):

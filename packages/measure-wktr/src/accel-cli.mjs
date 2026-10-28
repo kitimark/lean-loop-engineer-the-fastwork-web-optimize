@@ -1,7 +1,3 @@
-// WebKit half of the geom-track-style probe (task geom-track-style): per morph.geom Web Animation track, does WebKit hold it as an
-// accelerated animation (internals.acceleratedAnimationsForElement) and how many style recalcs does each arm pay
-// (internals.styleRecalcCount between the arm's windows). One fresh WebKitTestRunnerApp process per mode and pass, the prerendered
-// rewrite (apps/site/dist/aot) served with the probe as /__fw/harness.js. Counts only: nothing measured here is phone time.
 import { parseArgs } from 'node:util';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
