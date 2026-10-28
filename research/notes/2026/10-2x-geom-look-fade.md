@@ -28,7 +28,7 @@ Pushes: 4 of 4. Chromium 'on': 3 jobs on separate CI jobs, equal to 4 digits (pa
 
 ## Result: page share (pixels over 12 in the whole viewport), flip vs base
 
-morph.geom:on, Chromium, before (40553185213) -> after (40594241212); WebKit equal to 0.001 except where stated.
+morph.geom:on, Chromium, before (40553185213) -> after (40594241212). WebKit (run 40599995604, results/geom-look-fade/table-on-playwright-webkit.md) is equal or lower: at m=1 641x700 0.0022 (Chromium 0.0284), 320x568 0.0012 (0.0024), 360x640 0.0009 (0.0021), other bands within 0.001; at m=.5 0.002-0.006 lower at the six bands up to 641 wide.
 
 | band | m=0 | m=.5 | m=1 |
 |---|---|---|---|
@@ -44,8 +44,8 @@ At m=1 the page share falls from 0.056-0.423 to at most 0.0284 (641x700; every o
 
 ## What still differs, by element (results/geom-look-fade/owners.md)
 
-- m=1, narrow bands (320-640 wide): `nav.bar.1.0` about 1900-1980 px constant, plus `nav-earn`/`nav-actions` (position of the EN button and the join pill, 400-1570 px). At wide bands (768-1920) only `nav.bar.1.0` about 300-390 px and column images of 12-98 px.
-- m=1 at 641x700 (page 0.0284): `column3.img1` 2186, `column2.img0` 2180, `column1.img1` 1654, `column2.img1` 1241: picture footprint, owned by geom-image-model round 2.
+- m=1, narrow bands (320-640 wide): `nav.bar.1.0` about 1900-1980 px constant, plus `nav-earn`/`nav-actions` (position of the EN button and the join pill, 400-1570 px). At wide bands (768-1920) only `nav.bar.1.0` about 300-390 px and column images of 12-98 px. (Chromium; WebKit run 40599995604 shows only nav.bar.1.0 ~1810-1850 px at narrow bands and, at 641x700, nav.bar.1.0 338 + column4.img0 315 + column4.img1 304 px, page 0.0022)
+- m=1 at 641x700 (page 0.0284): `column3.img1` 2186, `column2.img0` 2180, `column1.img1` 1654, `column2.img1` 1241: picture footprint, owned by geom-image-model round 2. (Chromium; WebKit run 40599995604 shows only nav.bar.1.0 ~1810-1850 px at narrow bands and, at 641x700, nav.bar.1.0 338 + column4.img0 315 + column4.img1 304 px, page 0.0022)
 - m=0.5 (a mid-flip frame): `nav-earn` ~4200 px, `nav.bar.1.0` ~3100-3200, `nav-lang` ~1100, column images (`column0.img0` 2800-9200) and the `footer` (blur in base, crisp in flip: 7000-78000 px at narrow bands) and the countdown clock at 640x360.
 - m=0, 768x1024: page 0.0103, `column3.img0` 4706 px, in both engines and before and after (a picture at the tablet band).
 - INFERRED: the footer and image differences at mid m are blur filters: the base arm is pinned at the value, the flip arm runs the compositor track; the nav differences are the position of the actions, not a colour.
