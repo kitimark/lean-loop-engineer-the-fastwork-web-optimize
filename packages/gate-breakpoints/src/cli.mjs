@@ -206,6 +206,13 @@ if (cmd === 'run') {
   let ok = true;
   for (const engineName of engines) ok = (await runFlipVerify({ engineName, fw: arg('fw', 'morph.geom:on,morph.tween:geom-timed'), outDir: out, bandFilter: bands, mutation, expectFail: argv.includes('--expect-fail'), cycles: Number(arg('cycles', '2')) })) && ok;
   process.exit(ok ? 0 : 1);
+} else if (cmd === 'accel') {
+  const { runTrackAccel, DEFAULT_BANDS } = await import('./track-accel.mjs');
+  const bands = argv.includes('--bands') ? arg('bands', '').split(',').map((b) => b.split('x').map(Number)) : DEFAULT_BANDS;
+  const modes = argv.includes('--modes') ? arg('modes', '').split(',') : undefined;
+  const arms = argv.includes('--arms') ? arg('arms', '').split(',') : undefined;
+  await runTrackAccel({ outDir: out, bands, modes, arms, raw: argv.includes('--raw') });
+  process.exit(0);
 } else if (cmd === 'gaps') {
   const { gapsMain } = await import('./gaps/cli.mjs');
   await gapsMain(argv.slice(1), out);
