@@ -6,6 +6,7 @@
 // `since` is the ms since the last nav class change (null: none happened), `cls` the nav classes that are on, `ph` the index of
 // the phase it was read in, `t0` the ms its reads started at, rounded (null: not recorded); `annotate` adds `ord`.
 import { colourFromV1 } from './kit.mjs';
+import { consumerRows } from './consumer.mjs';
 
 export const TOL = { discrete: 0, geometry: 1000, unit: 10, colour: 2000 };
 export const ALLOWED_WIDTHS = [390, 640, 641, 1280];
@@ -653,7 +654,7 @@ export function reduceWidth({ width, orig, rewrite, registries }) {
   const pageRows = (rows) => rows.map((r) => ({ ...r, nodes: { page: [r.page] } }));
   const pageNode = [{ id: 'page', props: registries.page }];
   if (orig.hero && rewrite.hero) {
-    const oHero = stepRows(orig.hero.rows), wHero = stepRows(rewrite.hero.rows);
+    const [oHero, wHero] = consumerRows(stepRows(orig.hero.rows), stepRows(rewrite.hero.rows), registries.hero.map((n) => n.id));
     byStepOf('hero', 'path', registries.hero, oHero, wHero);
     byStepOf('hero', 'path', pageNode, pageRows(oHero), pageRows(wHero));
   }

@@ -202,6 +202,7 @@ import Fw.Wire.FlagKey
 import Fw.Wire.FlagKeyGolden
 import Fw.Wire.Store
 import Fw.Gate.Rule
+import Fw.Gate.Consumer
 import Fw.Gate.MarginRule
 import Fw.Gate.Compare
 import Fw.Gate.Items
