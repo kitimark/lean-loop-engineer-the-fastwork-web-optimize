@@ -91,11 +91,10 @@ all 7-8 frames, 641-702 elements, 14.6-15.6 ms; transform paused 31 frames, 1514
 | idle (no tracks) | 27-34 | 130-165 | 3.6-4.7 | 5 |
 | all again | 7-9 | 762-879 | 17.3-18.2 | 98-109 |
 
-Reading (1440 and 768): with all 55 tracks running, Chromium ticks the main thread about 4x less often (7-8 frames against 28-31 at 1440; 12-14 against 31-33 at 768), and the style work per flip is
+Reading (1440 and 768): with all 55 tracks running, Chromium ticks the main thread about 4x less often at 1440 (7-8 frames against 28-31) and about 2.5x less often at 768 (12-14 against 31-33), and the style work per flip is
 the lowest of the track arms: 585-702 elements and 13.7-15.6 ms against 1353-1546 and 27.3-33.4 ms with the transform tracks paused (1440). At 390 the two overlap
-(`all` 980-1252 elements, 18.9-25.0 ms; transform paused 1247-1267, 23.1-26.2 ms; frames 22-27 against 34-35). Pausing any group that holds the frame count low (scale, opacity, filter, backdrop) changes nothing; pausing translate or
-transform lifts it to the idle cadence (26-34 frames) and the totals double. The tracks themselves add little per flip over `none` (all held): at 1440 `all` is +50-100 elements and +0.5-2 ms over `none` (505-644; 11.7-14.4 ms),
-at 768 +170-500 elements and +1-10 ms (505-644 and 777-855 are the `none` ranges at 1440 and 768), at 390 +420-820 elements and +4-14 ms. Lean proves the verdict (`no_fold_reason_any_band`: no band has a reason to fold; `all_lowest_wide`: at 768 and 1440 every `all` repetition is below every transform-paused one in elements and ms;
+(`all` 980-1252 elements, 18.9-25.0 ms; transform paused 1247-1267, 23.1-26.2 ms; frames 22-27 against 34-35). Pausing scale, opacity, filter or backdrop keeps the frame count low (8-14 frames); their totals are at or above `all` (at 768 backdrop paused 33.5-43.6 ms and scale paused 26.8-30.4 ms against 21.2-26.5). `all` is lowest or tied within the rep spread; Lean proves it against transform paused only; pausing translate or
+transform lifts it to the idle cadence (26-34 frames) and the totals double. The tracks themselves add little per flip over `none` (all held): 1440 -3 to +120 elements and +0.5 to +2.1 ms; 768 +167 to +473 and +0.7 to +9.2 ms; 390 +552 to +694 and +7.8 to +10.5 ms (all minus none, same repetition). Lean proves the verdict (`no_fold_reason_any_band`: no band has a reason to fold; `all_lowest_wide`: at 768 and 1440 every `all` repetition is below every transform-paused one in elements and ms;
 `all_not_lowest_390`, `frames_differ_wide`).
 The old per-frame figures (84-92 against 45-54 elements, round 1) are real per recalculation, but a main frame is rarer when the tracks run, so they do not add up to more work per flip.
 
