@@ -8,7 +8,6 @@ export function tickOf(s) {
   return ticksContinuously(s) ? 'main' : 'accelerated';
 }
 
-// The branch of the predicate a track takes, in the order Lean `reasonOf` tests them (task geom-pref-off-ticking).
 export function reasonOf(s) {
   if (s.pending) return 'pending';
   if (!s.running) return 'not-running';
@@ -120,10 +119,6 @@ export function frameSummary(report) {
   });
 }
 
-/**
- * One row per (flip arm, sample, track key mg/prop/idx): the raw name match (`rawAccel`, the first probe's bug under the threaded-off layer
- * list), the class-folded read (`accel`), the engine oracle (`oracle`), and the Lean branch with its verdict (`ticks`).
- */
 export function keySummary(report) {
   const tags = new Map(report.tags.map((t) => [t.id, t]));
   const pref = prefOf(report);

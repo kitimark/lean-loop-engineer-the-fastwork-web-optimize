@@ -3,7 +3,7 @@
 Question (task geom-pref-off-ticking, graph r557): two notes disagree on the pref-OFF flip on the same 55 tracks. `10-2x-geom-webkit-midflip.md` (run 40629283336, main) reads
 47 accelerated / 0 ticking from the second flip on. `10-2x-geom-prewarm.md` (parked branch worktree-wf_066a7844-684-1, run 40648228102) reads 25 accelerated / 30 ticking
 in every flip. Which tracks tick in steady state, why, and does that explain the phone's RecalculateStyles long frames (phone-flip-p95: geom-timed 348 of 396)?
-Investigation only: no site edit, no phone run. WKTR is the iOS 26.5 simulator build on GitHub Actions, never phone time; iOS Safari's pref default is OFF
+Investigation only: no site edit, no phone run. WKTR is not iOS Safari; it is the iOS 26.5 simulator build on GitHub Actions, never phone time; iOS Safari's pref default is OFF
 (UnifiedWebPreferences.yaml:8557-8570@862f17d, CONFIRMED), WKTR's own default is ON, so the OFF lane (`mid-thr-off`, header `ThreadedTimeBasedAnimationsEnabled=false`) is the iOS proxy.
 
 ## Answer
@@ -31,7 +31,7 @@ The raw flag misses the CSS individual transform properties: `translate`, `scale
 | raw `a` = 0 (the "30 ticking") | 30 | 20 translate, 2 scale, 8 hidden image tracks (unrendered) |
 | class-folded accelerated | 47 | the 25 plus the 22 translate/scale tracks |
 | engine oracle ticking | 0 | `timeToNextAnimationTick` above the 15 ms interval |
-The prewarm note's own "30 ticking" is therefore 22 folded-accelerated tracks plus 8 unrendered ones, none of them ticking. Midflip's 47 / 0 was right.
+The prewarm note's "30 ticking" is 22 folded-accelerated tracks plus 8 unrendered ones, none ticking. Midflip's 47 / 0 was right.
 
 ## Main code, pref OFF and ON, per track key (MEASURED)
 Runs: 40653612323 (push 1, d79a4bab5; arms all, all-again, all-3, all-4) and 40657027777 (push 2, fbc187650; 8 flips per job, layer flag per sample). 3 jobs each, flips 1 to 8.
@@ -54,7 +54,7 @@ Counts of 94 in the ON grid are two samples in one bin.
 - It appears at p30 in 5 of 16 pref-OFF flips with a p30 sample (r1j1 flip 1, r1j2 flip 1, r2j2 flips 1, 3, 7) and at p50 in 2 (r1j1 and r2j2, flip 1). It is gone at p80 every time.
 - Correlation (MEASURED, small n): the creation flush ran while the effects were still pending (flush phase below 0) in 6 flips with a p30 sample, and S1 followed in 5 of them (r1j1 flip 1 at -46, r1j2 flip 1 at -13, r2j2 flips 1, 3, 7 at -19, -16, -9; the exception is r1j2 flip 2 at -7).
   In the 10 flips with a p30 sample and a flush at phase 0 or later, S1 appeared in none. With the pref ON, flips with a negative flush (r2j1 flips 6 and 7 at -16, -12) read 47 / 0 at p30: S1 is pref-OFF only.
-- Layers (MEASURED, r2j2): the 21 elements HAVE a composited layer at the sample (layer probe `l` = 1 for all 21, in every S1 sample). The layer-missing explanation I had in mind is refuted at sample time.
+- Layers (MEASURED, r2j2): the 21 elements HAVE a composited layer at the sample (layer probe `l` = 1 for all 21, in every S1 sample). The layer-missing explanation is refuted at sample time.
   At rest (`layBefore`, flips 2 to 8) the elements of image, logo, earn, footerEnd and footerGrad (and lang, 2 of 5 column) have no layer, so a layer is created during the flip.
 - Source reason (WebKit@862f17d, INFERRED for causality, lines CONFIRMED):
   - `KeyframeEffect::ticksContinuouslyWhileActive` (KeyframeEffect.cpp:2724-2746) stays true until the effect is completely accelerated and `isRunningAccelerated()`; with the pref OFF that is `m_runningAccelerated == Yes` (1680-1689).
@@ -83,4 +83,4 @@ The CI frame clock is slow (first frame 220 to 650 ms late), so the flush lands 
 The `.github/workflows/wktr.yml` `ACCEL_MODES` env existed on the ci branch only and is reverted in the last commit.
 
 ## Lesson (general)
-A probe must fold property classes before it says "not accelerated" and must take "ticking" from the engine oracle or the Lean predicate, never from a raw flag: the same report read 25 / 30 or 47 / 0 depending on the reader. Hold the raw flag out of verdicts.
+A probe must fold property classes before it says "not accelerated" and must take "ticking" from the engine oracle or the Lean predicate, never from a raw flag: the same report read 25 / 30 or 47 / 0 depending on the reader.

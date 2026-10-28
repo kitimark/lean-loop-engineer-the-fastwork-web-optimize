@@ -332,12 +332,10 @@ theorem classOf_translate (norm : String → String) (h : norm "translate" = "tr
     classOf norm "translate" = classOf norm "transform" := by
   simp [classOf, h, h2]
 
-/-- Reading a track by its raw property name misses a translate or scale track that the layer folds into a `transform` entry; the class rule finds it. -/
 theorem raw_misses_folded (norm : String → String) (h : norm "translate" = "translate") (h2 : norm "transform" = "transform") :
     readsAccel norm "translate" ["transform"] = false ∧ readsAccelCls norm "translate" ["transform"] 1 = true := by
   simp [readsAccel, readsAccelCls, classOf, h, h2]
 
-/-- The branch of `ticksMain` a track takes, in the order the predicate tests them. -/
 inductive Reason where
   | pending | notRunning | notActive | unrendered | accelerated | disallowed | incomplete | unaccelerated
   deriving DecidableEq, Repr

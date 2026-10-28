@@ -165,7 +165,6 @@ function pageProbe(P) {
   };
 
   // Whether the element has a compositing layer: Internals.setElementTracksDisplayListReplay throws without one (Internals.cpp:3968-3987@862f17d).
-  // It forces a layout, so only the mid-window samples and the pre-push map ask (`withLay`); the flush steps do not.
   const layOf = (el) => {
     if (!(I && typeof I.setElementTracksDisplayListReplay === 'function')) return null;
     try { I.setElementTracksDisplayListReplay(el, false); return 1; } catch (e) { return 0; }
@@ -180,8 +179,6 @@ function pageProbe(P) {
   };
   const layersBefore = () => Array.from(document.querySelectorAll('[data-mg]')).map((el) => [el.getAttribute('data-mg'), layOf(el)]);
 
-  // Mid-flip readout (WebKitTestRunner): the frame clock there is slow, so the samples are taken by phase (the reference track's own
-  // currentTime over the tween length), from the rAF callbacks and from a short timer poll, never by frame count.
   const midWindow = async (arm, idle, tw) => {
     const dur = P.durationMs;
     const ref = X.created.find((c) => !c.tag.held);
