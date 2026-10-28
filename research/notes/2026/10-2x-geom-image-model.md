@@ -27,3 +27,24 @@ Status: Lean proof CONFIRMED; site follows (golden-checked); CI gate MEASURED (r
 ## Finding
 The geometry now equals base (proved, and the cell reads the pictures), yet the mid-morph difference did not move (within 0.2 points). So the picture scale was not what the look report sees at 0 < m < 1. The m = 1 shares rose a little (nav up to 5.5 %, columns up to 4.2 % on Chromium), within the accepted resampling limit at picture edges but unexplained in detail. The look run saves no images, so the remaining cause cannot be read from artifacts. Candidates (INFERRED, not shown): the base arm at pinned `m` (look.mjs pins `m` on the nav only, so other pieces such as the platform section and column text stay at their rest state in base: see 10-2x-geom-page-diff.md), text and backdrop drawn differently in the two arms.
 Follow-up: look.mjs saves per-region PNGs for both arms at m = 0.5 and a per-element diff (task geom-look-fade covers the pinning).
+
+## Round 2: premise re-tested with the fixed look harness (NEGATIVE RESULT)
+
+Run 40608711529 (breakpoint-gate, commit a64179d20, both engines; lean run 40608711677 success) against main run 40599995604, per-element look rows (elements.rows, own px), summed over the column pictures (keys columnN.imgM):
+
+| engine | m | base (main) | picture model |
+|---|---|---|---|
+| Chromium | 0.25 | 278913 | 196759 |
+| Chromium | 0.5 | 1263210 | 884236 |
+| Chromium | 0.75 | 1205177 | 837882 |
+| Chromium | 1 | 17429 | 342419 |
+| WebKit | 0.25 | 232470 | 172047 |
+| WebKit | 0.5 | 1249722 | 879357 |
+| WebKit | 0.75 | 1214740 | 828664 |
+| WebKit | 1 | 850 | 333261 |
+
+MEASURED. At mid m the picture rows shrink about 30 % (at 320x568 m=0.5 98198 > 4827; 640x1000 m=0.5 413491 > 333813; wide bands 1280-1920 about halve). So the premise (picture scaling was part of the mid-m difference) holds, but a large share remains (blur and the other owners, see geom-look-fade).
+At m=1 it is much worse: 17429 > 342419 (Chromium), 850 > 333261 (WebKit). Examples (Chromium m=1): 430x932 column0.img3 39044, column2.img2 16653; 640x1000 column1.img3 33676, column2.img2 32700, plus the footer 32008 (base: none above 1800); 390x844 column2.img2 26869. The 641x700 footprint did not go away: column3.img1 2186 and column2.img0 2180 are replaced by column1.img2 5080, column3.img2 2488, column2.img0 2357 (sum 9927 > 13726).
+The m=1 diff image (out/look/on/img/640x1000/m1, CI artifact flip-cell-chromium) shows the lower column pictures (the third and later rows, below the fold) painted in base and missing or dark in the flip arm. INFERRED cause, untested: pictures not yet loaded at enter (naturalWidth 0 falls back to the box) or the new Kc clip (overflow hidden, padding-block 64 px) cutting rows that the Uc track shifts out of its box at rest. Not patched (task rule: a result that does not reduce the rows is a negative result).
+Flip cell 48 of 48 on both engines and verify A3a/A4/A5 passed (job success). Verdict: the Lean model is right (proved) and its mid-m effect is real, but the code regresses m=1; parked, not landed. Follow-up: read the picture and Kc boxes at m=1 in the flip arm and fix the cause under a new task.
+General lesson: a look harness must read the end state (m=1) as well as mid m for every change to what is painted; round 1 read only the geometry rows and would have missed this.
