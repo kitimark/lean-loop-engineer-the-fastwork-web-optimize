@@ -216,7 +216,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/contracts/golden/parts/dormant-counts.jsonl",
     "apps/site/src/registry/layer-opts.gen.ts", "packages/contracts/golden/console/layer-opts.jsonl",
     "apps/site/src/parts/engine.events/quiet.gen.ts", "packages/contracts/golden/parts/react-root-quiet.jsonl",
-    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/contracts/golden/parts/hero-exit-offset.jsonl",
+    "packages/contracts/golden/parts/hero.exit.scoped.json", "packages/contracts/golden/parts/hero-exit.threaded.jsonl", "packages/contracts/golden/parts/hero-exit-offset.jsonl", "packages/contracts/golden/gate/consumer.jsonl",
     "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "packages/contracts/golden/parts/nav.earn.curve.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl", "packages/contracts/golden/parts/hero-contain.jsonl", "packages/contracts/golden/parts/morph.end.jsonl", "packages/contracts/golden/parts/morph-end-nobounce.jsonl", "packages/contracts/golden/parts/combo-scroll.jsonl", "packages/contracts/golden/parts/platform-glint-pause.jsonl", "packages/contracts/golden/parts/platform-glint-hold.jsonl", "packages/contracts/golden/parts/morph-stage.jsonl", "packages/contracts/golden/parts/platform-entries-fill.jsonl", "packages/contracts/golden/parts/platform-sweep-layer.jsonl", "packages/contracts/golden/parts/platform-faded-pause.jsonl",
