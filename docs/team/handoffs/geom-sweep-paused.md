@@ -1,7 +1,7 @@
 branch: worktree-wf_6cf1ce10-b7b-1 (CI branch ci/geom-sweep-paused); worktree .claude/worktrees/wf_6cf1ce10-b7b-1
-last commit: c9fa2502d (see git log)
-CI runs: wktr 40665823632 (push 1, running); 1 of 3 pushes used
-state: Lean verdict + golden + probe arms written, package tests pass (94), no CI evidence yet. 0 of 3 pushes used.
+last commit: 59ac87237 (see git log)
+CI runs: wktr 40665823632 complete (push 1: 3 jobs, all arms have data, Lean why = idle-not-off x3, overall inconclusive; results/geom-sweep-paused/run1/); wktr 40670621458 (push 2: adds diag arms sw-{idle,flip}-{a,o} + animation inventory), running. 2 of 3 pushes used.
+state: run1 finding: pausing the 4 sweepDoc animations leaves ~1 recalc/frame in idle (paused 1.0-1.2 vs unpaused 2.0), flips 1.7-1.8 vs 2.2; residual source unknown, push 2 attributes it.
 
 # what exists
 - Lean `lean/Fw/Device/SweepPause.lean`: per job `Job.why` (no-frames, idle-not-on, idle-not-off, explains, not-sweep, mixed), `overall` (explains / mixed / notSweep / inconclusive, minValid 2), `Verdict.next`; one theorem per branch; golden `packages/contracts/golden/device/sweep-pause.jsonl`.

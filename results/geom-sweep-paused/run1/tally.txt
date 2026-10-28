@@ -1,0 +1,42 @@
+== j1
+sw-flip: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 320.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p: windows 2 frames 6 (3/window) recalcs 11 per frame 1.83 ms 324.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p-t: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 238.5/window upd/frame 12 flushRc 4 style us 6000 layout us 0 style us per flip 3000
+sw-flip-t: windows 2 frames 6 (3/window) recalcs 15 per frame 2.5 ms 296.5/window upd/frame 18 flushRc 6 style us 14000 layout us 0 style us per flip 7000
+sw-idle: windows 2 frames 57 (28.5/window) recalcs 112 per frame 1.96 ms 1016.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p: windows 2 frames 77 (38.5/window) recalcs 95 per frame 1.23 ms 1020.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p-t: windows 2 frames 80 (40/window) recalcs 95 per frame 1.19 ms 1016/window upd/frame 3.6 flushRc 16 style us 33000 layout us 0 style us per idle second 16240.16
+sw-idle-t: windows 2 frames 60 (30/window) recalcs 120 per frame 2 ms 1015.5/window upd/frame 18 flushRc 60 style us 76000 layout us 2000 style us per idle second 37419.99
+ident sw-warm:4/running+running+running+running/0+0+0+0 sw-idle:4/running+running+running+running/0+0+0+0 sw-idle-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-flip:4/running+running+running+running/0+0+0+0 sw-flip-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-idle-t:4/running+running+running+running/0+0+0+0
+job {"flipU":{"frames":6,"recalcs":13,"styleFrames":6,"styleUs":14000,"layoutUs":0},"flipP":{"frames":6,"recalcs":11,"styleFrames":6,"styleUs":6000,"layoutUs":0},"idleU":{"frames":57,"recalcs":112,"styleFrames":60,"styleUs":76000,"layoutUs":2000},"idleP":{"frames":77,"recalcs":95,"styleFrames":80,"styleUs":33000,"layoutUs":0}}
+rpf100 flipU 216 flipP 183 idleU 196 idleP 123 style us/frame U 2333 P 1000 drops rpf 152 style 571 why idle-not-off
+why idle-not-off
+== j2
+sw-flip: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 479.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p: windows 2 frames 6 (3/window) recalcs 11 per frame 1.83 ms 434/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p-t: windows 2 frames 6 (3/window) recalcs 14 per frame 2.33 ms 272/window upd/frame 15 flushRc 5 style us 12000 layout us 0 style us per flip 6000
+sw-flip-t: windows 2 frames 6 (3/window) recalcs 14 per frame 2.33 ms 231.5/window upd/frame 18 flushRc 6 style us 10000 layout us 0 style us per flip 5000
+sw-idle: windows 2 frames 60 (30/window) recalcs 120 per frame 2 ms 1026/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p: windows 2 frames 68 (34/window) recalcs 80 per frame 1.18 ms 1013.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p-t: windows 2 frames 74 (37/window) recalcs 91 per frame 1.23 ms 1010.5/window upd/frame 4.14 flushRc 17 style us 30000 layout us 1000 style us per idle second 14844.14
+sw-idle-t: windows 2 frames 70 (35/window) recalcs 140 per frame 2 ms 1015.5/window upd/frame 18 flushRc 70 style us 75000 layout us 0 style us per idle second 36927.62
+sw-warm: windows 1 frames 3 (3/window) recalcs 6 per frame 2 ms 260/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+ident sw-warm:4/running+running+running+running/0+0+0+0 sw-idle:4/running+running+running+running/0+0+0+0 sw-idle-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-flip:4/running+running+running+running/0+0+0+0 sw-flip-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-idle-t:4/running+running+running+running/0+0+0+0
+job {"flipU":{"frames":6,"recalcs":13,"styleFrames":6,"styleUs":10000,"layoutUs":0},"flipP":{"frames":6,"recalcs":11,"styleFrames":6,"styleUs":12000,"layoutUs":0},"idleU":{"frames":60,"recalcs":120,"styleFrames":70,"styleUs":75000,"layoutUs":0},"idleP":{"frames":68,"recalcs":80,"styleFrames":74,"styleUs":30000,"layoutUs":1000}}
+rpf100 flipU 216 flipP 183 idleU 200 idleP 117 style us/frame U 1666 P 2000 drops rpf 152 style -201 why idle-not-off
+why idle-not-off
+== j3
+sw-flip: windows 2 frames 6 (3/window) recalcs 12 per frame 2 ms 423/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p: windows 2 frames 6 (3/window) recalcs 10 per frame 1.67 ms 356.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p-t: windows 2 frames 6 (3/window) recalcs 10 per frame 1.67 ms 218/window upd/frame 6 flushRc 2 style us 2000 layout us 0 style us per flip 1000
+sw-flip-t: windows 2 frames 6 (3/window) recalcs 14 per frame 2.33 ms 437.5/window upd/frame 18 flushRc 6 style us 8000 layout us 0 style us per flip 4000
+sw-idle: windows 2 frames 38 (19/window) recalcs 76 per frame 2 ms 1002/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p: windows 2 frames 50 (25/window) recalcs 51 per frame 1.02 ms 1012.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p-t: windows 2 frames 54 (27/window) recalcs 55 per frame 1.02 ms 1020/window upd/frame 0.67 flushRc 2 style us 5000 layout us 1000 style us per idle second 2450.98
+sw-idle-t: windows 2 frames 49 (24.5/window) recalcs 98 per frame 2 ms 1098/window upd/frame 18 flushRc 49 style us 54000 layout us 1000 style us per idle second 24590.16
+sw-warm: windows 1 frames 3 (3/window) recalcs 6 per frame 2 ms 292/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+ident sw-warm:4/running+running+running+running/0+0+0+0 sw-idle:4/running+running+running+running/0+0+0+0 sw-idle-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-flip:4/running+running+running+running/0+0+0+0 sw-flip-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-idle-t:4/running+running+running+running/0+0+0+0
+job {"flipU":{"frames":6,"recalcs":12,"styleFrames":6,"styleUs":8000,"layoutUs":0},"flipP":{"frames":6,"recalcs":10,"styleFrames":6,"styleUs":2000,"layoutUs":0},"idleU":{"frames":38,"recalcs":76,"styleFrames":49,"styleUs":54000,"layoutUs":1000},"idleP":{"frames":50,"recalcs":51,"styleFrames":54,"styleUs":5000,"layoutUs":1000}}
+rpf100 flipU 200 flipP 166 idleU 200 idleP 102 style us/frame U 1333 P 333 drops rpf 170 style 750 why idle-not-off
+why idle-not-off
+overall inconclusive inconclusive | rerun with more valid jobs
