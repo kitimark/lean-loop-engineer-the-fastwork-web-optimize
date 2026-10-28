@@ -22997,8 +22997,7 @@
    "deps": [
     "geom-flip-fix",
     "geom-veil-restore",
-    "timed-take-retry",
-    "geom-image-model"
+    "timed-take-retry"
    ],
    "title": "Column background probe (probe note P1): probe-only flag hiding the column images; arms base, base+off, timed-fixed, timed-fixed+off; per push log whether the flip ran; Chromium CI, WebKit Simulator push lane, iPhone push lane, Safari macOS; decides what P2-P6 can win.",
    "writes": [
@@ -23033,7 +23032,7 @@
     "geom-flip-fix",
     "geom-look-fade"
    ],
-   "title": "morph.geom flip images like base (geom-flip-fix finding): base keeps each picture's height at 0<m<1 (object-fit cover crops it) while the flip scales pictures in both axes; model object-fit cover in Lean (MorphGeom image model), prove the flip's picture rects and crop equal base at every m, then make the flip keep height (counter-scale or crop window) so the column region matches base in pixels; look report on both engines.",
+   "title": "PARKED (negative result, note research/notes/2026/10-2x-geom-image-model.md): morph.geom flip images like base (geom-flip-fix finding): base keeps each picture's height at 0<m<1 (object-fit cover crops it) while the flip scales pictures in both axes; model object-fit cover in Lean (MorphGeom image model), prove the flip's picture rects and crop equal base at every m, then make the flip keep height (counter-scale or crop window) so the column region matches base in pixels; look report on both engines.",
    "writes": [
     "apps/site/src/parts/morph.geom/**",
     "apps/site/src/parts/morph.columns/**",
@@ -23055,7 +23054,8 @@
     "results/geom-image-model/**",
     "docs/team/handoffs/geom-image-model.md",
     "apps/site/scripts/part-footprint.mjs"
-   ]
+   ],
+   "cut": true
   },
   {
    "devices": [
@@ -23184,7 +23184,7 @@
    "owner": "part-builder",
    "stream": "site",
    "deps": [
-    "geom-image-model"
+    "geom-look-fade"
    ],
    "title": "geom-timed on WebKit fails 3 of 24 flip-cell readings at m=0 (run 40553185213: lang edges 80.97 px at 430x932 and 640x1000; columns 0, images 0 at 1920x1080); Chromium 24 of 24: find the cause, fix it Lean first, graded timed cell 24 of 24 on both engines.",
    "writes": [
@@ -23348,7 +23348,25 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-track-style.md",
     "results/geom-track-style/**",
-    "docs/team/handoffs/geom-track-style.md"
+    "docs/team/handoffs/geom-track-style.md",
+    ".github/workflows/breakpoint-gate.yml",
+    ".github/workflows/wktr.yml",
+    "apps/runner/src/land.ts",
+    "apps/site/src/parts/morph.geom/track-accel.golden.test.ts",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/MorphTrackAccelGolden.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "packages/contracts/golden/ci/overflow.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/morph-track-accel.jsonl",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/src/track-accel-page.mjs",
+    "packages/gate-breakpoints/src/track-accel.mjs",
+    "packages/gate-breakpoints/test/**",
+    "packages/measure-wktr/src/accel-cli.mjs",
+    "packages/measure-wktr/src/accel-page.mjs",
+    "packages/measure-wktr/test/accel.test.mjs"
    ]
   }
  ],
