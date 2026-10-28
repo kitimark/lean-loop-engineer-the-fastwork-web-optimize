@@ -3,7 +3,7 @@ worktree: .claude/worktrees/wf_30808c70-1bc-1 (under the main checkout)
 last commit: 9e72476a3 (round 2 code; this handoff is committed after it)
 CI runs: none (the task needs no CI push; the hook refuses locally)
 Verified at 9e72476a3: lean/scripts/check.sh green (through fw slot); apps/runner tests 117 files, 3679 tests pass;
-node --test scripts/ci-paths.test.mjs 56 pass; plan lint 0 errors. Dry land: see the report line (`VERDICT dry ci-push-lane-check`).
+node --test scripts/ci-paths.test.mjs 56 pass; plan lint 0 errors. Dry land at main d8fc0ab: `fw land worktree-wf_30808c70-1bc-1 --task ci-push-lane-check --dry --allow scripts/hooks/pre-push` -> VERDICT dry ci-push-lane-check (without --allow: VERDICT scope; the lead allows the hook header).
 
 What it is: the ci/* pre-push hook refuses a push whose tree equals main, whose tip selects no measuring lane (no
 [lanes: ...] trailer exempts it), or that misses a lane a trailer requires. Decision in Lean `Fw.Ci.Intent` (section "The

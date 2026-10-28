@@ -13,7 +13,7 @@ that already equal main. First match wins:
 |---|---|---|
 | `same-tree` | no branch file differs from main (an empty commit, or a diff main already has) | `refuse_same_tree` |
 | `missing` | the branch requires a lane (`[lanes: a, b]` in any of its commits) that the tip does not start | `refuse_missing`, `missing_token_refused` |
-| `no-measuring` | nothing is required and every started lane is a seeder (`lean`, `premise-tests`) | `refuse_no_measuring` |
+| `no-measuring` | every required lane starts but no non-seeder lane starts (only `lean`, `premise-tests`), whatever a `[lanes: ...]` trailer says | `refuse_no_measuring` |
 | `ok` | else | `accept_iff` |
 
 `refuse_iff` proves the refusal is exactly these three cases; `main_never_refused` and `pushRefused_only_ci` that only
