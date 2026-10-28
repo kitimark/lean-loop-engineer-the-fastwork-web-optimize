@@ -6,7 +6,7 @@ state: investigation finished; note research/notes/2026/10-2x-geom-sweep-paused.
 # result (MEASURED unless tagged)
 - 4 sweepDoc animations found and paused in every job; flip engaged. Pausing them: flip recalcs/frame 1.67-2.17 vs 2.0-2.17 (0-17 percent drop; explains needs 75).
 - Idle: sweep = 1 of 2 recalcs/frame (2.0 -> 1.0); all animations paused still 1.0 -> residual is not an animation (source INFERRED, probably page script after rAF).
-- geom-sweep-compositor not justified for flips; maybe for idle. Next: geom-recalc-source (MutationObserver, rAF counter, per-recalc element count at frame end).
+- geom-sweep-compositor not decided (Lean inconclusive; flip recalc count flat, proxy style drops in 4 of 6 jobs, INFERRED); decide after geom-recalc-source. Next: geom-recalc-source (MutationObserver, rAF counter, per-recalc element count at frame end).
 - Style ms is a timed-flush proxy at 1 ms; flip style drop sign flips in 2 of 6 jobs (INFERRED nothing).
 
 # what exists
