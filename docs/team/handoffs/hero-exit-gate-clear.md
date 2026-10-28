@@ -1,9 +1,9 @@
 # hero-exit-gate-clear handoff
 
 - Branch: worktree-wf_aba1dc22-976-1 (CI branch ci/hero-exit-gate-clear); worktree .claude/worktrees/wf_aba1dc22-976-1 of the main checkout
-- Last code commit: 2695eef4f (push 1). Push 2 (macOS WebKit, `debug=nav-transition engines=playwright-webkit`) follows.
-- CI runs: 40668662980 (push 1, trajectory-probe, `fw=hero.exit:threaded engines=both`, sha 2695eef4f) complete: Chromium hero CLEAN (0 hero fails; the box bits show orbit no-box at 390, deck no-box at 640+), Linux WebKit hero CLEAN 0 fail; Chromium morph has 1 new unit (nav.rect close@0 at 1280), one width only.
-- Lean run 40668662965 success. check.sh green locally through fw slot.
-- Verified: Lean `Fw.Gate.Consumer` (theorems, golden gate/consumer.jsonl); node tests consumer/hero-exit-offset/trajectory green.
-- Open: macOS WebKit run (push 2), record (Gen.record) + Gen.run; the stored old failing rows of run 40156078840 stay a fail in `tcell` (own fail first) unless Gen.merge supersedes them; note, ledger note, dry land.
-- Read first: lean/Fw/Gate/Consumer.lean, packages/gate-breakpoints/src/trajectory/consumer.mjs.
+- Last code commit: see `git log -1`; push 3 (mac retry, same probe line) follows this commit. Pushes used: 2 of 3 (2695eef4f, 2cfe05e58), the 3rd is this commit.
+- CI runs: 40668662980 (push 1, trajectory-probe, `fw=hero.exit:threaded engines=both`) complete: Chromium hero pass, morph pass; Linux WebKit hero pass. 40671695274 (push 2, `engines=playwright-webkit debug=nav-transition`) complete: linux-webkit hero pass, mac-webkit hero pass (0 fail), mac-webkit morph "no verdict: coverage" (nav close@8 at 390 and open@3 at 641, single steps missing; the A/A arm has the same at 640 and 1280). Lean runs 40668662965 and 40671695266 success.
+- Recorded (Gen.record) runs 40668662980 and 40671695274 into v2-proved.trajectory.jsonl; Gen.merge now newest-run-wins per (flags, engine, walk), which supersedes the failing rows of run 40156078840. Entry: gate chromium met; gate webkit pending on mac morph coverage.
+- Verified: Lean Fw.Gate.Consumer (theorems, golden gate/consumer.jsonl); Gen.merge theorems and guards; gate-breakpoints tests 829 pass, contracts tests pass (through fw slot).
+- Open: run of push 3, record it, regenerate decisions, note research/notes/2026/10-2x-hero-exit-gate-clear.md, ledger note, check.sh, plan lint, dry land, fw review ready. `proofs` (ledger row n 6) stays.
+- Read first: lean/Fw/Gate/Consumer.lean, packages/gate-breakpoints/src/trajectory/consumer.mjs, Gen.merge in lean/Fw/Preset/Gen.lean.
