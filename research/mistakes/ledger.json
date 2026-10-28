@@ -4272,6 +4272,26 @@
         "research/notes/2026/10-2x-geom-style-cut.md"
       ],
       "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m218",
+      "classId": "c-sample-validity",
+      "title": "Lead opened task timed-m0-webkit from a breakpoint-gate run made with a reader older than the reader fixes on main",
+      "when": "2026-10-28 (graph row timed-m0-webkit)",
+      "who": "lead",
+      "symptom": "Run 40553185213 (ci/geom-veil-restore at 47f7fd747) showed 3 WebKit m=0 failures; that commit lacks reader fixes e56ef0507 and 59fd94946. With the current reader, run 40660480093 graded 0 failures on both engines.",
+      "rootCause": "The lead took a failure count from a run without checking that the run's reader contained the reader fixes already on main.",
+      "detectedBy": "builder forensics (timed-m0-webkit)",
+      "cost": "one task, one CI push",
+      "leanVerdict": "partial",
+      "leanReason": "Whether a run's commit contains a reader fix is decidable (git ancestry, or a reader stamp in the JSON); choosing a run as a task premise is a process step.",
+      "empiricalCheck": "before a run becomes a task premise, run git merge-base --is-ancestor <latest reader fix> <run commit>; follow-up: a reader-version stamp in the flip-cell JSON",
+      "evidence": [
+        "run 40553185213",
+        "run 40660480093",
+        "research/notes/2026/10-2x-timed-m0-webkit.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
     }
   ],
   "dropped": [
