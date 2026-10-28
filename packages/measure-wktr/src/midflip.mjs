@@ -21,25 +21,33 @@ export function binOf(permille) {
 
 export const normName = (s) => String(s).split('').filter((c) => /[A-Za-z]/.test(c)).join('').toLowerCase();
 
+/** Lean `classOf`: the Core Animation path reports translate, scale and rotate animations as `transform` (GraphicsLayer.cpp:103-124@862f17d). */
+export const classOf = (p) => { const n = normName(p); return n === 'translate' || n === 'scale' || n === 'rotate' || n === 'transform' ? 'transform' : n; };
+
+/** Lean `readsAccelCls`: the element reports at least as many entries of the class as it has tracks of that class. */
+export const readsAccelCls = (prop, reported, tracks) => tracks > 0 && tracks <= reported.filter((r) => classOf(r) === classOf(prop)).length;
+
 /** The Lean inputs of one track readout. `complete` holds for the six geom properties (INFERRED, KeyframeEffect.cpp:1764-1768@862f17d); `disallowed` is not readable, so false. */
-export function effOf(row, ph, rendered, threaded) {
+export function effOf(row, ph, rendered, threaded, prop) {
   return {
     pending: row.p === 1,
     running: row.s === 'running',
-    active: ph > 0 && ph < 1000,
+    active: ph !== null && ph > 0 && ph < 1000,
     rendered,
     complete: true,
-    accel: row.a === 1,
+    accel: accelOf(row, prop),
     threaded,
     disallowed: false,
   };
 }
 
 /** The engine's own answer: WebAnimation::timeToNextTick (WebAnimation.cpp:1917-1929@862f17d) below the animation interval means a tick every frame. */
+const accelOf = (row, prop) => (Array.isArray(row.e) && typeof row.tc === 'number' && prop ? readsAccelCls(prop, row.e, row.tc) : row.a === 1);
+
 export const oracleTicks = (ttnt, intervalSec) => (ttnt === 'inf' ? false : typeof ttnt === 'number' && typeof intervalSec === 'number' ? ttnt < intervalSec * 1000 : null);
 
 
-const GROUP = (t) => `${t.mg}:${t.prop}`;
+const GROUP = (t) => t.prop;
 
 /** The ThreadedTimeBasedAnimations state the run shows: an accelerated-animation entry from the effect stack is `isThreaded` true, a Core Animation one false (GraphicsLayerCA.cpp:5299-5330@862f17d). */
 export function prefOf(report) {
@@ -48,16 +56,16 @@ export function prefOf(report) {
   return null;
 }
 
-const blank = () => ({ n: 0, running: 0, pending: 0, accel: 0, unrendered: 0, oracleTicks: 0, oracleQuiet: 0, oracleNone: 0, leanTicks: 0, agree: 0 });
+const blank = () => ({ n: 0, running: 0, pending: 0, accel: 0, unrendered: 0, accelCls: 0, oracleTicks: 0, oracleQuiet: 0, oracleNone: 0, leanTicks: 0, agree: 0 });
 
-/** Per arm and sample: counts of the tracks per group (data-mg:property) by the engine's tick answer and the Lean rule. */
+/** Per arm and sample: counts of the tracks per group (css property) by the engine's tick answer and the Lean rule. */
 export function midSummary(report) {
   const tags = new Map(report.tags.map((t) => [t.id, t]));
   const pref = prefOf(report);
   const out = [];
   for (const row of report.rows) {
-    for (const s of row.samples ?? []) {
-      const bin = s.why === 'end' || s.why[0] === 'i' ? s.why : binOf(s.ph);
+    for (const s of [...(row.pre ?? []), ...(row.samples ?? [])]) {
+      const bin = s.why === 'end' || s.why[0] === 'i' || s.why[0] === 'f' ? s.why : binOf(s.ph);
       const groups = {};
       s.rows.forEach((r, i) => {
         const tag = tags.get(r.id);
@@ -73,11 +81,12 @@ export function midSummary(report) {
         if (o === true) g.oracleTicks++;
         else if (o === false) g.oracleQuiet++;
         else g.oracleNone++;
-        const lean = ticksMain(effOf(r, s.ph, rendered, pref === true));
+        const lean = ticksMain(effOf(r, s.ph, rendered, pref === true, tag.prop));
+        if (accelOf(r, tag.prop)) g.accelCls++;
         if (lean) g.leanTicks++;
         if (o !== null && o === lean) g.agree++;
       });
-      out.push({ arm: row.arm, bin, ph: s.ph, dt: s.dt, env: s.env, groups });
+      out.push({ arm: row.arm, bin, ph: s.ph, dt: s.dt ?? null, ms: s.ms ?? null, env: s.env, groups });
     }
   }
   return out;

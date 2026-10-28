@@ -53,7 +53,13 @@ def nameLines (_ : Unit) : List String :=
   [("backdrop-filter", "backdropFilter"), ("translate", "Translate"), ("transform", "scale")].map fun (a, b) =>
     gline "name" [("a", .str a), ("b", .str b)] (.bool (normName a == normName b))
 
-def goldenText (_ : Unit) : String := String.join ((propLines () ++ modeLines () ++ trackLines () ++ tickLines () ++ binLines () ++ nameLines ()).map (· ++ "\n"))
+def clsLines (_ : Unit) : List String :=
+  ([("translate", ["transform"], 1), ("translate", ["transform"], 2), ("transform", ["transform", "transform"], 2), ("scale", ["scale"], 1),
+    ("opacity", ["transform"], 1), ("backdrop-filter", ["backdropFilter"], 1), ("filter", [], 1), ("filter", ["filter"], 0)] :
+      List (String × List String × Nat)).map fun (p, r, n) =>
+    gline "cls" [("prop", .str p), ("reported", .arr (r.map Json.str).toArray), ("tracks", .num ⟨(n : Int), 0⟩)] (.bool (readsAccelCls normName p r n))
+
+def goldenText (_ : Unit) : String := String.join ((propLines () ++ modeLines () ++ trackLines () ++ tickLines () ++ binLines () ++ nameLines () ++ clsLines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with

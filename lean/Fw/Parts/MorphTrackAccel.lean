@@ -315,6 +315,34 @@ def normName (s : String) : String := String.ofList ((s.toList.filter Char.isAlp
 
 #guard normName "backdrop-filter" == normName "backdropFilter"
 #guard readsAccel normName "translate" ["Translate", "opacity"] && !readsAccel normName "scale" ["translate"]
+/-- The Core Animation path (threaded animations off) reports `translate`, `scale` and `rotate` animations as `transform`
+(GraphicsLayer.cpp:103-124@862f17d), so those four names are one class when the entries of an element are matched to its tracks. -/
+def classOf (norm : String → String) (p : String) : String :=
+  let n := norm p
+  if n == "translate" || n == "scale" || n == "rotate" || n == "transform" then "transform" else n
+
+/-- A track of an element reads accelerated when the element reports at least as many entries of its class as it has tracks of that class. -/
+def readsAccelCls (norm : String → String) (prop : String) (reported : List String) (tracks : Nat) : Bool :=
+  decide (0 < tracks) && decide (tracks ≤ (reported.filter fun r => classOf norm r == classOf norm prop).length)
+
+theorem readsAccelCls_no_tracks (norm : String → String) (prop : String) (reported : List String) :
+    readsAccelCls norm prop reported 0 = false := by
+  simp [readsAccelCls]
+
+theorem readsAccelCls_empty (norm : String → String) (prop : String) (n : Nat) :
+    readsAccelCls norm prop [] n = false := by
+  simp [readsAccelCls]
+  omega
+
+theorem classOf_translate (norm : String → String) (h : norm "translate" = "translate") (h2 : norm "transform" = "transform") :
+    classOf norm "translate" = classOf norm "transform" := by
+  simp [classOf, h, h2]
+
+#guard readsAccelCls normName "translate" ["transform"] 1
+#guard !readsAccelCls normName "translate" ["transform"] 2
+#guard readsAccelCls normName "transform" ["transform", "transform"] 2
+#guard !readsAccelCls normName "opacity" ["transform"] 1
+#guard readsAccelCls normName "backdrop-filter" ["backdropFilter"] 1
 #guard ticksMain ⟨false, true, true, true, true, true, false, false⟩ == false
 #guard ticksMain ⟨false, true, true, true, true, false, false, false⟩ == true
 #guard ticksMain ⟨true, false, false, true, true, true, false, false⟩ == true

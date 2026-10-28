@@ -76,6 +76,7 @@ function pageProbe(P) {
     return new Set();
   };
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z]/g, '');
+  const cls = (p) => { const n = norm(p); return n === 'translate' || n === 'scale' || n === 'rotate' || n === 'transform' ? 'transform' : n; };
 
   const readout = () => {
     const rows = X.created.map((c) => {
@@ -98,6 +99,10 @@ function pageProbe(P) {
         rows[i].accel = hit.length > 0;
         rows[i].speed = hit.length ? hit[0].speed : null;
         rows[i].threaded = hit.length ? hit[0].isThreaded : null;
+        if (P.mid) {
+          rows[i].ent = list.map((x) => x.property);
+          rows[i].tc = X.created.filter((o) => o.el === c.el && cls(o.tag.prop) === cls(c.tag.prop)).length;
+        }
       });
       const seen = {};
       for (const list of byEl.values()) for (const x of list) seen[x.property] = (seen[x.property] || 0) + 1;
@@ -157,6 +162,8 @@ function pageProbe(P) {
     return out;
   };
 
+  const compactRows = () => readout().map((r) => ({ id: r.id, s: r.state, p: r.pending ? 1 : 0, a: r.accel ? 1 : 0, th: r.threaded, t: r.ttnt, c: r.cur === null || r.cur === undefined ? null : Math.round(r.cur), e: r.ent, tc: r.tc }));
+
   // Mid-flip readout (WebKitTestRunner): the frame clock there is slow, so the samples are taken by phase (the reference track's own
   // currentTime over the tween length), from the rAF callbacks and from a short timer poll, never by frame count.
   const midWindow = async (arm, idle, tw) => {
@@ -179,7 +186,7 @@ function pageProbe(P) {
     let listed = null;
     let alive = true;
     const take = (why, ph) => {
-      const rows = readout().map((r) => ({ id: r.id, s: r.state, p: r.pending ? 1 : 0, a: r.accel ? 1 : 0, th: r.threaded, t: r.ttnt, c: r.cur === null || r.cur === undefined ? null : Math.round(r.cur) }));
+      const rows = compactRows();
       const s = { why: why, ph: Math.round(ph * 1000), dt: Math.round(performance.now() - t0), env: envNow(), rows: rows };
       samples.push(s);
       if (!listed && ph >= 0.4 && P.listAnims) {
@@ -271,6 +278,28 @@ function pageProbe(P) {
 
   // The timed tween starts on a downward wheel while the platform fills the viewport bottom (morph.tween/driver.ts armed + move); the
   // probe sends that wheel itself, then the upward one that runs the reverse flip.
+  // Reads right after the tracks exist, before the next frame: the blending keyframes and the layer animations are made by the first style
+  // update, so each step forces one more stage (getAnimations() flushes style, a forced layout runs the post-layout tasks, layerTreeAsText
+  // commits the compositing update) and reads again, with the phase of the reference track and the time the step took.
+  const flushSamples = () => {
+    const ref = X.created.find((c) => !c.tag.held);
+    const out = [];
+    const steps = [
+      ['f-style', () => document.getAnimations().length],
+      ['f-layout', () => document.documentElement.getBoundingClientRect().height],
+      ['f-layers', () => (I && typeof I.layerTreeAsText === 'function' ? I.layerTreeAsText(document).length : -1)],
+    ];
+    for (const [why, fn] of steps) {
+      const t0 = performance.now();
+      let err = null;
+      try { fn(); } catch (e) { err = String(e && e.message || e).slice(0, 80); }
+      const ms = Math.round((performance.now() - t0) * 10) / 10;
+      const cur = ref && ref.a.currentTime !== null && ref.a.currentTime !== undefined ? ref.a.currentTime : null;
+      out.push({ why: why, ph: cur === null ? null : Math.round((cur / P.durationMs) * 1000), ms: ms, err: err, env: envNow(), rows: compactRows() });
+    }
+    return out;
+  };
+
   const timedArm = async (arm) => {
     X.arm = arm;
     X.suppress = armSet(arm);
@@ -304,6 +333,7 @@ function pageProbe(P) {
       // The engine that runs a slow frame clock (WebKitTestRunner) can finish the tween before the mid-window readout: read the tracks
       // at creation and one frame later, each with its play state, so a reading of a settled (idle) track can be told apart.
       out.early = [{ at: 'create', rows: readout() }];
+      if (P.mid) out.pre = flushSamples();
       const e0 = performance.now();
       await raf();
       out.early.push({ at: 'raf1', dt: Math.round(performance.now() - e0), rows: readout(), docAnims: document.getAnimations().length });

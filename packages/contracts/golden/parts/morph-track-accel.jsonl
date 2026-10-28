@@ -307,3 +307,11 @@
 {"fn":"name","in":{"a":"backdrop-filter","b":"backdropFilter"},"out":true}
 {"fn":"name","in":{"a":"translate","b":"Translate"},"out":true}
 {"fn":"name","in":{"a":"transform","b":"scale"},"out":false}
+{"fn":"cls","in":{"prop":"translate","reported":["transform"],"tracks":1},"out":true}
+{"fn":"cls","in":{"prop":"translate","reported":["transform"],"tracks":2},"out":false}
+{"fn":"cls","in":{"prop":"transform","reported":["transform","transform"],"tracks":2},"out":true}
+{"fn":"cls","in":{"prop":"scale","reported":["scale"],"tracks":1},"out":true}
+{"fn":"cls","in":{"prop":"opacity","reported":["transform"],"tracks":1},"out":false}
+{"fn":"cls","in":{"prop":"backdrop-filter","reported":["backdropFilter"],"tracks":1},"out":true}
+{"fn":"cls","in":{"prop":"filter","reported":[],"tracks":1},"out":false}
+{"fn":"cls","in":{"prop":"filter","reported":["filter"],"tracks":0},"out":false}

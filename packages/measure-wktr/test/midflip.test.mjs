@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { binOf, effOf, frameSummary, midSummary, normName, oracleTicks, prefOf, tickOf, ticksContinuously, ticksMain } from '../src/midflip.mjs';
+import { binOf, classOf, effOf, frameSummary, midSummary, normName, oracleTicks, prefOf, readsAccelCls, tickOf, ticksContinuously, ticksMain } from '../src/midflip.mjs';
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { headerOf, isMid, MID_ARMS, MID_AT, THREADED_OFF } from '../src/accel-cli.mjs';
 
@@ -25,6 +25,13 @@ test('the bins and the name rule agree with the Lean golden', () => {
   assert.equal(bins.length, 12);
   for (const r of bins) assert.equal(binOf(r.in.permille), r.out, String(r.in.permille));
   for (const r of lines.filter((l) => l.fn === 'name')) assert.equal(normName(r.in.a) === normName(r.in.b), r.out);
+});
+
+test('the class rule agrees with the Lean golden', () => {
+  const rows = lines.filter((l) => l.fn === 'cls');
+  assert.equal(rows.length, 8);
+  for (const r of rows) assert.equal(readsAccelCls(r.in.prop, r.in.reported, r.in.tracks), r.out, JSON.stringify(r.in));
+  assert.equal(classOf('scale'), classOf('transform'));
 });
 
 test('effOf reads a readout row into the Lean inputs', () => {
@@ -64,15 +71,27 @@ test('midSummary counts tracks per group and checks the Lean rule against the en
   const out = midSummary(report());
   assert.equal(out.length, 2);
   assert.equal(out[0].bin, 50);
-  assert.equal(out[0].groups['column:translate'].accel, 1);
-  assert.equal(out[0].groups['column:translate'].oracleQuiet, 1);
-  assert.equal(out[0].groups['column:translate'].agree, 1);
-  assert.equal(out[0].groups['image:transform'].unrendered, 1);
-  assert.equal(out[0].groups['image:transform'].oracleTicks, 1);
-  assert.equal(out[0].groups['image:transform'].leanTicks, 0);
-  assert.equal(out[0].groups['image:transform'].agree, 0);
+  assert.equal(out[0].groups['translate'].accel, 1);
+  assert.equal(out[0].groups['translate'].oracleQuiet, 1);
+  assert.equal(out[0].groups['translate'].agree, 1);
+  assert.equal(out[0].groups['transform'].unrendered, 1);
+  assert.equal(out[0].groups['transform'].oracleTicks, 1);
+  assert.equal(out[0].groups['transform'].leanTicks, 0);
+  assert.equal(out[0].groups['transform'].agree, 0);
   assert.equal(out[1].bin, 'end');
   assert.equal(prefOf(report()), true);
+});
+
+test('midSummary reads the flush steps before the frames and the class entries of an element', () => {
+  const rep = report();
+  rep.rows[0].pre = [{ why: 'f-style', ph: 300, ms: 4.5, err: null, env: { itv: 0.015 }, rows: [{ id: 'a', s: 'running', p: 0, a: 0, th: null, t: 0, e: ['transform'], tc: 1 }, { id: 'b', s: 'running', p: 1, a: 0, th: null, t: 0, e: [], tc: 1 }] }];
+  const [first] = midSummary(rep);
+  assert.equal(first.bin, 'f-style');
+  assert.equal(first.ms, 4.5);
+  assert.equal(first.groups.translate.accelCls, 1);
+  assert.equal(first.groups.translate.leanTicks, 0);
+  assert.equal(first.groups.transform.pending, 1);
+  assert.equal(first.groups.transform.leanTicks, 1);
 });
 
 test('frameSummary differences the cumulative recalc count', () => {
