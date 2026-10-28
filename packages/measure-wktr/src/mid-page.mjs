@@ -313,6 +313,134 @@ function pageProbe(P) {
     return out;
   };
 
+  // Task geom-sweep-paused. Arms `sw-<warm|flip|idle>[-p][-t]`: -p pauses exactly the sweepDoc animations (CSSAnimation named sweepDoc whose
+  // target sits in section[data-fw=platform]) before the window and plays them after; -t adds a forced style flush and a forced layout flush
+  // at the start of every frame callback and times each one. Plain arms are unperturbed (recalcs per frame); -t arms give the style and layout ms.
+  const SW_ARM = /^sw-(warm|flip|idle)(-[pao])?(-t)?$/;
+  const sweepAnims = () => {
+    const sec = document.querySelector('[data-fw="platform"]');
+    const all = document.getAnimations();
+    const css = all.filter((a) => typeof CSSAnimation !== 'undefined' && a instanceof CSSAnimation && sec && a.effect && a.effect.target && sec.contains(a.effect.target));
+    const hit = css.filter((a) => /(^|[-_])sweepDoc(_[A-Za-z0-9-]+)?$/.test(a.animationName));
+    return { hit: hit, ident: { total: all.length, platformCss: css.map((a) => a.animationName), n: hit.length, texts: hit.map((a) => String(a.effect.target.textContent || '').trim().slice(0, 16)) } };
+  };
+  const swWindow = async (arm, idle, tw, timing) => {
+    const dur = P.durationMs;
+    const ref = X.created.find((c) => !c.tag.held);
+    const phase = () => {
+      if (ref) {
+        if (ref.a.playState === 'idle') return 9;
+        const c = ref.a.currentTime;
+        if (c !== null && c !== undefined) return c / dur;
+      }
+      return (performance.now() - tw) / dur;
+    };
+    mark('fwx:' + arm + ':sw:start');
+    const r0 = recalc();
+    const t0 = performance.now();
+    const list = [];
+    let f = 0, post = 0, styleMs = 0, layoutMs = 0, flushRc = 0, updSum = 0, updMax = 0;
+    for (;;) {
+      await raf();
+      f++;
+      const now = performance.now();
+      const ph = idle ? null : phase();
+      let st = null, la = null, rcIn = null;
+      if (timing) {
+        const q0 = recalc();
+        const a = performance.now();
+        document.getAnimations();
+        const b = performance.now();
+        document.documentElement.getBoundingClientRect();
+        const c = performance.now();
+        const q1 = recalc();
+        st = b - a;
+        la = c - b;
+        styleMs += st;
+        layoutMs += la;
+        rcIn = q0 === null ? null : q1 - q0;
+        if (rcIn !== null) flushRc += rcIn;
+      }
+      let upd = null;
+      try { if (I && 'lastStyleUpdateSize' in I) upd = I.lastStyleUpdateSize; } catch (x) { upd = null; }
+      if (typeof upd === 'number') { updSum += upd; if (upd > updMax) updMax = upd; }
+      const rc = recalc();
+      list.push({ dt: Math.round(now - t0), ph: ph === null ? null : Math.round(ph * 1000), rc: rc === null || r0 === null ? null : rc - r0, upd: upd, st: st === null ? null : Math.round(st * 1000) / 1000, la: la === null ? null : Math.round(la * 1000) / 1000, fl: rcIn });
+      if (idle) { if (now - t0 >= P.idleMs) break; } else if ((ph >= 1 ? ++post > 2 : false) || now - t0 > P.capMs) break;
+    }
+    const t1 = performance.now();
+    mark('fwx:' + arm + ':sw:end');
+    const r1 = recalc();
+    return {
+      stage: idle ? 'idle' : 'flip', frames: f, ms: Math.round(t1 - t0), recalc: r0 === null ? null : r1 - r0, timing: timing,
+      styleUs: timing ? Math.round(styleMs * 1000) : null, layoutUs: timing ? Math.round(layoutMs * 1000) : null, flushRc: timing ? flushRc : null,
+      updSum: updSum, updMax: updMax, list: list,
+    };
+  };
+  // Diagnostic sets (INFERRED attribution only, not part of the Lean decision): -a pauses every running document animation, -o every running one except sweepDoc.
+  const animInv = (all) => all.map((a) => {
+    const e = a.effect, t = e && e.target;
+    const tg = t ? (t.localName || '') + '.' + String(t.className && t.className.baseVal !== undefined ? t.className.baseVal : t.className || '').slice(0, 40) : null;
+    let tm = null;
+    try { tm = e ? e.getComputedTiming().iterations : null; } catch (x) { tm = null; }
+    return [a.constructor.name, a.animationName || a.transitionProperty || a.id || '', tg, a.playState, tm === Infinity ? 'inf' : tm];
+  });
+  const sweepArm = async (arm, kind, setCh, timing) => {
+    const paused = setCh === '-p';
+    X.arm = arm;
+    X.suppress = new Set();
+    X.created.length = 0;
+    const out = { arm: arm, mode: 'timed', stages: [], engaged: false, sw: { kind: kind, paused: paused, timing: timing } };
+    out.scrollY = await toBottom();
+    await sleep(300);
+    const sa = sweepAnims();
+    out.sw.ident = sa.ident;
+    let toPause = paused ? sa.hit : [];
+    if (setCh === '-a' || setCh === '-o') {
+      const all = document.getAnimations();
+      out.sw.inv = animInv(all);
+      toPause = all.filter((a) => a.playState === 'running' && (setCh === '-a' || !sa.hit.includes(a)));
+      out.sw.set = setCh;
+      out.sw.pausedN = toPause.length;
+    }
+    if (toPause.length) {
+      for (const a of toPause) a.pause();
+      await raf(); await raf(); await sleep(250);
+    }
+    out.sw.states = sa.hit.map((a) => a.playState);
+    out.sw.ttnt = I && typeof I.timeToNextAnimationTick === 'function' ? sa.hit.map((a) => { const v = I.timeToNextAnimationTick(a); return v === Infinity ? 'inf' : v; }) : null;
+    if (kind === 'idle') {
+      out.engaged = true;
+      out.stages.push(await swWindow(arm, true, 0, timing));
+    } else {
+      out.wheels = 0;
+      const tw = performance.now();
+      while (X.created.length === 0 && out.wheels < 3) {
+        wheel(120);
+        out.wheels++;
+        const t0 = performance.now();
+        while (X.created.length === 0 && performance.now() - t0 < 3000) await raf();
+        if (X.created.length === 0) { await toBottom(); await sleep(400); }
+      }
+      if (X.created.length > 0) {
+        out.engaged = true;
+        out.tracks = X.created.length;
+        await raf();
+        out.stages.push(await swWindow(arm, false, tw, timing));
+      }
+    }
+    for (const a of toPause) a.play();
+    await sleep(900);
+    if (kind !== 'idle') {
+      X.arm = arm + '~back';
+      wheel(-120);
+      await sleep(1500);
+      X.arm = arm;
+    }
+    out.nav = nav().className;
+    return out;
+  };
+
   const timedArm = async (arm) => {
     X.arm = arm;
     X.suppress = armSet(arm);
@@ -383,7 +511,8 @@ function pageProbe(P) {
       if (P.mode === 'scrubbed') { window.scrollTo(0, document.documentElement.scrollHeight); await sleep(1800); } else { await toBottom(); await sleep(2800); }
       t.facts = { ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio, mode: P.mode, hydrated: !!(window.__fw && window.__fw.hydrated), panel: !!document.querySelector('[data-fw="morph-panel"]') };
       for (const arm of P.arms) {
-        const r = P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
+        const swm = SW_ARM.exec(arm);
+        const r = swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
         X.rows.push(r);
       }
     } catch (e) {
@@ -398,8 +527,8 @@ function pageProbe(P) {
 }
 
 /** The init script for one mode. params: mode, arms, sweepFrames, windowMs, settleMs. */
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000 } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs })});`;
 }

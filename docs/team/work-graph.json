@@ -23488,7 +23488,8 @@
     "research/notes/2026/10-2x-geom-sweep-paused.md",
     "results/geom-sweep-paused/**",
     "docs/team/handoffs/geom-sweep-paused.md"
-   ]
+   ],
+   "evidence": "f23633b"
   },
   {
    "devices": [
