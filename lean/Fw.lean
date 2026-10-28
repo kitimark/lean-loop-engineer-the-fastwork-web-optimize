@@ -88,6 +88,7 @@ import Fw.Parts.MorphGeomEarn
 import Fw.Parts.MorphGeomAnim
 import Fw.Parts.MorphGeomCounts
 import Fw.Parts.MorphGeomLook
+import Fw.Parts.MorphGeomLookRule
 import Fw.Parts.MorphGeomVerify
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.MorphGeomTimed

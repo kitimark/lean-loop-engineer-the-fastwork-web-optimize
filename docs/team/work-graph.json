@@ -23265,7 +23265,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/premise-tests/src/look-rule.mjs"
-   ]
+   ],
+   "evidence": "e906e6f"
   },
   {
    "devices": [

@@ -241,7 +241,7 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/changed-inputs.mjs", "packages/contracts/golden/gate/path-pix.jsonl", ".github/actions/setup-lean/**",
     ".github/actions/setup-pnpm/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", ".node-version", own "path-pix.yml"], []⟩,
   ⟨"premise-tests.yml", ciMain, [
-    "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean",
+    "packages/premise-tests/**", "packages/contracts/golden/ops/premise.jsonl", "lean/Fw/Ops/Premise.lean", "packages/contracts/golden/morph-geom.jsonl",
     "apps/runner/src/premises.ts", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml",
     ".github/scripts/changed-inputs.mjs", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
     ".github/scripts/cache-key.mjs", "packages/contracts/golden/ops/cache.jsonl", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", "scripts/slot-self.mjs", own "premise-tests.yml"], []⟩,
