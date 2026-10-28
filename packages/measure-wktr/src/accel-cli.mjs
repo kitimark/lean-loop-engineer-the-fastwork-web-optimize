@@ -7,6 +7,7 @@ import { accelHarnessSource, parseAccel } from './accel-page.mjs';
 import { runOnce, DEFAULT_HEADER } from './wktr.mjs';
 import * as sim from './sim.mjs';
 import { frameSummary, midSummary } from './midflip.mjs';
+import { SWEEP_ARMS, sweepTally } from './sweep-pause.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -15,12 +16,14 @@ export const MODES = {
   timed: 'morph.geom:on,morph.tween:geom-timed',
   mid: 'morph.geom:on,morph.tween:geom-timed',
   'mid-thr-off': 'morph.geom:on,morph.tween:geom-timed',
+  'sweep-thr-off': 'morph.geom:on,morph.tween:geom-timed',
 };
 export const MID_AT = [0.3, 0.5, 0.8];
 export const MID_ARMS = ['all', 'idle', 'no-translate', 'no-transform', 'none', 'all-again'];
 export const THREADED_OFF = 'ThreadedTimeBasedAnimationsEnabled=false';
 export const isMid = (mode) => mode === 'mid' || mode === 'mid-thr-off';
-export const headerOf = (mode, base) => (mode === 'mid-thr-off' ? `${base} ${THREADED_OFF}` : base);
+export const isSweep = (mode) => mode === 'sweep-thr-off';
+export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) ? `${base} ${THREADED_OFF}` : base);
 
 async function main() {
   const { values: v, positionals } = parseArgs({
@@ -53,7 +56,7 @@ async function main() {
   try {
     for (const mode of modes) {
       const search = `?fw=${MODES[mode]}`;
-      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) ? 'timed' : mode, arms: arms ?? (isMid(mode) ? MID_ARMS : undefined), mid: isMid(mode) ? MID_AT : undefined }));
+      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) ? 'timed' : mode, arms: arms ?? (isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : undefined), mid: isMid(mode) ? MID_AT : undefined }));
       console.log(`mode ${mode}: serving ${srv.url}${search}`);
       try {
         for (let p = 1; p <= passes; p++) {
@@ -85,6 +88,9 @@ async function main() {
               for (const m of midSummary(got.report).filter((x) => x.arm === 'all')) console.log(`${mode} pass ${p} all ${m.bin} ph ${m.ph}: ${Object.entries(m.groups).map(([k, g]) => `${k} n${g.n} acc${g.accel} tick${g.oracleTicks}/${g.leanTicks}`).join(' ')}`);
               for (const f of frameSummary(got.report)) console.log(`${mode} pass ${p} ${f.arm}: frames ${f.frames} recalc/frame ${f.recalcPerFrame} rcMax ${f.rcMax}`);
             } catch (e) { console.log(`${mode} pass ${p}: summary failed ${String(e.message).slice(0, 120)}`); }
+          }
+          if (isSweep(mode)) {
+            try { for (const l of sweepTally(got.report)) console.log(`${mode} pass ${p} ${l}`); } catch (e) { console.log(`${mode} pass ${p}: sweep summary failed ${String(e.message).slice(0, 120)}`); }
           }
           const all = got.report.rows.find((x) => x.arm === 'all');
           const tbl = all?.table ?? [];

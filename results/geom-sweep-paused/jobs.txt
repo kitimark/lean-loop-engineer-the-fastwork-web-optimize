@@ -1,0 +1,7 @@
+run1 j1 | flip 2.17 p 1.83 a - o - | idle 1.96 p 1.23 a - o - | styleMs/frames flipU 14/6 flipP 6/6 idleU 76/60 idleP 33/80 | drops 152 571 | idle-not-off
+run1 j2 | flip 2.17 p 1.83 a - o - | idle 2 p 1.18 a - o - | styleMs/frames flipU 10/6 flipP 12/6 idleU 75/70 idleP 30/74 | drops 152 -201 | idle-not-off
+run1 j3 | flip 2 p 1.67 a - o - | idle 2 p 1.02 a - o - | styleMs/frames flipU 8/6 flipP 2/6 idleU 54/49 idleP 5/54 | drops 170 750 | idle-not-off
+run2 j1 | flip 2 p 2 a 2 o 2.17 | idle 1.97 p 1 a 1 o 1.98 | styleMs/frames flipU 10/6 flipP 6/6 idleU 67/76 idleP 5/95 | drops 0 399 | idle-not-off
+run2 j2 | flip 2.17 p 2.17 a 2 o 2 | idle 1.97 p 1.17 a 0.99 o 1.96 | styleMs/frames flipU 17/6 flipP 8/6 idleU 70/71 idleP 32/85 | drops 0 529 | idle-not-off
+run2 j3 | flip 2.17 p 1.83 a 1.83 o 2.33 | idle 1.97 p 1.05 a 0.99 o 1.97 | styleMs/frames flipU 5/6 flipP 10/6 idleU 67/65 idleP 9/74 | drops 152 -1000 | idle-not-off
+overall all6 inconclusive | run1 inconclusive | run2 inconclusive

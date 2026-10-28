@@ -1,0 +1,58 @@
+== j1
+sw-flip: windows 2 frames 6 (3/window) recalcs 12 per frame 2 ms 258/window upd/frame 6.83 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-a: windows 2 frames 6 (3/window) recalcs 12 per frame 2 ms 249/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-o: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 243.5/window upd/frame 6.83 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p: windows 2 frames 6 (3/window) recalcs 12 per frame 2 ms 289/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p-t: windows 2 frames 6 (3/window) recalcs 14 per frame 2.33 ms 297/window upd/frame 12 flushRc 4 style us 6000 layout us 0 style us per flip 3000
+sw-flip-t: windows 2 frames 6 (3/window) recalcs 16 per frame 2.67 ms 286.5/window upd/frame 18 flushRc 6 style us 10000 layout us 0 style us per flip 5000
+sw-idle: windows 2 frames 73 (36.5/window) recalcs 144 per frame 1.97 ms 1040.5/window upd/frame 0.49 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-a: windows 2 frames 103 (51.5/window) recalcs 103 per frame 1 ms 1010.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-o: windows 2 frames 81 (40.5/window) recalcs 160 per frame 1.98 ms 1016/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p: windows 2 frames 79 (39.5/window) recalcs 79 per frame 1 ms 1007/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p-t: windows 2 frames 95 (47.5/window) recalcs 95 per frame 1 ms 1008/window upd/frame 0.19 flushRc 1 style us 5000 layout us 1000 style us per idle second 2480.16
+sw-idle-t: windows 2 frames 76 (38/window) recalcs 151 per frame 1.99 ms 1007/window upd/frame 18 flushRc 76 style us 67000 layout us 2000 style us per idle second 33267.13
+sw-warm: windows 1 frames 3 (3/window) recalcs 6 per frame 2 ms 373/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+ident sw-warm:4/running+running+running+running/0+0+0+0 sw-idle:4/running+running+running+running/0+0+0+0 sw-idle-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-flip:4/running+running+running+running/0+0+0+0 sw-flip-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-idle-t:4/running+running+running+running/0+0+0+0
+inv 1x CSSAnimation:nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ nav-module_earn_op:finished:1 | 1x CSSAnimation:nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ nav-module_earn_op:finished:1 | 2x CSSAnimation:morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY:paused:inf | 1x CSSAnimation:morph-
+job {"flipU":{"frames":6,"recalcs":12,"styleFrames":6,"styleUs":10000,"layoutUs":0},"flipP":{"frames":6,"recalcs":12,"styleFrames":6,"styleUs":6000,"layoutUs":0},"idleU":{"frames":73,"recalcs":144,"styleFrames":76,"styleUs":67000,"layoutUs":2000},"idleP":{"frames":79,"recalcs":79,"styleFrames":95,"styleUs":5000,"layoutUs":1000}}
+rpf100 flipU 200 flipP 200 idleU 197 idleP 100 style us/frame U 1666 P 1000 drops rpf 0 style 399 why idle-not-off
+why idle-not-off
+== j2
+sw-flip: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 269.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-a: windows 2 frames 6 (3/window) recalcs 12 per frame 2 ms 386/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-o: windows 2 frames 6 (3/window) recalcs 12 per frame 2 ms 283/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 255.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p-t: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 285.5/window upd/frame 12 flushRc 4 style us 8000 layout us 0 style us per flip 4000
+sw-flip-t: windows 2 frames 6 (3/window) recalcs 16 per frame 2.67 ms 286/window upd/frame 18 flushRc 6 style us 17000 layout us 0 style us per flip 8500
+sw-idle: windows 2 frames 70 (35/window) recalcs 138 per frame 1.97 ms 1008/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-a: windows 2 frames 85 (42.5/window) recalcs 84 per frame 0.99 ms 1018.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-o: windows 2 frames 72 (36/window) recalcs 141 per frame 1.96 ms 1011/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p: windows 2 frames 82 (41/window) recalcs 96 per frame 1.17 ms 1007.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p-t: windows 2 frames 85 (42.5/window) recalcs 101 per frame 1.19 ms 1002/window upd/frame 3.6 flushRc 17 style us 32000 layout us 1000 style us per idle second 15968.06
+sw-idle-t: windows 2 frames 71 (35.5/window) recalcs 142 per frame 2 ms 1023.5/window upd/frame 18 flushRc 71 style us 70000 layout us 4000 style us per idle second 34196.38
+sw-warm: windows 1 frames 3 (3/window) recalcs 8 per frame 2.67 ms 324/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+ident sw-warm:4/running+running+running+running/0+0+0+0 sw-idle:4/running+running+running+running/0+0+0+0 sw-idle-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-flip:4/running+running+running+running/0+0+0+0 sw-flip-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-idle-t:4/running+running+running+running/0+0+0+0
+inv 1x CSSAnimation:nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ nav-module_earn_op:finished:1 | 1x CSSAnimation:nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ nav-module_earn_op:finished:1 | 2x CSSAnimation:morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY:paused:inf | 1x CSSAnimation:morph-
+job {"flipU":{"frames":6,"recalcs":13,"styleFrames":6,"styleUs":17000,"layoutUs":0},"flipP":{"frames":6,"recalcs":13,"styleFrames":6,"styleUs":8000,"layoutUs":0},"idleU":{"frames":70,"recalcs":138,"styleFrames":71,"styleUs":70000,"layoutUs":4000},"idleP":{"frames":82,"recalcs":96,"styleFrames":85,"styleUs":32000,"layoutUs":1000}
+rpf100 flipU 216 flipP 216 idleU 197 idleP 117 style us/frame U 2833 P 1333 drops rpf 0 style 529 why idle-not-off
+why idle-not-off
+== j3
+sw-flip: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 357/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-a: windows 2 frames 6 (3/window) recalcs 11 per frame 1.83 ms 249.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-o: windows 2 frames 6 (3/window) recalcs 14 per frame 2.33 ms 282/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p: windows 2 frames 6 (3/window) recalcs 11 per frame 1.83 ms 288/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+sw-flip-p-t: windows 2 frames 6 (3/window) recalcs 13 per frame 2.17 ms 398.5/window upd/frame 12 flushRc 4 style us 10000 layout us 0 style us per flip 5000
+sw-flip-t: windows 2 frames 6 (3/window) recalcs 14 per frame 2.33 ms 212.5/window upd/frame 18 flushRc 6 style us 5000 layout us 1000 style us per flip 2500
+sw-idle: windows 2 frames 62 (31/window) recalcs 122 per frame 1.97 ms 1024/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-a: windows 2 frames 81 (40.5/window) recalcs 80 per frame 0.99 ms 1008/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-o: windows 2 frames 66 (33/window) recalcs 130 per frame 1.97 ms 1004/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p: windows 2 frames 65 (32.5/window) recalcs 68 per frame 1.05 ms 1452.5/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per idle second 0
+sw-idle-p-t: windows 2 frames 74 (37/window) recalcs 76 per frame 1.03 ms 1013/window upd/frame 0.49 flushRc 2 style us 9000 layout us 1000 style us per idle second 4442.25
+sw-idle-t: windows 2 frames 65 (32.5/window) recalcs 130 per frame 2 ms 1013.5/window upd/frame 18 flushRc 65 style us 67000 layout us 1000 style us per idle second 33053.77
+sw-warm: windows 1 frames 3 (3/window) recalcs 6 per frame 2 ms 235/window upd/frame 0 flushRc 0 style us 0 layout us 0 style us per flip 0
+ident sw-warm:4/running+running+running+running/0+0+0+0 sw-idle:4/running+running+running+running/0+0+0+0 sw-idle-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-flip:4/running+running+running+running/0+0+0+0 sw-flip-p:4/paused+paused+paused+paused/inf+inf+inf+inf sw-idle-t:4/running+running+running+running/0+0+0+0
+inv 1x CSSAnimation:nav-module_earn-unmask_ZfvUeY on button.nav-module_btn_iwM4wZ nav-module_earn_op:finished:1 | 1x CSSAnimation:nav-module_earn-sheen_BJihYd on button.nav-module_btn_iwM4wZ nav-module_earn_op:finished:1 | 2x CSSAnimation:morph-module_up_d0Qv2N on div.morph-module_track_CO8LmY:paused:inf | 1x CSSAnimation:morph-
+job {"flipU":{"frames":6,"recalcs":13,"styleFrames":6,"styleUs":5000,"layoutUs":1000},"flipP":{"frames":6,"recalcs":11,"styleFrames":6,"styleUs":10000,"layoutUs":0},"idleU":{"frames":62,"recalcs":122,"styleFrames":65,"styleUs":67000,"layoutUs":1000},"idleP":{"frames":65,"recalcs":68,"styleFrames":74,"styleUs":9000,"layoutUs":100
+rpf100 flipU 216 flipP 183 idleU 196 idleP 104 style us/frame U 833 P 1666 drops rpf 152 style -1000 why idle-not-off
+why idle-not-off
+overall inconclusive inconclusive | rerun with more valid jobs
