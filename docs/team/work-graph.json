@@ -23462,6 +23462,31 @@
     "research/notes/2026/10-2x-geom-pref-off-ticking.md",
     "results/geom-pref-off-ticking/**",
     "docs/team/handoffs/geom-pref-off-ticking.md"
+   ],
+   "evidence": "36dddf4"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-sweep-paused",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-pref-off-ticking"
+   ],
+   "title": "Do the 4 sweepDoc background-position animations cause the 2 style recalcs per frame in WebKit flips? WKTR accel lane, pref OFF, an arm that pauses them (probe-side, getAnimations) against the unpaused arm, 3 jobs: recalcs per frame and style ms per flip; decides whether geom-sweep-compositor (same-look compositor sweep) is worth building.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Device/SweepPause*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/device/sweep-pause*.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-sweep-paused.md",
+    "results/geom-sweep-paused/**",
+    "docs/team/handoffs/geom-sweep-paused.md"
    ]
   }
  ],

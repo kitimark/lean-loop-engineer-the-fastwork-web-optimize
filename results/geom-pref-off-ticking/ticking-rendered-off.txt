@@ -1,0 +1,24 @@
+Rendered tracks the Lean predicate says tick on the main thread, WKTR pref OFF (mid-thr-off), main code. Only samples with at least one such track are listed.
+Each line: flip, tween bin, layer flag of the element (lay), Lean branch, engine oracle (timeToNextAnimationTick below the interval), count of tracks.
+lay=null: run 40653612323 had no layer flag. lay=1: run 40657027777 (push 2), the element has a composited layer at the sample.
+Files not listed had no rendered ticking track in any p30/p50/p80 sample.
+
+run 40653612323 (push 1, d79a4bab5)
+ j1 flip1 p30 lay=null branch=unaccelerated oracle=true 21
+ j1 flip1 p50 lay=null branch=unaccelerated oracle=true 21
+ j2 flip1 p30 lay=null branch=unaccelerated oracle=true 21
+ j3 none
+run 40657027777 (push 2, fbc187650)
+ j1 none
+ j2 flip1 p30 lay=1 branch=unaccelerated oracle=true 21
+ j2 flip1 p50 lay=1 branch=unaccelerated oracle=true 21
+ j2 flip3 p30 lay=1 branch=unaccelerated oracle=true 21
+ j2 flip7 p30 lay=1 branch=unaccelerated oracle=true 21
+ j3 none
+
+The 21 tracks (same set in every listed sample): image/transform x13, logo/translate, earn/opacity, earn/filter, earn/translate,
+earnClip/translate, earnLabel/translate, footerGrad/scale, footerEnd/translate.
+
+Flush phase (permille of the tween at the first forced style flush after creation, run 40657027777, pref OFF): a negative value means the effects were still pending.
+ j2: flip1 -19, flip2 4, flip3 -16, flip4 3, flip5 3, flip6 6, flip7 -9, flip8 9   (the 21 tracks tick at p30 in flips 1, 3, 7 only)
+ j1: 788 501 438 531 494 497 582 496;  j3: 821 631 637 572 503 572 563 515   (slow frame clock: no p30/p50 sample, flush already past the middle)
