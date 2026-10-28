@@ -29,6 +29,11 @@ export const SCHEMA = 'fw.track-accel/1';
 
 function pageProbe(P) {
   const X = (window.__fwx = { created: [], suppress: new Set(), mode: P.mode, arm: null, n: 0, rows: [], tags: [], table: null, errors: [] });
+  X.trace = [];
+  window.__fwPrewarmTrace = (k) => {
+    const cols = document.querySelectorAll('[data-fw="morph-columns"] > div img').length;
+    X.trace.push([k, Math.round(performance.now()), innerWidth, innerHeight, cols, X.arm]);
+  };
   const CSSN = { backdropFilter: 'backdrop-filter' };
   const NONKEY = new Set(['offset', 'easing', 'composite']);
   const origAnimate = Element.prototype.animate;
@@ -327,6 +332,7 @@ function pageProbe(P) {
     out.wheels = 0;
     const tw = performance.now();
     out.prewarmed = carried.length;
+    out.inner = [innerWidth, innerHeight];
     while (!started() && out.wheels < 3) {
       wheel(120);
       out.wheels++;
@@ -365,6 +371,7 @@ function pageProbe(P) {
     await sleep(1500);
     X.arm = arm;
     out.nav = nav().className;
+    out.trace = X.trace.slice();
     return out;
   };
 

@@ -15,12 +15,15 @@ const rows = readFileSync(resolve(__dirname, '../../../../../packages/contracts/
 const layout: Layout = { eng: 'webkit', a: 0, b: 1, inset: 24, logoW: 160, lw: 144, w0: 176, gL: 0, imgs: [[[0, 200]]] };
 
 function build() {
-  const c = { allowed: true, stale: false, enters: 0, leaves: 0, creates: 0, paused: 0, started: 0 };
+  const c = { allowed: true, stale: false, ready: true, enters: 0, leaves: 0, creates: 0, paused: 0, started: 0 };
+  const laters: (() => void)[] = [];
   const timed = createTimedGeom({
     allowed: () => c.allowed,
     enter: () => (c.enters++, { vp: { w: 1280, h: 800 }, layout }),
     leave: () => void c.leaves++,
+    ready: () => c.ready,
     fresh: () => !c.stale,
+    later: (cb) => (laters.push(cb), () => void laters.splice(laters.indexOf(cb) >>> 0, 1)),
     animate: () => {
       c.creates++;
       const h: TimedAnim = {
@@ -37,7 +40,7 @@ function build() {
     },
     goal: () => void 0,
   });
-  return { c, timed };
+  return { c, timed, laters };
 }
 
 const perSet = (() => {
@@ -64,13 +67,36 @@ function run(events: Ev[]) {
 }
 
 describe('createTimedGeom prewarm against the Lean lifecycle golden', () => {
-  it('has the scenarios', () => expect(rows.length).toBe(10));
+  it('has the scenarios', () => expect(rows.length).toBe(11));
   it('a warm holds the 0 to 1 set paused and a push only starts it', () => {
     const { c, timed } = build();
     timed.warm();
     expect([c.creates, c.paused, c.started]).toEqual([perSet, perSet, 0]);
     timed.take(0, 1, 5);
     expect([c.creates, c.started]).toEqual([perSet, perSet]);
+  });
+  it('a stale held set is rebuilt by the next warm; a resize cools now and rebuilds after the settle delay', () => {
+    const { c, timed, laters } = build();
+    timed.warm();
+    c.stale = true;
+    timed.warm();
+    expect([c.enters, c.leaves, timed.held()]).toEqual([2, 1, true]);
+    timed.resize();
+    expect([c.leaves, timed.held(), laters.length]).toEqual([2, false, 1]);
+    laters[0]();
+    expect([c.enters, timed.held()]).toEqual([3, true]);
+  });
+  it('a push cancels the pending rebuild; a set that is not ready is not built', () => {
+    const { c, timed, laters } = build();
+    timed.warm();
+    timed.resize();
+    timed.take(0, 1, 0);
+    expect([laters.length, timed.held(), timed.live()]).toEqual([0, false, true]);
+    const n = build();
+    n.c.ready = false;
+    n.timed.warm();
+    expect([n.c.enters, n.timed.live()]).toEqual([0, false]);
+    expect(c.enters).toBe(2);
   });
   for (const r of rows) {
     it(`${r.in.name}: sets, enters, leaves, held and tree per event equal the Lean prewarm driver, whose look equals the landed driver's`, () => {

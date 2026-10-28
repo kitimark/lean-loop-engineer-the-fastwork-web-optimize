@@ -20,6 +20,7 @@ def sampleTimes : List Rat := [0, 170, 340, 680]
 def scenarios : List (String × List Ev) :=
   [ ("warm-push-settle-reverse", [.warm, .push 0 1 true false, .settle 1, .push 1 0 true false, .settle 0])
   , ("warm-cool", [.warm, .cool, .cool])
+  , ("warm-cool-warm", [.warm, .cool, .warm, .push 0 1 true false, .settle 1])
   , ("warm-warm", [.warm, .warm, .push 0 1 true false, .settle 1])
   , ("warm-stale-push", [.warm, .push 0 1 true true, .settle 1, .push 1 0 true false, .settle 0])
   , ("warm-refused-push", [.warm, .push 0 1 false false, .settle 0])

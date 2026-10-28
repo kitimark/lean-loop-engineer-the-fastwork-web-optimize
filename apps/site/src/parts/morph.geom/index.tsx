@@ -9,6 +9,8 @@ import './geom.css';
 
 export const GEOM_ON = 'on';
 const NAV = '[data-fw="nav"]';
+const RESIZE_SETTLE_MS = 250;
+const imageCount = (): number => document.querySelectorAll('[data-fw="morph-columns"] > div img').length;
 
 export function probeEngine(): Eng {
   const e = document.createElement('div');
@@ -65,7 +67,13 @@ export function MorphGeom() {
     if (window.__fw?.config.variants['morph.tween'] === 'geom-timed') {
       const timed = createTimedGeom({
         ...env,
-        fresh: (vp) => vp.w === window.innerWidth && vp.h === window.innerHeight,
+        trace: (k) => (window as unknown as { __fwPrewarmTrace?: (k: string) => void }).__fwPrewarmTrace?.(k),
+        ready: () => imageCount() > 0,
+        fresh: (b) => b.vp.w === window.innerWidth && b.vp.h === window.innerHeight && imageCount() === b.layout.imgs.reduce((n, c) => n + c.length, 0),
+        later: (cb) => {
+          const id = window.setTimeout(cb, RESIZE_SETTLE_MS);
+          return () => window.clearTimeout(id);
+        },
         animate: (a, kf, opts) => {
           const target = find(a);
           if (!target) return null;
@@ -75,7 +83,7 @@ export function MorphGeom() {
         goal: (rules) => setGoal(rules),
       });
       timedBus.set(timed);
-      const onResize = () => timed.cool();
+      const onResize = () => timed.resize();
       window.addEventListener('resize', onResize);
       return () => {
         window.removeEventListener('resize', onResize);

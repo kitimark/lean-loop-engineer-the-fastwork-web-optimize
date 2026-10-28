@@ -1425,6 +1425,7 @@ open Fw.Parts.Footprint
   return `${head}/-- Part ids, one per folder of apps/site/src/parts, in byte order of the folder names. -/
 def partIds : List String := [${partIds.map(leanStr).join(', ')}]
 
+set_option maxRecDepth 20000 in
 /-- Every extracted access, in key order: (part, file, line, op, name, owner, callback, variants). -/
 def accesses : List Access := [
 ${a.join(',\n')}]

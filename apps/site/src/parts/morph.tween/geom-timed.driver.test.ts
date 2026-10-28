@@ -13,7 +13,9 @@ function setup(allowed = true) {
     allowed: () => allowed,
     enter: () => (log.push('enter'), { vp: { w: 1280, h: 800 }, layout }),
     leave: () => void log.push('leave'),
+    ready: () => true,
     fresh: () => true,
+    later: () => () => {},
     animate: (_a, _kf, opts) => {
       const h = { startTime: null as number | null, opts, cancelled: false, cancel: () => void (h.cancelled = true), pause: () => void 0 };
       handles.push(h);

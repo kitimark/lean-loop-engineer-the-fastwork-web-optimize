@@ -1,4 +1,9 @@
 import { buildAnims, cssValue, evalAt, selector, type Anim, type Kf, type Layout, type Vp } from '../morph.geom/tracks';
+
+export interface Built {
+  vp: Vp;
+  layout: Layout;
+}
 import { DURATION_MS } from './logic';
 import { EASING_CSS, rebase, timeKnots, type Knots } from './geom-timed.logic';
 import type { EffectSink } from './driver';
@@ -15,9 +20,12 @@ export interface TimedOpts {
 }
 export interface TimedEnv {
   allowed(): boolean;
-  enter(): { vp: Vp; layout: Layout };
+  enter(): Built;
   leave(): void;
-  fresh(vp: Vp): boolean;
+  ready(): boolean;
+  fresh(built: Built): boolean;
+  later(cb: () => void): () => void;
+  trace?(kind: string): void;
   animate(a: Anim, kf: Kf[], opts: TimedOpts): TimedAnim | null;
   goal(rules: string | null): void;
 }
@@ -49,6 +57,7 @@ export type TimedGeom = EffectSink & {
   take(from: number, to: number, start: number): boolean;
   warm(): void;
   cool(): void;
+  resize(): void;
   live(): boolean;
   held(): boolean;
 };
@@ -56,7 +65,9 @@ export type TimedGeom = EffectSink & {
 export function createTimedGeom(env: TimedEnv): TimedGeom {
   let anims: Anim[] | null = null;
   let live: TimedAnim[] = [];
-  let held: Vp | null = null;
+  let held: Built | null = null;
+  let wanted = false;
+  let cancelLater: (() => void) | null = null;
   const drop = () => {
     for (const h of live) h.cancel();
     live = [];
@@ -70,6 +81,10 @@ export function createTimedGeom(env: TimedEnv): TimedGeom {
     anims = null;
     held = null;
   };
+  const dropLater = () => {
+    cancelLater?.();
+    cancelLater = null;
+  };
   const create = (from: number, to: number, start: number | null) => {
     const fill = to === 1 ? 'backwards' : 'both';
     for (const a of anims ?? []) {
@@ -81,18 +96,37 @@ export function createTimedGeom(env: TimedEnv): TimedGeom {
       live.push(h);
     }
   };
-  const warm = () => {
+  const build = () => {
     if (anims !== null) return;
-    const { vp, layout } = env.enter();
-    anims = buildAnims(vp, layout);
-    held = vp;
+    if (!env.ready()) {
+      env.trace?.('not-ready');
+      return;
+    }
+    const built = env.enter();
+    anims = buildAnims(built.vp, built.layout);
+    held = built;
+    env.trace?.('build');
     create(0, 1, null);
   };
+  const warm = () => {
+    wanted = true;
+    dropLater();
+    if (held !== null && !env.fresh(held)) {
+      env.trace?.('stale-warm');
+      leave();
+    }
+    build();
+  };
   const take = (from: number, to: number, start: number): boolean => {
+    wanted = false;
+    dropLater();
     if (held !== null) {
-      const vp = held;
-      if (!env.allowed() || !env.fresh(vp)) leave();
-      else if (from === 0 && to === 1) {
+      const built = held;
+      if (!env.allowed() || !env.fresh(built)) {
+        env.trace?.('stale-push');
+        leave();
+      } else if (from === 0 && to === 1) {
+        env.trace?.('fast');
         held = null;
         env.goal(goalRules(anims ?? []));
         for (const h of live) h.startTime = start;
@@ -104,6 +138,7 @@ export function createTimedGeom(env: TimedEnv): TimedGeom {
       const { vp, layout } = env.enter();
       anims = buildAnims(vp, layout);
     }
+    env.trace?.('create');
     drop();
     env.goal(to === 1 ? goalRules(anims) : null);
     create(from, to, start);
@@ -113,7 +148,16 @@ export function createTimedGeom(env: TimedEnv): TimedGeom {
     take,
     warm,
     cool: () => {
+      wanted = false;
+      dropLater();
       if (held !== null) leave();
+    },
+    resize: () => {
+      if (held === null) return;
+      env.trace?.('resize');
+      leave();
+      dropLater();
+      if (wanted) cancelLater = env.later(() => ((cancelLater = null), build()));
     },
     push: (f, t, s) => void take(f, t, s),
     live: () => anims !== null,
@@ -123,6 +167,10 @@ export function createTimedGeom(env: TimedEnv): TimedGeom {
       if (held === null && m > 0) drop();
       else leave();
     },
-    dispose: leave,
+    dispose: () => {
+      wanted = false;
+      dropLater();
+      leave();
+    },
   };
 }
