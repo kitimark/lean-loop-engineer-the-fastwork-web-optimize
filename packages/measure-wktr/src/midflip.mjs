@@ -141,7 +141,7 @@ export function keySummary(report) {
         const rendered = row.rendered ? row.rendered[i] !== false : true;
         const eff = effOf(r, s.ph, rendered, pref === true, tag.prop);
         out.push({
-          arm: row.arm, flip, bin, ph: s.ph, key: `${tag.mg}/${tag.prop}/${tag.idx}`, rendered, rawAccel: r.a === 1, accel: eff.accel,
+          arm: row.arm, flip, bin, ph: s.ph, key: `${tag.mg}/${tag.prop}/${tag.idx}`, rendered, lay: r.l ?? null, rawAccel: r.a === 1, accel: eff.accel,
           oracle: oracleTicks(r.t, s.env.itv), branch: reasonOf(eff), ticks: ticksMain(eff),
         });
       });

@@ -272,7 +272,7 @@ jobs:
           set -euo pipefail
           node packages/measure-wktr/src/accel-cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
-            ${ACCEL_MODES:+--modes "$ACCEL_MODES" --arms all,all-again,all-3,all-4} \
+            ${ACCEL_MODES:+--modes "$ACCEL_MODES" --arms all,all-again,all-3,all-4,all-5,all-6,all-7,all-8} \
             --passes 1 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 

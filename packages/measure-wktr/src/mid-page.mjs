@@ -164,7 +164,21 @@ function pageProbe(P) {
     return out;
   };
 
-  const compactRows = () => readout().map((r) => ({ id: r.id, s: r.state, p: r.pending ? 1 : 0, a: r.accel ? 1 : 0, th: r.threaded, t: r.ttnt, c: r.cur === null || r.cur === undefined ? null : Math.round(r.cur), e: r.ent, tc: r.tc }));
+  // Whether the element has a compositing layer: Internals.setElementTracksDisplayListReplay throws without one (Internals.cpp:3968-3987@862f17d).
+  // It forces a layout, so only the mid-window samples and the pre-push map ask (`withLay`); the flush steps do not.
+  const layOf = (el) => {
+    if (!(I && typeof I.setElementTracksDisplayListReplay === 'function')) return null;
+    try { I.setElementTracksDisplayListReplay(el, false); return 1; } catch (e) { return 0; }
+  };
+  const compactRows = (withLay) => {
+    const lays = new Map();
+    return readout().map((r, i) => {
+      const el = X.created[i] && X.created[i].el;
+      if (withLay && el && !lays.has(el)) lays.set(el, layOf(el));
+      return { id: r.id, s: r.state, p: r.pending ? 1 : 0, a: r.accel ? 1 : 0, th: r.threaded, t: r.ttnt, c: r.cur === null || r.cur === undefined ? null : Math.round(r.cur), e: r.ent, tc: r.tc, l: withLay && el ? lays.get(el) : undefined };
+    });
+  };
+  const layersBefore = () => Array.from(document.querySelectorAll('[data-mg]')).map((el) => [el.getAttribute('data-mg'), layOf(el)]);
 
   // Mid-flip readout (WebKitTestRunner): the frame clock there is slow, so the samples are taken by phase (the reference track's own
   // currentTime over the tween length), from the rAF callbacks and from a short timer poll, never by frame count.
@@ -188,7 +202,7 @@ function pageProbe(P) {
     let listed = null;
     let alive = true;
     const take = (why, ph) => {
-      const rows = compactRows();
+      const rows = compactRows(true);
       const s = { why: why, ph: Math.round(ph * 1000), dt: Math.round(performance.now() - t0), env: envNow(), rows: rows };
       samples.push(s);
       if (!listed && ph >= 0.4 && P.listAnims) {
@@ -321,6 +335,7 @@ function pageProbe(P) {
       return out;
     }
     out.wheels = 0;
+    if (P.mid) out.layBefore = layersBefore();
     const tw = performance.now();
     while (X.created.length === 0 && out.wheels < 3) {
       wheel(120);
