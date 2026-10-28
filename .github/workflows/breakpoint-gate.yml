@@ -425,6 +425,69 @@ jobs:
           mode: finish
           label: flip-cell-${{ matrix.engine }}
 
+  # The geom-track compositor probe, Chromium half (task geom-track-style, packages/gate-breakpoints/src/track-accel.mjs): per morph.geom
+  # WAAPI track of morph.geom:on (scrubbed) and morph.geom:on with morph.tween:geom-timed (timed), a Chrome trace takes the compositor
+  # decision (animation.cc compositeFailed, cc KeyframeModel starts) and the style recalcs of each arm (all tracks, one property's
+  # tracks held, none held, idle). Reported only: counts and decisions, nothing here is phone time. Three jobs = three separate-job reps.
+  track-accel:
+    needs: [site]
+    concurrency:
+      group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:track-accel:${{ strategy.job-index }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    name: track-accel ${{ matrix.rep }}
+    strategy:
+      fail-fast: false
+      matrix:
+        rep: [r1, r2, r3]
+    steps:
+      - name: 'tip re-check'
+        id: tip
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/ci/') }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          t=$(git -c "http.extraheader=$auth" ls-remote "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" "$GITHUB_REF" 2>/dev/null | cut -f1) || t=""
+          if [ -n "$t" ] && [ "$t" != "$GITHUB_SHA" ]; then echo "tip=false" >> "$GITHUB_OUTPUT"; echo "branch tip $t is not $GITHUB_SHA"; else echo "tip=true" >> "$GITHUB_OUTPUT"; echo "branch tip: ${t:-unreadable, counts as the tip}"; fi
+      - name: 'stale: a newer push is the branch tip'
+        id: stale
+        if: ${{ steps.tip.outputs.tip == 'false' }}
+        shell: bash
+        run: exit 1
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-pnpm
+        with:
+          filter: '@fw/gate-breakpoints @fw/visual-diff'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: site-dist
+          path: apps/site/dist/aot
+      - uses: ./.github/actions/gate-engine
+        with:
+          engine: chromium
+      - name: Track compositor probe (Chromium trace)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        env:
+          FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+        working-directory: packages/gate-breakpoints
+        shell: bash
+        run: |
+          mkdir -p out
+          node src/cli.mjs accel --out out/accel 2>&1 | tee out/accel.log
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
+        with:
+          name: track-accel-${{ matrix.rep }}
+          path: |
+            packages/gate-breakpoints/out/accel
+            packages/gate-breakpoints/out/accel.log
+          if-no-files-found: error
+          retention-days: 30
+
   # One merge job for the engines: `fwcore` is built once (a merge job per engine built it twice, 36 s each, and took a second
   # runner of the shared 20: Fw.Gate.Schedule.Fixed.work_saved). Each engine is merged and summarized on its own, so a failing
   # WebKit job does not hide the Chromium table, and each keeps its own artifact.
