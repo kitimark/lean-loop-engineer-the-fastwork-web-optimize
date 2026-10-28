@@ -23348,7 +23348,25 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-geom-track-style.md",
     "results/geom-track-style/**",
-    "docs/team/handoffs/geom-track-style.md"
+    "docs/team/handoffs/geom-track-style.md",
+    ".github/workflows/breakpoint-gate.yml",
+    ".github/workflows/wktr.yml",
+    "apps/runner/src/land.ts",
+    "apps/site/src/parts/morph.geom/track-accel.golden.test.ts",
+    "lean/Fw/Ci/Overflow.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/MorphTrackAccelGolden.lean",
+    "lean/scripts/OverflowGolden.lean",
+    "packages/contracts/golden/ci/overflow.jsonl",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/parts/morph-track-accel.jsonl",
+    "packages/gate-breakpoints/src/cli.mjs",
+    "packages/gate-breakpoints/src/track-accel-page.mjs",
+    "packages/gate-breakpoints/src/track-accel.mjs",
+    "packages/gate-breakpoints/test/**",
+    "packages/measure-wktr/src/accel-cli.mjs",
+    "packages/measure-wktr/src/accel-page.mjs",
+    "packages/measure-wktr/test/accel.test.mjs"
    ]
   }
  ],
