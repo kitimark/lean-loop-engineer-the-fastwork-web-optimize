@@ -8,6 +8,15 @@ export function tickOf(s) {
   return ticksContinuously(s) ? 'main' : 'accelerated';
 }
 
+export function reasonOf(s) {
+  if (s.pending) return 'pending';
+  if (!s.running) return 'not-running';
+  if (!s.active) return 'not-active';
+  if (!s.rendered) return 'unrendered';
+  if (s.complete && s.accel) return s.threaded && s.disallowed ? 'disallowed' : 'accelerated';
+  return s.complete ? 'unaccelerated' : 'incomplete';
+}
+
 export function binOf(permille) {
   if (permille === 0 || permille >= 1000) return null;
   if (permille < 400) return 30;
@@ -108,4 +117,30 @@ export function frameSummary(report) {
       listed: row.listed ? { ph: row.listed.ph, listRc: row.listed.listRc, n: row.listed.list.length } : null,
     };
   });
+}
+
+export function keySummary(report) {
+  const tags = new Map(report.tags.map((t) => [t.id, t]));
+  const pref = prefOf(report);
+  const out = [];
+  let flip = 0;
+  for (const row of report.rows) {
+    if (row.arm === 'idle' || !row.engaged) continue;
+    flip++;
+    for (const s of [...(row.pre ?? []), ...(row.samples ?? [])]) {
+      const bin = s.why === 'end' || s.why[0] === 'i' || s.why[0] === 'f' ? s.why : binOf(s.ph);
+      if (bin === 'end' || bin === null) continue;
+      s.rows.forEach((r, i) => {
+        const tag = tags.get(r.id);
+        if (!tag) return;
+        const rendered = row.rendered ? row.rendered[i] !== false : true;
+        const eff = effOf(r, s.ph, rendered, pref === true, tag.prop);
+        out.push({
+          arm: row.arm, flip, bin, ph: s.ph, key: `${tag.mg}/${tag.prop}/${tag.idx}`, rendered, lay: r.l ?? null, rawAccel: r.a === 1, accel: eff.accel,
+          oracle: oracleTicks(r.t, s.env.itv), branch: reasonOf(eff), ticks: ticksMain(eff),
+        });
+      });
+    }
+  }
+  return out;
 }

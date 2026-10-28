@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { binOf, classOf, effOf, frameSummary, midSummary, normName, oracleTicks, prefOf, readsAccelCls, tickOf, ticksContinuously, ticksMain } from '../src/midflip.mjs';
+import { binOf, classOf, effOf, frameSummary, keySummary, midSummary, normName, oracleTicks, prefOf, readsAccelCls, reasonOf, tickOf, ticksContinuously, ticksMain } from '../src/midflip.mjs';
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { headerOf, isMid, MID_ARMS, MID_AT, THREADED_OFF } from '../src/accel-cli.mjs';
 
@@ -114,4 +114,27 @@ test('the mid mode reads the three phases, the preference off arm adds its heade
   assert.match(js, /"mid":\[0\.3,0\.5,0\.8\]/);
   assert.match(js, /timeToNextAnimationTick/);
   assert.throws(() => accelHarnessSource({ mode: 'scrubbed', mid: MID_AT }), /timed/);
+});
+
+test('the branch a track takes, one case per Lean reasonOf branch (a TS stand-in of the tick predicate)', () => {
+  assert.equal(reasonOf(E(true, false, false, true, true, true, false, false)), 'pending');
+  assert.equal(reasonOf(E(false, false, true, true, true, true, false, false)), 'not-running');
+  assert.equal(reasonOf(E(false, true, false, true, true, true, false, false)), 'not-active');
+  assert.equal(reasonOf(E(false, true, true, false, true, true, false, false)), 'unrendered');
+  assert.equal(reasonOf(E(false, true, true, true, true, true, true, false)), 'accelerated');
+  assert.equal(reasonOf(E(false, true, true, true, true, true, true, true)), 'disallowed');
+  assert.equal(reasonOf(E(false, true, true, true, false, true, false, false)), 'incomplete');
+  assert.equal(reasonOf(E(false, true, true, true, true, false, false, false)), 'unaccelerated');
+});
+
+test('keySummary reads each track key per flip sample, raw match against the class fold', () => {
+  const rep = report();
+  rep.rows[0].engaged = true;
+  rep.rows[0].samples[0].rows[0] = { id: 'a', s: 'running', p: 0, a: 0, th: false, t: 'inf', e: ['transform'], tc: 1 };
+  const rows = keySummary(rep);
+  assert.equal(rows.length, 2);
+  const a = rows.find((r) => r.key === 'column/translate/0');
+  assert.deepEqual([a.flip, a.bin, a.rawAccel, a.accel, a.oracle, a.branch, a.ticks], [1, 50, false, true, false, 'accelerated', false]);
+  const b = rows.find((r) => r.key === 'image/transform/1');
+  assert.deepEqual([b.rendered, b.branch, b.ticks, b.oracle], [false, 'unrendered', false, true]);
 });

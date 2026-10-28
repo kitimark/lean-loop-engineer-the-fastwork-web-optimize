@@ -332,6 +332,69 @@ theorem classOf_translate (norm : String → String) (h : norm "translate" = "tr
     classOf norm "translate" = classOf norm "transform" := by
   simp [classOf, h, h2]
 
+theorem raw_misses_folded (norm : String → String) (h : norm "translate" = "translate") (h2 : norm "transform" = "transform") :
+    readsAccel norm "translate" ["transform"] = false ∧ readsAccelCls norm "translate" ["transform"] 1 = true := by
+  simp [readsAccel, readsAccelCls, classOf, h, h2]
+
+inductive Reason where
+  | pending | notRunning | notActive | unrendered | accelerated | disallowed | incomplete | unaccelerated
+  deriving DecidableEq, Repr
+
+def Reason.name : Reason → String
+  | .pending => "pending" | .notRunning => "not-running" | .notActive => "not-active" | .unrendered => "unrendered"
+  | .accelerated => "accelerated" | .disallowed => "disallowed" | .incomplete => "incomplete" | .unaccelerated => "unaccelerated"
+
+def Reason.ticks : Reason → Bool
+  | .pending | .disallowed | .incomplete | .unaccelerated => true
+  | .notRunning | .notActive | .unrendered | .accelerated => false
+
+def reasonOf (s : Eff) : Reason :=
+  if s.pending then .pending
+  else if !s.running then .notRunning
+  else if !s.active then .notActive
+  else if !s.rendered then .unrendered
+  else if s.complete && s.accel then (if s.threaded && s.disallowed then .disallowed else .accelerated)
+  else if s.complete then .unaccelerated
+  else .incomplete
+
+theorem ticksMain_eq_reason (s : Eff) : ticksMain s = (reasonOf s).ticks := by
+  cases hp : s.pending <;> cases hr : s.running <;> cases ha : s.active <;> cases hv : s.rendered <;>
+    cases hc : s.complete <;> cases hx : s.accel <;> cases ht : s.threaded <;> cases hd : s.disallowed <;>
+    simp [reasonOf, Reason.ticks, ticksMain, ticksContinuously, hp, hr, ha, hv, hc, hx, ht, hd]
+
+theorem reasonOf_pending (s : Eff) (h : s.pending = true) : reasonOf s = .pending := by simp [reasonOf, h]
+
+theorem reasonOf_notRunning (s : Eff) (hp : s.pending = false) (h : s.running = false) : reasonOf s = .notRunning := by
+  simp [reasonOf, hp, h]
+
+theorem reasonOf_notActive (s : Eff) (hp : s.pending = false) (hr : s.running = true) (h : s.active = false) :
+    reasonOf s = .notActive := by
+  simp [reasonOf, hp, hr, h]
+
+theorem reasonOf_unrendered (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (h : s.rendered = false) : reasonOf s = .unrendered := by
+  simp [reasonOf, hp, hr, ha, h]
+
+theorem reasonOf_accelerated (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (hv : s.rendered = true) (hc : s.complete = true) (hx : s.accel = true) (h : (s.threaded && s.disallowed) = false) :
+    reasonOf s = .accelerated := by
+  simp [reasonOf, hp, hr, ha, hv, hc, hx, h]
+
+theorem reasonOf_disallowed (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (hv : s.rendered = true) (hc : s.complete = true) (hx : s.accel = true) (ht : s.threaded = true) (hd : s.disallowed = true) :
+    reasonOf s = .disallowed := by
+  simp [reasonOf, hp, hr, ha, hv, hc, hx, ht, hd]
+
+theorem reasonOf_incomplete (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (hv : s.rendered = true) (hc : s.complete = false) : reasonOf s = .incomplete := by
+  simp [reasonOf, hp, hr, ha, hv, hc]
+
+theorem reasonOf_unaccelerated (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (hv : s.rendered = true) (hc : s.complete = true) (hx : s.accel = false) : reasonOf s = .unaccelerated := by
+  simp [reasonOf, hp, hr, ha, hv, hc, hx]
+
+#guard (reasonOf ⟨false, true, true, true, true, true, false, false⟩).name == "accelerated"
+#guard (reasonOf ⟨false, true, true, true, true, false, false, false⟩).name == "unaccelerated"
 #guard readsAccelCls normName "translate" ["transform"] 1
 #guard !readsAccelCls normName "translate" ["transform"] 2
 #guard readsAccelCls normName "transform" ["transform", "transform"] 2

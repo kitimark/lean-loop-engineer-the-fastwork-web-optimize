@@ -43,7 +43,7 @@ def tickLines (_ : Unit) : List String :=
     gline "tick" [("pending", .bool s.pending), ("running", .bool s.running), ("active", .bool s.active),
       ("rendered", .bool s.rendered), ("complete", .bool s.complete), ("accel", .bool s.accel),
       ("threaded", .bool s.threaded), ("disallowed", .bool s.disallowed)]
-      (Json.mkObj [("continuous", .bool (ticksContinuously s)), ("main", .bool (ticksMain s)), ("kind", .str (tickOf s).name)])
+      (Json.mkObj [("continuous", .bool (ticksContinuously s)), ("main", .bool (ticksMain s)), ("kind", .str (tickOf s).name), ("reason", .str (reasonOf s).name)])
 
 def binLines (_ : Unit) : List String :=
   ([0, 1, 299, 399, 400, 500, 649, 650, 800, 999, 1000, 1200] : List Nat).map fun (p : Nat) =>
@@ -59,7 +59,11 @@ def clsLines (_ : Unit) : List String :=
       List (String × List String × Nat)).map fun (p, r, n) =>
     gline "cls" [("prop", .str p), ("reported", .arr (r.map Json.str).toArray), ("tracks", .num ⟨(n : Int), 0⟩)] (.bool (readsAccelCls normName p r n))
 
-def goldenText (_ : Unit) : String := String.join ((propLines () ++ modeLines () ++ trackLines () ++ tickLines () ++ binLines () ++ nameLines () ++ clsLines ()).map (· ++ "\n"))
+def rawLines (_ : Unit) : List String :=
+  ([("translate", ["transform"]), ("scale", ["transform"]), ("transform", ["transform"]), ("opacity", ["opacity"])] : List (String × List String)).map fun (p, r) =>
+    gline "raw" [("prop", .str p), ("reported", .arr (r.map Json.str).toArray)] (.bool (readsAccel normName p r))
+
+def goldenText (_ : Unit) : String := String.join ((propLines () ++ modeLines () ++ trackLines () ++ tickLines () ++ binLines () ++ nameLines () ++ clsLines () ++ rawLines ()).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
