@@ -185,7 +185,6 @@ export function installKit() {
     }
     return out;
   };
-  /** Whether each element of each node has a box (getClientRects().length > 0: Chromium Element::ClientQuads, WebKit Element::getClientRects). */
   const boxesOf = (nodes) => {
     const out = {};
     for (const n of nodes) out[n.id] = Array.from(document.querySelectorAll(n.sel)).map((el) => el.getClientRects().length > 0);
@@ -193,7 +192,6 @@ export function installKit() {
   };
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  /** The end of a rendering frame: after the rAF callbacks of that frame, whatever they wrote is in the next style read. */
   const frameEnd = async () => { await raf(); await sleep(0); };
   const T0 = performance.now();
   /** Milliseconds since the kit was installed, with a tenth of a millisecond (the read of one frame is a few ms). */

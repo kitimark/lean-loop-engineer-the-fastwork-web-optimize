@@ -1,9 +1,5 @@
-// Lean Fw.Gate.Consumer (golden/gate/consumer.jsonl) and Fw.Parts.HeroExitScrollOffset.judgedEqual, applied to the hero path rows.
-
-/** Lean `keptIdx`: the positions of `n` that have a box in at least one arm; a missing reading is no box. */
 export const keptIdx = (n, bo, bc) => Array.from({ length: n }, (_, i) => i).filter((i) => bo[i] === true || bc[i] === true);
 
-/** Lean `judgedEqual` for a rest row pair: both arms read the same scroll offset. */
 export const restEqual = (o, w) => o.y === w.y;
 
 const filterNodes = (row, other, ids) => {
@@ -18,11 +14,6 @@ const filterNodes = (row, other, ids) => {
   return { ...row, nodes };
 };
 
-/**
- * The hero rest rows of the two arms as the reducer compares them: a row pair read at different scroll offsets is dropped from
- * the rewrite arm (its step gets no sample), and in the others the elements without a box in both arms are removed from both.
- * Rows without box bits (older raw runs) are compared whole.
- */
 export function consumerRows(oRows, wRows, nodeIds) {
   const wBy = new Map(wRows.map((r) => [r.step, r]));
   const oOut = [], wOut = [];

@@ -826,7 +826,6 @@ def storedOf (run sha : String) (e : Engine) (presetKeys : Option (List String))
              groups := groupsOf (walkWord w) us }
     else none
 
-/-- A recorded row replaces a stored row of the same run, engine and walk, and one of the same flag set, engine and walk from an older run. -/
 def replaces (n s : Stored) : Bool :=
   n.engine == s.engine && n.walk == s.walk &&
     (n.run == s.run || (n.flags == s.flags && s.run.toNat?.getD 0 ≤ n.run.toNat?.getD 0))

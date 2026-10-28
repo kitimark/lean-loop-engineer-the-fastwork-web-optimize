@@ -1,6 +1,6 @@
 # hero-exit-gate-clear handoff
 
-- Branch: worktree-wf_aba1dc22-976-1 (CI branch ci/hero-exit-gate-clear); worktree .claude/worktrees/wf_aba1dc22-976-1 of the main checkout
+- Branch: worktree-wf_aba1dc22-976-1 (CI branch ci/hero-exit-gate-clear)
 - Last code commit: see `git log -1`. CI pushes used: 3 of 3 (2695eef4f, 2cfe05e58, 559c2e728); no more.
 - CI runs (trajectory-probe, `fw=hero.exit:threaded`): 40668662980 complete (chromium hero pass, morph pass; linux-webkit hero pass); 40671695274 complete (mac hero pass, mac morph no verdict: coverage, noise); 40674554372 complete (linux and mac hero pass, mac morph pass). Lean runs 40668662965, 40671695266 success.
 - Recorded all three with Gen.record; Gen.merge is newest-run-wins per (flags, engine, walk). Entry: gate chromium and gate webkit met, blocker left `proofs` (ledger row n 6, out of the unit).

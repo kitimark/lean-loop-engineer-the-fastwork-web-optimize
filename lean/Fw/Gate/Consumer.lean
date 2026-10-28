@@ -5,16 +5,12 @@ namespace Fw.Gate.Consumer
 
 open Lean (Json)
 
-/-- Whether element `i` has a box in an arm, from that arm's `getClientRects().length > 0` bits; a missing element has none. -/
 def box (bs : List Bool) (i : Nat) : Bool := bs.getD i false
 
-/-- The consumer rule: an element is compared when at least one arm gives it a box. -/
 def comparedAt (bo bc : List Bool) (i : Nat) : Bool := box bo i || box bc i
 
-/-- The indices of `n` positions the probe compares. -/
 def keptIdx (n : Nat) (bo bc : List Bool) : List Nat := (List.range n).filter (comparedAt bo bc)
 
-/-- What an element puts on screen: nothing without a box, else a function of its computed value. -/
 def paint (hasBox : Bool) (v : Nat) : Option Nat := if hasBox then some v else none
 
 theorem compared_of_orig {bo bc : List Bool} {i : Nat} (h : box bo i = true) : comparedAt bo bc i = true := by
@@ -91,13 +87,11 @@ theorem skipped_iff_both_paint_nothing {bo bc : List Bool} {i : Nat} :
       · simp [paint, hb] at h0
 
 open Fw.Parts.HeroExitScrollOffset in
-/-- The painted counts of run 40156078840 read as the box bits of one element. -/
 def boxesOfCell (u : NewUnit) : List Bool × List Bool := ([decide (0 < u.paintedOrig)], [decide (0 < u.paintedCand)])
 
 open Fw.Parts.HeroExitScrollOffset in
 theorem measured_skipped : ∀ u ∈ units, comparedAt (boxesOfCell u).1 (boxesOfCell u).2 0 = false := by decide
 
-/-- One golden case: positions `n`, the box bits of each arm, the kept indices. -/
 structure Case where
   name : String
   n : Nat
