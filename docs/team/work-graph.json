@@ -23369,6 +23369,36 @@
     "packages/measure-wktr/test/accel.test.mjs"
    ],
    "evidence": "5253344"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-webkit-midflip",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-track-style"
+   ],
+   "title": "WebKit mid-flip readout (geom-track-style follow-up): which geom-timed tracks run accelerated in the middle of a flip on WebKit (WKTR, readout before the settle cancel), the ThreadedTimeBasedAnimationsEnabled pref and pending states, and RecalculateStyles per frame during the flip; name the per-frame style source the iPhone saw (phone-flip-p95), decided by the Lean MorphTrackAccel predicate.",
+   "writes": [
+    "lean/Fw/Parts/MorphTrackAccel*.lean",
+    "packages/contracts/golden/parts/morph-track-accel.jsonl",
+    "lean/scripts/MorphTrackAccelGolden.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "packages/measure-webkit/src/**",
+    "packages/measure-webkit/test/**",
+    ".github/workflows/wktr.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-webkit-midflip.md",
+    "results/geom-webkit-midflip/**",
+    "docs/team/handoffs/geom-webkit-midflip.md"
+   ]
   }
  ],
  "deadline": {
