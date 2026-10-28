@@ -43,7 +43,7 @@ export interface TweenEnv {
   faded?: (zero: boolean) => void;
   rest?: boolean;
   panel?: EffectSink;
-  timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
+  timed?: EffectSink & { take(from: number, to: number, start: number): boolean; warm?(): void; cool?(): void };
   hooks?: Hooks;
   trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
 }
@@ -175,6 +175,11 @@ export function createTweenDriver(env: TweenEnv) {
     env.removeListener('touchmove', onTouchMove as (e: never) => void);
   };
   const arm = () => (near || isActive() ? attach() : detach());
+  const prewarm = () => {
+    if (!env.timed?.warm) return;
+    if (near && !isActive() && !timedLive && !st.pending && st.value === 0 && !env.reduced()) env.timed.warm();
+    else if (!near) env.timed.cool?.();
+  };
 
   const tick = (t: number) => {
     const was = isActive();
@@ -222,6 +227,7 @@ export function createTweenDriver(env: TweenEnv) {
     updateFade();
     syncLock();
     if (last && !isActive()) arm();
+    if (last) prewarm();
   };
   const startTimed = (): boolean => {
     if (!env.timed?.take(st.from, st.to, st.start)) return false;
@@ -271,8 +277,10 @@ export function createTweenDriver(env: TweenEnv) {
       near = isNear;
       if (near) env.onActivate?.();
       arm();
+      prewarm();
     },
     pin() {
+      prewarm();
       if (!isActive()) return;
       const to = frameOut(hooks, { ...end, tw: st }, env.scrollY(), () => env.maxScrollY?.() ?? Infinity);
       if (to !== null) env.scrollToInstant(to);

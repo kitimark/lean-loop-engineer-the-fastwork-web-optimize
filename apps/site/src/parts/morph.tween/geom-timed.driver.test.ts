@@ -13,8 +13,9 @@ function setup(allowed = true) {
     allowed: () => allowed,
     enter: () => (log.push('enter'), { vp: { w: 1280, h: 800 }, layout }),
     leave: () => void log.push('leave'),
+    fresh: () => true,
     animate: (_a, _kf, opts) => {
-      const h = { startTime: null as number | null, opts, cancelled: false, cancel: () => void (h.cancelled = true) };
+      const h = { startTime: null as number | null, opts, cancelled: false, cancel: () => void (h.cancelled = true), pause: () => void 0 };
       handles.push(h);
       return h;
     },
@@ -91,12 +92,15 @@ describe('tween driver with the timed geometry', () => {
         take: (f, t, s) => (calls.push(`take ${f.toFixed(3)} ${t} ${s}`), true),
         push() {},
         settle: (m) => void calls.push(`settle ${m}`),
+        warm: () => void calls.push('warm'),
+        cool: () => void calls.push('cool'),
         dispose() {},
       },
     };
     let wheel: (e: { deltaY: number; defaultPrevented: boolean; preventDefault(): void }) => void = () => {};
     const d = createTweenDriver(env);
     d.setNear(true);
+    calls.length = 0;
     const run = (to: number) => {
       while (timers.length && timers.reduce((a, t) => Math.min(a, t.at), Infinity) <= to) {
         timers.sort((a, b) => a.at - b.at);
@@ -128,6 +132,25 @@ describe('tween driver with the timed geometry', () => {
     expect(s.calls.at(-1)).toBe(`take ${m.toFixed(3)} 0 300`);
     s.run(2000);
     expect(s.published.at(-1)).toBe(0);
-    expect(s.calls.at(-1)).toBe('settle 0');
+    expect(s.calls.slice(-2)).toEqual(['settle 0', 'warm']);
+  });
+  it('warms when the platform is near and the page rests; the end of a flip back to 0 warms again; leaving the range cools', () => {
+    const s = drv();
+    s.d.pin();
+    expect(s.calls).toEqual(['warm']);
+    s.push(50);
+    s.run(1000);
+    s.push(-50);
+    s.run(3000);
+    expect(s.calls.filter((c) => c === 'warm').length).toBe(2);
+    expect(s.calls.at(-1)).toBe('warm');
+    s.d.setNear(false);
+    expect(s.calls.at(-1)).toBe('cool');
+  });
+  it('does not warm while a flip is in flight', () => {
+    const s = drv();
+    s.push(50);
+    s.d.pin();
+    expect(s.calls).toEqual(['take 0.000 1 0']);
   });
 });

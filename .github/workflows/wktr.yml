@@ -267,10 +267,12 @@ jobs:
         if: ${{ inputs.accel || contains(github.event.head_commit.message, '[accel]') }}
         env:
           JOB: ${{ matrix.job }}
+          ACCEL_MODES: ${{ contains(github.event.head_commit.message, '[accel-prewarm]') && 'mid,mid-thr-off' || '' }}
         run: |
           set -euo pipefail
           node packages/measure-wktr/src/accel-cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
+            ${ACCEL_MODES:+--modes "$ACCEL_MODES" --arms all,all-again} \
             --passes 1 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 

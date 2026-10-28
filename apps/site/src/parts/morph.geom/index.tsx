@@ -65,6 +65,7 @@ export function MorphGeom() {
     if (window.__fw?.config.variants['morph.tween'] === 'geom-timed') {
       const timed = createTimedGeom({
         ...env,
+        fresh: (vp) => vp.w === window.innerWidth && vp.h === window.innerHeight,
         animate: (a, kf, opts) => {
           const target = find(a);
           if (!target) return null;
@@ -74,7 +75,10 @@ export function MorphGeom() {
         goal: (rules) => setGoal(rules),
       });
       timedBus.set(timed);
+      const onResize = () => timed.cool();
+      window.addEventListener('resize', onResize);
       return () => {
+        window.removeEventListener('resize', onResize);
         timedBus.set(null);
         timed.dispose();
         setGoal(null);

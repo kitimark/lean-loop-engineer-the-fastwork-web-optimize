@@ -302,10 +302,14 @@ function pageProbe(P) {
     return out;
   };
 
+  // Tracks the site made ahead of the push (the prewarm: held at progress 0, never cancelled) belong to the arm that pushes them.
+  const started = () => X.created.some((c) => c.a.startTime !== null);
   const timedArm = async (arm) => {
     X.arm = arm;
     X.suppress = armSet(arm);
+    const carried = X.created.filter((c) => c.a.playState !== 'idle');
     X.created.length = 0;
+    for (const c of carried) { c.tag.arm = arm; X.created.push(c); }
     const out = { arm: arm, mode: 'timed', stages: [], engaged: false };
     out.scrollY = await toBottom();
     await sleep(300);
@@ -322,16 +326,18 @@ function pageProbe(P) {
     }
     out.wheels = 0;
     const tw = performance.now();
-    while (X.created.length === 0 && out.wheels < 3) {
+    out.prewarmed = carried.length;
+    while (!started() && out.wheels < 3) {
       wheel(120);
       out.wheels++;
       const t0 = performance.now();
-      while (X.created.length === 0 && performance.now() - t0 < 3000) await raf();
-      if (X.created.length === 0) { await toBottom(); await sleep(400); }
+      while (!started() && performance.now() - t0 < 3000) await raf();
+      if (!started()) { await toBottom(); await sleep(400); }
     }
-    if (X.created.length > 0) {
+    if (started()) {
       out.engaged = true;
       out.tracks = X.created.length;
+      out.createdOnPush = X.created.length - carried.length;
       // The engine that runs a slow frame clock (WebKitTestRunner) can finish the tween before the mid-window readout: read the tracks
       // at creation and one frame later, each with its play state, so a reading of a settled (idle) track can be told apart.
       out.early = [{ at: 'create', rows: readout() }];
