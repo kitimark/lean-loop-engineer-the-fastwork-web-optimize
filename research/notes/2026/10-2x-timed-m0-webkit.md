@@ -9,5 +9,9 @@ Question: under `morph.geom:on,morph.tween:geom-timed`, why do 3 of 24 flip-cell
 - (a) real rest difference: refuted by the sign flip and by later runs: with the current reader the timed cell passed m=0 in 12 of 12 bands on both engines (runs 40537879823, 40544410328, per 10-2x-flip-verify-auto.md).
 - The premise fails: no site change and no Lean rest rule are needed for these 3 cells. The unit closes as a finding if the CI run below shows 24 of 24 on both engines at HEAD.
 
-## Confirmation run
-Pending (push 1 of at most 3): run id in docs/team/handoffs/timed-m0-webkit.md.
+## Confirmation run (MEASURED, push 1 of 3)
+Run 40660480093 (breakpoint-gate, ci/timed-m0-webkit at 4a8e758da, current reader, no site or Lean change): the geom-timed cell has 24 readings on each engine, 0 failed on Chromium and 0 failed on WebKit (12 m=0 readings graded and passing, 12 m=1 readings skipped as before: "flip not engaged"). Panel mount agreed on both pages in 12 of 12 bands; earn width 0 on both pages in every band (the new `earnW` field of `live`). JSON: results/timed-m0-webkit/run/timed-wk-40660480093.json, timed-cr-40660480093.json.
+Note on "24 of 24": 12 of the 24 rows are m=1 rows, which the timed cell never grades (it scrolls, it does not wheel-push); the graded count is 12 per engine, the same rows that failed 3 times in the old run.
+
+## Lesson (CONFIRMED)
+A CI run's verdict belongs to the reader at the run's commit. Before chasing an engine difference, compare the run commit against the reader fixes with `git merge-base --is-ancestor`. Follow-up (not done): a reader-version stamp in the artifact so a stale reader is visible in the JSON.
