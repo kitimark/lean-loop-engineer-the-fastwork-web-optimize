@@ -14,4 +14,4 @@ Run 40660480093 (breakpoint-gate, ci/timed-m0-webkit at 4a8e758da, current reade
 Note on "24 of 24": 12 of the 24 rows are m=1 rows, which the timed cell never grades (it scrolls, it does not wheel-push); the graded count is 12 per engine, the same rows that failed 3 times in the old run.
 
 ## Lesson (CONFIRMED)
-A CI run's verdict belongs to the reader at the run's commit. Before chasing an engine difference, compare the run commit against the reader fixes with `git merge-base --is-ancestor`. Follow-up (not done): a reader-version stamp in the artifact so a stale reader is visible in the JSON.
+A CI run's verdict belongs to the reader at the run's commit. Before chasing an engine difference, compare the run commit against the reader fixes with `git merge-base --is-ancestor`. Follow-up (not done): a reader-version stamp in the JSON.
