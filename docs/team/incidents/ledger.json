@@ -4686,7 +4686,11 @@
    ],
    "repro": "Push a ci/<task> branch whose tip message has no [ci:<lane>] token, or whose tree equals main: the measuring lanes report skipped.",
    "fix": {
-    "task": "ci-push-lane-check"
+    "task": "ci-push-lane-check",
+    "commits": [
+     "9ca7c1a62"
+    ],
+    "note": "Lean Fw.Ci.Intent.reason / refuse_iff (lean/Fw/Ci/Intent.lean), golden packages/contracts/golden/ci/pushlane.jsonl, hook apps/runner/src/ci-push.ts"
    },
    "regression": "Every CI-measuring task today spent at least one push without a measuring lane.",
    "mistakeClass": "c-late-check",
