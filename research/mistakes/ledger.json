@@ -4252,6 +4252,26 @@
         "commit 38052b5a"
       ],
       "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m217",
+      "classId": "c-unearned-claim",
+      "title": "Lead classified a WebKit A4 failure on the geom-style-cut branch as 'the same flake seen on main code' without reading that run's logs",
+      "when": "2026-10-28 (geom-style-cut review-only report)",
+      "who": "lead",
+      "symptom": "The report's evidence said run 40585231399 showed the same single-band WebKit A4 failure without the cut. That run failed A4 on 360x640 with a moving nav (moving 1, background-color and width), while the branch failed on 1440x900 with a 1-frame window (covered=false, moving 0); 1440x900 passed on main code.",
+      "rootCause": "The lead matched two failures by their count (11 of 12) from a builder's open[] line, not by band and failure mode from the run's verify JSON.",
+      "detectedBy": "adversarial reviewer (geom-style-cut, blocker)",
+      "cost": "one refused review round; the task was parked",
+      "leanVerdict": "partial",
+      "leanReason": "Two verify failures are 'the same' when their (band, window, mode) tuples match; that equality is decidable on the verify JSON, but choosing to check it is a process step.",
+      "empiricalCheck": "before a lead claims a failure is pre-existing, cite the run's verify JSON row (band, mode) for both runs",
+      "evidence": [
+        "run 40585231399",
+        "run 40595877403",
+        "research/notes/2026/10-2x-geom-style-cut.md"
+      ],
+      "evidenceStatus": "CONFIRMED"
     }
   ],
   "dropped": [
