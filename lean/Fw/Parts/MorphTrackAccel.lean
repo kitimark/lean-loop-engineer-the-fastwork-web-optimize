@@ -157,4 +157,112 @@ theorem webkit_timed_track_main_bands :
     bandVps.all (fun v => (anims v (Ctx.sample v .webkit)).countP (fun a => !onCompositorTrack .webkit .timed v a) == 0) = true := by
   decide +kernel
 
+/-! ## Per-flip style totals: the rule that decides whether the image transforms are worth folding
+
+The Chromium probe reads, per arm, one `flip` window: the page's own marks `fwx:<arm>:flip:start|end` on the renderer
+main thread. A trace record counts toward the window's style work iff it is on that thread, its timestamp lies in
+`[start, end]` (both ends included) and it is a style recalculation (`UpdateLayoutTree`, or the older `RecalculateStyles`).
+The totals are sums over the counted records, never per main-thread frame: the frame count differs about 4x between arms
+(`all` 7 to 8 at 1440, `no-transform` 28 to 31), so a per-frame figure compares different numbers of frames.
+TS stand-in: `windowsOf` and `armSummary` in `packages/gate-breakpoints/src/track-accel.mjs` apply this rule, unchecked
+against a golden. -/
+
+/-- The trace record names the window cares about. -/
+inductive Rec where
+  | updateLayoutTree | recalculateStyles | other
+  deriving DecidableEq, Repr
+
+/-- One trace record: on the marked thread or not, timestamp (microseconds), name, elements styled, duration (microseconds). -/
+structure TraceRec where
+  onThread : Bool
+  ts : Nat
+  name : Rec
+  el : Nat
+  dur : Nat
+
+/-- A record counts iff it is a style recalculation on the marked thread inside `[t0, t1]`. -/
+def counted (t0 t1 : Nat) (r : TraceRec) : Bool :=
+  r.onThread && decide (t0 ≤ r.ts) && decide (r.ts ≤ t1) && (r.name != .other)
+
+/-- One flip window's totals: page frames, style recalculations, elements styled, recalculation time in hundredths of a ms. -/
+structure FlipTotal where
+  frames : Nat
+  recalcs : Nat
+  elements : Nat
+  centiMs : Nat
+  deriving Repr
+
+def flipTotal (frames t0 t1 : Nat) (rs : List TraceRec) : FlipTotal :=
+  let cs := rs.filter (counted t0 t1)
+  { frames, recalcs := cs.length, elements := (cs.map (·.el)).sum, centiMs := (cs.map (·.dur)).sum / 10 }
+
+theorem counted_edges (t0 t1 el dur : Nat) (n : Rec) (h : n ≠ .other) (h01 : t0 ≤ t1) :
+    counted t0 t1 ⟨true, t0, n, el, dur⟩ = true ∧ counted t0 t1 ⟨true, t1, n, el, dur⟩ = true := by
+  cases n <;> simp_all [counted]
+
+theorem counted_off_thread (t0 t1 : Nat) (r : TraceRec) (h : r.onThread = false) : counted t0 t1 r = false := by
+  simp [counted, h]
+
+theorem counted_other (t0 t1 : Nat) (r : TraceRec) (h : r.name = .other) : counted t0 t1 r = false := by
+  simp [counted, h]
+
+theorem counted_outside (t0 t1 : Nat) (r : TraceRec) (h : r.ts < t0 ∨ t1 < r.ts) : counted t0 t1 r = false := by
+  rcases h with h | h <;> simp [counted] <;> omega
+
+/-- Folding the image transforms into the column scale has a style-work reason in a band iff, in both readouts, every
+`no-transform` repetition (the bound: its transform tracks held) is strictly below every `all` repetition. Elements and time
+are separate branches; both must hold. -/
+def lowerBy (f : FlipTotal → Nat) (nt all : List FlipTotal) : Bool :=
+  nt.all fun x => all.all fun y => decide (f x < f y)
+
+def foldReason (all noTransform : List FlipTotal) : Bool :=
+  !all.isEmpty && !noTransform.isEmpty && lowerBy (·.elements) noTransform all && lowerBy (·.centiMs) noTransform all
+
+theorem foldReason_not_of_elements (all nt : List FlipTotal) (x y : FlipTotal) (hx : x ∈ nt) (hy : y ∈ all)
+    (h : y.elements ≤ x.elements) : foldReason all nt = false := by
+  have : lowerBy (·.elements) nt all = false := by
+    refine Bool.eq_false_iff.mpr fun hh => ?_
+    have h2 := List.all_eq_true.mp (List.all_eq_true.mp hh x hx) y hy
+    simp only [decide_eq_true_eq] at h2
+    omega
+  simp [foldReason, this]
+
+theorem foldReason_not_of_time (all nt : List FlipTotal) (x y : FlipTotal) (hx : x ∈ nt) (hy : y ∈ all)
+    (h : y.centiMs ≤ x.centiMs) : foldReason all nt = false := by
+  have : lowerBy (·.centiMs) nt all = false := by
+    refine Bool.eq_false_iff.mpr fun hh => ?_
+    have h2 := List.all_eq_true.mp (List.all_eq_true.mp hh x hx) y hy
+    simp only [decide_eq_true_eq] at h2
+    omega
+  simp [foldReason, this]
+
+/-- Measured flip windows, timed `geom-timed`, Chromium 156 on CI Linux, three repetitions on separate jobs
+(breakpoint-gate run 40616651357, jobs track-accel r1 to r3): (page frames, recalculations, elements, hundredths of a ms). -/
+def all390 : List FlipTotal := [⟨27, 26, 1143, 1973⟩, ⟨26, 25, 1252, 2497⟩, ⟨22, 21, 980, 1892⟩]
+def nt390 : List FlipTotal := [⟨35, 34, 1267, 2446⟩, ⟨34, 33, 1247, 2620⟩, ⟨34, 33, 1248, 2306⟩]
+def all768 : List FlipTotal := [⟨14, 14, 1279, 2648⟩, ⟨12, 12, 1022, 2122⟩, ⟨12, 12, 1148, 2472⟩]
+def nt768 : List FlipTotal := [⟨33, 33, 1899, 3476⟩, ⟨32, 32, 1967, 4560⟩, ⟨33, 33, 1927, 3748⟩]
+def all1440 : List FlipTotal := [⟨7, 7, 641, 1460⟩, ⟨8, 8, 702, 1556⟩, ⟨7, 6, 585, 1372⟩]
+def nt1440 : List FlipTotal := [⟨31, 31, 1546, 2851⟩, ⟨31, 30, 1514, 3342⟩, ⟨30, 28, 1353, 2725⟩]
+
+/-- No band gives a Chromium style-work reason to fold the image transforms. -/
+theorem no_fold_reason_any_band :
+    foldReason all390 nt390 = false ∧ foldReason all768 nt768 = false ∧ foldReason all1440 nt1440 = false := by
+  decide +kernel
+
+/-- At 768 and 1440 the `all` arm is the cheapest per flip: every `all` repetition is below every `no-transform` one, in
+elements and in time. At 390 the two ranges overlap (`all` 980 to 1252, `no-transform` 1247 to 1267 elements). -/
+theorem all_lowest_wide :
+    lowerBy (·.elements) all768 nt768 = true ∧ lowerBy (·.centiMs) all768 nt768 = true ∧
+    lowerBy (·.elements) all1440 nt1440 = true ∧ lowerBy (·.centiMs) all1440 nt1440 = true := by
+  decide +kernel
+
+theorem all_not_lowest_390 : lowerBy (·.elements) all390 nt390 = false := by decide +kernel
+
+/-- The frame counts differ by at least 3x at 768 and 1440 (`no-transform` minimum against `all` maximum). -/
+theorem frames_differ_wide :
+    (nt768.all fun x => all768.all fun y => decide (2 * y.frames < x.frames)) = true ∧
+    (nt1440.all fun x => all1440.all fun y => decide (3 * y.frames < x.frames)) = true := by
+  decide +kernel
+
 end Fw.Parts.MorphTrackAccel
