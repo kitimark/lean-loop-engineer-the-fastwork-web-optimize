@@ -122,7 +122,8 @@ export function createTimedGeom(env: TimedEnv): TimedGeom {
     dropLater();
     if (held !== null) {
       const built = held;
-      if (!env.allowed() || !env.fresh(built)) {
+      if (!env.allowed()) return false;
+      if (!env.fresh(built)) {
         env.trace?.('stale-push');
         leave();
       } else if (from === 0 && to === 1) {

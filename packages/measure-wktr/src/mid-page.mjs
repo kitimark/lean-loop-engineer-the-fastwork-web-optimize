@@ -333,6 +333,7 @@ function pageProbe(P) {
     const tw = performance.now();
     out.prewarmed = carried.length;
     out.inner = [innerWidth, innerHeight];
+    out.navBox = (() => { const r = nav().getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), document.documentElement.classList.contains('is-flip')]; })();
     while (!started() && out.wheels < 3) {
       wheel(120);
       out.wheels++;

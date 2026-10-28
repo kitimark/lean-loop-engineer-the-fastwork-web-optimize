@@ -24,6 +24,7 @@ def scenarios : List (String × List Ev) :=
   , ("warm-warm", [.warm, .warm, .push 0 1 true false, .settle 1])
   , ("warm-stale-push", [.warm, .push 0 1 true true, .settle 1, .push 1 0 true false, .settle 0])
   , ("warm-refused-push", [.warm, .push 0 1 false false, .settle 0])
+  , ("warm-refused-then-retry", [.warm, .push 0 1 false false, .push 0 1 false false, .push 0 1 true false, .settle 1])
   , ("warm-partial-push", [.warm, .push 0 (2 / 5) true false, .push (2 / 5) 1 true false, .settle 1])
   , ("warm-reduced-settle", [.warm, .settle 1, .push 0 1 true false])
   , ("warm-dispose", [.warm, .dispose])

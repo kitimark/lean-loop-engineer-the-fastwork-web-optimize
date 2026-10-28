@@ -70,7 +70,7 @@ function run(events: Ev[]) {
 }
 
 describe('createTimedGeom prewarm against the Lean lifecycle golden', () => {
-  it('has the scenarios', () => expect(lifecycle.length).toBe(11));
+  it('has the scenarios', () => expect(lifecycle.length).toBe(12));
   it('a warm holds the 0 to 1 set paused and a push only starts it', () => {
     const { c, timed } = build();
     timed.warm();

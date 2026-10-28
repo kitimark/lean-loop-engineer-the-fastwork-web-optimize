@@ -57,7 +57,8 @@ def newStep (n : Nat) (s : St) : Ev → St × Act
     else (s, ⟨0, 0, 0⟩)
   | .cool => (coolSt s, coolAct s)
   | .push f t a stale =>
-    if s.held = true ∧ a = true ∧ stale = false then
+    if s.held = true ∧ a = false then (s, ⟨0, 0, 0⟩)
+    else if s.held = true ∧ stale = false then
       if (f, t) = ((0 : Rat), (1 : Rat)) then ({ s with held := false }, ⟨0, 0, 0⟩)
       else ({ s with live := some (f, t), held := false }, ⟨n, 0, 0⟩)
     else
@@ -119,8 +120,10 @@ theorem newStep_inv (n : Nat) (s : St) (ev : Ev) (h : Inv s) : Inv (newStep n s 
   | push f t a st =>
     simp only [newStep]
     split
-    · split <;> simp_all [Inv]
-    · exact hr _
+    · exact h
+    · split
+      · split <;> simp_all [Inv]
+      · exact hr _
   | settle m => exact hr _
   | dispose => exact hr _
 
@@ -156,14 +159,20 @@ theorem sim_step (n : Nat) (s : St) (ev : Ev) (h : Inv s) :
     split
     · rename_i hw
       have hs : s.live = some (0, 1) ∧ s.tree = true ∧ s.base = 0 := h hw.1
-      split
-      · rename_i hk
-        simp only [Prod.mk.injEq] at hk
-        obtain ⟨hf, ht⟩ := hk
-        subst hf; subst ht
-        simp [proj, coolSt, refStep, hw, hs]
-      · simp [proj, coolSt, refStep, hw, hs]
-    · simp [proj_nh _ (hr _)]
+      simp [proj, coolSt, refStep, hw, hs]
+    · split
+      · rename_i hw
+        have hs : s.live = some (0, 1) ∧ s.tree = true ∧ s.base = 0 := h hw.1
+        split
+        · rename_i hk
+          simp only [Prod.mk.injEq] at hk
+          obtain ⟨hf, ht⟩ := hk
+          subst hf; subst ht
+          have ha : ¬ a = false := by simp_all
+          simp [proj, coolSt, refStep, hw, hs, ha]
+        · have ha : ¬ a = false := by simp_all
+          simp [proj, coolSt, refStep, hw, hs, ha]
+      · simp [proj_nh _ (hr _)]
   | settle m => simp [newStep, hp, proj_nh _ (hr _)]
   | dispose => simp [newStep, hp, proj_nh _ (hr _)]
 
@@ -209,12 +218,13 @@ theorem warm_then_push (n : Nat) :
   simp [newStep, clean]
 
 /-- A stale layout or a refused push falls back to the landed path: the held set is cancelled first. -/
-theorem held_stale_falls_back (n : Nat) (s : St) (h : s.held = true) (f t : Rat) (a : Bool) :
-    (newStep n s (.push f t a true)).1 = (refStep n (coolSt s) (.push f t a true)).1 := by
+theorem held_stale_falls_back (n : Nat) (s : St) (h : s.held = true) (f t : Rat) :
+    (newStep n s (.push f t true true)).1 = (refStep n (coolSt s) (.push f t true true)).1 := by
   simp [newStep, h]
 
-theorem held_refused_leaves (n : Nat) (s : St) (h : s.held = true) (f t : Rat) :
-    (newStep n s (.push f t false false)).1 = (refStep n (coolSt s) (.push f t false false)).1 := by
+/-- A refused push (the nav is not yet on the dark section) keeps the held set for the retry. -/
+theorem held_refused_keeps (n : Nat) (s : St) (h : s.held = true) (f t : Rat) (stale : Bool) :
+    newStep n s (.push f t false stale) = (s, ⟨0, 0, 0⟩) := by
   simp [newStep, h]
 
 /-- Every way out of a held set ends at the base page. -/
@@ -236,10 +246,12 @@ theorem newStep_live (n : Nat) (s : St) (ev : Ev) (h : Inv s) (hl : Live s) : Li
   | push f t a st =>
     simp only [newStep]
     split
-    · rename_i hw
-      have := (h hw.1).2.1
-      split <;> simp_all [Live]
-    · exact hr _ hc _
+    · exact hl
+    · split
+      · rename_i hw
+        have := (h hw.1).2.1
+        split <;> simp_all [Live]
+      · exact hr _ hc _
   | settle m => exact hr _ hc _
   | dispose => exact hr _ hc _
 
