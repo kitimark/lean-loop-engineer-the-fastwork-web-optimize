@@ -1,8 +1,9 @@
 import Fw.Parts.MorphGeomAnim
 /-! Which `morph.geom` Web Animation tracks run on the compositor, per engine and per driving mode.
 
-A track runs on the compositor only if two gates are open: the animation is Running (play-state gate) and its property is
-one the engine moves off the main thread (property gate). Pinned sources:
+A track runs on the compositor only if three gates are open: the animation is Running (play-state gate), its property is
+one the engine moves off the main thread (property gate), and, in Chromium, its keyframes change a value (constant gate).
+Pinned sources:
 
 * WebKit 862f17d, `Source/WebCore/animation/KeyframeEffect.cpp`: `updateAcceleratedActions` (:2060-2106) queues
   `AcceleratedAction::Play` only while `playState() == Running` and the effect is in its active phase (:2078-2082); a
@@ -22,7 +23,8 @@ one the engine moves off the main thread (property gate). Pinned sources:
 The two drivers: `morph.geom:on` creates every track paused and writes `currentTime` each frame (`driver.ts`); with
 `morph.tween:geom-timed` every track is a running animation whose `startTime` is set once (`geom-timed.driver.ts`).
 Per-element checks that need a live document (an incompatible animation on the same element, a layer the renderer did
-not composite) are not modelled here; the CI probe reads them. -/
+not composite, a target the page does not paint: `compositor_animations.cc:491-494,514-570@f842f52`) are not modelled
+here; the CI probe reads them. -/
 namespace Fw.Parts.MorphTrackAccel
 open Fw.Parts.Nav Fw.Parts.MorphGeom Fw.Engine.TransitionStart
 
