@@ -40,7 +40,7 @@ export function laneReason(msgs: string[], runs: string[], nonMeasuring: string[
   const required = requiredLanes(msgs);
   const missing = required.filter((n) => !runs.includes(n));
   const measuring = runs.filter((n) => !nonMeasuring.includes(n));
-  const reason: LaneReason = sameTree ? "same-tree" : missing.length ? "missing" : required.length === 0 && measuring.length === 0 ? "no-measuring" : "ok";
+  const reason: LaneReason = sameTree ? "same-tree" : missing.length ? "missing" : measuring.length === 0 ? "no-measuring" : "ok";
   return { reason, required, missing, measuring };
 }
 
@@ -86,7 +86,7 @@ export async function laneRefusal(cwd: string, base: string, sha: string, remote
       "no-measuring": "the tip message names no lane whose inputs changed, so only the seeder lane would run" }[v.reason];
     const fix = { "same-tree": "commit the change the lane should measure, then push",
       missing: v.missing.map((n) => (il.lanes.some((l) => l.name === n) ? `put ${tok(n)} in the tip message and change a file ${n} reads` : `${n} is no lane (lanes: ${il.lanes.map((l) => l.name).join(", ")})`)).join("; "),
-      "no-measuring": `name a lane in the tip message, e.g. ${tok(il.lanes.find((l) => !l.byDefault)?.name ?? "wktr")}, and change a file it reads (or add [lanes: lean] to a commit if only lean should run)` }[v.reason];
+      "no-measuring": `name a lane in the tip message, e.g. ${tok(il.lanes.find((l) => !l.byDefault)?.name ?? "wktr")}, and change a file it reads` }[v.reason];
     return `REFUSED: ci push lane check: ${name} (${sha.slice(0, 7)}): ${what}\n  lanes that would run: ${runs.length ? runs.join(", ") : "none"}\n  ${fix}`;
   } catch (e) {
     console.error(`ci push lane check skipped (cannot decide): ${String((e as Error).message ?? e).split("\n")[0]}`);

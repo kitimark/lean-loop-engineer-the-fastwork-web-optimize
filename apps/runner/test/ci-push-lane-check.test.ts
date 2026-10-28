@@ -47,6 +47,25 @@ describe("Lean golden replay (Fw.Ci.Intent reason)", () => {
     }
   });
 
+  it("the hook's own input path (preciseInputs globs) gives Lean's verdict on every case", async () => {
+    const g = (await import(pathToFileURL(join(ROOT, ".github/scripts/changed-inputs.mjs")).href)) as {
+      loadIntent(r: string): { lanes: { prefix: string; lanes: { file: string; name: string; token: string; byDefault: boolean }[] } };
+      preciseInputs(r: string, f: string): string[] | null;
+      decide(a: Record<string, unknown>): { run: boolean };
+    };
+    const { lanes: il } = g.loadIntent(ROOT);
+    const nonMeasuring = il.lanes.filter((l) => head.seeders.includes(l.file)).map((l) => l.name);
+    for (const c of cases) {
+      const files = c.diff.filter((f) => !c.merged.includes(f));
+      const runs = il.lanes
+        .filter((l) => g.decide({ event: "push", ref: "refs/heads/ci/x", files, globs: g.preciseInputs(ROOT, l.file) ?? [], msg: c.msgs[0] ?? "", lane: { ...l, prefix: il.prefix }, tip: true, landed: c.landed }).run)
+        .map((l) => l.name);
+      const v = laneReason(c.msgs, runs, nonMeasuring, files.length === 0);
+      expect(v.reason, c.name).toBe(c.reason);
+      expect(v.measuring, c.name).toEqual(c.measuring);
+    }
+  });
+
   it("the trailer parser", () => {
     expect(lanesTrailer("x [lanes: wktr, Breakpoint-Gate]\n[lanes:lean]")).toEqual(["wktr", "breakpoint-gate", "lean"]);
     expect(lanesTrailer("[lanes: wktr")).toEqual([]);
@@ -124,12 +143,13 @@ describe("ci push lane check (the hook)", () => {
     expect(r.stderr).not.toContain("the task requires wktr");
   });
 
-  it("passes a lean-only task, and refuses an unknown required lane", () => {
+  it("(b) refuses a lean-only task whatever its [lanes: lean] trailer says, and refuses an unknown required lane", () => {
     const { push, commit, remoteHas } = setup();
     commit("lean/Fw/Wire.lean", "lean only\n\n[lanes: lean]");
     const r = push("ci/x");
-    expect(r.stderr).not.toContain("lane check");
-    expect(remoteHas("refs/heads/ci/x")).toBe(true);
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain("only the seeder lane would run");
+    expect(remoteHas("refs/heads/ci/x")).toBe(false);
     commit("lean/Fw/Wire2.lean", "[ci:wktr] more\n\n[lanes: nope]");
     const u = push("ci/x");
     expect(u.status).not.toBe(0);

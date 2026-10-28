@@ -21,7 +21,7 @@ that already equal main. First match wins:
 `started_requested` that a lane other than `lean` starts only when the tip names it; `same_tree_no_measuring` that (a) leaves only
 the default lane, which is a seeder.
 
-A branch that requires lanes is judged on them alone, so `[lanes: lean]` lets a Lean-only task push for the lean seeder.
+A push whose tip selects no measuring lane is refused whatever a `[lanes: ...]` trailer says (round 2 of the review): the trailer may add required lanes (case c) but never satisfies case (b). A Lean-only task needs no ci push.
 
 ## Identity of the required lanes
 

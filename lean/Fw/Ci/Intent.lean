@@ -38,7 +38,7 @@ reads `waitLanes` and passes only with a pass of lean and of every requested lan
 
 Round 6 (`ci-push-lane-check`): the `ci/**` pre-push hook refuses a push that would run no measuring lane, before it
 leaves the machine (`reason`, `refuse_iff`: the tree equals `main`'s, a lane the branch requires with `[lanes: ...]`
-does not start, or nothing is required and only a seeder starts; `main_never_refused`).
+does not start, or only a seeder starts, whatever a trailer says; `main_never_refused`).
 
 Golden: `packages/contracts/golden/ci/intent.jsonl` (the lanes with their `if:`, the re-check steps, the replay
 cases, the gate vectors and the push vectors) and `packages/contracts/golden/ci/pushlane.jsonl` (the push lane
@@ -607,20 +607,19 @@ lanes) and `meas` (started non-seeder lanes). -/
 def reasonOf (same : Bool) (miss req meas : List String) : Reason :=
   if same then .sameTree
   else if !miss.isEmpty then .missing
-  else if req.isEmpty && meas.isEmpty then .noMeasuring
+  else if meas.isEmpty then .noMeasuring
   else .ok
 
 /-- **`reasonOf` refuses exactly in the three cases.** -/
 theorem reasonOf_ne_ok (same : Bool) (miss req meas : List String) :
-    reasonOf same miss req meas ≠ .ok ↔ same = true ∨ miss ≠ [] ∨ (req = [] ∧ meas = []) := by
+    reasonOf same miss req meas ≠ .ok ↔ same = true ∨ miss ≠ [] ∨ meas = [] := by
   unfold reasonOf
   by_cases a : same = true <;> by_cases b : miss = [] <;> by_cases c : req = [] <;> by_cases d : meas = [] <;>
     simp [a, b, c, d]
 
 /-- **The pre-push verdict.** `msgs` are the commit messages of `origin/main..tip`, the tip first. In this order:
-the tree equals `main`'s (`sameTree`); a required lane is not started (`missing`); no lane is required and no
-non-seeder lane starts (`noMeasuring`); else `ok`. A branch that requires lanes is judged on them alone, so a task that
-requires only `lean` may push for the seeder. -/
+the tree equals `main`'s (`sameTree`); a required lane is not started (`missing`); no non-seeder lane starts
+(`noMeasuring`, whatever the `[lanes: ...]` trailer says); else `ok`. A trailer may add required lanes, never satisfy `noMeasuring`. -/
 def reason (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
     (landed : Bool) : Reason :=
   reasonOf (sameTree diff differs) (missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs))
@@ -651,13 +650,13 @@ theorem main_never_refused (S : String → List String) (msgs : List String) (di
   pushRefused_only_ci _ S msgs diff differs landed (by decide +kernel)
 
 /-- **A refused push is exactly one of three cases.** The tree equals `main`'s, or a required lane is not
-started, or nothing is required and no non-seeder lane starts. -/
+started, or no non-seeder lane starts. -/
 theorem refuse_iff (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
     (landed : Bool) :
     refuseNoLane S msgs diff differs landed = true ↔
       sameTree diff differs = true ∨
       missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs) ≠ [] ∨
-      (requiredLanes msgs = [] ∧ measuringNames S (tipOf msgs) diff differs landed = []) := by
+      measuringNames S (tipOf msgs) diff differs landed = [] := by
   unfold refuseNoLane reason
   rw [bne_iff_ne]
   exact reasonOf_ne_ok _ _ _ _
@@ -675,23 +674,22 @@ theorem refuse_missing (S : String → List String) (msgs : List String) (diff :
     refuseNoLane S msgs diff differs landed = true :=
   (refuse_iff ..).mpr (Or.inr (Or.inl h))
 
-/-- **Case (b): nothing required and no non-seeder lane starts.** -/
+/-- **Case (b): no non-seeder lane starts, whatever is required.** -/
 theorem refuse_no_measuring (S : String → List String) (msgs : List String) (diff : List String)
-    (differs : String → Bool) (landed : Bool) (hr : requiredLanes msgs = [])
+    (differs : String → Bool) (landed : Bool) 
     (hm : measuringNames S (tipOf msgs) diff differs landed = []) :
     refuseNoLane S msgs diff differs landed = true :=
-  (refuse_iff ..).mpr (Or.inr (Or.inr ⟨hr, hm⟩))
+  (refuse_iff ..).mpr (Or.inr (Or.inr hm))
 
-/-- **A push passes only if its tree differs, every required lane starts, and a lane is required or starts.** -/
+/-- **A push passes only if its tree differs, every required lane starts, and a non-seeder lane starts.** -/
 theorem accept_iff (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
     (landed : Bool) :
     refuseNoLane S msgs diff differs landed = false ↔
       sameTree diff differs = false ∧
       missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs) = [] ∧
-      (requiredLanes msgs ≠ [] ∨ measuringNames S (tipOf msgs) diff differs landed ≠ []) := by
+      measuringNames S (tipOf msgs) diff differs landed ≠ [] := by
   rw [← Bool.not_eq_true, refuse_iff]
-  simp only [not_or, not_and, ne_eq, Bool.not_eq_true]
-  by_cases hr : requiredLanes msgs = [] <;> simp [hr]
+  simp [not_or]
 
 /-- **A lane token whose lane has an input in the diff runs that lane.** If the tip names the lane, the commit is the
 tip and not on `main`, and a file that differs from `main` is an input of the lane's workflow (its path filter
@@ -917,7 +915,7 @@ def pushLaneCases : List (String × List String × List String × List String ×
     false),
   ("task requires wktr and lean, both start", ["[ci:wktr]", "[lanes: wktr, lean]"],
     ["packages/measure-wktr/src/a.mjs", "lean/Fw/Wire.lean"], [], false),
-  ("task requires only lean: the seeder is enough", ["fix x", "[lanes: lean]"], ["lean/Fw/Wire.lean"], [], false),
+  ("task requires only lean: the seeder is no measuring lane", ["fix x", "[lanes: lean]"], ["lean/Fw/Wire.lean"], [], false),
   ("task requires an unknown lane", ["[ci:wktr]", "[lanes: nope]"], ["packages/measure-wktr/src/a.mjs"], [], false),
   ("upper case token and trailer", ["[CI:WKTR]", "[LANES: WKTR]"], ["packages/measure-wktr/src/a.mjs"], [], false),
   ("a longer name is not the shorter lane", ["[ci:wktr-fixtures]", "[lanes: wktr]"],
@@ -948,7 +946,7 @@ def pushLaneText (_ : Unit := ()) : String :=
 
 #guard (pushLaneCases.map fun (_, m, d, e, l) =>
   (reason (setMap sampleCone) m d (fun x => !e.contains x) l).tag) ==
-  ["same-tree", "same-tree", "no-measuring", "ok", "no-measuring", "missing", "ok", "ok", "ok", "missing", "ok",
+  ["same-tree", "same-tree", "no-measuring", "ok", "no-measuring", "missing", "ok", "ok", "no-measuring", "missing", "ok",
     "missing", "no-measuring", "no-measuring", "ok"]
 
 /-- The golden text. -/
