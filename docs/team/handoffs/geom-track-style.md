@@ -1,7 +1,7 @@
 # geom-track-style handoff (graph r552)
 
 Branch worktree-wf_ee9ffcfe-af8-1, worktree .claude/worktrees/wf_ee9ffcfe-af8-1 (under the main checkout), last commit c0c08b81b (+ later), CI branch ci/geom-track-style.
-CI runs: push 1 (7a177f5f4): lean 40611977358 FAILED (overflow golden, fixed in 9e416d653); breakpoint-gate 40611977476 FAILED only in flip-cell playwright-webkit morph.geom:on (site-side flake, not the probe; the 3 track-accel jobs r1..r3 passed); wktr 40611977559 CANCELLED after j1, j2 finished (j3 lost). Push 2: not sent yet (1 of 2 left after it).
+CI runs: push 1 (7a177f5f4): lean 40611977358 FAILED (overflow golden, fixed in 9e416d653); breakpoint-gate 40611977476 FAILED only in flip-cell playwright-webkit morph.geom:on (site-side flake, not the probe; the 3 track-accel jobs r1..r3 passed); wktr 40611977559 CANCELLED after j1, j2 finished (j3 lost). Push 2 (1b00b7447, Lean constant gate, invalidation tracking, WebKit early readout): lean 40616651280, breakpoint-gate 40616651357, wktr 40616651419, all running at 08:50; 1 push left. check.sh green at c0c08b81b.
 
 Verified from push-1 artifacts (track-accel-r1..r3, wktr-j1, j2; scratch in the session scratchpad gts/):
 - Chromium scrubbed (390/768/1440): 0 failures named, 0 cc starts added, tracks stay paused: nothing on the compositor (Lean: notPlaying).
