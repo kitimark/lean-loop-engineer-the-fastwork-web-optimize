@@ -207,8 +207,6 @@ theorem frames_differ_wide :
     (nt1440.all fun x => all1440.all fun y => decide (3 * y.frames < x.frames)) = true := by
   decide +kernel
 
-/-! ## Mid-flip tick rule (WebKit) -/
-
 structure Eff where
   pending : Bool
   running : Bool
@@ -220,7 +218,7 @@ structure Eff where
   disallowed : Bool
   deriving DecidableEq, Repr
 
--- WebKit 862f17d `KeyframeEffect.cpp:2724-2744` (the effect of every geom track changes a style property)
+-- WebKit 862f17d `KeyframeEffect.cpp:2724-2744`
 def ticksContinuously (s : Eff) : Bool :=
   s.rendered && (if s.complete && s.accel then s.threaded && s.disallowed else true)
 
@@ -291,7 +289,6 @@ theorem tickOf_main_iff (s : Eff) : tickOf s = .main ↔ ticksMain s = true ∧ 
     cases hc : s.complete <;> cases hx : s.accel <;> cases ht : s.threaded <;> cases hd : s.disallowed <;>
     simp [tickOf, ticksMain, ticksContinuously, hp, hr, ha, hv, hc, hx, ht, hd]
 
-/-- The mid-flip sample bins of a track's phase in permille of the tween: 30, 50 and 80 percent, none outside the tween. -/
 def binOf (permille : Nat) : Option Nat :=
   if permille == 0 || 1000 ≤ permille then none
   else if permille < 400 then some 30
@@ -310,18 +307,15 @@ theorem binOf_none_iff (p : Nat) : binOf p = none ↔ p = 0 ∨ 1000 ≤ p := by
 def readsAccel (norm : String → String) (prop : String) (reported : List String) : Bool :=
   reported.any fun r => norm r == norm prop
 
-/-- Names are compared lower-cased with every non-letter dropped (`backdropFilter` and `backdrop-filter` agree). -/
 def normName (s : String) : String := String.ofList ((s.toList.filter Char.isAlpha).map Char.toLower)
 
 #guard normName "backdrop-filter" == normName "backdropFilter"
 #guard readsAccel normName "translate" ["Translate", "opacity"] && !readsAccel normName "scale" ["translate"]
-/-- The Core Animation path (threaded animations off) reports `translate`, `scale` and `rotate` animations as `transform`
-(GraphicsLayer.cpp:103-124@862f17d), so those four names are one class when the entries of an element are matched to its tracks. -/
+-- GraphicsLayer.cpp:103-124@862f17d
 def classOf (norm : String → String) (p : String) : String :=
   let n := norm p
   if n == "translate" || n == "scale" || n == "rotate" || n == "transform" then "transform" else n
 
-/-- A track of an element reads accelerated when the element reports at least as many entries of its class as it has tracks of that class. -/
 def readsAccelCls (norm : String → String) (prop : String) (reported : List String) (tracks : Nat) : Bool :=
   decide (0 < tracks) && decide (tracks ≤ (reported.filter fun r => classOf norm r == classOf norm prop).length)
 

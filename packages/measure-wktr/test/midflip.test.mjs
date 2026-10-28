@@ -4,9 +4,6 @@ import { binOf, classOf, effOf, frameSummary, midSummary, normName, oracleTicks,
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { headerOf, isMid, MID_ARMS, MID_AT, THREADED_OFF } from '../src/accel-cli.mjs';
 
-// TS STAND-IN: src/midflip.mjs mirrors lean/Fw/Parts/MorphTrackAccel.lean. The Lean golden packages/contracts/golden/parts/morph-track-accel.jsonl
-// (256 tick, 12 bin, 3 name, 8 cls lines, checked by lean/scripts/check.sh) is not replayed here: that needs a land.ts read declaration outside
-// this task's writes. The cases below are one per OR-branch of the Lean rule and the Lean #guards.
 const E = (pending, running, active, rendered, complete, accel, threaded, disallowed) => ({ pending, running, active, rendered, complete, accel, threaded, disallowed });
 
 test('the tick rule, one case per OR-branch of the Lean predicate', () => {

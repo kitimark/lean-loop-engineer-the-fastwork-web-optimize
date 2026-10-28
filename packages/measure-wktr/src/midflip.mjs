@@ -1,7 +1,3 @@
-// Mid-flip readout of the geom-timed tracks in WebKitTestRunner (task geom-webkit-midflip). The tick rule is the Lean
-// Fw.Parts.MorphTrackAccel (ticksContinuously, ticksMain, tickOf, binOf, normName, classOf, readsAccelCls). TS STAND-IN: the Lean golden
-// packages/contracts/golden/parts/morph-track-accel.jsonl is not replayed in test/midflip.test.mjs (that needs a land.ts read declaration).
-
 export const ticksContinuously = (s) => s.rendered && (s.complete && s.accel ? s.threaded && s.disallowed : true);
 
 export const ticksMain = (s) => s.pending || (s.running && s.active && ticksContinuously(s));
@@ -21,13 +17,11 @@ export function binOf(permille) {
 
 export const normName = (s) => String(s).split('').filter((c) => /[A-Za-z]/.test(c)).join('').toLowerCase();
 
-/** Lean `classOf`: the Core Animation path reports translate, scale and rotate animations as `transform` (GraphicsLayer.cpp:103-124@862f17d). */
+// GraphicsLayer.cpp:103-124@862f17d
 export const classOf = (p) => { const n = normName(p); return n === 'translate' || n === 'scale' || n === 'rotate' || n === 'transform' ? 'transform' : n; };
 
-/** Lean `readsAccelCls`: the element reports at least as many entries of the class as it has tracks of that class. */
 export const readsAccelCls = (prop, reported, tracks) => tracks > 0 && tracks <= reported.filter((r) => classOf(r) === classOf(prop)).length;
 
-/** The Lean inputs of one track readout. `complete` holds for the six geom properties (INFERRED, KeyframeEffect.cpp:1764-1768@862f17d); `disallowed` is not readable, so false. */
 export function effOf(row, ph, rendered, threaded, prop) {
   return {
     pending: row.p === 1,
@@ -41,7 +35,7 @@ export function effOf(row, ph, rendered, threaded, prop) {
   };
 }
 
-/** The engine's own answer: WebAnimation::timeToNextTick (WebAnimation.cpp:1917-1929@862f17d) below the animation interval means a tick every frame. */
+// WebAnimation.cpp:1917-1929@862f17d
 const accelOf = (row, prop) => (Array.isArray(row.e) && typeof row.tc === 'number' && prop ? readsAccelCls(prop, row.e, row.tc) : row.a === 1);
 
 export const oracleTicks = (ttnt, intervalSec) => (ttnt === 'inf' ? false : typeof ttnt === 'number' && typeof intervalSec === 'number' ? ttnt < intervalSec * 1000 : null);
@@ -49,7 +43,7 @@ export const oracleTicks = (ttnt, intervalSec) => (ttnt === 'inf' ? false : type
 
 const GROUP = (t) => t.prop;
 
-/** The ThreadedTimeBasedAnimations state the run shows: an accelerated-animation entry from the effect stack is `isThreaded` true, a Core Animation one false (GraphicsLayerCA.cpp:5299-5330@862f17d). */
+// GraphicsLayerCA.cpp:5299-5330@862f17d
 export function prefOf(report) {
   for (const row of report.rows) for (const s of row.samples ?? []) for (const r of s.rows) if (r.th === true || r.th === false) return r.th;
   for (const row of report.rows) for (const e of row.early ?? []) for (const r of e.rows) if (r.threaded === true || r.threaded === false) return r.threaded;
@@ -58,7 +52,6 @@ export function prefOf(report) {
 
 const blank = () => ({ n: 0, running: 0, pending: 0, accel: 0, unrendered: 0, accelCls: 0, oracleTicks: 0, oracleQuiet: 0, oracleNone: 0, leanTicks: 0, agree: 0 });
 
-/** Per arm and sample: counts of the tracks per group (css property) by the engine's tick answer and the Lean rule. */
 export function midSummary(report) {
   const tags = new Map(report.tags.map((t) => [t.id, t]));
   const pref = prefOf(report);
@@ -94,7 +87,6 @@ export function midSummary(report) {
 
 const median = (xs) => (xs.length ? [...xs].sort((a, b) => a - b)[xs.length >> 1] : null);
 
-/** Per arm: frames of the flip window, style recalcs per frame (differences of the cumulative `rc`), lastStyleUpdateSize per frame and timeline invalidations. */
 export function frameSummary(report) {
   return report.rows.map((row) => {
     const fr = row.frames ?? [];

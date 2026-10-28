@@ -71,7 +71,7 @@ Run 1 (40626070244) agrees: idle 0 elements in 125 frames; flip arms one frame o
 
 ## Does it explain the phone's 348 of 396 long frames? (INFERRED, no phone data here)
 Reference: `research/notes/2026/10-2x-phone-flip-p95.md` (geom-timed: 396 long frames, 348 of them `RecalculateStyles`, 45 ms of style per long frame against
-10 ms in the base). On the phone the pref is OFF (source), where my OFF samples show committed tracks accelerated and quiet. Therefore:
+10 ms in the base). On the phone the pref is OFF (source), where my OFF samples show committed tracks accelerated and quiet.
 - Not explained by ticking tracks after the first commit: the engine reports 0 continuously ticking flip tracks once they are accelerated (MEASURED, WKTR).
 - Not explained by the sweepDoc animations alone: they tick in the base arm too (10 ms style per long frame there, 423 long frames).
 - Left as INFERRED candidates: (a) style cost per recalc grows with the flip's layer and animation count (55 tracks over 91 listed animations) while the same
@@ -80,13 +80,12 @@ Reference: `research/notes/2026/10-2x-phone-flip-p95.md` (geom-timed: 396 long f
 
 ## Limits
 - WKTR is not iOS Safari: its frame clock is slow (first frame after creation 220 to 650 ms late, 3 to 30 frames per 700 ms, one hole of 1.7 s), so
-  per-frame cost at 60 Hz is not visible and no recalc duration is read. Sampling is by animation phase through rAF plus a 4 ms poll, which is why mid-flip
-  samples exist at all. The hidden-element and `before` samples are outside the rule.
+  per-frame cost at 60 Hz is not visible and no recalc duration is read. Sampling is by animation phase through rAF plus a 4 ms poll. The hidden-element and `before` samples are outside the rule.
 - The iOS pref default is read from source, not from a shipped build. The archive is WebKit 324039@main, the source pin 862f17d.
 - Run 1 gave 3 to 8 active-phase samples per job (18 in one OFF job; late first frame), so its table is not used for verdicts.
 
 ## Proposed next step (INFERRED effect; CI cannot show per-frame 60 Hz cost)
-A phone run is the next step (the lead arranges it): arms flip and flip + a measurement-only probe `sweep:probe-paused` (`animation-play-state: paused` on the 4
+A phone run: arms flip and flip + a measurement-only probe `sweep:probe-paused` (`animation-play-state: paused` on the 4
 `sweepDoc` spans during a push; a probe, never promoted, because it changes the look). If style per long frame in the flip arm falls toward the base value, the
 fix task is `geom-sweep-compositor`: express the sweep as a transform or opacity track (same look, checked by the visual-sameness harness) so the 2 recalcs
 per frame disappear for the base and the flip. Expected effect INFERRED: the base and flip style counts (1237 and ~800 per visit) fall by the sweep share;
@@ -94,5 +93,4 @@ this share is not known from CI. If the style per long frame stays at 45 ms with
 pre-created paused track set (created at idle, started by `currentTime`), whose pending first frame the WKTR flush samples already show.
 
 ## Negative and general lesson
-Predicting "tracks run on the main thread" from the pref alone was wrong for committed tracks: with the pref OFF the tracks are accelerated and quiet; the
-only window in which they tick is before the first commit. A probe that reads layers must fold property classes the way the engine does (Lean `classOf`).
+The pref alone does not predict main-thread tracks: with the pref OFF, committed tracks are accelerated and quiet, and they tick only before the first commit. A probe that reads layers must fold property classes the way the engine does (Lean `classOf`).
