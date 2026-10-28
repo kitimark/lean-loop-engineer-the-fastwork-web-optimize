@@ -207,4 +207,116 @@ theorem frames_differ_wide :
     (nt1440.all fun x => all1440.all fun y => decide (3 * y.frames < x.frames)) = true := by
   decide +kernel
 
+/-! ## Mid-flip tick rule (WebKit) -/
+
+structure Eff where
+  pending : Bool
+  running : Bool
+  active : Bool
+  rendered : Bool
+  complete : Bool
+  accel : Bool
+  threaded : Bool
+  disallowed : Bool
+  deriving DecidableEq, Repr
+
+-- WebKit 862f17d `KeyframeEffect.cpp:2724-2744` (the effect of every geom track changes a style property)
+def ticksContinuously (s : Eff) : Bool :=
+  s.rendered && (if s.complete && s.accel then s.threaded && s.disallowed else true)
+
+-- WebKit 862f17d `WebAnimation.cpp:1917-1929`, `AnimationEffect.cpp:385-396`
+def ticksMain (s : Eff) : Bool := s.pending || (s.running && s.active && ticksContinuously s)
+
+inductive Tick where
+  | pending | quiet | accelerated | main
+  deriving DecidableEq, Repr
+
+def Tick.name : Tick → String
+  | .pending => "pending" | .quiet => "quiet" | .accelerated => "accelerated" | .main => "main"
+
+def tickOf (s : Eff) : Tick :=
+  if s.pending then .pending
+  else if !(s.running && s.active) then .quiet
+  else if !ticksContinuously s then .accelerated
+  else .main
+
+def timelineTicks (ss : List Eff) : Bool := ss.any ticksMain
+
+def tickingTracks (ss : List Eff) : Nat := ss.countP ticksMain
+
+theorem ticksMain_pending (s : Eff) (h : s.pending = true) : ticksMain s = true := by
+  simp [ticksMain, h]
+
+theorem ticksMain_not_running (s : Eff) (hp : s.pending = false) (h : s.running = false) : ticksMain s = false := by
+  simp [ticksMain, hp, h]
+
+theorem ticksMain_not_active (s : Eff) (hp : s.pending = false) (h : s.active = false) : ticksMain s = false := by
+  simp [ticksMain, hp, h]
+
+theorem ticksMain_unrendered (s : Eff) (hp : s.pending = false) (h : s.rendered = false) : ticksMain s = false := by
+  simp [ticksMain, ticksContinuously, hp, h]
+
+theorem ticksMain_unaccelerated (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (hv : s.rendered = true) (h : s.accel = false) : ticksMain s = true := by
+  simp [ticksMain, ticksContinuously, hp, hr, ha, hv, h]
+
+theorem ticksMain_incomplete (s : Eff) (hp : s.pending = false) (hr : s.running = true) (ha : s.active = true)
+    (hv : s.rendered = true) (h : s.complete = false) : ticksMain s = true := by
+  simp [ticksMain, ticksContinuously, hp, hr, ha, hv, h]
+
+theorem ticksMain_accelerated_plain (s : Eff) (hp : s.pending = false) (hc : s.complete = true) (h : s.accel = true)
+    (ht : s.threaded = false) : ticksMain s = false := by
+  simp [ticksMain, ticksContinuously, hp, hc, h, ht]
+
+theorem ticksMain_accelerated_threaded_clean (s : Eff) (hp : s.pending = false) (hc : s.complete = true)
+    (h : s.accel = true) (hd : s.disallowed = false) : ticksMain s = false := by
+  simp [ticksMain, ticksContinuously, hp, hc, h, hd]
+
+theorem ticksMain_accelerated_threaded_disallowed (s : Eff) (hp : s.pending = false) (hr : s.running = true)
+    (ha : s.active = true) (hv : s.rendered = true) (hc : s.complete = true) (h : s.accel = true)
+    (ht : s.threaded = true) (hd : s.disallowed = true) : ticksMain s = true := by
+  simp [ticksMain, ticksContinuously, hp, hr, ha, hv, hc, h, ht, hd]
+
+theorem timelineTicks_of_mem (ss : List Eff) (s : Eff) (h : s ∈ ss) (ht : ticksMain s = true) : timelineTicks ss = true := by
+  simp only [timelineTicks, List.any_eq_true]
+  exact ⟨s, h, ht⟩
+
+theorem timelineTicks_quiet (ss : List Eff) (h : ∀ s ∈ ss, ticksMain s = false) : timelineTicks ss = false := by
+  simp only [timelineTicks, List.any_eq_false]
+  intro s hs
+  simp [h s hs]
+
+theorem tickOf_main_iff (s : Eff) : tickOf s = .main ↔ ticksMain s = true ∧ s.pending = false := by
+  cases hp : s.pending <;> cases hr : s.running <;> cases ha : s.active <;> cases hv : s.rendered <;>
+    cases hc : s.complete <;> cases hx : s.accel <;> cases ht : s.threaded <;> cases hd : s.disallowed <;>
+    simp [tickOf, ticksMain, ticksContinuously, hp, hr, ha, hv, hc, hx, ht, hd]
+
+/-- The mid-flip sample bins of a track's phase in permille of the tween: 30, 50 and 80 percent, none outside the tween. -/
+def binOf (permille : Nat) : Option Nat :=
+  if permille == 0 || 1000 ≤ permille then none
+  else if permille < 400 then some 30
+  else if permille < 650 then some 50
+  else some 80
+
+theorem binOf_none_iff (p : Nat) : binOf p = none ↔ p = 0 ∨ 1000 ≤ p := by
+  unfold binOf
+  simp only [Bool.or_eq_true, beq_iff_eq, decide_eq_true_eq]
+  by_cases h : p = 0 ∨ 1000 ≤ p
+  · simp [h]
+  · have h1 : ¬ p = 0 := fun e => h (Or.inl e)
+    have h2 : ¬ 1000 ≤ p := fun e => h (Or.inr e)
+    by_cases a : p < 400 <;> by_cases b : p < 650 <;> simp [h, a, b]
+
+def readsAccel (norm : String → String) (prop : String) (reported : List String) : Bool :=
+  reported.any fun r => norm r == norm prop
+
+/-- Names are compared lower-cased with every non-letter dropped (`backdropFilter` and `backdrop-filter` agree). -/
+def normName (s : String) : String := String.ofList ((s.toList.filter Char.isAlpha).map Char.toLower)
+
+#guard normName "backdrop-filter" == normName "backdropFilter"
+#guard readsAccel normName "translate" ["Translate", "opacity"] && !readsAccel normName "scale" ["translate"]
+#guard ticksMain ⟨false, true, true, true, true, true, false, false⟩ == false
+#guard ticksMain ⟨false, true, true, true, true, false, false, false⟩ == true
+#guard ticksMain ⟨true, false, false, true, true, true, false, false⟩ == true
+
 end Fw.Parts.MorphTrackAccel
