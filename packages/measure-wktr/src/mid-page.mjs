@@ -316,7 +316,7 @@ function pageProbe(P) {
   // Task geom-sweep-paused. Arms `sw-<warm|flip|idle>[-p][-t]`: -p pauses exactly the sweepDoc animations (CSSAnimation named sweepDoc whose
   // target sits in section[data-fw=platform]) before the window and plays them after; -t adds a forced style flush and a forced layout flush
   // at the start of every frame callback and times each one. Plain arms are unperturbed (recalcs per frame); -t arms give the style and layout ms.
-  const SW_ARM = /^sw-(warm|flip|idle)(-p)?(-t)?$/;
+  const SW_ARM = /^sw-(warm|flip|idle)(-[pao])?(-t)?$/;
   const sweepAnims = () => {
     const sec = document.querySelector('[data-fw="platform"]');
     const all = document.getAnimations();
@@ -377,7 +377,16 @@ function pageProbe(P) {
       updSum: updSum, updMax: updMax, list: list,
     };
   };
-  const sweepArm = async (arm, kind, paused, timing) => {
+  // Diagnostic sets (INFERRED attribution only, not part of the Lean decision): -a pauses every running document animation, -o every running one except sweepDoc.
+  const animInv = (all) => all.map((a) => {
+    const e = a.effect, t = e && e.target;
+    const tg = t ? (t.localName || '') + '.' + String(t.className && t.className.baseVal !== undefined ? t.className.baseVal : t.className || '').slice(0, 40) : null;
+    let tm = null;
+    try { tm = e ? e.getComputedTiming().iterations : null; } catch (x) { tm = null; }
+    return [a.constructor.name, a.animationName || a.transitionProperty || a.id || '', tg, a.playState, tm === Infinity ? 'inf' : tm];
+  });
+  const sweepArm = async (arm, kind, setCh, timing) => {
+    const paused = setCh === '-p';
     X.arm = arm;
     X.suppress = new Set();
     X.created.length = 0;
@@ -386,8 +395,16 @@ function pageProbe(P) {
     await sleep(300);
     const sa = sweepAnims();
     out.sw.ident = sa.ident;
-    if (paused) {
-      for (const a of sa.hit) a.pause();
+    let toPause = paused ? sa.hit : [];
+    if (setCh === '-a' || setCh === '-o') {
+      const all = document.getAnimations();
+      out.sw.inv = animInv(all);
+      toPause = all.filter((a) => a.playState === 'running' && (setCh === '-a' || !sa.hit.includes(a)));
+      out.sw.set = setCh;
+      out.sw.pausedN = toPause.length;
+    }
+    if (toPause.length) {
+      for (const a of toPause) a.pause();
       await raf(); await raf(); await sleep(250);
     }
     out.sw.states = sa.hit.map((a) => a.playState);
@@ -412,7 +429,7 @@ function pageProbe(P) {
         out.stages.push(await swWindow(arm, false, tw, timing));
       }
     }
-    if (paused) for (const a of sa.hit) a.play();
+    for (const a of toPause) a.play();
     await sleep(900);
     if (kind !== 'idle') {
       X.arm = arm + '~back';
@@ -495,7 +512,7 @@ function pageProbe(P) {
       t.facts = { ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio, mode: P.mode, hydrated: !!(window.__fw && window.__fw.hydrated), panel: !!document.querySelector('[data-fw="morph-panel"]') };
       for (const arm of P.arms) {
         const swm = SW_ARM.exec(arm);
-        const r = swm ? await sweepArm(arm, swm[1], !!swm[2], !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
+        const r = swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
         X.rows.push(r);
       }
     } catch (e) {

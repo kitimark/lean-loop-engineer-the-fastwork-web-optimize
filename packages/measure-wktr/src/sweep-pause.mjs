@@ -4,7 +4,9 @@
 const ROUND = ['sw-idle', 'sw-idle-p', 'sw-flip', 'sw-flip-p'];
 const BACK = ['sw-idle', 'sw-idle-p', 'sw-flip-p', 'sw-flip'];
 const timed = (xs) => xs.map((a) => `${a}-t`);
-export const SWEEP_ARMS = ['sw-warm', ...ROUND, ...BACK, ...timed(ROUND), ...timed(BACK)];
+// Diagnostic sets, not part of the Lean decision: -a pauses every running document animation, -o every running one except sweepDoc.
+const DIAG = ['sw-idle-a', 'sw-flip-a', 'sw-idle-o', 'sw-flip-o'];
+export const SWEEP_ARMS = ['sw-warm', ...ROUND, ...BACK, ...timed(ROUND), ...timed(BACK), ...DIAG, ...[...DIAG].reverse()];
 
 export const C = { idleOnMin: 150, idleOffMax: 25, explainMin: 750, notMax: 250, minStyleUs: 100, minValid: 2 };
 
@@ -94,6 +96,12 @@ export function sweepTally(report) {
   }
   const idents = report.rows.filter((r) => r.sw).map((r) => `${r.arm}:${r.sw.ident?.n}/${(r.sw.states ?? []).join('+')}/${(r.sw.ttnt ?? []).join('+')}`);
   lines.push(`ident ${[...new Set(idents)].slice(0, 6).join(' ')}`);
+  const invRow = report.rows.find((r) => r.sw?.inv);
+  if (invRow) {
+    const cnt = {};
+    for (const [k, n, tg, ps, it] of invRow.sw.inv) cnt[`${k}:${n}@${tg}:${ps}:${it}`] = (cnt[`${k}:${n}@${tg}:${ps}:${it}`] ?? 0) + 1;
+    lines.push(`inv ${Object.entries(cnt).map(([k, v]) => `${v}x ${k}`).join(' | ')}`);
+  }
   const j = jobOf(report);
   lines.push(`job ${JSON.stringify(j)}`);
   lines.push(`rpf100 flipU ${rpf100(j.flipU)} flipP ${rpf100(j.flipP)} idleU ${rpf100(j.idleU)} idleP ${rpf100(j.idleP)} style us/frame U ${styleUsPerFrame(j.flipU)} P ${styleUsPerFrame(j.flipP)} drops rpf ${rpfDrop(j)} style ${styleDrop(j)} why ${why(j)}`);
