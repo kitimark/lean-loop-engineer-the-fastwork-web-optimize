@@ -263,7 +263,6 @@ jobs:
       # WebKitTestRunnerApp process loads the prerendered rewrite with the probe as the harness; per arm (all tracks, one property's tracks
       # held, none, idle) the page reads internals.acceleratedAnimationsForElement and the styleRecalcCount delta of its windows.
       # accel-<mode>-<pass>.json, raw-*.txt. Counts only, nothing here is phone time.
-      # Task geom-webkit-midflip runs the modes mid and mid-thr-off instead: per-track readout at 30/50/80 % of the tween, threaded pref default and off.
       - name: WKTR geom-track accel (accelerated animations and style recalcs per arm)
         if: ${{ inputs.accel || contains(github.event.head_commit.message, '[accel]') }}
         env:
@@ -272,7 +271,7 @@ jobs:
           set -euo pipefail
           node packages/measure-wktr/src/accel-cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
-            --modes mid,mid-thr-off --passes 1 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+            --passes 1 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 
       # Toolbar gate (task toolbar-wktr-gate). Hook presence first: the symbols the gate calls exist in the pinned binary (hooks.json),

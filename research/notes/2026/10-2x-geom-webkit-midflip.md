@@ -40,13 +40,16 @@ engine itself: `Internals.timeToNextAnimationTick` below `animationsInterval` (1
 | ON | j1, j2: second flip (all-again) | 55 | 0 | 47 | 0 | 55 of 55 |
 | OFF | j1: first flip at 80 %; second flip in j1, j2, j3 | 55 | 0 | 47 | 0 | 55 of 55 |
 | OFF | j2: first flip at 50 % and 80 % | 55 | 0 | 26 | 21 (transform 13, translate 5, opacity 1, filter 1, scale 1) | 55 of 55 |
-| both | right after creation, before the first frame (flush sample) | 55 | 0 | 0 | 47 (all rendered) | 55 of 55 |
+| OFF | first flip: j1 at 49 % (flush), j3 at 95 % (flush) | 55 | 0 | 0 | 47 | 55 of 55 |
+| ON | j3 first flip at 51 % (flush) | 55 | 0 | 0 | 47 | 55 of 55 |
+| both | flush sample in the active phase (ph > 0: 7 sets) | 55 | 0 | 0 | 47 | 55 of 55 |
+| both | flush sample before the tween (ph < 0: 4 sets) | 55 | 0 | 0 | 0 or 55 (oracle: ttnt = delay - localTime vs 15 ms) | outside the predicate |
 
 - Per OR-branch of the Lean rule: pending (none of the flip tracks after creation); not running (none); not rendered (the 8 hidden: quiet); complete and
   accelerated and threaded OFF or representation present (quiet, 47); not yet accelerated, i.e. before the first commit (ticks, 47); not completely
   accelerated (ticks, the 21 in OFF j2 first flip). The engine and the Lean predicate agree on every active-phase sample of the flip arms (all, all-again).
-- So no flip track is pending after creation and, once the first commit has run, no track ticks continuously. The window in which they do tick is between
-  creation and the first commit (up to the first frame), and in one of three OFF jobs (j2) 21 tracks were still on the main thread at 50 and 80 %.
+- So no flip track is pending after creation and, once the first commit has run, no track ticks continuously. The window in which they do tick is once the tween is active and
+  before the first commit; in WKTR the first commit of the first flip came late in all 3 OFF jobs (j1 after 49 %, j2 after 81 % for 21 tracks, j3 after 95 %).
   Cause of that j2 case: UNDETERMINED. It had a 1713 ms hole in its frames (see below) and the same job's second flip was 47/0, so a late first commit is the
   likely reading (INFERRED).
 - Pending appears only where the probe holds tracks paused (arms no-translate, no-transform): paused tracks are pending until the first frame and the Lean
@@ -61,7 +64,7 @@ engine itself: `Internals.timeToNextAnimationTick` below `animationsInterval` (1
 Run 1 (40626070244) agrees: idle 0 elements in 125 frames; flip arms one frame of 18 (mid) and frames of 4 and 166 (mid-thr-off).
 - The 2 recalcs and the 1 invalidation per frame exist with no flip: 4 CSS animations `sweep-module_sweepDoc` (background-position, main-thread only,
   `timeToNextAnimationTick` 0, no accelerated entry) tick every frame in idle and in every track arm. That is the continuous per-frame source on WebKit
-  (CONFIRMED by the listing at 500 ms of the idle arm: 4 sweepDoc at ttnt 0, one `cue-module_scrollFloat` accelerated and quiet).
+  (INFERRED: the listing at 500 ms of the idle arm shows 4 sweepDoc at ttnt 0 as the only ticking animations, one `cue-module_scrollFloat` accelerated and quiet; no sweep-paused arm isolates their share from the probe's own reads).
 - The tracks add no continuous ticking once committed: the oracle reads 0 ticking tracks in `all-again`. Recalcs per frame there are 2 to 3 against 2 in idle
   (the sparse WKTR frames carry the poll and creation work), so a small excess is not excluded.
 - Extra work appears once, in the frames at and after creation: the `morph-module_up/down` CSS animations (3 of them, transform) are running and pending with
@@ -93,4 +96,4 @@ this share is not known from CI. If the style per long frame stays at 45 ms with
 pre-created paused track set (created at idle, started by `currentTime`), whose pending first frame the WKTR flush samples already show.
 
 ## Negative and general lesson
-The pref alone does not predict main-thread tracks: with the pref OFF, committed tracks are accelerated and quiet, and they tick only before the first commit. A probe that reads layers must fold property classes the way the engine does (Lean `classOf`).
+The pref alone does not predict main-thread tracks. With the pref OFF, committed tracks are accelerated and quiet; in WKTR the first commit of the first flip came late in all 3 OFF jobs (after 49 %, after 81 % for 21 tracks, after 95 %), so the tracks ticked on the main thread for most of that tween. Whether the phone commits earlier is unknown (INFERRED candidate (c)). A probe that reads layers must fold property classes the way the engine does (Lean `classOf`).

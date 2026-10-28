@@ -7,9 +7,8 @@ Task: geom-webkit-midflip (graph r554). Which geom-timed tracks run accelerated 
 continuously, ThreadedTimeBasedAnimationsEnabled in WKTR vs iOS Safari, recalcs per frame during the flip vs idle.
 
 Verified (MEASURED run 40629283336, WKTR, not phone time): note research/notes/2026/10-2x-geom-webkit-midflip.md has the table. Pref ON: 55 running,
-0 pending, 47 accelerated, 0 ticking at 30/50/80 %, Lean agrees 55/55. Pref OFF (phone default from source): second flip 47/0 in all jobs, j2 first flip 26
-accelerated + 21 ticking on main at 50/80 %; before the first commit all 47 rendered tracks tick. Idle already has 2 recalcs + 1 invalidation per frame
-with 0 elements from 4 sweepDoc CSS animations; flip frames 2 to 3.5 recalcs, creation frame up to 166 elements. Does not explain the phone's 348/396
+0 pending, 47 accelerated, 0 ticking at 30/50/80 %, Lean agrees 55/55. Pref OFF (phone default from source): second flip 47/0 in all jobs, every OFF job ticked rendered tracks on the main thread past mid-tween in the first flip (first commit late: after 49 %, after 81 % for 21 tracks, after 95 %); once the tween is active and before the first commit all 47 rendered tracks tick. Idle already has 2 recalcs + 1 invalidation per frame
+with 0 elements, INFERRED from 4 sweepDoc CSS animations (no sweep-paused arm); flip frames 2 to 3.5 recalcs, creation frame up to 166 elements. Does not explain the phone's 348/396
 alone (INFERRED). Next step: phone run with a sweep-paused probe; then task geom-sweep-compositor if style per long frame falls.
 Built: Lean Fw.Parts.MorphTrackAccel (tick rule, classOf/readsAccelCls, theorems per branch, golden morph-track-accel.jsonl 317 lines, `--check` ok);
 measure-wktr/src/mid-page.mjs (fork of gate-breakpoints track-accel-page.mjs with `P.mid`; merge back in a task owning both); modes mid and mid-thr-off;
