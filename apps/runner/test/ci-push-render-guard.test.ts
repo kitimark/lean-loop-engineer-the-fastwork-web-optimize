@@ -55,6 +55,7 @@ describe("ci push render guard", () => {
     const { fx, push, remoteHas } = setup();
     fx.commit(fx.root, "src/a.ts");
     fx.commit(fx.root, "snapshot/hero.png", "\x89PNG\r\n");
+    fx.git(fx.root, "commit", "-q", "--allow-empty", "-m", "renders only the seeder [lanes: lean]");
     const r = push("ci/x");
     expect(r.status, r.stderr).toBe(0);
     expect(remoteHas("refs/heads/ci/x")).toBe(true);
