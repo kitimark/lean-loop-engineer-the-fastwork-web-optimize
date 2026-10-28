@@ -14,5 +14,5 @@ CI runs: wktr 40653612323 (push 1, d79a4bab5), wktr 40657027777 (push 2, fbc1876
 # open
 - TS stand-ins not golden-replayed: reasonOf, keySummary in packages/measure-wktr/src/midflip.mjs (tests cover each Lean branch).
 - Proposed next task: geom-sweep-paused (sweepDoc paused during a flip, WKTR then one booked phone session), before any geom-sweep-compositor.
-- Remaining before report: merge main, plan lint, dry land, review ready.
+- Done: merged main 601a94b, dry land VERDICT dry geom-pref-off-ticking, review ready.
 - Scratch readers (not committed) live in the session scratchpad; rebuild from keySummary and frameSummary if needed.

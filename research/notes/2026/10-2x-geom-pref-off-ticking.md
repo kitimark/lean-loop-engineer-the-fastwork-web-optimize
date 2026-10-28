@@ -11,7 +11,7 @@ Investigation only: no site edit, no phone run. WKTR is not iOS Safari; it is th
   (no class fold). The class-folded read is 47 and the engine oracle ticks 0.
 - With the pref OFF the steady-state ticking set is EMPTY (MEASURED, 2 runs, 6 jobs, 16 flips with a sample after the first commit): every flip after the commit reads 47 accelerated / 0 ticking at p30, p50 and p80; the
   8 hidden image tracks have no renderer and are quiet (Lean branch `unrendered`).
-- A transient set S1 of 21 tracks ticks until about p30 to p50 in some flips (MEASURED). It is not steady state and the pref ON does not show it.
+- A transient set S1 of 21 tracks ticks until about p30 to p50 in some flips (MEASURED). It is not steady state, and the 2 pref-ON flips that could show it do not (INFERRED, n = 2).
 - So no named track set explains the phone's 348 of 396 long frames with RecalculateStyles (INFERRED from an empty set and from recalcs per frame that do not follow the ticking set). No same-look track fix is justified.
 
 ## Probe and site diff, main against the parked branch (CONFIRMED by git diff main...worktree-wf_066a7844-684-1)
@@ -39,13 +39,13 @@ Per-flip grid of accelerated/ticking at p30, p50, p80 and at the creation flush:
 `results/geom-pref-off-ticking/ticking-rendered-off.txt`. Reducers `keySummary` and `reasonOf` in `packages/measure-wktr/src/midflip.mjs` (a TS stand-in of the Lean branch, not golden-replayed).
 | pref | sample | accelerated / ticking (of 47 rendered) | where |
 | --- | --- | --- | --- |
-| OFF | creation flush, any flip | 0 / 47 (all `unaccelerated`) | every job; flush before the effect starts reads `not-active` |
-| OFF | p30, p50, p80, flips 2-8 | 47 / 0 | every sampled cell (r1j1, r1j2, r2j2, plus p80 of r2j1, r2j3) |
+| OFF | creation flush | 0 / 47 (all `unaccelerated`) in every flip but r1j1 flip 1 (0 / 0 at ph -46, all pending) | every job; flush before the effect starts reads `not-active` |
+| OFF | p30, p50, p80, flips 2-8 | 47 / 0 | every sampled cell (r1j1, r1j2, r2j2, plus p80 of r2j1, r2j3); oracle exception r2j1 flip 4 p80 at ph 993, see below |
 | OFF | p30 of 5 flips, p50 of 2 flips | 26 / 21 | S1, see below; p80 is 47 / 0 in all of them |
 | ON | creation flush | 0 / 47 | all jobs |
 | ON | p30, p50, p80, flips 2-8 (r2j1) | 47 / 0 | every sampled cell |
 | ON | first flip p50 (ph 407) | 0 / 47 | commit not yet done; p80 47 / 0 |
-One cell, r2j1 flip 4 p80 at ph 993, reads 47 / 47 with a disagreement flag: the oracle ticks at the very end of the tween (the known end-of-tween artefact), not a track set.
+One pref-OFF cell, r2j1 flip 4 p80 at ph 993, reads 47 / 47 by the engine oracle (Lean predicate 0): the oracle ticks at the very end of the tween (the known end-of-tween artefact), not a track set.
 Counts of 94 in the ON grid are two samples in one bin.
 
 ## The transient set S1 (MEASURED set, mechanism INFERRED)
@@ -53,7 +53,7 @@ Counts of 94 in the ON grid are two samples in one bin.
 `footerGrad/scale`, `footerEnd/translate`. Lean branch `unaccelerated` (running, active, rendered, no accelerated entry); the engine oracle agrees on all 21 (Lean and oracle agree on every S1 sample).
 - It appears at p30 in 5 of 16 pref-OFF flips with a p30 sample (r1j1 flip 1, r1j2 flip 1, r2j2 flips 1, 3, 7) and at p50 in 2 (r1j1 and r2j2, flip 1). It is gone at p80 every time.
 - Correlation (MEASURED, small n): the creation flush ran while the effects were still pending (flush phase below 0) in 6 flips with a p30 sample, and S1 followed in 5 of them (r1j1 flip 1 at -46, r1j2 flip 1 at -13, r2j2 flips 1, 3, 7 at -19, -16, -9; the exception is r1j2 flip 2 at -7).
-  In the 10 flips with a p30 sample and a flush at phase 0 or later, S1 appeared in none. With the pref ON, flips with a negative flush (r2j1 flips 6 and 7 at -16, -12) read 47 / 0 at p30: S1 is pref-OFF only.
+  In the 10 flips with a p30 sample and a flush at phase 0 or later, S1 appeared in none. With the pref ON, flips with a negative flush (r2j1 flips 6 and 7 at -16, -12) read 47 / 0 at p30: S1 is pref-OFF only (INFERRED, n = 2 pref-ON flips).
 - Layers (MEASURED, r2j2): the 21 elements HAVE a composited layer at the sample (layer probe `l` = 1 for all 21, in every S1 sample). The layer-missing explanation is refuted at sample time.
   At rest (`layBefore`, flips 2 to 8) the elements of image, logo, earn, footerEnd and footerGrad (and lang, 2 of 5 column) have no layer, so a layer is created during the flip.
 - Source reason (WebKit@862f17d, INFERRED for causality, lines CONFIRMED):
