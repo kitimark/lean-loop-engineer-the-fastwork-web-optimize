@@ -41,8 +41,9 @@ A node with no box in the band is not a consumer and is not compared. The identi
 `lean/Fw/Gate/Consumer.lean`: `comparedAt` is the OR of the two arms' box bits, `keptIdx` lists the compared elements,
 `skip_hides_nothing` says a skipped element paints identically (nothing) in both arms, and `measured_skipped` checks all 105 units of run
 40156078840. Golden `packages/contracts/golden/gate/consumer.jsonl` (8 cases) is replayed by
-`packages/gate-breakpoints/test/consumer.test.mjs`. A rendered node is always compared; a node rendered in only one arm is compared, so
-a missing rendered element still fails on count.
+`packages/gate-breakpoints/test/consumer.test.mjs`. A rendered node is always compared. A node rendered in only one arm is compared on its computed values; the box bits
+themselves are not compared (0 such mismatches in runs 40668662980 and 40674554372). An element missing from the DOM in
+one arm fails on count.
 
 ## The probe and reducer
 
@@ -67,6 +68,9 @@ or engines stay. This is a policy change for the lead to review. The stored file
 | 40674554372 | 559c2e728 | linux-webkit, mac-webkit (debug=nav-transition) | hero pass; mac morph pass |
 
 ## Limits and lessons
+- `display: contents` also has empty client rects (Chromium element.cc:3409-3413@f842f52, WebKit Element.cpp:1869@862f17d)
+  while its descendants paint and inherit from it, so "no box paints nothing" does not hold there; no hero registry node is
+  `display: contents` today.
 
 - The `debug=nav-transition` recorder is a passive page recorder; it is the only key that starts the macOS leg on a push (Lean
   `Fw.Ci.Trigger.appleRuns`), so the mac result rests on a run that carries it. Chromium rests on one run.
