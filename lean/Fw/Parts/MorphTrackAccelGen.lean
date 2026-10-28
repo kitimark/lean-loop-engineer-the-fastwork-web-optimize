@@ -28,8 +28,8 @@ def trackLines (_ : Unit) : List String :=
         (Json.mkObj [("n", .num ⟨as.length, 0⟩),
           ("keys", jl (as.map fun a => .str (trackKey a))),
           ("ks", jl (as.map fun a => .str a.ks.name)),
-          ("timedMain", jl ((as.filter fun a => !onCompositor e .timed a.prop).map fun a => .str (trackKey a))),
-          ("timedMainWhy", jl ((as.filter fun a => !onCompositor e .timed a.prop).map fun a => .str (why e .timed a.prop).name)),
+          ("timedMain", jl ((as.filter fun a => !onCompositorTrack e .timed v a).map fun a => .str (trackKey a))),
+          ("timedMainWhy", jl ((as.filter fun a => !onCompositorTrack e .timed v a).map fun a => .str (whyTrack e .timed v a).name)),
           ("scrubbedMain", .num ⟨mainTracks e .scrubbed as, 0⟩),
           ("blur", .num ⟨blurTracks as, 0⟩)])
 

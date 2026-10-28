@@ -32,7 +32,7 @@ export function loadGolden(path = GOLDEN) {
   return readFileSync(path, 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((l) => l.fn === 'tracks');
 }
 
-const CATEGORIES = ['devtools.timeline', 'blink.animations', 'blink.user_timing', 'cc', 'disabled-by-default-devtools.timeline'];
+const CATEGORIES = ['devtools.timeline', 'blink.animations', 'blink.user_timing', 'cc', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.invalidationTracking'];
 const WORK = new Set(['UpdateLayoutTree', 'RecalculateStyles', 'Layout', 'UpdateLayer', 'UpdateLayerTree', 'PrePaint', 'Paint', 'Commit', 'FunctionCall', 'HitTest']);
 
 /** The join key of a trace event on its custom track: id2 / id / thread. */
@@ -44,7 +44,10 @@ export function reduceTrace(events) {
   const work = events.filter((e) => WORK.has(e.name) && (e.ph === 'X' || e.ph === 'B')).map((e) => ({ name: e.name, ts: e.ts, dur: e.dur ?? 0, pid: e.pid, tid: e.tid, el: e.args?.elementCount ?? e.args?.beginData?.elementCount ?? 0 }));
   const anim = events.filter((e) => e.name === 'Animation' && e.ph !== 'M').map((e) => ({ ph: e.ph, ts: e.ts, key: keyOf(e), data: e.args?.data ?? null, end: e.args?.endData ?? null }));
   const cc = events.filter((e) => e.name === 'KeyframeModel' && (e.ph === 'b' || e.ph === 'B')).map((e) => ({ ts: e.ts, name: e.args?.Name ?? e.args?.data?.Name ?? '' }));
-  return { marks, work, anim, cc };
+  // Why a style recalc was scheduled: the DevTools invalidation-tracking events ({nodeName, reason}); empty when the category is off.
+  const inval = events.filter((e) => typeof e.name === 'string' && e.name.endsWith('InvalidationTracking') && e.ph !== 'M')
+    .map((e) => ({ name: e.name, ts: e.ts, pid: e.pid, tid: e.tid, reason: e.args?.data?.reason ?? '?', node: e.args?.data?.nodeName ?? '?' }));
+  return { marks, work, anim, cc, inval };
 }
 
 /** cc::TargetProperty::Type, cc/trees/target_property.h:15-30@f842f52. */
@@ -63,7 +66,7 @@ export function ccStarts(cc, t0, t1) {
 }
 
 /** Windows by mark pair `fwx:<arm>:<stage>:start|end` -> { arm, stage, t0, t1, work: {name: {n, ms}} }. */
-export function windowsOf(marks, work) {
+export function windowsOf(marks, work, inval = []) {
   const open = new Map();
   const out = [];
   for (const m of [...marks].sort((a, b) => a.ts - b.ts)) {
@@ -84,7 +87,16 @@ export function windowsOf(marks, work) {
         if (w.name === 'UpdateLayoutTree') slices.push([Math.round((w.ts - s.ts) / 100) / 10, w.el, Math.round(w.dur / 10) / 100]);
       }
       for (const t of Object.values(tally)) t.ms = Math.round(t.ms * 100) / 100;
-      out.push({ arm, stage, t0: s.ts, t1: m.ts, work: tally, slices });
+      const why = {};
+      for (const v of inval) {
+        if (v.pid !== s.pid || v.tid !== s.tid || v.ts < s.ts || v.ts > m.ts) continue;
+        const k = `${v.name.replace('InvalidationTracking', '')}:${v.reason}`;
+        const o = (why[k] ??= { n: 0, nodes: {} });
+        o.n++;
+        o.nodes[v.node] = (o.nodes[v.node] ?? 0) + 1;
+      }
+      for (const o of Object.values(why)) o.nodes = Object.fromEntries(Object.entries(o.nodes).sort((a, b) => b[1] - a[1]).slice(0, 8));
+      out.push({ arm, stage, t0: s.ts, t1: m.ts, work: tally, slices, why });
     }
   }
   return out;
@@ -136,7 +148,7 @@ export function armSummary(page, windows, decisions, cc = []) {
     if (!a) continue;
     const st = a.stages.find((s) => s.stage === w.stage);
     if (st) {
-      st.trace = { recalcs: (w.work.UpdateLayoutTree?.n ?? 0) + (w.work.RecalculateStyles?.n ?? 0), recalcMs: Math.round(((w.work.UpdateLayoutTree?.ms ?? 0) + (w.work.RecalculateStyles?.ms ?? 0)) * 100) / 100, elements: (w.work.UpdateLayoutTree?.el ?? 0) + (w.work.RecalculateStyles?.el ?? 0), work: w.work, slices: w.slices };
+      st.trace = { recalcs: (w.work.UpdateLayoutTree?.n ?? 0) + (w.work.RecalculateStyles?.n ?? 0), recalcMs: Math.round(((w.work.UpdateLayoutTree?.ms ?? 0) + (w.work.RecalculateStyles?.ms ?? 0)) * 100) / 100, elements: (w.work.UpdateLayoutTree?.el ?? 0) + (w.work.RecalculateStyles?.el ?? 0), work: w.work, slices: w.slices, why: w.why };
       if (w.stage === 'sweep' || w.stage === 'flip') st.ccStarts = ccStarts(cc, w.t0 - 50000, w.t1 + 150000);
     }
   }
@@ -165,21 +177,28 @@ export function judge(mode, w, arms, golden) {
   const made = count(tags, (t) => t.prop);
   const leanTracks = count(g.out.keys, keyProp);
   const leanMain = count(mode === 'timed' ? g.out.timedMain : g.out.keys, keyProp);
+  const leanWhy = count(mode === 'timed' ? g.out.timedMainWhy : [], (x) => x);
   const decided = (all.decided ?? []).filter((d) => d.began);
   const failed = count(decided.filter((d) => d.fails.length > 0), (d) => d.prop);
   const reasons = {};
   for (const d of decided) for (const f of d.fails) { const r = (reasons[d.prop] ??= {}); r[f] = (r[f] ?? 0) + 1; }
   const ccDelta = {};
   for (const [p, n] of Object.entries(all.ccStarts ?? {})) ccDelta[p] = n - (none?.ccStarts?.[p] ?? 0);
-  const props = [...new Set([...Object.keys(made), ...Object.keys(leanTracks)])].sort();
-  const byProp = props.map((p) => ({ prop: p, made: made[p] ?? 0, lean: leanTracks[p] ?? 0, leanMain: leanMain[p] ?? 0, failedNamed: failed[p] ?? 0, reasons: reasons[p] ?? {}, ccStartsAdded: ccDelta[p] ?? 0 }));
   const gk = count(g.out.keys, (k) => `${keyEl(k)}:${keyProp(k)}`);
   const pk = count(tags, (t) => `${t.mg}:${t.prop}`);
-  const extra = Object.keys(pk).filter((k) => (pk[k] ?? 0) > (gk[k] ?? 0)).map((k) => `${k} x${pk[k] - (gk[k] ?? 0)}`);
+  const extraN = {};
+  for (const k of Object.keys(pk)) if ((pk[k] ?? 0) > (gk[k] ?? 0)) extraN[k] = pk[k] - (gk[k] ?? 0);
+  // Tracks the page made beyond the Lean sample (image rows of the live layout) are judged apart: their failures are not Lean's.
+  const failedKey = count(decided.filter((d) => d.fails.length > 0), (d) => `${d.mg}:${d.prop}`);
+  const failedExtra = {};
+  for (const [k, n] of Object.entries(failedKey)) if (extraN[k]) failedExtra[keyProp(k)] = (failedExtra[keyProp(k)] ?? 0) + Math.min(n, extraN[k]);
+  const props = [...new Set([...Object.keys(made), ...Object.keys(leanTracks)])].sort();
+  const byProp = props.map((p) => ({ prop: p, made: made[p] ?? 0, lean: leanTracks[p] ?? 0, leanMain: leanMain[p] ?? 0, failedNamed: (failed[p] ?? 0) - (failedExtra[p] ?? 0), failedExtraTracks: failedExtra[p] ?? 0, reasons: reasons[p] ?? {}, ccStartsAdded: ccDelta[p] ?? 0 }));
+  const extra = Object.entries(extraN).map(([k, n]) => `${k} x${n}`);
   const missing = Object.keys(gk).filter((k) => (gk[k] ?? 0) > (pk[k] ?? 0)).map((k) => `${k} x${gk[k] - (pk[k] ?? 0)}`);
   let ok = null;
   if (mode === 'timed') ok = byProp.every((r) => (r.leanMain === 0 ? r.failedNamed === 0 : r.failedNamed >= Math.min(r.leanMain, r.made)));
-  return { ok, tracksMade: tags.length, tracksLean: g.out.n, byProp, extra, missing, began: decided.length };
+  return { ok, tracksMade: tags.length, tracksLean: g.out.n, leanWhy, byProp, extra, missing, began: decided.length };
 }
 
 const envOf = (w, h) => ({ width: w, height: h, dpr: w <= 640 ? 3 : 1, hover: w <= 1024 ? 'none' : 'hover', pointer: w <= 1024 ? 'coarse' : 'fine' });
@@ -207,7 +226,7 @@ export async function probeBand({ w, h, mode, origin, path, arms, raw, chromePat
     const trace = JSON.parse(buf.toString('utf8'));
     const events = Array.isArray(trace) ? trace : trace.traceEvents;
     const red = reduceTrace(events);
-    const windows = windowsOf(red.marks, red.work);
+    const windows = windowsOf(red.marks, red.work, red.inval);
     const decisions = decisionsOf(red.anim, result.tags ?? []);
     return { result, windows, decisions, cc: red.cc, version: browser.version(), events: events.length, rawAnim: raw ? red.anim : undefined };
   } finally {

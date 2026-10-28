@@ -24,7 +24,7 @@ The two drivers: `morph.geom:on` creates every track paused and writes `currentT
 Per-element checks that need a live document (an incompatible animation on the same element, a layer the renderer did
 not composite) are not modelled here; the CI probe reads them. -/
 namespace Fw.Parts.MorphTrackAccel
-open Fw.Parts.MorphGeom Fw.Engine.TransitionStart
+open Fw.Parts.Nav Fw.Parts.MorphGeom Fw.Engine.TransitionStart
 
 /-- `scrubbed`: geom:on, paused, `currentTime` written per frame. `timed`: geom-timed, running from a set `startTime`. -/
 inductive Mode where
@@ -33,11 +33,12 @@ inductive Mode where
 
 /-- Why a track stays on the main thread (`none`: it does not). -/
 inductive Why where
-  | none | notPlaying | movesPixels
+  | none | notPlaying | movesPixels | constant
   deriving DecidableEq, Repr
 
 def Why.name : Why → String
   | .none => "none" | .notPlaying => "not-playing" | .movesPixels => "filter-moves-pixels"
+  | .constant => "no-visible-change"
 
 def Mode.name : Mode → String
   | .scrubbed => "scrubbed" | .timed => "timed"
@@ -58,6 +59,21 @@ def why (e : Eng) (m : Mode) (p : AnimProp) : Why :=
   match playWhy m with
   | .none => propWhy e p
   | w => w
+
+/-- A track whose every keyframe holds one value, in every component. -/
+def constantTrack (v : Vp) (a : Anim) : Bool :=
+  let ks := a.ks.list v
+  a.fns.all fun f => ks.all fun k => f k == f (ks.headD 0)
+
+/-- Third gate, Chromium only: `compositor_animations.cc:284-289@f842f52` sets `kAnimationHasNoVisibleChange` when
+`DynamicProperties()` is empty (every keyframe value constant), so the track stays on the main thread. WebKit has no such
+test in `canBeAccelerated` (`KeyframeEffect.cpp:1970-2033@862f17d`). -/
+def whyTrack (e : Eng) (m : Mode) (v : Vp) (a : Anim) : Why :=
+  match why e m a.prop with
+  | .none => if e == .chromium && constantTrack v a then .constant else .none
+  | w => w
+
+def onCompositorTrack (e : Eng) (m : Mode) (v : Vp) (a : Anim) : Bool := whyTrack e m v a == .none
 
 /-- The "runs on compositor" predicate for one track. -/
 def onCompositor (e : Eng) (m : Mode) (p : AnimProp) : Bool := why e m p == .none
@@ -107,7 +123,36 @@ theorem scrubbed_main_bands :
       mainTracks e .scrubbed (anims v (Ctx.sample v e)) == (anims v (Ctx.sample v e)).length) = true := by
   decide +kernel
 
+theorem webkit_timed_track_all (v : Vp) (a : Anim) : onCompositorTrack .webkit .timed v a = true := by
+  simp [onCompositorTrack, whyTrack, why, playWhy, propWhy]
+
+theorem scrubbed_track_never (e : Eng) (v : Vp) (a : Anim) : onCompositorTrack e .scrubbed v a = false := by
+  simp [onCompositorTrack, whyTrack, why, playWhy]
+
+theorem chromium_timed_track_iff (v : Vp) (a : Anim) :
+    onCompositorTrack .chromium .timed v a = true ↔ a.prop ≠ .blur ∧ constantTrack v a = false := by
+  cases h : a.prop <;> simp [onCompositorTrack, whyTrack, why, playWhy, propWhy, h]
+
+/-- The constant tracks Chromium keeps on the main thread in geom-timed, per band. -/
+def constantTracks (v : Vp) (as : List Anim) : Nat := as.countP fun a => constantTrack v a
+
 #guard onCompositor .webkit .timed .blur && !onCompositor .chromium .timed .blur && onCompositor .chromium .timed .backdropBlur
 #guard why .chromium .scrubbed .blur == .notPlaying && why .chromium .timed .blur == .movesPixels
+
+/-- One constant track per band (the first column, whose translate is `0 * x`), the same in both engines' samples. -/
+theorem constant_bands :
+    bandVps.all (fun v => [Eng.webkit, .chromium].all fun e => constantTracks v (anims v (Ctx.sample v e)) == 1) = true := by
+  decide +kernel
+
+/-- Chromium geom-timed keeps the blur tracks and the one constant track on the main thread, per band. -/
+theorem chromium_timed_track_main_bands :
+    bandVps.all (fun v =>
+      (anims v (Ctx.sample v .chromium)).countP (fun a => !onCompositorTrack .chromium .timed v a) ==
+        (if v.w ≤ 720 then 3 else 4)) = true := by
+  decide +kernel
+
+theorem webkit_timed_track_main_bands :
+    bandVps.all (fun v => (anims v (Ctx.sample v .webkit)).countP (fun a => !onCompositorTrack .webkit .timed v a) == 0) = true := by
+  decide +kernel
 
 end Fw.Parts.MorphTrackAccel

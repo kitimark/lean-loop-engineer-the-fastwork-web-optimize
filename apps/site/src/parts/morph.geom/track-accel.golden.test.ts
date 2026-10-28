@@ -40,14 +40,18 @@ describe('morph.geom tracks against the Lean track-accel golden', () => {
     }
   });
 
-  it('the blur tracks are the tracks Chromium keeps on the main thread in geom-timed', () => {
+  it('Chromium geom-timed keeps the blur tracks and the constant tracks on the main thread, WebKit none', () => {
+    const constant = (a: { values: number[][] }) => a.values.every((comp) => comp.every((x) => x === comp[0]));
     for (const r of lines.filter((l) => l.fn === 'tracks')) {
       const i = r.in as { w: number; h: number; eng: Eng };
-      const blur = buildAnims({ w: i.w, h: i.h }, sample(i.w, i.eng)).filter((a) => a.prop === 'filter');
+      const as = buildAnims({ w: i.w, h: i.h }, sample(i.w, i.eng));
+      const blur = as.filter((a) => a.prop === 'filter');
       expect(blur.length).toBe(r.out.blur);
-      expect((r.out.timedMain as string[]).length).toBe(i.eng === 'chromium' ? blur.length : 0);
       expect(r.out.scrubbedMain).toBe(r.out.n);
-      if (i.eng === 'chromium') expect(r.out.timedMain).toEqual(blur.map(key));
+      if (i.eng === 'chromium') {
+        expect(r.out.timedMain).toEqual(as.filter((a) => a.prop === 'filter' || constant(a)).map(key));
+        expect((r.out.timedMainWhy as string[]).filter((w) => w === 'no-visible-change')).toHaveLength(1);
+      } else expect(r.out.timedMain).toEqual([]);
     }
   });
 });

@@ -178,12 +178,23 @@ function pageProbe(P) {
       out.nav = nav().className;
       return out;
     }
-    wheel(120);
-    const t0 = performance.now();
-    while (X.created.length === 0 && performance.now() - t0 < 2500) await raf();
+    out.wheels = 0;
+    while (X.created.length === 0 && out.wheels < 3) {
+      wheel(120);
+      out.wheels++;
+      const t0 = performance.now();
+      while (X.created.length === 0 && performance.now() - t0 < 3000) await raf();
+      if (X.created.length === 0) { await toBottom(); await sleep(400); }
+    }
     if (X.created.length > 0) {
       out.engaged = true;
       out.tracks = X.created.length;
+      // The engine that runs a slow frame clock (WebKitTestRunner) can finish the tween before the mid-window readout: read the tracks
+      // at creation and one frame later, each with its play state, so a reading of a settled (idle) track can be told apart.
+      out.early = [{ at: 'create', rows: readout() }];
+      const e0 = performance.now();
+      await raf();
+      out.early.push({ at: 'raf1', dt: Math.round(performance.now() - e0), rows: readout(), docAnims: document.getAnimations().length });
       out.stages.push(await windowFrames(arm, 'flip', P.windowMs, 0, true));
       out.table = X.table;
       out.docAnims = X.docAnims;
