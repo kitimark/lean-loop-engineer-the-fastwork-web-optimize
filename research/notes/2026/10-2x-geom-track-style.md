@@ -4,7 +4,7 @@ Status: finished investigation (graph r552), no site change. Claims: CONFIRMED (
 Branch ci/geom-track-style. Lean `lean/Fw/Parts/MorphTrackAccel.lean`, golden `packages/contracts/golden/parts/morph-track-accel.jsonl`, probe
 `packages/gate-breakpoints/src/track-accel{,-page}.mjs` (Chromium, `fw-track-accel`), `packages/measure-wktr/src/accel-{cli,page}.mjs` (WebKit).
 Runs: push 1 (7a177f5f4) breakpoint-gate 40611977476, wktr 40611977559; push 2 (1b00b7447) lean 40616651280, breakpoint-gate 40616651357
-(track-accel r1, r2, r3 on separate jobs, all success), wktr 40616651419 (j1, j2 success). The flip-cell playwright-webkit morph.geom:on failure
+(track-accel r1, r2, r3 on separate jobs, all success), wktr 40616651419 (j1, j2, j3 success). The flip-cell playwright-webkit morph.geom:on failure
 in 40611977476 is the same flake geom-style-cut saw; it is not part of this unit.
 
 ## Question and unit
@@ -23,10 +23,10 @@ Not modelled: the unpainted-target check (below).
 ## Verdict per track, per engine (MEASURED against the Lean predicate)
 | Group (tracks, 1440) | Chromium scrubbed | Chromium timed | WebKit scrubbed | WebKit timed |
 |---|---|---|---|---|
-| transform (26: images 21, K0, U, lang, panel, veil) | main (paused) | compositor | not accelerated (paused) | accelerated on some elements |
-| translate (22) | main (paused) | compositor, except column:0 | idem | idem |
-| opacity (4), scale (2), backdrop-filter (1) | main (paused) | compositor | idem | idem |
-| filter (3: earn, panel, platform; 2 at 390) | main (paused) | MAIN: `filter-moves-pixels` | idem | accelerated on some elements |
+| transform (26: images 21, K0, U, lang, panel, veil) | main (paused) | compositor | not accelerated (paused) | accelerated (18 of 26 in the one running readout) |
+| translate (22) | main (paused) | compositor, except column:0 | idem | accelerated (20 of 20, 402 px) |
+| opacity (4), scale (2), backdrop-filter (1) | main (paused) | compositor | idem | accelerated (all, 402 px) |
+| filter (3: earn, panel, platform; 2 at 390) | main (paused) | MAIN: `filter-moves-pixels` | idem | accelerated (2 of 2, 402 px) |
 | column:0 translate (1) | main (paused) | MAIN: `no-visible-change` | idem | idem |
 | image transform, 8 of 12 beyond the sample at 390 | main (paused) | MAIN: `target-invalid-compositing-state+no-visible-change` | idem | idem |
 Chromium, 3 reps x 3 bands (judge ok true in all 9 timed cells; scrubbed: 0 failures named, 0 cc starts added): the failure bits come from the trace
@@ -34,11 +34,12 @@ Chromium, 3 reps x 3 bands (judge ok true in all 9 timed cells; scrubbed: 0 fail
 compositor_animations.cc:491 (CompositorPropertyAnimationsHaveNoEffect, unpainted target), animation.cc:3376 (TimeToEffectChange), pinned chromium@f842f52.
 The 8 hidden image tracks at 390 are not in the Lean sample (judged apart as `extra`).
 WebKit (source: KeyframeEffect.cpp:1965-2035@862f17d `canBeAccelerated`, no property rule for these six; WebAnimation play state): accepted limit, there is no
-per-animation readout on CI. WKTR `internals.acceleratedAnimationsForElement` is per element. Scrubbed (j1, j2): 55 of 55 paused, accel false for all
-(MEASURED, matches the play-state gate). Timed (j1, j2, all and all-again): at creation 55 running, accel 0 (not styled yet); at the first frame
-(368-524 ms later, the slow frame clock) playState reads idle (INFERRED: the driver's `settle` cancels the tracks, geom-timed.driver.ts:47-50 and 83-86) but elements still read accelerated:
-transform 3-13 of 26, translate 9-11 of 20, opacity 3-4 of 4, filter 1-2 of 2, scale 1 of 2, backdrop 1 of 1. So WebKit accelerates the filter tracks Chromium cannot
-(MEASURED at element level, INFERRED per track). WebKit style recalcs per frame are 2.0 in every arm including idle (scrubbed j1 all 2.97): the count cannot attribute
+per-animation readout on CI. WKTR `internals.acceleratedAnimationsForElement` is per element. Scrubbed (j1, j2, j3): 55 of 55 paused, accel false for all
+(MEASURED, matches the play-state gate). Timed (j1, j2, j3; arms all and all-again; width 402): at creation 55 running, accel 0 (not styled yet); at the first frame
+(294-524 ms later, the slow frame clock) 5 of 6 readouts see playState idle on all 55 (INFERRED: the driver's `settle` cancels the tracks, geom-timed.driver.ts:47-50 and 83-86) with
+elements still reading accelerated in part (transform 3-13 of 26, translate 9-11 of 20, filter 1-2 of 2). One readout (j3 all-again, 294 ms) catches all 55 still running:
+translate 20/20, opacity 4/4, filter 2/2, scale 2/2, backdrop-filter 1/1, transform 18/26; the 8 transforms not accelerated match the 8 hidden image tracks Chromium names at 390.
+So WebKit accelerates the filter tracks Chromium cannot (MEASURED, one readout, element level; track level INFERRED). WebKit style recalcs per frame are 2.0 in every arm including idle (scrubbed j1 all 2.97): the count cannot attribute
 a group; per-frame ms there is frame time, not style time. Phone not measured.
 
 ## Per-frame style work in Chromium (MEASURED, 3 reps, min-max over reps, CI Linux, not phone time)
