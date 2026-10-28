@@ -4685,12 +4685,14 @@
     }
    ],
    "repro": "Push a ci/<task> branch whose tip message has no [ci:<lane>] token, or whose tree equals main: the measuring lanes report skipped.",
-   "fix": "Open: a pre-push check (fw ci push --dry) that prints the lanes Lean Trigger selects for the tip message and diff and refuses when the task's named lanes are not among them.",
+   "fix": {
+    "task": "ci-push-lane-check"
+   },
    "regression": "Every CI-measuring task today spent at least one push without a measuring lane.",
-   "mistakeClass": "tool-gap",
+   "mistakeClass": "c-late-check",
    "leanVerdict": "provable",
    "leanReason": "The lane selection is already a Lean function of (message, changed paths); the pre-push refusal is that function plus a subset check against the task's lanes.",
-   "hardening": "Follow-up task: fw ci push --dry from Lean Trigger, used by the builder preamble before every ci/* push."
+   "hardening": "ci-push-lane-check"
   }
  ]
 }
