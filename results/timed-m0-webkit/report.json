@@ -1,0 +1,6 @@
+{"items":[
+{"id":"classify-3-failing-readings","status":"done","evidence":"research/notes/2026/10-2x-timed-m0-webkit.md:5-12"},
+{"id":"premise-fails-closed-as-finding","status":"done","evidence":"research/notes/2026/10-2x-timed-m0-webkit.md:12"},
+{"id":"timed-cell-0-failed-both-engines","status":"done","evidence":"run:40660480093"}],
+"runs":[{"id":"40660480093","branch":"ci/timed-m0-webkit","state":"complete"}],
+"dry":"VERDICT dry timed-m0-webkit"}

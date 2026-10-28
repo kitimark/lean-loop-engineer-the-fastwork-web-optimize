@@ -121,6 +121,7 @@ export async function readLive() {
     nav: attrs(nav),
     navClass: nav ? nav.className : null,
     morph: nav ? nav.dataset.fwMorph ?? null : null,
+    earnW: nav ? Math.round(nav.querySelector('[data-fw="nav-earn"]')?.getBoundingClientRect().width ?? -1) : null,
   };
 }
 

@@ -1,0 +1,1250 @@
+{
+ "fw": "morph.geom:on,morph.tween:geom-timed",
+ "engine": "playwright-webkit",
+ "mutation": null,
+ "tolPx": 1,
+ "ms": [
+  0,
+  0.25,
+  0.5,
+  1
+ ],
+ "rows": [
+  {
+   "band": "320x568",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 7,
+     "scrollY": 4548,
+     "maxY": 4548,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 109
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 7,
+     "scrollY": 4548,
+     "maxY": 4548,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 109
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1263,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 4548,
+      "tries": 25
+     },
+     "flag": {
+      "reached": true,
+      "y": 4548,
+      "tries": 3
+     }
+    }
+   }
+  },
+  {
+   "band": "320x568",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 60,
+     "scrollY": 0,
+     "maxY": 4548,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 56,
+     "scrollY": 0,
+     "maxY": 4548,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1018,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 7
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 15
+     }
+    }
+   }
+  },
+  {
+   "band": "360x640",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 6,
+     "scrollY": 4876,
+     "maxY": 4876,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 109
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 5,
+     "scrollY": 4876,
+     "maxY": 4876,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 109
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1125,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 4876,
+      "tries": 17
+     },
+     "flag": {
+      "reached": true,
+      "y": 4876,
+      "tries": 31
+     }
+    }
+   }
+  },
+  {
+   "band": "360x640",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 63,
+     "scrollY": 0,
+     "maxY": 4876,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 41,
+     "scrollY": 0,
+     "maxY": 4876,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1011,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 4
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 11
+     }
+    }
+   }
+  },
+  {
+   "band": "390x844",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 4,
+     "scrollY": 5102,
+     "maxY": 5102,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 109
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 4,
+     "scrollY": 5102,
+     "maxY": 5102,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 109
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1343,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 5102,
+      "tries": 17
+     },
+     "flag": {
+      "reached": true,
+      "y": 5102,
+      "tries": 31
+     }
+    }
+   }
+  },
+  {
+   "band": "390x844",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 63,
+     "scrollY": 0,
+     "maxY": 5102,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 48,
+     "scrollY": 0,
+     "maxY": 5102,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1027,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 6
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 5
+     }
+    }
+   }
+  },
+  {
+   "band": "430x932",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 5,
+     "scrollY": 5345,
+     "maxY": 5345,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 109
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 4,
+     "scrollY": 5345,
+     "maxY": 5345,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 109
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1188,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 5345,
+      "tries": 6
+     },
+     "flag": {
+      "reached": true,
+      "y": 5345,
+      "tries": 39
+     }
+    }
+   }
+  },
+  {
+   "band": "430x932",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 25,
+     "scrollY": 0,
+     "maxY": 5345,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 18,
+     "scrollY": 0,
+     "maxY": 5345,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1020,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 7
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 9
+     }
+    }
+   }
+  },
+  {
+   "band": "640x360",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 11,
+     "scrollY": 5684,
+     "maxY": 5684,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 109
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 10,
+     "scrollY": 5684,
+     "maxY": 5684,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 109
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1018,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 5684,
+      "tries": 8
+     },
+     "flag": {
+      "reached": true,
+      "y": 5684,
+      "tries": 10
+     }
+    }
+   }
+  },
+  {
+   "band": "640x360",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 19,
+     "scrollY": 0,
+     "maxY": 5684,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 23,
+     "scrollY": 0,
+     "maxY": 5684,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1036,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 12
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 33
+     }
+    }
+   }
+  },
+  {
+   "band": "640x1000",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 3,
+     "scrollY": 6324,
+     "maxY": 6324,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 109
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 3,
+     "scrollY": 6324,
+     "maxY": 6324,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 109
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1049,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 6324,
+      "tries": 26
+     },
+     "flag": {
+      "reached": true,
+      "y": 6324,
+      "tries": 18
+     }
+    }
+   }
+  },
+  {
+   "band": "640x1000",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 44,
+     "scrollY": 0,
+     "maxY": 6324,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 12,
+     "scrollY": 0,
+     "maxY": 6324,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1023,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 12
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 10
+     }
+    }
+   }
+  },
+  {
+   "band": "641x700",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 16,
+     "scrollY": 4603,
+     "maxY": 4603,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 16,
+     "scrollY": 4603,
+     "maxY": 4603,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1060,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 4603,
+      "tries": 5
+     },
+     "flag": {
+      "reached": true,
+      "y": 4603,
+      "tries": 3
+     }
+    }
+   }
+  },
+  {
+   "band": "641x700",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 42,
+     "scrollY": 0,
+     "maxY": 4603,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 60,
+     "scrollY": 0,
+     "maxY": 4603,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1012,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 4
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 15
+     }
+    }
+   }
+  },
+  {
+   "band": "768x1024",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 10,
+     "scrollY": 5337,
+     "maxY": 5337,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 10,
+     "scrollY": 5337,
+     "maxY": 5337,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1080,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 5337,
+      "tries": 7
+     },
+     "flag": {
+      "reached": true,
+      "y": 5337,
+      "tries": 5
+     }
+    }
+   }
+  },
+  {
+   "band": "768x1024",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 26,
+     "scrollY": 0,
+     "maxY": 5337,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 26,
+     "scrollY": 0,
+     "maxY": 5337,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1017,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 6
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 9
+     }
+    }
+   }
+  },
+  {
+   "band": "1024x768",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 20,
+     "scrollY": 6352,
+     "maxY": 6352,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 18,
+     "scrollY": 6352,
+     "maxY": 6352,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1018,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 6352,
+      "tries": 5
+     },
+     "flag": {
+      "reached": true,
+      "y": 6352,
+      "tries": 6
+     }
+    }
+   }
+  },
+  {
+   "band": "1024x768",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 31,
+     "scrollY": 0,
+     "maxY": 6352,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 23,
+     "scrollY": 0,
+     "maxY": 6352,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1014,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 3
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 10
+     }
+    }
+   }
+  },
+  {
+   "band": "1280x800",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 15,
+     "scrollY": 7794,
+     "maxY": 7794,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 15,
+     "scrollY": 7794,
+     "maxY": 7794,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready",
+     "morph": null,
+     "earnW": 136
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1049,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 7794,
+      "tries": 8
+     },
+     "flag": {
+      "reached": true,
+      "y": 7794,
+      "tries": 6
+     }
+    }
+   }
+  },
+  {
+   "band": "1280x800",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 52,
+     "scrollY": 0,
+     "maxY": 7794,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 35,
+     "scrollY": 0,
+     "maxY": 7794,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1013,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 5
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 6
+     }
+    }
+   }
+  },
+  {
+   "band": "1440x900",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 13,
+     "scrollY": 8448,
+     "maxY": 8448,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 13,
+     "scrollY": 8448,
+     "maxY": 8448,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1047,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 8448,
+      "tries": 4
+     },
+     "flag": {
+      "reached": true,
+      "y": 8448,
+      "tries": 6
+     }
+    }
+   }
+  },
+  {
+   "band": "1440x900",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 54,
+     "scrollY": 0,
+     "maxY": 8448,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 59,
+     "scrollY": 0,
+     "maxY": 8448,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1018,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 6
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 7
+     }
+    }
+   }
+  },
+  {
+   "band": "1920x1080",
+   "m": 1,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "skipped": "flip not engaged: the take guard decided at push start (A5)",
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 10,
+     "scrollY": 9386,
+     "maxY": 9386,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 10,
+     "scrollY": 9386,
+     "maxY": 9386,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-on-dark",
+     "morph": null,
+     "earnW": 136
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1078,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 9386,
+      "tries": 10
+     },
+     "flag": {
+      "reached": true,
+      "y": 9386,
+      "tries": 6
+     }
+    }
+   }
+  },
+  {
+   "band": "1920x1080",
+   "m": 0,
+   "flipClass": false,
+   "ok": true,
+   "bad": [],
+   "live": {
+    "base": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 27,
+     "scrollY": 0,
+     "maxY": 9386,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    },
+    "flag": {
+     "vis": "visible",
+     "focus": true,
+     "hz": 38,
+     "scrollY": 0,
+     "maxY": 9386,
+     "panel": "data-fw=morph-panel data-fw-layer=morph.panel_panel data-fw-variant=faithful data-start-selling-scene=paused aria-hidden=true",
+     "nav": "aria-label=Primary navigation data-fw=nav data-fw-layer=nav_bar",
+     "navClass": "nav-module_nav_fsb7in is-hero-chrome-ready is-hero-pill",
+     "morph": null,
+     "earnW": 0
+    }
+   },
+   "mount": {
+    "agree": true,
+    "a": true,
+    "b": true,
+    "waitedMs": 1013,
+    "scroll": {
+     "base": {
+      "reached": true,
+      "y": 0,
+      "tries": 9
+     },
+     "flag": {
+      "reached": true,
+      "y": 0,
+      "tries": 4
+     }
+    }
+   }
+  }
+ ]
+}

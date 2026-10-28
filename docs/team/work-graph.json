@@ -23205,7 +23205,8 @@
     "research/notes/2026/10-2x-timed-m0-webkit.md",
     "results/timed-m0-webkit/**",
     "docs/team/handoffs/timed-m0-webkit.md"
-   ]
+   ],
+   "evidence": "4283823"
   },
   {
    "devices": [
@@ -23487,6 +23488,36 @@
     "research/notes/2026/10-2x-geom-sweep-paused.md",
     "results/geom-sweep-paused/**",
     "docs/team/handoffs/geom-sweep-paused.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-gate-clear",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-q6"
+   ],
+   "title": "Clear the gate blockers that keep hero.exit:threaded (user-accepted on the iPhone 2026-10-24) out of v2-proved: lead rule 'a node with no box in the band is not a consumer' in Lean and the probe, the judgedEqual reducer change (skip rest rows whose arms read different scrollY), gate re-run on both engines, Gen.entry updated.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Gate/Consumer*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "packages/contracts/golden/gate/consumer*.jsonl",
+    "packages/gate-breakpoints/src/**",
+    "packages/gate-breakpoints/test/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-gate-clear.md",
+    "results/hero-exit-gate-clear/**",
+    "docs/team/handoffs/hero-exit-gate-clear.md"
    ]
   }
  ],
