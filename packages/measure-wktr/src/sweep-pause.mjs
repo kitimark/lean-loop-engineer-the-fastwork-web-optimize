@@ -99,7 +99,7 @@ export function sweepTally(report) {
   const invRow = report.rows.find((r) => r.sw?.inv);
   if (invRow) {
     const cnt = {};
-    for (const [k, n, tg, ps, it] of invRow.sw.inv) cnt[`${k}:${n}@${tg}:${ps}:${it}`] = (cnt[`${k}:${n}@${tg}:${ps}:${it}`] ?? 0) + 1;
+    for (const [k, n, tg, ps, it] of invRow.sw.inv) cnt[`${k}:${n} on ${tg}:${ps}:${it}`] = (cnt[`${k}:${n} on ${tg}:${ps}:${it}`] ?? 0) + 1;
     lines.push(`inv ${Object.entries(cnt).map(([k, v]) => `${v}x ${k}`).join(' | ')}`);
   }
   const j = jobOf(report);
