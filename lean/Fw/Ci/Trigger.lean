@@ -157,7 +157,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/gate-breakpoints/**", "apps/site/**", "@fwcore", "@breakgen", "snapshot/**", "snapshot.lock.json",
     "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/gate-shards.mjs",
     ".github/scripts/gate-jobs.mjs", ".github/scripts/gate-jobs.test.mjs", ".github/scripts/cache-key.mjs", "packages/contracts/golden/gate/schedule.jsonl",
-    "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/gate/shards.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/flag-delta.jsonl", "packages/contracts/golden/gate/replaced.jsonl",
+    "packages/contracts/golden/parts/morph-track-accel.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/gate/shards.jsonl", "packages/contracts/golden/gate/exit.jsonl", "packages/contracts/golden/gate/flag-delta.jsonl", "packages/contracts/golden/gate/replaced.jsonl",
     "packages/contracts/golden/gate/search.jsonl", ".github/scripts/gate-search.mjs", ".github/scripts/gate-search.test.mjs",
     "packages/contracts/golden/ops/cache.jsonl", ".github/scripts/gate-smoke.mjs", ".github/scripts/merge-gate.mjs",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**",
@@ -220,7 +220,7 @@ def table (_ : Unit := ()) : List Wf := [
     "packages/measure-chromium/scenarios.gen.json",
     "packages/contracts/golden/parts/morph.mount.dormant.jsonl", "packages/contracts/golden/parts/morph-mount-tap.jsonl",
     "packages/contracts/golden/parts/nav-earn.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "packages/contracts/golden/parts/nav.earn.curve.jsonl", "packages/contracts/golden/parts/hero-scene-pause.jsonl", "packages/contracts/golden/parts/hero-contain.jsonl", "packages/contracts/golden/parts/morph.end.jsonl", "packages/contracts/golden/parts/morph-end-nobounce.jsonl", "packages/contracts/golden/parts/combo-scroll.jsonl", "packages/contracts/golden/parts/platform-glint-pause.jsonl", "packages/contracts/golden/parts/platform-glint-hold.jsonl", "packages/contracts/golden/parts/morph-stage.jsonl", "packages/contracts/golden/parts/platform-entries-fill.jsonl", "packages/contracts/golden/parts/platform-sweep-layer.jsonl", "packages/contracts/golden/parts/platform-faded-pause.jsonl",
-    "results/gpu-safari/lane/elapsed.golden.jsonl", "packages/contracts/golden/gate/image-arm.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/morph-geom-timed.jsonl", "packages/contracts/golden/parts/hero.accent.drawone.jsonl", "packages/contracts/golden/parts/hero.accent.nolayout.jsonl", "packages/contracts/golden/parts/footprint.classpos.jsonl", "packages/contracts/golden/parts/people-o-preview.jsonl", "packages/contracts/golden/parts/morph-idle-none.jsonl", "packages/contracts/golden/parts/morph.panel.rest.jsonl", "packages/contracts/golden/parts/const-bounds-counts.jsonl", "results/const-bounds-counts/cells.json", "results/const-bounds-counts/tables.md","packages/contracts/golden/parts/morph.columns.final-scale.jsonl",
+    "results/gpu-safari/lane/elapsed.golden.jsonl", "packages/contracts/golden/gate/image-arm.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/morph-geom-timed.jsonl", "packages/contracts/golden/parts/morph-track-accel.jsonl", "packages/contracts/golden/parts/hero.accent.drawone.jsonl", "packages/contracts/golden/parts/hero.accent.nolayout.jsonl", "packages/contracts/golden/parts/footprint.classpos.jsonl", "packages/contracts/golden/parts/people-o-preview.jsonl", "packages/contracts/golden/parts/morph-idle-none.jsonl", "packages/contracts/golden/parts/morph.panel.rest.jsonl", "packages/contracts/golden/parts/const-bounds-counts.jsonl", "results/const-bounds-counts/cells.json", "results/const-bounds-counts/tables.md","packages/contracts/golden/parts/morph.columns.final-scale.jsonl",
     "packages/contracts/golden/ops/rebuild-facts.jsonl",
     "packages/contracts/golden/ops/rebuild.jsonl", "packages/contracts/golden/plan/writes-closure.jsonl",
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".github/scripts/runner-info.sh",
@@ -300,7 +300,7 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr-fixtures.yml"], []⟩,
   ⟨"wktr.yml", ciAll, [
     "packages/measure-wktr/**", "packages/measure-chromium/src/classify.mjs", "packages/measure-chromium/src/fwcore.mjs",
-    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl", "apps/site/src/parts/morph.mount/logic.ts",
+    "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl", "packages/gate-breakpoints/src/track-accel-page.mjs", "packages/measure-webkit/src/page.mjs", "apps/site/src/parts/morph.mount/logic.ts",
     "apps/site/src/parts/morph.mount/gesture.ts", "apps/site/src/parts/engine.scroll/unthrottle.ts",
     "@fwcore", "snapshot/**", "snapshot.lock.json", ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh",
     ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", ".github/actions/setup-lean/**", ".node-version", own "wktr.yml"], []⟩]
@@ -343,7 +343,8 @@ excluded. A run restores caches of its own branch and of the default branch only
 def cacheWriters : List (String × String × String) := [
   ("breakpoint-gate.yml", "gate", "gate-apt"), ("breakpoint-gate.yml", "gate", "ms-playwright"),
   ("breakpoint-gate.yml", "gate", "hs-zip"), ("breakpoint-gate.yml", "flip-cell", "gate-apt"),
-  ("breakpoint-gate.yml", "flip-cell", "ms-playwright"), ("breakpoint-gate.yml", "flip-cell", "hs-zip"), ("engine-premises.yml", "webkit", "wktr-zip"),
+  ("breakpoint-gate.yml", "flip-cell", "ms-playwright"), ("breakpoint-gate.yml", "flip-cell", "hs-zip"),
+  ("breakpoint-gate.yml", "track-accel", "gate-apt"), ("breakpoint-gate.yml", "track-accel", "ms-playwright"), ("breakpoint-gate.yml", "track-accel", "hs-zip"), ("engine-premises.yml", "webkit", "wktr-zip"),
   ("land.yml", "land", "gate-apt"), ("land.yml", "land", "ms-playwright"), ("land.yml", "land", "hs-zip"), ("lean-math.yml", "math", "mathlib"),
   ("lean.yml", "lean", ".lake-cache"), ("premise-tests.yml", "engine", "gate-apt"),
   ("premise-tests.yml", "engine", "ms-playwright"), ("premise-tests.yml", "engine", "hs-zip"),

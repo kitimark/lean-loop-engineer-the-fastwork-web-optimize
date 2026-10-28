@@ -34,7 +34,7 @@ def creditReserve : Nat := 80000
 The derivation: the heaviest set of jobs no two of which are ancestor and descendant in `needs`; a job counts its matrix size, at most
 its `max-parallel`, and at most 5 on a macOS runner (https://docs.github.com/en/actions/reference/limits). A matrix from `fromJSON` counts
 the maximum its inputs allow (over-count is safe, under-count is not). The set behind each row:
-- breakpoint-gate 12: `gate` 10 and `flip-cell` 2 (breakpoint-gate.yml `gate`, `flip-cell`; `gate-jobs.mjs` plans at most 10 over the inputs of the `site` job; `flip-cell` is 2 engines)
+- breakpoint-gate 15: `gate` 10, `flip-cell` 2 and `track-accel` 3 (breakpoint-gate.yml `gate`, `flip-cell`, `track-accel`; `gate-jobs.mjs` plans at most 10 over the inputs of the `site` job; `flip-cell` is 2 engines, `track-accel` 3 reps)
 - chromium-counts 20: `counts` (chromium-counts.yml:380; 2 targets x 10 runs, :145)
 - device-replay 1: `replay` (device-replay.yml, one VM)
 - difftest 2: `fixed`, `rotating` (difftest.yml:99,158)
@@ -56,7 +56,7 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - wktr-fixtures 5: `fixtures` 4 (wktr-fixtures.yml:129; jobs 1 to 4, :110) and `fwcore` 1; wktr 3: `plan`, `fwcore` and `site` (wktr.yml; `site` runs with the repaint lane)
 A row can exceed the 20 slots (visual-diff 39): the free count then saturates at 0, which is the safe side. -/
 def widths : List (String × Nat) := [
-  ("breakpoint-gate", 12), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("font-fidelity", 3), ("gate-gaps", 29), ("land", 5),
+  ("breakpoint-gate", 15), ("chrome-crash-probe", 11), ("chromium-counts", 20), ("device-replay", 1), ("difftest", 2), ("engine-premises", 7), ("font-fidelity", 3), ("gate-gaps", 29), ("land", 5),
   ("lean-math", 1), ("lean", 1), ("linux-webkit-probe", 2), ("mutants", 24), ("path-pix", 9), ("premise-tests", 2), ("preview-e2e", 2), ("sim-speed", 5),
   ("smoothness", 14), ("snapshot-extract", 7), ("toolbar-throttle", 3), ("trajectory-probe", 12), ("visual-diff", 39), ("webkit-sim", 3), ("wktr-fixtures", 5), ("wktr", 3)]
 

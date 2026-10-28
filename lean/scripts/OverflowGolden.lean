@@ -33,7 +33,7 @@ def overflowCases : List (String × Json) := [
   ("more runs than slots (26): none free", mk [("ghActive", names ["breakpoint-gate", "engine-premises", "snapshot-extract", "wktr"])]),
   ("one chromium-counts run (up to 2 x 10 matrix jobs) fills GitHub", mk [("ghActive", names ["chromium-counts"])]),
   ("one visual-diff run (up to 2 x 16 shards) fills GitHub", mk [("ghActive", names ["visual-diff"])]),
-  ("one breakpoint-gate run (12 jobs): 8 free, all legs stay", mk [("ghActive", names ["breakpoint-gate"])]),
+  ("one breakpoint-gate run (15 jobs): 5 free, all legs stay", mk [("ghActive", names ["breakpoint-gate"])]),
   ("the test flag marks GitHub full", mk [("forceFull", true)]),
   ("Actions degraded: every leg to CircleCI", mk [("ghActions", "partial_outage")]),
   ("Actions status unreadable, last decision degraded", mk [("ghActions", "unknown"), ("ghPrev", true)]),

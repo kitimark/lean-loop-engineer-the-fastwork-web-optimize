@@ -36,6 +36,10 @@ on:
         description: 'Toolbar forced-inset gate instead of the count lanes: WKTR walks the interactive obscured-insets change per morph.mount flag and the verdict is judged against the Lean golden, 3 jobs (a push asks for it with [toolbar] in the head commit)'
         type: boolean
         default: false
+      accel:
+        description: 'Geom-track accel lane instead of the count lanes: WKTR reads internals.acceleratedAnimationsForElement and styleRecalcCount per morph.geom WAAPI track, scrubbed and timed, 3 jobs (a push asks for it with [accel] in the head commit)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -104,7 +108,7 @@ jobs:
         run: exit 1
       - id: m
         env:
-          JOBS: ${{ inputs.jobs || ((inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]')) && '3') || '2' }}
+          JOBS: ${{ inputs.jobs || ((inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]') || inputs.accel || contains(github.event.head_commit.message, '[accel]')) && '3') || '2' }}
           PASSES: ${{ inputs.passes || '3' }}
           VARIANTS: ${{ inputs.variants || 'live,vt' }}
         run: |
@@ -120,7 +124,7 @@ jobs:
   # v2-proved preset as one more page (as webkit-sim.yml's site job builds it). Only when the lane is asked for.
   site:
     needs: [guard]
-    if: ${{ needs.guard.outputs.run == 'true' && (inputs.repaint || contains(github.event.head_commit.message, '[repaint]')) }}
+    if: ${{ needs.guard.outputs.run == 'true' && (inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.accel || contains(github.event.head_commit.message, '[accel]')) }}
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:site:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
@@ -149,7 +153,11 @@ jobs:
           filter: '@fw/site...'
       - uses: ./.github/actions/setup-lean
       - name: Build the rewrite (the default config and the v2-proved preset)
+        if: ${{ !(inputs.accel || contains(github.event.head_commit.message, '[accel]')) }}
         run: pnpm --filter @fw/site build --config "?preset=v2-proved"
+      - name: Build the rewrite (default prerender, every single-variant page and the geom pair, for the accel lane)
+        if: ${{ inputs.accel || contains(github.event.head_commit.message, '[accel]') }}
+        run: pnpm --filter @fw/site build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist
@@ -230,7 +238,7 @@ jobs:
           } | tee "$RUNNER_TEMP/result/tools.txt"
 
       - name: The rewrite build (site job)
-        if: ${{ inputs.repaint || contains(github.event.head_commit.message, '[repaint]') }}
+        if: ${{ inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.accel || contains(github.event.head_commit.message, '[accel]') }}
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: site-dist
@@ -249,6 +257,21 @@ jobs:
           node packages/measure-wktr/src/repaint-cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --site snapshot/site --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
             --passes 1 --arms orig,rewrite,v2 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+          ls -l "$RUNNER_TEMP/result"
+
+      # Geom-track accel (task geom-track-style): per mode (morph.geom:on scrubbed, with morph.tween:geom-timed timed) one fresh
+      # WebKitTestRunnerApp process loads the prerendered rewrite with the probe as the harness; per arm (all tracks, one property's tracks
+      # held, none, idle) the page reads internals.acceleratedAnimationsForElement and the styleRecalcCount delta of its windows.
+      # accel-<mode>-<pass>.json, raw-*.txt. Counts only, nothing here is phone time.
+      - name: WKTR geom-track accel (accelerated animations and style recalcs per arm)
+        if: ${{ inputs.accel || contains(github.event.head_commit.message, '[accel]') }}
+        env:
+          JOB: ${{ matrix.job }}
+        run: |
+          set -euo pipefail
+          node packages/measure-wktr/src/accel-cli.mjs run --keep \
+            --root "$RUNNER_TEMP/wktr-root" --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
+            --passes 1 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 
       # Toolbar gate (task toolbar-wktr-gate). Hook presence first: the symbols the gate calls exist in the pinned binary (hooks.json),
@@ -275,7 +298,7 @@ jobs:
       #   -warm the page is scrolled through once first (lazy loads done), -still suspends CSS animations (diagnostic), -trace adds event counters (cause attribution)
       # counts-<variant>-<pass>.json per pass.
       - name: WKTR, fresh process per pass, per variant
-        if: ${{ !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]')) }}
+        if: ${{ !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]') || inputs.accel || contains(github.event.head_commit.message, '[accel]')) }}
         env:
           PASSES: ${{ inputs.passes || '3' }}
           STEP: ${{ inputs.step || '50' }}
@@ -343,7 +366,7 @@ jobs:
   # Classes per count type over every pass of every job (policy kMax 4, tMax 24), and over the passes of each job alone.
   classes:
     needs: [guard, wktr, fwcore]
-    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' && !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]')) }}
+    if: ${{ always() && needs.guard.outputs.run == 'true' && needs.wktr.result != 'cancelled' && needs.fwcore.result == 'success' && !(inputs.repaint || contains(github.event.head_commit.message, '[repaint]') || inputs.toolbar || contains(github.event.head_commit.message, '[toolbar]') || inputs.accel || contains(github.event.head_commit.message, '[accel]')) }}
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:classes:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
