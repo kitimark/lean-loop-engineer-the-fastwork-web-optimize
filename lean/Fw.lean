@@ -93,6 +93,8 @@ import Fw.Parts.MorphGeomVerify
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.MorphGeomTimed
 import Fw.Parts.MorphGeomTimedGen
+import Fw.Parts.MorphTrackAccel
+import Fw.Parts.MorphTrackAccelGen
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
