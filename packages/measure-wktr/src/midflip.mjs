@@ -1,6 +1,6 @@
 // Mid-flip readout of the geom-timed tracks in WebKitTestRunner (task geom-webkit-midflip). The tick rule is the Lean
-// Fw.Parts.MorphTrackAccel (ticksContinuously, ticksMain, tickOf, binOf, normName); the golden lines "tick", "bin" and "name"
-// of packages/contracts/golden/parts/morph-track-accel.jsonl are replayed in test/midflip.test.mjs.
+// Fw.Parts.MorphTrackAccel (ticksContinuously, ticksMain, tickOf, binOf, normName, classOf, readsAccelCls). TS STAND-IN: the Lean golden
+// packages/contracts/golden/parts/morph-track-accel.jsonl is not replayed in test/midflip.test.mjs (that needs a land.ts read declaration).
 
 export const ticksContinuously = (s) => s.rendered && (s.complete && s.accel ? s.threaded && s.disallowed : true);
 

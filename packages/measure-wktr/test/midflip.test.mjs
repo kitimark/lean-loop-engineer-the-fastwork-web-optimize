@@ -1,36 +1,40 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { binOf, classOf, effOf, frameSummary, midSummary, normName, oracleTicks, prefOf, readsAccelCls, tickOf, ticksContinuously, ticksMain } from '../src/midflip.mjs';
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { headerOf, isMid, MID_ARMS, MID_AT, THREADED_OFF } from '../src/accel-cli.mjs';
 
-const HERE = dirname(fileURLToPath(import.meta.url));
-const lines = readFileSync(join(HERE, '../../contracts/golden/parts/morph-track-accel.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+// TS STAND-IN: src/midflip.mjs mirrors lean/Fw/Parts/MorphTrackAccel.lean. The Lean golden packages/contracts/golden/parts/morph-track-accel.jsonl
+// (256 tick, 12 bin, 3 name, 8 cls lines, checked by lean/scripts/check.sh) is not replayed here: that needs a land.ts read declaration outside
+// this task's writes. The cases below are one per OR-branch of the Lean rule and the Lean #guards.
+const E = (pending, running, active, rendered, complete, accel, threaded, disallowed) => ({ pending, running, active, rendered, complete, accel, threaded, disallowed });
 
-test('the tick rule agrees with the Lean golden on all 256 effect states', () => {
-  const rows = lines.filter((l) => l.fn === 'tick');
-  assert.equal(rows.length, 256);
-  for (const r of rows) {
-    assert.equal(ticksContinuously(r.in), r.out.continuous, JSON.stringify(r.in));
-    assert.equal(ticksMain(r.in), r.out.main, JSON.stringify(r.in));
-    assert.equal(tickOf(r.in), r.out.kind, JSON.stringify(r.in));
-  }
+test('the tick rule, one case per OR-branch of the Lean predicate', () => {
+  assert.equal(ticksMain(E(true, false, false, true, true, true, false, false)), true, 'pending');
+  assert.equal(ticksMain(E(false, false, true, true, false, false, false, false)), false, 'not running');
+  assert.equal(ticksMain(E(false, true, false, true, false, false, false, false)), false, 'not active');
+  assert.equal(ticksMain(E(false, true, true, false, false, false, false, false)), false, 'no renderer');
+  assert.equal(ticksMain(E(false, true, true, true, true, true, false, false)), false, 'complete, accelerated, threaded off');
+  assert.equal(ticksMain(E(false, true, true, true, true, true, true, false)), false, 'complete, accelerated, representation present');
+  assert.equal(ticksMain(E(false, true, true, true, true, true, true, true)), true, 'threaded with a disallowed property');
+  assert.equal(ticksMain(E(false, true, true, true, false, true, false, false)), true, 'not completely accelerated');
+  assert.equal(ticksMain(E(false, true, true, true, true, false, false, false)), true, 'not accelerated yet');
+  assert.equal(ticksContinuously(E(false, true, true, true, true, false, false, false)), true);
+  assert.equal(tickOf(E(false, true, true, true, true, true, false, false)), 'accelerated');
 });
 
-test('the bins and the name rule agree with the Lean golden', () => {
-  const bins = lines.filter((l) => l.fn === 'bin');
-  assert.equal(bins.length, 12);
-  for (const r of bins) assert.equal(binOf(r.in.permille), r.out, String(r.in.permille));
-  for (const r of lines.filter((l) => l.fn === 'name')) assert.equal(normName(r.in.a) === normName(r.in.b), r.out);
+test('the bins and the name rule', () => {
+  assert.equal(normName('backdrop-filter'), normName('backdropFilter'));
+  assert.deepEqual([0, 300, 500, 800, 1000].map(binOf), [null, 30, 50, 80, null]);
 });
 
-test('the class rule agrees with the Lean golden', () => {
-  const rows = lines.filter((l) => l.fn === 'cls');
-  assert.equal(rows.length, 8);
-  for (const r of rows) assert.equal(readsAccelCls(r.in.prop, r.in.reported, r.in.tracks), r.out, JSON.stringify(r.in));
+test('the class rule', () => {
+  assert.equal(readsAccelCls('translate', ['transform'], 1), true);
+  assert.equal(readsAccelCls('translate', ['transform'], 2), false);
+  assert.equal(readsAccelCls('transform', ['transform', 'transform'], 2), true);
+  assert.equal(readsAccelCls('opacity', ['transform'], 1), false);
+  assert.equal(readsAccelCls('backdrop-filter', ['backdropFilter'], 1), true);
+  assert.equal(readsAccelCls('opacity', [], 0), false);
   assert.equal(classOf('scale'), classOf('transform'));
 });
 

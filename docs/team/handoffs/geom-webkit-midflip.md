@@ -12,7 +12,8 @@ accelerated + 21 ticking on main at 50/80 %; before the first commit all 47 rend
 with 0 elements from 4 sweepDoc CSS animations; flip frames 2 to 3.5 recalcs, creation frame up to 166 elements. Does not explain the phone's 348/396
 alone (INFERRED). Next step: phone run with a sweep-paused probe; then task geom-sweep-compositor if style per long frame falls.
 Built: Lean Fw.Parts.MorphTrackAccel (tick rule, classOf/readsAccelCls, theorems per branch, golden morph-track-accel.jsonl 317 lines, `--check` ok);
-track-accel-page.mjs `P.mid`; measure-wktr modes mid and mid-thr-off, src/midflip.mjs (TS stand-in apart from golden-checked rules), test/midflip.test.mjs;
+measure-wktr/src/mid-page.mjs (fork of gate-breakpoints track-accel-page.mjs with `P.mid`; merge back in a task owning both); modes mid and mid-thr-off;
+src/midflip.mjs (TS STAND-IN; test/midflip.test.mjs has per-branch cases, no golden replay: needs the land.ts read of morph-track-accel.jsonl, add it later);
 wktr.yml accel step `--modes mid,mid-thr-off`. Ledger note in research/findings/ledger.json (task geom-webkit-midflip).
 
 Open: re-run check.sh and package tests on the committed tree, dry land, `fw review ready`. A push 3 is optional (more OFF first-flip samples to explain j2's

@@ -1,5 +1,5 @@
 import { bootstrapSource } from '../../measure-webkit/src/page.mjs';
-import { probeSource } from '../../gate-breakpoints/src/track-accel-page.mjs';
+import { probeSource } from './mid-page.mjs';
 
 const RUN_SRC = `(() => {
   const out = (tag, obj) => console.log('FWWKTR ' + tag + ' ' + JSON.stringify(obj));

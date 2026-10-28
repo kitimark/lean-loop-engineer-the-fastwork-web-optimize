@@ -19,7 +19,8 @@ missing or a property is disallowed; every other effect ticks. `isRunningAcceler
 Lean `Fw.Parts.MorphTrackAccel`: `ticksContinuously`, `ticksMain = pending || (running && active && ticksContinuously)`, `tickOf` (pending, quiet, accelerated,
 main), `binOf`, `normName`, `readsAccel`, plus `classOf` and `readsAccelCls` for the layer-list fold below; one theorem per OR-branch
 (`readsAccelCls_no_tracks`, `readsAccelCls_empty`, `classOf_translate`, tick theorems in the same section). Golden
-`packages/contracts/golden/parts/morph-track-accel.jsonl` (256 tick, 12 bin, 3 name, 8 cls lines), replayed by the TS mirror in the test. The oracle is the
+`packages/contracts/golden/parts/morph-track-accel.jsonl` (256 tick, 12 bin, 3 name, 8 cls lines, `--check` in check.sh). The TS mirror `packages/measure-wktr/src/midflip.mjs` is a TS stand-in: the test checks one case per
+OR-branch, not the golden (a replay needs a `land.ts` read declaration, outside this task's writes). The oracle is the
 engine itself: `Internals.timeToNextAnimationTick` below `animationsInterval` (15 ms) means the animation ticks.
 
 ## Threaded pref (CONFIRMED source, MEASURED in WKTR)
