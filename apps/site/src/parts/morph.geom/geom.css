@@ -105,7 +105,7 @@
     transform-origin: 0 0;
   }
   /* column pictures (Lean MorphGeomPic): Kc moves its right edge and Uc moves back; the pic box clips the other edges */
-  [data-mg='Kc'] { overflow: hidden; padding-block: 64px; margin-block: -64px; }
+  [data-mg='Kc'] { flex: none; overflow: hidden; padding-block: 64px; margin-block: -64px; }
   [data-mg='pic'] { position: relative; flex: none; overflow: hidden; border-radius: 12px; }
   .is-flip [data-mg='image'] { position: absolute; left: var(--pic-l); top: var(--pic-t); width: var(--pic-w); height: var(--pic-h) !important; max-width: none; object-fit: fill; border-radius: 0; transform-origin: 50% 50%; }
 }
