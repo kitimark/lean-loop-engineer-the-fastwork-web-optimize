@@ -1,14 +1,14 @@
 # geom-track-style handoff (graph r552)
 
-Branch worktree-wf_ee9ffcfe-af8-1, worktree .claude/worktrees/wf_ee9ffcfe-af8-1 (under the main checkout), last commit c0c08b81b (+ later), CI branch ci/geom-track-style.
-CI runs: push 1 (7a177f5f4): lean 40611977358 FAILED (overflow golden, fixed in 9e416d653); breakpoint-gate 40611977476 FAILED only in flip-cell playwright-webkit morph.geom:on (site-side flake, not the probe; the 3 track-accel jobs r1..r3 passed); wktr 40611977559 CANCELLED after j1, j2 finished (j3 lost). Push 2 (1b00b7447, Lean constant gate, invalidation tracking, WebKit early readout): lean 40616651280, breakpoint-gate 40616651357, wktr 40616651419, all running at 08:50; 1 push left. check.sh green at c0c08b81b.
+Branch worktree-wf_ee9ffcfe-af8-1 (worktree .claude/worktrees/wf_ee9ffcfe-af8-1 under the main checkout), CI branch ci/geom-track-style. Both pushes used; none left.
+State: investigation finished, note written: research/notes/2026/10-2x-geom-track-style.md (read it first). Ledger note appended in research/findings/ledger.json.
+CI runs: push 1 (7a177f5f4) breakpoint-gate 40611977476, wktr 40611977559 (cancelled, j3 lost); push 2 (1b00b7447) lean 40616651280 success,
+breakpoint-gate 40616651357 (track-accel r1..r3 success; only flip-cell playwright-webkit fails, the geom-style-cut flake), wktr 40616651419 (j1, j2 success, j3 was still running).
 
-Verified from push-1 artifacts (track-accel-r1..r3, wktr-j1, j2; scratch in the session scratchpad gts/):
-- Chromium scrubbed (390/768/1440): 0 failures named, 0 cc starts added, tracks stay paused: nothing on the compositor (Lean: notPlaying).
-- Chromium timed: filter tracks (2 at <=720, 3 above) fail `filter-moves-pixels` in all 3 reps; opacity, scale, transform, translate, backdrop-filter get cc starts. One more main-thread track in every band: column:0 translate fails `no-visible-change` (constant keyframes, colTx v 0 = 0): Lean gate `constantTrack` added (c0c08b81b). Live image rows beyond the Lean sample (12 at 390, 6 else): 8 image transforms at 390 fail `target-invalid-compositing-state+no-visible-change` (hidden / unpainted target, compositor_animations.cc:491 CompositorPropertyAnimationsHaveNoEffect), not modelled.
-- Per-frame style work (Chromium trace): scrubbed sweep ~1.02 recalc/frame in every arm; elements/frame all 50 / none 10 / idle 8 (390); no-translate -17, no-transform -16, others ~0. Timed flip: still ~1 recalc/frame, 55-100 el/frame, no-translate -18, no-transform -17 el, though cc started the translate/transform tracks: mechanism OPEN, push 2 adds invalidation-tracking reasons.
-- WebKit (wktr j1, j2): scrubbed all 55 tracks paused, accel=false for all. Timed: j1 not engaged; j2 engaged but tracks already idle (tween ended on the slow frame clock) at the mid readout; push 2 adds early readouts + wheel retries.
-
-Open: push 2 results; note research/notes/2026/10-2x-geom-track-style.md; ledger note; check.sh at final commit; package tests; merge main; plan lint; dry land; fw review ready.
-Lane tag before pushing: `pnpm -s fw ci push --branch ci/geom-track-style --lanes breakpoint-gate,wktr --dry`; the head message must hold `[ci:breakpoint-gate] [ci:wktr] [accel]`.
-Conventions: scratch in the session scratchpad; compound shell commands are refused, use Edit/Write; commit trailers per CLAUDE.md.
+Verified:
+- Lean MorphTrackAccel (play-state, property, constant gates), golden regenerated and checked, TS golden test, gate-breakpoints test (4), check.sh green at c0c08b81b, package tests green.
+- Chromium timed: filter tracks and column:0 translate stay on main; all else gets cc starts; judge ok in 9 of 9 timed cells. Scrubbed: nothing on the compositor.
+- Per-frame style (Chromium): every track target gets `StyleRecalc:Animation` per frame even when composited; pausing transform or translate drops 84-92 to 45-54 elements per frame at 1440.
+- WebKit: scrubbed 55/55 paused; timed readout only per element, taken after the driver cancelled the tracks.
+Open: run ids in `fw review ready`; dry land; the proposed fix task (fold image transform tracks into a column scale) is a follow-up, not started.
+Conventions: scratch in the session scratchpad; compound shell commands are refused, use Edit/Write; commit trailers per CLAUDE.md; heavy runs through `pnpm -s fw slot run`.
