@@ -1,0 +1,8 @@
+# timed-m0-webkit handoff
+Branch worktree-wf_2db7bec6-7d6-1 (CI branch ci/timed-m0-webkit); worktree .claude/worktrees/wf_2db7bec6-7d6-1
+CI runs: 40660480093 (breakpoint-gate, ci/timed-m0-webkit at 4a8e758da, current reader + earnW field): complete, success; timed cell 0 failed of 24 on both engines (12 graded m=0, 12 m=1 skipped).
+
+State: Run 40553185213 ran on ci/geom-veil-restore at 47f7fd747, which does not contain the reader fixes e56ef0507 / 59fd94946 (`git merge-base --is-ancestor e56ef0507 47f7fd747` exits 1). Its flip-cell.mjs had no panel-mount agreement, no scroll-settle and no recheck. So the 3 failures are harness (reader) faults already fixed in HEAD, not a WebKit rest difference.
+Verified: per-cell JSON read (results/timed-m0-webkit/run/timed-wk.json), reader diff 47f7fd747..HEAD.
+Open: nothing for the unit. Follow-up: reader-version stamp in the JSON. No site or Lean change, so no golden.
+Read first: research/notes/2026/10-2x-timed-m0-webkit.md, research/notes/2026/10-2x-flip-verify-auto.md (section "The cause of the two WebKit geom-timed m=0 failures").
