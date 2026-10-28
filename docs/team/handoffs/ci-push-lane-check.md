@@ -20,6 +20,6 @@ Conventions: required lanes come from a `[lanes: a, b]` trailer in any commit of
 required lanes (case c) but never satisfies case (b): a Lean-only change needs no ci push. The render-guard test's clean
 push carries `[ci:wktr]` and a packages/measure-wktr file.
 
-Open: fails open on an internal error (prints a note; accepted). `git push --no-verify` bypasses the hook (accepted). The lead
+Open: fails open on an internal error (prints a note; accepted). The lead
 may add the `[lanes: ...]` trailer to spawn prompts.
 Read first: research/notes/2026/10-2x-ci-push-lane-check.md, then the Lean section.

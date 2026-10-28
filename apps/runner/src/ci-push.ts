@@ -1,11 +1,3 @@
-// The git pre-push hook (scripts/hooks/pre-push) runs this before any ref but main leaves the machine. Two checks, each from a Lean decision:
-// task ci-push-render-guard: the same Lean decision as `fw land` (fwcore `console.landRenderGuard`, via land.ts `renderGuard`) over
-// `origin/main..<pushed sha>`: a range that adds a media path outside snapshot/ is refused.
-// task ci-push-lane-check (incident inc-ci-push-no-lane): a `refs/heads/ci/**` push that would run no measuring lane is refused
-// (Lean Fw.Ci.Intent `reason`: tree equals main, a lane the branch's `[lanes: ...]` trailer requires does not start, or no lane but a
-// seeder starts). TS STAND-IN: `laneReason` and `lanesTrailer` are checked against packages/contracts/golden/ci/pushlane.jsonl, not run
-// from fwcore; the lane starts come from the guard script's `decide` (golden-checked against intent.jsonl). Local refs only, no network.
-// Pushes to refs/heads/main and deletions are not decided here.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

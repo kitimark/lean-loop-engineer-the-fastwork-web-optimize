@@ -1,6 +1,3 @@
-// Task ci-push-lane-check (incident inc-ci-push-no-lane): the ci/* pre-push hook refuses a push that would run no measuring lane.
-// The TS verdict is checked against the Lean golden (packages/contracts/golden/ci/pushlane.jsonl, Fw.Ci.Intent `reason`), then each
-// refusal case runs through the real hook; main and non-ci branches pass untouched.
 import "./land-timeout.ts";
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";

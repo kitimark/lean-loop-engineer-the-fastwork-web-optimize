@@ -2,7 +2,7 @@
 
 Incident `inc-ci-push-no-lane` (docs/team/incidents/ledger.json). geom-style-cut spent 3 pushes for one graded run (an empty
 commit, then a push without the lane token); geom-look-fade's first push lacked `[ci:breakpoint-gate]`. The guard decides the
-lanes from the tip message and the branch diff (Lean `Fw.Ci.Intent.decision`), but the builder saw the result only after the push.
+lanes from the tip message and the branch diff (Lean `Fw.Ci.Intent.decision`); the builder saw it only after the push.
 
 ## Decision (CONFIRMED: lean/Fw/Ci/Intent.lean, section "The push lane check")
 
