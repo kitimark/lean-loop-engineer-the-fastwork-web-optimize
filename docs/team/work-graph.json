@@ -23411,7 +23411,7 @@
    "deps": [
     "geom-webkit-midflip"
    ],
-   "title": "Same-look fix from geom-webkit-midflip: the geom-timed flip creates its WAAPI tracks on every enter (morph.geom/driver.ts:29) and cancels them on leave, so on WebKit (threaded pref off, the iOS default) every flip is a first flip whose tracks tick on the main thread until a late first commit; create and commit the tracks once ahead of the push and only play/seek them per flip, Lean first (state machine and same look at every m), measured on CI WKTR pref off (first flip 0 ticking mid-tween) and both gates.",
+   "title": "PARKED (finding, note research/notes/2026/10-2x-geom-prewarm.md): Same-look fix from geom-webkit-midflip: the geom-timed flip creates its WAAPI tracks on every enter (morph.geom/driver.ts:29) and cancels them on leave, so on WebKit (threaded pref off, the iOS default) every flip is a first flip whose tracks tick on the main thread until a late first commit; create and commit the tracks once ahead of the push and only play/seek them per flip, Lean first (state machine and same look at every m), measured on CI WKTR pref off (first flip 0 ticking mid-tween) and both gates.",
    "writes": [
     "apps/site/src/parts/morph.geom/**",
     "apps/site/src/parts/morph.tween/**",
@@ -23434,7 +23434,8 @@
     "research/notes/2026/10-2x-geom-prewarm.md",
     "results/geom-prewarm/**",
     "docs/team/handoffs/geom-prewarm.md"
-   ]
+   ],
+   "cut": true
   }
  ],
  "deadline": {
