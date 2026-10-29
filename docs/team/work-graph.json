@@ -24024,7 +24024,8 @@
     "results/earn-logical-preset/**",
     "docs/team/handoffs/earn-logical-preset.md",
     "lean/scripts/NavEarn*Golden.lean"
-   ]
+   ],
+   "evidence": "0dcb843"
   },
   {
    "devices": [

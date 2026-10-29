@@ -50,6 +50,9 @@ def linkTable : List (Flag × List Key) :=
     "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces \
       per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> \
       animation is active in the hold segments (left [1,2,4], right [0,3,4])")
+  let kel : Key := ("nav",
+    "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the \
+      padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip")
   [(⟨"engine.scroll", "batched"⟩, [k1]),
    (⟨"nav.hitTest", "elements-skip"⟩, [k4]),
    (⟨"nav.hitTest", "hit-skip"⟩, [k3]),
@@ -66,7 +69,8 @@ def linkTable : List (Flag × List Key) :=
    (⟨"engine.scroll", "unthrottle"⟩, [kut]),
    (⟨"hero", "scene-pause"⟩, [ksp]),
    (⟨"platform.glint", "hold-freeze"⟩, [khf]),
-   (⟨"hero.exit", "threaded"⟩, [threadedKey])]
+   (⟨"hero.exit", "threaded"⟩, [threadedKey]),
+   (⟨"nav", "earn-logical"⟩, [kel])]
 
 inductive Exclusion where
   | hand (reason : String)
@@ -1095,7 +1099,7 @@ def record (args : List String) : IO Unit := do
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
   "hero.countdown:strip", "morph.countdown:strip", "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
   "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped", "engine.scroll:unthrottle",
-  "hero:scene-pause", "platform.glint:hold-freeze", "hero.exit:threaded"]
+  "hero:scene-pause", "platform.glint:hold-freeze", "hero.exit:threaded", "nav:earn-logical"]
 #guard ((verdictJson [] ⟨"hero.accent", "steps"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
@@ -1328,6 +1332,25 @@ private def holdAll : List Stored := [Engine.chromium, .macWebkit].flatMap fun e
 #guard entryGaps [holdReg .q] [holdRow "proved"] holdAll == []
 #guard agreeScope [holdReg .e] holdFreeze && agreeScope [{ holdReg .e with visClass := none }] holdFreeze
 #guard !agreeScope [holdReg .q] holdFreeze && !agreeScope [holdReg .l] holdFreeze && !agreeScope [] holdFreeze
+
+private def earnRow (status : String) : Row :=
+  let k := ((linkOf links ⟨"nav", "earn-logical"⟩).getD []).headD ("", "")
+  ⟨k.1, k.2, status, some "nav:earn-logical", none, some .l⟩
+
+private def earnSt (e : Engine) (w : Walk) : Stored :=
+  ⟨9, "s", "r", "?fw=nav:earn-logical", ["nav:earn-logical"], e, w, Fw.Gate.Trajectory.allowedWidths, []⟩
+
+private def earnAll : List Stored := [Engine.chromium, .macWebkit].flatMap fun e => walks.map (earnSt e)
+
+#guard (linkOf links ⟨"nav", "earn-logical"⟩).isSome
+#guard why links [earnRow "proved"] ⟨"nav", "earn-logical"⟩ == .proved
+#guard entry [earnLogicalReg] [earnRow "proved"] earnAll ⟨"nav", "earn-logical"⟩ == .enter
+#guard entry [earnLogicalReg] [earnRow "proved"] [] ⟨"nav", "earn-logical"⟩ == .notYet [.gate .chromium, .gate .webkit]
+#guard entry [earnLogicalReg] [earnRow "partly-proved"] earnAll ⟨"nav", "earn-logical"⟩ == .notYet [.proofs]
+#guard !ok [earnLogicalReg] links [earnRow "proved"] earnAll ⟨"nav", "earn-logical"⟩
+#guard !(preset [earnLogicalReg] links [earnRow "proved"] earnAll).contains ⟨"nav", "earn-logical"⟩
+#guard !agreeScope [earnLogicalReg] ⟨"nav", "earn-logical"⟩
+#guard entryGaps [earnLogicalReg] [earnRow "proved"] earnAll == []
 
 private def unthrottleReg (c : Option VisClass) : Reg :=
   { flag := ⟨"engine.scroll", "unthrottle"⟩, kind := .optimized, requires := [], conflicts := [], visClass := c }
