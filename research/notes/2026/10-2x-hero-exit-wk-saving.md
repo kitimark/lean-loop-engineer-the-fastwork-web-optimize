@@ -9,8 +9,7 @@ WebKit 862f17d (`W` = `Source/WebCore`).
   or 12 (above), with 13 or 25 animation units. The original's inherited `--exit-opacity` write resolves the whole
   hero subtree: 123 or 215 elements. `HeroExitWork.wk_style_saving`, CONFIRMED (Lean, under the premise below).
 * With the fan-out counted, the WebKit trade has strictly fewer style units and restyled elements, still one added
-  compositor pass: `wk_trade_r2`, and under `frameWorkE` `wk_trade_r2E`. `wk_trade`, `wk_tradeE` and `wkOrigChanges`
-  keep their statements.
+  compositor pass: `wk_trade_r2`, and under `frameWorkE` `wk_trade_r2E`. `wk_trade`, `wk_tradeE` and `wkOrigChanges` are unchanged.
 * `ResourceFlags` `hero.exit:threaded` WebKit style is now per element: (style passes, restyled elements) over the
   golden frames is (1, 123) for the original and (1, 6) for the variant, so the prediction is `down`. The phone check
   (627-631 against 646-651 records per run) moves from disagree to agree. Checks: agree 52, unresolved 9,
@@ -34,7 +33,7 @@ the root has no box, each child under the same rule. Source, CONFIRMED:
 
 The rule fixes the count: any `r` that follows it equals `Restyle.wkFull` on every tree (`eq_wkFull_of_rule`), and
 `wkFull` follows it (`wkInheritRule_wkFull`). Unlike Chromium (`crFull`, 99 and 172) WebKit has no independent-
-inheritance clone path for subtrees without custom properties, hence the larger 123 and 215.
+inheritance clone path for subtrees without custom properties, so it counts 123 and 215.
 
 The variant side: its animated properties are non-inherited, so a changed consumer resolves only children with an
 explicit `inherit` of a non-inherited property (`W/style/StyleTreeResolver.cpp:310-311,1207-1209`; the flag is set
@@ -60,5 +59,5 @@ the old `mechanisms` entry for the disagreement is removed.
 * Query containers (`.card` has `container-type`) defer their descendants (`W/style/StyleTreeResolver.cpp:1390-1392`);
   INFERRED that they are resumed in the same update, so they are counted.
 * The phone records count style recalcs, not elements, so the check agrees in direction only. The variant run also
-  renders fewer frames (588 against 693-696), which lowers the record count too. INFERRED.
+  renders fewer frames (588 against 693-696). INFERRED.
 * RG11 stays a hypothesis of `consumer_eq_s`.

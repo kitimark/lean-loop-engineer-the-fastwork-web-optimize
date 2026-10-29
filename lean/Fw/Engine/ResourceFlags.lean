@@ -63,9 +63,6 @@ def threadedCr : Footprint :=
      (.frames, ef (pairsSign crFrames .script) "cr_lane_mixed: script passes drop (no rAF)")],
     none⟩
 
-/-- The WebKit style work of the golden frames per element: (style passes, restyled elements) summed over the
-scrolled and the idle frame, original first. The original's scrolled frame carries its inherited fan-out
-(`HeroExitWork.wkOrigR2` under `wkFull`). -/
 def wkStyleElemPair : (Nat × Nat) × (Nat × Nat) :=
   let EX := WebKit.webkitX WebKit.WkMode.safari
   let sum (fs : List (FrameIn WebKit.WkPropX)) : Nat × Nat :=

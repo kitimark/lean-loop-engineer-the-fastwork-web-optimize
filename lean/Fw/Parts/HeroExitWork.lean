@@ -215,8 +215,6 @@ theorem cr_lane_style_saving (l : Bool) (lo : LayerState) (r : Bool) :
 
 end Fan
 
-/-! ## WebKit: the original's inherited fan-out -/
-
 section WkFan
 open Fw.Engine.WebKit
 
@@ -231,23 +229,16 @@ child inheriting the new data; `display: none` stops the descent (`:1387-1388`).
 def WkInheritRule (r : Node → Nat) : Prop :=
   ∀ n f ks, r (mk n f ks) = 1 + if f.hidden then 0 else (ks.map r).sum
 
-/-- `wkFullL` sums `wkFull` over the children. -/
 theorem wkFullL_eq (ks : List Node) : wkFullL ks = (ks.map wkFull).sum := by
   induction ks with
   | nil => rfl
   | cons k ks ih => simp [wkFullL, ih]
 
-/-- `wkFull` follows the rule.
-
-The premise is consistent. -/
 theorem wkInheritRule_wkFull : WkInheritRule wkFull := by
   intro n f ks
   simp [wkFull, wkFullL_eq]
 
 mutual
-/-- **The rule fixes the count**: any count that follows it is `wkFull`.
-
-The premise determines the resolved elements of every tree. -/
 theorem eq_wkFull_of_rule (r : Node → Nat) (h : WkInheritRule r) : ∀ n : Node, r n = wkFull n
   | mk n f ks => by
     rw [h, wkInheritRule_wkFull, eq_wkFull_of_ruleL r h ks]
@@ -256,7 +247,6 @@ theorem eq_wkFull_of_ruleL (r : Node → Nat) (h : WkInheritRule r) : ∀ ks : L
   | k :: ks => by rw [List.map_cons, List.map_cons, eq_wkFull_of_rule r h k, eq_wkFull_of_ruleL r h ks]
 end
 
-/-- The elements a frame restyles: the distinct elements of its changes that dirty `style`. -/
 def styleElems {P M : Type} (E : Engine P M) (f : FrameIn P) : Nat :=
   ((f.changes.filter fun c => decide (Stage.style ∈ E.stagesOf c)).map Change.elem).eraseDups.length
 
@@ -264,35 +254,23 @@ def styleElems {P M : Type} (E : Engine P M) (f : FrameIn P) : Nat :=
   ⟨2, .restyle, .own⟩, ⟨5, .customInherited, .none⟩], 0⟩ == 2
 #guard styleElems (webkitX .safari) emptyX == 0
 
-/-- `styleElems` on WebKit does not depend on the mode: the stages of each row do not. -/
 theorem styleElems_webkitX (m : WkMode) (f : FrameIn WkPropX) :
     styleElems (webkitX m) f = styleElems (webkitX .safari) f := rfl
 
-/-- The fan-out on WebKit under the count `r`: the resolved elements beyond the hero and its consumers. -/
 def wkFanOut (r : Node → Nat) (l : Bool) : Nat := r (heroTree l) - (cardsShown l + 3)
 
 #guard wkFanOut wkFull true == 116 && wkFanOut wkFull false == 202
 
-/-- The hero, its consumers and the fan-out make up the whole resolved subtree on WebKit.
-
-Nothing of the subtree is cut off. -/
 theorem wkFanOut_add (l : Bool) : cardsShown l + 3 + wkFanOut wkFull l = wkFull (heroTree l) := by
   cases l <;> decide +kernel
 
-/-- The original's fan-out rows: the hero's inherited write and one restyle per further element. -/
 def wkFanChanges (r : Node → Nat) (l : Bool) : List (Change WkPropX) :=
   ⟨1, .customInherited, .none⟩ :: (List.range (wkFanOut r l)).map fun i => ⟨100 + i, .restyle, .none⟩
 
-/-- **The original's scrolled frame on WebKit with the fan-out**: `wkOrigChanges` for the shown cards, then the
-fan-out rows. -/
 def wkOrigR2 (r : Node → Nat) (l : Bool) (lo : LayerState) : FrameIn WkPropX :=
   let f := liftWkFrame (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))
   { f with changes := f.changes ++ wkFanChanges r l }
 
-/-- **Exact work of the original's scrolled frame with the fan-out on WebKit**: the passes of the frame without it,
-and `wkFanOut r ℓ + 1` more style units.
-
-What one scrolled frame of the original costs WebKit once the inherited write is counted. -/
 theorem wk_orig_r2 (m : WkMode) (r : Node → Nat) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) (s : Stage) :
     let O := frameWork (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))
     (frameWork (webkitX m) (wkOrigR2 r l lo)).passes s = O.passes s ∧
@@ -320,10 +298,6 @@ theorem wk_orig_r2 (m : WkMode) (r : Node → Nat) (l : Bool) (lo : LayerState) 
   rw [he, h.1, h.2, hl.1, hl.2.1, hlen]
   exact ⟨rfl, rfl, hl.2.2⟩
 
-/-- **The original restyles the whole hero subtree on WebKit**: under the rule, its scrolled frame restyles
-`wkFull (heroTree ℓ)` elements, 123 in the phone band and 215 above.
-
-Per element, WebKit pays the inherited fan-out of the original's write. -/
 theorem wk_orig_r2_elems (m : WkMode) (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState)
     (hlo : lo ≠ .none) :
     styleElems (webkitX m) (wkOrigR2 r l lo) = wkFull (heroTree l) ∧
@@ -334,12 +308,8 @@ theorem wk_orig_r2_elems (m : WkMode) (r : Node → Nat) (hr : WkInheritRule r) 
   clear he hr r m
   cases l <;> cases lo <;> first | exact absurd rfl hlo | (clear hlo; decide +kernel)
 
-/-- **The variant restyles its animated consumers only**: its scrolled frame restyles the copy, the cue and the
-shown cards, 6 elements in the phone band and 12 above. Their animated properties are non-inherited, so WebKit
-resolves no child without an explicit `inherit` of a non-inherited property (`WC/style/StyleTreeResolver.cpp:310-311,
-1207-1209`, `WC/style/StyleBuilder.cpp:439-440`@862f17d).
-
-Per element, the variant's WebKit style work is its consumers. -/
+/-- WebKit resolves no child without an explicit `inherit` of a non-inherited property
+(`WC/style/StyleTreeResolver.cpp:310-311,1207-1209`, `WC/style/StyleBuilder.cpp:439-440`@862f17d). -/
 theorem wk_var_elems (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) :
     styleElems (webkitX m) (wkVar m l (cardsShown l)) = cardsShown l + 2 ∧
       cardsShown l + 2 = (if l then 6 else 12) := by
@@ -347,11 +317,6 @@ theorem wk_var_elems (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool
   clear hm m
   cases l <;> decide +kernel
 
-/-- **The WebKit style saving** (threaded scroll-driven on, WKTR premise, inherited-propagation premise): the
-variant's scrolled frame runs the original's single style pass, but restyles `ℓ ? 6 : 12` elements with
-`ℓ ? 13 : 25` animation units, strictly below the `ℓ ? 123 : 215` elements the original's inherited write resolves.
-
-On WebKit the variant restyles each animated consumer, the original the whole hero subtree. -/
 theorem wk_style_saving (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
     (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) :
     let V := frameWork (webkitX m) (wkVar m l (cardsShown l))
@@ -393,10 +358,6 @@ theorem wk_style_saving (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm :
   · rw [hve.1, hve.2, hoe.1, hoe.2]; cases l <;> decide
   · rw [hu, hoe.1, hoe.2]; cases l <;> decide
 
-/-- **The WebKit trade against the original with its fan-out**: strictly less main-thread work, strictly fewer
-style units and restyled elements, at the price of one compositor pass.
-
-`wk_trade` with the inherited write counted; its own statement against `wkOrigChanges` stays. -/
 theorem wk_trade_r2 (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
     (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) :
     let V := frameWork (webkitX m) (wkVar m l (cardsShown l))
@@ -424,9 +385,6 @@ theorem wk_trade_r2 (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.t
   · show (frameWork _ _).passes _ = _
     rw [(ho .comp).1, hoc]
 
-/-- **`wk_trade_r2` under `frameWorkE`**: the frame-end pass changes nothing on frames without reads.
-
-Safari's trade with the fan-out does not depend on the frame-end pass. -/
 theorem wk_trade_r2E (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
     (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) (ev eo : Stage → Bool)
     (hv : ∀ s, s ∈ touched (webkitX m) (wkVar m l (cardsShown l)) → ev s = true)
