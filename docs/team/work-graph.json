@@ -24023,6 +24023,35 @@
     "results/earn-logical-preset/**",
     "docs/team/handoffs/earn-logical-preset.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-wktr-flip",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "glint-compositor"
+   ],
+   "title": "End of page on WebKit via WKTR's flip arm (the Simulator lane never reaches the open morph): measure platform:faded-pause (built, gate PASS, WebKit never run) and platform.glint:compositor on the flip arm vs base and the all-paused floor, and split the flip residual (compositor 80-88 vs floor 68-75 recalcs per 100 frames) by cause (rs.kt / rs.internals), with Lean verdict rules decided before the data.",
+   "writes": [
+    "packages/measure-wktr/**",
+    "lean/Fw/Device/EndWktr*.lean",
+    "lean/Fw/Device/GlintHold*.lean",
+    "lean/scripts/EndWktr*Golden.lean",
+    "packages/contracts/golden/device/end-wktr*.jsonl",
+    "packages/contracts/golden/device/glint*.jsonl",
+    ".github/workflows/wktr.yml",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-end-wktr-flip.md",
+    "results/end-wktr-flip/**",
+    "docs/team/handoffs/end-wktr-flip.md"
+   ]
   }
  ],
  "deadline": {
