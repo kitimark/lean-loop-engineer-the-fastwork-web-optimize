@@ -1,1 +1,1 @@
-{"extends":"original","fw":{"engine.scroll":"unthrottle","hero.exit":"threaded"},"name":"v2-proved"}
+{"extends":"original","fw":{"engine.scroll":"unthrottle","hero.exit":"threaded","platform":"faded-pause"},"name":"v2-proved"}

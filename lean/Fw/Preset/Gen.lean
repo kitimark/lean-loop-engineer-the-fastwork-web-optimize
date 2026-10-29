@@ -3,6 +3,8 @@ import Fw.Preset.V2Proved
 import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitWork
 import Fw.Parts.PlatformGlintHold
+import Fw.Parts.PlatformFadedPause
+import Fw.Device.EndWktr
 /-!
 Generates the `v2-proved` preset and decision rows from the findings ledger and `part.json` files.
 Run from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--check"]\n' | lake env lean --stdin` (drop `--check` to write).
@@ -53,6 +55,10 @@ def linkTable : List (Flag × List Key) :=
   let kel : Key := ("nav",
     "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the \
       padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip")
+  let kfp : Key := ("platform",
+    "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused \
+    (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and \
+    the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises")
   [(⟨"engine.scroll", "batched"⟩, [k1]),
    (⟨"nav.hitTest", "elements-skip"⟩, [k4]),
    (⟨"nav.hitTest", "hit-skip"⟩, [k3]),
@@ -70,7 +76,8 @@ def linkTable : List (Flag × List Key) :=
    (⟨"hero", "scene-pause"⟩, [ksp]),
    (⟨"platform.glint", "hold-freeze"⟩, [khf]),
    (⟨"hero.exit", "threaded"⟩, [threadedKey]),
-   (⟨"nav", "earn-logical"⟩, [kel])]
+   (⟨"nav", "earn-logical"⟩, [kel]),
+   (⟨"platform", "faded-pause"⟩, [kfp])]
 
 inductive Exclusion where
   | hand (reason : String)
@@ -794,6 +801,20 @@ def holdRowNames : List Name :=
 
 def holdLinkGaps (ledger : Json) : List String := linkGaps ledger holdFreeze holdRowNames
 
+def fadedPause : Flag := ⟨"platform", "faded-pause"⟩
+
+def fadedRowNames : List Name :=
+  [``Fw.Parts.PlatformFadedPause.faded_same_pixels, ``Fw.Parts.PlatformFadedPause.invisible_iff,
+    ``Fw.Parts.PlatformFadedPause.visible_phase, ``Fw.Parts.PlatformFadedPause.faded_no_tick,
+    ``Fw.Parts.PlatformFadedPause.glint_phase, ``Fw.Parts.PlatformFadedPause.resume_phase,
+    ``Fw.Parts.PlatformFadedPause.settled_skipped, ``Fw.Parts.PlatformFadedPause.restore_skips,
+    ``Fw.Parts.PlatformFadedPause.scene_offscreen, ``Fw.Parts.PlatformFadedPause.scene_faded,
+    ``Fw.Parts.PlatformFadedPause.scene_neither, ``Fw.Parts.PlatformFadedPause.writer_or,
+    ``Fw.Parts.PlatformFadedPause.writer_order_free, ``Fw.Parts.PlatformFadedPause.setFaded_idem,
+    ``Fw.Parts.PlatformFadedPause.setActive_idem, ``Fw.Device.EndWktr.cuts_spec]
+
+def fadedLinkGaps (ledger : Json) : List String := linkGaps ledger fadedPause fadedRowNames
+
 #guard (theoremTokens "a (Fw.X.y_z), b_c: d") == ["Fw.X.y_z", "b_c"]
 #guard threadedLinkGaps (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str heroExitThreaded.key),
   ("leanFor", .arr ((threadedRowNames.drop 1).map (.str ·.toString)).toArray),
@@ -803,6 +824,10 @@ def holdLinkGaps (ledger : Json) : List String := linkGaps ledger holdFreeze hol
   (threadedRowNames.take 1).map toString
 #guard threadedLinkGaps .null == threadedRowNames.map toString
 #guard holdLinkGaps .null == holdRowNames.map toString
+#guard fadedLinkGaps .null == fadedRowNames.map toString
+#guard fadedLinkGaps (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str fadedPause.key),
+  ("leanFor", .arr ((fadedRowNames.drop 1).map (.str ·.toString)).toArray)]])]) == (fadedRowNames.take 1).map toString
+#guard (linkOf links fadedPause).map (·.length) == some 1
 
 def entryWord : Entry → String
   | .enter => "enter"
@@ -912,6 +937,8 @@ def run (args : List String) : IO Unit := do
       s!"threadedEvidence cites theorems outside the ledger row's links: {threadedLinkGaps (← readJson ledgerPath)}")
   unless (holdLinkGaps (← readJson ledgerPath)).isEmpty do
     throw (IO.userError s!"the hold-freeze ledger row does not link: {holdLinkGaps (← readJson ledgerPath)}")
+  unless (fadedLinkGaps (← readJson ledgerPath)).isEmpty do
+    throw (IO.userError s!"the faded-pause ledger row does not link: {fadedLinkGaps (← readJson ledgerPath)}")
   let bad := ledgerDisagreements (← readJson ledgerPath) lookDecisions
   unless bad.isEmpty do throw (IO.userError s!"the ledger text disagrees with Gen.lookDecisions: {bad}")
   unless (classDisagreements reg ledger).isEmpty do
@@ -1099,7 +1126,7 @@ def record (args : List String) : IO Unit := do
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
   "hero.countdown:strip", "morph.countdown:strip", "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
   "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped", "engine.scroll:unthrottle",
-  "hero:scene-pause", "platform.glint:hold-freeze", "hero.exit:threaded", "nav:earn-logical"]
+  "hero:scene-pause", "platform.glint:hold-freeze", "hero.exit:threaded", "nav:earn-logical", "platform:faded-pause"]
 #guard ((verdictJson [] ⟨"hero.accent", "steps"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"

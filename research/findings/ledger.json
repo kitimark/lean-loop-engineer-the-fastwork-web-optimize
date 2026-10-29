@@ -4419,28 +4419,40 @@
    "flag": "platform:faded-pause",
    "visClass": "E",
    "candidate": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
-   "status": "partly-proved",
+   "status": "proved",
    "chromium": "MEASURED swipe-touch-v1, 3 runs per arm, one commit 5a82a54 (base 40287924353, flag 40287928566, Lean window reader): gain in end 20-59 (Paint 252 to 197, PaintImage 454 to 294), end 60-119 (Paint 120 to 0) and end 120+ (Paint 94 to 0); end 0-19 and finish noGain because RecalcStyleCount and LayoutCount read one more (finish 320 to 321 and 52 to 53); approach noGain",
-   "webkit": "not run: the WebKit lane only scrolls (scrollrun.mjs:35,69 scrollTo steps), so the open morph is never reached, the fade never gets to 0 and the flag is a no-op there; runs 40288001111 and 40288005328 were cancelled; the toolbar/push lanes are a follow-up",
+   "webkit": "MEASURED WKTR flip arm at the page end (run 40869911524, results/end-wktr-flip/r1/verdict.txt 'fp/recalc' lines): recalcs per 100 frames base 244/242/237, faded-pause 87/89/91, all-paused floor 83/70/81, Lean EndWktr.judge cuts in 3 of 3 jobs (cuts_spec); layout ('fp/layout' lines) 186/176/104 to 22/75/64, cuts in 3 of 3. The Simulator lane still only scrolls and never opens the morph",
    "visual": "E (Lean PlatformFadedPause.faded_same_pixels: at fade 0 the page pixel is the backdrop for every subtree colour, assuming no descendant escapes the opacity group, census-tested; visible_phase, glint_phase: every visible frame reads the uninterrupted phase)",
    "mechanism": "CONFIRMED by source: Chromium records an effectively invisible layer (paint_layer_painter.cc:168-191,424@f842f52, ScopedEffectivelyInvisible); WebKit clears the repaint rects of an opacity-0 subtree (RenderLayer.cpp:1522,6147-6150@862f17d) but the main-thread background-position animation still resolves style each frame. INFERRED: pausing removes the per-frame invalidation and decode work.",
    "leanFor": [
     "Fw.Parts.PlatformFadedPause.faded_same_pixels",
+    "Fw.Parts.PlatformFadedPause.invisible_iff",
     "Fw.Parts.PlatformFadedPause.frame_same",
     "Fw.Parts.PlatformFadedPause.visible_phase",
     "Fw.Parts.PlatformFadedPause.faded_no_tick",
     "Fw.Parts.PlatformFadedPause.glint_phase",
+    "Fw.Parts.PlatformFadedPause.resume_phase",
+    "Fw.Parts.PlatformFadedPause.settled_skipped",
+    "Fw.Parts.PlatformFadedPause.restore_skips",
     "Fw.Parts.PlatformFadedPause.scene_offscreen",
     "Fw.Parts.PlatformFadedPause.scene_faded",
-    "Fw.Parts.PlatformFadedPause.scene_neither"
+    "Fw.Parts.PlatformFadedPause.scene_neither",
+    "Fw.Parts.PlatformFadedPause.writer_or",
+    "Fw.Parts.PlatformFadedPause.writer_order_free",
+    "Fw.Parts.PlatformFadedPause.setFaded_idem",
+    "Fw.Parts.PlatformFadedPause.setActive_idem",
+    "Fw.Parts.PlatformFadedPause.setFaded_writes",
+    "Fw.Device.EndWktr.cuts_spec"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "WebKit count (no lane reaches the open morph); the +1 RecalcStyle/Layout at the edge is INFERRED"
+    "the one extra RecalcStyle and Layout at the Chromium resume edge (finish 320 to 321, 52 to 53) is attributed to the edge's scene write and getAnimations flush: INFERRED; Lean setFaded_writes gives exactly one scene write per fade edge, but which engine pass the counter adds is not isolated by a run",
+    "iOS Safari not measured: WKTR stands in for WebKit; the phone check comes with the user's capture session"
    ],
    "premises": [
     "setting startTime on a CSSAnimation after the style flush keeps the CSS play state: INFERRED",
-    "no descendant escapes the section's opacity group: census test over the platform sources"
+    "no descendant escapes the section's opacity group: census test over the platform sources",
+    "the observer reports the section active through every faded interval (Lean resume_phase hypothesis Allowed): INFERRED from the tween taking every push while it is active (MorphTween, snapshot 13065-13072); a scroll that bypasses the push handler and leaves the section off screen while the fade is 0 resumes its CSS animations ahead of the original by the time spent off screen (the third #guard after setFaded_writes in PlatformFadedPause)"
    ],
    "v1Evidence": "",
    "lesson": "Pausing an invisible section removes its paint and raster work once the fade is 0, but the resume edge costs one style recalc and one layout, so the gain shows only in windows long enough to repay it.",
@@ -5603,6 +5615,12 @@
    "task": "earn-logical-preset",
    "field": "webkit",
    "text": "Note research/notes/2026/10-2x-earn-logical-preset.md. MEASURED on macOS (run 40876250109, Playwright WebKit against Playwright Chromium, 17 frames, exit and entry, Lean frameBound allowed 78 at 390 and 256 at 1280): the 390 cell passes, logical worst 60 on exit and 60 on entry, 0 frames over; the faithful arm is over (worst 245 exit, 1332 entry). Recorded in packages/contracts/golden/parts/nav.earn.frames.jsonl through Fw.Parts.NavEarnFrames. Gen.run for nav:earn-logical (walk run 40872462216): not yet, blocker gate webkit (the macOS WebKit morph cell fails); chromium hero and morph, linux-webkit hero and macOS WebKit hero pass. Membership is also closed structurally (kind proposal, class L; Fw.Preset.V2Proved.look_not_mem). macOS WebKit stands in for iOS Safari; the iPhone is not measured."
+  },
+  {
+   "entry": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "task": "faded-pause-entry",
+   "field": "missingWhy",
+   "text": "Closed by linked Lean (PlatformFadedPause): resume restores the uninterrupted phase (resume_phase over step_inv/run_inv), settled entries are skipped (settled_skipped, restore_skips), the one data-fw-scene writer ORs observer and fade in any order (writer_or, writer_order_free, setFaded_idem, setActive_idem), and the escape premise is an iff (invisible_iff); WebKit cut judged by EndWktr.cuts_spec (run 40869911524). Gate: trajectory run 40900090514 at 80d9c0b recorded by Gen.record, chromium hero/morph, linux-webkit hero, mac-webkit hero/morph all pass (v2-proved.trajectory.jsonl); Gen.run enters the flag (v2-proved.decisions.jsonl). Left open: the +1 RecalcStyle/Layout attribution at the resume edge (INFERRED, not isolated by a run) and iOS Safari (WKTR stands in). New premise: faded implies active (Allowed), INFERRED. research/notes/2026/10-2x-faded-pause-entry.md"
   }
  ]
 }
