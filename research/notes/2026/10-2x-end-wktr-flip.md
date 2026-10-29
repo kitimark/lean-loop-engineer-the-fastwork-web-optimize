@@ -3,7 +3,7 @@
 Question: on WebKit (WKTR, pref OFF, the open morph of the page end), do `platform:faded-pause` and `platform.glint:compositor` cut the style
 recalcs, and what is left of the compositor's flip residual (80-88 against the all-paused floor 68-75 in glint-compositor r4)?
 Why: the user feels the end of the page laggy on every arm (phone 2026-10-29: base 1, v2-proved 3, +glint-hold 3). The Simulator lane never reaches
-the open morph; the WKTR flip arm does. Task `end-wktr-flip`. Class counts per 100 frames, not phone time. WKTR is not iOS Safari (limit, below).
+the open morph; the WKTR flip arm does. Class counts per 100 frames, not phone time. WKTR is not iOS Safari (limit, below).
 
 ## Rules decided before the data (CONFIRMED, Lean)
 `lean/Fw/Device/EndWktr.lean` at 1025b2bcc, pushed in 49a5c04f3 before any run; golden `packages/contracts/golden/device/end-wktr.jsonl`; the
@@ -70,7 +70,7 @@ iso arm (the glint-compositor r4 arm, glint animation kept running, everything e
 | j2 | 63 / 53 | 24 / 32 | 0 / 0 | nothing above the band (band 11) |
 | j3 | 169 / 149 | 11 / 24 | 0 / 0 | one category: written (band 6) |
 
-  Overall `mixed` (the rule's own output). Written frames (DOM mutations) carry most recalcs, live and paused. The live glint arm is above its
+  Overall `mixed`. Written frames (DOM mutations) carry most recalcs, live and paused. The live glint arm is above its
   paused read by more than the band in j1 (written 68 against 61, band 6) and j3 (169 against 149, band 6), not in j2 (63 against 53, band 11).
   Keys, frames with a recalc live / paused as the files show them: `mut:nav#style` and `mut:nav#data-fw-morph` 11/11 in j1 (the rule's key
   line prints `-`: no key is higher live), 13/10 in j2, 38/36 in j3; the entry bundle's `timer:interval` (T>E, line 47) 11/11 in j1, 13/10 in
@@ -86,6 +86,6 @@ Not the glint, which is at the floor on 2 of 3 jobs; `faded-pause` already takes
 
 ## Limits
 - WKTR is not iOS Safari; counts are recalcs and layouts, not felt smoothness. The phone check comes with the user's capture session.
-- The cause of j3 is not isolated (a workload difference between the flip's page states is INFERRED; a second process would tell); the overall is `mixed` as the rule says.
+- The cause of j3 is not isolated (a workload difference between the flip's page states is INFERRED; a second process would tell).
 - Floors move by process (70-88 here), so any claim below the band (9-11) is not made.
 - faded-pause look stays class E (user's visual review); no preset changed.
