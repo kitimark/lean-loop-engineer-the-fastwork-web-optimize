@@ -746,7 +746,12 @@ def threadedLinkGaps (ledger : Json) : List String :=
   (threadedRowNames.map toString).filter fun n => !(rowLinks ledger heroExitThreaded.key).contains n
 
 #guard (theoremTokens "a (Fw.X.y_z), b_c: d") == ["Fw.X.y_z", "b_c"]
-#guard threadedLinkGaps ((Json.parse (include_str "../../../research/findings/ledger.json")).toOption.getD .null) == []
+#guard threadedLinkGaps (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str heroExitThreaded.key),
+  ("leanFor", .arr ((threadedRowNames.drop 1).map (.str ·.toString)).toArray),
+  ("leanAgainst", .arr #[.str (threadedRowNames.head!.toString)])]])]) == []
+#guard threadedLinkGaps (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str heroExitThreaded.key),
+  ("leanFor", .arr ((threadedRowNames.drop 1).map (.str ·.toString)).toArray)]])]) ==
+  (threadedRowNames.take 1).map toString
 #guard threadedLinkGaps .null == threadedRowNames.map toString
 
 def entryWord : Entry → String

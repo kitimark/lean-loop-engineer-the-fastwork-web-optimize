@@ -60,5 +60,7 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
 ## Evidence names
 
 `Gen.lean` now lists the theorems the proved branch of `threadedEvidence` cites (`threadedRowNames`, resolved names).
-`#guard`s check that every theorem token in that text is one of them (or `threaded_proofs_iff`), and that each is in
-row n 6's `leanFor` or `leanAgainst` (`include_str` of the ledger). `Gen.run` checks the same against the file it reads.
+`#guard`s check that every theorem token in that text is one of them (or `threaded_proofs_iff`), and test the link
+check `threadedLinkGaps` on inline ledgers. `Gen.run` (run by check.sh's preset job) checks that each name is in row
+n 6's `leanFor` or `leanAgainst` of the ledger file. A compile-time read of the ledger would put `research/` in the
+Lean build cone, which `scripts/ci-paths.test.mjs` refuses.

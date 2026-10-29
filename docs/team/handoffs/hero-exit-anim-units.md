@@ -17,8 +17,8 @@
 * Changed statements: `wk_trade`, `wk_tradeE` gain `V.units .style = O.units .style`; `cr_lane_mixed` style
   `+ (N + 2)`, props `+ (N + 3)`; `crVar_eq` compAnims `2N + 4 − [¬ℓ]`; `wk_anim_comp` takes an `AnimProp`.
 * `HeroExitWork`: `cr_style_saving`, `cr_lane_style_saving` and `wkEdgeChanges_eq` re-proved, statements unchanged.
-* `Gen.lean`: `threadedRowNames` (resolved names), `#guard`s on the proved evidence text and on the ledger row links
-  (`include_str`), and the same link check in `run`.
+* `Gen.lean`: `threadedRowNames` (resolved names), `#guard`s on the proved evidence text and on inline ledgers; the
+  link check against the ledger file runs in `run` (no `include_str`: `research/` is outside the Lean cone).
 * Ledger row n 6: new links, mechanism and lesson counts, one note (task hero-exit-anim-units). Decision: `enter`.
 
 ## Read first
