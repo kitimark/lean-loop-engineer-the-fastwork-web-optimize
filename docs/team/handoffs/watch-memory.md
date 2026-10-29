@@ -5,6 +5,8 @@ run ids: none (local task, no CI)
 verified: Lean WatchMem compiles; goldens replay in check.sh; runner tests; local RSS before/after, before max 842 MB / after max 250 MB (local, 21 min, 60 s samples, slope -5 / +5 MB/min)
 open: next.ts outside writes (dry land may need --allow); follow-ups below
 
+round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window fixture + replay test, raw RSS rows in the note, read_grown docstring. No CI runs. Samples: the note's raw rows (sampler scratch was kept).
+
 ## State
 - Cause: fw watch re-read whole logs each tick (timings 64 MB, transcripts 110 MB, fwcore binary hash 83 MB, events, spool).
   Now cursor reads in 512 KiB chunks (`apps/runner/src/watch-mem.ts`), windowed timing samples (newest 3000), per-transcript

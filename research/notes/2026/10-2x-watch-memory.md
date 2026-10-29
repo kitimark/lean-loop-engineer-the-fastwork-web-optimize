@@ -69,7 +69,7 @@ the bound was set from the measurement. Peak is 3.4 x lower than before; the lea
 Alert output unchanged: `apps/runner/test/watch-mem.test.ts`, describe "recorded event window", replays the committed window
 `apps/runner/test/fixtures/watch-mem/` (`timings.jsonl`: the newest 3400 rows of a recorded log reduced to tool, step, durMs, host, load,
 startMs, exit; `spool/main.jsonl`: 400 recorded hook lines reduced to six fields; `events.jsonl` and `transcripts/agent-synth.jsonl`:
-synthetic, shaped like the real ones, the transcript with a tool_use whose tool_result line is 700 kB, longer than one 512 KiB chunk). Each file
+synthetic, shaped like the real ones, the transcript with a tool_use whose tool_result line is 747 kB, longer than one 512 KiB chunk). Each file
 grows in three appends cut inside lines through the cursor readers; the test deep-equals the slow alert list (`slowAlerts`), the transcript
 signal facts (`finishSignals`), `handbackAtOf`, `collectLead` and `collectFeedback` against the whole-file results. Window rows equal a sort
 of everything on random logs (same file). The live OPEN lines of the two arms differ only where the world differs (load average, a CI run
