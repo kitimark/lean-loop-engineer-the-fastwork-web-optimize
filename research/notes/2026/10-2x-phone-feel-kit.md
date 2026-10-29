@@ -24,7 +24,7 @@ once; labels go by first appearance, so the letters are always `A B C B C A`. Fo
 Rating: a whole number 1 (rough) to 5 (smooth) per visit. A cell compares an arm's visit to `base`'s visit of the same
 round: better if at least 1 above, worse if at least 1 below, else same. The arm verdict is felt better / same / worse
 when both visits agree, otherwise mixed. A look-change arm has one visit; its score is compared against both `base`
-scores. The verdict table names the arms, so `feel stop` prints it only after the last rating; `status` hides names
+scores. The verdict table names the arms, so `feel stop` prints it at every stop (the lead reads it, the person does not); `status` hides names
 unless `--reveal`.
 
 The Serious pin gate (`pinGate` from `device-thermal-pin.mjs`): `feel next` refuses to open an arm unless the owner is
