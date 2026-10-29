@@ -39,7 +39,7 @@ Frames per series 48-74 in every cell (minimum 12), so no cell is unread.
 - Faded-pause takes the natural flip from about 240 to about 90 (floor 70-83): the cut is real in all three jobs, and what is left is 4-19 per 100 frames
   above the floor.
 - Compositor alone cuts, but only to 142-219: it does not reach the floor in any job. Adding it to faded-pause changes nothing the rule can see
-  (both 87/92/70 against faded-pause alone 87/89/91): `platform:faded-pause` is the arm that matters at the page end.
+  (both 87/92/70 against faded-pause alone 87/89/91; INFERRED: no Lean rule compares both with faded-pause): `platform:faded-pause` is the arm that matters at the page end.
 - Layout and compositing counts: compositing cuts like recalcs in every arm. Layout: faded-pause cuts and both cut;
   compositor alone and the iso arm are mixed (j3 108 against base 104, an outlier process, see below); layerFlush is no-contrast (133 per 100 frames in
   every arm: one flush per frame whatever the animations do), so nothing there is a candidate.
@@ -56,9 +56,12 @@ iso arm (the glint-compositor r4 arm, glint animation kept running, everything e
 - 2 of 3 jobs: the compositor flip is at the floor (89 against 83, 70 against 70). The residual of glint-compositor r4 is not the compositor: the
   all-paused floor itself moves by process (j2: 70 in the base process, 88 for the compositor page all paused; r1/r2 floors 68-96). Lean overall:
   `mixed`, because j3 reads differently.
-- j3: the compositor page is high with everything paused (175) and high live (166), so the running glint adds nothing (v <= p); Lean names that
-  "markup". INFERRED better as a noisy process: `both` carries the same compositor markup and reads 70 in the same job. The cause rule cannot tell the
-  markup from a process offset when p comes from one process only (limit, below).
+- j3: the compositor page is high with everything paused (own floor 175) and live (166), against the base-process floor 81 and band 6, so the
+  running glint adds nothing (v <= p); Lean names that "markup". Its flip runs longer windows (comp-iso 74 frames per series against 48 for the
+  floor and for `both`; `rs.wins` mostly 4-5 frames per rep against 3) and writes the morph panel in every rep (obsf and pallf records of the compositor
+  page: `mut:morph-panel#data-expanded` 16 and 16 frames with a recalc, `mut:nav#class` 23 and 23, against 4 and 4 for each key in j1 and
+  3 and 3 in j2), so in this process the flip reached a different page state: a workload difference, cause not isolated
+  (INFERRED, run 40869911524). The base and `both` series carry no key table, so their writes are not counted.
 - Mechanism (Lean `mechOf`, live against all-paused, same process, frames with a recalc by category, per 100 frames):
 
 | job | written live / paused | animated | empty | name |
@@ -67,9 +70,12 @@ iso arm (the glint-compositor r4 arm, glint animation kept running, everything e
 | j2 | 63 / 53 | 24 / 32 | 0 / 0 | nothing above the band (band 11) |
 | j3 | 169 / 149 | 11 / 24 | 0 / 0 | one category: written (band 6) |
 
-  Overall `mixed`. The frames with a recalc are the page's own writes, and they are the same live and paused: keys `mut:nav#style`,
-  `mut:nav#data-fw-morph` (11 and 11 frames of 48 in j1) and one `timer:interval` of the entry bundle. The glint animation adds no category of
-  recalc: animated is lower live than paused, empty is 0 in all jobs.
+  Overall `mixed` (the rule's own output). Written frames (DOM mutations) carry most recalcs, live and paused. The live glint arm is above its
+  paused read by more than the band in j1 (written 68 against 61, band 6) and j3 (169 against 149, band 6), not in j2 (63 against 53, band 11).
+  Keys, frames with a recalc live / paused as the files show them: `mut:nav#style` and `mut:nav#data-fw-morph` 11/11 in j1 (the rule's key
+  line prints `-`: no key is higher live), 13/10 in j2, 38/36 in j3; the entry bundle's `timer:interval` (T>E, line 47) 11/11 in j1, 13/10 in
+  j2, and in j3 the interval through `gc` (line 45) 24/21 (also `ev:animationiteration` 2/0 in j3). Animated is lower live than paused (20/32,
+  24/32, 11/24) and empty is 0 in all jobs.
 
 ## Next candidate
 The floor is the remainder: 70-90 recalcs per 100 frames at the page end with every animation paused, made of frames where the page writes
@@ -80,6 +86,6 @@ Not the glint, which is at the floor on 2 of 3 jobs; `faded-pause` already takes
 
 ## Limits
 - WKTR is not iOS Safari; counts are recalcs and layouts, not felt smoothness. The phone check comes with the user's capture session.
-- The cause of j3 is not isolated (needs `pall` for the compositor markup in a second process, one more push); the overall is `mixed` as the rule says.
+- The cause of j3 is not isolated (a workload difference between the flip's page states is INFERRED; a second process would tell); the overall is `mixed` as the rule says.
 - Floors move by process (70-88 here), so any claim below the band (9-11) is not made.
 - faded-pause look stays class E (user's visual review); no preset changed.
