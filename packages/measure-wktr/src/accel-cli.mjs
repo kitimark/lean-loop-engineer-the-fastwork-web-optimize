@@ -9,6 +9,7 @@ import * as sim from './sim.mjs';
 import { frameSummary, midSummary } from './midflip.mjs';
 import { SWEEP_ARMS, sweepTally } from './sweep-pause.mjs';
 import { RS_ARMS, recalcTally } from './recalc-source.mjs';
+import { BS_ARMS, bisectTally } from './recalc-bisect.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -19,6 +20,7 @@ export const MODES = {
   'mid-thr-off': 'morph.geom:on,morph.tween:geom-timed',
   'sweep-thr-off': 'morph.geom:on,morph.tween:geom-timed',
   'recalc-thr-off': 'morph.geom:on,morph.tween:geom-timed',
+  'bisect-thr-off': 'morph.geom:on,morph.tween:geom-timed',
 };
 export const MID_AT = [0.3, 0.5, 0.8];
 export const MID_ARMS = ['all', 'idle', 'no-translate', 'no-transform', 'none', 'all-again'];
@@ -26,7 +28,8 @@ export const THREADED_OFF = 'ThreadedTimeBasedAnimationsEnabled=false';
 export const isMid = (mode) => mode === 'mid' || mode === 'mid-thr-off';
 export const isSweep = (mode) => mode === 'sweep-thr-off';
 export const isRecalc = (mode) => mode === 'recalc-thr-off';
-export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) ? `${base} ${THREADED_OFF}` : base);
+export const isBisect = (mode) => mode === 'bisect-thr-off';
+export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) ? `${base} ${THREADED_OFF}` : base);
 
 async function main() {
   const { values: v, positionals } = parseArgs({
@@ -59,14 +62,14 @@ async function main() {
   try {
     for (const mode of modes) {
       const search = `?fw=${MODES[mode]}`;
-      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) || isRecalc(mode) ? 'timed' : mode, arms: arms ?? (isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : isRecalc(mode) ? RS_ARMS : undefined), mid: isMid(mode) ? MID_AT : undefined }));
+      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) || isRecalc(mode) || isBisect(mode) ? 'timed' : mode, arms: arms ?? (isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : isRecalc(mode) ? RS_ARMS : isBisect(mode) ? BS_ARMS : undefined), mid: isMid(mode) ? MID_AT : undefined }));
       console.log(`mode ${mode}: serving ${srv.url}${search}`);
       try {
         for (let p = 1; p <= passes; p++) {
           let r, attempts = 0;
           for (;;) {
             attempts++;
-            try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: `${srv.url}${search}`, header: headerOf(mode, v.header), timeoutMs: Number(v.timeout) }); break; }
+            try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: `${srv.url}${search}`, header: headerOf(mode, v.header), timeoutMs: isBisect(mode) ? Math.max(Number(v.timeout), 840000) : Number(v.timeout) }); break; }
             catch (e) {
               console.log(`mode ${mode} pass ${p} attempt ${attempts} failed: ${String(e.message).split('\n')[0].slice(0, 300)}`);
               if (attempts > 2 || !/closed before the end marker|did not connect/.test(e.message)) { r = null; failures.push(`${mode}-${p}: ${String(e.message).split('\n')[0].slice(0, 200)}`); break; }
@@ -97,6 +100,9 @@ async function main() {
           }
           if (isRecalc(mode)) {
             try { for (const l of recalcTally(got.report)) console.log(`${mode} pass ${p} ${l}`); } catch (e) { console.log(`${mode} pass ${p}: recalc summary failed ${String(e.message).slice(0, 120)}`); }
+          }
+          if (isBisect(mode)) {
+            try { for (const l of bisectTally(got.report)) console.log(`${mode} pass ${p} ${l}`); } catch (e) { console.log(`${mode} pass ${p}: bisect summary failed ${String(e.message).slice(0, 120)}`); }
           }
           const all = got.report.rows.find((x) => x.arm === 'all');
           const tbl = all?.table ?? [];
