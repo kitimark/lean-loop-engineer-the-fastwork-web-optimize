@@ -24113,7 +24113,8 @@
     "docs/team/handoffs/watch-memory.md",
     "apps/runner/src/next.ts",
     "apps/runner/test/fixtures/watch-mem/**"
-   ]
+   ],
+   "evidence": "36e4171"
   },
   {
    "devices": [
@@ -24144,6 +24145,35 @@
     "docs/team/handoffs/faded-pause-entry.md"
    ],
    "evidence": "063229b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-memory-note",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [
+    "watch-memory"
+   ],
+   "title": "Follow-ups split from watch-memory (3rd review refusal): sample phys_footprint beside ps RSS (ps excludes compressed pages, so the before/after max ratio depends on compressor state); name operands for the note's load range and run length; health.jsonl retention rule in Lean; fw-watch --tick docs and the monitorShapes exemption; a recorded timings window with a non-empty slow list (keep work, kind, commit); collectRaw on a vanished transcript; buildBase hash parameter so coreBase stops duplicating it.",
+   "writes": [
+    "research/notes/2026/10-2x-watch-memory.md",
+    "lean/Fw/Ops/WatchMem.lean",
+    "apps/runner/src/watch-mem.ts",
+    "apps/runner/src/watch-collect.ts",
+    "apps/runner/src/watch.ts",
+    "apps/runner/src/watch-svc.ts",
+    "apps/runner/src/next.ts",
+    "apps/console-api/src/core/build-base.ts",
+    "apps/runner/test/watch-mem.test.ts",
+    "apps/runner/test/fixtures/watch-mem/**",
+    "packages/contracts/golden/ops/ops.watchWindow.jsonl",
+    "packages/contracts/golden/ops/ops.watchCursor.jsonl",
+    "packages/contracts/golden/ops/ops.watchRss.jsonl",
+    "docs/team/tools/fw-watch.md",
+    "docs/team/handoffs/watch-memory-note.md"
+   ]
   }
  ],
  "deadline": {
