@@ -1,7 +1,7 @@
 ---
 id: 2026-10-29-gen-merge-retry-bound
 kind: note
-title: "Gen.merge keeps every stored trajectory row; a newer run supersedes an older one only on a reader change or within a retry bound of 2; hero.exit:threaded stays met"
+title: "Gen.merge keeps every stored trajectory row; a newer run supersedes an older one only when the newest run of the key is at another reader, or within a retry bound of 2; hero.exit:threaded stays met"
 status: draft
 created: 2026-10-29
 topics: [trajectory-probe, gate, preset, lean, hero.exit]
