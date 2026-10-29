@@ -24110,7 +24110,9 @@
     "lean/Fw.lean",
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-watch-memory.md",
-    "docs/team/handoffs/watch-memory.md"
+    "docs/team/handoffs/watch-memory.md",
+    "apps/runner/src/next.ts",
+    "apps/runner/test/fixtures/watch-mem/**"
    ]
   },
   {
