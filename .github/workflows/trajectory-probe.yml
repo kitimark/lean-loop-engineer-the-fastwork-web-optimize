@@ -608,6 +608,35 @@ jobs:
           path: packages/gate-breakpoints/out/trajectory
           if-no-files-found: error
           retention-days: 30
+      # A push whose head commit carries `[earn-frames]` also captures the Join waitlist button frames (task earn-logical-preset):
+      # packages/premise-tests/src/earn-frames.mjs in Chromium and Playwright WebKit on this runner, the faithful and the
+      # `nav:earn-logical` arm, compared pixel by pixel against the Lean `frameBound` row by earn-frames-compare.mjs. After the walk,
+      # continue-on-error, so it never changes the trajectory verdict. Artifact earn-frames-apple-<leg>.
+      - name: Earn frames, install the packages and Playwright Chromium (macOS build)
+        id: ef-install
+        if: ${{ contains(github.event.head_commit.message, '[earn-frames]') }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --filter @fw/premise-tests --filter @fw/visual-diff
+          cd packages/gate-breakpoints && pnpm exec playwright-core install chromium
+      - name: Earn frames, Chromium and Playwright WebKit, compared with the Lean frameBound
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && steps.ef-install.outcome == 'success' && contains(github.event.head_commit.message, '[earn-frames]') }}
+        continue-on-error: true
+        working-directory: packages/premise-tests
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          node src/earn-frames.mjs --engine chromium --widths 390,1280 --out out-earn/cr
+          node src/earn-frames.mjs --engine playwright-webkit --widths 390,1280 --out out-earn/wk
+          node src/earn-frames-compare.mjs --chromium out-earn/cr --webkit out-earn/wk --out out-earn/summary.json | tee out-earn/compare.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && steps.ef-install.outcome == 'success' && contains(github.event.head_commit.message, '[earn-frames]') }}
+        with:
+          name: earn-frames-apple-${{ matrix.leg }}
+          path: packages/premise-tests/out-earn
+          if-no-files-found: error
+          retention-days: 30
       # A push whose head commit carries `[frames:<part:variant>]` runs no walk here: this leg captures the nav band of the faithful
       # rewrite and of that flag at its widths (src/trajectory/frames.mjs), by screenshots and by the screencast, and composes the
       # strips. Review material for a person, no verdict; artifact frames-apple-<leg>.
