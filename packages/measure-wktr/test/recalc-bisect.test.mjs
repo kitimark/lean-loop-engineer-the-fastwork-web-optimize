@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BS_ARMS, BS_C, band, bisectTally, cls, hi, jobOfGolden, lo, overall, reportToJob, res, resName, rpf100, valid } from '../src/recalc-bisect.mjs';
+import { BS_ARMS, BS_C, band, bisectTally, carrier, cls, hi, holder, jobOfGolden, levelName, lo, overall, overall2, ready, reportToJob, res, resName, rpf100, valid } from '../src/recalc-bisect.mjs';
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { MODES, headerOf, isBisect, THREADED_OFF } from '../src/accel-cli.mjs';
 
@@ -11,6 +11,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const lines = readFileSync(join(here, '../../contracts/golden/device/recalc-bisect.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const jobs = lines.filter((l) => l.kind === 'job');
 const byName = new Map(jobs.map((l) => [l.name, l]));
+const carries = lines.filter((l) => l.kind === 'carry');
+const byName2 = new Map(carries.map((l) => [l.name, l]));
 
 test('constants equal the Lean consts line', () => {
   const k = lines.find((l) => l.kind === 'consts');
@@ -37,6 +39,29 @@ test('overall lines replay the Lean golden', () => {
   assert.ok(combos.length >= 10);
   for (const l of combos) {
     const v = overall(l.jobs.map((n) => res(jobOfGolden(byName.get(n).job))));
+    assert.equal(v.name, l.verdict, l.name);
+    assert.equal(v.next, l.next, `${l.name} next`);
+  }
+});
+
+test('carry lines: stage 2 classes, carrier and holder replay the Lean golden', () => {
+  assert.ok(carries.length >= 10);
+  for (const l of carries) {
+    const j = jobOfGolden(l.job);
+    assert.equal(ready(j), l.ready, `${l.name} ready`);
+    assert.equal(hi(j), l.hi, `${l.name} hi`);
+    assert.equal(lo(j), l.lo, `${l.name} lo`);
+    assert.deepEqual(j.parts.map((p) => cls(j, p.arm)), l.classes, `${l.name} classes`);
+    assert.equal(levelName(carrier(j)), l.carrier, `${l.name} carrier`);
+    assert.equal(levelName(holder(j)), l.holder, `${l.name} holder`);
+  }
+});
+
+test('overall2 lines replay the Lean golden', () => {
+  const combos = lines.filter((l) => l.kind === 'overall2');
+  assert.ok(combos.length >= 10);
+  for (const l of combos) {
+    const v = overall2(l.jobs.map((n) => { const j = jobOfGolden(byName2.get(n).job); return l.which === 'carrier' ? carrier(j) : holder(j); }));
     assert.equal(v.name, l.verdict, l.name);
     assert.equal(v.next, l.next, `${l.name} next`);
   }

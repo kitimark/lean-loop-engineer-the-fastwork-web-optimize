@@ -1,6 +1,6 @@
 // TS stand-in of lean/Fw/Device/RecalcBisect.lean: replays packages/contracts/golden/device/recalc-bisect.jsonl (test/recalc-bisect.test.mjs).
 // reportToJob and bisectTally are glue (not golden-replayed).
-export const BS_ARMS = ['bs-facts', 'bs-full-a', 'bs-hidden-a', 'bs-obs', 'bs-l1', 'bs-l2', 'bs-deep', 'bs-only', 'bs-full-b', 'bs-hidden-b'];
+export const BS_ARMS = ['bs-facts', 'bs-full-a', 'bs-hidden-a', 'bs-obs', 'bs-l1', 'bs-l2', 'bs-deep', 'bs-hold', 'bs-kill', 'bs-full-b', 'bs-hidden-b'];
 export const BS_C = { minFrames: 40, minSpread: 50, bandDen: 4, maxDepth: 6, minValid: 2 };
 
 export const rpf100 = (a) => (a.frames === 0 ? 0 : Math.floor((a.recalcs * 100) / a.frames));
@@ -74,6 +74,34 @@ export function overall(rs) {
   return { name: `named ${lead.join(' > ')}`, next: NEXT.named };
 }
 
+// Stage 2 (Lean carrier / holder): kill/<feature> arms and only/<child> arms of the same job, read against its own hi and lo.
+export const KILL = 'kill';
+export const ONLY = 'only';
+export const ready = (j) => hasFrames(j) && contrast(j);
+export const carrier = (j) => (ready(j) ? level(j, KILL) : { t: 'incomplete' });
+
+export function levelKept(j, parent) {
+  if (kids(j, parent).length === 0) return { t: 'incomplete' };
+  if (clsOf(j, parent, 'unread').length > 0) return { t: 'incomplete' };
+  const k = clsOf(j, parent, 'kept');
+  const b = clsOf(j, parent, 'between');
+  if (k.length === 1 && b.length === 0) return { t: 'named', p: k[0].path };
+  if (k.length === 0 && b.length === 0) return { t: 'none' };
+  return { t: 'several' };
+}
+export const holder = (j) => (ready(j) ? levelKept(j, ONLY) : { t: 'incomplete' });
+export const levelName = (l) => (l.t === 'named' ? `named ${l.p}` : l.t);
+export const decided = (l) => l.t !== 'incomplete' && l.t !== 'leaf';
+
+export function overall2(ls) {
+  const ds = ls.filter(decided);
+  if (ds.length < BS_C.minValid) return { name: 'inconclusive', next: NEXT.inconclusive };
+  const f = ds[0];
+  if (f.t === 'named') return ds.every((l) => l.t === 'named' && l.p === f.p) ? { name: `named ${f.p}`, next: NEXT.named } : { name: 'several', next: NEXT.several };
+  if (f.t === 'none') return ds.every((l) => l.t === 'none') ? { name: 'none', next: NEXT.none } : { name: 'several', next: NEXT.several };
+  return { name: 'several', next: NEXT.several };
+}
+
 export const jobOfGolden = (g) => ({ full: g.full, hidden: g.hidden, parts: g.parts });
 
 const rowOf = (report, arm) => report.rows.find((r) => r.arm === arm && r.bs);
@@ -83,7 +111,7 @@ const arm = (r) => ({ frames: r.frames, recalcs: r.recalcs });
 export function reportToJob(report) {
   const reads = (names) => names.map((n) => rowOf(report, n)?.bs?.read).filter(Boolean).map(arm);
   const parts = [];
-  for (const n of ['bs-l1', 'bs-l2', 'bs-deep']) for (const r of rowOf(report, n)?.bs?.reads ?? []) parts.push({ path: r.path, parent: r.parent, kids: r.kids, arm: arm(r) });
+  for (const n of ['bs-l1', 'bs-l2', 'bs-deep', 'bs-kill', 'bs-hold']) for (const r of rowOf(report, n)?.bs?.reads ?? []) parts.push({ path: r.path, parent: r.parent, kids: r.kids, arm: arm(r) });
   for (const f of rowOf(report, 'bs-facts')?.bs?.parts ?? []) if (!parts.some((p) => p.path === f.path)) parts.push({ path: f.path, parent: f.parent, kids: f.kids, arm: { frames: 0, recalcs: 0 } });
   return { full: reads(['bs-full-a', 'bs-full-b']), hidden: reads(['bs-hidden-a', 'bs-hidden-b']), parts };
 }
@@ -97,7 +125,9 @@ export function bisectTally(report) {
   lines.push(`bisect: full ${j.full.map((a) => `${a.recalcs}/${a.frames}`).join(' ')} hidden ${j.hidden.map((a) => `${a.recalcs}/${a.frames}`).join(' ')} hi ${hi(j)} lo ${lo(j)} band ${band(j)}`);
   for (const p of j.parts) lines.push(`bisect: ${cls(j, p.arm).padEnd(8)} ${String(rpf100(p.arm)).padStart(3)} ${p.arm.recalcs}/${p.arm.frames} kids ${p.kids} ${p.path}`);
   lines.push(`bisect: why ${resName(r)}`);
-  for (const o of rowOf(report, 'bs-only')?.bs?.reads ?? []) lines.push(`bisect: ${o.path} ${rpf100(o)} ${o.recalcs}/${o.frames}`);
+  lines.push(`bisect: carrier ${levelName(carrier(j))} holder ${levelName(holder(j))}`);
+  const k = rowOf(report, 'bs-kill')?.bs;
+  if (k) lines.push(`bisect: kill probes sticky/fixed ${JSON.stringify(k.pos)} svgs ${k.svgs} smil elements ${k.smilEls}`);
   const obs = rowOf(report, 'bs-obs');
   const fr = obs?.rs?.frames ?? [];
   const kt = obs?.rs?.kt ?? [];

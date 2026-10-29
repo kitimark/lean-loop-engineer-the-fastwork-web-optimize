@@ -318,6 +318,109 @@ def Verdict.next : Verdict → Next
 theorem next_read_iff (v : Verdict) : v.next = .readSource ↔ ∃ p, v = .named p := by
   cases v <;> simp [Verdict.next]
 
+/-! Stage 2, added after the first CI run (wktr 40805577147: hiding any one child of the named part left the rate, so the
+carrier is not one child). The arms are read in the same job, against its own `hi` and `lo`:
+`kill/<f>` parts have one style feature removed on the whole page (a probe stylesheet or an API call), `only/<c>` parts have
+everything hidden but one child `c` of the named part, and `only/bare` the named part with all its children hidden. -/
+
+def killParent : String := "kill"
+
+def onlyParent : String := "only"
+
+def Job.ready (j : Job) : Bool := j.hasFrames && j.contrast
+
+/-- A feature carries the recalc when removing it alone drops the rate and removing any other leaves it. -/
+def Job.carrier (j : Job) : Level := if j.ready then j.level killParent else .incomplete
+
+/-- Like `level`, but a part is named by being `kept`: it alone holds the rate up when everything else is hidden. -/
+def Job.levelKept (j : Job) (parent : String) : Level :=
+  if (j.kids parent).isEmpty then .incomplete
+  else if !(j.clsOf parent .unread).isEmpty then .incomplete
+  else if (j.clsOf parent .kept).length = 1 && (j.clsOf parent .between).isEmpty then
+    match (j.clsOf parent .kept).head? with
+    | some p => .named p.path
+    | none => .incomplete
+  else if (j.clsOf parent .kept).isEmpty && (j.clsOf parent .between).isEmpty then .none
+  else .several
+
+def Job.holder (j : Job) : Level := if j.ready then j.levelKept onlyParent else .incomplete
+
+def Level.decided : Level → Bool
+  | .incomplete => false | .leaf => false | _ => true
+
+def overall2 (ls : List Level) : Verdict :=
+  let ds := ls.filter Level.decided
+  if ds.length < minValid then .inconclusive
+  else match ds.head? with
+    | some (Level.named p) => if ds.all (· == Level.named p) then .named [p] else .several
+    | some Level.none => if ds.all (· == Level.none) then .none else .several
+    | _ => .several
+
+theorem carrier_void (j : Job) (h : j.ready = false) : j.carrier = .incomplete := by
+  simp [Job.carrier, h]
+
+theorem holder_void (j : Job) (h : j.ready = false) : j.holder = .incomplete := by
+  simp [Job.holder, h]
+
+theorem carrier_level (j : Job) (h : j.ready = true) : j.carrier = j.level killParent := by
+  simp [Job.carrier, h]
+
+theorem holder_level (j : Job) (h : j.ready = true) : j.holder = j.levelKept onlyParent := by
+  simp [Job.holder, h]
+
+theorem levelKept_named (j : Job) (parent : String) (hk : (j.kids parent).isEmpty = false)
+    (hu : (j.clsOf parent .unread).isEmpty = true) (p : Part) (hd : j.clsOf parent .kept = [p])
+    (hpart : (j.clsOf parent .between).isEmpty = true) : j.levelKept parent = .named p.path := by
+  simp [Job.levelKept, hk, hu, hd, hpart]
+
+theorem levelKept_none (j : Job) (parent : String) (hk : (j.kids parent).isEmpty = false)
+    (hu : (j.clsOf parent .unread).isEmpty = true) (hd : (j.clsOf parent .kept).isEmpty = true)
+    (hpart : (j.clsOf parent .between).isEmpty = true) : j.levelKept parent = .none := by
+  have h1 : (j.clsOf parent .kept).length ≠ 1 := by
+    intro h; simp [List.isEmpty_iff_length_eq_zero.mp hd] at h
+  simp [Job.levelKept, hk, hu, hd, hpart, h1]
+
+theorem levelKept_incomplete_unread (j : Job) (parent : String) (hk : (j.kids parent).isEmpty = false)
+    (h : (j.clsOf parent .unread).isEmpty = false) : j.levelKept parent = .incomplete := by
+  simp [Job.levelKept, hk, h]
+
+theorem levelKept_several_partial (j : Job) (parent : String) (hk : (j.kids parent).isEmpty = false)
+    (hu : (j.clsOf parent .unread).isEmpty = true) (hpart : (j.clsOf parent .between).isEmpty = false) :
+    j.levelKept parent = .several := by
+  simp [Job.levelKept, hk, hu, hpart]
+
+theorem levelKept_several_twoKept (j : Job) (parent : String) (hk : (j.kids parent).isEmpty = false)
+    (hu : (j.clsOf parent .unread).isEmpty = true) (hd : 2 ≤ (j.clsOf parent .kept).length) :
+    j.levelKept parent = .several := by
+  have h1 : (j.clsOf parent .kept).length ≠ 1 := by omega
+  have h2 : (j.clsOf parent .kept).isEmpty = false := by
+    cases hl : j.clsOf parent .kept with
+    | nil => rw [hl] at hd; simp at hd
+    | cons a t => rfl
+  simp [Job.levelKept, hk, hu, h1, h2]
+
+theorem overall2_inconclusive (ls : List Level) (h : (ls.filter Level.decided).length < minValid) :
+    overall2 ls = .inconclusive := by
+  simp [overall2, h]
+
+theorem overall2_named (p : String) (ls : List Level) (hl : ∀ l ∈ ls, l = Level.named p) (hn : minValid ≤ ls.length) :
+    overall2 ls = .named [p] := by
+  have hf : ls.filter Level.decided = ls := List.filter_eq_self.mpr (fun a ha => by rw [hl a ha]; rfl)
+  cases ls with
+  | nil => simp [minValid] at hn
+  | cons x t =>
+    have hx : x = Level.named p := hl x (by simp)
+    subst hx
+    have hlt : ¬ (t.length + 1 < minValid) := by simp only [List.length_cons] at hn; omega
+    have hall : ∀ x ∈ t, x = Level.named p := fun x hx => hl x (by simp [hx])
+    simp [overall2, hf, hlt]
+    exact hall
+
+theorem overall2_split (a b : String) (hab : a ≠ b) : overall2 [Level.named a, Level.named b] = .several := by
+  have hf : [Level.named a, Level.named b].filter Level.decided = [Level.named a, Level.named b] := by
+    simp [List.filter, Level.decided]
+  simp [overall2, hf, Ne.symm hab, minValid]
+
 private def A (frames recalcs : Nat) : Arm := ⟨frames, recalcs⟩
 
 private def P (path parent : String) (kids : Nat) (frames recalcs : Nat) : Part := ⟨path, parent, kids, A frames recalcs⟩
@@ -371,6 +474,39 @@ def combos : List (String × List String) :=
    ("incomplete top void", ["top no arms", "top unread", "top named, leaf"]),
    ("no jobs", [])]
 
+private def K (f : String) (frames recalcs : Nat) : Part := P s!"kill/{f}" killParent 0 frames recalcs
+
+private def O (c : String) (frames recalcs : Nat) : Part := P s!"only/{c}" onlyParent 0 frames recalcs
+
+def cases2 : List (String × Job) :=
+  [("kill one, only one", job [K "cv" 100 4, K "cq" 100 98, K "sticky" 100 97, O "hero" 100 99, O "pain" 100 6, O "bare" 100 5]),
+   ("kill none, only bare", job [K "cv" 100 98, K "cq" 100 99, O "hero" 100 5, O "pain" 100 4, O "bare" 100 97]),
+   ("kill two, only two", job [K "cv" 100 4, K "cq" 100 5, K "sticky" 100 98, O "hero" 100 99, O "pain" 100 98, O "bare" 100 4]),
+   ("kill partial, only partial", job [K "cv" 100 50, K "cq" 100 98, O "hero" 100 50, O "pain" 100 4]),
+   ("kill unread, only unread", job [K "cv" 10 10, K "cq" 100 98, O "hero" 10 0, O "pain" 100 98]),
+   ("only none", job [K "cv" 100 98, O "hero" 100 5, O "pain" 100 6, O "bare" 100 4]),
+   ("no stage 2 arms", job [P "nav" "" 0 100 4]),
+   ("not ready", ⟨[A 100 60, A 100 70], [A 100 20], [K "cv" 100 4, O "hero" 100 99]⟩),
+   ("kill drop edge hit", ⟨[A 100 100], [A 100 0], [K "cv" 100 25, K "cq" 100 100, O "hero" 100 75, O "pain" 100 3]⟩),
+   ("kill drop edge miss", ⟨[A 100 100], [A 100 0], [K "cv" 100 26, K "cq" 100 100, O "hero" 100 74, O "pain" 100 3]⟩)]
+
+private def case2Job (n : String) : Job := ((cases2.find? (·.1 == n)).map (·.2)).getD ⟨[], [], []⟩
+
+/-- `true`: the carrier (kill) level of each job; `false`: the holder (show-only) level. -/
+def combos2 : List (String × Bool × List String) :=
+  [("carrier same", true, ["kill one, only one", "kill one, only one", "kill one, only one"]),
+   ("carrier one void", true, ["kill one, only one", "not ready", "kill one, only one"]),
+   ("carrier one valid", true, ["kill one, only one", "not ready", "kill unread, only unread"]),
+   ("carrier none", true, ["kill none, only bare", "kill none, only bare", "only none"]),
+   ("carrier several", true, ["kill one, only one", "kill two, only two", "kill one, only one"]),
+   ("carrier named and none", true, ["kill one, only one", "kill none, only bare", "kill one, only one"]),
+   ("holder same", false, ["kill one, only one", "kill one, only one", "kill one, only one"]),
+   ("holder bare", false, ["kill none, only bare", "kill none, only bare", "kill none, only bare"]),
+   ("holder none", false, ["only none", "only none", "only none"]),
+   ("holder two kept", false, ["kill two, only two", "kill two, only two", "kill two, only two"]),
+   ("holder differs", false, ["kill one, only one", "kill none, only bare", "kill one, only one"]),
+   ("holder no jobs", false, [])]
+
 private def armJ (a : Arm) : Json := Json.mkObj [("frames", a.frames), ("recalcs", a.recalcs)]
 
 private def partJ (p : Part) : Json :=
@@ -395,7 +531,14 @@ private def goldenLines (_ : Unit) : List String :=
       ("classes", strs (j.parts.map fun p => (j.cls p.arm).name)), ("why", r.name), ("valid", r.valid), ("path", pathJ r)]).compress) ++
   (combos.map fun (n, ns) =>
     let v := overall (ns.map fun m => (caseJob m).res)
-    (Json.mkObj [("kind", "overall"), ("name", n), ("jobs", strs ns), ("verdict", v.name), ("next", v.next.name)]).compress)
+    (Json.mkObj [("kind", "overall"), ("name", n), ("jobs", strs ns), ("verdict", v.name), ("next", v.next.name)]).compress) ++
+  (cases2.map fun (n, j) =>
+    (Json.mkObj [("kind", "carry"), ("name", n), ("job", jobJ j), ("hi", j.hi), ("lo", j.lo), ("band", j.band), ("ready", j.ready),
+      ("classes", strs (j.parts.map fun p => (j.cls p.arm).name)), ("carrier", j.carrier.name), ("holder", j.holder.name)]).compress) ++
+  (combos2.map fun (n, kill, ns) =>
+    let v := overall2 (ns.map fun m => if kill then (case2Job m).carrier else (case2Job m).holder)
+    (Json.mkObj [("kind", "overall2"), ("name", n), ("which", if kill then "carrier" else "holder"), ("jobs", strs ns),
+      ("verdict", v.name), ("next", v.next.name)]).compress)
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 

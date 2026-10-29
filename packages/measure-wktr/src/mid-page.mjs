@@ -676,20 +676,22 @@ function pageProbe(P) {
     });
   };
   const bsStyle = () => B.css || (B.css = document.head.appendChild(document.createElement('style')));
-  const bsRead = async (css, v) => {
+  const bsRead = async (css, v, hook) => {
     const st = bsStyle();
     await toBottom();
     await sleep(250);
     const toPause = document.getAnimations().filter((a) => a.playState === 'running');
     for (const a of toPause) a.pause();
     await raf(); await raf(); await sleep(200);
-    if (css) { st.textContent = css; await raf(); await raf(); await sleep(250); }
+    if (hook) hook.on();
+    if (css || hook) { st.textContent = css; await raf(); await raf(); await sleep(250); }
     const kt = [];
     const t0 = performance.now();
     const fr = await rsWindow(true, 0, v, kt, P.bsIdleMs);
     const r = { frames: fr.length, recalcs: fr.reduce((s, f) => s + f.r, 0), pre: fr.reduce((s, f) => s + (f.p || 0), 0), ms: Math.round(performance.now() - t0), paused: toPause.length };
     if (v === 'obs') { r.kt = kt; r.fr = fr; }
     st.textContent = '';
+    if (hook) hook.off();
     for (const a of toPause) { try { a.play(); } catch (x) { } }
     await sleep(300);
     return r;
@@ -748,7 +750,7 @@ function pageProbe(P) {
     out.adopted = document.adoptedStyleSheets ? document.adoptedStyleSheets.length : -1;
     return out;
   };
-  const BS_RE = /^bs-(facts|full-a|full-b|hidden-a|hidden-b|obs|l1|l2|deep|only)$/;
+  const BS_RE = /^bs-(facts|full-a|full-b|hidden-a|hidden-b|obs|l1|l2|deep|kill|hold)$/;
   const bsArm = async (arm, kind) => {
     X.arm = arm;
     const out = { arm: arm, mode: 'timed', stages: [], engaged: !!(I && typeof I.styleRecalcCount === 'function'), bs: { kind: kind } };
@@ -779,13 +781,47 @@ function pageProbe(P) {
       out.bs.reads = [];
       for (const p of want.slice(0, 40)) out.bs.reads.push(await bsHidePart(p));
       B.reads[kind] = out.bs.reads;
-    } else if (kind === 'only') {
-      // Diagnostic outside the Lean decision: show one top-level part, hide the others (used when hiding one part at a time names none).
-      const l1 = B.parts.filter((p) => p.parent === '');
+    } else if (kind === 'kill') {
+      // Stage 2 (Lean carrier): one style feature removed on the whole page per arm, the rate read against the same full and hidden arms.
       out.bs.reads = [];
-      for (const keep of l1) {
-        const r = await bsRead(l1.filter((p) => p !== keep).map((p) => '[data-fw-bs="' + p.n + '"]{display:none!important}').join(''), 'floor');
-        out.bs.reads.push({ path: 'only ' + keep.path, parent: '', kids: keep.kids, tag: keep.tag, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+      const pos = { s: 0, f: 0 };
+      for (const el of document.querySelectorAll('*')) {
+        const ps = getComputedStyle(el).position;
+        if (ps === 'sticky') { el.setAttribute('data-fw-ps', 's'); pos.s++; } else if (ps === 'fixed') { el.setAttribute('data-fw-ps', 'f'); pos.f++; }
+      }
+      const svgs = Array.from(document.querySelectorAll('svg'));
+      const smil = { on: () => { for (const g of svgs) { try { g.pauseAnimations(); } catch (x) { } } }, off: () => { for (const g of svgs) { try { g.unpauseAnimations(); } catch (x) { } } } };
+      const KILLS = [
+        ['cv', '*{content-visibility:visible!important}'], ['cq', '*{container-type:normal!important}'],
+        ['sticky', '[data-fw-ps=s]{position:static!important}'], ['fixed', '[data-fw-ps=f]{position:static!important}'],
+        ['willchange', '*{will-change:auto!important}'], ['snap', '*{scroll-snap-type:none!important}'], ['contain', '*{contain:none!important}'],
+        ['anim', '*{animation:none!important}'], ['trans', '*{transition:none!important}'],
+        ['filter', '*{filter:none!important;backdrop-filter:none!important}'], ['svg', 'svg{display:none!important}'],
+        ['img', 'img,picture{display:none!important}'], ['overflow', '*{overflow:visible!important}'], ['ovanchor', '*{overflow-anchor:none!important}'],
+        ['smil', '', smil],
+      ];
+      out.bs.pos = pos;
+      out.bs.svgs = svgs.length;
+      out.bs.smilEls = document.querySelectorAll('animate,animateTransform,animateMotion,set').length;
+      for (const k of KILLS) {
+        const r = await bsRead(k[1], 'floor', k[2]);
+        out.bs.reads.push({ path: 'kill/' + k[0], parent: 'kill', kids: 0, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+      }
+    } else if (kind === 'hold') {
+      // Stage 2 (Lean holder): only one child of the part the hide descent ended at stays shown (its ancestors' other children and its siblings hidden); 'bare' hides all its children.
+      out.bs.reads = [];
+      const at = B.parts.find((p) => p.path === B.at);
+      out.bs.at = B.at || null;
+      if (at) {
+        const hideSet = (nodes) => nodes.map((p) => '[data-fw-bs="' + p.n + '"]{display:none!important}').join('');
+        let sib = [];
+        for (let c = at; c; c = B.parts.find((p) => p.path === c.parent)) sib = sib.concat(B.parts.filter((p) => p.parent === c.parent && p !== c));
+        const kids = B.parts.filter((p) => p.parent === at.path);
+        const arms = kids.map((k) => [k.path, kids.filter((o) => o !== k)]).concat([['bare', kids]]);
+        for (const a of arms) {
+          const r = await bsRead(hideSet(sib.concat(a[1])), 'floor');
+          out.bs.reads.push({ path: 'only/' + a[0], parent: 'only', kids: 0, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+        }
       }
     } else if (kind === 'deep') {
       out.bs.reads = [];
@@ -807,6 +843,7 @@ function pageProbe(P) {
         cur = lowest(rs);
       }
       out.bs.at = at ? at.path : null;
+      B.at = out.bs.at;
     }
     await sleep(100);
     return out;
