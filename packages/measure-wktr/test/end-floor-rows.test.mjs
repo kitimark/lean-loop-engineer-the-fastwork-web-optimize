@@ -6,12 +6,17 @@ import { fileURLToPath } from 'node:url';
 import { rowLine, rowsOfRun } from '../src/end-floor-rows.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const RUNS = ['end-floor-writes/r1', 'end-floor-writes/r2', 'end-floor-writes/r3', 'end-wktr-flip/r1'];
+const RUNS = [
+  ['end-floor-writes/r1', 'end-floor-writes/r1/rows.txt'],
+  ['end-floor-writes/r2', 'end-floor-writes/r2/rows.txt'],
+  ['end-floor-writes/r3', 'end-floor-writes/r3/rows.txt'],
+  ['end-wktr-flip/r1', 'end-floor-writes/end-wktr-flip-r1-rows.txt'],
+];
 
 test('rows.txt of each run regenerates byte-equal from the committed JSON', () => {
-  for (const run of RUNS) {
+  for (const [run, out] of RUNS) {
     const dir = join(root, 'results', run);
-    assert.equal(rowsOfRun(dir).join('\n') + '\n', readFileSync(join(dir, 'rows.txt'), 'utf8'), run);
+    assert.equal(rowsOfRun(dir).join('\n') + '\n', readFileSync(join(root, 'results', out), 'utf8'), run);
   }
 });
 

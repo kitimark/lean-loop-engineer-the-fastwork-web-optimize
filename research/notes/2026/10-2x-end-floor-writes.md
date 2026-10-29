@@ -42,7 +42,7 @@ Source: `results/end-floor-writes/r3/verdict.txt` (made by `node packages/measur
 wktr-j1 wktr-j2 wktr-j3 --out verdict.txt`) and `results/end-floor-writes/r3/rows.txt`. Regenerate rows.txt (byte-equal, checked by
 `packages/measure-wktr/test/end-floor-rows.test.mjs`) with
 `node packages/measure-wktr/src/end-floor-rows.mjs results/end-floor-writes/r3 --out results/end-floor-writes/r3/rows.txt`
-(same command with `r1`, `r2` and `results/end-wktr-flip/r1`); `end-floor-rows.mjs` is an unproved TS stand-in (frame and key counts; `rate` is
+(same command with `r1` and `r2`; for the lane comparison `node packages/measure-wktr/src/end-floor-rows.mjs results/end-wktr-flip/r1 --out results/end-floor-writes/end-wktr-flip-r1-rows.txt`); `end-floor-rows.mjs` is an unproved TS stand-in (frame and key counts; `rate` is
 imported from `end-floor.mjs`, which the Lean golden checks). Floor = pooled `rs-flip-pall` read before and after the writer arms (rows[1]
 and rows[9]); reference = `rs-flip-qwrite`; mode `floor-v2p-thr-off` (v2-proved + morph.geom:on, morph.tween:geom-timed, WKTR pref off), reps per
 arm `rsReps` (`packages/measure-wktr/src/end-floor.mjs:20`).
@@ -118,7 +118,7 @@ Pushes r1, r2 and r3, kept under `results/end-floor-writes/r1`, `r2`, `r3` (each
 - The 3 jobs do not give j2 a cause (INFERRED above). A pinned window (fixed frame count from the first track) would remove the
   long-window confound; it needs a harness arm that ends the window by frame count, not by the reference track. Follow-up, not run
   (the three CI pushes are used). `floor-fp-thr-off` (`packages/measure-wktr/src/accel-cli.mjs:36`) is defined and unrun.
-- Lane comparison with `end-wktr-flip` (`results/end-wktr-flip/r1/verdict.txt`, `rows.txt`): this lane's pooled floor is 138, 154, 135
+- Lane comparison with `end-wktr-flip` (`results/end-wktr-flip/r1/verdict.txt`, `results/end-floor-writes/end-wktr-flip-r1-rows.txt`): this lane's pooled floor is 138, 154, 135
   (range 135 to 154, j1 to j3); the end-wktr-flip lane's all-paused floor is 83, 70, 81 (range 70 to 83; verdict `floor` of the
   `recalc` lines). The mode strings (`packages/measure-wktr/src/accel-cli.mjs:31-39`) differ: `end-base-thr-off` is
   `morph.geom:on,morph.tween:geom-timed`; `floor-v2p-thr-off` adds `engine.scroll:unthrottle`, `hero.exit:threaded` and
