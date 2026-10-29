@@ -12,11 +12,14 @@ const RUN_SRC = `(() => {
   });
 })();`;
 
-export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid } = {}) {
+export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid, rsIdleMs, rsReps, gh } = {}) {
   const pre = 'window.__fwN = { st: window.setTimeout.bind(window) };\n';
   const opts = { mode, sweepFrames, windowMs, settleMs };
   if (arms) opts.arms = arms;
   if (mid) opts.mid = mid;
+  if (rsIdleMs) opts.rsIdleMs = rsIdleMs;
+  if (rsReps) opts.rsReps = rsReps;
+  if (gh) opts.gh = true;
   return pre + bootstrapSource({ clock: 'pinned' }) + '\n' + probeSource(opts) + '\n' + RUN_SRC;
 }
 

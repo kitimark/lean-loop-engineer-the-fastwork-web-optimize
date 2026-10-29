@@ -10,6 +10,7 @@ import { frameSummary, midSummary } from './midflip.mjs';
 import { SWEEP_ARMS, sweepTally } from './sweep-pause.mjs';
 import { RS_ARMS, recalcTally } from './recalc-source.mjs';
 import { BS_ARMS, bisectTally } from './recalc-bisect.mjs';
+import { glintLines } from './glint-hold.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -21,6 +22,8 @@ export const MODES = {
   'sweep-thr-off': 'morph.geom:on,morph.tween:geom-timed',
   'recalc-thr-off': 'morph.geom:on,morph.tween:geom-timed',
   'bisect-thr-off': 'morph.geom:on,morph.tween:geom-timed',
+  'glint-base-thr-off': 'morph.geom:on,morph.tween:geom-timed',
+  'glint-hold-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform.glint:hold-freeze',
 };
 export const MID_AT = [0.3, 0.5, 0.8];
 export const MID_ARMS = ['all', 'idle', 'no-translate', 'no-transform', 'none', 'all-again'];
@@ -29,7 +32,12 @@ export const isMid = (mode) => mode === 'mid' || mode === 'mid-thr-off';
 export const isSweep = (mode) => mode === 'sweep-thr-off';
 export const isRecalc = (mode) => mode === 'recalc-thr-off';
 export const isBisect = (mode) => mode === 'bisect-thr-off';
-export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) ? `${base} ${THREADED_OFF}` : base);
+export const isGlint = (mode) => mode === 'glint-base-thr-off' || mode === 'glint-hold-thr-off';
+// Task glint-hold-wktr: the base page twice (SMIL running) and once with every svg timeline paused (the floor), then the hold page; idle (5 s) and flip (6 flips).
+export const GLINT_BASE_ARMS = ['rs-idle', 'rs-idle-smil', 'rs-idle', 'rs-flip', 'rs-flip-smil', 'rs-flip'];
+export const GLINT_HOLD_ARMS = ['rs-idle', 'rs-flip'];
+export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 6, gh: true };
+export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) ? `${base} ${THREADED_OFF}` : base);
 
 async function main() {
   const { values: v, positionals } = parseArgs({
@@ -59,17 +67,18 @@ async function main() {
   await sim.boot(dev.udid);
   await sim.install(dev.udid, app);
   const failures = [];
+  const glintReports = new Map();
   try {
     for (const mode of modes) {
       const search = `?fw=${MODES[mode]}`;
-      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) || isRecalc(mode) || isBisect(mode) ? 'timed' : mode, arms: arms ?? (isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : isRecalc(mode) ? RS_ARMS : isBisect(mode) ? BS_ARMS : undefined), mid: isMid(mode) ? MID_AT : undefined }));
+      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) ? 'timed' : mode, arms: arms ?? (isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : isRecalc(mode) ? RS_ARMS : isBisect(mode) ? BS_ARMS : isGlint(mode) ? (mode === 'glint-base-thr-off' ? GLINT_BASE_ARMS : GLINT_HOLD_ARMS) : undefined), mid: isMid(mode) ? MID_AT : undefined, ...(isGlint(mode) ? GLINT_OPTS : {}) }));
       console.log(`mode ${mode}: serving ${srv.url}${search}`);
       try {
         for (let p = 1; p <= passes; p++) {
           let r, attempts = 0;
           for (;;) {
             attempts++;
-            try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: `${srv.url}${search}`, header: headerOf(mode, v.header), timeoutMs: isBisect(mode) ? Math.max(Number(v.timeout), 840000) : Number(v.timeout) }); break; }
+            try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: `${srv.url}${search}`, header: headerOf(mode, v.header), timeoutMs: isBisect(mode) || isGlint(mode) ? Math.max(Number(v.timeout), 840000) : Number(v.timeout) }); break; }
             catch (e) {
               console.log(`mode ${mode} pass ${p} attempt ${attempts} failed: ${String(e.message).split('\n')[0].slice(0, 300)}`);
               if (attempts > 2 || !/closed before the end marker|did not connect/.test(e.message)) { r = null; failures.push(`${mode}-${p}: ${String(e.message).split('\n')[0].slice(0, 200)}`); break; }
@@ -103,6 +112,10 @@ async function main() {
           }
           if (isBisect(mode)) {
             try { for (const l of bisectTally(got.report)) console.log(`${mode} pass ${p} ${l}`); } catch (e) { console.log(`${mode} pass ${p}: bisect summary failed ${String(e.message).slice(0, 120)}`); }
+          }
+          if (isGlint(mode)) glintReports.set(`${mode}:${p}`, got.report);
+          if (isGlint(mode) && glintReports.has(`glint-base-thr-off:${p}`) && glintReports.has(`glint-hold-thr-off:${p}`)) {
+            try { for (const l of glintLines(`${v.label} pass ${p}`, glintReports.get(`glint-base-thr-off:${p}`), glintReports.get(`glint-hold-thr-off:${p}`))) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: glint summary failed ${String(e.message).slice(0, 120)}`); }
           }
           const all = got.report.rows.find((x) => x.arm === 'all');
           const tbl = all?.table ?? [];

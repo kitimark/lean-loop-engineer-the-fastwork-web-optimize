@@ -37,6 +37,34 @@ function pageProbe(P) {
   const origST = window.setTimeout.bind(window);
   const origSI = window.setInterval.bind(window);
   const origAnimate = Element.prototype.animate;
+  // Task glint-hold-wktr. The SMIL time of each dash svg since its beginElement burst (the page calls it once per animate/anchor right after render).
+  const GH = (X.gh = { begin: new Map(), read: null });
+  if (P.gh && window.SVGAnimationElement) {
+    const ob = SVGAnimationElement.prototype.beginElement;
+    SVGAnimationElement.prototype.beginElement = function () {
+      const svg = this.ownerSVGElement;
+      const t = svg ? svg.getCurrentTime() * 1000 : 0;
+      const now = performance.now();
+      const r = ob.apply(this, arguments);
+      if (svg) {
+        const b = GH.begin.get(svg);
+        if (!b || now - b.at > 50) GH.begin.set(svg, { t0: t, at: now, n: 1 });
+        else { b.at = now; b.n++; }
+      }
+      return r;
+    };
+    GH.read = () => {
+      const o = [null, null];
+      for (const [svg, b] of GH.begin) {
+        if (!svg.isConnected) continue;
+        const d = svg.closest('[data-fw-dash]');
+        const side = d ? d.getAttribute('data-fw-dash') : null;
+        if (side !== 'left' && side !== 'right') continue;
+        o[side === 'left' ? 0 : 1] = Math.round(svg.getCurrentTime() * 1000 - b.t0);
+      }
+      return o;
+    };
+  }
   Element.prototype.animate = function (frames, opts) {
     if (X.rs && X.rs.cur) X.rs.add('anim:' + X.rs.partOf(this));
     const mg = this.getAttribute ? this.getAttribute('data-mg') : null;
@@ -519,7 +547,7 @@ function pageProbe(P) {
       if (typeof f === 'function') C.prototype[m] = function () { S.add('call:' + m); return f.apply(this, arguments); };
     }
   }
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty))?$/;
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const rsWindow = async (idle, tw, v, kt, ms) => {
     const rec = v === 'obs' || v === 'obsf';
@@ -564,7 +592,7 @@ function pageProbe(P) {
         if (c !== null && base !== null && c > base) z.push(lastSize());
         const ks = S.cur ? Array.from(S.cur) : [];
         if (S.cur) S.cur = new Set();
-        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z });
+        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z, g: GH.read ? GH.read() : undefined });
         prev = c;
         if (idle) { if (now - t0 >= (ms || P.rsIdleMs)) break; } else {
           const ph = phase();
@@ -586,7 +614,7 @@ function pageProbe(P) {
     const warm = kind === 'warm';
     const vv = warm ? 'floor' : v || 'floor';
     const kt = [];
-    const out = { arm: arm, mode: 'timed', stages: [], engaged: false, rs: { kind: kind, v: vv, frames: [], kt: kt, reps: 0, internals: !!(I && typeof I.styleRecalcCount === 'function') } };
+    const out = { arm: arm, mode: 'timed', stages: [], engaged: false, rs: { kind: kind, v: vv, frames: [], kt: kt, reps: 0, wins: [], internals: !!(I && typeof I.styleRecalcCount === 'function') } };
     out.scrollY = await toBottom();
     await sleep(300);
     let toPause = [];
@@ -603,12 +631,21 @@ function pageProbe(P) {
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     }
+    const smilSvgs = vv === 'smil' ? Array.from(document.querySelectorAll('svg')) : [];
+    for (const g of smilSvgs) { try { g.pauseAnimations(); } catch (x) { } }
+    if (smilSvgs.length) { out.rs.smilN = smilSvgs.length; await raf(); await raf(); await sleep(250); }
+    if (GH.read) {
+      const t0 = performance.now();
+      while (performance.now() - t0 < 4000) { const g = GH.read(); if (g[0] !== null && g[1] !== null) break; await sleep(100); }
+      out.rs.begun = GH.read();
+    }
     if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
     if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
     S.fine = vv === 'obs' ? {} : null;
     if (kind === 'idle') {
       out.engaged = out.rs.internals;
       out.rs.frames = await rsWindow(true, 0, vv, kt);
+      out.rs.wins.push(out.rs.frames.length);
     } else {
       out.wheels = 0;
       const reps = warm ? 1 : P.rsReps;
@@ -630,7 +667,7 @@ function pageProbe(P) {
         out.engaged = out.rs.internals;
         await raf();
         const fr = await rsWindow(false, tw, vv, kt);
-        if (!warm) for (const f of fr) out.rs.frames.push(f);
+        if (!warm) { for (const f of fr) out.rs.frames.push(f); out.rs.wins.push(fr.length); }
         await sleep(900);
         X.arm = arm + '~back';
         wheel(-120);
@@ -643,6 +680,7 @@ function pageProbe(P) {
       S.fine = null;
     }
     if (vv === 'hide') document.body.style.display = '';
+    for (const g of smilSvgs) { try { g.unpauseAnimations(); } catch (x) { } }
     for (const a of toPause) { try { a.play(); } catch (x) { } }
     await sleep(900);
     out.nav = vv === 'empty' ? '' : nav().className;
@@ -919,7 +957,10 @@ function pageProbe(P) {
         const swm = SW_ARM.exec(arm);
         const rsm = RS_ARM.exec(arm);
         const bsm = BS_RE.exec(arm);
-        const r = bsm ? await bsArm(arm, bsm[1]) : rsm ? await rsArm(arm, rsm[1], rsm[2] || '') : swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
+        let r;
+        if (P.gh && rsm) {
+          try { r = await rsArm(arm, rsm[1], rsm[2] || ''); } catch (e) { X.errors.push(arm + ': ' + String((e && e.message) || e)); continue; }
+        } else r = bsm ? await bsArm(arm, bsm[1]) : rsm ? await rsArm(arm, rsm[1], rsm[2] || '') : swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
         X.rows.push(r);
       }
     } catch (e) {
@@ -934,8 +975,8 @@ function pageProbe(P) {
 }
 
 /** The init script for one mode. params: mode, arms, sweepFrames, windowMs, settleMs. */
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh })});`;
 }
