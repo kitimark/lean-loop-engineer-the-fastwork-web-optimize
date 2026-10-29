@@ -23598,7 +23598,9 @@
     "lean/scripts/check.sh",
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-hero-exit-proofs.md",
-    "docs/team/handoffs/hero-exit-proofs.md"
+    "docs/team/handoffs/hero-exit-proofs.md",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "lean/Fw/Preset/Gen.lean"
    ]
   }
  ],
