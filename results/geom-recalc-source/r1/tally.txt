@@ -1,0 +1,42 @@
+j1 recalc-thr-off pass 1 rs-warm: frames 0 rpf100 0 readable sizes 0 empty 0pm
+j1 recalc-thr-off pass 1 rs-idle-floor: frames 224 rpf100 95 readable sizes 215 empty 1000pm
+j1 recalc-thr-off pass 1 rs-idle-obs: frames 212 rpf100 100 readable sizes 211 empty 1000pm
+j1 recalc-thr-off pass 1 rs-idle-obsf: frames 161 rpf100 100 readable sizes 0 empty 0pm
+j1 recalc-thr-off pass 1 rs-flip-floor: frames 24 rpf100 195 readable sizes 24 empty 666pm
+j1 recalc-thr-off pass 1 rs-flip-obs: frames 26 rpf100 192 readable sizes 26 empty 615pm
+j1 recalc-thr-off pass 1 rs-flip-obsf: frames 24 rpf100 191 readable sizes 8 empty 0pm
+j1 recalc-thr-off pass 1 rs-idle-blockraf: frames 195 rpf100 98 readable sizes 193 empty 1000pm
+j1 recalc-thr-off pass 1 rs-idle-blocktimer: frames 199 rpf100 99 readable sizes 198 empty 1000pm
+j1 recalc-thr-off pass 1 idle: floor 224f rpf 95 base 212f rpf 100 recalc-frames 211 quiet-frames 1 iv raf 195f rpf 98, timer 199f rpf 99
+j1 recalc-thr-off pass 1 idle: suspects [] sources [] why engine-internal src null
+j1 recalc-thr-off pass 1 flip: floor 24f rpf 195 base 26f rpf 192 recalc-frames 26 quiet-frames 0 iv -
+j1 recalc-thr-off pass 1 flip: suspects [] sources [] why engine-internal src null
+j1 recalc-thr-off pass 1: 17 arms, tracks 0, accelerated 0, errors 0, 156620 ms wall (not phone time); viewport 402x820
+j2 recalc-thr-off pass 1 rs-warm: frames 0 rpf100 0 readable sizes 0 empty 0pm
+j2 recalc-thr-off pass 1 rs-idle-floor: frames 167 rpf100 101 readable sizes 167 empty 1000pm
+j2 recalc-thr-off pass 1 rs-idle-obs: frames 176 rpf100 99 readable sizes 175 empty 1000pm
+j2 recalc-thr-off pass 1 rs-idle-obsf: frames 173 rpf100 100 readable sizes 0 empty 0pm
+j2 recalc-thr-off pass 1 rs-flip-floor: frames 24 rpf100 175 readable sizes 24 empty 666pm
+j2 recalc-thr-off pass 1 rs-flip-obs: frames 24 rpf100 183 readable sizes 24 empty 666pm
+j2 recalc-thr-off pass 1 rs-flip-obsf: frames 24 rpf100 170 readable sizes 8 empty 0pm
+j2 recalc-thr-off pass 1 rs-idle-blockraf: frames 167 rpf100 100 readable sizes 167 empty 1000pm
+j2 recalc-thr-off pass 1 rs-idle-blocktimer: frames 173 rpf100 100 readable sizes 173 empty 1000pm
+j2 recalc-thr-off pass 1 idle: floor 167f rpf 101 base 176f rpf 99 recalc-frames 175 quiet-frames 1 iv raf 167f rpf 100, timer 173f rpf 100
+j2 recalc-thr-off pass 1 idle: suspects [] sources [] why engine-internal src null
+j2 recalc-thr-off pass 1 flip: floor 24f rpf 175 base 24f rpf 183 recalc-frames 24 quiet-frames 0 iv -
+j2 recalc-thr-off pass 1 flip: suspects [] sources [] why engine-internal src null
+j2 recalc-thr-off pass 1: 17 arms, tracks 0, accelerated 0, errors 0, 158327 ms wall (not phone time); viewport 402x820
+j3 recalc-thr-off pass 1 rs-warm: frames 0 rpf100 0 readable sizes 0 empty 0pm
+j3 recalc-thr-off pass 1 rs-idle-floor: frames 203 rpf100 99 readable sizes 199 empty 1000pm
+j3 recalc-thr-off pass 1 rs-idle-obs: frames 177 rpf100 103 readable sizes 176 empty 1000pm
+j3 recalc-thr-off pass 1 rs-idle-obsf: frames 235 rpf100 99 readable sizes 1 empty 0pm
+j3 recalc-thr-off pass 1 rs-flip-floor: frames 25 rpf100 196 readable sizes 25 empty 640pm
+j3 recalc-thr-off pass 1 rs-flip-obs: frames 29 rpf100 189 readable sizes 29 empty 620pm
+j3 recalc-thr-off pass 1 rs-flip-obsf: frames 25 rpf100 192 readable sizes 9 empty 0pm
+j3 recalc-thr-off pass 1 rs-idle-blockraf: frames 224 rpf100 99 readable sizes 222 empty 1000pm
+j3 recalc-thr-off pass 1 rs-idle-blocktimer: frames 203 rpf100 100 readable sizes 203 empty 1000pm
+j3 recalc-thr-off pass 1 idle: floor 203f rpf 99 base 177f rpf 103 recalc-frames 176 quiet-frames 1 iv raf 224f rpf 99, timer 203f rpf 100
+j3 recalc-thr-off pass 1 idle: suspects [] sources [] why engine-internal src null
+j3 recalc-thr-off pass 1 flip: floor 25f rpf 196 base 29f rpf 189 recalc-frames 29 quiet-frames 0 iv -
+j3 recalc-thr-off pass 1 flip: suspects [] sources [] why engine-internal src null
+j3 recalc-thr-off pass 1: 17 arms, tracks 0, accelerated 0, errors 0, 199677 ms wall (not phone time); viewport 402x820

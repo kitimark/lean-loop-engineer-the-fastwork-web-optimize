@@ -1,0 +1,23 @@
+r1 j1 idle engine-internal null
+r1 j1 flip engine-internal null
+r1 j2 idle engine-internal null
+r1 j2 flip engine-internal null
+r1 j3 idle engine-internal null
+r1 j3 flip engine-internal null
+r1 overall engine-internal | no page-side fix: read the WebKit invalidation path
+r2 j1 idle engine-internal null
+r2 j1 flip engine-internal null
+r2 j2 idle engine-internal null
+r2 j2 flip engine-internal null
+r2 j3 idle engine-internal null
+r2 j3 flip engine-internal null
+r2 overall engine-internal | no page-side fix: read the WebKit invalidation path
+r3 j1 idle engine-internal null
+r3 j1 flip no-frames null
+r3 j2 idle engine-internal null
+r3 j2 flip no-frames null
+r3 j3 idle engine-internal null
+r3 j3 flip engine-internal null
+r3 overall engine-internal | no page-side fix: read the WebKit invalidation path
+idle only, 9 jobs: engine-internal | no page-side fix: read the WebKit invalidation path
+all 18: engine-internal | no page-side fix: read the WebKit invalidation path
