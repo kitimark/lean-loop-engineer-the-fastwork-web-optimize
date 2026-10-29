@@ -2,7 +2,7 @@
 
 - Branch: worktree-wf_02ef56dc-a11-1 (CI branch ci/geom-recalc-bisect)
 - Worktree: .claude/worktrees/wf_02ef56dc-a11-1
-- Last commit: the branch tip (finish: note stage order, e2167365b, then this handoff); main merged, not behind
+- Last commit: the branch tip (finish: note stage order, e2167365b, then this handoff); main merged; main 0fee3340a is 1 commit ahead (work-graph.json only, dry land passes at it)
 - CI runs, all wktr success, 3 jobs, mode bisect-thr-off, pref OFF:
   - 40805577147 (5f37a54e, stage 1 hide descent): Lean overall named page-root, no single child dropped the rate. results/geom-recalc-bisect/r1
   - 40808745010 (5cc39310, stage 2 kill-feature and show-only): carrier named kill/smil 3 of 3, holder several/incomplete. r2
