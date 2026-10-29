@@ -2,6 +2,7 @@ import Lean.Data.Json
 import Fw.Preset.V2Proved
 import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitWork
+import Fw.Parts.PlatformGlintHold
 /-!
 Generates the `v2-proved` preset and decision rows from the findings ledger and `part.json` files.
 Run from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--check"]\n' | lake env lean --stdin` (drop `--check` to write).
@@ -591,44 +592,56 @@ def q6Answer : Option String := some Fw.Parts.HeroExitScrollOffset.q6Text
 
 def acceptedLook (f : Flag) : Bool := lookDecisions.any fun d => d.flag == f && d.decision == .accepted
 
-def reqMet (ledger : List Row) (st : List Stored) (f : Flag) : EntryReq → Bool
+def lookMet (reg : List Reg) (f : Flag) : Bool := exactLook reg f || acceptedLook f
+
+theorem lookMet_of_exact {reg : List Reg} {f : Flag} (h : exactLook reg f = true) : lookMet reg f = true := by
+  simp [lookMet, h]
+
+theorem lookMet_of_accepted {reg : List Reg} {f : Flag} (h : acceptedLook f = true) : lookMet reg f = true := by
+  simp [lookMet, h]
+
+theorem lookMet_false {reg : List Reg} {f : Flag} (hx : exactLook reg f = false) (ha : acceptedLook f = false) :
+    lookMet reg f = false := by
+  simp [lookMet, hx, ha]
+
+def reqMet (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : EntryReq → Bool
   | .proofs => why links ledger f == .proved
   | .gate fam => walks.all fun w => tcell st f fam w == .pass
-  | .look => acceptedLook f
+  | .look => lookMet reg f
   | .q6 => q6Answer.isSome
 
-def blockers (ledger : List Row) (st : List Stored) (f : Flag) : List EntryReq :=
-  entryReqs.filter fun r => !reqMet ledger st f r
+def blockers (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : List EntryReq :=
+  entryReqs.filter fun r => !reqMet reg ledger st f r
 
 inductive Entry | enter | notYet (blockers : List EntryReq)
 deriving DecidableEq, Repr
 
-def entry (ledger : List Row) (st : List Stored) (f : Flag) : Entry :=
-  if (blockers ledger st f).isEmpty then .enter else .notYet (blockers ledger st f)
+def entry (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Entry :=
+  if (blockers reg ledger st f).isEmpty then .enter else .notYet (blockers reg ledger st f)
 
-theorem entry_enter_iff {ledger : List Row} {st : List Stored} {f : Flag} :
-    entry ledger st f = .enter ↔ ∀ r ∈ entryReqs, reqMet ledger st f r = true := by
-  have e : (blockers ledger st f).isEmpty = true ↔ ∀ r ∈ entryReqs, reqMet ledger st f r = true := by
+theorem entry_enter_iff {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} :
+    entry reg ledger st f = .enter ↔ ∀ r ∈ entryReqs, reqMet reg ledger st f r = true := by
+  have e : (blockers reg ledger st f).isEmpty = true ↔ ∀ r ∈ entryReqs, reqMet reg ledger st f r = true := by
     simp [blockers, List.filter_eq_nil_iff]
   unfold entry
-  by_cases h : (blockers ledger st f).isEmpty = true
+  by_cases h : (blockers reg ledger st f).isEmpty = true
   · simp only [h, ↓reduceIte, true_iff]
     exact e.1 h
   · simp only [h, Bool.false_eq_true, ↓reduceIte, reduceCtorEq, false_iff]
     exact fun h' => h (e.2 h')
 
-theorem entry_notYet_of_unmet {ledger : List Row} {st : List Stored} {f : Flag} {r : EntryReq}
-    (hr : r ∈ entryReqs) (hu : reqMet ledger st f r = false) :
-    entry ledger st f = .notYet (blockers ledger st f) ∧ r ∈ blockers ledger st f := by
-  have hb : r ∈ blockers ledger st f := List.mem_filter.2 ⟨hr, by simp [hu]⟩
-  have hne : (blockers ledger st f).isEmpty = false := by
-    cases e : blockers ledger st f with
+theorem entry_notYet_of_unmet {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} {r : EntryReq}
+    (hr : r ∈ entryReqs) (hu : reqMet reg ledger st f r = false) :
+    entry reg ledger st f = .notYet (blockers reg ledger st f) ∧ r ∈ blockers reg ledger st f := by
+  have hb : r ∈ blockers reg ledger st f := List.mem_filter.2 ⟨hr, by simp [hu]⟩
+  have hne : (blockers reg ledger st f).isEmpty = false := by
+    cases e : blockers reg ledger st f with
     | nil => simp [e] at hb
     | cons _ _ => rfl
   exact ⟨by simp [entry, hne], hb⟩
 
 theorem ok_of_enter {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
-    (he : entry ledger st f = .enter) (ho : isOpt reg f = true) (hl : isLook reg f = false) :
+    (he : entry reg ledger st f = .enter) (ho : isOpt reg f = true) (hl : isLook reg f = false) :
     ok reg links ledger st f = true := by
   have h := entry_enter_iff.1 he
   have hp : why links ledger f = .proved := by simpa [reqMet] using h .proofs (by simp [entryReqs])
@@ -640,13 +653,32 @@ theorem ok_of_enter {reg : List Reg} {ledger : List Row} {st : List Stored} {f :
     exact hm w hw
   simp [ok, ho, hl, hp, trajWhy_pass_iff.2 hg]
 
+theorem enter_of_ok_exact {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (hk : ok reg links ledger st f = true) (hx : exactLook reg f = true) : entry reg ledger st f = .enter := by
+  simp only [ok, Bool.and_eq_true, beq_iff_eq] at hk
+  have hg := trajWhy_pass_iff.1 hk.1.2
+  refine entry_enter_iff.2 fun r hr => ?_
+  cases r with
+  | proofs => simp [reqMet, hk.1.1.2]
+  | gate fam =>
+    simp only [reqMet, List.all_eq_true, beq_iff_eq]
+    exact hg fam (by cases fam <;> simp [families])
+  | look => exact lookMet_of_exact hx
+  | q6 => rfl
+
+theorem entry_enter_iff_ok_of_exact {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (hx : exactLook reg f = true) (ho : isOpt reg f = true) :
+    entry reg ledger st f = .enter ↔ ok reg links ledger st f = true :=
+  ⟨fun he => ok_of_enter he ho (not_isLook_of_exactLook hx), fun hk => enter_of_ok_exact hk hx⟩
+
 def heroExitThreaded : Flag := ⟨"hero.exit", "threaded"⟩
 
-theorem q6_met {ledger : List Row} {st : List Stored} {f : Flag} : reqMet ledger st f .q6 = true := rfl
+def holdFreeze : Flag := ⟨"platform.glint", "hold-freeze"⟩
 
-theorem threaded_look_met {ledger : List Row} {st : List Stored} : reqMet ledger st heroExitThreaded .look = true := by
-  simp only [reqMet]
-  decide
+theorem q6_met {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} : reqMet reg ledger st f .q6 = true := rfl
+
+theorem threaded_look_met {reg : List Reg} {ledger : List Row} {st : List Stored} : reqMet reg ledger st heroExitThreaded .look = true :=
+  lookMet_of_accepted (by decide)
 
 theorem threaded_link : linkOf links heroExitThreaded = some [threadedKey] := by
   rfl
@@ -659,42 +691,42 @@ theorem rowWhy_ne_proved {ledger : List Row} {k : Key} : rowWhy ledger k ≠ som
     · split <;> simp
   · simp
 
-theorem threaded_proofs_iff {ledger : List Row} {st : List Stored} :
-    reqMet ledger st heroExitThreaded .proofs = true ↔
+theorem threaded_proofs_iff {reg : List Reg} {ledger : List Row} {st : List Stored} :
+    reqMet reg ledger st heroExitThreaded .proofs = true ↔
       falsifiedBy ledger heroExitThreaded = false ∧ rowWhy ledger threadedKey = none := by
   simp only [reqMet, why, threaded_link, List.findSome?, beq_iff_eq]
   have hn := @rowWhy_ne_proved ledger threadedKey
   cases falsifiedBy ledger heroExitThreaded <;> cases h : rowWhy ledger threadedKey <;> simp_all
 
-theorem threaded_proofs_blocked {ledger : List Row} {st : List Stored} {r : Row}
+theorem threaded_proofs_blocked {reg : List Reg} {ledger : List Row} {st : List Stored} {r : Row}
     (hr : rowsOf ledger threadedKey = [r]) (hs : r.status ≠ "proved") :
-    reqMet ledger st heroExitThreaded .proofs = false ∧
+    reqMet reg ledger st heroExitThreaded .proofs = false ∧
       (falsifiedBy ledger heroExitThreaded = false → why links ledger heroExitThreaded = .notProved threadedKey r.status) := by
   have hw : rowWhy ledger threadedKey = some (.notProved threadedKey r.status) := by
     simp [rowWhy, hr, hs]
   refine ⟨?_, fun hf => by simp [why, hf, threaded_link, hw]⟩
-  cases h : reqMet ledger st heroExitThreaded .proofs
+  cases h : reqMet reg ledger st heroExitThreaded .proofs
   · rfl
   · simp [(threaded_proofs_iff.1 h).2] at hw
 
-theorem threaded_proofs_of_promoted {ledger : List Row} {st : List Stored} {r : Row}
+theorem threaded_proofs_of_promoted {reg : List Reg} {ledger : List Row} {st : List Stored} {r : Row}
     (hr : rowsOf ledger threadedKey = [r]) (hs : r.status = "proved") (hm : r.fResult ≠ some .modelBug)
-    (hf : falsifiedBy ledger heroExitThreaded = false) : reqMet ledger st heroExitThreaded .proofs = true :=
+    (hf : falsifiedBy ledger heroExitThreaded = false) : reqMet reg ledger st heroExitThreaded .proofs = true :=
   threaded_proofs_iff.2 ⟨hf, by simp [rowWhy, hr, hs, hm]⟩
 
-theorem threaded_not_yet {ledger : List Row} {st : List Stored} {r : Row}
+theorem threaded_not_yet {reg : List Reg} {ledger : List Row} {st : List Stored} {r : Row}
     (hr : rowsOf ledger threadedKey = [r]) (hs : r.status ≠ "proved") :
-    entry ledger st heroExitThreaded = .notYet (blockers ledger st heroExitThreaded) ∧
-      .proofs ∈ blockers ledger st heroExitThreaded ∧ .look ∉ blockers ledger st heroExitThreaded ∧
-      .q6 ∉ blockers ledger st heroExitThreaded :=
+    entry reg ledger st heroExitThreaded = .notYet (blockers reg ledger st heroExitThreaded) ∧
+      .proofs ∈ blockers reg ledger st heroExitThreaded ∧ .look ∉ blockers reg ledger st heroExitThreaded ∧
+      .q6 ∉ blockers reg ledger st heroExitThreaded :=
   let h := entry_notYet_of_unmet (by simp [entryReqs]) (threaded_proofs_blocked (st := st) hr hs).1
   ⟨h.1, h.2, fun h => by simp [blockers, threaded_look_met] at h, fun h => by simp [blockers, q6_met] at h⟩
 
-theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
+theorem gate_blocked_of_own_fail {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     {s : Stored} (hw : w ∈ walks) (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key])
     (hf : outcome s = .fail) (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader) :
-    reqMet ledger st f (.gate fam) = false ∧ .gate fam ∈ blockers ledger st f := by
-  have hu : reqMet ledger st f (.gate fam) = false := by
+    reqMet reg ledger st f (.gate fam) = false ∧ .gate fam ∈ blockers reg ledger st f := by
+  have hu : reqMet reg ledger st f (.gate fam) = false := by
     simp only [reqMet, List.all_eq_false, beq_iff_eq]
     exact ⟨w, hw, by simp [fail_not_hidden hs ho hf hr]⟩
   have hr : EntryReq.gate fam ∈ entryReqs := by cases fam <;> simp [entryReqs]
@@ -745,8 +777,18 @@ def rowLinks (ledger : Json) (flag : String) : List String :=
   | none => []
   | some r => ["leanFor", "leanAgainst"].flatMap fun k => (r.getObjValAs? (List String) k).toOption.getD []
 
-def threadedLinkGaps (ledger : Json) : List String :=
-  (threadedRowNames.map toString).filter fun n => !(rowLinks ledger heroExitThreaded.key).contains n
+def linkGaps (ledger : Json) (f : Flag) (names : List Name) : List String :=
+  (names.map toString).filter fun n => !(rowLinks ledger f.key).contains n
+
+def threadedLinkGaps (ledger : Json) : List String := linkGaps ledger heroExitThreaded threadedRowNames
+
+def holdRowNames : List Name :=
+  [``Fw.Parts.PlatformGlintHold.hold_premise, ``Fw.Parts.PlatformGlintHold.hold_eq_faithful,
+    ``Fw.Parts.PlatformGlintHold.ticking_hold, ``Fw.Parts.PlatformGlintHold.ticking_ramp,
+    ``Fw.Parts.PlatformGlintHold.ticking_le, ``Fw.Parts.PlatformGlintHold.hold_resume_eq,
+    ``Fw.Parts.PlatformGlintPause.resume_seek_forward]
+
+def holdLinkGaps (ledger : Json) : List String := linkGaps ledger holdFreeze holdRowNames
 
 #guard (theoremTokens "a (Fw.X.y_z), b_c: d") == ["Fw.X.y_z", "b_c"]
 #guard threadedLinkGaps (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str heroExitThreaded.key),
@@ -756,17 +798,18 @@ def threadedLinkGaps (ledger : Json) : List String :=
   ("leanFor", .arr ((threadedRowNames.drop 1).map (.str ·.toString)).toArray)]])]) ==
   (threadedRowNames.take 1).map toString
 #guard threadedLinkGaps .null == threadedRowNames.map toString
+#guard holdLinkGaps .null == holdRowNames.map toString
 
 def entryWord : Entry → String
   | .enter => "enter"
   | .notYet _ => "not yet"
 
-def entryJson (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
-  if f != heroExitThreaded then .null else
-  Json.mkObj [("decision", .str (entryWord (entry ledger st f))),
-    ("blockers", .arr ((blockers ledger st f).map (.str ·.word)).toArray),
-    ("requirements", .arr (entryReqs.map fun r => Json.mkObj [("req", .str r.word),
-      ("met", .bool (reqMet ledger st f r)), ("evidence", .str (threadedEvidence ledger st r))]).toArray)]
+def entryJson (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
+  let head := [("decision", Json.str (entryWord (entry reg ledger st f))),
+    ("blockers", .arr ((blockers reg ledger st f).map (.str ·.word)).toArray)]
+  if f != heroExitThreaded then Json.mkObj head else
+  Json.mkObj (head ++ [("requirements", .arr (entryReqs.map fun r => Json.mkObj [("req", .str r.word),
+      ("met", .bool (reqMet reg ledger st f r)), ("evidence", .str (threadedEvidence ledger st r))]).toArray)])
 
 def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
   let p := preset reg links ledger st
@@ -781,7 +824,7 @@ def decision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) 
   Json.mkObj [("flag", .str f.key), ("registered", .bool (isOpt reg f)), ("why", verdictJson ledger f),
     ("trajectory", trajJson st f), ("member", .bool (p.contains f)), ("shadowedBy", shadow),
     ("rows", .arr rows.toArray), ("flagRows", .arr ((ledger.filter (·.flag == some f.key)).map rowJson).toArray),
-    ("userDecision", decisionOf f), ("entry", entryJson ledger st f)]
+    ("userDecision", decisionOf f), ("entry", entryJson reg ledger st f)]
 
 def probeFlags (reg : List Reg) : List Flag :=
   ((reg.filter fun r => r.kind == .probe).map (·.flag)).mergeSort fun a b => a.key ≤ b.key
@@ -793,6 +836,26 @@ def probesText (reg : List Reg) (p : List Flag) : String :=
 
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
+
+def unclassified (reg : List Reg) (f : Flag) : Bool :=
+  reg.any (·.flag == f) && reg.all fun r => r.flag != f || r.visClass.isNone
+
+def lookExceptions : List Flag := [⟨"engine.scroll", "unthrottle"⟩]
+
+def agreeScope (reg : List Reg) (f : Flag) : Bool :=
+  (exactLook reg f || unclassified reg f) && !lookExceptions.contains f
+
+def entryGaps (reg : List Reg) (ledger : List Row) (st : List Stored) : List Flag :=
+  (decided reg).filter fun f => agreeScope reg f && ((entry reg ledger st f == .enter) != ok reg links ledger st f)
+
+def staleLookExceptions (reg : List Reg) : List Flag := lookExceptions.filter fun f => !unclassified reg f
+
+theorem entry_enter_iff_ok_of_noGaps {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (hg : entryGaps reg ledger st = []) (hd : f ∈ decided reg) (hs : agreeScope reg f = true) :
+    entry reg ledger st f = .enter ↔ ok reg links ledger st f = true := by
+  have h := List.filter_eq_nil_iff.1 hg f hd
+  simp only [hs, Bool.true_and, bne_iff_ne, ne_eq, Classical.not_not] at h
+  cases he : entry reg ledger st f <;> cases ho : ok reg links ledger st f <;> simp_all
 
 def ledgerPath : System.FilePath := ".." / "research" / "findings" / "ledger.json"
 def partsDir : System.FilePath := ".." / "apps" / "site" / "src" / "parts"
@@ -843,10 +906,16 @@ def run (args : List String) : IO Unit := do
   unless (threadedLinkGaps (← readJson ledgerPath)).isEmpty do
     throw (IO.userError
       s!"threadedEvidence cites theorems outside the ledger row's links: {threadedLinkGaps (← readJson ledgerPath)}")
+  unless (holdLinkGaps (← readJson ledgerPath)).isEmpty do
+    throw (IO.userError s!"the hold-freeze ledger row does not link: {holdLinkGaps (← readJson ledgerPath)}")
   let bad := ledgerDisagreements (← readJson ledgerPath) lookDecisions
   unless bad.isEmpty do throw (IO.userError s!"the ledger text disagrees with Gen.lookDecisions: {bad}")
   unless (classDisagreements reg ledger).isEmpty do
     throw (IO.userError s!"the ledger visClass disagrees with part.json: {classDisagreements reg ledger}")
+  unless (entryGaps reg ledger st).isEmpty do
+    throw (IO.userError s!"Gen.entry and V2Proved.ok disagree: {(entryGaps reg ledger st).map (·.key)}")
+  unless (staleLookExceptions reg).isEmpty do
+    throw (IO.userError s!"lookExceptions name flags that are not unclassified: {(staleLookExceptions reg).map (·.key)}")
   unless (staleDecisions reg).isEmpty do
     throw (IO.userError s!"look decisions name no look-change candidate and no refused registered flag: {(staleDecisions reg).map (·.key)}")
   unless (refusedMembers lookDecisions p).isEmpty do
@@ -1055,6 +1124,9 @@ private def earnLogicalReg : Reg :=
 private def accentFullReg : Reg :=
   { flag := ⟨"hero.accent", "draw-nolayout-full"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
 
+private def holdReg (c : VisClass) : Reg :=
+  { flag := holdFreeze, kind := .optimized, requires := [], conflicts := [], visClass := some c }
+
 private def threadedReg : Reg :=
   { flag := ⟨"hero.exit", "threaded"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
 
@@ -1179,22 +1251,32 @@ private def stFail (e : Engine) : Stored :=
     [{ node := "hero.deck.card", prop := "opacity", content := [640, 641, 1280], coverage := [] }]⟩
 
 #guard outcome (stFail .chromium) == .fail
-#guard entry [] [] heroExitThreaded == .notYet [.proofs, .gate .chromium, .gate .webkit]
+#guard entry [] [] [] heroExitThreaded == .notYet [.proofs, .gate .chromium, .gate .webkit]
 #guard outcome (stPass .chromium .hero) == .pass
-#guard blockers [] ([Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e)) heroExitThreaded == [.proofs]
-#guard blockers [] [stPass .chromium .hero, stPass .chromium .morph] heroExitThreaded == [.proofs, .gate .webkit]
-#guard blockers [] [] ⟨"nav", "earn-logical"⟩ == [.proofs, .gate .chromium, .gate .webkit]
-#guard blockers [] [] ⟨"hero.accent", "draw-nolayout"⟩ == [.proofs, .gate .chromium, .gate .webkit, .look]
-#guard entryJson [] [] ⟨"hero.accent", "draw-nolayout"⟩ == .null
-#guard ((entryJson [] [] heroExitThreaded).getObjValAs? String "decision").toOption == some "not yet"
-#guard ((entryJson [] [] heroExitThreaded).getObjValAs? (List String) "blockers").toOption ==
+#guard blockers [] [] ([Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e)) heroExitThreaded == [.proofs]
+#guard blockers [] [] [stPass .chromium .hero, stPass .chromium .morph] heroExitThreaded == [.proofs, .gate .webkit]
+#guard blockers [] [] [] ⟨"nav", "earn-logical"⟩ == [.proofs, .gate .chromium, .gate .webkit]
+#guard blockers [] [] [] ⟨"hero.accent", "draw-nolayout"⟩ == [.proofs, .gate .chromium, .gate .webkit, .look]
+#guard entryJson [] [] [] ⟨"hero.accent", "draw-nolayout"⟩ == Json.mkObj [("decision", "not yet"),
+  ("blockers", Json.arr #["proofs", "gate chromium", "gate webkit", "look"])]
+#guard blockers [holdReg .e] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit]
+#guard blockers [holdReg .eS] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit]
+#guard blockers [holdReg .q] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit, .look]
+#guard blockers [holdReg .l] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit, .look]
+#guard blockers [holdReg .e, { holdReg .e with visClass := none }] [] [] holdFreeze ==
+  [.proofs, .gate .chromium, .gate .webkit, .look]
+#guard lookMet [] heroExitThreaded && !lookMet [] holdFreeze
+#guard entryGaps [holdReg .e] [] [] == []
+#guard entryGaps [{ holdReg .e with kind := .proposal }] [] [] == []
+#guard ((entryJson [] [] [] heroExitThreaded).getObjValAs? String "decision").toOption == some "not yet"
+#guard ((entryJson [] [] [] heroExitThreaded).getObjValAs? (List String) "blockers").toOption ==
   some ["proofs", "gate chromium", "gate webkit"]
 #guard threadedEvidence [] [] (.gate .webkit) |>.startsWith "trajectory hero pending (no stored run); morph pending (no stored run)"
 #guard threadedEvidence [] [stPass .macWebkit .hero] (.gate .webkit) |>.startsWith
   "trajectory hero pass (run 9 mac-webkit pass); morph pending"
 #guard threadedEvidence [] [stFail .linuxWebkit, stFail .macWebkit] (.gate .webkit) |>.startsWith
   "trajectory hero fail (run 9 linux-webkit fail, run 9 mac-webkit fail); morph pending"
-#guard blockers [] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e))
+#guard blockers [] [] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e))
   heroExitThreaded == [.proofs, .gate .chromium]
 #guard refusedMembers lookDecisions [⟨"hero.accent", "draw-nolayout"⟩, ⟨"hero.exit", "threaded"⟩] ==
   [⟨"hero.accent", "draw-nolayout"⟩]
@@ -1215,16 +1297,45 @@ private def threadedRow (status : String) : Row :=
   (theoremTokens (threadedEvidence [threadedRow "proved"] [] .proofs)).contains n.toString
 
 #guard why links [threadedRow "partly-proved"] heroExitThreaded == .notProved threadedKey "partly-proved"
-#guard blockers [threadedRow "partly-proved"] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e =>
+#guard blockers [] [threadedRow "partly-proved"] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e =>
   walks.map (stPass e)) heroExitThreaded == [.proofs, .gate .chromium]
-#guard blockers [threadedRow "proved"] ([Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e))
+#guard blockers [] [threadedRow "proved"] ([Engine.chromium, .macWebkit].flatMap fun e => walks.map (stPass e))
   heroExitThreaded == []
-#guard entry [threadedRow "proved", threadedRow "proved"] [] heroExitThreaded ==
+#guard entry [] [threadedRow "proved", threadedRow "proved"] [] heroExitThreaded ==
   .notYet [.proofs, .gate .chromium, .gate .webkit]
 #guard threadedEvidence [threadedRow "partly-proved"] [] .proofs |>.startsWith
   "linked to ledger row hero-exit-threaded (v6, KD#2), status partly-proved;"
 #guard threadedEvidence [threadedRow "partly-proved"] [] .proofs |>.endsWith "items are open until the row is proved"
 #guard threadedEvidence [threadedRow "proved"] [] .proofs |>.endsWith "edgeFrames_le_starts (WebKit edge-frame cost)"
 #guard threadedEvidence [] [] .q6 == Fw.Parts.HeroExitScrollOffset.q6Text
+
+private def holdRow (status : String) : Row :=
+  let k := ((linkOf links holdFreeze).getD []).headD ("", "")
+  ⟨k.1, k.2, status, some holdFreeze.key, none, some .e⟩
+
+private def holdSt (e : Engine) (w : Walk) : Stored :=
+  ⟨9, "s", "r", "?fw=platform.glint:hold-freeze", [holdFreeze.key], e, w, Fw.Gate.Trajectory.allowedWidths, []⟩
+
+private def holdAll : List Stored := [Engine.chromium, .macWebkit].flatMap fun e => walks.map (holdSt e)
+
+#guard entry [holdReg .e] [holdRow "proved"] holdAll holdFreeze == .enter
+#guard ok [holdReg .e] links [holdRow "proved"] holdAll holdFreeze
+#guard entry [holdReg .e] [holdRow "partly-proved"] holdAll holdFreeze == .notYet [.proofs]
+#guard entry [holdReg .q] [holdRow "proved"] holdAll holdFreeze == .notYet [.look]
+#guard entryGaps [holdReg .e] [holdRow "proved"] holdAll == []
+#guard entryGaps [{ holdReg .e with kind := .proposal }] [holdRow "proved"] holdAll == [holdFreeze]
+#guard entryGaps [{ holdReg .e with visClass := none }] [holdRow "proved"] holdAll == [holdFreeze]
+#guard entryGaps [holdReg .q] [holdRow "proved"] holdAll == []
+#guard agreeScope [holdReg .e] holdFreeze && agreeScope [{ holdReg .e with visClass := none }] holdFreeze
+#guard !agreeScope [holdReg .q] holdFreeze && !agreeScope [holdReg .l] holdFreeze && !agreeScope [] holdFreeze
+
+private def unthrottleReg (c : Option VisClass) : Reg :=
+  { flag := ⟨"engine.scroll", "unthrottle"⟩, kind := .optimized, requires := [], conflicts := [], visClass := c }
+
+#guard !agreeScope [unthrottleReg none] ⟨"engine.scroll", "unthrottle"⟩
+#guard unclassified [unthrottleReg none] ⟨"engine.scroll", "unthrottle"⟩ && !unclassified [] ⟨"engine.scroll", "unthrottle"⟩
+#guard staleLookExceptions [unthrottleReg none] == []
+#guard staleLookExceptions [unthrottleReg (some .e)] == lookExceptions
+#guard staleLookExceptions [unthrottleReg none, unthrottleReg (some .q)] == lookExceptions
 
 end Fw.Preset.Gen

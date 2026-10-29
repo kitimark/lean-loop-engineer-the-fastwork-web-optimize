@@ -23876,7 +23876,8 @@
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-glint-hold-close.md",
     "docs/team/handoffs/glint-hold-close.md"
-   ]
+   ],
+   "evidence": "fd12139"
   },
   {
    "devices": [
