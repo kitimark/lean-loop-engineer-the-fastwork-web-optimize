@@ -40,7 +40,7 @@ Frames per series 48-74 in every cell (minimum 12), so no cell is unread.
   above the floor.
 - Compositor alone cuts, but only to 142-219: it does not reach the floor in any job. Adding it to faded-pause changes nothing the rule can see
   (both 87/92/70 against faded-pause alone 87/89/91): `platform:faded-pause` is the arm that matters at the page end.
-- Layout and compositing counts: compositing cuts like recalcs in every arm (all judged jobs agree). Layout: faded-pause cuts and both cut (all judged jobs agree);
+- Layout and compositing counts: compositing cuts like recalcs in every arm. Layout: faded-pause cuts and both cut;
   compositor alone and the iso arm are mixed (j3 108 against base 104, an outlier process, see below); layerFlush is no-contrast (133 per 100 frames in
   every arm: one flush per frame whatever the animations do), so nothing there is a candidate.
 
@@ -76,9 +76,9 @@ The floor is the remainder: 70-90 recalcs per 100 frames at the page end with ev
 `nav` style and `data-fw-morph` (the nav hide and the morph publish; `waapi.driver.ts:28,44` says `data-fw-morph` is written at the push, at a
 threshold and at the end; the `nav#style` writer is INFERRED from the key, not yet read). Next: one arm with the nav style/data-fw-morph writes
 batched to the push and the end of the tween, measured against `pall` in the same process (`obsf` keys name the writers; `pall` is the floor to beat).
-Not the glint: it is at the floor on 2 of 3 jobs and `faded-pause` already takes the rest.
+Not the glint, which is at the floor on 2 of 3 jobs; `faded-pause` already takes the rest.
 
-## Limits (accepted)
+## Limits
 - WKTR is not iOS Safari; counts are recalcs and layouts, not felt smoothness. The phone check comes with the user's capture session.
 - The cause of j3 is not isolated (needs `pall` for the compositor markup in a second process, one more push); the overall is `mixed` as the rule says.
 - Floors move by process (70-88 here), so any claim below the band (9-11) is not made.

@@ -1,5 +1,3 @@
-// End of page on the WKTR flip arm. TS stand-in for lean/Fw/Device/EndWktr.lean: it replays packages/contracts/golden/device/end-wktr.jsonl
-// (test/end-wktr.test.mjs) and holds no decision the golden does not pin.
 export const EW = { minFlip: 12, minSpreadRecalc: 50, minSpreadOther: 20, bandDen: 16, minValid: 2 };
 
 export const METRICS = {
@@ -77,7 +75,6 @@ export const mechNext = (band, live, paused) => {
   return cs.length === 0 ? 'no candidate: the residual is not in the recalcs' : cs.length === 1 ? NEXT[cs[0]] : 'one intervention arm per category above the band';
 };
 
-// Report glue: rows by arm name, per-frame series by metric.
 const rowsOf = (rep, arm) => (rep ? rep.rows.filter((r) => r.arm === arm && r.rs) : []);
 export function series(row, metric) {
   const fr = row.rs.frames ?? [];
@@ -96,7 +93,6 @@ export const sframes = (row) => {
     return { r: f.r, written: keys.some((k) => String(k).startsWith('mut:')), elems: (f.z ?? []).some((n) => n > 0), keys };
   });
 };
-// Frames with a recalc per key, live minus paused, largest first.
 export function keyDeltas(live, paused, top = 6) {
   const tally = (fs) => {
     const m = new Map();
