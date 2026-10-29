@@ -82,8 +82,29 @@ To measure: push `ci/glint-compositor` once more with `[ci:wktr] [accel]` and th
 "?fw=morph.geom:on,morph.tween:geom-timed,platform.glint:compositor"`, accel `--modes glint-base-thr-off,glint-comp-thr-off`), 3 jobs, then
 `node packages/measure-wktr/src/glint-compositor-cli.mjs <job dirs>`.
 
+## WKTR pref OFF accel lane, valid reading (MEASURED, run 40845872049 at 79077612d, 3 jobs, results/glint-compositor/r4)
+The corrected probe keeps the variant's animations (`rs.glintLive` = 2 in every cell of both arms), so Lean `judgeLive` accepts all six cells. The rule `judgeC` was
+fixed before the data (band = max(span/16, base spread)). Recalcs per 100 frames, base / all-paused floor / compositor:
+
+| job | idle | flip |
+|---|---|---|
+| j1 | 100 / 0 / 0 | 176 / 75 / 88 |
+| j2 | 100 / 0 / 0 | 171 / 72 / 80 |
+| j3 | 98 / 0 / 0 | 171 / 68 / 87 |
+
+Idle: within the floor band in 3 of 3 jobs, so with threaded animations OFF the compositor-run glint costs no per-frame style recalc while the original's SMIL costs 100 per
+100 frames. Flip (scroll/interaction arm): cuts partly in 3 of 3 (compositor 80 to 88 against base 171 to 176 and floor 68 to 75; it stays above the floor band). Overall: idle
+within the floor band, flip cuts partly. WKTR is not iOS Safari; no phone run.
+
+## Edge cause (INFERRED, follow-up for an edge-exact variant)
+The original draws the dash as an SVG stroked line with round caps, rasterized by the SVG renderer's stroke path with its own antialiasing of the cap arcs. The variant
+clips an HTML box with `clip-path: path(...)` of the stadium outline, which both engines apply as an antialiased coverage mask over a composited layer (a separate raster of the
+gradient layer, then masked). The two paths cover the partly covered cap columns and the top and bottom rows with different coverage (up to 94 of 255), while the fully covered
+interior is the same gradient (at most 3). Not traced to file:line in the time box; to confirm, diff the coverage of a solid-color stadium drawn both ways. An edge-exact variant
+would draw the mask as the same stroke (an SVG `mask` with the original line, or an inline SVG `foreignObject`-free layer) and keep the transform on an HTML wrapper.
+
 ## Not done / limits
-- Whether a running accelerated transform animation still makes WebKit recalc style per frame with the threaded-animations pref OFF is not known (the lane above paused it).
+- Flip arm: the compositor glint still recalcs above the floor band (80 to 88 against floor 68 to 75); why is not known.
 - Chromium counts lane (task item 5) not run: the only Chromium counts profile with arms (offscreen-v1) counts hidden frames, where neither arm mounts the glint;
   no lane counts the playing glint on-screen in Chromium. Follow-up.
 - No phone run; WKTR is not iOS Safari; the phase of the compositor start is the effect's first frame, not the original's beginElement (at most one frame).
