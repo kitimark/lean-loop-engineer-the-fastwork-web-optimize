@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Engine.ResourceVerdict
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.HeroExitWork
 import Fw.Parts.HiddenPause
 import Fw.Parts.MorphPanelOpt
 import Fw.Parts.MorphMountOpt
@@ -62,9 +63,23 @@ def threadedCr : Footprint :=
      (.frames, ef (pairsSign crFrames .script) "cr_lane_mixed: script passes drop (no rAF)")],
     none⟩
 
+/-- The WebKit style work of the golden frames per element: (style passes, restyled elements) summed over the
+scrolled and the idle frame, original first. The original's scrolled frame carries its inherited fan-out
+(`HeroExitWork.wkOrigR2` under `wkFull`). -/
+def wkStyleElemPair : (Nat × Nat) × (Nat × Nat) :=
+  let EX := WebKit.webkitX WebKit.WkMode.safari
+  let sum (fs : List (FrameIn WebKit.WkPropX)) : Nat × Nat :=
+    ((fs.map fun f => (frameWork EX f).passes .style).sum, (fs.map (Fw.Parts.HeroExitWork.styleElems EX)).sum)
+  (sum [Fw.Parts.HeroExitWork.wkOrigR2 Restyle.Node.wkFull gBand .layer, WebKit.emptyX],
+    sum [wkVar WebKit.WkMode.safari gBand gN, wkIdle WebKit.WkMode.safari gBand gN])
+
+#guard wkStyleElemPair == ((1, 123), (1, 6))
+#guard pairSign wkStyleElemPair.1 wkStyleElemPair.2 == .down
+
 def threadedWk : Footprint :=
   ⟨"hero.exit:threaded", .webkit,
-    [(.style, ef (pairsSign wkFrames .style) "HeroExitOpt.wkFrames, wk_var_exact"),
+    [(.style, ef (pairSign wkStyleElemPair.1 wkStyleElemPair.2)
+        "HeroExitWork.wk_style_saving: one style pass each, 6 restyled elements against 123"),
      (.layout, ef (pairsSign wkFrames .layout) "HeroExitOpt.wkFrames"),
      (.paintRec, ef (combine (pairsSign wkFrames .paint) .up) "wkFrames paint down; promote_tween re-attach paint up"),
      (.script, ef (pairsSign wkFrames .script) "HeroExitOpt.wkFrames"),
@@ -543,11 +558,7 @@ def obsCheck (o : Obs) : Check := check o.res o.slow (predicted o) (measuredSign
 def withCheck (c : Check) : List Obs := observations.filter (obsCheck · == c)
 
 def mechanisms : List (String × Eng × Res × String) :=
-  [("hero.exit:threaded", .webkit, .style,
-     "INFERRED: per rendering update the style units are equal (wk_trade); the run renders fewer frames \
-       (588 vs 693-696, the frames row), so it records fewer style recalcs ; the predicted same uses wkOrigChanges, \
-       which omits the original's inherited --exit-opacity fan-out on WebKit (R2 is modelled for Chromium only)"),
-   ("hero.exit:threaded", .webkit, .paintRec,
+  [("hero.exit:threaded", .webkit, .paintRec,
      "INFERRED: re-attach paints of the promoted animation targets (promote_tween) outweigh the per-frame paint drop"),
    ("hero.exit:threaded", .webkit, .repaint,
      "INFERRED: the re-attach area is a small share of the walk's paint area, inside the pass spread"),
@@ -586,14 +597,14 @@ def ledgerLabels : List (String × Eng × String) :=
    ("morph.mount:shift-dormant", .chromium, "trade"), ("morph.mount:shift-dormant", .webkit, "unknown"),
    ("engine.events:quiet", .chromium, "no-win"), ("engine.events:quiet", .webkit, "win")]
 
-#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [51, 9, 24, 8, 7]
+#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [52, 9, 24, 7, 7]
 #guard (withCheck .unpredicted).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
   ("hero.exit:threaded", "webkit", "paintRecords"), ("hero.exit:threaded", "webkit", "repaintArea"),
   ("morph.columns:idle-none", "webkit", "paintRecords"), ("morph.columns:idle-none", "webkit", "script"),
   ("morph.columns:idle-none", "webkit", "eventDispatch"), ("morph.columns:idle-none", "webkit", "repaintArea"),
   ("hero:scene-pause", "webkit", "eventDispatch")]
 #guard (withCheck .disagree).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
-  ("hero.exit:threaded", "webkit", "style"), ("morph.mount:shift-dormant", "webkit", "script"),
+  ("morph.mount:shift-dormant", "webkit", "script"),
   ("morph.mount:shift-dormant", "webkit", "eventDispatch"), ("engine.events:quiet", "webkit", "layers"),
   ("morph.mount:shift-dormant", "chromium", "layout"), ("morph.mount:shift-dormant", "chromium", "style"),
   ("hero:scene-pause", "webkit", "style"), ("morph.panel:rest", "webkit", "paintRecords")]
