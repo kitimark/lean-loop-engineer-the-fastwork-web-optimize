@@ -11,7 +11,6 @@ const golden = readFileSync(new URL('../../../../../packages/contracts/golden/pa
   .map((l) => decodeRat(JSON.parse(l)) as { fn: string; in: Record<string, unknown>; out: any });
 const of = (fn: string) => golden.filter((l) => l.fn === fn);
 
-/** CSS keyframe evaluation: linear between the offsets, as the animation runs with easing linear. */
 function shiftAt(side: L.Side, elapsed: number): number {
   const kf = gen.keyframes[side];
   const u = ((elapsed / gen.durMs) % 1 + 1) % 1;

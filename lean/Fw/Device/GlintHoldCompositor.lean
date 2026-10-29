@@ -1,11 +1,8 @@
 import Fw.Device.GlintHold
-/-! # platform.glint:compositor, WKTR accel lane verdict
-Decided before the data: the variant's style recalcs per 100 frames against the base arms and the all-paused floor. -/
 namespace Fw.Device.GlintHoldCompositor
 open Lean
 open Fw.Device.GlintHold
 
-/-- Verdict of one cell. -/
 inductive VC where
   | notRunning | unread | noContrast | uninformative | atFloor | partly | noCut
   deriving DecidableEq, Repr
@@ -15,13 +12,10 @@ def VC.name : VC → String
   | .unread => "unread" | .noContrast => "no-contrast" | .uninformative => "uninformative"
   | .atFloor => "within the floor band" | .partly => "cuts partly" | .noCut => "no cut"
 
-/-- A verdict that compares the variant with both ends. -/
 def VC.judged : VC → Bool
   | .atFloor | .partly | .noCut => true
   | _ => false
 
-/-- The rule. `x.b`, `x.f`, `x.h`: base, floor and variant recalcs per 100 frames; the band is `Nums.band`, the larger of
-a sixteenth of the base-to-floor span and the spread of the base arms. The target is `h ≤ f + band`. -/
 def judgeC (minF : Nat) (x : Nums) : VC :=
   if x.nb < minF ∨ x.nf < minF ∨ x.n < minF then .unread
   else if x.b < x.f + minSpread then .noContrast
@@ -30,9 +24,6 @@ def judgeC (minF : Nat) (x : Nums) : VC :=
   else if x.b ≤ x.h + x.band then .noCut
   else .partly
 
-/-- The reading is valid only while the variant's own animations run: the probe pauses every Web Animation before it counts
-(`mid-page.mjs`), so `live`, the glint animations still running at the window start, must be positive. Run 40833327416 and
-40837547847 paused them (`live` 0 in every compositor arm), so their zero recalcs say nothing about the variant. -/
 def judgeLive (minF live : Nat) (x : Nums) : VC :=
   if live = 0 then .notRunning else judgeC minF x
 
@@ -42,7 +33,6 @@ theorem judgeLive_notRunning (minF : Nat) (x : Nums) : judgeLive minF 0 x = .not
 theorem judgeLive_of_live (minF live : Nat) (x : Nums) (h : live ≠ 0) : judgeLive minF live x = judgeC minF x := by
   simp [judgeLive, h]
 
-/-- All jobs of one cell kind. -/
 inductive OC where
   | inconclusive | mixed | is (v : VC)
   deriving DecidableEq, Repr
@@ -82,7 +72,6 @@ theorem judgeC_partly (minF : Nat) (x : Nums) (h0 : ¬(x.nb < minF ∨ x.nf < mi
     judgeC minF x = .partly := by
   simp only [judgeC, h0, ite_false, h1, h2, h3, h]
 
-/-- A cell that reads "within the floor band" is also clearly below the base: the two targets cannot both hold. -/
 theorem atFloor_below_base (minF : Nat) (x : Nums) (h : judgeC minF x = .atFloor) : x.h + x.band < x.b := by
   by_cases c1 : x.nb < minF ∨ x.nf < minF ∨ x.n < minF
   · rw [judgeC_unread minF x c1] at h; simp at h
@@ -133,8 +122,6 @@ theorem overallC_mixed (a b : VC) (vs : List VC) (ha : a.judged = true) (hb : b.
     (h : vs = [a, b]) : overallC vs = .mixed := by
   subst h
   cases a <;> cases b <;> first | exact absurd rfl hab | (revert ha hb; decide)
-
-/-! ## Golden -/
 
 private def rate (r : Nat) (i : Nat) : Nat := if i % 20 * 5 < r then 1 else 0
 

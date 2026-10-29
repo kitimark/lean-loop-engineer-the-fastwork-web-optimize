@@ -278,7 +278,6 @@ function HoldRing({ side, idBase }: { side: 'left' | 'right'; idBase: string }) 
   );
 }
 
-/** platform.glint:compositor. The dash shape is a fixed clip; the gradient is one fixed layer that a transform animation moves (compositor-run, no SMIL, no per-frame write). */
 function CompDash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
   const layer = useRef<HTMLSpanElement>(null);
   useEffect(() => {

@@ -19,7 +19,6 @@ export const waitSkipped = async (page) => {
   return page.evaluate(() => ({ events: window.__cv.slice(), scrollY, innerHeight, top: document.getElementById('cv').getBoundingClientRect().top }));
 };
 
-/** Largest allowed channel difference (of 255) between the original glint dash and platform.glint:compositor; fixed before the data. */
 export const COMPOSITOR_BOUND = 12;
 
 export const TESTS = [
@@ -679,9 +678,6 @@ export const TESTS = [
     },
   },
   {
-    // Bound decided before the data (task glint-compositor): the worst channel difference between the original's dash and the
-    // compositor dash is at most COMPOSITOR_BOUND of 255 at every sample, at device pixel ratio 1 and 2, in both engines.
-    // Above it the flag is class L (a look change for the user's review).
     id: 'prem.glint.compositor-pixels', premise: 'glint.compositor-pixels', page: 'glint.compositor-pixels.html',
     async run({ page }) {
       const gold = readFileSync(new URL('../../contracts/golden/parts/platform-glint-compositor.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -701,7 +697,7 @@ export const TESTS = [
           for (const { s, resume } of plan) {
             await pg.evaluate(([t, r]) => window.seek(t, r), [s, resume]);
             await frames(pg, 2);
-            await pg.waitForTimeout(150); // a paused compositor animation shows a new currentTime a commit later
+            await pg.waitForTimeout(150);
             shots.push((await pg.screenshot({ clip: { x: 0, y: 0, width: 130, height: 130 } })).toString('base64'));
           }
           const rows = await pg.evaluate(async (list) => {

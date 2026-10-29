@@ -1,4 +1,3 @@
-// JS stand-in (temporary) of lean/Fw/Device/GlintHoldCompositor.lean, replayed against packages/contracts/golden/device/glint-compositor.jsonl.
 import { GH_C, cellNums, numsBand, reportToCells } from './glint-hold.mjs';
 
 export const VC = {
@@ -7,7 +6,6 @@ export const VC = {
 const JUDGED = new Set([VC.atFloor, VC.partly, VC.noCut]);
 export const judgedC = (v) => JUDGED.has(v);
 
-/** The span `s` is the natural-number difference base - floor; the band is Nums.band. */
 export function judgeC(minF, x) {
   const band = numsBand(x);
   const s = Math.max(0, x.b - x.f);
@@ -19,7 +17,6 @@ export function judgeC(minF, x) {
   return VC.partly;
 }
 
-/** Valid only while the variant's own animations run (`live` = glint animations running at the window start). */
 export const judgeLiveC = (minF, live, x) => (live === 0 ? VC.notRunning : judgeC(minF, x));
 
 export function overallC(vs) {

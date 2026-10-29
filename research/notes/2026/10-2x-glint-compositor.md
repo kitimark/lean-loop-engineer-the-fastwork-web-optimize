@@ -73,7 +73,7 @@ SMIL timeline of the original (SMIL is not a Web Animation, so the base arm keep
 `pausedN` is 7 to 10 in the compositor arms against 5 to 8 in the base arms, and no compositor arm had a glint animation running. The zeros in 5 of 6 idle cells measure a
 page whose glint is stopped, which is what the floor measures. Only r2 j3 differs (20 animations still running after the pause, idle 100, flip 177), and the cause of
 those 20 is not known, so it cannot be read as the variant's cost either. The first read of these numbers ("idle 100 to 0, within the floor band") was wrong and is retracted.
-Question asked of the mistake (never-skip rule): why was it not seen before the push? The arm was never run against a variant that is itself a Web Animation (the hold
+It was not seen before the push because the arm was never run against a variant that is itself a Web Animation (the hold
 arm is SMIL). Lean-provable? The decision "a reading needs the variant's animations running" is: `judgeLive` (theorems `judgeLive_notRunning`, `judgeLive_of_live`) refuses a
 reading with `glintLive = 0`; with it the stand-in re-judges r1 and r2 as "variant animation not running" in every cell (`results/glint-compositor/*/verdict.txt`).
 
@@ -100,7 +100,7 @@ within the floor band, flip cuts partly. WKTR is not iOS Safari; no phone run.
 The original draws the dash as an SVG stroked line with round caps, rasterized by the SVG renderer's stroke path with its own antialiasing of the cap arcs. The variant
 clips an HTML box with `clip-path: path(...)` of the stadium outline, which both engines apply as an antialiased coverage mask over a composited layer (a separate raster of the
 gradient layer, then masked). The two paths cover the partly covered cap columns and the top and bottom rows with different coverage (up to 94 of 255), while the fully covered
-interior is the same gradient (at most 3). Not traced to file:line in the time box; to confirm, diff the coverage of a solid-color stadium drawn both ways. An edge-exact variant
+interior is the same gradient (at most 3). Not traced to file:line; to confirm, diff the coverage of a solid-color stadium drawn both ways. An edge-exact variant
 would draw the mask as the same stroke (an SVG `mask` with the original line, or an inline SVG `foreignObject`-free layer) and keep the transform on an HTML wrapper.
 
 ## Not done / limits

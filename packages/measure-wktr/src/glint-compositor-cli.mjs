@@ -5,7 +5,6 @@ import { decideJobC, jobLineC, overallJobsC } from './glint-compositor.mjs';
 
 const read = (f) => JSON.parse(readFileSync(f, 'utf8'));
 
-/** Per job directory: accel-glint-base-thr-off-<pass>.json and accel-glint-comp-thr-off-<pass>.json, then the overall verdicts. */
 export function decideDirsC(dirs, pass = 1) {
   const ds = [];
   const lines = [];
