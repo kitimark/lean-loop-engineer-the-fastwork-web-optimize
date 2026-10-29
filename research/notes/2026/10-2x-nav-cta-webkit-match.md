@@ -34,7 +34,6 @@
 Fixed first (Lean `Fw.Parts.NavEarnWebkit.frameThreshold`, `framePermille`, `frameAllowed`; golden row `frameBound` in
 `packages/contracts/golden/parts/nav.earn.webkit.jsonl`): a frame passes when at most 2 per mille of the 100 px band (256 px at 1280, 78 px at
 390) have a channel difference above 40. `frameOk_identical`, `frameOk_mono`, `frameAllowed_wide`, `frameAllowed_narrow`, `frameOk_snap_fails`.
-The threshold and permille were chosen after one local debug run (a seek capture of the real site) and before any CI frame.
 
 Harness (`packages/premise-tests/src/earn-frames.mjs`): the real `nav.module.css` (`:global()` removed), the site's Google Sans, the hero-pill flip as
 the only input, every animation paused and seeked to t in {0, 60, 120, 200, 300, 400, 520, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1500, 1800} ms,
@@ -64,8 +63,7 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
   re-fitted. The same capture on macOS (Chrome 155 against Playwright WebKit 27.2, debug run, not a result): 390 logical worst 62 px against 78, faithful 245
   (exit) and 1330 (entry); 1280 logical 60 against 256, faithful 295 and 2478.
 - Chromium is unchanged: the faithful and the logical arm are pixel-identical (0 changed pixels) on all 17 frames of both scenarios and widths.
-- Earlier pushes: run 40852349397 (label metrics differ by 3 px between the Linux engines, bound failed on both arms) and run 40855407833 (same numbers
-  with `text-rendering: geometricPrecision`, which did not equalise them); the third push fixed the label slot to 5.7em.
+- Earlier pushes: run 40852349397 (label metrics differ by 3 px between the Linux engines) and run 40855407833 (`text-rendering: geometricPrecision` did not equalise them); the third push fixed the label slot to 5.7em.
 - Summary with every frame: `results/nav-cta-webkit-match/summary.json`.
 
 ## Limits
@@ -73,4 +71,4 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
 - Playwright WebKit (Linux WebKitGTK/WPE in CI, macOS build locally) stands in for iOS Safari; the phone check comes with the user.
 - The capture seeks animations (no real-time sampling): it shows values at t, not the compositor's frame pacing.
 - The harness page is a static page around the real CSS, not the built site; the built site was checked in the local debug run only (padding trace above).
-- Whether the flag enters a preset belongs to the lead and the user's look review.
+- The lead and the user's look review decide whether the flag enters a preset.

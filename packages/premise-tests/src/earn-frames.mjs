@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-// Frame capture of the nav "Join waitlist" button on one engine (task nav-cta-webkit-match). The page is the real
-// apps/site/src/parts/nav/nav.module.css (module syntax reduced to plain classes) around the nav markup, with the font
-// the site ships. A hero-pill flip is the only input: the class is toggled, every animation is paused and seeked to t
-// (transitions, the unmask and the sheen alike), and the band is screenshotted. Compare the two engines' directories with
-// earn-frames-compare.mjs.
-//
-//   node src/earn-frames.mjs --engine chromium|playwright-webkit --out DIR [--widths 1280,390] [--arms faithful,logical]
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

@@ -3,7 +3,7 @@ CI runs (3 of 3 pushes used): 40852349397 visual-diff success (label metrics dif
 40858439757 success (head 07a9b1285, label slot 5.7em: the numbers in the note); lean 40852349320 success.
 Finding: the cause is the known WebKit never-starts-padding-inline transition (ledger n=73); the snapshot original differs on WebKit too, so the fix is the existing
 flag `nav:earn-logical` (accepted 2026-10-25, proved in Fw.Parts.NavEarnWebkit and NavEarnCurve, not in a preset). The default page still shows the mismatch: the lead decides on the preset.
-Verified (MEASURED): Linux Chromium against Playwright WebKit, 17 times x exit/entry x 1280/390 x faithful/logical (run 40858439757): 1280 logical within the Lean bound on
+Verified (MEASURED): Linux Chromium against Playwright WebKit, 17 times, exit and entry, 1280 and 390, faithful and logical (run 40858439757): 1280 logical within the Lean bound on
 every frame (worst 163 of 256), faithful over it; 390 both arms over the absolute bound (78) on every frame because the settled frame already differs 121-124 px between
 the Linux engines (logical worst 148, faithful entry 1338); Chromium faithful vs logical 0 px. macOS local debug (not a result): 390 logical worst 62, passes.
 Open: the 390 bound is not met on the Linux pair (floor); a 390 judgement needs macOS WebKit (trajectory-probe frames lane, apple legs) or a floor-relative bound (new Lean rule);

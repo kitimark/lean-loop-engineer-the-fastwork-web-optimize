@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// Frame-by-frame comparison of two earn-frames.mjs captures (task nav-cta-webkit-match). Per frame: the pixels whose largest
-// channel difference exceeds the Lean threshold (Fw.Parts.NavEarnWebkit.frameThreshold, golden row frameBound), and the largest
-// rect and padding difference. A frame passes when its count is within frameAllowed of its width.
-//
-//   node src/earn-frames-compare.mjs --chromium DIR --webkit DIR [--out summary.json]
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
