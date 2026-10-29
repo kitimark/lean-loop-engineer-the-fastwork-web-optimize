@@ -1,0 +1,108 @@
+j1 bisect: full 59/65 58/58 hidden 0/121 0/121 hi 90 lo 0 band 22
+j1 bisect: dropped    0 0/121 kids 2 div#root
+j1 bisect: kept      92 112/121 kids 3 nav
+j1 bisect: kept     100 74/74 kids 2 div#root > nav
+j1 bisect: dropped   20 25/121 kids 5 div#root > page-root
+j1 bisect: kept     100 90/90 kids 0 nav > a
+j1 bisect: kept     100 79/79 kids 0 nav > a[1]
+j1 bisect: kept     100 80/80 kids 0 nav > a[2]
+j1 bisect: kept     120 84/70 kids 3 div#root > page-root > hero-exit
+j1 bisect: kept     100 76/76 kids 3 div#root > page-root > people
+j1 bisect: kept     100 56/56 kids 2 div#root > page-root > pain
+j1 bisect: kept     100 55/55 kids 2 div#root > page-root > commission
+j1 bisect: between   66 77/115 kids 2 div#root > page-root > platform
+j1 bisect: dropped   11 14/120 kids 0 kill/smil
+j1 bisect: dropped   12 15/121 kids 0 only/div#root > page-root > hero-exit
+j1 bisect: between   58 54/92 kids 0 only/div#root > page-root > people
+j1 bisect: dropped    0 0/120 kids 0 only/div#root > page-root > pain
+j1 bisect: between   55 67/121 kids 0 only/div#root > page-root > commission
+j1 bisect: kept     272 131/48 kids 0 only/div#root > page-root > platform
+j1 bisect: dropped    0 0/122 kids 0 only/bare
+j1 bisect: dropped    0 0/121 kids 0 pause/dash
+j1 bisect: kept     100 44/44 kids 0 pause/other
+j1 bisect: why found div#root > div#root > page-root several
+j1 bisect: carrier named kill/smil holder several pauser named pause/dash
+j1 bisect: pause groups {"total":36,"dash":2,"other":34,"secs":{"nav":1,"nav-lang":2,"morph-panel":2,"hero-accent":3,"hero":2,"hero-cue":1,"people-sticky":7,"commission-card":7,"platform":10,"overlay-signup":1},"smilNow":4} reads [path, smil-elements, svgs] [["pause/dash",4,2],["pause/other",4,34]]
+j1 bisect: kill smil-elements [["kill/smil",0]]
+j1 bisect: obs frames 117 with recalc 98 keys [["raf:i@assets/entry-client-DN21yM_l.js:9:96077>@__fw/harness.js:451:104",22],["raf:subscribe@assets/entry-client-DN21yM_l.js:9:96188>a@assets/entry-client-DN21yM_l.js:47:66313>o@assets/entry-client-DN21yM_l.js:47:66729",10],["mut:people#style",10],["mut:pain#data-fw-pain-dark",10],["timer:interval@assets/entry-client-DN21yM_l.js:9:96426>gc@assets/entry-client-DN21yM_l.js:45:19682>@assets/entry-client-DN21yM_l.js:45:23470",4],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>zd@assets/entry-client-DN21yM_l.js:8:123339",1],["mut:platform#childList",1],["mut:platform#class",1],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>mf@assets/entry-client-DN21yM_l.js:8:132389",1],["ev:transitionrun",1],["ev:transitionstart",1],["ev:transitionend",1]]
+j1 bisect: body features {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j1 bisect: rules {"sheets":2,"rules":2278,"kinds":{"CSSLayerStatementRule":2,"CSSLayerBlockRule":3,"CSSStyleRule":1815,"CSSMediaRule":261,"CSSKeyframesRule":63,"CSSKeyframeRule":125,"CSSSupportsRule":2,"CSSPropertyRule":2,"CSSFontFaceRule":5},"hits":{"hover":294,"sticky":29,"has":12,"focus":23,"scrollFn":7,"timeline":17,"container":4,"contentVis":3},"adopted":0} observers {"ro":5,"io":17,"mql":32,"roT":{"pain-notes":1,"commission-card":2,"hero-countdown":8,"morph-countdown-clock":8},"ioT":{"people":2,"platform":7,"hero-accent":1,"people-card":1,"people-deck":1,"pain":2,"commission-typing":1,"commission-card":1,"commission":1}}
+j1 bisect: feat div#root {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j1 bisect: feat nav {}
+j1 bisect: feat div#root > nav {"fixed":1,"willChange":1,"backdrop":2,"<svg>":5,"cssAnim":6,"filter":2,"<img>":21}
+j1 bisect: feat div#root > page-root {"sticky":2,"container":20,"willChange":100,"<picture>":32,"<img>":101,"cssAnim":36,"<svg>":30,"filter":7,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4}
+j1 bisect: feat nav > a {}
+j1 bisect: feat nav > a[1] {}
+j1 bisect: feat nav > a[2] {}
+j2 bisect: full 65/60 77/77 hidden 0/122 0/121 hi 100 lo 0 band 25
+j2 bisect: dropped    0 0/122 kids 2 div#root
+j2 bisect: kept      97 117/120 kids 3 nav
+j2 bisect: kept      96 104/108 kids 2 div#root > nav
+j2 bisect: dropped   20 25/121 kids 5 div#root > page-root
+j2 bisect: kept     100 77/77 kids 0 nav > a
+j2 bisect: kept     100 77/77 kids 0 nav > a[1]
+j2 bisect: kept     100 87/87 kids 0 nav > a[2]
+j2 bisect: kept     115 103/89 kids 3 div#root > page-root > hero-exit
+j2 bisect: kept      94 89/94 kids 3 div#root > page-root > people
+j2 bisect: kept     100 80/80 kids 2 div#root > page-root > pain
+j2 bisect: kept     100 76/76 kids 2 div#root > page-root > commission
+j2 bisect: between   66 78/118 kids 2 div#root > page-root > platform
+j2 bisect: dropped   11 14/120 kids 0 kill/smil
+j2 bisect: between   54 66/122 kids 0 only/div#root > page-root > hero-exit
+j2 bisect: between   50 52/102 kids 0 only/div#root > page-root > people
+j2 bisect: dropped    0 0/121 kids 0 only/div#root > page-root > pain
+j2 bisect: between   56 68/121 kids 0 only/div#root > page-root > commission
+j2 bisect: kept     105 92/87 kids 0 only/div#root > page-root > platform
+j2 bisect: dropped    0 0/121 kids 0 only/bare
+j2 bisect: dropped    0 0/120 kids 0 pause/dash
+j2 bisect: kept     100 79/79 kids 0 pause/other
+j2 bisect: why found div#root > div#root > page-root several
+j2 bisect: carrier named kill/smil holder several pauser named pause/dash
+j2 bisect: pause groups {"total":36,"dash":2,"other":34,"secs":{"nav":1,"nav-lang":2,"morph-panel":2,"hero-accent":3,"hero":2,"hero-cue":1,"people-sticky":7,"commission-card":7,"platform":10,"overlay-signup":1},"smilNow":4} reads [path, smil-elements, svgs] [["pause/dash",4,2],["pause/other",4,34]]
+j2 bisect: kill smil-elements [["kill/smil",0]]
+j2 bisect: obs frames 87 with recalc 87 keys [["timer:interval@assets/entry-client-DN21yM_l.js:9:96426>gc@assets/entry-client-DN21yM_l.js:45:19682>@assets/entry-client-DN21yM_l.js:45:23470",2]]
+j2 bisect: body features {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j2 bisect: rules {"sheets":2,"rules":2278,"kinds":{"CSSLayerStatementRule":2,"CSSLayerBlockRule":3,"CSSStyleRule":1815,"CSSMediaRule":261,"CSSKeyframesRule":63,"CSSKeyframeRule":125,"CSSSupportsRule":2,"CSSPropertyRule":2,"CSSFontFaceRule":5},"hits":{"hover":294,"sticky":29,"has":12,"focus":23,"scrollFn":7,"timeline":17,"container":4,"contentVis":3},"adopted":0} observers {"ro":5,"io":17,"mql":32,"roT":{"pain-notes":1,"commission-card":2,"hero-countdown":8,"morph-countdown-clock":8},"ioT":{"people":2,"platform":7,"hero-accent":1,"people-card":1,"people-deck":1,"pain":2,"commission-typing":1,"commission-card":1,"commission":1}}
+j2 bisect: feat div#root {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j2 bisect: feat nav {}
+j2 bisect: feat div#root > nav {"fixed":1,"willChange":1,"backdrop":2,"<svg>":5,"cssAnim":6,"filter":2,"<img>":21}
+j2 bisect: feat div#root > page-root {"sticky":2,"container":20,"willChange":100,"<picture>":32,"<img>":101,"cssAnim":36,"<svg>":30,"filter":7,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4}
+j2 bisect: feat nav > a {}
+j2 bisect: feat nav > a[1] {}
+j2 bisect: feat nav > a[2] {}
+j3 bisect: full 111/116 109/111 hidden 0/121 0/122 hi 95 lo 0 band 23
+j3 bisect: dropped    0 0/122 kids 2 div#root
+j3 bisect: kept      92 106/114 kids 3 nav
+j3 bisect: kept     100 101/101 kids 2 div#root > nav
+j3 bisect: dropped   20 25/121 kids 5 div#root > page-root
+j3 bisect: unread   185 50/27 kids 0 nav > a
+j3 bisect: kept      95 47/49 kids 0 nav > a[1]
+j3 bisect: kept     100 66/66 kids 0 nav > a[2]
+j3 bisect: unread   124 36/29 kids 3 div#root > page-root > hero-exit
+j3 bisect: kept      98 65/66 kids 3 div#root > page-root > people
+j3 bisect: kept     100 57/57 kids 2 div#root > page-root > pain
+j3 bisect: kept     100 79/79 kids 2 div#root > page-root > commission
+j3 bisect: between   66 43/65 kids 2 div#root > page-root > platform
+j3 bisect: dropped   11 14/120 kids 0 kill/smil
+j3 bisect: between   42 50/119 kids 0 only/div#root > page-root > hero-exit
+j3 bisect: between   55 54/98 kids 0 only/div#root > page-root > people
+j3 bisect: dropped    0 0/122 kids 0 only/div#root > page-root > pain
+j3 bisect: between   63 77/121 kids 0 only/div#root > page-root > commission
+j3 bisect: kept      94 97/103 kids 0 only/div#root > page-root > platform
+j3 bisect: dropped    0 0/122 kids 0 only/bare
+j3 bisect: dropped    0 0/121 kids 0 pause/dash
+j3 bisect: kept      96 114/118 kids 0 pause/other
+j3 bisect: why found div#root > div#root > page-root incomplete
+j3 bisect: carrier named kill/smil holder several pauser named pause/dash
+j3 bisect: pause groups {"total":36,"dash":2,"other":34,"secs":{"nav":1,"nav-lang":2,"morph-panel":2,"hero-accent":3,"hero":2,"hero-cue":1,"people-sticky":7,"commission-card":7,"platform":10,"overlay-signup":1},"smilNow":4} reads [path, smil-elements, svgs] [["pause/dash",4,2],["pause/other",4,34]]
+j3 bisect: kill smil-elements [["kill/smil",0]]
+j3 bisect: obs frames 121 with recalc 98 keys [["raf:i@assets/entry-client-DN21yM_l.js:9:96077>@__fw/harness.js:451:104",31],["raf:subscribe@assets/entry-client-DN21yM_l.js:9:96188>a@assets/entry-client-DN21yM_l.js:47:66313>o@assets/entry-client-DN21yM_l.js:47:66729",11],["mut:people#style",11],["mut:pain#data-fw-pain-dark",11],["timer:interval@assets/entry-client-DN21yM_l.js:9:96426>gc@assets/entry-client-DN21yM_l.js:45:19682>@assets/entry-client-DN21yM_l.js:45:23470",4],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>zd@assets/entry-client-DN21yM_l.js:8:123339",1],["mut:platform#childList",1],["mut:platform#class",1],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>mf@assets/entry-client-DN21yM_l.js:8:132389",1],["ev:transitionrun",1],["ev:transitionstart",1],["ev:transitionend",1]]
+j3 bisect: body features {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j3 bisect: rules {"sheets":2,"rules":2278,"kinds":{"CSSLayerStatementRule":2,"CSSLayerBlockRule":3,"CSSStyleRule":1815,"CSSMediaRule":261,"CSSKeyframesRule":63,"CSSKeyframeRule":125,"CSSSupportsRule":2,"CSSPropertyRule":2,"CSSFontFaceRule":5},"hits":{"hover":294,"sticky":29,"has":12,"focus":23,"scrollFn":7,"timeline":17,"container":4,"contentVis":3},"adopted":0} observers {"ro":5,"io":17,"mql":32,"roT":{"pain-notes":1,"commission-card":2,"hero-countdown":8,"morph-countdown-clock":8},"ioT":{"people":2,"platform":7,"hero-accent":1,"people-card":1,"people-deck":1,"pain":2,"commission-typing":1,"commission-card":1,"commission":1}}
+j3 bisect: feat div#root {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j3 bisect: feat nav {}
+j3 bisect: feat div#root > nav {"fixed":1,"willChange":1,"backdrop":2,"<svg>":5,"cssAnim":6,"filter":2,"<img>":21}
+j3 bisect: feat div#root > page-root {"sticky":2,"container":20,"willChange":100,"<picture>":32,"<img>":101,"cssAnim":36,"<svg>":30,"filter":7,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4}
+j3 bisect: feat nav > a {}
+j3 bisect: feat nav > a[1] {}
+j3 bisect: feat nav > a[2] {}
