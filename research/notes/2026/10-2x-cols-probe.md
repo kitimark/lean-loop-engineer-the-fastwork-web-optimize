@@ -14,8 +14,9 @@ Task cols-probe, P1 of `research/notes/2026/10-27-end-columns-probe.md`. CI lane
 | WebKit Sim | timed-fixed vs timed-fixed+off | mixed | layerCount no cost; backing bytes and Paint overlap |
 - Chromium is the same in two runs on separate CI jobs: 40802455145 and 40812007208 (12 jobs each, 3 per arm, profile swipe-touch-v1). The
   cost is small on the flip path and about a tenth on the base path. `cc.Draw` (771) does not move: the frame count is the same, the raster work per frame falls.
-- WebKit Sim (3 push runs: 40792572994, 40802455303, 40812007170) never reads "pictures cost". Hiding the pictures does not lower layerCount,
-  backing bytes or Paint beyond the reference arm's own job-to-job spread. This agrees with the phone (undecided, paint did not fall).
+- WebKit Sim (3 push runs: 40792572994, 40802455303, 40812007170) never reads "pictures cost": hiding the pictures does not lower any metric in
+  every job. One base+off job (f4/vm1) and one timed-fixed+off job (f3/vm3) fall below the reference minimum on layerCount or backing bytes, the
+  others are inside, and base+off Paint is higher than base in each of the 3 paired jobs. This agrees with the phone (undecided, paint did not fall).
 - Not delivered: Chromium RasterTask milliseconds and render-pass counts (the counts lane does not record them; follow-up: add both to
   `packages/measure-chromium/src/trace.mjs`). WebKit backing is bytes, not MB.
 
@@ -47,8 +48,9 @@ INFERRED: the earlier Chromium push-cycle proxy (`research/notes/2026/10-2x-push
 
 ## Engine claims (CONFIRMED in source, from the phone note)
 WebKit@862f17d `Source/WebCore/rendering/RenderReplaced.cpp:411` (no paint when used visibility is not visible), `RenderLayer.cpp:401`,
-`RenderLayerBacking.cpp:1918` and `:2142`. Chromium@f842f52 `third_party/blink/renderer/core/paint/replaced_painter.cc:406-409`. The probe removes picture
-paint and raster and not decode (not checked).
+`RenderLayerBacking.cpp:1918` and `:2142`. Chromium@f842f52 `third_party/blink/renderer/core/paint/replaced_painter.cc:406-409`. MEASURED on Chromium (run 40812007208, 3 jobs per
+arm): the probe also lowers image decode work: ImageDecodeTask 645-647 to 246-248 on the base path and 272-274 to 246-247 on the timed path,
+DecodeImage 39 to 30. Not part of the Lean rule (fixed before the data), so it does not change the reading. WebKit decode is not checked.
 
 ## Runs and files
 - Chromium counts: 40792572637 (unusable), 40802455145, 40812007208. Reduced: `results/cols-probe/chromium-run-*.json`.
