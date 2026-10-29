@@ -4521,6 +4521,40 @@
    "userDecision": "pending"
   },
   {
+   "id": "platform.glint:compositor",
+   "n": 95,
+   "part": "platform.glint",
+   "flags": [
+    "platform.glint:compositor"
+   ],
+   "flag": "platform.glint:compositor",
+   "visClass": "L",
+   "candidate": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "status": "partly-proved",
+   "chromium": "not measured",
+   "webkit": "NOT YET MEASURED VALIDLY. WKTR of the iOS 26.5 Simulator build, pref OFF, 3 jobs each, runs 40833327416 (r1) and 40837547847 (r2, results/glint-compositor): the probe pauses every running Web Animation before it counts, which paused the variant's own two transform animations (glint animations running 0 in every compositor arm; the pauses were 7 to 10 against 5 to 8 in the base arms), so the compositor arm's 0 idle recalcs per 100 frames (base 97-104, floor 0) say nothing about the variant. Only r2 j3 had other animations still running (20) and read 100 idle recalcs with the glint animations not attributable. The probe is fixed (glint animations are kept and counted, mid-page.mjs glintLive) and Lean judgeLive refuses a reading with glintLive 0; the corrected lane has not been run (3 pushes used). MEASURED (invalid reading) and retracted",
+   "visual": "L (look change for the user's review): look premise glint.compositor-pixels, both engines, dpr 1 and 2, 27 times (final run 40837548139, first run 40833327444): the stop positions are equal by Lean stops_eq and the dash interior (x from 2 px after each end, y one device pixel inside the top and bottom edge) differs by at most 3 of 255 (bound 12, fixed before the data); the edge pixels (the round-cap columns of the dash ends and the partly covered top and bottom rows) differ by up to 41 (dpr 1) and 94 (dpr 2) on Chromium 156 and 35 and 79 on WebKit 27.2, because the engines paint the stroked shape and the clip shape with different edge coverage. Never into a preset",
+   "mechanism": "INFERRED: the original ticks the SMIL timeline of each dash svg 60 times a second (WebKit SMILTimeContainer.cpp 1/60 s timer, then SVGAttributeAnimator, SVGLinearGradientElement, gradient invalidation); a CSS transform animation with linear easing on an HTML box is run by the compositor (WebKit KeyframeEffect.cpp canBeAccelerated, Chromium compositor_animations.cc), so the page would do no SMIL tick and no per-frame style write. Not measured: whether WKTR with threaded animations OFF still recalcs per frame for a running accelerated animation. Lean: stops_eq (same stop positions at every time), variant_no_smil, variant_no_writes.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintCompositor.stops_eq",
+    "Fw.Parts.PlatformGlintCompositor.shiftAt_eq",
+    "Fw.Parts.PlatformGlintCompositor.variant_no_smil",
+    "Fw.Parts.PlatformGlintCompositor.variant_no_writes",
+    "Fw.Device.GlintHoldCompositor.judgeC_atFloor",
+    "Fw.Device.GlintHoldCompositor.atFloor_below_base"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [
+    "the transform animation runs on the compositor in both engines and does not make the page recalc style per frame: INFERRED from source, NOT measured (the WKTR lane paused it)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A moving gradient is a translation of a fixed gradient (glint_translate), so it can leave the SMIL timeline for a transform animation (class L for the edge pixels). A probe that pauses all Web Animations to isolate one cause also pauses the variant that replaces the cause with a Web Animation; the verdict must check that the variant's own animations ran (Lean judgeLive).",
+   "next": "re-run the WKTR accel lane with the fixed probe (push the branch, then [ci:wktr] [accel] with the temporary wktr.yml build config), then the user's look review of the dash edge pixels (class L)",
+   "evidence": "research/notes/2026/10-2x-glint-compositor.md; runs 40837548139 and 40833327444 (premise), 40833327416 and 40837547847 (WKTR, invalid for the variant)",
+   "userDecision": "pending"
+  },
+  {
    "id": "morph.geom:on",
    "n": 91,
    "part": "morph.geom",
@@ -5521,6 +5555,12 @@
    "task": "hero-exit-anim-units",
    "field": "mechanism",
    "text": "Note research/notes/2026/10-2x-hero-exit-anim-units.md.\nCONFIRMED (source): style is resolved per element in both engines; the compositor tick and the keyframe apply are per animation (WebKit KeyframeEffect.cpp:2129-2132, Node.cpp:1006-1024, StyleTreeResolver.cpp:1160-1185, KeyframeEffectStack.cpp:141-182@862f17d; Blink element.cc:7419-7430, style_resolver.cc:1362-1364, css_animations.cc:2499@f842f52).\nCONFIRMED (Lean): HeroExitOpt counts one animation per CSS name, 2N + 5 in both bands (animCount_eq). WebKit: against the per-consumer list wkOrigChanges the variant restyles the same N + 2 elements (wk_style_elems) and its style units equal 2N + 5 (was a strict drop); the real original also resolves the hero subtree through the inherited --exit-opacity (WebKit StyleChange.cpp:42-43, StyleTreeResolver.cpp:306-307@862f17d, not modelled on WebKit), so per element WebKit style still drops; wk_trade stays strict through the script pass. Chromium lane: style + (N + 2), props + (N + 3) (was + [not l], + 1 + [not l]); per element the ride-along is a strict subset (cr_lane_style_elems). Real Chrome and the golden predictions are unchanged; the WebKit style footprint sign is now same and disagrees with the phone count (fewer frames per run, INFERRED)."
+  },
+  {
+   "entry": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "task": "glint-compositor",
+   "field": "webkit",
+   "text": "glint-compositor (note research/notes/2026/10-2x-glint-compositor.md; Lean lean/Fw/Device/GlintHoldCompositor.lean decided before the data). Look, MEASURED (CI premise glint.compositor-pixels, run 40837548139, both engines, dpr 1 and 2): class L, the dash interior differs by at most 3 of 255, the edge pixels (round-cap columns, partly covered top and bottom rows) by up to 94 (first run 40833327444). WKTR pref OFF accel lane, runs 40833327416 and 40837547847, 3 jobs each: INVALID for the variant, the probe paused the variant's own transform animations (glint animations running 0), so the compositor arm's 0 idle recalcs per 100 frames against base 97-104 and floor 0 is not a result; probe fixed and Lean judgeLive added, lane not re-run (3 pushes used). WKTR is not iOS Safari; no phone run."
   },
   {
    "entry": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",

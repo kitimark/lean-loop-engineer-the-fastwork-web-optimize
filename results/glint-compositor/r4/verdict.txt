@@ -1,0 +1,8 @@
+glint-compositor results/glint-compositor/r4/j1 idle: base 100 floor 0 compositor 0 per 100 frames, band 6 spread 4, frames base 348 floor 302 compositor 301, glint animations running 2, verdict within the floor band
+glint-compositor results/glint-compositor/r4/j1 flip: base 176 floor 75 compositor 88 per 100 frames, band 7 spread 7, frames base 96 floor 48 compositor 59, glint animations running 2, verdict cuts partly
+glint-compositor results/glint-compositor/r4/j2 idle: base 100 floor 0 compositor 0 per 100 frames, band 6 spread 0, frames base 329 floor 302 compositor 300, glint animations running 2, verdict within the floor band
+glint-compositor results/glint-compositor/r4/j2 flip: base 171 floor 72 compositor 80 per 100 frames, band 6 spread 2, frames base 96 floor 48 compositor 56, glint animations running 2, verdict cuts partly
+glint-compositor results/glint-compositor/r4/j3 idle: base 98 floor 0 compositor 0 per 100 frames, band 6 spread 2, frames base 394 floor 302 compositor 299, glint animations running 2, verdict within the floor band
+glint-compositor results/glint-compositor/r4/j3 flip: base 171 floor 68 compositor 87 per 100 frames, band 6 spread 2, frames base 96 floor 48 compositor 48, glint animations running 2, verdict cuts partly
+glint-compositor overall idle: within the floor band
+glint-compositor overall flip: cuts partly

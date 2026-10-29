@@ -23768,7 +23768,8 @@
     "packages/premise-tests/pages/**",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     ".github/workflows/wktr.yml"
-   ]
+   ],
+   "evidence": "65b8ade"
   },
   {
    "devices": [

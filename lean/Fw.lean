@@ -119,6 +119,8 @@ import Fw.Parts.PlatformGlintPause
 import Fw.Parts.PlatformGlintPauseGolden
 import Fw.Parts.PlatformGlintHold
 import Fw.Parts.PlatformGlintHoldGolden
+import Fw.Parts.PlatformGlintCompositor
+import Fw.Parts.PlatformGlintCompositorGolden
 import Fw.Parts.PlatformSweepPause
 import Fw.Parts.PlatformSweepPauseGolden
 import Fw.Parts.PlatformFadedPause
@@ -158,6 +160,7 @@ import Fw.Device.ColsProbe
 import Fw.Device.RecalcSource
 import Fw.Device.RecalcBisect
 import Fw.Device.GlintHold
+import Fw.Device.GlintHoldCompositor
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
