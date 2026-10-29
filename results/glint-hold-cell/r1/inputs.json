@@ -1,0 +1,12 @@
+{
+  "event": "push",
+  "sha": "9c260e85aa7a336e16c6aaaf88b527b47a2e1455",
+  "nonce": "",
+  "engines": "playwright-webkit",
+  "fw": "platform.glint:hold-freeze",
+  "preset": "",
+  "widths": "",
+  "debug": "nav-transition",
+  "diagnostic": false,
+  "source": "commit-line"
+}
