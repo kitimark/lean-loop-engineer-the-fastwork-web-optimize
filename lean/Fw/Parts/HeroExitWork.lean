@@ -215,6 +215,230 @@ theorem cr_lane_style_saving (l : Bool) (lo : LayerState) (r : Bool) :
 
 end Fan
 
+/-! ## WebKit: the original's inherited fan-out -/
+
+section WkFan
+open Fw.Engine.WebKit
+
+/-- **The WebKit inherited-propagation rule**, a premise on `r`, the elements one style pass resolves after an
+inherited custom-property write on a root: the root and, unless it has no box, each child under the same rule.
+Source @862f17d (`WC/` = `Source/WebCore/`): inherited custom properties live in the inherited rare data
+(`WC/style/computed/StyleComputedStyleBase+GettersInlines.h:288-290`); a new rare-data pointer fails
+`nonFastPathInheritedEqual` (`WC/style/computed/StyleComputedStyle.cpp:296-297`), which adds `Change::Inherited`
+(`WC/style/StyleChange.cpp:42-43`); that resolves every child (`DescendantsToResolve::Children`,
+`WC/style/StyleTreeResolver.cpp:307-308`) in full, with no fast path under `Change::Inherited` (`:1190-1204`), each
+child inheriting the new data; `display: none` stops the descent (`:1387-1388`). -/
+def WkInheritRule (r : Node → Nat) : Prop :=
+  ∀ n f ks, r (mk n f ks) = 1 + if f.hidden then 0 else (ks.map r).sum
+
+theorem wkFullL_eq (ks : List Node) : wkFullL ks = (ks.map wkFull).sum := by
+  induction ks with
+  | nil => rfl
+  | cons k ks ih => simp [wkFullL, ih]
+
+/-- `wkFull` follows the rule.
+
+The premise is consistent. -/
+theorem wkInheritRule_wkFull : WkInheritRule wkFull := by
+  intro n f ks
+  simp [wkFull, wkFullL_eq]
+
+mutual
+/-- **The rule fixes the count**: any count that follows it is `wkFull`.
+
+The premise determines the resolved elements of every tree. -/
+theorem eq_wkFull_of_rule (r : Node → Nat) (h : WkInheritRule r) : ∀ n : Node, r n = wkFull n
+  | mk n f ks => by
+    rw [h, wkInheritRule_wkFull, eq_wkFull_of_ruleL r h ks]
+theorem eq_wkFull_of_ruleL (r : Node → Nat) (h : WkInheritRule r) : ∀ ks : List Node, ks.map r = ks.map wkFull
+  | [] => rfl
+  | k :: ks => by rw [List.map_cons, List.map_cons, eq_wkFull_of_rule r h k, eq_wkFull_of_ruleL r h ks]
+end
+
+/-- The elements a frame restyles: the distinct elements of its changes that dirty `style`. -/
+def styleElems {P M : Type} (E : Engine P M) (f : FrameIn P) : Nat :=
+  ((f.changes.filter fun c => decide (Stage.style ∈ E.stagesOf c)).map Change.elem).eraseDups.length
+
+#guard styleElems (webkitX .safari) ⟨0, 0, 0, 0, [⟨0, .base .scrollPos, .none⟩, ⟨2, .restyle, .own⟩,
+  ⟨2, .restyle, .own⟩, ⟨5, .customInherited, .none⟩], 0⟩ == 2
+#guard styleElems (webkitX .safari) emptyX == 0
+
+/-- `styleElems` on WebKit does not depend on the mode: the stages of each row do not. -/
+theorem styleElems_webkitX (m : WkMode) (f : FrameIn WkPropX) :
+    styleElems (webkitX m) f = styleElems (webkitX .safari) f := rfl
+
+/-- The fan-out on WebKit under the count `r`: the resolved elements beyond the hero and its consumers. -/
+def wkFanOut (r : Node → Nat) (l : Bool) : Nat := r (heroTree l) - (cardsShown l + 3)
+
+#guard wkFanOut wkFull true == 116 && wkFanOut wkFull false == 202
+
+/-- The hero, its consumers and the fan-out make up the whole resolved subtree on WebKit.
+
+Nothing of the subtree is cut off. -/
+theorem wkFanOut_add (l : Bool) : cardsShown l + 3 + wkFanOut wkFull l = wkFull (heroTree l) := by
+  cases l <;> decide +kernel
+
+/-- The original's fan-out rows: the hero's inherited write and one restyle per further element. -/
+def wkFanChanges (r : Node → Nat) (l : Bool) : List (Change WkPropX) :=
+  ⟨1, .customInherited, .none⟩ :: (List.range (wkFanOut r l)).map fun i => ⟨100 + i, .restyle, .none⟩
+
+/-- **The original's scrolled frame on WebKit with the fan-out**: `wkOrigChanges` for the shown cards, then the
+fan-out rows. -/
+def wkOrigR2 (r : Node → Nat) (l : Bool) (lo : LayerState) : FrameIn WkPropX :=
+  let f := liftWkFrame (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))
+  { f with changes := f.changes ++ wkFanChanges r l }
+
+/-- **Exact work of the original's scrolled frame with the fan-out on WebKit**: the passes of the frame without it,
+and `wkFanOut r ℓ + 1` more style units.
+
+What one scrolled frame of the original costs WebKit once the inherited write is counted. -/
+theorem wk_orig_r2 (m : WkMode) (r : Node → Nat) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) (s : Stage) :
+    let O := frameWork (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))
+    (frameWork (webkitX m) (wkOrigR2 r l lo)).passes s = O.passes s ∧
+      (frameWork (webkitX m) (wkOrigR2 r l lo)).units s = O.units s + (if s = .style then wkFanOut r l + 1 else 0) ∧
+      (frameWork (webkitX m) (wkOrigR2 r l lo)).hits = O.hits := by
+  intro O
+  have hx : ∀ c ∈ wkFanChanges r l, (webkitX m).stagesOf c = [.style] := by
+    intro c hc
+    simp only [wkFanChanges, List.mem_cons, List.mem_map] at hc
+    rcases hc with rfl | ⟨i, _, rfl⟩ <;> rfl
+  have hsty := wkOrig_style m l (cardsShown l) lo hlo
+  have hs : Stage.style ∈ (liftWkFrame (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))).changes.flatMap
+      (webkitX m).stagesOf := by
+    have hne : wkOrigChanges l (cardsShown l) lo ≠ [] := by
+      intro h; have := wkOrigChanges_length l (cardsShown l) lo; rw [h] at this; simp at this
+    obtain ⟨c, hc⟩ := List.exists_mem_of_ne_nil _ hne
+    simp only [List.mem_flatMap]
+    exact ⟨liftWk c, by simp [liftWkFrame, scrollStep, jsFrame]; exact Or.inr ⟨c, hc, rfl⟩, hsty c hc⟩
+  have h := frameWork_append_style (webkitX m) _ (wkFanChanges r l) hx hs s
+  have hl := webkitX_lift m (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo))) s
+  have hlen : (wkFanChanges r l).length = wkFanOut r l + 1 := by simp [wkFanChanges]
+  have he : wkOrigR2 r l lo = { liftWkFrame (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo))) with
+      changes := (liftWkFrame (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))).changes ++
+        wkFanChanges r l } := rfl
+  rw [he, h.1, h.2, hl.1, hl.2.1, hlen]
+  exact ⟨rfl, rfl, hl.2.2⟩
+
+/-- **The original restyles the whole hero subtree on WebKit**: under the rule, its scrolled frame restyles
+`wkFull (heroTree ℓ)` elements, 123 in the phone band and 215 above.
+
+Per element, WebKit pays the inherited fan-out of the original's write. -/
+theorem wk_orig_r2_elems (m : WkMode) (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState)
+    (hlo : lo ≠ .none) :
+    styleElems (webkitX m) (wkOrigR2 r l lo) = wkFull (heroTree l) ∧
+      wkFull (heroTree l) = (if l then 123 else 215) := by
+  have he : wkOrigR2 r l lo = wkOrigR2 wkFull l lo := by
+    simp only [wkOrigR2, wkFanChanges, wkFanOut, eq_wkFull_of_rule r hr]
+  rw [he, styleElems_webkitX m]
+  clear he hr r m
+  cases l <;> cases lo <;> first | exact absurd rfl hlo | (clear hlo; decide +kernel)
+
+/-- **The variant restyles its animated consumers only**: its scrolled frame restyles the copy, the cue and the
+shown cards, 6 elements in the phone band and 12 above. Their animated properties are non-inherited, so WebKit
+resolves no child without an explicit `inherit` of a non-inherited property (`WC/style/StyleTreeResolver.cpp:310-311,
+1207-1209`, `WC/style/StyleBuilder.cpp:439-440`@862f17d).
+
+Per element, the variant's WebKit style work is its consumers. -/
+theorem wk_var_elems (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) :
+    styleElems (webkitX m) (wkVar m l (cardsShown l)) = cardsShown l + 2 ∧
+      cardsShown l + 2 = (if l then 6 else 12) := by
+  rw [wkVar_eq m hm, styleElems_webkitX m]
+  clear hm m
+  cases l <;> decide +kernel
+
+/-- **The WebKit style saving** (threaded scroll-driven on, WKTR premise, inherited-propagation premise): the
+variant's scrolled frame runs the original's single style pass, but restyles `ℓ ? 6 : 12` elements with
+`ℓ ? 13 : 25` animation units, strictly below the `ℓ ? 123 : 215` elements the original's inherited write resolves.
+
+On WebKit the variant restyles each animated consumer, the original the whole hero subtree. -/
+theorem wk_style_saving (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
+    (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) :
+    let V := frameWork (webkitX m) (wkVar m l (cardsShown l))
+    let O := frameWork (webkitX m) (wkOrigR2 r l lo)
+    V.passes .style = O.passes .style ∧ O.passes .style = 1 ∧
+      styleElems (webkitX m) (wkVar m l (cardsShown l)) = (if l then 6 else 12) ∧
+      V.units .style = (if l then 13 else 25) ∧
+      styleElems (webkitX m) (wkOrigR2 r l lo) = (if l then 123 else 215) ∧
+      styleElems (webkitX m) (wkVar m l (cardsShown l)) < styleElems (webkitX m) (wkOrigR2 r l lo) ∧
+      V.units .style < styleElems (webkitX m) (wkOrigR2 r l lo) := by
+  intro V O
+  have hv := wk_var_exact μ hμ m hm l (cardsShown l) .style
+  have h1 : μ.timeline = 1 := hμ.2.1
+  have ho := (wk_orig_r2 m r l lo hlo .style).1
+  have hoat : (frameWork (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))).passes .style =
+      1 := by
+    have ht := (wk_trade μ hμ m hm l (cardsShown l) lo hlo).1.1.1 .style (by decide)
+    rw [hv.1, h1] at ht
+    have hle : (frameWork (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l (cardsShown l) lo)))).passes .style
+        ≤ 1 := by
+      simp only [frameWork, forcedPasses, scrollStep, jsFrame]
+      have hb : ∀ (p : Prop) [Decidable p], (if p then 1 else 0) + 0 ≤ 1 := fun p _ => by
+        by_cases h : p <;> simp [h]
+      exact hb _
+    simp at ht
+    omega
+  have hve := wk_var_elems m hm l
+  have hoe := wk_orig_r2_elems m r hr l lo hlo
+  have hu : V.units .style = (if l then 13 else 25) := by
+    show (frameWork _ _).units _ = _
+    rw [hv.2]; cases l <;> simp [animCount_eq, cardsShown] <;> decide +kernel
+  refine ⟨?_, ?_, ?_, hu, ?_, ?_, ?_⟩
+  · show (frameWork _ _).passes _ = (frameWork _ _).passes _
+    rw [hv.1, ho, hoat, h1]; simp
+  · show (frameWork _ _).passes _ = _
+    rw [ho, hoat]
+  · rw [hve.1, hve.2]
+  · rw [hoe.1, hoe.2]
+  · rw [hve.1, hve.2, hoe.1, hoe.2]; cases l <;> decide
+  · rw [hu, hoe.1, hoe.2]; cases l <;> decide
+
+/-- **The WebKit trade against the original with its fan-out**: strictly less main-thread work, strictly fewer
+style units and restyled elements, at the price of one compositor pass.
+
+`wk_trade` with the inherited write counted; its own statement against `wkOrigChanges` stays. -/
+theorem wk_trade_r2 (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
+    (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) :
+    let V := frameWork (webkitX m) (wkVar m l (cardsShown l))
+    let O := frameWork (webkitX m) (wkOrigR2 r l lo)
+    mainLt V O ∧ V.units .style < O.units .style ∧
+      styleElems (webkitX m) (wkVar m l (cardsShown l)) < styleElems (webkitX m) (wkOrigR2 r l lo) ∧
+      V.passes .comp = 1 ∧ O.passes .comp = 0 := by
+  have ht := wk_trade μ hμ m hm l (cardsShown l) lo hlo
+  dsimp only at ht ⊢
+  obtain ⟨⟨⟨hle, hh⟩, s0, hs0, hlt⟩, hst, hvc, _, hoc, _⟩ := ht
+  have ho := wk_orig_r2 m r l lo hlo
+  have hsave := (wk_style_saving μ hμ m hm r hr l lo hlo).2.2.2.2.2.1
+  refine ⟨⟨⟨fun s hs => ?_, ?_⟩, s0, hs0, ?_⟩, ?_, hsave, hvc, ?_⟩
+  · obtain ⟨h1, h2⟩ := hle s hs
+    show _ ≤ (frameWork _ _).passes s ∧ _ ≤ (frameWork _ _).units s
+    rw [(ho s).1, (ho s).2.1]
+    exact ⟨h1, by omega⟩
+  · show _ ≤ (frameWork _ _).hits
+    rw [(ho .style).2.2]; exact hh
+  · show _ < (frameWork _ _).passes s0 ∨ _ < (frameWork _ _).units s0
+    rw [(ho s0).1, (ho s0).2.1]
+    omega
+  · show _ < (frameWork _ _).units _
+    rw [(ho .style).2.1, hst]; simp
+  · show (frameWork _ _).passes _ = _
+    rw [(ho .comp).1, hoc]
+
+/-- **`wk_trade_r2` under `frameWorkE`**: the frame-end pass changes nothing on frames without reads.
+
+Safari's trade with the fan-out does not depend on the frame-end pass. -/
+theorem wk_trade_r2E (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true)
+    (r : Node → Nat) (hr : WkInheritRule r) (l : Bool) (lo : LayerState) (hlo : lo ≠ .none) (ev eo : Stage → Bool)
+    (hv : ∀ s, s ∈ touched (webkitX m) (wkVar m l (cardsShown l)) → ev s = true)
+    (ho : ∀ s, s ∈ touched (webkitX m) (wkOrigR2 r l lo) → eo s = true) :
+    mainLt (frameWorkE (webkitX m) (wkVar m l (cardsShown l)) ev)
+      (frameWorkE (webkitX m) (wkOrigR2 r l lo) eo) ∧
+    styleElems (webkitX m) (wkVar m l (cardsShown l)) < styleElems (webkitX m) (wkOrigR2 r l lo) := by
+  rw [Fw.Parts.EndFlags.frameWorkE_eq_of_dirty _ _ ev hv, Fw.Parts.EndFlags.frameWorkE_eq_of_dirty _ _ eo ho]
+  have h := wk_trade_r2 μ hμ m hm r hr l lo hlo
+  exact ⟨h.1, h.2.2.1⟩
+
+end WkFan
+
 /-! ## WebKit: the edge frames -/
 
 section Edge
