@@ -15,16 +15,11 @@ export const KEYS = {
 KEYS.write = [...KEYS.pub, ...KEYS.cls, ...KEYS.panel, ...KEYS.plat];
 
 /** The sets the page silences, by arm variant (`rs-flip-<variant>`). */
-export const PIN_ARM = 'qpin';
-export const QSETS = { [PIN_ARM]: [], ...Object.fromEntries(Object.entries(ARM_OF).map(([w, arm]) => [arm, KEYS[w]])) };
+export const QSETS = Object.fromEntries(Object.entries(ARM_OF).map(([w, arm]) => [arm, KEYS[w]]));
 
-/**
- * The arms of one process: the natural page, the all-paused page (`pall`, no pin), then the floor read (`qpin`: all paused, nav held dark,
- * nothing silenced), every writer set, the reference (all writers silenced) and the floor read again. Every q arm holds the nav dark, so the
- * floor is the pinned one; `pall` only shows what the pin changes.
- */
+/** The arms of one process: floor read, every writer set, the reference, floor read again, then the natural page. */
 export const FLOOR_ARMS = [
-  'rs-flip-nat', 'rs-flip-pall', `rs-flip-${PIN_ARM}`, ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', `rs-flip-${PIN_ARM}`,
+  'rs-flip-nat', 'rs-flip-pall', ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', 'rs-flip-pall',
 ];
 export const FLOOR_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true, gk: true, lay: false };
 
@@ -80,8 +75,7 @@ export const framesOf = (row) => {
 
 /** One job: the report of one process holding the arms of FLOOR_ARMS. */
 export function decideJobF(rep) {
-  const pall = rowsOf(rep, `rs-flip-${PIN_ARM}`).map(framesOf);
-  const unpinned = rowsOf(rep, 'rs-flip-pall').map(framesOf)[0] ?? [];
+  const pall = rowsOf(rep, 'rs-flip-pall').map(framesOf);
   const all = rowsOf(rep, 'rs-flip-qwrite').map(framesOf)[0] ?? [];
   const nat = rowsOf(rep, 'rs-flip-nat').map(framesOf)[0] ?? [];
   const cell = (w) => ({ pall, all, var: rowsOf(rep, `rs-flip-${ARM_OF[w]}`).map(framesOf)[0] ?? [], muted: KEYS[w] });
@@ -94,7 +88,7 @@ export function decideJobF(rep) {
   const es = WRITERS.map((w) => ({ w, v: cells[w].verdict, p: cells[w].nums.p, cut: cells[w].cut }));
   const f = finding(cells.write.verdict, es);
   const natRate = rate(nat);
-  return { cells, entries: es, finding: f, nat: { n: nat.length, rate: natRate }, unpinned: { n: unpinned.length, rate: rate(unpinned) } };
+  return { cells, entries: es, finding: f, nat: { n: nat.length, rate: natRate } };
 }
 
 export function cellLineF(label, w, d) {
@@ -105,7 +99,7 @@ export function cellLineF(label, w, d) {
 export function jobLinesF(label, rep) {
   const d = decideJobF(rep);
   const lines = Object.entries(d.cells).map(([w, c]) => cellLineF(label, w, c));
-  lines.push(`end-floor ${label} natural page ${d.nat.rate}, all paused without the pin ${d.unpinned.rate} per 100 frames over ${d.nat.n} and ${d.unpinned.n} frames`);
+  lines.push(`end-floor ${label} natural page ${d.nat.rate} per 100 frames over ${d.nat.n} frames`);
   lines.push(`end-floor ${label} finding: ${d.finding}`);
   return { lines, d };
 }

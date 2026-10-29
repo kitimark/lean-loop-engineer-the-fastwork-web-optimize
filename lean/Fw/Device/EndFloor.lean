@@ -2,9 +2,8 @@ import Lean.Data.Json
 import Fw.Device.EndWktr
 /-! End of page on the WKTR flip arm: which DOM writer carries the all-paused style-recalc floor.
 
-The floor is the flip with every animation and SMIL paused (`pall` in `EndWktr`) and the nav held dark (the flip starts only once
-`is-on-dark` is on, and a silenced write must not end the flip). A writer arm repeats the flip with the same pause and pin and one set
-of DOM writes silenced; the mutation table of that arm must then hold none of the silenced keys. -/
+The floor is the flip with every animation and SMIL paused (`pall` in `EndWktr`). A writer arm repeats the flip with the
+same pause and one set of DOM writes silenced; the mutation table of that arm must then hold none of the silenced keys. -/
 namespace Fw.Device.EndFloor
 open Lean Fw.Device.EndWktr
 
