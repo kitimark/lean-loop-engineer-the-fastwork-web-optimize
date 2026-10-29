@@ -43,7 +43,7 @@ async function open(engine, env, origin, site, search, debug = '') {
 export async function heroPath(engine, env, origin, site, search = '') {
   const { s, ready, arm } = await open(engine, env, origin, site, search);
   try {
-    const a = { arm: site, nodes: forArm(resolveNodes(HERO_NODES), site), pageProps: PAGE_PROPS, navSel: null, steps: HERO_STEPS, moveFrames: 4, restMs: 300, settleCapMs: 4000 };
+    const a = { arm: site, nodes: forArm(resolveNodes(HERO_NODES), site), pageProps: PAGE_PROPS, navSel: null, steps: HERO_STEPS, moveFrames: 4, restMs: 300, settleCapMs: 4000, boxes: true };
     const rows = await s.evaluate((x) => window.__traj.heroPath(x), a);
     return { ready, arm, rows };
   } finally { await s.close().catch(() => {}); }

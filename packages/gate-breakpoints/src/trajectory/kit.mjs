@@ -185,9 +185,13 @@ export function installKit() {
     }
     return out;
   };
+  const boxesOf = (nodes) => {
+    const out = {};
+    for (const n of nodes) out[n.id] = Array.from(document.querySelectorAll(n.sel)).map((el) => el.getClientRects().length > 0);
+    return out;
+  };
   const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  /** The end of a rendering frame: after the rAF callbacks of that frame, whatever they wrote is in the next style read. */
   const frameEnd = async () => { await raf(); await sleep(0); };
   const T0 = performance.now();
   /** Milliseconds since the kit was installed, with a tenth of a millisecond (the read of one frame is a few ms). */
@@ -227,9 +231,10 @@ export function installKit() {
     let m = null;
     if (nav) { const v = parseFloat(getComputedStyle(nav).getPropertyValue('--morph')); if (Number.isFinite(v)) m = Math.round(v * 10000); }
     const nodes = readNodes(arg.arm, arg.nodes, arg.lean === true);
+    const box = arg.boxes === true ? boxesOf(arg.nodes) : null;
     const page = arg.pageProps.length === 0 ? [] : readNodes(arg.arm, [{ id: 'page', sel: 'html', props: arg.pageProps }], false).page[0];
     const t1 = stamp();
-    return { tag, t: t1, t0, t1, y: Math.round(window.scrollY), m, since: state.lastMut === null ? null : Math.round(performance.now() - state.lastMut), page, nodes, ...extra };
+    return { tag, t: t1, t0, t1, y: Math.round(window.scrollY), m, since: state.lastMut === null ? null : Math.round(performance.now() - state.lastMut), page, nodes, ...(box === null ? {} : { box }), ...extra };
   };
 
   const heroPath = async (arg) => {

@@ -23519,6 +23519,176 @@
     "research/notes/2026/10-2x-hero-exit-gate-clear.md",
     "results/hero-exit-gate-clear/**",
     "docs/team/handoffs/hero-exit-gate-clear.md"
+   ],
+   "evidence": "53f95be"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-recalc-source",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-sweep-paused"
+   ],
+   "title": "Name the WebKit style recalc that remains at 1 per frame with every animation paused (geom-sweep-paused): WKTR pref OFF, all-paused idle and flip arms with a MutationObserver count by target and attribute, a requestAnimationFrame registration count by call site, and the element count per recalc read at frame end; Lean verdict decided before the data, then the same-look fix task if one source is named.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Device/RecalcSource*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/recalc-source*.jsonl",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-recalc-source.md",
+    "results/geom-recalc-source/**",
+    "docs/team/handoffs/geom-recalc-source.md"
+   ],
+   "evidence": "a66445b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gen-merge-retry-bound",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-gate-clear"
+   ],
+   "title": "Gen.merge newest-run-wins (hero-exit-gate-clear) lets a re-run replace a failed or no-verdict row with no bound: keep superseded fail and no-verdict rows visible in the trajectory golden, supersede only when the reader version differs or under a Lean retry bound, parse run ids strictly; prove it and regenerate the preset golden.",
+   "writes": [
+    "lean/Fw/Preset/Gen*.lean",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-gen-merge-retry-bound.md",
+    "docs/team/handoffs/gen-merge-retry-bound.md",
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/gate-breakpoints/test/reader-files.test.mjs",
+    "apps/runner/src/land.ts"
+   ],
+   "evidence": "dfe7107"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-proofs",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-gate-clear",
+    "gen-merge-retry-bound"
+   ],
+   "title": "Close the proofs blocker of hero.exit:threaded (ledger n 6, partly-proved): R2 inherited fan-out units in crOrig so the style-unit saving is proved, the WebKit edge-frame cost tabled (opacityCross1_layout and a filter-presence clause for start and park frames), RG11 justified from engine source; ledger row proved, Gen.entry regenerated.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Engine/WebKit*.lean",
+    "lean/Fw/Engine/WebKit/**",
+    "lean/Fw/Engine/Visual.lean",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-proofs.md",
+    "docs/team/handoffs/hero-exit-proofs.md",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "lean/Fw/Preset/Gen.lean"
+   ],
+   "evidence": "e63ed64"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-recalc-bisect",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-recalc-source"
+   ],
+   "title": "Find which element WebKit marks style-dirty every frame with nothing changing (geom-recalc-source: engine-internal, hiding the body leaves 0-11 per 100 frames): WKTR pref OFF, probe-only arms hiding one body subtree at a time (then bisect inside the hit), wrap or bound the unwrapped candidates (listeners, Resize/IntersectionObserver, microtasks, CSSOM style writes), name the element and style feature with WebKit 862f17d source, and propose one same-look fix.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Device/RecalcBisect*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/recalc-bisect*.jsonl",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-recalc-bisect.md",
+    "results/geom-recalc-bisect/**",
+    "docs/team/handoffs/geom-recalc-bisect.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-anim-units",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-proofs"
+   ],
+   "title": "hero.exit:threaded model counts one animation per consumer while the CSS runs 2N+5 animation-names: decide from WebKit 862f17d and Chromium f842f52 source whether style units grow per animation or per element, model it that way in HeroExitOpt, re-prove wk_trade / wk_var_exact / cr_* (strict or equality) and the ledger row, and guard the Gen.lean proved-branch theorem names against the row's links.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Engine/WebKit*.lean",
+    "lean/Fw/Engine/Chromium*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-anim-units.md",
+    "docs/team/handoffs/hero-exit-anim-units.md",
+    "lean/Fw/Engine/ResourceFlags.lean",
+    "packages/contracts/golden/engine/resource.jsonl"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "glint-hold-wktr",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-recalc-bisect"
+   ],
+   "title": "Measure platform.glint:hold-freeze (same look, Lean hold_eq_faithful) where geom-recalc-bisect found the residual WebKit recalc: the SMIL x1/x2 animates of the 2 glint dash svgs; Lean ticks-to-recalcs statement decided before the data, WKTR pref OFF idle and flip arms base vs hold-freeze (recalcs per 100 frames, style ms), 3 jobs; then the trajectory gate cells for the preset.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Parts/PlatformGlint*.lean",
+    "lean/Fw/Device/GlintHold*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/glint-hold*.jsonl",
+    "packages/contracts/golden/parts/platform-glint*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-glint-hold-wktr.md",
+    "results/glint-hold-wktr/**",
+    "docs/team/handoffs/glint-hold-wktr.md"
    ]
   }
  ],

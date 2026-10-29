@@ -508,18 +508,46 @@ def twhyWord : TWhy → String
   | .pending => "pending: trajectory"
   | .falsified => "falsified: trajectory"
 
-def storedJson (s : Stored) : Json :=
-  Json.mkObj [("run", .str s.run), ("sha", .str s.sha), ("search", .str s.search), ("flags", toJson s.flags),
-    ("engine", .str (engineWord s.engine)), ("path", .str (walkWord s.walk)), ("widths", toJson s.widths),
+def superJson : Option Super → Json
+  | none => .null
+  | some (.reader r) => Json.mkObj [("by", .str (toString r)), ("why", .str "reader")]
+  | some (.retry r) => Json.mkObj [("by", .str (toString r)), ("why", .str "retry")]
+
+def superWord : Option Super → String
+  | none => ""
+  | some (.reader r) => s!", superseded by {r} (reader)"
+  | some (.retry r) => s!", superseded by {r} (retry)"
+
+def storedJson (st : List Stored) (s : Stored) : Json :=
+  Json.mkObj [("run", .str (toString s.run)), ("sha", .str s.sha), ("reader", .str s.reader), ("search", .str s.search),
+    ("flags", toJson s.flags), ("engine", .str (engineWord s.engine)), ("path", .str (walkWord s.walk)),
+    ("widths", toJson s.widths),
     ("groups", .arr (s.groups.map fun g => Json.mkObj [("node", .str g.node), ("prop", .str g.prop),
-      ("content", toJson g.content), ("coverage", toJson g.coverage)]).toArray)]
+      ("content", toJson g.content), ("coverage", toJson g.coverage)]).toArray),
+    ("outcome", .str (outcomeWord (outcome s))), ("superseded", superJson (supersede st s))]
+
+def parseRunId (t : String) : Except String Nat :=
+  if !t.isEmpty && t.all Char.isDigit then .ok (t.foldl (fun n c => 10 * n + (c.toNat - '0'.toNat)) 0)
+  else .error s!"run id {t.quote} is not a decimal number"
+
+theorem parseRunId_ok {t : String} {n : Nat} (h : parseRunId t = .ok n) : !t.isEmpty && t.all Char.isDigit := by
+  unfold parseRunId at h
+  split at h
+  · assumption
+  · cases h
+
+theorem parseRunId_error {t : String} (h : (!t.isEmpty && t.all Char.isDigit) = false) :
+    parseRunId t = .error s!"run id {t.quote} is not a decimal number" := by
+  unfold parseRunId
+  simp only [h, Bool.false_eq_true, ↓reduceIte]
 
 def parseStored (j : Json) : Except String Stored := do
   let gs ← (← j.getObjVal? "groups").getArr?
   let groups ← gs.toList.mapM fun g => do
     return ⟨← g.getObjValAs? String "node", ← g.getObjValAs? String "prop", ← g.getObjValAs? (List Nat) "content",
       ← g.getObjValAs? (List Nat) "coverage"⟩
-  return { run := ← j.getObjValAs? String "run", sha := ← j.getObjValAs? String "sha",
+  return { run := ← parseRunId (← j.getObjValAs? String "run"), sha := ← j.getObjValAs? String "sha",
+           reader := (← optStr j "reader").getD "",
            search := ← j.getObjValAs? String "search", flags := ← j.getObjValAs? (List String) "flags",
            engine := ← parseEngine (← j.getObjValAs? String "engine"),
            walk := ← parseWalk (← j.getObjValAs? String "path"), widths := ← j.getObjValAs? (List Nat) "widths",
@@ -529,15 +557,15 @@ def parseStoredText (t : String) : Except String (List Stored) :=
   ((t.splitOn "\n").filter (!·.isEmpty)).mapM fun l => do parseStored (← Json.parse l)
 
 def storedText (st : List Stored) : String :=
-  let key (s : Stored) := s.run ++ " " ++ engineWord s.engine ++ " " ++ walkWord s.walk
-  String.join ((st.mergeSort fun a b => key a ≤ key b).map fun s => (storedJson s).compress ++ "\n")
+  let key (s : Stored) := engineWord s.engine ++ " " ++ walkWord s.walk
+  String.join ((st.mergeSort fun a b => a.run < b.run || (a.run == b.run && key a ≤ key b)).map fun s => (storedJson st s).compress ++ "\n")
 
 def trajJson (st : List Stored) (f : Flag) : Json :=
   let cell (fam : Family) (w : Walk) : Json :=
     Json.mkObj [("family", .str (familyWord fam)), ("path", .str (walkWord w)), ("cell", .str (tcellWord (tcell st f fam w))),
-      ("runs", .arr ((runsFor st f fam w).map fun s => Json.mkObj [("run", .str s.run),
+      ("runs", .arr ((runsFor st f fam w).map fun s => Json.mkObj [("run", .str (toString s.run)),
         ("engine", .str (engineWord s.engine)), ("alone", .bool (s.flags == [f.key])),
-        ("outcome", .str (outcomeWord (outcome s))),
+        ("outcome", .str (outcomeWord (outcome s))), ("superseded", superJson (supersede st s)),
         ("sameByProof", toJson (s.widths.filter fun w => basisAt s.flags w == .sameByProof))]).toArray)]
   Json.mkObj [("verdict", .str (twhyWord (trajWhy st f))),
     ("cells", .arr (families.flatMap fun fam => walks.map (cell fam)).toArray)]
@@ -658,27 +686,32 @@ theorem threaded_not_yet {ledger : List Row} {st : List Stored} {r : Row}
 
 theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     {s : Stored} (hw : w ∈ walks) (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key])
-    (hf : outcome s = .fail) :
+    (hf : outcome s = .fail) (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader) :
     reqMet ledger st f (.gate fam) = false ∧ .gate fam ∈ blockers ledger st f := by
   have hu : reqMet ledger st f (.gate fam) = false := by
     simp only [reqMet, List.all_eq_false, beq_iff_eq]
-    exact ⟨w, hw, by simp [tcell_own_fail hs ho hf]⟩
+    exact ⟨w, hw, by simp [fail_not_hidden hs ho hf hr]⟩
   have hr : EntryReq.gate fam ∈ entryReqs := by cases fam <;> simp [entryReqs]
   exact ⟨hu, (entry_notYet_of_unmet hr hu).2⟩
 
 def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → String
   | .proofs =>
-    let status := match why links ledger heroExitThreaded with
+    let w := why links ledger heroExitThreaded
+    let status := match w with
       | .proved => "proved"
       | .notProved _ s => s
       | w => (whyJson w).compress
+    let r2 := if w == .proved then "closed by Fw.Parts.HeroExitWork.cr_lane_style_saving (R2 inherited fan-out \
+        units) and Fw.Parts.HeroExitWork.wk_edge_layout with edgeFrames_le_starts (WebKit edge-frame cost)"
+      else "open until the row is proved"
     "linked to ledger row hero-exit-threaded (v6, KD#2), status " ++ status ++ "; met only when that row is proved \
       (threaded_proofs_iff): Fw.Parts.HeroExitOpt.consumer_eq_s holds under the hypothesis RG11, cr_real_tradeE and \
-      wk_tradeE give a trade, and the row's missingWhy (R2 inherited fan-out units, WebKit edge-frame cost) is open"
+      wk_tradeE give a trade, and the row's missingWhy items are " ++ r2
   | .gate fam =>
     let cell (w : Walk) : String :=
       let runs := (runsFor st heroExitThreaded fam w).map fun s =>
-        "run " ++ s.run ++ " " ++ engineWord s.engine ++ " " ++ outcomeWord (outcome s)
+        "run " ++ toString s.run ++ " " ++ engineWord s.engine ++ " " ++ outcomeWord (outcome s) ++
+          superWord (supersede st s)
       walkWord w ++ " " ++ tcellWord (tcell st heroExitThreaded fam w) ++
         (if runs.isEmpty then " (no stored run)" else " (" ++ ", ".intercalate runs ++ ")")
     "trajectory " ++ "; ".intercalate (walks.map cell) ++ "; the 25/40/40 new hero units of run 40156078840 sit on \
@@ -734,6 +767,19 @@ def goldenLook : System.FilePath :=
 def goldenProbes : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "probes.jsonl"
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
+def readerFiles : List String :=
+  ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/engines.mjs",
+   "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs",
+   "packages/gate-breakpoints/src/spec.mjs", "packages/gate-breakpoints/src/trajectory/cli.mjs",
+   "packages/gate-breakpoints/src/trajectory/consumer.mjs", "packages/gate-breakpoints/src/trajectory/debug.mjs",
+   "packages/gate-breakpoints/src/trajectory/kit.mjs", "packages/gate-breakpoints/src/trajectory/plan.mjs",
+   "packages/gate-breakpoints/src/trajectory/reduce.mjs", "packages/gate-breakpoints/src/trajectory/registry.mjs",
+   "packages/gate-breakpoints/src/trajectory/run.mjs"]
+
+def readerFilesText : String := (toJson readerFiles).compress ++ "\n"
+
+def goldenReaderFiles : System.FilePath :=
+  ".." / "packages" / "contracts" / "golden" / "preset" / "reader-files.json"
 def storedPath : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "v2-proved.trajectory.jsonl"
 
@@ -765,9 +811,12 @@ def run (args : List String) : IO Unit := do
     throw (IO.userError s!"look decisions name no look-change candidate and no refused registered flag: {(staleDecisions reg).map (·.key)}")
   unless (refusedMembers lookDecisions p).isEmpty do
     throw (IO.userError s!"refused flags in v2-proved: {(refusedMembers lookDecisions p).map (·.key)}")
+  let unread := (st.filter (·.reader.isEmpty)).map (·.run)
+  unless unread.isEmpty do
+    throw (IO.userError s!"{storedPath}: runs {unread} have no reader identity; fill it with Fw.Preset.Gen.record")
   let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
     (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p),
-    (goldenProbes, probesText reg p)]
+    (goldenProbes, probesText reg p), (storedPath, storedText st), (goldenReaderFiles, readerFilesText)]
   if args.contains "--check" then
     let mut stale : List String := []
     for (path, text) in outs do
@@ -814,7 +863,7 @@ def parseUnit (j : Json) : Except String UnitRow := do
            coverage := (← j.getObjValAs? String "verdict") == "fail:coverage",
            isNew := (← j.getObjValAs? String "rel") == "new" }
 
-def storedOf (run sha : String) (e : Engine) (presetKeys : Option (List String)) (j : Json) :
+def storedOf (run : Nat) (sha reader : String) (e : Engine) (presetKeys : Option (List String)) (j : Json) :
     Except String (List Stored) := do
   if ← j.getObjValAs? Bool "refused" then throw s!"run {run} {engineWord e} was refused"
   let search ← j.getObjValAs? String "search"
@@ -822,30 +871,86 @@ def storedOf (run sha : String) (e : Engine) (presetKeys : Option (List String))
   let us ← (← (← j.getObjVal? "units").getArr?).toList.mapM parseUnit
   return [Walk.hero, .morph].filterMap fun w =>
     if us.any (·.walk == walkWord w) then
-      some { run, sha, search, flags, engine := e, walk := w, widths := widthsOf (walkWord w) us,
+      some { run, sha, reader, search, flags, engine := e, walk := w, widths := widthsOf (walkWord w) us,
              groups := groupsOf (walkWord w) us }
     else none
 
+def sameRow (n s : Stored) : Bool := n.run == s.run && n.engine == s.engine && n.walk == s.walk
+
 def merge (old new : List Stored) : List Stored :=
-  old.filter (fun s => !new.any fun n => n.run == s.run && n.engine == s.engine && n.walk == s.walk) ++ new
+  old.filter (fun s => !new.any (sameRow · s)) ++ new
+
+theorem merge_new_mem {old new : List Stored} {n : Stored} (h : n ∈ new) : n ∈ merge old new :=
+  List.mem_append_right _ h
+
+theorem merge_keeps {old new : List Stored} {s : Stored} (hs : s ∈ old) :
+    s ∈ merge old new ∨ ∃ n ∈ new, sameRow n s = true := by
+  by_cases h : new.any (sameRow · s) = true
+  · exact Or.inr (List.any_eq_true.1 h)
+  · exact Or.inl (List.mem_append_left _ (List.mem_filter.2 ⟨hs, by simpa using h⟩))
+
+theorem sameRow_self (n : Stored) : sameRow n n = true := by
+  simp [sameRow]
+
+theorem merge_idem (old new : List Stored) : merge (merge old new) new = merge old new := by
+  have hn : new.filter (fun s => !new.any (sameRow · s)) = [] :=
+    List.filter_eq_nil_iff.2 fun n hn => by simpa using ⟨n, hn, sameRow_self n⟩
+  simp only [merge, List.filter_append, hn, List.append_nil, List.filter_filter, Bool.and_self]
+
+def readerOf (sha : String) : IO String := do
+  let ls ← IO.Process.output { cmd := "git", args := #["ls-tree", "--full-tree", sha, "--"] ++ readerFiles.toArray }
+  unless ls.exitCode == 0 do throw (IO.userError s!"git ls-tree {sha}: {ls.stderr}")
+  if ls.stdout.isEmpty then throw (IO.userError s!"commit {sha} holds none of the reader files")
+  IO.FS.withTempFile fun h path => do
+    h.putStr ls.stdout
+    h.flush
+    let o ← IO.Process.output { cmd := "git", args := #["hash-object", path.toString] }
+    unless o.exitCode == 0 do throw (IO.userError s!"git hash-object: {o.stderr}")
+    pure (String.ofList (o.stdout.toList.takeWhile Char.isAlphanum))
+
+def fillReaders (st : List Stored) : IO (List Stored) := do
+  let mut known : List (String × String) := []
+  let mut out : Array Stored := #[]
+  for s in st do
+    if s.reader.isEmpty then
+      match known.lookup s.sha with
+      | some r => out := out.push { s with reader := r }
+      | none =>
+        let r ← readerOf s.sha
+        known := known ++ [(s.sha, r)]
+        out := out.push { s with reader := r }
+    else out := out.push s
+  pure out.toList
 
 def record (args : List String) : IO Unit := do
   let (run, sha, pf, dirs) ← match args with
     | r :: s :: p :: d :: ds => pure (r, s, p, d :: ds)
     | _ => throw (IO.userError "usage: record [run, sha, presetFile or -, artifactDir...]")
-  unless !run.isEmpty && run.all Char.isDigit do throw (IO.userError s!"bad run id {run}")
+  let runId ← IO.ofExcept (parseRunId run)
   unless sha.length == 40 && sha.all fun c => c.isDigit || ('a' ≤ c && c ≤ 'f') do
     throw (IO.userError s!"bad sha {sha}")
   let keys ← if pf == "-" then pure none else some <$> IO.ofExcept (presetKeys (← readJson pf))
+  let reader ← readerOf sha
   let mut new : List Stored := []
   for d in dirs do
     let dir : System.FilePath := d
     let e ← IO.ofExcept (engineOfArtifact (dir.fileName.getD ""))
     let j ← readJson (dir / unitsName e)
-    new := new ++ (← IO.ofExcept ((storedOf run sha e keys j).mapError fun m => s!"{dir}: {m}"))
-  IO.FS.writeFile storedPath (storedText (merge (← readStored) new))
-  for s in new do
-    IO.println s!"record: run {s.run} {engineWord s.engine} {walkWord s.walk}: {outcomeWord (outcome s)}"
+    new := new ++ (← IO.ofExcept ((storedOf runId sha reader e keys j).mapError fun m => s!"{dir}: {m}"))
+  let st := merge (← fillReaders (← readStored)) new
+  IO.FS.writeFile storedPath (storedText st)
+  for s in st do
+    if new.any (sameKey s ·) then
+      IO.println s!"record: run {s.run} {engineWord s.engine} {walkWord s.walk}: {outcomeWord (outcome s)}{superWord (supersede st s)}"
+
+#guard (parseRunId "40671695274").toOption == some 40671695274
+#guard (parseRunId "0").toOption == some 0
+#guard (parseRunId "").toOption.isNone
+#guard (parseRunId "run-1").toOption.isNone
+#guard (parseRunId "12a").toOption.isNone
+#guard (parseRunId "-1").toOption.isNone
+#guard (parseRunId "1_000").toOption.isNone
+#guard readerFiles == readerFiles.mergeSort (· ≤ ·)
 
 #guard (parseFlag "nav.hitTest:hit-skip").toOption == some ⟨"nav.hitTest", "hit-skip"⟩
 #guard (parseFlag "nav.hitTest").toOption.isNone
@@ -978,7 +1083,7 @@ private def classRow (v : String) (c : Option VisClass) : Row :=
 #guard (parseRow (Json.mkObj [("part", "a"), ("candidate", "c"), ("status", "proved"), ("visClass", "e")])).toOption.isNone
 
 private def stEx : Stored :=
-  ⟨"7", "s", "?fw=a:x", ["a:x"], .macWebkit, .morph, [390, 641], [⟨"nav", "opacity", [390], [641]⟩]⟩
+  ⟨7, "s", "r", "?fw=a:x", ["a:x"], .macWebkit, .morph, [390, 641], [⟨"nav", "opacity", [390], [641]⟩]⟩
 private def stBad : Stored :=
   { stEx with engine := .chromium, widths := Fw.Gate.Trajectory.allowedWidths,
               groups := [⟨"nav", "opacity", [390, 641], []⟩] }
@@ -988,8 +1093,12 @@ private def unitsJ (refused : Bool) (search : String) : Json :=
   Json.mkObj [("refused", .bool refused), ("search", .str search), ("units", .arr #[unitJ 390 "morph" "pass" "new",
     unitJ 641 "morph" "fail:coverage" "new", unitJ 641 "morph" "pass" "ok", unitJ 390 "hero" "pass" "ok"])]
 
-#guard (parseStoredText (storedText [stEx, { stEx with run := "6" }])).toOption == some [{ stEx with run := "6" }, stEx]
+#guard (parseStoredText (storedText [stEx, { stEx with run := 6 }])).toOption == some [{ stEx with run := 6 }, stEx]
+#guard (parseStoredText (storedText [stEx, { stEx with run := 10 }])).toOption.map (·.map (·.run)) == some [7, 10]
 #guard (parseStoredText "{\"run\":\"1\"}\n").toOption.isNone
+#guard (parseStoredText ((storedText [stEx]).replace "\"7\"" "\"x7\"")).toOption.isNone
+#guard (parseStoredText ((storedText [stEx]).replace ",\"reader\":\"r\"" "")).toOption.map (·.map (·.reader)) ==
+  some [""]
 #guard (parseEngine "apple").toOption.isNone
 #guard (parseWalk "exit").toOption.isNone
 #guard (engineOfArtifact "trajectory-apple").toOption == some .macWebkit
@@ -1004,19 +1113,29 @@ private def unitsJ (refused : Bool) (search : String) : Json :=
 #guard (presetKeys (Json.mkObj [("extends", "original"), ("fw", Json.mkObj [("b", "y"), ("a", "x")])])).toOption ==
   some ["a:x", "b:y"]
 #guard (presetKeys (Json.mkObj [("extends", "v2-proved"), ("fw", Json.mkObj [])])).toOption.isNone
-#guard (storedOf "7" "s" .chromium none (unitsJ true "?fw=a:x")).toOption.isNone
-#guard ((storedOf "7" "s" .chromium none (unitsJ false "?fw=a:x")).toOption.map fun l => l.map fun s =>
+#guard (storedOf 7 "s" "r" .chromium none (unitsJ true "?fw=a:x")).toOption.isNone
+#guard ((storedOf 7 "s" "r" .chromium none (unitsJ false "?fw=a:x")).toOption.map fun l => l.map fun s =>
   (walkWord s.walk, s.widths, s.groups)) ==
   some [("hero", [390], []), ("morph", [390, 641], [⟨"nav", "opacity", [390], [641]⟩])]
 #guard (merge [stEx, { stEx with walk := .hero }] [{ stEx with groups := [] }]).map (·.groups.length) == [1, 0]
+#guard (merge [stEx] [{ stEx with run := 9, groups := [] }]).map (·.run) == [7, 9]
+#guard (merge [stEx] [{ stEx with run := 5, groups := [] }]).map (·.run) == [7, 5]
+#guard (merge [stEx] [{ stEx with run := 9, flags := ["b:y"], groups := [] }]).map (·.run) == [7, 9]
+#guard (merge [stEx] [{ stEx with run := 9, engine := .chromium, groups := [] }]).map (·.run) == [7, 9]
+#guard merge (merge [stEx] [{ stEx with run := 9, groups := [] }]) [{ stEx with run := 9, groups := [] }] ==
+  merge [stEx] [{ stEx with run := 9, groups := [] }]
+#guard superWord (supersede [stEx, { stEx with run := 9, groups := [] }] stEx) == ", superseded by 9 (retry)"
+#guard superWord (supersede [stEx, { stEx with run := 9, reader := "q", groups := [] }] stEx) ==
+  ", superseded by 9 (reader)"
+#guard superWord (supersede [stEx, { stEx with run := 9, groups := [] }] { stEx with run := 9, groups := [] }) == ""
 #guard ((trajJson [stEx] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "pending: trajectory"
 #guard ((trajJson [stBad] ⟨"a", "x"⟩).getObjValAs? String "verdict").toOption == some "falsified: trajectory"
 
 private def stPass (e : Engine) (w : Walk) : Stored :=
-  ⟨"9", "s", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, w, Fw.Gate.Trajectory.allowedWidths, []⟩
+  ⟨9, "s", "r", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, w, Fw.Gate.Trajectory.allowedWidths, []⟩
 
 private def stFail (e : Engine) : Stored :=
-  ⟨"9", "s", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, .hero, Fw.Gate.Trajectory.allowedWidths,
+  ⟨9, "s", "r", "?fw=hero.exit:threaded", ["hero.exit:threaded"], e, .hero, Fw.Gate.Trajectory.allowedWidths,
     [{ node := "hero.deck.card", prop := "opacity", content := [640, 641, 1280], coverage := [] }]⟩
 
 #guard outcome (stFail .chromium) == .fail
@@ -1058,6 +1177,8 @@ private def threadedRow (status : String) : Row :=
   .notYet [.proofs, .gate .chromium, .gate .webkit]
 #guard threadedEvidence [threadedRow "partly-proved"] [] .proofs |>.startsWith
   "linked to ledger row hero-exit-threaded (v6, KD#2), status partly-proved;"
+#guard threadedEvidence [threadedRow "partly-proved"] [] .proofs |>.endsWith "items are open until the row is proved"
+#guard threadedEvidence [threadedRow "proved"] [] .proofs |>.endsWith "edgeFrames_le_starts (WebKit edge-frame cost)"
 #guard threadedEvidence [] [] .q6 == Fw.Parts.HeroExitScrollOffset.q6Text
 
 end Fw.Preset.Gen
