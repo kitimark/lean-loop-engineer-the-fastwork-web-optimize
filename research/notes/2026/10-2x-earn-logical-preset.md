@@ -6,7 +6,7 @@ Answer: the 390 px earn-frame cell passes on macOS WebKit (worst frame 60 change
 
 Pinned unit: the 390 px cell for `nav:earn-logical`, macOS Playwright WebKit against macOS Playwright Chromium, against the Lean `frameBound` row (`packages/contracts/golden/parts/nav.earn.webkit.jsonl`; threshold 40, 2 permille, band 100 px: allowed 78 at 390, 256 at 1280).
 
-Rule fixed before the data (handoff, commit 81b3af044): the cell passes when every one of the 17 frames of the logical arm, exit and entry, is within the bound. The measure is `maxChanged`, the frames with the label hidden, the same as the verdict of `nav-cta-webkit-match`.
+Rule fixed before the data (commit 81b3af044): the cell passes when every one of the 17 frames of the logical arm, exit and entry, is within the bound. The measure is `maxChanged`, the frames with the label hidden, the same as the verdict of `nav-cta-webkit-match`.
 
 | width | scenario | arm | worst frame | allowed | frames over | settled |
 |---|---|---|---|---|---|---|
@@ -23,7 +23,7 @@ Limits (accepted): macOS WebKit stands in for iOS Safari; the rect differences t
 
 ## 2. Gen.run for nav:earn-logical (CONFIRMED, run 40872462216)
 
-The flag was not linked, so Gen.run did not decide it. `Fw.Preset.Gen.linkTable` now links the candidate string of ledger row n=73 (`nav.earn.logicalPadding`, status proved) to `nav:earn-logical`; `#guard`s in `lean/Fw/Preset/Gen.lean` pin that the link exists, that the proofs requirement is met, and that the entry is "enter" only with both gates.
+The flag was not linked, so Gen.run did not decide it. `Fw.Preset.Gen.linkTable` links the candidate string of ledger row n=73 (`nav.earn.logicalPadding`, status proved) to `nav:earn-logical`; `#guard`s in `lean/Fw/Preset/Gen.lean` pin that the link exists, that the proofs requirement is met, and that the entry is "enter" only with both gates.
 
 Walk of push 1 (trajectory-probe, fw=nav:earn-logical, debug=nav-transition), recorded by `Gen.record` into `v2-proved.trajectory.jsonl`:
 
@@ -43,7 +43,7 @@ Decision row (`packages/contracts/golden/preset/v2-proved.decisions.jsonl`): `en
 
 ## 4. Preset composes (step 3)
 
-It did not enter, so there is nothing new to compose. The site registry/preset tests (`apps/site`, 165 files, 8460 tests) pass on the unchanged preset.
+The flag did not enter, so nothing new composes. The site registry and preset tests (`apps/site`, 165 files, 8460 tests) pass on the unchanged preset.
 
 ## Pushes and runs
 

@@ -7,7 +7,6 @@ Record: `cd lean && lake env lean --run scripts/NavEarnFramesGolden.lean record 
 namespace Fw.Parts.NavEarnFrames
 open Lean Fw.Parts.NavEarnWebkit
 
-/-- One cell of a stored `earn-frames-compare` summary: Chromium against WebKit, 17 frames. -/
 structure Cell where
   run : Nat
   leg : String
@@ -19,15 +18,12 @@ structure Cell where
   settled : Nat
   deriving DecidableEq, Repr
 
-/-- A cell passes when its worst frame is within the bound. -/
 def Cell.ok (c : Cell) : Bool := frameOk c.width c.worst
 
-/-- The worst frame is inside the bound exactly when every frame is. -/
 theorem frameOk_max_iff (w m : Nat) (cs : List Nat) (hm : m ∈ cs) (hle : ∀ c ∈ cs, c ≤ m) :
     frameOk w m = true ↔ ∀ c ∈ cs, frameOk w c = true :=
   ⟨fun h c hc => frameOk_mono w c m (hle c hc) h, fun h => h m hm⟩
 
-/-- A snapped padding at 1280 px is refused when it is the worst frame of its cell. -/
 theorem cell_snap_fails (c : Cell) (hw : c.width = 1280) (h : 300 ≤ c.worst) : c.ok = false := by
   simp only [Cell.ok, frameOk, hw, frameAllowed_wide, decide_eq_false_iff_not]
   omega
