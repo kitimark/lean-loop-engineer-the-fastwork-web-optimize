@@ -23547,7 +23547,8 @@
     "research/notes/2026/10-2x-geom-recalc-source.md",
     "results/geom-recalc-source/**",
     "docs/team/handoffs/geom-recalc-source.md"
-   ]
+   ],
+   "evidence": "a66445b"
   },
   {
    "devices": [

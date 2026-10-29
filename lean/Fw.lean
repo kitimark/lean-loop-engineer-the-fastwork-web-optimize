@@ -153,6 +153,7 @@ import Fw.Device.FinishRuns
 import Fw.Device.SimTouch
 import Fw.Device.SimRelaunch
 import Fw.Device.SweepPause
+import Fw.Device.RecalcSource
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
