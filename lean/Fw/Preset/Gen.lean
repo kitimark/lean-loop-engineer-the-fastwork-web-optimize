@@ -689,7 +689,7 @@ theorem threaded_not_yet {ledger : List Row} {st : List Stored} {r : Row}
 
 theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     {s : Stored} (hw : w ∈ walks) (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key])
-    (hf : outcome s = .fail) (hr : ∀ n ∈ later st s, n.reader = s.reader) :
+    (hf : outcome s = .fail) (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader) :
     reqMet ledger st f (.gate fam) = false ∧ .gate fam ∈ blockers ledger st f := by
   have hu : reqMet ledger st f (.gate fam) = false := by
     simp only [reqMet, List.all_eq_false, beq_iff_eq]

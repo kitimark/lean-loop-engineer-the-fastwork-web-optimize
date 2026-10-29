@@ -152,21 +152,24 @@ def noVerdict : Outcome → Bool
 
 /-- Why a row stopped counting, with the run that superseded it. -/
 inductive Super where
-  /-- A later run of the key, read at another reader version. -/
+  /-- The newest run of the key, read at another reader version. -/
   | reader (run : Nat)
   /-- The next run of the key at the same reader version, after a row with no verdict. -/
   | retry (run : Nat)
   deriving DecidableEq, Repr
 
-/-- **The supersession of a row**: by the first later run of its key read at another reader version; else by the next
-run when the row has no verdict and the next run is at most the `retryBound`-th since the last reader change; else none. -/
+/-- **The supersession of a row**: by the newest run of its key when that run was read at another reader version; else
+by the next run when the row has no verdict and the next run is at most the `retryBound`-th since the last reader
+change; else none. -/
 def supersede (st : List Stored) (s : Stored) : Option Super :=
-  match (later st s).find? (·.reader != s.reader) with
-  | some n => some (.reader n.run)
-  | none =>
-    match (later st s).head? with
-    | some n => if noVerdict (outcome s) && decide (streak st s < retryBound) then some (.retry n.run) else none
-    | none => none
+  match (later st s).getLast? with
+  | some n =>
+    if n.reader != s.reader then some (.reader n.run)
+    else
+      match (later st s).head? with
+      | some n => if noVerdict (outcome s) && decide (streak st s < retryBound) then some (.retry n.run) else none
+      | none => none
+  | none => none
 
 /-- A row counts when no run supersedes it. -/
 def live (st : List Stored) (s : Stored) : Bool := (supersede st s).isNone
@@ -525,54 +528,54 @@ theorem mem_later {st : List Stored} {s n : Stored} :
     n ∈ later st s ↔ n ∈ st ∧ sameKey s n = true ∧ s.run < n.run := by
   simp [later, List.mem_mergeSort]
 
-private theorem find_none {st : List Stored} {s : Stored} (hr : ∀ n ∈ later st s, n.reader = s.reader) :
-    (later st s).find? (·.reader != s.reader) = none :=
-  List.find?_eq_none.2 fun n hn => by simp [hr n hn]
+/-- **A reader change supersedes**: the newest run of the key, read at another reader version, supersedes the row. -/
+theorem supersede_reader {st : List Stored} {s n : Stored} (hn : (later st s).getLast? = some n)
+    (hv : n.reader ≠ s.reader) : supersede st s = some (.reader n.run) := by
+  simp [supersede, hn, hv]
 
-/-- **A reader change supersedes**: a later run of the key read at another reader version supersedes the row. -/
-theorem supersede_reader {st : List Stored} {s n : Stored} (hn : n ∈ st) (hk : sameKey s n = true) (hr : s.run < n.run)
-    (hv : n.reader ≠ s.reader) : ∃ m, supersede st s = some (.reader m) := by
-  cases h : (later st s).find? (·.reader != s.reader) with
-  | none =>
-    have := List.find?_eq_none.1 h n (mem_later.2 ⟨hn, hk, hr⟩)
-    simp [hv] at this
-  | some m => exact ⟨m.run, by simp [supersede, h]⟩
-
-/-- A reader supersession names a later run of the key at another reader version. -/
+/-- A reader supersession names the newest run of the key, read at another reader version. -/
 theorem reader_needs_change {st : List Stored} {s : Stored} {m : Nat} (h : supersede st s = some (.reader m)) :
-    ∃ n ∈ later st s, n.reader ≠ s.reader := by
+    ∃ n ∈ (later st s).getLast?, n.reader ≠ s.reader := by
   unfold supersede at h
   split at h
   · rename_i n hn
-    exact ⟨n, List.mem_of_find?_eq_some hn, by simpa using List.find?_some hn⟩
-  · split at h
-    · split at h <;> cases h
-    · cases h
+    split at h
+    · rename_i hv
+      exact ⟨n, hn, by simpa using hv⟩
+    · split at h
+      · split at h <;> cases h
+      · cases h
+  · cases h
 
-/-- **A retry supersedes a row with no verdict**: at one reader version, the next run supersedes a row with no verdict
-whose position since the last reader change is below `retryBound`. -/
-theorem supersede_retry {st : List Stored} {s n : Stored} (hr : ∀ n ∈ later st s, n.reader = s.reader)
+/-- **A retry supersedes a row with no verdict**: when the newest run of the key is at the row's reader version, the next
+run supersedes a row with no verdict whose position since the last reader change is below `retryBound`. -/
+theorem supersede_retry {st : List Stored} {s n : Stored} (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader)
     (hn : n ∈ later st s) (hu : noVerdict (outcome s) = true) (hk : streak st s < retryBound) :
     ∃ m, supersede st s = some (.retry m) := by
-  cases h : (later st s).head? with
+  cases hl : (later st s).getLast? with
   | none => simp_all
-  | some m => exact ⟨m.run, by simp [supersede, find_none hr, h, hu, hk]⟩
+  | some l =>
+    cases h : (later st s).head? with
+    | none => simp_all
+    | some m => exact ⟨m.run, by simp [supersede, hl, hr l hl, h, hu, hk]⟩
 
 /-- **A retry hides no verdict**: a retry supersedes only a row with no verdict below the bound, never a fail or a pass. -/
 theorem retry_needs_noVerdict {st : List Stored} {s : Stored} {m : Nat} (h : supersede st s = some (.retry m)) :
     noVerdict (outcome s) = true ∧ streak st s < retryBound := by
   unfold supersede at h
   split at h
-  · cases h
   · split at h
-    · split at h
-      · rename_i hc
-        simpa using hc
-      · cases h
     · cases h
+    · split at h
+      · split at h
+        · rename_i hc
+          simpa using hc
+        · cases h
+      · cases h
+  · cases h
 
-/-- A row with a verdict counts unless a later run of its key at another reader version supersedes it. -/
-theorem live_of_judged {st : List Stored} {s : Stored} (hr : ∀ n ∈ later st s, n.reader = s.reader)
+/-- A row with a verdict counts while the newest run of its key is at its reader version. -/
+theorem live_of_judged {st : List Stored} {s : Stored} (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader)
     (hj : noVerdict (outcome s) = false) : live st s = true := by
   cases h : supersede st s with
   | none => simp [live, h]
@@ -583,9 +586,9 @@ theorem live_of_judged {st : List Stored} {s : Stored} (hr : ∀ n ∈ later st 
       exact absurd (hr n hn) hv
     | retry m => simp [(retry_needs_noVerdict h).1] at hj
 
-/-- **The retry bound**: a row at or past the `retryBound`-th run since the last reader change counts unless a later run
-at another reader version supersedes it. -/
-theorem live_of_bound {st : List Stored} {s : Stored} (hr : ∀ n ∈ later st s, n.reader = s.reader)
+/-- **The retry bound**: a row at or past the `retryBound`-th run since the last reader change counts while the newest
+run of its key is at its reader version. -/
+theorem live_of_bound {st : List Stored} {s : Stored} (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader)
     (hk : retryBound ≤ streak st s) : live st s = true := by
   cases h : supersede st s with
   | none => simp [live, h]
@@ -653,11 +656,11 @@ private theorem two_le_length {l : List Nat} {a b : Nat} (ha : a ∈ l) (hb : b 
   · simp
 
 /-- **A no verdict counts against the bound**: an earlier run of the key since the last reader change, whatever its
-outcome, makes a row at least the second; such a row with no verdict and no later run at another reader version counts,
-so its key cannot pass. -/
+outcome, makes a row at least the second; such a row with no verdict counts while the newest run of its key is at its
+reader version, so its key cannot pass. -/
 theorem retry_spent {st : List Stored} {u v : Stored} (hu : u ∈ st) (hv : v ∈ st) (hk : sameKey v u = true)
     (hlt : u.run < v.run) (hc : ∀ q ∈ st, sameKey v q = true → q.run ≤ v.run → q.reader ≠ v.reader → q.run < u.run)
-    (hr : ∀ n ∈ later st v, n.reader = v.reader) (hn : noVerdict (outcome v) = true) :
+    (hr : ∀ n ∈ (later st v).getLast?, n.reader = v.reader) (hn : noVerdict (outcome v) = true) :
     live st v = true ∧ keyOutcome st v ≠ .pass := by
   have hvv : sameKey v v = true := by simp [sameKey]
   have h1 := mem_sinceChange hu hk (Nat.le_of_lt hlt) hc
@@ -674,11 +677,11 @@ theorem tcell_own_fail {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {
     List.any_eq_true.2 ⟨s, List.mem_filter.2 ⟨hs, by simp [ho]⟩, by simp [hf]⟩
   simp only [tcell, this, ↓reduceIte]
 
-/-- **A fail is not hidden by a later run at its reader version**: a failing run of the flag alone with no later run of
-its key at another reader version fails the cell, whatever the later runs at its reader version read. -/
+/-- **A fail is not hidden by a later run at its reader version**: a failing run of the flag alone fails the cell while
+the newest run of its key is at its reader version, whatever the later runs read. -/
 theorem fail_not_hidden {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {s : Stored}
     (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key]) (hf : outcome s = .fail)
-    (hr : ∀ n ∈ later st s, n.reader = s.reader) : tcell st f fam w = .fail := by
+    (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader) : tcell st f fam w = .fail := by
   have hl : live st s = true := live_of_judged hr (by simp [hf, noVerdict])
   exact tcell_own_fail (mem_liveFor.2 ⟨hs, hl⟩) ho (keyOutcome_fail (mem_runsFor.1 hs).1 hl hf)
 
@@ -889,6 +892,11 @@ private def nv : List Fw.Gate.Trajectory.Group := [⟨"nav", "opacity", [], [390
 #guard tcell [at_ 1 "r" bad, at_ 2 "r" []] fa .chromium .morph == .fail
 #guard tcell [at_ 2 "r" [], at_ 1 "r" bad] fa .chromium .morph == .fail
 #guard supersede [at_ 1 "r" bad, at_ 2 "r" []] (at_ 1 "r" bad) == none
+#guard tcell [at_ 1 "A" bad, at_ 2 "B" [], at_ 3 "A" []] fa .chromium .morph == .fail
+#guard supersede [at_ 1 "A" bad, at_ 2 "B" [], at_ 3 "A" []] (at_ 1 "A" bad) == none
+#guard supersede [at_ 1 "A" bad, at_ 2 "B" [], at_ 3 "A" []] (at_ 2 "B" []) == some (.reader 3)
+#guard tcell [at_ 1 "A" bad, at_ 2 "B" []] fa .chromium .morph == .pass
+#guard tcell [at_ 1 "A" nv, at_ 2 "A" []] fa .chromium .morph == .pass
 #guard tcell [at_ 1 "r" nv, at_ 2 "r" []] fa .chromium .morph == .pass
 #guard supersede [at_ 1 "r" nv, at_ 2 "r" []] (at_ 1 "r" nv) == some (.retry 2)
 #guard tcell [at_ 1 "r" nv, at_ 2 "r" nv, at_ 3 "r" []] fa .chromium .morph == .pending

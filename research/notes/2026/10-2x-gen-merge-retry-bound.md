@@ -33,9 +33,10 @@ CONFIRMED (Lean, `lean/Fw/Preset/V2Proved.lean`):
   trajectory probe runs at the row's commit (`Gen.readerFiles`, the relative-import closure of
   `packages/gate-breakpoints/src/trajectory/cli.mjs`; `packages/gate-breakpoints/test/reader-files.test.mjs` checks the
   list).
-- `supersede st s` is `.reader n` when a later row of the key has another reader (the first such run); else `.retry n`
-  when `s` has no verdict and `streak st s < retryBound`, where the streak counts the key's runs since the last reader
-  change up to `s`; else none. A pass or a fail is never superseded at its own reader.
+- `supersede st s` is `.reader n` when the newest later row of the key (run `n`) has another reader; else `.retry n`
+  when `s` has no verdict and `streak st s < retryBound`, where `n` is the next run and the streak counts the key's runs
+  since the last reader change up to `s`; else none. A row is superseded by reader only when the newest run of its key
+  is at another reader version; a fail counts while the newest run is at its reader.
 - The cell reads the conjunction (`keyOutcome`) of the live rows of each key: fail if any fails, else no verdict if any
   has none, else pass.
 - `retryBound = 2`: the first run plus one retry. A retry replaces a no-verdict only, so per reader version at most one
@@ -43,9 +44,9 @@ CONFIRMED (Lean, `lean/Fw/Preset/V2Proved.lean`):
 
 | Theorem | Statement |
 |---|---|
-| `fail_not_hidden` | a fail with no later row at another reader makes its cell fail, whatever later runs pass |
+| `fail_not_hidden` | a fail makes its cell fail while the newest run of its key is at its reader, whatever later runs read |
 | `retry_spent` | a no-verdict after a no-verdict at the same reader stays live and its key is not pass |
-| `supersede_reader`, `reader_needs_change` | supersession by reader needs a later row with another reader |
+| `supersede_reader`, `reader_needs_change` | supersession by reader needs the newest run of the key at another reader |
 | `supersede_retry`, `retry_needs_noVerdict`, `live_of_bound` | supersession by retry needs a no-verdict within the bound |
 | `merge_keeps` | a stored row leaves the file only when a new row re-records its run, engine and walk |
 | `merge_idem` | recording the same rows twice equals recording them once |
@@ -60,6 +61,20 @@ CONFIRMED (Lean, `lean/Fw/Preset/V2Proved.lean`):
   `Gen.run` and checked by `--check`. Rows are sorted by run number, then engine and walk.
 - Stored file: 73 rows, 30 superseded (28 by reader change, 2 by retry: the hero.exit:threaded mac morph above and the
   hero.exit:scoped linux-webkit morph no-verdict of 39448209903, superseded by 39452631146).
+
+Examples (`#guard`s in `V2Proved.lean`): rows A fail run 1, B pass run 2, A pass run 3 read fail (B is superseded by
+run 3, the A fail counts); A fail run 1, B pass run 2 read pass (B is newest); A no-verdict run 1, A pass run 2 read
+pass (one retry).
+
+The rule change from "first later run at another reader" to "newest run" moves only the `by` run of 8 superseded rows
+(each now names the newest run of its key); no row changes between live and superseded and no cell or verdict changes.
+
+## Limits
+
+- A run at an older reader recorded last (for example from an unmerged `ci/*` branch) still supersedes the rows at the
+  newer reader. Follow-up: order readers by commit ancestry.
+- Reader identity covers the 13 relative-import files of `cli.mjs`, not the lockfile, the engine versions or the CI
+  workflow. Follow-up: add the probe's lockfile entries.
 
 ## Lesson
 
