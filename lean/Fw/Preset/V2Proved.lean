@@ -198,7 +198,6 @@ def trajWhy (st : List Stored) (f : Flag) : TWhy :=
 def isLook (reg : List Reg) (f : Flag) : Bool :=
   reg.any fun r => r.flag == f && r.visClass == some .l
 
-/-- Whether the flag is registered and every registered entry of it is class `e` or `eS` (same look proved in Lean). -/
 def exactLook (reg : List Reg) (f : Flag) : Bool :=
   reg.any (·.flag == f) && reg.all fun r => r.flag != f || r.visClass == some .e || r.visClass == some .eS
 
@@ -208,7 +207,6 @@ theorem not_isLook_of_exactLook {reg : List Reg} {f : Flag} (h : exactLook reg f
   intro r hr hf hl
   rcases h.2 r hr with (h' | h') | h' <;> simp_all
 
-/-- A flag qualifies for the arm: registered as `optimized`, proved, passing its trajectory cells, and no look change. -/
 def ok (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row) (st : List Stored) (f : Flag) : Bool :=
   isOpt reg f && why links ledger f == .proved && trajWhy st f == .pass && !isLook reg f
 

@@ -14,7 +14,7 @@ least `now`. `resume_seek_forward_start` is the same statement from the start st
 The machine is the one `platform.glint/pause.ts` `pauseStep` runs (hide: `off = read - t`; reveal: seek to `t + off`),
 so the flag path never issues the backward `setCurrentTime` that Chromium gets wrong (diff 235, `10-2x-glint-hold-freeze.md`).
 The second `missingWhy` item of the ledger row is closed; the theorem is in the row's `leanFor` and in
-`Fw.Preset.Gen.holdRowNames`, which `Gen.run` checks against `leanFor` (`holdLinkGaps`). Limit (INFERRED, as before): the
+`Fw.Preset.Gen.holdRowNames`, which `Gen.run` checks against `leanFor` (`holdLinkGaps`). Limit (INFERRED): the
 model does not clamp at 0 the way `setCurrentTime` does, and observation times come from one monotone clock (`now()`).
 
 ## 2. One look rule for `Gen.entry` and `V2Proved.ok` (CONFIRMED, Lean)
@@ -41,8 +41,7 @@ Unclassified flags (lead decision): `Gen.agreeScope` widens the agreement check 
 That flag is the only remaining divergence (MEASURED on the golden): `ok` admits it, `entry` reads not yet, blocker
 `look`. It stays in `v2-proved`. `entry_enter_iff_ok_of_noGaps`: when `entryGaps` is empty, every decided flag in
 `agreeScope` has `entry = enter` exactly when `ok` admits it; `Gen.run` checks `entryGaps` over every decided flag and
-fails when a listed exception gains a `visClass` (`staleLookExceptions`). Class Q and L flags stay outside the rule;
-they wait on the user's look decision. Its ledger row states class E (`visible_withFlag`, `same_layout_hit_a11y`), but
+fails when a listed exception gains a `visClass` (`staleLookExceptions`). The `engine.scroll:unthrottle` ledger row states class E (`visible_withFlag`, `same_layout_hit_a11y`), but
 `engine.scroll/part.json` lies outside this task's writes, so the flag is listed here and not classified. Follow-up:
 set its `visClass` from that row and drop it from `lookExceptions`. This change moves no decision in the golden.
 

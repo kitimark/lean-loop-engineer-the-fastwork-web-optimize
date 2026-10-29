@@ -592,7 +592,6 @@ def q6Answer : Option String := some Fw.Parts.HeroExitScrollOffset.q6Text
 
 def acceptedLook (f : Flag) : Bool := lookDecisions.any fun d => d.flag == f && d.decision == .accepted
 
-/-- The look requirement: class `e` or `eS` (`exactLook`) or an accepted user look decision. -/
 def lookMet (reg : List Reg) (f : Flag) : Bool := exactLook reg f || acceptedLook f
 
 theorem lookMet_of_exact {reg : List Reg} {f : Flag} (h : exactLook reg f = true) : lookMet reg f = true := by
@@ -838,22 +837,17 @@ def probesText (reg : List Reg) (p : List Flag) : String :=
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
 
-/-- Whether the flag is registered and no registered entry of it names a `visClass`. -/
 def unclassified (reg : List Reg) (f : Flag) : Bool :=
   reg.any (·.flag == f) && reg.all fun r => r.flag != f || r.visClass.isNone
 
-/-- The unclassified flags that `V2Proved.ok` admits without a look decision while `entry` blocks them on `look`. -/
 def lookExceptions : List Flag := [⟨"engine.scroll", "unthrottle"⟩]
 
-/-- Whether `entry` must agree with `V2Proved.ok` on the flag: class `e`/`eS` or unclassified, and not listed in
-`lookExceptions`. -/
 def agreeScope (reg : List Reg) (f : Flag) : Bool :=
   (exactLook reg f || unclassified reg f) && !lookExceptions.contains f
 
 def entryGaps (reg : List Reg) (ledger : List Row) (st : List Stored) : List Flag :=
   (decided reg).filter fun f => agreeScope reg f && ((entry reg ledger st f == .enter) != ok reg links ledger st f)
 
-/-- The listed exceptions that are no longer registered as unclassified. -/
 def staleLookExceptions (reg : List Reg) : List Flag := lookExceptions.filter fun f => !unclassified reg f
 
 theorem entry_enter_iff_ok_of_noGaps {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
