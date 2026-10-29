@@ -36,9 +36,15 @@ for the seven class E or E-s flags: `hero:scene-pause`,
 `platform.glint:hold-freeze`, `hero.exit:contain`, `pain:dark-scroll`, `platform.entries:fill-release`,
 `platform.glint:offscreen-pause`, `platform:faded-pause`. `hero.exit:threaded` stays `enter` (accepted look).
 
-Remaining divergence outside class E (MEASURED on the golden): `engine.scroll:unthrottle` is unclassified, so
-`ok` admits it and `entry` reads not yet, blocker `look`. Making `ok` take the rule as well would drop it from
-`v2-proved` until its part names a class or the user accepts its look; that is a lead decision, not made here.
+Unclassified flags (lead decision): `Gen.agreeScope` widens the agreement check to unclassified flags (no
+`visClass` on any registered entry), minus the listed exception `Gen.lookExceptions` = [`engine.scroll:unthrottle`].
+That flag is the only remaining divergence (MEASURED on the golden): `ok` admits it, `entry` reads not yet, blocker
+`look`. It stays in `v2-proved`. `entry_enter_iff_ok_of_noGaps`: when `entryGaps` is empty, every decided flag in
+`agreeScope` has `entry = enter` exactly when `ok` admits it; `Gen.run` checks `entryGaps` over every decided flag and
+fails when a listed exception gains a `visClass` (`staleLookExceptions`). Class Q and L flags stay outside the rule;
+they wait on the user's look decision. Its ledger row states class E (`visible_withFlag`, `same_layout_hit_a11y`), but
+`engine.scroll/part.json` lies outside this task's writes, so the flag is listed here and not classified. Follow-up:
+set its `visClass` from that row and drop it from `lookExceptions`. This change moves no decision in the golden.
 
 ## 3. Provenance
 

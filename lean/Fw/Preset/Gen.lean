@@ -838,8 +838,30 @@ def probesText (reg : List Reg) (p : List Flag) : String :=
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
 
+/-- Whether the flag is registered and no registered entry of it names a `visClass`. -/
+def unclassified (reg : List Reg) (f : Flag) : Bool :=
+  reg.any (·.flag == f) && reg.all fun r => r.flag != f || r.visClass.isNone
+
+/-- The unclassified flags that `V2Proved.ok` admits without a look decision while `entry` blocks them on `look`. -/
+def lookExceptions : List Flag := [⟨"engine.scroll", "unthrottle"⟩]
+
+/-- Whether `entry` must agree with `V2Proved.ok` on the flag: class `e`/`eS` or unclassified, and not listed in
+`lookExceptions`. -/
+def agreeScope (reg : List Reg) (f : Flag) : Bool :=
+  (exactLook reg f || unclassified reg f) && !lookExceptions.contains f
+
 def entryGaps (reg : List Reg) (ledger : List Row) (st : List Stored) : List Flag :=
-  (decided reg).filter fun f => exactLook reg f && ((entry reg ledger st f == .enter) != ok reg links ledger st f)
+  (decided reg).filter fun f => agreeScope reg f && ((entry reg ledger st f == .enter) != ok reg links ledger st f)
+
+/-- The listed exceptions that are no longer registered as unclassified. -/
+def staleLookExceptions (reg : List Reg) : List Flag := lookExceptions.filter fun f => !unclassified reg f
+
+theorem entry_enter_iff_ok_of_noGaps {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (hg : entryGaps reg ledger st = []) (hd : f ∈ decided reg) (hs : agreeScope reg f = true) :
+    entry reg ledger st f = .enter ↔ ok reg links ledger st f = true := by
+  have h := List.filter_eq_nil_iff.1 hg f hd
+  simp only [hs, Bool.true_and, bne_iff_ne, ne_eq, Classical.not_not] at h
+  cases he : entry reg ledger st f <;> cases ho : ok reg links ledger st f <;> simp_all
 
 def ledgerPath : System.FilePath := ".." / "research" / "findings" / "ledger.json"
 def partsDir : System.FilePath := ".." / "apps" / "site" / "src" / "parts"
@@ -897,7 +919,9 @@ def run (args : List String) : IO Unit := do
   unless (classDisagreements reg ledger).isEmpty do
     throw (IO.userError s!"the ledger visClass disagrees with part.json: {classDisagreements reg ledger}")
   unless (entryGaps reg ledger st).isEmpty do
-    throw (IO.userError s!"Gen.entry and V2Proved.ok disagree on class E flags: {(entryGaps reg ledger st).map (·.key)}")
+    throw (IO.userError s!"Gen.entry and V2Proved.ok disagree: {(entryGaps reg ledger st).map (·.key)}")
+  unless (staleLookExceptions reg).isEmpty do
+    throw (IO.userError s!"lookExceptions name flags that are not unclassified: {(staleLookExceptions reg).map (·.key)}")
   unless (staleDecisions reg).isEmpty do
     throw (IO.userError s!"look decisions name no look-change candidate and no refused registered flag: {(staleDecisions reg).map (·.key)}")
   unless (refusedMembers lookDecisions p).isEmpty do
@@ -1306,5 +1330,18 @@ private def holdAll : List Stored := [Engine.chromium, .macWebkit].flatMap fun e
 #guard entry [holdReg .q] [holdRow "proved"] holdAll holdFreeze == .notYet [.look]
 #guard entryGaps [holdReg .e] [holdRow "proved"] holdAll == []
 #guard entryGaps [{ holdReg .e with kind := .proposal }] [holdRow "proved"] holdAll == [holdFreeze]
+#guard entryGaps [{ holdReg .e with visClass := none }] [holdRow "proved"] holdAll == [holdFreeze]
+#guard entryGaps [holdReg .q] [holdRow "proved"] holdAll == []
+#guard agreeScope [holdReg .e] holdFreeze && agreeScope [{ holdReg .e with visClass := none }] holdFreeze
+#guard !agreeScope [holdReg .q] holdFreeze && !agreeScope [holdReg .l] holdFreeze && !agreeScope [] holdFreeze
+
+private def unthrottleReg (c : Option VisClass) : Reg :=
+  { flag := ⟨"engine.scroll", "unthrottle"⟩, kind := .optimized, requires := [], conflicts := [], visClass := c }
+
+#guard !agreeScope [unthrottleReg none] ⟨"engine.scroll", "unthrottle"⟩
+#guard unclassified [unthrottleReg none] ⟨"engine.scroll", "unthrottle"⟩ && !unclassified [] ⟨"engine.scroll", "unthrottle"⟩
+#guard staleLookExceptions [unthrottleReg none] == []
+#guard staleLookExceptions [unthrottleReg (some .e)] == lookExceptions
+#guard staleLookExceptions [unthrottleReg none, unthrottleReg (some .q)] == lookExceptions
 
 end Fw.Preset.Gen
