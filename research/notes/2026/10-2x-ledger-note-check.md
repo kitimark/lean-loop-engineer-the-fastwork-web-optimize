@@ -28,4 +28,4 @@ Task ledger-note-check, mistake class c-late-check (m219 hero-exit-gate-clear, m
 
 ## Found on the way (follow-ups)
 - `node scripts/test-checkmap.mjs` is wired to no check.sh job or CI job. It fails today on "all 27 modules of Gen's import closure are inputs":
-  `presetInputKey` lists 3 Lean modules, the closure of `Fw.Preset.Gen` is 27. Unrelated to this task, so left as it is.
+  `presetInputKey` lists 3 Lean modules, the closure of `Fw.Preset.Gen` is 27. Unrelated, left as is.

@@ -172,7 +172,7 @@ async function fileMode([mode, ...files]) {
     }
     return bad ? 1 : 0;
   }
-  if (mode === "ledger") {  // the findings ledger's notes (Lean CheckMap.ledgerNotes; the rule is apps/runner/src/land-notes.ts, also run by the dry land and the ledger tests)
+  if (mode === "ledger") {
     const { noteShapeProblems } = await import("../apps/runner/src/land-notes.ts");
     for (const f of files) {
       let text;

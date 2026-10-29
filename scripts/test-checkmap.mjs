@@ -93,7 +93,7 @@ for (const f of ["research/findings/ledger.json", "apps/site/src/registry/preset
   mkdirSync(dirname(join(pdir, f)), { recursive: true });
   copyFileSync(join(repo, f), join(pdir, f));
 }
-mkdirSync(join(pdir, "apps/runner/src"), { recursive: true });  // the ledger-notes rule `checkmap file ledger` loads
+mkdirSync(join(pdir, "apps/runner/src"), { recursive: true });
 copyFileSync(join(repo, "apps/runner/src/land-notes.ts"), join(pdir, "apps/runner/src/land-notes.ts"));
 cpSync(join(repo, "packages/contracts/golden/preset"), join(pdir, "packages/contracts/golden/preset"), { recursive: true });
 for (const d of readdirSync(join(repo, "apps/site/src/parts"))) {
@@ -172,7 +172,6 @@ pr = pcheck("--staged");
 expect("preset: staged ledger change deleted from the working tree still runs the check", /(ok|FAIL) presetCheck/.test(pr.stderr));
 pgit("reset", "-q");
 pgit("checkout", "--", ".");
-// (3b) task ledger-note-check: the commit check refuses a bad note before the land (fixtures; the real ledger is never edited)
 {
   const doc = JSON.parse(goodLedger);
   const f0 = doc.findings[0];

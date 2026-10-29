@@ -7,8 +7,6 @@ import { afterAll, describe, expect, it } from "vitest";
 import { checksWithReads, FWCORE_USERS, LEDGER_FILE, LEDGER_NOTES_ID, ledgerNoteKeyCheck, LOCAL_TESTS, selectChecks } from "../src/land.ts";
 import { noteShapeProblems } from "../src/land-notes.ts";
 
-// Task ledger-note-check (mistake class c-late-check; builds hero-exit-gate-clear and cols-probe, 2026-10-29): a findings-ledger note
-// whose entry is free text or whose field is no findings field is refused before the land's remote suite. Fixtures only: the real ledger is read, never edited.
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const finding = { n: 1, candidate: "cand-a", part: "hero", mechanism: "m", missingWhy: "", next: "" };
 const note = { entry: "cand-a", task: "t1", field: "mechanism", text: "a fact" };

@@ -2,7 +2,7 @@ Branch: worktree-wf_c479f33a-757-1
 Worktree: .claude/worktrees/wf_c479f33a-757-1 (under the repo root)
 Last commit: see `git log -1` (WIP e613e878f, then the land-scope test fix and this handoff). CI runs: none (no CI pushes in this task).
 
-State: built and checked locally. check.sh green (slot), runner package test green after the land-scope.test.ts fix, ci-paths test 56/56, tsc clean.
+State: check.sh green (slot), runner package test green after the land-scope.test.ts fix, ci-paths test 56/56, tsc clean.
 
 What it does (read research/notes/2026/10-2x-ledger-note-check.md first):
 - Lean `Fw.Ops.CheckMap`: new `Check.ledgerNotes`, trigger `ledgerInput` (findings ledger only); theorems `ledgerInput_planned`, `ledgerInput_planStaged`, `findingsLedger_planned`, `ledgerInput_not`; `plan_covers`/`plan_sound` extended. Golden: `packages/contracts/golden/ops/checkmap.jsonl` (3 new cases).

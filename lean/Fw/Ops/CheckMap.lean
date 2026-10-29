@@ -34,8 +34,6 @@ match wins:
 
 The preset check also runs when any other input of `Fw.Preset.Gen` is among the paths (`presetInput`), whatever its own kind, including the Lean modules it imports; a staged deletion of an input (`deleted`, `planStaged`) runs it too.
 
-The ledger-notes check (`ledgerNotes`, task ledger-note-check) also runs whenever the findings ledger is among the paths (`ledgerInput`): `scripts/checkmap.mjs file ledger` refuses a note whose entry is not a finding's candidate or whose field is not a findings field, before the land's remote suite does.
-
 Proved: `checkOf_exempt_iff` (exactly the five exempt kinds have no check), `precommit_covers` (every path with a code
 extension outside the snapshot and the research sketches has a non-exempt check), `tracked_mapped` (every
 representative of `git ls-files` at c85c1b6 is mapped), `plan_covers` / `plan_sound` (the plan runs a command of the
@@ -220,13 +218,8 @@ def presetInputKey (s : List String) : Bool :=
 /-- `presetInputKey` of a path's segments. -/
 def presetInput (p : String) : Bool := presetInputKey (segs p)
 
-/-- Whether a path is the findings ledger, the file whose notes `scripts/checkmap.mjs file ledger` judges (task ledger-note-check).
-
-A path is a ledger input exactly when it is `research/findings/ledger.json`.
--/
 def ledgerInputKey (s : List String) : Bool := s == ["research", "findings", "ledger.json"]
 
-/-- `ledgerInputKey` of a path's segments. -/
 def ledgerInput (p : String) : Bool := ledgerInputKey (segs p)
 
 /-- The Python parse program (stdlib `ast`; writes no `__pycache__`).
@@ -261,12 +254,6 @@ def cmdsFor (c : Check) (fs : List String) : List Cmd :=
   | .workflowParse => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "workflow"] ++ fs, fs⟩]
   | .exempt => []
 
-/-- The files of a check among the paths: those whose check it is, except that the preset check takes every
-`presetInput`.
-
-The preset check is triggered by any generator input, the ledger-notes check by the findings ledger (whatever its own kind),
-every other check by the files of its kind.
--/
 def checkFiles (c : Check) (paths : List String) : List String :=
   if c == .presetCheck then paths.filter (fun p => presetInput p || checkOfPath p == some .presetCheck)
   else if c == .ledgerNotes then paths.filter ledgerInput
@@ -576,17 +563,9 @@ theorem checkOfPath_ne_exempt (p : String) : checkOfPath p ≠ some .exempt := b
   · rename_i k _; by_cases h : checkOf k = .exempt <;> simp [h]
   · simp
 
-/-- No kind has the ledger-notes check: it is triggered by the ledger path only (`ledgerInput`), never by a kind.
-
-The ledger-notes check is an extra check on top of the ledger's own kind.
--/
 theorem checkOf_ne_ledgerNotes (k : Kind) : checkOf k ≠ .ledgerNotes := by
   cases k <;> simp [checkOf]
 
-/-- No path's own check is the ledger-notes check.
-
-A path's kind never gives that check, so `plan_covers` has nothing to cover for it.
--/
 theorem checkOfPath_ne_ledgerNotes (p : String) : checkOfPath p ≠ some .ledgerNotes := by
   unfold checkOfPath
   split
@@ -676,25 +655,13 @@ theorem presetInput_planned (paths : List String) (p : String) (hp : p ∈ paths
   simp only [this, Bool.false_eq_true, ite_false]
   exact hm
 
-/-- The findings ledger is the ledger input (task ledger-note-check).
-
-Staging `research/findings/ledger.json` selects the ledger-notes check.
--/
 theorem ledgerInput_ledger : ledgerInputKey ["research", "findings", "ledger.json"] = true := by decide +kernel
 
-/-- Only the findings ledger is a ledger input: the incident and mistake ledgers, a golden file and the test are not.
-
-The trigger is the exact path, not a name guess.
--/
 theorem ledgerInput_not :
     ledgerInputKey ["docs", "team", "incidents", "ledger.json"] = false ∧ ledgerInputKey ["research", "mistakes", "ledger.json"] = false
     ∧ ledgerInputKey ["research", "findings", "other.json"] = false ∧ ledgerInputKey ["apps", "runner", "test", "ledger-merge.test.ts"] = false := by
   decide +kernel
 
-/-- Every ledger input among the paths runs the ledger-notes check on it.
-
-A commit that stages the findings ledger always plans `checkmap file ledger` over it.
--/
 theorem ledgerInput_planned (paths : List String) (p : String) (hp : p ∈ paths) (hi : ledgerInput p = true) :
     ∃ m ∈ plan paths, m.check = .ledgerNotes ∧ p ∈ m.files := by
   have hf : p ∈ checkFiles .ledgerNotes paths := by
@@ -710,10 +677,6 @@ theorem ledgerInput_planned (paths : List String) (p : String) (hp : p ∈ paths
   simp only [this, Bool.false_eq_true, ite_false]
   exact hm
 
-/-- The same for a staged commit, whatever it deletes.
-
-`planStaged` keeps the ledger-notes command of `plan`: only the preset check takes deletions.
--/
 theorem ledgerInput_planStaged (paths deleted : List String) (p : String) (hp : p ∈ paths) (hi : ledgerInput p = true) :
     ∃ m ∈ planStaged paths deleted, m.check = .ledgerNotes ∧ p ∈ m.files := by
   have hf : p ∈ checkFiles .ledgerNotes paths := by
@@ -733,10 +696,6 @@ theorem ledgerInput_planStaged (paths deleted : List String) (p : String) (hp : 
   simp only [this, Bool.false_eq_true, ite_false]
   exact hm
 
-/-- A change to the findings ledger always plans the ledger tests (the pinned unit of task ledger-note-check).
-
-Whatever else is staged or deleted, `research/findings/ledger.json` among the paths gives a `ledgerNotes` command over it.
--/
 theorem findingsLedger_planned (paths deleted : List String) (h : "research/findings/ledger.json" ∈ paths) :
     (∃ m ∈ plan paths, m.check = .ledgerNotes ∧ "research/findings/ledger.json" ∈ m.files)
     ∧ ∃ m ∈ planStaged paths deleted, m.check = .ledgerNotes ∧ "research/findings/ledger.json" ∈ m.files := by
@@ -748,10 +707,6 @@ theorem findingsLedger_planned (paths deleted : List String) (h : "research/find
     exact ledgerInput_ledger
   exact ⟨ledgerInput_planned paths _ h hi, ledgerInput_planStaged paths deleted _ h hi⟩
 
-/-- The ledger-notes check is `checkmap file ledger` over the files it was given.
-
-Its one command judges the notes of every given ledger (the index blob when staged).
--/
 theorem ledgerNotes_cmd (fs : List String) :
     cmdsFor .ledgerNotes fs = [⟨.ledgerNotes, ".", ["node", "scripts/checkmap.mjs", "file", "ledger"] ++ fs, fs⟩] := rfl
 

@@ -438,11 +438,8 @@ def overflowWidthsReads : List String :=
   ["lean/Fw/Ci/Overflow.lean", "lean/land-legs.txt", "apps/runner/test/land-overflow-widths.test.ts", "apps/runner/test/workflow-widths.ts",
    "apps/runner/src/run.ts", Fw.Console.LandSpeed.fwcoreBin]
 
-/-- The ledger tests (task ledger-note-check): `apps/runner/test/ledger-merge.test.ts` judges the real ledgers' notes (entry names a
-finding's candidate, field is a findings field, text, one note per (entry, task)) and their formatting. -/
 def ledgerNotesId : String := "runner:ledger-notes"
 
-/-- What the ledger tests read: the three ledgers, the test, the note rule it and the commit check share, and the merge driver. -/
 def ledgerNotesReads : List String :=
   ["research/findings/ledger.json", "research/mistakes/ledger.json", "docs/team/incidents/ledger.json",
    "apps/runner/test/ledger-merge.test.ts", "apps/runner/test/land-notes.test.ts", "apps/runner/src/land-notes.ts", "scripts/merge-ledger.mjs"]
@@ -526,7 +523,6 @@ theorem plannerFiles_select : ∀ x ∈ plannerFiles, overflowWidthsId ∈ selec
   rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp (config := {decide := true}) [Fw.Ops.PathCheck.inScope, e1, e2, e3, e4, e5, e6, e7, Fw.Ops.PathCheck.matchesPath,
       Fw.Ops.PathCheck.globMatch, Fw.Ops.PathCheck.segMatch, List.range_succ]
 
-/-- The findings ledger is read by the ledger tests (the dry land's branch of the pinned unit of task ledger-note-check). -/
 theorem ledgerNotes_reads_ledger :
     Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope ledgerNotesReads) "research/findings/ledger.json" = true := by
   have e : Fw.Ops.PathCheck.segs "research/findings/ledger.json" = ["research", "findings", "ledger.json"] := by
@@ -543,15 +539,12 @@ theorem ledgerNotes_reads_ledger :
   · simp only [Fw.Ops.PathCheck.parseScope, h2, List.map_nil]
     simp
 
-/-- A change to the findings ledger always selects the ledger tests in the dry land's local tier, whatever else changed. -/
 theorem ledger_selects_notes (changed : List String) (hx : "research/findings/ledger.json" ∈ changed) :
     ledgerNotesId ∈ selectLocal changed :=
   selects_reader localTests changed ⟨ledgerNotesId, ledgerNotesReads⟩ (by simp [localTests]) _ hx ledgerNotes_reads_ledger
 
-/-- The ledger tests run on this Mac, in the dry land. -/
 theorem ledgerNotes_local : tier ledgerNotesId = .onMac := by decide
 
-/-- The ledger tests need no `fwcore` build (they read goldens and ledgers only). -/
 theorem ledgerNotes_no_core : isCoreUser ledgerNotesId = false := by decide
 
 theorem overflowWidths_local : tier overflowWidthsId = .onMac := by decide

@@ -1,8 +1,3 @@
-// The shape rule of the findings ledger's notes (task ledger-note-check, mistake class c-late-check). One rule, three callers:
-// the commit check (`scripts/checkmap.mjs file ledger`, planned by Lean Fw.Ops.CheckMap `ledgerNotes`), the dry land
-// (`ledgerNoteKeyCheck` in land.ts) and the ledger tests (test/ledger-merge.test.ts). The remote land suite stays the last line.
-// TS stand-in: no Lean spec of the rule yet; when it runs is Lean (CheckMap.ledgerInput, LandTier.ledgerNotesReads).
-
 const NOTE_KEYS = ["entry", "field", "task", "text"];
 
 /** The problems of a findings ledger's notes, one line each; none when every note names a finding by its candidate, names a findings field, carries a text and no (entry, task) repeats. */
