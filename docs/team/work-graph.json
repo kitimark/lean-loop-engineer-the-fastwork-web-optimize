@@ -24022,7 +24022,8 @@
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-earn-logical-preset.md",
     "results/earn-logical-preset/**",
-    "docs/team/handoffs/earn-logical-preset.md"
+    "docs/team/handoffs/earn-logical-preset.md",
+    "lean/scripts/NavEarn*Golden.lean"
    ]
   },
   {
@@ -24051,7 +24052,33 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-end-wktr-flip.md",
     "results/end-wktr-flip/**",
-    "docs/team/handoffs/end-wktr-flip.md"
+    "docs/team/handoffs/end-wktr-flip.md",
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "shipped-preset",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "earn-logical-preset"
+   ],
+   "title": "User decision 2026-10-29: a second preset 'shipped' = v2-proved members + flags with an accepted user look decision whose engine gates pass (e.g. nav:earn-logical); v2-proved stays strictly same-look (look_not_mem unchanged). Lean: the shipped membership rule, theorem v2-proved subset shipped, theorem no unaccepted class L flag in shipped; Gen.run generates its golden and registry JSON; the site can serve it; Gen.entry reports kind/look blockers per preset.",
+   "writes": [
+    "lean/Fw/Preset/**",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/**",
+    "apps/site/src/registry/*.ts",
+    "apps/site/src/registry/*.test.ts",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-shipped-preset.md",
+    "docs/team/handoffs/shipped-preset.md"
    ]
   }
  ],
