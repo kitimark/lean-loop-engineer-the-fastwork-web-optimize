@@ -37,10 +37,7 @@ What is proved:
   `animCount ℓ N` restyle units on the web process (`wk_var_exact`). The variant's ride-along targets are the elements
   of the model's original change list `wkOrigChanges` (copy, cue, the `N` cards, `wk_style_elems`). Since the style
   units are equal (`2N + 5` each) against `wkOrigChanges`, which omits the WebKit inherited fan-out, the main-thread
-  work drops by the script pass (`wk_trade`), but not for any change list (`wk_trade_not_general`). The real original
-  also resolves the inherited `--exit-opacity` fan-out of the hero subtree on WebKit, which `wkOrigChanges` omits, so
-  per element WebKit style work still drops: 6 or 12 restyled elements against 123 or 215
-  (`HeroExitWork.wk_style_saving`). The UI process gains the animations: again a trade.
+  work drops by the script pass (`wk_trade`), but not for any change list (`wk_trade_not_general`). The UI process gains the animations: again a trade.
 * **Golden rows** (`goldenJsonl` → `packages/contracts/golden/engine/hero-exit.jsonl`) in the `engine-check` schema.
 * **Changed since CI run 39088367495 (engine-model-fix).** On Chromium a `filter: blur()` value change on an own layer
   rasters (MEASURED), so both arms keep one raster pass (`crOrigPasses`, `crVarPasses`) and the golden raster row is

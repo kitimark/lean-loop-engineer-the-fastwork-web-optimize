@@ -10,7 +10,7 @@ WebKit 862f17d (`W` = `Source/WebCore`).
   hero subtree: 123 or 215 elements. `HeroExitWork.wk_style_saving`, CONFIRMED (Lean, under the premise below).
 * With the fan-out counted, the WebKit trade has strictly fewer style units and restyled elements, still one added
   compositor pass: `wk_trade_r2`, and under `frameWorkE` `wk_trade_r2E`. `wk_trade`, `wk_tradeE` and `wkOrigChanges` are unchanged.
-* `ResourceFlags` `hero.exit:threaded` WebKit style is now per element: (style passes, restyled elements) over the
+* `ResourceFlags` `hero.exit:threaded` WebKit style is per element: (style passes, restyled elements) over the
   golden frames is (1, 123) for the original and (1, 6) for the variant, so the prediction is `down`. The phone check
   (627-631 against 646-651 records per run) moves from disagree to agree. Checks: agree 52, unresolved 9,
   confounded 24, disagree 7, unpredicted 7.
