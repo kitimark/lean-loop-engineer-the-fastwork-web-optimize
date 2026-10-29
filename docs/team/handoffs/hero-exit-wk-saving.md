@@ -14,12 +14,19 @@ on the branch. No CI or phone runs.
   `Gen.run` regenerated `golden/preset/v2-proved.decisions.jsonl`; decision stays `enter`.
 * Ledger row n 6: `leanFor` gained 7 names, mechanism text updated.
 
+## Round 2 (review fixes, commit 1d1c34af4)
+* `WkInheritRule` docstring and the note's premise table: a changed custom-property value fails
+  `nonFastPathInheritedEqual`; `DataRef` compares by value (`Source/WTF/wtf/DataRef.h:87-90`@862f17d, read by curl).
+* `threadedWk` `.style` note states the per-element direction and the phone frame drop 588 vs 693-696 (INFERRED);
+  `resource.jsonl` regenerated, note on line 11 (predict row); line 181 is the phone check row (no note field).
+
 ## Verified
-check.sh, contracts/preset/runner tests, ci-paths test, dry land: see the task report.
+check.sh, contracts tests, runner land-inputs test, ci-paths test, dry land: see the task report.
 
 ## Open
 * Phone counts are style recalcs, not elements: agreement is in direction only (INFERRED frame-count share).
-* Query-container deferral assumed resumed in the same update (INFERRED).
+* Query-container deferral assumed resumed in the same update (INFERRED); follow-up.
+* Fan rows use synthetic ids `100 + i`; follow-up.
 
 ## Read first
 `research/notes/2026/10-2x-hero-exit-wk-saving.md`, then section `WkFan` in `HeroExitWork.lean`.
