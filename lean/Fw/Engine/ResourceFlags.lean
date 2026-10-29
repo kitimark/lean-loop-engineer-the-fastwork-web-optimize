@@ -54,7 +54,7 @@ open Fw.Parts.HeroExitOpt
 def threadedCr : Footprint :=
   ⟨"hero.exit:threaded", .chromium,
     stageEffects (pairsSign crFrames) "HeroExitOpt.crFrames (CI lane), cr_lane_mixed" ++
-    [(.event, ef .up "ReactRootOpt.records_orig: 2 records per animation event; wkAnims_length: N + 3 CSS animations"),
+    [(.event, ef .up "ReactRootOpt.records_orig: 2 records per animation event; animCount_eq: 2N + 5 CSS animations"),
      (.repaint, ef (pairsSign crFrames .raster) "HeroExitOpt.crFrames raster stage"),
      (.layers, ef .up "ledger n=6: each animated consumer adds a composited layer"),
      (.composite, ef (pairsSign crFrames .comp) "cr_lane_mixed: V.passes comp = 1, O.passes comp = 0"),
@@ -68,7 +68,7 @@ def threadedWk : Footprint :=
      (.layout, ef (pairsSign wkFrames .layout) "HeroExitOpt.wkFrames"),
      (.paintRec, ef (combine (pairsSign wkFrames .paint) .up) "wkFrames paint down; promote_tween re-attach paint up"),
      (.script, ef (pairsSign wkFrames .script) "HeroExitOpt.wkFrames"),
-     (.event, ef .up "ReactRootOpt.records_orig: 2 records per animation event; N + 3 CSS animations"),
+     (.event, ef .up "ReactRootOpt.records_orig: 2 records per animation event; 2N + 5 CSS animations"),
      (.repaint, ef (combine (pairsSign wkFrames .paint) .up) "tween_repaint: one full paint per promotion"),
      (.layers, ef .up "wk_all_comp: every animation threaded, its target composited"),
      (.composite, ef (pairsSign wkFrames .commit) "HeroExitOpt.wkFrames commit stage"),
@@ -543,7 +543,10 @@ def obsCheck (o : Obs) : Check := check o.res o.slow (predicted o) (measuredSign
 def withCheck (c : Check) : List Obs := observations.filter (obsCheck · == c)
 
 def mechanisms : List (String × Eng × Res × String) :=
-  [("hero.exit:threaded", .webkit, .paintRec,
+  [("hero.exit:threaded", .webkit, .style,
+     "INFERRED: per rendering update the style units are equal (wk_trade); the run renders fewer frames \
+       (588 vs 693-696, the frames row), so it records fewer style recalcs"),
+   ("hero.exit:threaded", .webkit, .paintRec,
      "INFERRED: re-attach paints of the promoted animation targets (promote_tween) outweigh the per-frame paint drop"),
    ("hero.exit:threaded", .webkit, .repaint,
      "INFERRED: the re-attach area is a small share of the walk's paint area, inside the pass spread"),
@@ -582,14 +585,14 @@ def ledgerLabels : List (String × Eng × String) :=
    ("morph.mount:shift-dormant", .chromium, "trade"), ("morph.mount:shift-dormant", .webkit, "unknown"),
    ("engine.events:quiet", .chromium, "no-win"), ("engine.events:quiet", .webkit, "win")]
 
-#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [52, 9, 24, 7, 7]
+#guard [Check.agree, .unresolved, .confounded, .disagree, .unpredicted].map (withCheck · |>.length) == [51, 9, 24, 8, 7]
 #guard (withCheck .unpredicted).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
   ("hero.exit:threaded", "webkit", "paintRecords"), ("hero.exit:threaded", "webkit", "repaintArea"),
   ("morph.columns:idle-none", "webkit", "paintRecords"), ("morph.columns:idle-none", "webkit", "script"),
   ("morph.columns:idle-none", "webkit", "eventDispatch"), ("morph.columns:idle-none", "webkit", "repaintArea"),
   ("hero:scene-pause", "webkit", "eventDispatch")]
 #guard (withCheck .disagree).map (fun o => (o.flag, o.eng.name, o.res.name)) == [
-  ("morph.mount:shift-dormant", "webkit", "script"),
+  ("hero.exit:threaded", "webkit", "style"), ("morph.mount:shift-dormant", "webkit", "script"),
   ("morph.mount:shift-dormant", "webkit", "eventDispatch"), ("engine.events:quiet", "webkit", "layers"),
   ("morph.mount:shift-dormant", "chromium", "layout"), ("morph.mount:shift-dormant", "chromium", "style"),
   ("hero:scene-pause", "webkit", "style"), ("morph.panel:rest", "webkit", "paintRecords")]

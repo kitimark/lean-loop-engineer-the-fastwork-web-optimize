@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Preset.V2Proved
 import Fw.Parts.HeroExitScrollOffset
+import Fw.Parts.HeroExitWork
 /-!
 Generates the `v2-proved` preset and decision rows from the findings ledger and `part.json` files.
 Run from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--check"]\n' | lake env lean --stdin` (drop `--check` to write).
@@ -702,11 +703,13 @@ def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → Strin
       | .notProved _ s => s
       | w => (whyJson w).compress
     let r2 := if w == .proved then "closed by Fw.Parts.HeroExitWork.cr_lane_style_saving (R2 inherited fan-out \
-        units) and Fw.Parts.HeroExitWork.wk_edge_layout with edgeFrames_le_starts (WebKit edge-frame cost)"
+        units) and Fw.Parts.HeroExitWork.wk_edge_layout with Fw.Parts.HeroExitWork.edgeFrames_le_starts (WebKit \
+        edge-frame cost)"
       else "open until the row is proved"
     "linked to ledger row hero-exit-threaded (v6, KD#2), status " ++ status ++ "; met only when that row is proved \
-      (threaded_proofs_iff): Fw.Parts.HeroExitOpt.consumer_eq_s holds under the hypothesis RG11, cr_real_tradeE and \
-      wk_tradeE give a trade, and the row's missingWhy items are " ++ r2
+      (Fw.Preset.Gen.threaded_proofs_iff): Fw.Parts.HeroExitOpt.consumer_eq_s holds under the hypothesis RG11, \
+      Fw.Parts.HeroExitOpt.cr_real_tradeE and Fw.Parts.HeroExitOpt.wk_tradeE give a trade, and the row's missingWhy \
+      items are " ++ r2
   | .gate fam =>
     let cell (w : Walk) : String :=
       let runs := (runsFor st heroExitThreaded fam w).map fun s =>
@@ -719,6 +722,32 @@ def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → Strin
       39924527942 and 39929556147 grade every valid P cell L (research/notes/2026/10-2x-hero-exit-threaded-pix.md)"
   | .look => "accepted 2026-10-24 on the real iPhone (results/phone/2026-10-24-hero-exit-threaded/summary.md)"
   | .q6 => q6Answer.getD "open: no answer recorded"
+
+/-- The ledger-row theorems the proved branch of `threadedEvidence` cites. -/
+def threadedRowNames : List Name :=
+  [``Fw.Parts.HeroExitWork.cr_lane_style_saving, ``Fw.Parts.HeroExitWork.wk_edge_layout,
+    ``Fw.Parts.HeroExitWork.edgeFrames_le_starts, ``Fw.Parts.HeroExitOpt.consumer_eq_s,
+    ``Fw.Parts.HeroExitOpt.cr_real_tradeE, ``Fw.Parts.HeroExitOpt.wk_tradeE]
+
+/-- The theorem names in a text: tokens that start with `Fw.` or contain `_`. -/
+def theoremTokens (t : String) : List String :=
+  (t.splitToList fun c => c == ' ' || c == '(' || c == ')' || c == ',' || c == ';' || c == ':' || c == '\n').filter
+    fun w => "Fw.".isPrefixOf w || w.contains '_'
+
+/-- The `leanFor` and `leanAgainst` links of the ledger row of flag `flag`. -/
+def rowLinks (ledger : Json) (flag : String) : List String :=
+  let rows := ((ledger.getObjVal? "findings").toOption.bind (·.getArr?.toOption)).getD #[]
+  match rows.toList.find? (fun r => (r.getObjValAs? String "flag").toOption == some flag) with
+  | none => []
+  | some r => ["leanFor", "leanAgainst"].flatMap fun k => (r.getObjValAs? (List String) k).toOption.getD []
+
+/-- The names of `threadedRowNames` missing from the hero.exit:threaded row's links. -/
+def threadedLinkGaps (ledger : Json) : List String :=
+  (threadedRowNames.map toString).filter fun n => !(rowLinks ledger heroExitThreaded.key).contains n
+
+#guard (theoremTokens "a (Fw.X.y_z), b_c: d") == ["Fw.X.y_z", "b_c"]
+#guard threadedLinkGaps ((Json.parse (include_str "../../../research/findings/ledger.json")).toOption.getD .null) == []
+#guard threadedLinkGaps .null == threadedRowNames.map toString
 
 def entryWord : Entry → String
   | .enter => "enter"
@@ -803,6 +832,9 @@ def run (args : List String) : IO Unit := do
   let reg ← readRegistry
   let st ← readStored
   let p ← IO.ofExcept (generate reg links ledger st)
+  unless (threadedLinkGaps (← readJson ledgerPath)).isEmpty do
+    throw (IO.userError
+      s!"threadedEvidence cites theorems outside the ledger row's links: {threadedLinkGaps (← readJson ledgerPath)}")
   let bad := ledgerDisagreements (← readJson ledgerPath) lookDecisions
   unless bad.isEmpty do throw (IO.userError s!"the ledger text disagrees with Gen.lookDecisions: {bad}")
   unless (classDisagreements reg ledger).isEmpty do
@@ -1167,6 +1199,12 @@ private def stFail (e : Engine) : Stored :=
 
 private def threadedRow (status : String) : Row :=
   ⟨threadedKey.1, threadedKey.2, status, some "hero.exit:threaded", none, none⟩
+
+#guard 1 < ((threadedEvidence [threadedRow "proved"] [] .proofs).splitOn "closed by").length &&
+  (theoremTokens (threadedEvidence [threadedRow "proved"] [] .proofs)).all fun w =>
+    w ∈ (``Fw.Preset.Gen.threaded_proofs_iff :: threadedRowNames).map toString
+#guard threadedRowNames.all fun n =>
+  (theoremTokens (threadedEvidence [threadedRow "proved"] [] .proofs)).contains n.toString
 
 #guard why links [threadedRow "partly-proved"] heroExitThreaded == .notProved threadedKey "partly-proved"
 #guard blockers [threadedRow "partly-proved"] (stFail .chromium :: [Engine.chromium, .macWebkit].flatMap fun e =>
