@@ -23910,6 +23910,36 @@
     "results/nav-cta-webkit-match/**",
     "docs/team/handoffs/nav-cta-webkit-match.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-feel-capture",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-feel-kit"
+   ],
+   "title": "Feel sessions that capture while the user scrolls: per visit record the finger/scroll trace (replayable on CI and the phone), frame times and long frames, style/layout/paint counts per zone, end-of-page pin-fight events and a hero-card blink detector; Lean reducer joins each rating with its capture; fix the 10-29 session defects (USB-drop message, recover() TERM race, stop fallback, blind repeats).",
+   "writes": [
+    "packages/measure-webkit/src/device-feel*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/src/device-thermal-pin.mjs",
+    "packages/measure-webkit/src/wip.mjs",
+    "packages/measure-webkit/src/device-push*.mjs",
+    "packages/measure-webkit/test/**",
+    "packages/measure-webkit/package.json",
+    "lean/Fw/Device/Feel*.lean",
+    "lean/scripts/FeelGolden.lean",
+    "packages/contracts/golden/device/feel*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-phone-feel-capture.md",
+    "docs/team/handoffs/phone-feel-capture.md"
+   ]
   }
  ],
  "deadline": {
