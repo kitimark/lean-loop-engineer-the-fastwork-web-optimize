@@ -63,9 +63,8 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
   re-fitted. The same capture on macOS (Chrome 155 against Playwright WebKit 27.2, debug run, not a result): 390 logical worst 62 px against 78, faithful 245
   (exit) and 1330 (entry); 1280 logical 60 against 256, faithful 295 and 2478.
 - **With the label (run 40858439757 artifacts, 1280):** the same frames compared with the label text kept give a worst frame of 803 px (logical exit),
-  585 px (logical entry) and 803 px (faithful exit), all above the 256 bound. The verdict frames above hide the label because text rasterization differs
-  between the engines at rest, so the label text alone puts every with-text frame over the bound; the table measures the animation, the with-text numbers
-  show what the text difference adds.
+  585 px (logical entry) and 803 px (faithful exit), all above the 256 bound. The table hides the label because text rasterization differs
+  between the engines at rest; the with-text numbers show what that difference adds.
 
 - Chromium is unchanged: the faithful and the logical arm are pixel-identical (0 changed pixels) on all 17 frames of both scenarios and widths.
 - Earlier pushes: run 40852349397 (label metrics differ by 3 px between the Linux engines) and run 40855407833 (`text-rendering: geometricPrecision` did not equalise them); the third push fixed the label slot to 5.7em.
@@ -76,4 +75,3 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
 - Playwright WebKit (Linux WebKitGTK/WPE in CI, macOS build locally) stands in for iOS Safari; the phone check comes with the user.
 - The capture seeks animations (no real-time sampling): it shows values at t, not the compositor's frame pacing.
 - The harness page is a static page around the real CSS, not the built site; the built site was checked in the local debug run only (padding trace above).
-- The lead and the user's look review decide whether the flag enters a preset.
