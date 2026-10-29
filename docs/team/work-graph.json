@@ -23761,7 +23761,13 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-glint-compositor.md",
     "results/glint-compositor/**",
-    "docs/team/handoffs/glint-compositor.md"
+    "docs/team/handoffs/glint-compositor.md",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "packages/premise-tests/pages/**",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    ".github/workflows/wktr.yml"
    ]
   },
   {
@@ -23870,6 +23876,39 @@
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-glint-hold-close.md",
     "docs/team/handoffs/glint-hold-close.md"
+   ],
+   "evidence": "fd12139"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "nav-cta-webkit-match",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [],
+   "title": "User report 2026-10-29: the navbar 'Join waitlist' button animation differs on WebKit from Chromium; Chromium is correct. Find the mechanism (our port vs the snapshot original, both engines, engine source cited), fix WebKit to match Chromium with the same look on Chromium, Lean model of the animation values and a look check on both engines.",
+   "writes": [
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/nav.*/**",
+    "apps/site/src/parts/morph.panel/**",
+    "apps/site/src/parts/morph.mount/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/registry/**",
+    "lean/Fw/Parts/Nav*.lean",
+    "lean/scripts/Nav*Golden.lean",
+    "packages/contracts/golden/parts/**",
+    "packages/premise-tests/src/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-nav-cta-webkit-match.md",
+    "results/nav-cta-webkit-match/**",
+    "docs/team/handoffs/nav-cta-webkit-match.md"
    ]
   }
  ],
