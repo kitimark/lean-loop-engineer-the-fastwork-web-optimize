@@ -24055,7 +24055,8 @@
     "results/end-wktr-flip/**",
     "docs/team/handoffs/end-wktr-flip.md",
     "apps/runner/src/land.ts"
-   ]
+   ],
+   "evidence": "aa8ec7c"
   },
   {
    "devices": [
@@ -24080,6 +24081,58 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-shipped-preset.md",
     "docs/team/handoffs/shipped-preset.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-memory",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "Overload 2026-10-29: the Mac ran at 113 MB free with heavy compression and lean/check preset v2-proved took 141 s vs 19 s baseline; `fw watch --stream` (the lead's Monitor, 5 min old) held 663 MB RSS. Find what the watcher keeps in memory (event log replay, run caches, timing samples), bound it (streaming reads, windowed state, Lean-decided retention), measure RSS before/after over a 30 min stream, and add a timing/RSS self-check alert.",
+   "writes": [
+    "apps/runner/src/watch*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/events*.ts",
+    "apps/runner/test/watch*.test.ts",
+    "lean/Fw/Ops/Watch*.lean",
+    "packages/contracts/golden/ops/watch*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-watch-memory.md",
+    "docs/team/handoffs/watch-memory.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "faded-pause-entry",
+   "owner": "lean-prover",
+   "stream": "parts",
+   "deps": [
+    "end-wktr-flip"
+   ],
+   "title": "Bring platform:faded-pause (class E; cuts WebKit end-of-page recalcs ~240 to ~90 per 100 frames, run 40869911524; gate PASS both engines per its note) to Gen.entry for v2-proved: record its existing gate runs via Gen.record (never by hand; run them if the records do not exist), close the ledger row's missingWhy with linked theorems (pause/resume phase equality, no descendant escapes the opacity group, one data-fw-scene writer OR-ing offscreen and faded), and let Gen.run decide.",
+   "writes": [
+    "lean/Fw/Parts/Platform*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/**",
+    "apps/site/src/parts/platform/part.json",
+    "apps/site/src/parts/platform.glint/part.json",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/findings/ledger.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-faded-pause-entry.md",
+    "results/faded-pause-entry/**",
+    "docs/team/handoffs/faded-pause-entry.md"
    ]
   }
  ],
