@@ -226,7 +226,7 @@
    "n": 6,
    "part": "hero.exit",
    "candidate": "hero-exit-threaded (v6, KD#2): JS --exit-opacity writer → per-consumer CSS scroll-driven animations, plus an IO sentinel for pointer-events",
-   "status": "partly-proved",
+   "status": "proved",
    "flag": "hero.exit:threaded",
    "flags": [
     "hero.exit:threaded"
@@ -234,7 +234,7 @@
    "chromium": "trade",
    "webkit": "trade",
    "visual": "E-s at the computed-value level under RG11 (consumer_eq_s; exact at integer scroll offsets, otherwise within the progress quantum: 1/(16R) in Chromium, 1 px on WebKit's main thread). Pixels: WebKit E in the v1 Simulator except a 30 px top band (78 levels). Chromium not-equal under the pixel rule (v1: ≤ 6 levels on 15-42k px, 1 device-px copy shift from GPU blending and snapping), so Q at best: PathPremises.raster_path fails there (INFERRED).",
-   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of about 230 descendants (style units, R2). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does. Under frameWorkE both trades stand (cr_real_tradeE, wk_tradeE). Given the premise that each animated consumer adds a composited layer, the claim cannot be dominates on either engine, WebKit included (Fw.Engine.claim_ne_dominates_of_layers): at best trade.",
+   "mechanism": "Removes the rAF script (FireAnimationFrame/FunctionCall −1 per scrolled frame, det), the forced track-rect read, and the inherited --exit-opacity restyle of the whole hero subtree, 99 elements in the phone band and 172 above, counted from heroTree (style units, R2: HeroExitWork.cr_orig_r2, cr_style_saving). Chromium: opacity and transform go to the compositor; blur stays on main (bit 12, compositor_animations.cc:405-417), so paint and raster remain. In the lane every BeginFrame keeps a style pass, so the UpdateLayoutTree count does not drop, and elementCount is quarantined (C-3). WebKit: all animations threaded (wk_all_comp), web-process work drops, the UI process and the layer count grow. PROVED (toy rasters): raster_path fails for a half-pixel translate (snap 0 vs resample 128, Fw.Engine.raster_path_fails_fracXf) and for group opacity 1/2 over child 3/10 (38 vs 39, Fw.Engine.raster_path_fails_fracAlpha), so PathPremises needs C5 and C4 (Fw.Engine.PathPremises5, shown_eq5). A compositor move adds the comp stage, so it is never framewise <= (Fw.Engine.comp_move_not_le): mixed or noClaim when the original pays no comp, trade only when it already does. Under frameWorkE both trades stand (cr_real_tradeE, wk_tradeE). Given the premise that each animated consumer adds a composited layer, the claim cannot be dominates on either engine, WebKit included (Fw.Engine.claim_ne_dominates_of_layers): at best trade.",
    "leanFor": [
     "Fw.Parts.HeroExit.exitOpacity_linear",
     "Fw.Parts.HeroExitOpt.progress_eq_js",
@@ -247,7 +247,16 @@
     "Fw.Parts.HeroExitOpt.wk_tradeE",
     "Fw.Parts.HeroExitOpt.wkVar_eq",
     "Fw.Parts.HeroExitOpt.wk_var_exact",
-    "Fw.Parts.HeroExitOpt.wkIdle_eq"
+    "Fw.Parts.HeroExitOpt.wkIdle_eq",
+    "Fw.Parts.HeroExitWork.shown_consumers",
+    "Fw.Parts.HeroExitWork.fanOut_add",
+    "Fw.Parts.HeroExitWork.cr_orig_r2",
+    "Fw.Parts.HeroExitWork.cr_style_saving",
+    "Fw.Parts.HeroExitWork.cr_lane_style_saving",
+    "Fw.Parts.HeroExitWork.rest_iff_before",
+    "Fw.Parts.HeroExitWork.wk_var_no_layout",
+    "Fw.Parts.HeroExitWork.edgeFrames_eq",
+    "Fw.Parts.HeroExitWork.edgeFrames_le_starts"
    ],
    "leanAgainst": [
     "Fw.Parts.HeroExitOpt.cr_real_trade",
@@ -266,22 +275,16 @@
     "Fw.Engine.WebKit.style_rate_old_refuted",
     "Fw.Parts.HeroExitOpt.wk_trade_not_general",
     "Fw.Parts.HeroExitOpt.wk_var_exact",
-    "Fw.Parts.HeroExitOpt.wkVar_eq"
+    "Fw.Parts.HeroExitOpt.wkVar_eq",
+    "Fw.Measure.quarantined_unsound",
+    "Fw.Parts.HeroExitWork.opacity_edge",
+    "Fw.Parts.HeroExitWork.filter_edge",
+    "Fw.Parts.HeroExitWork.wk_edge_work",
+    "Fw.Parts.HeroExitWork.wk_edge_layout"
    ],
-   "missingWhy": [
-    {
-     "statement": "The lane cannot see the style saving: in lane mode $V.\\mathrm{passes}(\\mathrm{style}) = O.\\mathrm{passes}(\\mathrm{style})$ while $V.\\mathrm{units}(\\mathrm{style}) = N_{\\mathrm{anim}} < 1 + |\\mathrm{inh}(.\\mathrm{hero})| = O.\\mathrm{units}(\\mathrm{style})$. The only count that maps to units is elementCount, which is quarantined, so `noMoreWork` cannot confirm it (`quarantined_unsound`).",
-     "module": "Fw.Parts.HeroExitOpt",
-     "needs": "R2 inherited fan-out units in crOrig (it currently counts one change per consumer, which undercounts the original)"
-    },
-    {
-     "statement": "Edge-frame cost on WebKit: the frames where the filter goes $\\mathrm{none} \\leftrightarrow \\mathrm{blur}(\\epsilon)$ or opacity crosses 1 pay layout: $\\mathrm{layout} \\in \\mathrm{stages}_{wk}$ on those frames, $\\#\\mathrm{edgeFrames}_v \\ge 1$ per rest→live switch",
-     "module": "Fw.Parts.HeroExitOpt",
-     "needs": "tabling WebKit.opacityCross1_layout and a filter-presence clause for the variant's start and park frames"
-    }
-   ],
+   "missingWhy": [],
    "premises": [
-    "RG11 progress = offset/range with engine quanta: CONFIRMED engine-gaps R11",
+    "RG11 progress = clamp((y − T)/max(1, h − v)) with engine quanta, a hypothesis of consumer_eq_s: CONFIRMED for h − v ≥ 1 with v the scrollport height (WebKit ViewTimeline.cpp:509-511,535,564,578-579@862f17d; Chromium timeline_range.cc:45-85, view_timeline.cc:335-341@f842f52; quantum 1/16 px in cc/animation/scroll_timeline.cc:128-130@f842f52, float in WebKit); INFERRED for h − v < 1 and for a scrollport that changes height (dynamic toolbars), research/notes/2026/10-2x-hero-exit-proofs.md",
     "blur cannot be composited in Chromium (bit 12): CONFIRMED compositor_animations.cc:405-417@f842f52",
     "custom properties are never accelerated in WebKit: CONFIRMED StyleInterpolation.cpp:256-265@862f17d",
     "threadedScrollDriven on in the WebKit lane, shipping Safari OPEN (R7/O2)",
@@ -292,8 +295,8 @@
     "scroll-timeline animations restyle their target once per rendering update on WebKit even when accelerated: MEASURED (wktr-p1p4) (registry id wktr_scroll_timeline_restyle, kind lane: .github/workflows/wktr-fixtures.yml)"
    ],
    "v1Evidence": "KD#2 (../fastwork-com-web-optimize/research/knowledge-distillation/README.md lesson 2): median slow frames 31 → 18 → 7 (original, v4, v6), and the user preferred v6 in both blind swipes. ../fastwork-com-web-optimize/fixes/hero-exit-threaded/README.md: shipped WebKit-only (GestureEvent gate) because Blink compositing changed pixels (≤ 6 levels on 15-42k px, 1 device-px copy shift). WebKit: a transform animation on .hero-copy made the accent repaint about 1.4× as often; none → blur(0.009px) costs one Layout; the 30 px top band was 78 levels off, so the writer was kept there; P-081: go-live-from-rest frames cost more than C's.",
-   "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so only script and the quarantined elementCount drop. Compositing also changes rasterization, so value-level E-s is not pixel E.",
-   "next": "Record as a trade in both engines. Refine Visual.raster_path for fractional translate and opacity, and decide whether the Chromium arm is Q or gated to WebKit (as v1 did). On CI, run rewrite+hero-exit-threaded and check FireAnimationFrame <o (det) and compositeFailedBits bit 12 only on the blur animations. Add R2 units and Resident layers to HeroExitOpt.",
+   "lesson": "Moving main-thread work to the compositor is a trade, never dominance. In the CI lane style passes stay one per frame, so the style saving lives in units (N + 3 against the 99 or 172 elements of the hero subtree) that only the quarantined elementCount reads. The variant buys no-layout scrolled frames on WebKit with one layout on each frame that leaves or reaches progress 0: at most 2 · starts + 1 such frames per run. Compositing also changes rasterization, so value-level E-s is not pixel E.",
+   "next": "Record as a trade in both engines. Refine Visual.raster_path for fractional translate and opacity, and decide whether the Chromium arm is Q or gated to WebKit (as v1 did). On CI, run rewrite+hero-exit-threaded and check FireAnimationFrame <o (det) and compositeFailedBits bit 12 only on the blur animations. Add resident layers to HeroExitOpt, the cue's opacity animation to the anim lists (one more edge row), and the interior blur-kernel steps on WebKit (research/notes/2026/10-2x-hero-exit-proofs.md).",
    "userDecision": {
     "date": "2026-10-24",
     "decision": "accepted 2026-10-24: the user saw ?fw=hero.exit:threaded on the real iPhone and said it looks the same as the original (source: phone session, user words)",

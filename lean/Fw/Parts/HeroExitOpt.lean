@@ -49,10 +49,9 @@ What is proved:
   original's shared-layer changes a compositing update, so that row is `<o`, not `≤o`. Every trade theorem still
   holds as stated.
 
-Not modelled (open): the frames where the opacity crosses 1 (WebKit `opacityCross1` lays out; only interior frames
-`0 < e < 1` are tabled), resident layers (the variant adds a composited layer per animated consumer, so the core
-`claim` is a trade at best), units of the inherited restyle beyond one change per consumer (gap R2; this
-undercounts the original only), and which scroll offset the compositor shows (path premise C3).
+The frames where the opacity crosses 1 and the inherited restyle beyond one change per consumer (gap R2) are in
+`Fw.Parts.HeroExitWork`. Not modelled (open): resident layers (the variant adds a composited layer per animated
+consumer, so the core `claim` is a trade at best) and which scroll offset the compositor shows (path premise C3).
 
 All values `Rat`; no `Float`.
 -/
