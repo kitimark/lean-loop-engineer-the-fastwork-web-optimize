@@ -37,7 +37,7 @@ to 44; `path()` leaves about 3 pixels per dash end. The variant equals the analy
 of the cap; the variant's pixel values give 0.51, 0.97, 0.68); the original's stroked cap paints 0.34, 0.79, 0.49 in both engines. So the difference is the
 engines' stroke-cap coverage, not the gradient. Tried and not better: border-radius with overflow hidden, will-change, CSS mask from a data URI (did not
 render), mask from an SVG `<mask>` reference (the clip was not applied in WebKit).
-The premise test was changed twice after seeing these numbers (the bound 12 did not change): run 40837035170 (push 2) showed that in Chromium at device ratio 2 the
+The premise test changed twice (the bound 12 did not): run 40837035170 (push 2) showed that in Chromium at device ratio 2 the
 partly covered top and bottom rows of the dash also differ (59), so the final premise asserts the bound only in the interior of the dash (x from 2 px after each end,
 y from one device pixel inside the top edge to one inside the bottom edge) and records the all-pixel worst and the class. Final run 40837548139 (at ced74ee8c), both
 engines, holds:
@@ -74,7 +74,7 @@ SMIL timeline of the original (SMIL is not a Web Animation, so the base arm keep
 page whose glint is stopped, which is what the floor measures. Only r2 j3 differs (20 animations still running after the pause, idle 100, flip 177), and the cause of
 those 20 is not known, so it cannot be read as the variant's cost either. The first read of these numbers ("idle 100 to 0, within the floor band") was wrong and is retracted.
 It was not seen before the push because the arm was never run against a variant that is itself a Web Animation (the hold
-arm is SMIL). Lean-provable? The decision "a reading needs the variant's animations running" is: `judgeLive` (theorems `judgeLive_notRunning`, `judgeLive_of_live`) refuses a
+arm is SMIL). The decision "a reading needs the variant's animations running" is: `judgeLive` (theorems `judgeLive_notRunning`, `judgeLive_of_live`) refuses a
 reading with `glintLive = 0`; with it the stand-in re-judges r1 and r2 as "variant animation not running" in every cell (`results/glint-compositor/*/verdict.txt`).
 
 Fix: the probe keeps the glint animations when the arm option `gk` is set and records `rs.glintLive`; measured in push 4 (run 40845872049, next section).

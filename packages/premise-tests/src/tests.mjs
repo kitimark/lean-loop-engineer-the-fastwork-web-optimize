@@ -1,12 +1,9 @@
 // One test per premise of lean/Fw/Ops/Premise.lean (`registry`). `id` is the registry's testId, `premise` its id; the
 // Lean lint (`premiseLint`, ported in apps/runner/src/premises.ts) fails when the two lists drift.
-// A test loads its tiny page from ../pages, drives the browser, and asserts with node:assert/strict. It returns what it
-// observed; the runner stores that next to the verdict.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { collectAlignFacts, alignEquiv, modeOf, contentFill, parseTracks } from '../../gate-breakpoints/src/align-equiv.mjs';
 
-/** Wait for n animation frames in the page. */
 export const frames = (page, n) =>
   page.evaluate(
     (count) => new Promise((resolve) => { let i = 0; const f = () => (++i >= count ? resolve() : requestAnimationFrame(f)); requestAnimationFrame(f); }),
