@@ -118,6 +118,28 @@ theorem reduced_computed_faithful :
 theorem motion_computed_differs :
     computed (underMotion false variantHero) ≠ computed (underMotion false faithfulHero) := by decide
 
+def frameThreshold : Nat := 40
+
+def framePermille : Nat := 2
+
+def frameBandHeight : Nat := 100
+
+def frameAllowed (width : Nat) : Nat := width * frameBandHeight * framePermille / 1000
+
+def frameOk (width changed : Nat) : Bool := changed ≤ frameAllowed width
+
+theorem frameOk_identical (width : Nat) : frameOk width 0 = true := by simp [frameOk]
+
+theorem frameOk_mono (width a b : Nat) (h : a ≤ b) (hb : frameOk width b = true) : frameOk width a = true := by
+  simp only [frameOk, decide_eq_true_eq] at *
+  omega
+
+theorem frameAllowed_wide : frameAllowed 1280 = 256 := by decide
+
+theorem frameAllowed_narrow : frameAllowed 390 = 78 := by decide
+
+theorem frameOk_snap_fails : frameOk 1280 300 = false := by decide
+
 open Lean in
 private def numJ (mant : Nat) (exp : Nat) : Json := Json.num ⟨mant, exp⟩
 
@@ -154,13 +176,18 @@ def lines (_ : Unit) : List String :=
       (Json.mkObj [("starts", names (startedSet e d (underMotion true l) flipChanged)),
         ("computed", Json.arr ((computed (underMotion true l)).map Json.str).toArray)]))
 
-def goldenText (_ : Unit) : String := String.join ((lines ()).map (· ++ "\n"))
+open Lean in
+def frameLine : String :=
+  line "frameBound" [] (Json.mkObj [("threshold", Json.num frameThreshold), ("permille", Json.num framePermille),
+    ("bandHeight", Json.num frameBandHeight), ("allowed1280", Json.num (frameAllowed 1280)), ("allowed390", Json.num (frameAllowed 390))])
+
+def goldenText (_ : Unit) : String := String.join ((lines () ++ [frameLine]).map (· ++ "\n"))
 
 def gen (args : List String) : IO UInt32 := do
   match args with
   | ["--check", path] =>
     if (← IO.FS.readFile path) == goldenText () then
-      IO.eprintln s!"nav.earn.webkit golden: {path} is up to date ({(lines ()).length} lines)"
+      IO.eprintln s!"nav.earn.webkit golden: {path} is up to date ({(lines ()).length + 1} lines)"
       return 0
     IO.eprintln s!"nav.earn.webkit golden: {path} differs from the generated text"
     return 1

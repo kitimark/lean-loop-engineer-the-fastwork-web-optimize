@@ -64,7 +64,13 @@ function timing(engine: Eng, dir: string, items: Item[], prop: string): [number,
 
 describe('nav:earn-logical golden', () => {
   it('every golden fn is covered', () => {
-    expect(new Set(golden.map((g) => g.fn))).toEqual(new Set(['list', 'started', 'reduced']));
+    expect(new Set(golden.map((g) => g.fn))).toEqual(new Set(['list', 'started', 'reduced', 'frameBound']));
+  });
+
+  it('the frame bound allows permille of the band at both widths', () => {
+    const b = golden.find((g) => g.fn === 'frameBound')!.out as { threshold: number; permille: number; bandHeight: number; allowed1280: number; allowed390: number };
+    expect(b.allowed1280).toBe(Math.floor((1280 * b.bandHeight * b.permille) / 1000));
+    expect(b.allowed390).toBe(Math.floor((390 * b.bandHeight * b.permille) / 1000));
   });
 
   it('the variant name and class are the ones the part registers', () => {
