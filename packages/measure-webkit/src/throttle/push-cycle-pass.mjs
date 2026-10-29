@@ -7,7 +7,7 @@ import { takeCensus } from '../census.mjs';
 import { dragPass } from './driver.mjs';
 import { startServer, stopServer, logTail } from '../touch-push.mjs';
 import { START_JS, FETCH_JS, nearEndJs } from './finish-page.mjs';
-import { EXTRA_START_JS, EXTRA_FETCH_JS, STAMP_JS } from './push-cycle-page.mjs';
+import { EXTRA_START_JS, EXTRA_FETCH_JS, STAMP_JS, COLS_LOG_JS, COLS_LOG_FETCH_JS } from './push-cycle-page.mjs';
 import { startTimeline } from '../timeline.mjs';
 import { buildPushSegs, stampSync } from './morph-push.mjs';
 import { GAP_PX, NEAR_END_SETTLE_MS } from './finish-probe.mjs';
@@ -80,7 +80,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
   }
   try {
     const segs = [];
-    if (profile === 'push') await c.evaluate(STAMP_JS);
+    if (profile === 'push') { await c.evaluate(STAMP_JS); await c.evaluate(COLS_LOG_JS); }
     const started = await c.evaluate(START_JS);
     if (started !== 'started') throw new Error(`the recorder did not start (${started})`);
     const extra = await c.evaluate(EXTRA_START_JS);
@@ -130,6 +130,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
     const rec = JSON.parse(await c.evaluate(FETCH_JS));
     if (rec.err) throw new Error(rec.err);
     const x = JSON.parse(await c.evaluate(EXTRA_FETCH_JS));
+    const takeLog = profile === 'push' ? JSON.parse(await c.evaluate(COLS_LOG_FETCH_JS)) : [];
     if (server) { await stopServer(server); server = null; }
     const pushOut = profile === 'push' ? buildPushSegs({ segs, endP, rafs: x.raf ?? [], rec }) : null;
     if (pushOut) log(`${tag}: ${pushOut.starts.length} pushes, ${pushOut.rows.length} style/layout/paint rows and ${pushOut.rafs.length} page rAF requests in their windows, sync drift ${pushOut.drift} ms`);
@@ -142,6 +143,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
       calls, census,
       rec: { ...rec, rz: x.rz, vvr: x.vvr, vvs: x.vvs, quiet },
       ...(pushOut ? { push: pushOut } : {}),
+      ...(takeLog.length ? { takeLog } : {}),
     };
   } finally { if (server) await stopServer(server); }
 }

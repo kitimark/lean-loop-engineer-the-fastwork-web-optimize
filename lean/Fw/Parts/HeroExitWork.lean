@@ -190,7 +190,7 @@ theorem cr_style_saving (m : CrMode) (hm : m.threadedAnim = true) (l : Bool) (lo
     rw [hv.1, ho.1]; rfl
   · show (frameWork _ _).units _ ≤ _
     rw [hv.2, hn]
-    cases l <;> cases he : m.everyBeginFrameIsMainFrame <;> simp [crVarUnits, he, animCount] <;> omega
+    cases l <;> cases he : m.everyBeginFrameIsMainFrame <;> simp [crVarUnits, he, animCount_eq] <;> omega
   · show _ < (frameWork _ _).units _
     rw [ho.2, hn]; simpa using hlt
   · show (frameWork _ _).units _ = _
@@ -210,7 +210,7 @@ theorem cr_lane_style_saving (l : Bool) (lo : LayerState) (r : Bool) :
   have hv := cr_var_exact lane l (cardsShown l) r rfl .style
   have heq : V.units .style = (crAnims l (cardsShown l)).length := by
     show (frameWork _ _).units _ = _
-    rw [hv.2]; cases l <;> simp [crVarUnits, crAnims, lane] <;> omega
+    rw [hv.2]; cases l <;> simp [crVarUnits, crAnims, lane, exitAnims_eq, cardAnims_length, headAnims] <;> omega
   exact ⟨hp, heq, heq ▸ hlt⟩
 
 end Fan
@@ -410,23 +410,22 @@ theorem wkEdgeChanges_eq (l : Bool) (N : Nat) :
     wkEdgeChanges l N = [⟨2, .base .opacityCross1, .own⟩] ++
       (if l then [⟨3, .base .opacityCross1, .own⟩] else [⟨2, .base .filter, .own⟩, ⟨3, .base .opacityCross1, .own⟩]) ++
       [⟨3, .base .filter, .own⟩] ++ (List.range N).map (fun i => ⟨4 + i, .base .opacityCross1, .own⟩) := by
-  have hz : ((List.range N).map (4 + ·)).zip ((List.range N).map fun _ => wkAnim [.opacity, .transform]) =
-      (List.range N).map fun i => (4 + i, wkAnim [.opacity, .transform]) := by
-    rw [List.zip_map]
-    induction N with
-    | zero => rfl
-    | succ n ih => simp [List.range_succ, List.zip_append, ih]
-  have hc : ((List.range N).map fun i => (4 + i, wkAnim [.opacity, .transform])).flatMap (fun p =>
+  have hz : ∀ L : List (Nat × AnimProp), (L.map Prod.fst).zip (L.map fun p => wkAnim [wkProp p.2]) =
+      L.map fun p => (p.1, wkAnim [wkProp p.2]) := by
+    intro L; induction L with
+    | nil => rfl
+    | cons a t ih => simp [ih]
+  have hc : ((cardAnims N).map fun p => (p.1, wkAnim [wkProp p.2])).flatMap (fun p =>
       p.2.props.filterMap fun c => (edgeProp c).map fun q => (⟨p.1, .base q, .own⟩ : Change WkPropX)) =
       (List.range N).map (fun i => ⟨4 + i, .base .opacityCross1, .own⟩) := by
-    clear hz
     induction N with
     | zero => rfl
     | succ n ih =>
-      rw [List.range_succ, List.map_append, List.flatMap_append, ih, List.map_append]
+      rw [cardAnims, List.range_succ, List.flatMap_append, List.map_append, List.flatMap_append, ← cardAnims, ih,
+        List.map_append]
       rfl
-  cases l <;> simp only [wkEdgeChanges, wkTargets, wkAnims, List.cons_append, List.nil_append, List.zip_cons_cons, hz,
-    List.flatMap_cons, hc, ite_true, ite_false, Bool.false_eq_true] <;> rfl
+  rw [wkEdgeChanges, wkTargets, wkAnims, hz, exitAnims_eq, List.map_append, List.flatMap_append, hc]
+  cases l <;> rfl
 
 /-- Every edge row dirties exactly the edge stages.
 

@@ -154,6 +154,7 @@ import Fw.Device.FinishRuns
 import Fw.Device.SimTouch
 import Fw.Device.SimRelaunch
 import Fw.Device.SweepPause
+import Fw.Device.ColsProbe
 import Fw.Device.RecalcSource
 import Fw.Device.RecalcBisect
 import Fw.Device.GlintHold

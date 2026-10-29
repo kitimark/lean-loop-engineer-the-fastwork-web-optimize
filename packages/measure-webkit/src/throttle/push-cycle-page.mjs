@@ -19,3 +19,7 @@ export const EXTRA_FETCH_JS = `(() => JSON.stringify(window.__fwPcx || { rz: [],
 
 export const STAMP_JS = "(() => { if (window.__fwStamp) return 'on'; window.__fwStamp = setInterval(() => { performance.mark('fwpc:' + performance.now().toFixed(1)); performance.clearMarks(); }, 500); return 'on'; })()";
 
+export const COLS_LOG_JS = "(() => { window.__fwColsLog = []; window.__fwTakeTrace = (e) => { try { window.__fwColsLog.push({ kind: e.kind, dark: e.kind === 'push' ? document.querySelector('nav.is-on-dark') !== null : null }); } catch (_) {} }; return 'on'; })()";
+
+export const COLS_LOG_FETCH_JS = "(() => JSON.stringify(window.__fwColsLog || []))()";
+

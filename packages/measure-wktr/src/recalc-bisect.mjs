@@ -1,5 +1,3 @@
-// TS stand-in of lean/Fw/Device/RecalcBisect.lean: replays packages/contracts/golden/device/recalc-bisect.jsonl (test/recalc-bisect.test.mjs).
-// reportToJob and bisectTally are glue (not golden-replayed).
 export const BS_ARMS = ['bs-facts', 'bs-full-a', 'bs-hidden-a', 'bs-obs', 'bs-l1', 'bs-l2', 'bs-deep', 'bs-hold', 'bs-kill', 'bs-pause', 'bs-full-b', 'bs-hidden-b'];
 export const BS_C = { minFrames: 40, minSpread: 50, bandDen: 4, maxDepth: 6, minValid: 2 };
 
@@ -74,7 +72,6 @@ export function overall(rs) {
   return { name: `named ${lead.join(' > ')}`, next: NEXT.named };
 }
 
-// Stage 2 (Lean carrier / holder): kill/<feature> arms and only/<child> arms of the same job, read against its own hi and lo.
 export const KILL = 'kill';
 export const ONLY = 'only';
 export const PAUSE = 'pause';
