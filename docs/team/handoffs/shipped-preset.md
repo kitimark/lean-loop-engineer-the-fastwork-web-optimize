@@ -1,9 +1,8 @@
 # shipped-preset handoff
 
-- Branch `worktree-wf_b22a9092-874-1`, worktree `.claude/worktrees/wf_b22a9092-874-1`. No CI runs (none needed: no
-  CI or phone runs in this task).
-- State: Lean rule, goldens, site registry and test committed; check.sh green at fb2934b2e (slot, cached);
-  `@fw/site` test 166 files / 8465 tests pass.
+- Branch `worktree-wf_b22a9092-874-1`, worktree `.claude/worktrees/wf_b22a9092-874-1`. No CI or phone runs.
+- State: committed, main merged at b8fda182f; check.sh green there (slot; axiom check 0 failing); `@fw/site`
+  166 files / 8465 tests, `@fw/runner` 118 / 3704, `@fw/contracts` 11, ci-paths 56 pass.
 
 ## What is verified
 - `lean/Fw/Preset/Shipped.lean`: `shipped = v2-proved ++ extras` (first look-accepted flag per free part),
@@ -18,12 +17,14 @@
 ## Outside the graph writes (declared reads)
 - `lean/Fw/Console/LandSpeed.lean` (+ regenerated `apps/runner/src/land-reads.gen.ts`,
   `packages/contracts/golden/console/land-speed.jsonl`): `shipped.json` as a check.sh read.
-- `lean/Fw/Ops/CheckMap.lean`, `scripts/checkmap.mjs`: `shipped.json` and `Shipped.lean` as preset generator inputs
-  (without it the staged pre-commit preset check fails on a missing `shipped.json`).
+- `lean/Fw/Ops/CheckMap.lean`, `scripts/checkmap.mjs`, `scripts/test-checkmap.mjs` (fixture): `shipped.json` and
+  `Shipped.lean` as preset generator inputs (without them the staged preset check misses `shipped.json`).
+- `apps/runner/src/land.ts`: apps/site reads add the two shipped goldens `shipped.test.ts` reads.
 
 ## Open
+- `scripts/test-checkmap.mjs` case "all N modules of Gen's import closure are inputs" fails on main too: Gen imports
+  `Fw.Parts.*` and Trajectory imports `Fw.Ci.Pool.Caps`, which `CheckMap.presetInputKey` does not list.
 - Site default preset unchanged (lead decides). When an accepted L flag passes both gates, `Gen.run` adds it.
 
 ## Conventions
-- Never hand-edit the shipped files; regenerate: from `lean/`,
-  `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run []\n' | lake env lean --stdin`.
+- Never hand-edit the shipped files; regenerate from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run []\n' | lake env lean --stdin`.
