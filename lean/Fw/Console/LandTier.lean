@@ -438,7 +438,14 @@ def overflowWidthsReads : List String :=
   ["lean/Fw/Ci/Overflow.lean", "lean/land-legs.txt", "apps/runner/test/land-overflow-widths.test.ts", "apps/runner/test/workflow-widths.ts",
    "apps/runner/src/run.ts", Fw.Console.LandSpeed.fwcoreBin]
 
-def localTests : List Fw.Console.LandSpeed.Decl := [⟨composeId, composeReads⟩, ⟨overflowWidthsId, overflowWidthsReads⟩]
+def ledgerNotesId : String := "runner:ledger-notes"
+
+def ledgerNotesReads : List String :=
+  ["research/findings/ledger.json", "research/mistakes/ledger.json", "docs/team/incidents/ledger.json",
+   "apps/runner/test/ledger-merge.test.ts", "apps/runner/test/land-notes.test.ts", "apps/runner/src/land-notes.ts", "scripts/merge-ledger.mjs"]
+
+def localTests : List Fw.Console.LandSpeed.Decl :=
+  [⟨composeId, composeReads⟩, ⟨overflowWidthsId, overflowWidthsReads⟩, ⟨ledgerNotesId, ledgerNotesReads⟩]
 
 def selectLocal (changed : List String) : List String := Fw.Console.LandSpeed.selectChecks localTests changed
 
@@ -516,6 +523,30 @@ theorem plannerFiles_select : ∀ x ∈ plannerFiles, overflowWidthsId ∈ selec
   rcases hx with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp (config := {decide := true}) [Fw.Ops.PathCheck.inScope, e1, e2, e3, e4, e5, e6, e7, Fw.Ops.PathCheck.matchesPath,
       Fw.Ops.PathCheck.globMatch, Fw.Ops.PathCheck.segMatch, List.range_succ]
 
+theorem ledgerNotes_reads_ledger :
+    Fw.Ops.PathCheck.inScope (Fw.Ops.PathCheck.parseScope ledgerNotesReads) "research/findings/ledger.json" = true := by
+  have e : Fw.Ops.PathCheck.segs "research/findings/ledger.json" = ["research", "findings", "ledger.json"] := by
+    simp (config := {decide := true}) [Fw.Ops.PathCheck.segs, String.splitOn, String.splitOnAux]
+  have h : ledgerNotesReads.filter (!·.startsWith "!") = ledgerNotesReads := by
+    simp (config := {decide := true}) [ledgerNotesReads]
+  have h2 : ledgerNotesReads.filter (·.startsWith "!") = [] := by
+    simp (config := {decide := true}) [ledgerNotesReads]
+  rw [Fw.Ops.PathCheck.inScope_iff]
+  refine ⟨by simp [e], by simp [e], ⟨["research", "findings", "ledger.json"], ?_, ?_⟩, ?_⟩
+  · simp only [Fw.Ops.PathCheck.parseScope, List.mem_map]
+    exact ⟨"research/findings/ledger.json", by simp (config := {decide := true}) [ledgerNotesReads], e⟩
+  · simp [e, Fw.Ops.PathCheck.matchesPath, Fw.Ops.PathCheck.globMatch, Fw.Ops.PathCheck.segMatch, List.range_succ]
+  · simp only [Fw.Ops.PathCheck.parseScope, h2, List.map_nil]
+    simp
+
+theorem ledger_selects_notes (changed : List String) (hx : "research/findings/ledger.json" ∈ changed) :
+    ledgerNotesId ∈ selectLocal changed :=
+  selects_reader localTests changed ⟨ledgerNotesId, ledgerNotesReads⟩ (by simp [localTests]) _ hx ledgerNotes_reads_ledger
+
+theorem ledgerNotes_local : tier ledgerNotesId = .onMac := by decide
+
+theorem ledgerNotes_no_core : isCoreUser ledgerNotesId = false := by decide
+
 theorem overflowWidths_local : tier overflowWidthsId = .onMac := by decide
 
 theorem overflowWidths_core_user : isCoreUser overflowWidthsId = true := by decide
@@ -530,7 +561,10 @@ theorem overflowWidths_core_user : isCoreUser overflowWidthsId = true := by deci
 #guard selectLocal [".github/CODEOWNERS"] == []
 #guard selectLocal ["apps/site/src/parts/morph.columns/part.json"] == [composeId]
 #guard selectLocal ["apps/site/src/parts/nav/part.json", "docs/x.md"] == [composeId]
-#guard selectLocal ["research/findings/ledger.json"] == [composeId]
+#guard selectLocal ["research/findings/ledger.json"] == [composeId, ledgerNotesId]
+#guard selectLocal ["research/mistakes/ledger.json"] == [ledgerNotesId]
+#guard selectLocal ["apps/runner/src/land-notes.ts"] == [ledgerNotesId]
+#guard selectLocal ["research/findings/other.json"] == []
 #guard selectLocal ["apps/console-api/src/preview/compose.ts"] == [composeId]
 #guard selectLocal ["apps/site/src/parts/nav/index.ts"] == []
 #guard selectLocal ["docs/team/tools/land.md"] == []
@@ -545,7 +579,12 @@ def localLine (name : String) (changed : List String) : Json :=
 def localCases (_ : Unit) : List Json :=
   [localLine "part.json selects compose" ["apps/site/src/parts/morph.columns/part.json"],
    localLine "part.json among others selects compose" ["docs/team/handoffs/x.md", "apps/site/src/parts/nav/part.json"],
-   localLine "findings ledger selects compose" ["research/findings/ledger.json"],
+   localLine "findings ledger selects compose and the ledger tests" ["research/findings/ledger.json"],
+   localLine "findings ledger among other files selects the ledger tests (incident 2026-10-29)" ["docs/x.md", "research/findings/ledger.json", "apps/site/src/x.ts"],
+   localLine "mistakes ledger selects the ledger tests" ["research/mistakes/ledger.json"],
+   localLine "incident ledger selects the ledger tests" ["docs/team/incidents/ledger.json"],
+   localLine "note rule selects the ledger tests" ["apps/runner/src/land-notes.ts"],
+   localLine "ledger test selects the ledger tests" ["apps/runner/test/ledger-merge.test.ts"],
    localLine "preset selects compose" ["apps/site/src/registry/presets/original.json"],
    localLine "compose source selects compose" ["apps/console-api/src/preview/compose.ts"],
    localLine "compose test selects compose" ["apps/console-api/test/compose.test.ts"],

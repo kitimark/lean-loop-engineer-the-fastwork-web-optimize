@@ -93,6 +93,8 @@ for (const f of ["research/findings/ledger.json", "apps/site/src/registry/preset
   mkdirSync(dirname(join(pdir, f)), { recursive: true });
   copyFileSync(join(repo, f), join(pdir, f));
 }
+mkdirSync(join(pdir, "apps/runner/src"), { recursive: true });
+copyFileSync(join(repo, "apps/runner/src/land-notes.ts"), join(pdir, "apps/runner/src/land-notes.ts"));
 cpSync(join(repo, "packages/contracts/golden/preset"), join(pdir, "packages/contracts/golden/preset"), { recursive: true });
 for (const d of readdirSync(join(repo, "apps/site/src/parts"))) {
   const src = join(repo, "apps/site/src/parts", d, "part.json");
@@ -170,6 +172,31 @@ pr = pcheck("--staged");
 expect("preset: staged ledger change deleted from the working tree still runs the check", /(ok|FAIL) presetCheck/.test(pr.stderr));
 pgit("reset", "-q");
 pgit("checkout", "--", ".");
+{
+  const doc = JSON.parse(goodLedger);
+  const f0 = doc.findings[0];
+  const note = { entry: f0.candidate, task: "fixture", field: "mechanism", text: "a fixture note" };
+  const stageNote = (n) => {
+    writeFileSync(ledger, JSON.stringify({ ...doc, notes: [...(doc.notes ?? []), n] }, null, 1) + "\n");
+    pgit("add", "--", "research/findings/ledger.json");
+    writeFileSync(ledger, goodLedger);
+    const r = pcheck("--staged");
+    pgit("reset", "-q");
+    pgit("checkout", "--", ".");
+    return r;
+  };
+  let nr = stageNote(note);
+  expect("ledger notes: a staged note naming a candidate and a findings field passes and the check ran", nr.status === 0 && /ok ledgerNotes/.test(nr.stderr));
+  nr = stageNote({ ...note, entry: "free text that is not a candidate" });
+  expect("ledger notes: a staged note whose entry is free text (cols-probe) is refused", nr.status === 1 && /FAIL ledgerNotes/.test(nr.stderr) && /not the candidate of a finding/.test(nr.stderr));
+  nr = stageNote({ ...note, field: "gate" });
+  expect("ledger notes: a staged note whose field is not a findings field (hero-exit-gate-clear) is refused", nr.status === 1 && /FAIL ledgerNotes/.test(nr.stderr) && /not a findings field/.test(nr.stderr));
+  nr = stageNote({ ...note, text: "" });
+  expect("ledger notes: a staged note with an empty text is refused", nr.status === 1 && /FAIL ledgerNotes/.test(nr.stderr));
+  const plain = spawnSync("node", ["scripts/checkmap.mjs", "--verbose", "--paths", "docs/x.md"], { cwd: pdir, encoding: "utf8", env });
+  expect("ledger notes: a change that leaves the ledger alone plans no ledger check", !/ledgerNotes/.test(plain.stderr));
+}
+
 pgit("rm", "-q", "--cached", "--", "scripts/checkmap.mjs");  // an unrelated deletion runs nothing
 expect("preset: a staged deletion of a non-input runs no preset check", !/presetCheck/.test(pcheck("--staged").stderr));
 pgit("reset", "-q", "--", "scripts/checkmap.mjs");

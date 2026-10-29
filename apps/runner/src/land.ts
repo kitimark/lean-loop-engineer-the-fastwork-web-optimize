@@ -20,6 +20,7 @@ import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePush
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
+import { noteShapeProblems } from "./land-notes.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -225,18 +226,22 @@ export const COMPOSE_READS = ["apps/site/src/parts/*/part.json", "apps/site/src/
   "apps/console-api/test/compose.test.ts", "packages/contracts/golden/console/console.compose.jsonl", "lean/.lake/build/bin/fwcore"];
 export const LAND_TIER_LOCAL_GOLDEN = "packages/contracts/golden/console/land-tier-local.jsonl";
 export const LAND_TIER_LOCAL_ROW = "nothing changed";
-export function overflowWidthsReadsFromGolden(goldenPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", LAND_TIER_LOCAL_GOLDEN)): string[] {
+export function localReadsFromGolden(id: string, goldenPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", LAND_TIER_LOCAL_GOLDEN)): string[] {
   const rows = readFileSync(goldenPath, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { name: string; request: { tests: { id: string; reads: string[] }[] } });
   const row = rows.find((r) => r.name === LAND_TIER_LOCAL_ROW);
   if (!row) throw new Error(`${goldenPath}: no row named ${LAND_TIER_LOCAL_ROW}`);
-  const t = row.request.tests.find((x) => x.id === "runner:overflow-widths");
-  if (!t) throw new Error(`${goldenPath}: no runner:overflow-widths test`);
+  const t = row.request.tests.find((x) => x.id === id);
+  if (!t) throw new Error(`${goldenPath}: no ${id} test`);
   return t.reads;
 }
+export const overflowWidthsReadsFromGolden = (goldenPath?: string): string[] => localReadsFromGolden("runner:overflow-widths", goldenPath);
 export const OVERFLOW_WIDTHS_READS = overflowWidthsReadsFromGolden();
+export const LEDGER_NOTES_ID = "runner:ledger-notes";
+export const LEDGER_NOTES_READS = localReadsFromGolden(LEDGER_NOTES_ID);
 export const LOCAL_TESTS: Check[] = [
   { id: "console-api:compose", argv: ["pnpm", "--filter", "./apps/console-api", "exec", "vitest", "run", "test/compose.test.ts"], reads: COMPOSE_READS },
   { id: "runner:overflow-widths", argv: ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-overflow-widths.test.ts"], reads: OVERFLOW_WIDTHS_READS },
+  { id: LEDGER_NOTES_ID, argv: ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/ledger-merge.test.ts", "test/land-notes.test.ts"], reads: LEDGER_NOTES_READS },
 ];
 
 export const WORKFLOW_LINT: Check = { id: WORKFLOW_LINT_ID, argv: WORKFLOW_LINT_ARGV, reads: WORKFLOW_LINT_READS };
@@ -328,7 +333,10 @@ export function ledgerNoteKeyCheck(dir: string): string | null {
   try { notes = (JSON.parse(raw) as { notes?: unknown }).notes; } catch { return `ledger-note-key: ${LEDGER_FILE} is not valid JSON`; }
   if (!Array.isArray(notes)) return null;
   const keyed = notes.filter((n): n is NoteKey & { field?: unknown } => typeof n?.entry === "string" && typeof n?.task === "string");
-  return noteKeyRefusal(LEDGER_FILE, keyed);
+  const dup = noteKeyRefusal(LEDGER_FILE, keyed);
+  if (dup) return dup;
+  const shape = noteShapeProblems(raw);
+  return shape.length ? `ledger-note-shape: ${LEDGER_FILE} has notes the ledger tests refuse:\n${shape.map((l) => `  ${l}`).join("\n")}` : null;
 }
 
 export function writeEvidence(dir: string, task: string, evidence: string): "written" | "present" | "none" | "failed" {

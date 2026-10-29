@@ -4697,6 +4697,31 @@
    "leanVerdict": "provable",
    "leanReason": "The lane selection is already a Lean function of (message, changed paths); the pre-push refusal is that function plus a subset check against the task's lanes.",
    "hardening": "ci-push-lane-check"
+  },
+  {
+   "id": "inc-ledger-note-late",
+   "at": "2026-10-29T12:00+07:00",
+   "title": "Two lands were refused only at the remote suite: a findings-ledger note with a non-field field and one with a free-text entry",
+   "symptom": "hero-exit-gate-clear wrote a note with field 'gate' (not a findings field) and cols-probe wrote a note whose entry was free text, not a candidate. apps/runner test/ledger-merge.test.ts ('every note names a finding by its candidate, carries task, field and text, and the keys are distinct') refused both lands at the remote suite. The builders' checks, the commit checkmap and the dry land all passed.",
+   "cause": "CONFIRMED (lean/Fw/Ops/CheckMap.lean, lean/Fw/Console/LandTier.lean at ecb263a65): research/findings/ledger.json was routed to the preset check only, and the dry land's local tier selected the ledger test neither by that path nor by any read; the dry land's own ledger check judged only the (entry, task) key.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/test/ledger-merge.test.ts",
+     "note": "the test that refused both lands"
+    }
+   ],
+   "repro": "Stage research/findings/ledger.json with a note whose field is 'gate' (or whose entry is prose) and commit: the commit checkmap and the dry land pass; the land's remote suite refuses.",
+   "fix": {
+    "task": "ledger-note-check",
+    "commits": [],
+    "note": "Lean Fw.Ops.CheckMap Check.ledgerNotes (ledgerInput, findingsLedger_planned) plans `checkmap file ledger` on every ledger change in the blocking commit hook; Lean Fw.Console.LandTier ledgerNotesReads and ledger_selects_notes select the ledger tests in the dry land's local tier; the shared rule is apps/runner/src/land-notes.ts; fixtures in apps/runner/test/land-notes.test.ts and scripts/test-checkmap.mjs."
+   },
+   "regression": "Two lands in one day (hero-exit-gate-clear, cols-probe).",
+   "mistakeClass": "c-late-check",
+   "leanVerdict": "provable",
+   "leanReason": "Check selection is a Lean function of the changed paths; 'a change to research/findings/ledger.json selects the ledger tests' is proved as findingsLedger_planned and ledger_selects_notes.",
+   "hardening": "ledger-note-check"
   }
  ]
 }

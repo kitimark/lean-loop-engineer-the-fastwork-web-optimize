@@ -23719,8 +23719,12 @@
     "scripts/checkmap.mjs",
     "scripts/test-checkmap.mjs",
     "scripts/checkmap*.test.mjs",
-    "packages/contracts/golden/checkmap/**"
-   ]
+    "packages/contracts/golden/checkmap/**",
+    "lean/Fw/Console/LandTier.lean",
+    "lean/scripts/CheckMapGolden.lean",
+    "packages/contracts/golden/console/land-tier-local.jsonl"
+   ],
+   "evidence": "ac45bc5"
   }
  ],
  "deadline": {
