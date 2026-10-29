@@ -21,6 +21,8 @@
 // With `P.mid` (timed, task geom-webkit-midflip) the arms are read at those phases of the tween instead (state, pending, accelerated,
 // threaded flag, `timeToNextAnimationTick`, per-frame recalc counts) before the settle cancel.
 
+import { BS_C } from './recalc-bisect.mjs';
+
 export const PROPS = ['translate', 'scale', 'transform', 'opacity', 'filter', 'backdrop-filter'];
 export const ARMS = ['all', ...PROPS.map((p) => `no-${p}`), 'none', 'idle', 'all-again'];
 
@@ -479,14 +481,47 @@ function pageProbe(P) {
     };
     window.setTimeout = wrapTimer(origST);
     window.setInterval = wrapTimer(origSI);
-    for (const m of ['insertRule', 'deleteRule', 'replaceSync']) {
+    for (const m of ['insertRule', 'deleteRule', 'replaceSync', 'replace', 'addRule', 'removeRule']) {
       const f = CSSStyleSheet.prototype[m];
       if (typeof f === 'function') CSSStyleSheet.prototype[m] = function () { S.add('cssom:' + m); return f.apply(this, arguments); };
+    }
+    // Task geom-recalc-bisect: the candidates geom-recalc-source left unwrapped. Each logs a key in the frame it runs (only while S.cur is set).
+    S.cn = { ro: 0, io: 0, mql: 0, roT: {}, ioT: {} };
+    for (const t of ['scroll', 'scrollend', 'resize', 'pointermove', 'pointerdown', 'pointerup', 'pointerover', 'touchstart', 'touchmove', 'wheel', 'transitionrun', 'transitionstart', 'transitionend', 'transitioncancel', 'animationstart', 'animationiteration', 'animationend', 'animationcancel', 'visibilitychange', 'focusin', 'focusout', 'mouseover', 'mousemove', 'readystatechange']) window.addEventListener(t, () => S.add('ev:' + t), true);
+    for (const nm of ['ResizeObserver', 'IntersectionObserver']) {
+      const Orig = window[nm];
+      if (typeof Orig !== 'function') continue;
+      const tg = nm === 'ResizeObserver' ? 'ro' : 'io';
+      const obs = Orig.prototype.observe;
+      Orig.prototype.observe = function (el) { const k = S.partOf(el); S.cn[tg + 'T'][k] = (S.cn[tg + 'T'][k] || 0) + 1; return obs.apply(this, arguments); };
+      window[nm] = class extends Orig { constructor(cb, o) { const s = site(); super(typeof cb === 'function' ? function () { S.add(tg + ':' + s); return cb.apply(this, arguments); } : cb, o); S.cn[tg]++; } };
+    }
+    const origQM = window.queueMicrotask && window.queueMicrotask.bind(window);
+    if (origQM) window.queueMicrotask = function (fn) { if (typeof fn !== 'function') return origQM(fn); const s = site(); return origQM(function () { S.add('micro:' + s); return fn.apply(this, arguments); }); };
+    const origMM = window.matchMedia && window.matchMedia.bind(window);
+    if (origMM) window.matchMedia = function (q) { const m = origMM(q); S.cn.mql++; try { m.addEventListener('change', () => S.add('mql:' + String(q).slice(0, 40))); } catch (x) { } return m; };
+    for (const nm of ['CSSStyleDeclaration', 'CSSStyleProperties']) {
+      const proto = window[nm] && window[nm].prototype;
+      if (!proto) continue;
+      for (const k of Object.getOwnPropertyNames(proto)) {
+        const d = Object.getOwnPropertyDescriptor(proto, k);
+        if (!d || !d.configurable) continue;
+        if (typeof d.value === 'function' && (k === 'setProperty' || k === 'removeProperty')) proto[k] = function () { if (this.parentRule) S.add('cssom:rule.' + k); return d.value.apply(this, arguments); };
+        else if (d.set) Object.defineProperty(proto, k, { get: d.get, set(v) { if (this.parentRule) S.add('cssom:rule.set'); d.set.call(this, v); }, configurable: true, enumerable: d.enumerable });
+      }
+    }
+    for (const C of [window.Document, window.ShadowRoot]) {
+      const d = C && Object.getOwnPropertyDescriptor(C.prototype, 'adoptedStyleSheets');
+      if (d && d.set) Object.defineProperty(C.prototype, 'adoptedStyleSheets', { get: d.get, set(v) { S.add('cssom:adopted'); d.set.call(this, v); }, configurable: true, enumerable: d.enumerable });
+    }
+    for (const [C, m] of [[Element, 'scrollIntoView'], [Element, 'scrollTo'], [Element, 'scrollBy'], [HTMLElement, 'focus'], [Window, 'scrollTo'], [Window, 'scrollBy']]) {
+      const f = C.prototype[m];
+      if (typeof f === 'function') C.prototype[m] = function () { S.add('call:' + m); return f.apply(this, arguments); };
     }
   }
   const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
-  const rsWindow = async (idle, tw, v, kt) => {
+  const rsWindow = async (idle, tw, v, kt, ms) => {
     const rec = v === 'obs' || v === 'obsf';
     const fl = v === 'obsf';
     const dur = P.durationMs;
@@ -531,7 +566,7 @@ function pageProbe(P) {
         if (S.cur) S.cur = new Set();
         frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z });
         prev = c;
-        if (idle) { if (now - t0 >= P.rsIdleMs) break; } else {
+        if (idle) { if (now - t0 >= (ms || P.rsIdleMs)) break; } else {
           const ph = phase();
           if ((ph >= 1 ? ++post > 2 : false) || now - t0 > P.capMs) break;
         }
@@ -614,6 +649,169 @@ function pageProbe(P) {
     return out;
   };
 
+  // Task geom-recalc-bisect. Arms bs-*: idle, every running animation paused, one subtree hidden at a time by a probe stylesheet
+  // (display:none on [data-fw-bs=n], a tag this probe sets on the subtree root; the part id is its data-fw, else tag#id, repeated ids
+  // get [n]). The page only schedules which subtrees to read (stand-in of Lean cls/descend); the verdict is decided offline.
+  const BS_SKIP = new Set(['SCRIPT', 'STYLE', 'LINK', 'META', 'NOSCRIPT', 'TEMPLATE', 'TITLE', 'BASE']);
+  const B = X.bs = { tag: 0, css: null, parts: [], reads: {}, c: P.bsC || {} };
+  const bsRaw = (el) => el.getAttribute('data-fw') || (el.localName + (el.id ? '#' + el.id : ''));
+  const bsRendered = (el) => Array.from(el.children).filter((c) => !BS_SKIP.has(c.tagName) && getComputedStyle(c).display !== 'none');
+  const bsKids = (el) => {
+    let k = bsRendered(el);
+    while (k.length === 1 && bsRendered(k[0]).length > 0) k = bsRendered(k[0]);
+    return k;
+  };
+  const bsEnum = (parent) => {
+    const sibs = bsKids(parent.el);
+    const seen = {};
+    return sibs.map((el) => {
+      const raw = bsRaw(el);
+      const n = seen[raw] || 0;
+      seen[raw] = n + 1;
+      const id = n ? raw + '[' + n + ']' : raw;
+      el.setAttribute('data-fw-bs', String(++B.tag));
+      const part = { path: parent.path ? parent.path + ' > ' + id : id, parent: parent.path, el: el, n: B.tag, kids: bsKids(el).length, tag: el.localName };
+      B.parts.push(part);
+      return part;
+    });
+  };
+  const bsStyle = () => B.css || (B.css = document.head.appendChild(document.createElement('style')));
+  const bsRead = async (css, v) => {
+    const st = bsStyle();
+    await toBottom();
+    await sleep(250);
+    const toPause = document.getAnimations().filter((a) => a.playState === 'running');
+    for (const a of toPause) a.pause();
+    await raf(); await raf(); await sleep(200);
+    if (css) { st.textContent = css; await raf(); await raf(); await sleep(250); }
+    const kt = [];
+    const t0 = performance.now();
+    const fr = await rsWindow(true, 0, v, kt, P.bsIdleMs);
+    const r = { frames: fr.length, recalcs: fr.reduce((s, f) => s + f.r, 0), pre: fr.reduce((s, f) => s + (f.p || 0), 0), ms: Math.round(performance.now() - t0), paused: toPause.length };
+    if (v === 'obs') { r.kt = kt; r.fr = fr; }
+    st.textContent = '';
+    for (const a of toPause) { try { a.play(); } catch (x) { } }
+    await sleep(300);
+    return r;
+  };
+  const bsRate = (r) => (r.frames === 0 ? 0 : Math.floor((r.recalcs * 100) / r.frames));
+  const bsEnds = () => {
+    const ok = (r) => r.frames >= B.c.minFrames;
+    const full = (B.reads.full || []).filter(ok).map(bsRate);
+    const hid = (B.reads.hidden || []).filter(ok).map(bsRate);
+    if (!full.length || !hid.length) return null;
+    const hi = Math.min(100, ...full);
+    const lo = Math.max(0, ...hid);
+    return { hi: hi, lo: lo, band: Math.floor(Math.max(0, hi - lo) / B.c.bandDen) };
+  };
+  const bsHidePart = async (part) => {
+    const r = await bsRead('[data-fw-bs="' + part.n + '"]{display:none!important}', 'floor');
+    return { path: part.path, parent: part.parent, kids: part.kids, tag: part.tag, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused };
+  };
+  const BS_FEAT = [
+    ['sticky', (g) => g('position') === 'sticky'], ['fixed', (g) => g('position') === 'fixed'],
+    ['container', (g) => !['', 'normal'].includes(g('container-type'))], ['contentVis', (g) => !['', 'visible'].includes(g('content-visibility'))],
+    ['animTimeline', (g) => !['', 'auto'].includes(g('animation-timeline'))], ['scrollTl', (g) => !['', 'none'].includes(g('scroll-timeline-name'))],
+    ['viewTl', (g) => !['', 'none'].includes(g('view-timeline-name'))], ['anchor', (g) => !['', 'none'].includes(g('anchor-name'))],
+    ['cssAnim', (g) => !['', 'none'].includes(g('animation-name'))], ['willChange', (g) => !['', 'auto'].includes(g('will-change'))],
+    ['snap', (g) => !['', 'none'].includes(g('scroll-snap-type'))], ['contain', (g) => !['', 'none'].includes(g('contain'))],
+    ['backdrop', (g) => !['', 'none'].includes(g('backdrop-filter'))], ['filter', (g) => !['', 'none'].includes(g('filter'))],
+    ['scrollable', (g) => /auto|scroll/.test(g('overflow-x') + g('overflow-y'))], ['ovAnchor', (g) => !['', 'auto'].includes(g('overflow-anchor'))],
+  ];
+  const BS_TAGS = ['video', 'canvas', 'iframe', 'svg', 'animate', 'animateTransform', 'animateMotion', 'set', 'img', 'picture', 'input', 'textarea', 'marquee', 'dialog'];
+  const bsFeatures = (root) => {
+    const out = {};
+    const add = (k) => { out[k] = (out[k] || 0) + 1; };
+    for (const el of [root].concat(Array.from(root.querySelectorAll('*')))) {
+      const cs = getComputedStyle(el);
+      const g = (p) => cs.getPropertyValue(p);
+      for (const [k, f] of BS_FEAT) { try { if (f(g)) add(k); } catch (x) { } }
+      if (BS_TAGS.includes(el.localName)) add('<' + el.localName + '>');
+      if (el.isContentEditable) add('editable');
+    }
+    return out;
+  };
+  const bsRules = () => {
+    const out = { sheets: document.styleSheets.length, rules: 0, kinds: {}, hits: {} };
+    const pats = { has: /:has\(/, hover: /:hover/, focus: /:focus/, target: /:target/, scrollFn: /\b(scroll|view)\(/, viewTransition: /view-transition/, sticky: /sticky/, timeline: /animation-timeline|scroll-timeline|view-timeline/, container: /container-type|@container/, contentVis: /content-visibility/ };
+    const walk = (rules) => {
+      for (const r of Array.from(rules)) {
+        out.rules++;
+        const k = r.constructor && r.constructor.name;
+        out.kinds[k] = (out.kinds[k] || 0) + 1;
+        const t = r.cssText || '';
+        for (const pk in pats) if (pats[pk].test(t)) out.hits[pk] = (out.hits[pk] || 0) + 1;
+        if (r.cssRules) walk(r.cssRules);
+      }
+    };
+    for (const sh of Array.from(document.styleSheets)) { try { walk(sh.cssRules); } catch (x) { out.blocked = (out.blocked || 0) + 1; } }
+    out.adopted = document.adoptedStyleSheets ? document.adoptedStyleSheets.length : -1;
+    return out;
+  };
+  const BS_RE = /^bs-(facts|full-a|full-b|hidden-a|hidden-b|obs|l1|l2|deep|only)$/;
+  const bsArm = async (arm, kind) => {
+    X.arm = arm;
+    const out = { arm: arm, mode: 'timed', stages: [], engaged: !!(I && typeof I.styleRecalcCount === 'function'), bs: { kind: kind } };
+    const top = { path: '', el: document.body };
+    if (kind === 'facts') {
+      const l1 = bsEnum(top);
+      for (const p of l1) bsEnum(p);
+      out.bs.parts = B.parts.map((p) => ({ path: p.path, parent: p.parent, kids: p.kids, tag: p.tag, feat: bsFeatures(p.el) }));
+      out.bs.body = bsFeatures(document.body);
+      out.bs.rules = bsRules();
+      out.bs.cn = { ro: S.cn.ro, io: S.cn.io, mql: S.cn.mql, roT: S.cn.roT, ioT: S.cn.ioT };
+      out.bs.active = document.activeElement ? bsRaw(document.activeElement) : null;
+    } else if (kind === 'full-a' || kind === 'full-b') {
+      const r = await bsRead('', 'floor');
+      (B.reads.full = B.reads.full || []).push(r);
+      out.bs.read = r;
+    } else if (kind === 'hidden-a' || kind === 'hidden-b') {
+      const r = await bsRead('body{display:none!important}', 'floor');
+      (B.reads.hidden = B.reads.hidden || []).push(r);
+      out.bs.read = r;
+    } else if (kind === 'obs') {
+      const r = await bsRead('', 'obs');
+      out.rs = { kind: 'idle', v: 'obs', kt: r.kt, frames: r.fr, reps: 0 };
+      out.bs.read = { frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms };
+    } else if (kind === 'l1' || kind === 'l2') {
+      const want = kind === 'l1' ? B.parts.filter((p) => p.parent === '') : B.parts.filter((p) => p.parent !== '');
+      out.bs.level = kind;
+      out.bs.reads = [];
+      for (const p of want.slice(0, 40)) out.bs.reads.push(await bsHidePart(p));
+      B.reads[kind] = out.bs.reads;
+    } else if (kind === 'only') {
+      // Diagnostic outside the Lean decision: show one top-level part, hide the others (used when hiding one part at a time names none).
+      const l1 = B.parts.filter((p) => p.parent === '');
+      out.bs.reads = [];
+      for (const keep of l1) {
+        const r = await bsRead(l1.filter((p) => p !== keep).map((p) => '[data-fw-bs="' + p.n + '"]{display:none!important}').join(''), 'floor');
+        out.bs.reads.push({ path: 'only ' + keep.path, parent: '', kids: keep.kids, tag: keep.tag, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+      }
+    } else if (kind === 'deep') {
+      out.bs.reads = [];
+      const e = bsEnds();
+      out.bs.ends = e;
+      const dropped = (r) => e && r.frames >= B.c.minFrames && bsRate(r) <= e.lo + e.band;
+      const lowest = (rs) => rs.filter(dropped).sort((a, b) => bsRate(a) - bsRate(b))[0];
+      let cur = lowest(B.reads.l1 || []);
+      let at = cur;
+      if (cur) cur = lowest((B.reads.l2 || []).filter((r) => r.parent === cur.path));
+      for (let d = 0; cur && d < 6 && out.bs.reads.length < 24; d++) {
+        at = cur;
+        const part = B.parts.find((p) => p.path === cur.path);
+        if (!part || part.kids === 0) break;
+        const kids = bsEnum(part);
+        const rs = [];
+        for (const k of kids) rs.push(await bsHidePart(k));
+        for (const r of rs) out.bs.reads.push(r);
+        cur = lowest(rs);
+      }
+      out.bs.at = at ? at.path : null;
+    }
+    await sleep(100);
+    return out;
+  };
+
   const timedArm = async (arm) => {
     X.arm = arm;
     X.suppress = armSet(arm);
@@ -686,7 +884,8 @@ function pageProbe(P) {
       for (const arm of P.arms) {
         const swm = SW_ARM.exec(arm);
         const rsm = RS_ARM.exec(arm);
-        const r = rsm ? await rsArm(arm, rsm[1], rsm[2] || '') : swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
+        const bsm = BS_RE.exec(arm);
+        const r = bsm ? await bsArm(arm, bsm[1]) : rsm ? await rsArm(arm, rsm[1], rsm[2] || '') : swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
         X.rows.push(r);
       }
     } catch (e) {
@@ -701,8 +900,8 @@ function pageProbe(P) {
 }
 
 /** The init script for one mode. params: mode, arms, sweepFrames, windowMs, settleMs. */
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500 } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => String(a).startsWith('rs-')), rsReps, rsIdleMs })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC })});`;
 }
