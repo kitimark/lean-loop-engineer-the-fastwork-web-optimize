@@ -1,6 +1,6 @@
 # Handoff: phone-feel-kit
 
-- Branch `worktree-wf_a4f669cd-67c-1`; worktree `.claude/worktrees/wf_a4f669cd-67c-1`; last code commit 9b8b96eac (this handoff is the commit after it).
+- Branch `worktree-wf_a4f669cd-67c-1`; worktree `.claude/worktrees/wf_a4f669cd-67c-1`; last code commit 9b8b96eac.
 - CI runs: none (the kit needs the phone; no push).
 - Read first: `research/notes/2026/10-2x-phone-feel-kit.md` (kit, dry-run table, lead commands, limits).
 

@@ -52,10 +52,9 @@ All verdicts of the dry run are `same` because every score was 3; that is the ex
 INFERRED from L2: `morph.stage` changes the page height, so it is a layout change as well as a look change; the user
 should expect a longer page on L2.
 
-Defect found and fixed in the run: `feel stop` answered "fetch failed". The stop handler resolved the stop promise, the
-session closed the control server with `closeAllConnections` before the reply was written, and the client then took the
-session for dead and stopped the owner itself (the owner's own recovery path, so the pin still cleared). The server now
-closes after the reply is flushed (`startControl().close`, test "a stop that closes the control server still gets its
+Defect fixed: `feel stop` answered "fetch failed" because the session closed the control server with
+`closeAllConnections` before the reply was written; the client then stopped the owner itself, so the pin still cleared.
+The server now closes after the reply is flushed (`startControl().close`, test "a stop that closes the control server still gets its
 reply"). The dry run's own stop went through the old code, so the fixed stop path is covered by the unit test only,
 not by a second device run (limit).
 
@@ -89,8 +88,8 @@ killed: `node src/device-cli.mjs pin-stop --dir .local/phone/<date>-feel`.
 - n = 2 visits per same-look arm; look-change arms have one visit and are labelled, not blind.
 - Serious is induced (the developer thermal condition), not real heat; the reported state is what the page can feel, not
   a measured temperature.
-- The design uses a 1 to 5 score per visit, not a smoother/same/worse pick: the Lean cell rule needs a number to compare against base, and the margin (1) is a stated constant (INFERRED rationale).
+- Scores run 1 to 5 per visit, not a smoother/same/worse pick, because the Lean cell rule compares numbers against base; the margin (1) is a stated constant (INFERRED).
 - Seed rotation: A is first and last (positions 0 and 5), so use a different seed per session; seeds 0, 3, ... repeat.
 - `kill -9` of the session leaves the pin set; `pin-stop` clears it, and the next `feel start` also recovers it.
-- A run with arms missing from the build refuses at start and names them; none were dropped in this run.
-- No CI run: the kit needs the phone. The verdict itself comes later from the user, relayed by the lead.
+- A run with arms missing from the build refuses at start and names them.
+- No CI run: the kit needs the phone. The verdict comes from the user, relayed by the lead.

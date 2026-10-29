@@ -14,14 +14,12 @@ const VISITS = FEEL.repeats * FEEL.nSame + LOOK_ARMS.length;
 export const searchOf = (flags) => (flags.length === 0 ? '' : `?fw=${flags.join(',')}`);
 export const validScore = (s) => Number.isInteger(s) && s >= FEEL.scoreMin && s <= FEEL.scoreMax;
 
-/** The order of the same-look arms (indices into SAME_ARMS) for a seed, and its letters, from the Lean golden. */
 export function orderOf(seed) {
   const line = ORDERS.find((o) => o.seed === seed % FEEL.nSame);
   if (!line) throw new Error(`no golden order for seed ${seed}`);
   return { order: line.order, letters: line.letters };
 }
 
-/** Every visit of a session: the blind same-look visits, then the labelled look-change visits. */
 export function planOf(seed) {
   const { order, letters } = orderOf(seed);
   const visits = order.map((a, i) => ({
@@ -35,7 +33,6 @@ export function planOf(seed) {
   return visits;
 }
 
-/** The hash of every arm's prerender in a built site's configs.json, or the arms it lacks. */
 export function armHashes(configs) {
   const have = [], missing = [];
   for (const a of ARMS) {
@@ -46,7 +43,6 @@ export function armHashes(configs) {
   return { have, missing };
 }
 
-// TS stand-in of Fw.Device.Feel (cell, verdict2, reduceArm, reduceLook, scoresOf); checked against feel.jsonl in test/device-feel.test.mjs.
 export function cellOf(x, b) {
   if (b + FEEL.margin <= x) return 'better';
   if (x + FEEL.margin <= b) return 'worse';
@@ -59,7 +55,6 @@ export function reduceArm(xs, bs) {
 export const reduceLook = (xs, bs) => (xs.length === 1 ? reduceArm([xs[0], xs[0]], bs) : 'unrated');
 export const scoresOf = (order, ratings, a) => order.flatMap((b, i) => (b === a && ratings[i] != null ? [ratings[i]] : []));
 
-/** Per-arm verdicts from the ratings list (one entry per visit, null when not rated). */
 export function verdicts(seed, ratings) {
   const { order } = orderOf(seed);
   const n = order.length;
@@ -95,16 +90,11 @@ const current = (st) => (st.opened > 0 ? st.plan[st.opened - 1] : null);
 const progress = (st, v) => `visit ${v.index + 1} of ${total(st)}`;
 const rated = (st) => st.ratings.filter((r) => r != null).length;
 
-/** What the person is told for a visit: the blind label (or the look change) and what to do. Never an arm id or a flag. */
 export function visitText(st, v) {
   const head = v.group === 'look' ? `${v.label} (${progress(st, v)}), a look change: ${v.text}` : `${v.label} (${progress(st, v)})`;
   return `${head}\n${FEEL.doText}\n${FEEL.rateText}`;
 }
 
-/**
- * `next`: gate on the thermal pin, open the next arm through deps.open, then count it open.
- * deps: { gate() -> { ok, why? }, open(visit) -> { ok, info?, error? }, now() }
- */
 export async function cmdNext(st, deps) {
   const cur = current(st);
   if (cur && st.ratings[cur.index] == null) return { ok: false, text: `rate the open arm first: ${cur.label}` };
@@ -140,7 +130,6 @@ export function cmdStatus(st, { reveal = false } = {}) {
   return { ok: true, text: lines.join('\n') };
 }
 
-/** The end-of-session table; names the arms, so it is shown only after the last rating. */
 export function summaryText(st) {
   const v = verdicts(st.seed, st.ratings);
   const row = (a) => `${a.id}: ${verdictText(a.verdict)} (scores ${a.scores.join(', ') || '-'})`;

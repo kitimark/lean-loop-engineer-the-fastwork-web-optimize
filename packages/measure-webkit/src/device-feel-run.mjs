@@ -13,7 +13,6 @@ import { armHashes, cmdNext, cmdRate, cmdStatus, freshState, loadFeel, saveFeel,
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } };
 
-/** A control server on 127.0.0.1: POST /<command> with a JSON body and the session token; one command at a time. */
 export async function startControl({ token, handlers }) {
   let chain = Promise.resolve();
   let closing = false;
@@ -32,7 +31,6 @@ export async function startControl({ token, handlers }) {
     });
   });
   await new Promise((ok, bad) => { server.once('error', bad); server.listen(0, '127.0.0.1', ok); });
-  // close lets an answer in flight finish (a stop's own reply), then drops what is left after a short grace
   return { port: server.address().port, close: () => new Promise((ok) => {
     closing = true;
     const t = setTimeout(() => server.closeAllConnections?.(), 2000);
@@ -41,7 +39,6 @@ export async function startControl({ token, handlers }) {
   }) };
 }
 
-/** Send one command to the running session of `dir`. */
 export async function callControl(dir, cmd, args = {}, { timeoutMs = 600000 } = {}) {
   const st = loadFeel(dir);
   if (!st.control || !alive(st.pid)) throw new Error(`no feel session is running for ${dir} (state: ${st.status})`);
@@ -49,7 +46,6 @@ export async function callControl(dir, cmd, args = {}, { timeoutMs = 600000 } = 
   return r.json();
 }
 
-/** The pin gate before an arm: owner alive, phone unlocked, reported state = target. Waits while the state rises. */
 export function makeGate({ target, pin, sense, sleep = sleepMs, now = Date.now, onReading = () => {} }) {
   let entered = false;
   return async () => {
@@ -69,7 +65,6 @@ export function makeGate({ target, pin, sense, sleep = sleepMs, now = Date.now, 
   };
 }
 
-/** Navigate the phone's tab to an arm, scroll to the top and read the page. The arm is the prerender the server hands out next. */
 export async function openArm({ ctx, setArm, hashes, visit, settleMs, log }) {
   const h = hashes.find((x) => x.id === visit.id);
   setArm(h);
@@ -85,10 +80,6 @@ export async function openArm({ ctx, setArm, hashes, visit, settleMs, log }) {
   return { ok: true, info: page };
 }
 
-/**
- * One long-running feel session: LAN server, phone proxy, thermal pin and a control server in one process.
- * Returns the final state after the pin is cleared.
- */
 export async function feelStart({ site, dir, pin: target, seed = 0, resume = false, settleMs = 4000, log, fresh = false }) {
   if (!pinTarget(target)) throw new Error(`--pin must be Fair or Serious, got ${target}`);
   const cfg = JSON.parse(readFileSync(join(site, 'configs.json'), 'utf8'));
@@ -168,7 +159,6 @@ function loadStatePinEnd(dir) {
   try { return JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8')).pin?.end ?? null; } catch { return null; }
 }
 
-/** The client side: print a command's text; the exit code says whether it worked. */
 export async function feelCommand(cmd, dir, args = {}) {
   const r = await callControl(dir, cmd, args);
   return r;

@@ -8,8 +8,6 @@
 //   node src/device-cli.mjs reduce --in rec-1.json,rec-2.json,...      (Lean reductions + comparison; no phone)
 //   node src/device-cli.mjs profile --in rec-k.json --id user-<name> --out ../measure-chromium/profiles/user-<name>.json
 //   node src/device-cli.mjs package --kind session --in rec-1.json,... --date YYYY-MM-DD --out results/phone/<date>
-//   node src/device-cli.mjs feel start --site <dist/aot> --dir <raw> [--pin Serious] [--seed n] [--resume|--fresh]   (holds server, proxy and pin; run in the background)
-//   node src/device-cli.mjs feel next | rate <label> <1-5> | status [--reveal] | stop --dir <raw>
 //   node src/device-cli.mjs frames --target original|rewrite [--site <dist/aot>] [--reps 5] [--speed 800] [--out file]
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
