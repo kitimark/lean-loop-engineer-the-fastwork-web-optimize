@@ -23761,7 +23761,13 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-glint-compositor.md",
     "results/glint-compositor/**",
-    "docs/team/handoffs/glint-compositor.md"
+    "docs/team/handoffs/glint-compositor.md",
+    "lean/Fw/Ops/Premise.lean",
+    "packages/contracts/golden/ops/premise.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "packages/premise-tests/pages/**",
+    "packages/contracts/golden/parts/footprint-diff.gen.json",
+    ".github/workflows/wktr.yml"
    ]
   },
   {
