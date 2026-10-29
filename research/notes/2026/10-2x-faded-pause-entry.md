@@ -16,7 +16,7 @@ Lean theorem or left open with a reason, and the v2-proved decision Gen.run comp
 ## Answer
 Gen.run decides enter with no blockers, so v2-proved now has 3 flags: engine.scroll:unthrottle, hero.exit:threaded
 and platform:faded-pause. Source: packages/contracts/golden/preset/v2-proved.decisions.jsonl, the `entry` of row
-`platform:faded-pause`. No other flag's decision changed; that row is the only line that differs in the decisions file.
+`platform:faded-pause`. No other flag's decision changed.
 `Gen.run []` regenerated these four files, and `Gen.run ["--check"]` reports "up to date, 3 flags":
 - v2-proved.json
 - apps/site/src/registry/presets/v2-proved.json
@@ -39,7 +39,7 @@ and platform:faded-pause. Source: packages/contracts/golden/preset/v2-proved.dec
   `[trajectory fw=platform:faded-pause engines=both debug=nav-transition]`. The `debug=` key makes the apple leg run
   (`Fw.Ci.Trigger.appleRuns`). Inputs: results/faded-pause-entry/r1/inputs.json, copied from the trajectory-inputs
   artifact.
-- Run 40900090514 passed (`fw ci wait`: success -> pass). It was recorded with
+- Run 40900090514 passed (`fw ci wait` returned success, so pass). It was recorded with
   `Gen.record ["40900090514", <sha>, "-", trajectory-chromium, trajectory-playwright-webkit, trajectory-apple]`.
   All five cells pass:
 
