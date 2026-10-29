@@ -1,5 +1,6 @@
 import Lean.Data.Json
 import Fw.Ops.Wire
+import Fw.Ops.WatchMem
 /-!
 # The alert stream of `fw watch --stream` and the identity of declared long-runners
 
@@ -354,14 +355,14 @@ def opWatchKeep (req : Json) : Except String Reply := do
   pure [("live", .arr live.toArray), ("keep", .arr ((keepPids entries rows).toArray.map toJson))]
 
 /-- The ops of this module. -/
-def ops : List String := ["ops.watchDiff", "ops.watchKeep"]
+def ops : List String := ["ops.watchDiff", "ops.watchKeep"] ++ Fw.Wire.WatchMem.ops
 
 /-- Dispatch (`none` when the op is not one of these). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.watchDiff" => some (opWatchDiff req)
   | "ops.watchKeep" => some (opWatchKeep req)
-  | _ => none
+  | _ => Fw.Wire.WatchMem.handle op req
 
 #guard ops.all fun o => (handle o (Json.mkObj [("now", .arr #[])])).isSome
 

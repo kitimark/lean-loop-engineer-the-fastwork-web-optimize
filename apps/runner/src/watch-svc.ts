@@ -11,9 +11,10 @@
 //  - service `fwcore`: the binary on disk, against the commit it was built from.
 // Design rule: when the code that runs cannot be identified, the service is reported `unknown` with the reason
 // (svc.unknown). Nothing is silently skipped, and a failure to judge one service never drops the other.
-import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { join } from "node:path";
-import { CORE_BIN_REL, CORE_COMMIT_REL, SHA, buildBase, type Base } from "../../console-api/src/core/build-base.ts";
+import { CORE_BIN_REL, CORE_COMMIT_REL, SHA, binIn, chooseBase, mainLog, readRecord, type Base } from "../../console-api/src/core/build-base.ts";
 import type { Paths, Runner, RunOut } from "./watch-collect.ts";
 
 export interface SvcInput { path: string; changed: boolean }
@@ -75,7 +76,35 @@ function isAlive(pid: number): boolean {
  *  binary on disk. */
 export function coreBase(p: Paths): Base | null {
   const bin = join(p.root, CORE_BIN);
-  return existsSync(bin) ? buildBase(p.root, bin) : null;
+  if (!existsSync(bin)) return null;
+  // the steps of buildBase (console-api/src/core/build-base.ts), with the binary hashed in 1 MiB reads and only when it changed
+  let h: string;
+  try { h = binHash(bin); } catch (e) { return { unknown: `cannot read the fwcore binary: ${(e as Error).message.split("\n")[0]}` }; }
+  const rec = readRecord(bin);
+  const b = chooseBase(h, rec, rec !== null && "tree" in rec ? mainLog(p.root) : []);
+  if ("sha" in b || bin === binIn(p.root)) return b;
+  return { unknown: `${b.unknown}; the binary is not ${CORE_BIN_REL} of the checkout this code runs from` };
+}
+
+const hashMemo = new Map<string, { ino: number; size: number; mtimeMs: number; hash: string }>();
+/** The sha256 of a file, read in 1 MiB pieces (a readFileSync of the 83 MB binary held 180 MB per tick); kept while the
+ *  file's inode, size and mtime stay. */
+function binHash(file: string): string {
+  const fd = openSync(file, "r");
+  try {
+    const st = fstatSync(fd), hit = hashMemo.get(file);
+    if (hit && hit.ino === st.ino && hit.size === st.size && hit.mtimeMs === st.mtimeMs) return hit.hash;
+    const h = createHash("sha256"), buf = Buffer.allocUnsafe(1 << 20);
+    for (let pos = 0; ;) {
+      const n = readSync(fd, buf, 0, buf.length, pos);
+      if (n <= 0) break;
+      h.update(buf.subarray(0, n));
+      pos += n;
+    }
+    const hash = h.digest("hex");
+    hashMemo.set(file, { ino: st.ino, size: st.size, mtimeMs: st.mtimeMs, hash });
+    return hash;
+  } finally { closeSync(fd); }
 }
 
 /** Judge one group of paths against `base`; the paths that could not be judged make it `null`. */

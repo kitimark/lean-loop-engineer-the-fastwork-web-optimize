@@ -7,11 +7,19 @@ import { queuedBranches } from "./land-queue.ts";
 import { heldPass, repoIdOf, wtIdOf, type ReapPass } from "./reap.ts";
 import { fwcoreCall } from "./run.ts";
 import {
-  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, startFromAge, readMeta, readsStdin, signalsOf, withLeadNotes,
+  exe, findTranscripts, leadFileOf, markerOf, metaMtime, parsePs, readLeadNotes, startFromAge, readMeta, readsStdin, withLeadNotes,
   type LeadNote, type Paths, type Proc, type SigFacts, type SigProcKind, type Snapshot, type TranscriptSignals,
 } from "./watch-collect.ts";
+import { finishSignals, foldText, initFold, type FoldState } from "./watch-fold.ts";
+import { tailer } from "./watch-mem.ts";
 
 // ---- the facts (wire shape of AgentFacts) ----
+/** Per transcript, the signal fold and the last handback time of the lines read so far; a pass reads only the lines appended since
+ *  (spec: Fw.Obs.Fold `feed_append`), and forgets the transcripts it did not ask for. */
+const transcriptTail = tailer<{ st: FoldState; hb: number | null }>(() => ({ st: initFold(true), hb: null }), (t, text) => {
+  const hb = handbackAtOf(text);
+  return { st: foldText(t.st, text), hb: hb === null ? t.hb : Math.max(t.hb ?? 0, hb) };
+});
 export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
   pid: number; start?: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;
@@ -355,6 +363,7 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
   const states = new Map(health.agents.map((a) => [a.id, a.state]));
   const tfs = findTranscripts(p);
   const agents: RawAgent[] = [];
+  const seenTf = new Set<string>();
   const cache = new Map<string, [number | null, boolean | null]>();
   const session = sessionPid(ps, process.pid, wts.flatMap((w) => (w.lockPid ? [w.lockPid] : [])));
   const repo = repoIdOf(main);
@@ -388,15 +397,17 @@ export async function collectRaw(p: Paths, main: string, snap: Snapshot, health:
     let handbackAt: number | null = null, signals: SigFacts | null = null;
     if (tf) {
       try {
-        const text = readFileSync(tf, "utf8");
-        handbackAt = handbackAtOf(text);
+        const t = transcriptTail.read(tf);
+        seenTf.add(tf);
+        handbackAt = t.hb;
         const mt = meta?.finished === true ? metaMtime(tf) : null;
-        signals = signalFactsOf(signalsOf(a.id, text), readLeadNotes(p, leadFileOf(tf)), statFile, ps, session, mt);
+        signals = signalFactsOf(finishSignals(a.id, t.st), readLeadNotes(p, leadFileOf(tf)), statFile, ps, session, mt);
       } catch { /* unreadable */ }
     }
     agents.push({ id: a.id, name: a.name, task: a.task, state, ctxTokens: a.ctxTokens, handbackAt, worktree: wt, ahead, landed, onMain, mergesClean,
       branchDeps, handoff, branch, signals, wtId: wt && repo ? wtIdOf(wt.path, repo) : null });
   }
+  transcriptTail.prune(seenTf);
   const board = new Map<string, { id: string; done: boolean; agent: string | null; deps?: string[] }>();
   const tasks = (plan as { tasks?: unknown } | null)?.tasks;
   for (const t of Array.isArray(tasks) ? (tasks as any[]) : []) {
