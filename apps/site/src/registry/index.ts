@@ -40,6 +40,7 @@ import morphStage from '../parts/morph.stage/part.json';
 import morphGeom from '../parts/morph.geom/part.json';
 import morphEndAll from './presets/morph-end-all.json';
 import original from './presets/original.json';
+import shipped from './presets/shipped.json';
 import stripDemo from './presets/strip-demo.json';
 import v2Proved from './presets/v2-proved.json';
 import { resolve } from './resolve';
@@ -50,6 +51,7 @@ export const presets: Record<string, PresetDef> = {
   original: original as PresetDef,
   'strip-demo': stripDemo as PresetDef,
   'v2-proved': v2Proved as PresetDef,
+  shipped: shipped as PresetDef,
   'morph-end-all': morphEndAll as PresetDef,
 };
 

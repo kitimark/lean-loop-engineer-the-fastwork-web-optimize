@@ -201,19 +201,22 @@ Ruby parses every file named on its command line as YAML.
 def yamlProg : String := "ARGV.each { |f| YAML.parse_file(f) }"
 
 /-- Whether a path is an input of the preset generator `Fw.Preset.Gen.run`: the findings ledger, a file of
-`packages/contracts/golden/preset/`, the site preset, a `part.json` of `apps/site/src/parts/<part>/`, the generator, or a
-Lean module the generator imports (`Fw.Preset.V2Proved`, which imports `Fw.Gate.Trajectory`).
+`packages/contracts/golden/preset/`, a site preset it writes (`v2-proved`, `shipped`), a `part.json` of
+`apps/site/src/parts/<part>/`, the generator, or a Lean module the generator imports (`Fw.Preset.V2Proved`, which
+imports `Fw.Gate.Trajectory`, and `Fw.Preset.Shipped`).
 
-A path is an input exactly when it is one of the seven listed places.
+A path is an input exactly when it is one of the listed places.
 -/
 def presetInputKey (s : List String) : Bool :=
   s == ["research", "findings", "ledger.json"]
     || (s.take 4 == ["packages", "contracts", "golden", "preset"] && s.length == 5)
     || s == ["apps", "site", "src", "registry", "presets", "v2-proved.json"]
+    || s == ["apps", "site", "src", "registry", "presets", "shipped.json"]
     || (s.take 4 == ["apps", "site", "src", "parts"] && s.length == 6 && s.getLast? == some "part.json")
     || s == ["lean", "Fw", "Preset", "Gen.lean"]
     || s == ["lean", "Fw", "Preset", "V2Proved.lean"]
     || s == ["lean", "Fw", "Gate", "Trajectory.lean"]
+    || s == ["lean", "Fw", "Preset", "Shipped.lean"]
 
 /-- `presetInputKey` of a path's segments. -/
 def presetInput (p : String) : Bool := presetInputKey (segs p)
@@ -822,6 +825,9 @@ theorem presetInput_golden : presetInputKey ["packages", "contracts", "golden", 
 Staging `apps/site/src/registry/presets/v2-proved.json` runs the preset check. -/
 theorem presetInput_site : presetInputKey ["apps", "site", "src", "registry", "presets", "v2-proved.json"] = true := by decide +kernel
 
+theorem presetInput_site_shipped : presetInputKey ["apps", "site", "src", "registry", "presets", "shipped.json"] = true := by
+  decide +kernel
+
 /-- A part's `part.json` is a generator input (branch 4).
 
 Staging `apps/site/src/parts/<part>/part.json` runs the preset check. -/
@@ -841,6 +847,8 @@ theorem presetInput_v2proved : presetInputKey ["lean", "Fw", "Preset", "V2Proved
 
 Staging `lean/Fw/Gate/Trajectory.lean` runs the preset check. -/
 theorem presetInput_trajectory : presetInputKey ["lean", "Fw", "Gate", "Trajectory.lean"] = true := by decide +kernel
+
+theorem presetInput_shipped : presetInputKey ["lean", "Fw", "Preset", "Shipped.lean"] = true := by decide +kernel
 
 /-- Other preset-named files are not inputs (the incident ledger, another preset, a part's other files).
 

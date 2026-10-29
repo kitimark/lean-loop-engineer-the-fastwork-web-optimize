@@ -24088,7 +24088,8 @@
     "lean/Fw/Console/LandSpeed.lean",
     "apps/runner/src/land-reads.gen.ts",
     "packages/contracts/golden/console/land-speed.jsonl"
-   ]
+   ],
+   "evidence": "d17ab1e"
   },
   {
    "devices": [
