@@ -2,7 +2,7 @@
 import { GH_C, cellNums, numsBand, reportToCells } from './glint-hold.mjs';
 
 export const VC = {
-  unread: 'unread', noContrast: 'no-contrast', uninformative: 'uninformative', atFloor: 'within the floor band', partly: 'cuts partly', noCut: 'no cut',
+  notRunning: 'variant animation not running', unread: 'unread', noContrast: 'no-contrast', uninformative: 'uninformative', atFloor: 'within the floor band', partly: 'cuts partly', noCut: 'no cut',
 };
 const JUDGED = new Set([VC.atFloor, VC.partly, VC.noCut]);
 export const judgedC = (v) => JUDGED.has(v);
@@ -19,6 +19,9 @@ export function judgeC(minF, x) {
   return VC.partly;
 }
 
+/** Valid only while the variant's own animations run (`live` = glint animations running at the window start). */
+export const judgeLiveC = (minF, live, x) => (live === 0 ? VC.notRunning : judgeC(minF, x));
+
 export function overallC(vs) {
   const js = vs.filter(judgedC);
   if (js.length < GH_C.minValid) return 'inconclusive';
@@ -27,16 +30,18 @@ export function overallC(vs) {
 
 export function decideJobC(base, comp) {
   const cells = reportToCells(base, comp);
-  const one = (c, minF) => {
+  const liveOf = (kind) => Math.min(...comp.rows.filter((r) => r.arm === `rs-${kind}` && r.rs).map((r) => r.rs.glintLive ?? 0), Infinity);
+  const one = (c, minF, kind) => {
     const nums = cellNums(c);
-    return { nums, band: numsBand(nums), verdict: judgeC(minF, nums) };
+    const live = Number.isFinite(liveOf(kind)) ? liveOf(kind) : 0;
+    return { nums, band: numsBand(nums), live, verdict: judgeLiveC(minF, live, nums) };
   };
-  return { idle: one(cells.idle, GH_C.minIdle), flip: one(cells.flip, GH_C.minFlip) };
+  return { idle: one(cells.idle, GH_C.minIdle, 'idle'), flip: one(cells.flip, GH_C.minFlip, 'flip') };
 }
 
 export const jobLineC = (label, kind, d) => {
   const x = d.nums;
-  return `glint-compositor ${label} ${kind}: base ${x.b} floor ${x.f} compositor ${x.h} per 100 frames, band ${d.band} spread ${x.spread}, frames base ${x.nb} floor ${x.nf} compositor ${x.n}, verdict ${d.verdict}`;
+  return `glint-compositor ${label} ${kind}: base ${x.b} floor ${x.f} compositor ${x.h} per 100 frames, band ${d.band} spread ${x.spread}, frames base ${x.nb} floor ${x.nf} compositor ${x.n}, glint animations running ${d.live}, verdict ${d.verdict}`;
 };
 
 export const glintCompositorLines = (label, base, comp) => {

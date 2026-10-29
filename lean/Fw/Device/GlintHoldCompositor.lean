@@ -7,10 +7,11 @@ open Fw.Device.GlintHold
 
 /-- Verdict of one cell. -/
 inductive VC where
-  | unread | noContrast | uninformative | atFloor | partly | noCut
+  | notRunning | unread | noContrast | uninformative | atFloor | partly | noCut
   deriving DecidableEq, Repr
 
 def VC.name : VC → String
+  | .notRunning => "variant animation not running"
   | .unread => "unread" | .noContrast => "no-contrast" | .uninformative => "uninformative"
   | .atFloor => "within the floor band" | .partly => "cuts partly" | .noCut => "no cut"
 
@@ -28,6 +29,18 @@ def judgeC (minF : Nat) (x : Nums) : VC :=
   else if x.h ≤ x.f + x.band then .atFloor
   else if x.b ≤ x.h + x.band then .noCut
   else .partly
+
+/-- The reading is valid only while the variant's own animations run: the probe pauses every Web Animation before it counts
+(`mid-page.mjs`), so `live`, the glint animations still running at the window start, must be positive. Run 40833327416 and
+40837547847 paused them (`live` 0 in every compositor arm), so their zero recalcs say nothing about the variant. -/
+def judgeLive (minF live : Nat) (x : Nums) : VC :=
+  if live = 0 then .notRunning else judgeC minF x
+
+theorem judgeLive_notRunning (minF : Nat) (x : Nums) : judgeLive minF 0 x = .notRunning := by
+  simp [judgeLive]
+
+theorem judgeLive_of_live (minF live : Nat) (x : Nums) (h : live ≠ 0) : judgeLive minF live x = judgeC minF x := by
+  simp [judgeLive, h]
 
 /-- All jobs of one cell kind. -/
 inductive OC where
@@ -163,11 +176,18 @@ private def overallCases : List (String × List VC) :=
 
 private def vJ (v : VC) : Json := Json.str v.name
 
+private def liveCases : List (String × Nat × Nat × Nums) :=
+  let ok : Nums := ⟨100, 100, 100, 100, 0, 100, 0, 0, 0⟩
+  [("live zero", 40, 0, ok), ("live zero over a floor read", 40, 0, { ok with h := 0 }), ("one live", 40, 1, { ok with h := 0 }),
+   ("two live partly", 40, 2, { ok with h := 80 }), ("live zero unread", 40, 0, { ok with n := 10 })]
+
 def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("minIdle", minIdle), ("minFlip", minFlip), ("minSpread", minSpread), ("bandDen", bandDen),
     ("minValid", minValid)]).compress] ++
   (numsCases.map fun (n, m, x) =>
     (Json.mkObj [("kind", "judge"), ("name", n), ("minF", m), ("nums", numsJ x), ("band", x.band), ("verdict", vJ (judgeC m x))]).compress) ++
+  (liveCases.map fun (n, m, l, x) =>
+    (Json.mkObj [("kind", "live"), ("name", n), ("minF", m), ("live", l), ("nums", numsJ x), ("verdict", vJ (judgeLive m l x))]).compress) ++
   (cellCases.map fun (n, m, c) =>
     let x := c.nums
     (Json.mkObj [("kind", "cell"), ("name", n), ("minF", m), ("cell", cellJ c), ("nums", numsJ x), ("band", x.band),

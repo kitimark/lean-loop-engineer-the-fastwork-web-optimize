@@ -37,7 +37,7 @@ export const isBisect = (mode) => mode === 'bisect-thr-off';
 export const isGlint = (mode) => mode === 'glint-base-thr-off' || mode === 'glint-hold-thr-off' || mode === 'glint-comp-thr-off';
 export const GLINT_BASE_ARMS = ['rs-idle', 'rs-idle-smil', 'rs-idle', 'rs-flip', 'rs-flip-smil', 'rs-flip'];
 export const GLINT_HOLD_ARMS = ['rs-idle', 'rs-flip'];
-export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true };
+export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true, gk: true };
 export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) ? `${base} ${THREADED_OFF}` : base);
 
 async function main() {
