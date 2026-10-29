@@ -15,7 +15,7 @@ round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window
 - Goldens: `packages/contracts/golden/ops/ops.watch{Window,Cursor,Rss}.jsonl`, generated from Lean; regenerate them if
   `rssBoundKb` changes (test strings in `apps/runner/test/watch-mem.test.ts` name the bound).
 - `fw watch --stream --tick` prints `TICK rss=.. heap=.. bound=..`; health.jsonl rows carry `mem`; alert `watch.rss fw-watch`.
-- Numbers and method: `research/notes/2026/10-2x-watch-memory.md`. Sampler scripts were scratch (not committed): spawn the
+- Numbers and method: `research/notes/2026/10-2x-watch-memory.md`. Sampler scripts are not committed: spawn the
   watch with `FW_CONSOLE_DIR=<copy>` and `FW_WATCH_REAP=0`, `ps -o rss` every 60 s.
 ## Conventions
 - TS stand-ins (temporary): `windowRows`, `readFrom`, `nextCursor` in watch-mem.ts, checked against the goldens.

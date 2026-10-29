@@ -102,7 +102,6 @@ function binHash(file: string): string {
   } finally { closeSync(fd); }
 }
 
-/** Judge one group of paths against `base`; the paths that could not be judged make it `null`. */
 async function judgeInputs(p: Paths, exec: Runner, paths: string[], base: string): Promise<SvcInput[] | null> {
   const inputs: SvcInput[] = [];
   for (const path of paths) {

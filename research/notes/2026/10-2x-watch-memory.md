@@ -3,7 +3,7 @@
 Trigger (local single reading, not committed, MEASURED once): the Mac ran at 113 MB free with 604k pages in the compressor; `node apps/runner/src/fw.ts watch --interval 300 --stream`
 held 663 MB resident five minutes after it started. All numbers below are MEASURED local harness numbers of our own tool
 (not a site result), copies of `.fw-console/` read through `FW_CONSOLE_DIR`, `FW_WATCH_REAP=0`, `--interval 60`
-(stricter than the 300 s of the Monitor: more ticks per hour).
+(stricter than the Monitor's 300 s, so more ticks per hour).
 
 ## Cause (local single readings, not committed, MEASURED once; one pass at a time, `process.memoryUsage()` and a wrapper on `readFileSync`)
 
@@ -62,7 +62,7 @@ after:  0,480 60,25600 120,199152 180,69952 240,216896 300,139072 360,212624 420
 
 Recomputed from the raw rows: before max 842, mean 585, slope -5.2 MB/min; after max 250, mean 183, slope +5.0 MB/min.
 
-Method for every number in this section: MB = rss_kb / 1024, rounded half-up like `Fw.Ops.WatchMem.mb`; max, mean and least squares run over minutes 1-20 (the 20 points above); ratios are to one decimal.
+Method: MB = rss_kb / 1024, rounded half-up like `Fw.Ops.WatchMem.mb`, over minutes 1-20 (20 points); ratios to one decimal.
 
 Raw block, after arm, stream log; bound then 256 MB (the 20 TICK lines, verbatim):
 
@@ -136,5 +136,5 @@ end shows; golden row "a line longer than one chunk keeps the cursor at its star
 - `health.jsonl` (195 MB, local single reading, not committed) still grows by one snapshot per tick: disk, not memory (follow-up).
 - 20-minute arms cannot separate a cold-start fill from a slow leak, and the after arm's slope over minutes 1-20 is positive (+5.0 MB/min, line 63). Boundedness rests on the Lean window and cursor theorems and the `watch.rss` alert at `rssBoundKb`, not on this trace.
 - Other processes are out of scope; local measurement of our own tool only, no CI. The read buffer grows to the longest line.
-- Fixtures: events and transcripts are synthetic but real-shaped; the timings fixture drops kind, work, queue, commit and phases; the recorded timings window yields no slow alert.
+- Fixtures: events and transcripts are synthetic; the timings fixture drops kind, work, queue, commit and phases and yields no slow alert.
 - Fixture counts and constants: 3400 timing rows, 400 spool lines, a 747 kB line (746,828 bytes, kB = 1000); chunk 512 KiB (`CHUNK`), 3000 samples (`SAMPLE_CAP`), `rssBoundKb`.

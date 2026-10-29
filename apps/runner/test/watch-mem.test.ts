@@ -231,7 +231,6 @@ describe("recorded event window: cursor reads equal whole-file reads (alert list
     const r = await core({ op: "obs.slow", detail: true, samples: parseSamples(b.toString("utf8")) });
     const strs = (x: unknown) => (Array.isArray(x) ? (x as unknown[]).filter((y): y is string => typeof y === "string") : []);
     expect(slowAlerts(via.slow, via.details)).toEqual(slowAlerts(strs(r.slow), strs(r.details)));
-    // The slow list is empty on this recorded window; the "timing samples" deep-equal above is the proof.
     expect(via.slow).toEqual([]);
   });
 });

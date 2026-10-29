@@ -502,8 +502,6 @@ const leadTail = tailer<LeadSnap>(() => ({ lastToolAt: null, noteAt: null }), (l
 }).read;
 export function collectLead(p: Paths): LeadSnap { return leadTail(join(p.consoleDir, "spool", "main.jsonl")); }
 
-/** A command's stdout; `null` when it failed or timed out; `"missing"` when the program is not installed.
- * `anyExit`: a nonzero exit status still gives its stdout (lsof exits 1 when one of its pids has ended). */
 export type RunOut = string | null | { missing: true };
 export type Runner = (cmd: string, args: string[], timeout: number, cwd?: string, anyExit?: boolean) => Promise<RunOut>;
 const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
@@ -864,8 +862,6 @@ function queueOf(q: unknown): { waitMs?: number; waits?: { why: string; ms: numb
 }
 export function readSamples(p: Paths): TimingSample[] { return sampleTail(join(p.consoleDir, "timings.jsonl")).map((r) => r.s); }
 
-// TS STAND-IN: `argv0Base`, `roleOf`, `kindAt`, `kindsOf`, `resVerdict` and `trippedBy` mirror Fw.Obs.Health.Res (lean/Fw/Obs/Health.lean, proved there);
-// test/watch-collect-sup.test.ts replays packages/contracts/golden/obs/sup-health.jsonl against them. The rest is I/O glue.
 export type ProcKind = "leanBuild" | "leanServe" | "fwcore" | "node" | "pnpm" | "chromium" | "simulator" | "webkit" | "system" | "other";
 export const PROC_KINDS: readonly ProcKind[] = ["leanBuild", "leanServe", "fwcore", "node", "pnpm", "chromium", "simulator", "webkit", "system", "other"];
 /** `Fw.Obs.Health.Res.ProcKind.heavy`: our builds, browsers, Simulator device and Safari; never the language server or a system service. */
