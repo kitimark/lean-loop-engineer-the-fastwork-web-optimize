@@ -212,6 +212,7 @@ await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__FW
 await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const g = (k) => { const d = Object.getOwnPropertyDescriptor(window, k); return d && typeof d.get === 'function' ? d.get : null; }; const w = g('innerWidth'), h = g('innerHeight'); Object.defineProperty(window, '__fwRealSize', { value: () => (w && h ? { w: w.call(window), h: h.call(window) } : null) }); })();` });
 if (profile.css) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `(() => { const add = () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(profile.css)}; document.documentElement.appendChild(s); }; if (document.documentElement) add(); else new MutationObserver((_, o) => { if (document.documentElement) { o.disconnect(); add(); } }).observe(document, { childList: true }); })();` });
 if (N0_ON) await c.send('Page.addScriptToEvaluateOnNewDocument', { source: readFileSync('/driver/n0-census.js', 'utf8') });
+await c.send('Page.addScriptToEvaluateOnNewDocument', { source: `globalThis.__fwColsLog = []; globalThis.__fwTakeTrace = (e) => { try { __fwColsLog.push({ kind: e.kind, dark: e.kind === 'push' ? document.querySelector('nav.is-on-dark') !== null : null }); } catch (_) {} };` }); // cols-probe: the geom-timed driver calls this on a push and on a take (apps/site morph.tween/index.tsx); other pages never call it
 
 let vt = 0;
 const BARRIER_MIN_MS = Math.min(BARRIER_MS, +(process.env.FW_BARRIER_MIN_MS ?? BARRIER_MS));
@@ -454,6 +455,8 @@ if (N0_ON) {
   n0 = { enabled: true, keys: N0_KEYS, load: total(win.load), preroll: total(win.preroll), profile: total(n0Frames.flat()), after: total(win.after), shapeAtProfileStart: n0Start.shape, shapeAtEnd: n0End.shape, firstProfileEvents: n0Frames.flat().slice(0, 10) };
 }
 
+let takeLog = null;
+try { takeLog = JSON.parse(await ev('JSON.stringify(globalThis.__fwColsLog || [])')); } catch (_) { takeLog = null; }
 let probe = null;
 if (profile.cardProbe && (inputMode === 'scrollTo' || inputMode === 'page')) try {
   const { selector, faceSelector } = profile.cardProbe;
@@ -506,6 +509,7 @@ const result = {
   frames,
   runLevel,
   ...(probe ? { cardProbe: probe } : {}),
+  ...(takeLog && takeLog.length ? { takeLog } : {}),
 };
 mkdirSync(OUT, { recursive: true });
 writeFileSync(`${OUT}/counts.json`, JSON.stringify(result, null, 1) + '\n');
