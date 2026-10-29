@@ -81,14 +81,9 @@ height (`Fw.Parts.HeroExit.exitRange`). The variant uses `view-timeline: --hero-
 
 ## Gaps found, not closed here (follow-ups)
 
-* The cue's `exitFade` opacity (`threaded.module.css:33,60`) is missing from `wkAnims`/`crAnims` in
-  `Fw.Parts.HeroExitOpt`. On an edge frame it adds one more `opacityCross1` row: one more layout unit and no new pass.
-  The proved bounds on passes and frames still hold; `edgeCount` undercounts by 1. CONFIRMED from the CSS.
 * Interior blur frames: the kernel size is an integer step of the radius (`FEGaussianBlur.cpp:107`), so its outsets
   change on many interior frames, and WebKit then lays out in both arms. INFERRED. Not modelled.
 * The handover frames (`threaded.ts:132-156`, toggling `data-exit-live`) restyle once. Not modelled.
-* `lean/Fw/Preset/Gen.lean:698-705` (`threadedEvidence .proofs`) still says the missingWhy is open. It is outside this
-  task's writes, so the regenerated decision text is stale on that clause.
 
 ## Model fix: the cue's `exitFade` (CONFIRMED from source)
 
