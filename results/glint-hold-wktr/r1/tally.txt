@@ -1,0 +1,12 @@
+glint-base-thr-off pass 1: 6 arms, tracks 0, accelerated 0, errors 0, 205175 ms wall (not phone time); viewport 402x820
+glint j1 pass 1 idle: base 98 floor 0 hold 74 per 100 frames, predicted 76 band 15 spread 15, frames base 281 floor 280 hold 269, hold frames after a tick 210/269, base frames after a tick 281/281 => uninformative
+glint j1 pass 1 flip: base 166 floor 66 hold 157 per 100 frames, predicted 150 band 166 spread 166, frames base 18 floor 3 hold 19, hold frames after a tick 16/19, base frames after a tick 18/18 => unread
+glint-hold-thr-off pass 1: 2 arms, tracks 0, accelerated 0, errors 0, 50586 ms wall (not phone time); viewport 402x820
+glint-base-thr-off pass 1: 6 arms, tracks 0, accelerated 0, errors 0, 81713 ms wall (not phone time); viewport 402x820
+glint j2 pass 1 idle: base 99 floor 0 hold 74 per 100 frames, predicted 78 band 6 spread 1, frames base 347 floor 302 hold 289, hold frames after a tick 230/289, base frames after a tick 347/347 => cuts as predicted
+glint j2 pass 1 flip: base 0 floor 0 hold 150 per 100 frames, predicted 0 band 0 spread 0, frames base 0 floor 0 hold 24, hold frames after a tick 18/24, base frames after a tick 0/0 => unread
+glint-hold-thr-off pass 1: 2 arms, tracks 0, accelerated 0, errors 0, 54589 ms wall (not phone time); viewport 402x820
+glint-base-thr-off pass 1: 6 arms, tracks 0, accelerated 0, errors 0, 211198 ms wall (not phone time); viewport 402x820
+glint j3 pass 1 idle: base 96 floor 0 hold 76 per 100 frames, predicted 74 band 6 spread 5, frames base 353 floor 300 hold 259, hold frames after a tick 201/259, base frames after a tick 353/353 => cuts as predicted
+glint j3 pass 1 flip: base 177 floor 77 hold 150 per 100 frames, predicted 160 band 11 spread 11, frames base 36 floor 18 hold 18, hold frames after a tick 15/18, base frames after a tick 36/36 => uninformative
+glint-hold-thr-off pass 1: 2 arms, tracks 0, accelerated 0, errors 0, 46845 ms wall (not phone time); viewport 402x820

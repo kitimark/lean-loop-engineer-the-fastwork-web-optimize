@@ -661,6 +661,17 @@ function pageProbe(P) {
           while (X.created.length === 0 && performance.now() - t0 < 3000) await raf();
           if (X.created.length === 0) { await toBottom(); await sleep(400); }
         }
+        if (X.created.length === 0 && P.gh) {
+          // Run 40820116581: a flip arm that missed three wheels ended with fewer reps; flip back, scroll down and try the rep again (at most 8 misses per arm).
+          out.rs.miss = (out.rs.miss || 0) + 1;
+          if (out.rs.miss > 8) break;
+          wheel(-120);
+          await sleep(2000);
+          await toBottom();
+          await sleep(600);
+          rep--;
+          continue;
+        }
         if (X.created.length === 0) break;
         out.rs.reps++;
         out.tracks = X.created.length;

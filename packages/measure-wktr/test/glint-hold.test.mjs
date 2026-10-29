@@ -63,7 +63,7 @@ test('reportToCells glue: rows by arm name to the cell the golden judges', () =>
   assert.deepEqual(rowArm(asRow('x', [[[1, 0, 0]], [[2, 5, 5], [3, 6, 6]]])).map((w) => w.length), [1, 2]);
 });
 
-test('glint modes: hold page adds platform.glint:hold-freeze, pref OFF header, 5 s idle, 6 flips, probe reads SMIL time', () => {
+test('glint modes: hold page adds platform.glint:hold-freeze, pref OFF header, 5 s idle, 16 flips, probe reads SMIL time', () => {
   assert.ok(MODES['glint-hold-thr-off'].startsWith(MODES['glint-base-thr-off']) && MODES['glint-hold-thr-off'].endsWith('platform.glint:hold-freeze'));
   assert.ok(isGlint('glint-base-thr-off') && isGlint('glint-hold-thr-off') && !isGlint('bisect-thr-off'));
   assert.ok(headerOf('glint-hold-thr-off', 'H').endsWith(THREADED_OFF));
@@ -72,7 +72,7 @@ test('glint modes: hold page adds platform.glint:hold-freeze, pref OFF header, 5
   const src = accelHarnessSource({ mode: 'timed', arms: GLINT_BASE_ARMS, ...GLINT_OPTS });
   assert.match(src, /"gh":true/);
   assert.match(src, /"rsIdleMs":5000/);
-  assert.match(src, /"rsReps":6/);
+  assert.match(src, /"rsReps":16/);
   assert.match(src, /SVGAnimationElement\.prototype\.beginElement/);
   assert.doesNotMatch(accelHarnessSource({ mode: 'timed', arms: ['rs-idle'] }), /"gh":true/);
 });

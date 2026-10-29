@@ -33,10 +33,10 @@ export const isSweep = (mode) => mode === 'sweep-thr-off';
 export const isRecalc = (mode) => mode === 'recalc-thr-off';
 export const isBisect = (mode) => mode === 'bisect-thr-off';
 export const isGlint = (mode) => mode === 'glint-base-thr-off' || mode === 'glint-hold-thr-off';
-// Task glint-hold-wktr: the base page twice (SMIL running) and once with every svg timeline paused (the floor), then the hold page; idle (5 s) and flip (6 flips).
+// Task glint-hold-wktr: the base page twice (SMIL running) and once with every svg timeline paused (the floor), then the hold page; idle (5 s) and flip (16 flips; 6 in run 40820116581, which left the flip cells without frames).
 export const GLINT_BASE_ARMS = ['rs-idle', 'rs-idle-smil', 'rs-idle', 'rs-flip', 'rs-flip-smil', 'rs-flip'];
 export const GLINT_HOLD_ARMS = ['rs-idle', 'rs-flip'];
-export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 6, gh: true };
+export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true };
 export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) ? `${base} ${THREADED_OFF}` : base);
 
 async function main() {
