@@ -354,10 +354,8 @@ def opWatchKeep (req : Json) : Except String Reply := do
   let live := (entries.zipIdx.filter fun (e, _) => sameProcess rows e).map fun (_, i) => toJson i
   pure [("live", .arr live.toArray), ("keep", .arr ((keepPids entries rows).toArray.map toJson))]
 
-/-- The ops of this module. -/
 def ops : List String := ["ops.watchDiff", "ops.watchKeep"] ++ Fw.Wire.WatchMem.ops
 
-/-- Dispatch (`none` when the op is not one of these). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.watchDiff" => some (opWatchDiff req)

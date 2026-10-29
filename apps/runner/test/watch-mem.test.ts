@@ -23,11 +23,9 @@ afterAll(() => dirs.forEach((d) => rmSync(d, { recursive: true, force: true })))
 describe("retention rules against the Lean goldens (Fw.Ops.WatchMem)", () => {
   it.each(golden("ops.watchWindow").map((c) => [c.name, c] as const))("window: %s", (_n, c) => {
     const ms = c.request.ms as number[];
-    // fed one at a time, as the tailer feeds chunks of one
     let w: { at: number; seq: number }[] = [];
     ms.forEach((at, seq) => { w = windowRows(w, [{ at, seq }], c.request.cap as number); });
     expect({ keep: w.map((r) => r.seq) }).toEqual(c.response);
-    // fed as one chunk
     expect({ keep: windowRows([], ms.map((at, seq) => ({ at, seq })), c.request.cap as number).map((r) => r.seq) }).toEqual(c.response);
   });
   it.each(golden("ops.watchCursor").map((c) => [c.name, c] as const))("cursor: %s", (_n, c) => {
@@ -164,7 +162,6 @@ describe("a line longer than one chunk (Fw.Ops.WatchMem.nextCursor: no newline k
 describe("recorded event window: cursor reads equal whole-file reads (alert lists)", () => {
   const fx = join(here, "fixtures/watch-mem");
   const bytesOf = (rel: string) => readFileSync(join(fx, rel));
-  /** the file grows through these byte offsets, each cut falling inside a line */
   const cuts = (b: Buffer): number[] => [Math.floor(b.length * 0.31), Math.floor(b.length * 0.64), b.length];
   const grow = (file: string, b: Buffer, each: () => void) => {
     let at = 0;

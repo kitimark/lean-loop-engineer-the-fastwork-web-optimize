@@ -9,8 +9,6 @@
 //    inputs against the build commit of the fwcore child it holds (api.json `coreCommit`, written at every child
 //    spawn). A rebuild on disk without a restart leaves it stale (Fw.Obs.rebuild_without_restart_api_stale).
 //  - service `fwcore`: the binary on disk, against the commit it was built from.
-// Design rule: when the code that runs cannot be identified, the service is reported `unknown` with the reason
-// (svc.unknown). Nothing is silently skipped, and a failure to judge one service never drops the other.
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync } from "node:fs";
 import { join } from "node:path";
@@ -77,7 +75,6 @@ function isAlive(pid: number): boolean {
 export function coreBase(p: Paths): Base | null {
   const bin = join(p.root, CORE_BIN);
   if (!existsSync(bin)) return null;
-  // the steps of buildBase (console-api/src/core/build-base.ts), with the binary hashed in 1 MiB reads and only when it changed
   let h: string;
   try { h = binHash(bin); } catch (e) { return { unknown: `cannot read the fwcore binary: ${(e as Error).message.split("\n")[0]}` }; }
   const rec = readRecord(bin);
@@ -87,8 +84,6 @@ export function coreBase(p: Paths): Base | null {
 }
 
 const hashMemo = new Map<string, { ino: number; size: number; mtimeMs: number; hash: string }>();
-/** The sha256 of a file, read in 1 MiB pieces (a readFileSync of the 83 MB binary held 180 MB per tick); kept while the
- *  file's inode, size and mtime stay. */
 function binHash(file: string): string {
   const fd = openSync(file, "r");
   try {

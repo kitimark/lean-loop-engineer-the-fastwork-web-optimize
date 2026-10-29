@@ -63,8 +63,7 @@ after:  0,480 60,25600 120,199152 180,69952 240,216896 300,139072 360,212624 420
 Recomputed from the raw rows: before max 842, mean 585, slope -5.2 MB/min; after max 250, mean 183, slope +5.0 MB/min.
 
 The tick line's own reading (taken inside the tick, at its peak) was at most 289 MB. `Fw.Ops.WatchMem.rssBoundKb` is 512 MB:
-1.7 x the after-arm peak, below the before-arm mean. A first guess of 256 MB fired once in the after arm (289 MB), which is why
-the bound was set from the measurement. Peak is 3.4 x lower than before; the lead's 663 MB incident would alert.
+1.7 x the after-arm peak, below the before-arm mean. A first guess of 256 MB fired once in the after arm (289 MB). Peak is 3.4 x lower than before; the lead's 663 MB incident would alert.
 
 Alert output unchanged: `apps/runner/test/watch-mem.test.ts`, describe "recorded event window", replays the committed window
 `apps/runner/test/fixtures/watch-mem/` (`timings.jsonl`: the newest 3400 rows of a recorded log reduced to tool, step, durMs, host, load,

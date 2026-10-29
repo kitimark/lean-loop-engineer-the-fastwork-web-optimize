@@ -500,10 +500,8 @@ const leadTail = tailer<LeadSnap>(() => ({ lastToolAt: null, noteAt: null }), (l
   const c = summarizeLead(parseSpool(text));
   return { lastToolAt: c.lastToolAt === null ? l.lastToolAt : Math.max(l.lastToolAt ?? 0, c.lastToolAt), noteAt: c.noteAt === null ? l.noteAt : Math.max(l.noteAt ?? 0, c.noteAt) };
 }).read;
-/** The lead's facts, folded from the lines appended to spool/main.jsonl since the last pass (the newest times only grow). */
 export function collectLead(p: Paths): LeadSnap { return leadTail(join(p.consoleDir, "spool", "main.jsonl")); }
 
-// ---- system ----
 /** A command's stdout; `null` when it failed or timed out; `"missing"` when the program is not installed.
  * `anyExit`: a nonzero exit status still gives its stdout (lsof exits 1 when one of its pids has ended). */
 export type RunOut = string | null | { missing: true };
@@ -790,9 +788,6 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   };
 }
 
-/** The feedback events of the console log (`<consoleDir>/events.jsonl`, written only by console-api), oldest first, in the wire shape.
- *  Only I/O: the log may hold events the reducer refused to act on; fwcore's fold (the reducer's rule) decides which count. An unreadable
- *  log gives no events. */
 function feedbackIn(text: string): FeedbackEv[] {
   const out: FeedbackEv[] = [];
   for (const line of text.split("\n")) {
@@ -809,8 +804,6 @@ function feedbackIn(text: string): FeedbackEv[] {
 const feedbackTail = tailer<FeedbackEv[]>(() => [], (all, text) => [...all, ...feedbackIn(text)]).read;
 export function collectFeedback(p: Paths): FeedbackEv[] { return feedbackTail(join(p.consoleDir, "events.jsonl")); }
 
-/** The critical path from console-api (GET /api/plan): `string[]`; `null` when the call failed; `[]` when
- *  console-api is not running (no api.json and no FW_API), like a missing program. */
 export type PlanFetch = (url: string) => Promise<unknown>;
 const getJson: PlanFetch = async (url) => {
   const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
@@ -849,7 +842,6 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
 
 export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true; waitMs?: number; waits?: { why: string; ms: number }[]; work?: Record<string, string>; startMs?: number; commit?: string; phases?: { how: string; updMs: number } }
 type SampleRow = { at: number; s: TimingSample };
-/** The valid samples of a chunk of timing lines, in file order. */
 function sampleRows(text: string): SampleRow[] {
   const rows: SampleRow[] = [];
   for (const line of text.split("\n")) {
@@ -870,10 +862,8 @@ function queueOf(q: unknown): { waitMs?: number; waits?: { why: string; ms: numb
   if (o === null || typeof o !== "object" || typeof o.waitMs !== "number" || !(o.waitMs > 0)) return {};
   return { waitMs: Math.round(o.waitMs), waits: parseWaits(o.waits) };
 }
-/** The samples of the console's timings file (empty when there is none). */
 export function readSamples(p: Paths): TimingSample[] { return sampleTail(join(p.consoleDir, "timings.jsonl")).map((r) => r.s); }
 
-// ---- resource baseline (task sup-baseline): a 20 s per-kind footprint sampler ----
 // TS STAND-IN: `argv0Base`, `roleOf`, `kindAt`, `kindsOf`, `resVerdict` and `trippedBy` mirror Fw.Obs.Health.Res (lean/Fw/Obs/Health.lean, proved there);
 // test/watch-collect-sup.test.ts replays packages/contracts/golden/obs/sup-health.jsonl against them. The rest is I/O glue.
 export type ProcKind = "leanBuild" | "leanServe" | "fwcore" | "node" | "pnpm" | "chromium" | "simulator" | "webkit" | "system" | "other";

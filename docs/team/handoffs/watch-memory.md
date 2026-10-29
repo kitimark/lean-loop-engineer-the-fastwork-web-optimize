@@ -5,8 +5,7 @@ run ids: none (local task, no CI)
 verified: Lean WatchMem compiles; goldens replay in check.sh; runner tests; local RSS before/after, before max 842 MB / after max 250 MB (local, 21 min, 60 s samples, slope -5 / +5 MB/min)
 open: next.ts outside writes (dry land may need --allow); follow-ups below
 
-round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window fixture + replay test, raw RSS rows in the note, read_grown docstring. No CI runs. Samples: the note's raw rows (sampler scratch was kept).
-
+round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window fixture + replay test, raw RSS rows in the note, read_grown docstring. No CI runs. Samples: the note's raw rows.
 ## State
 - Cause: fw watch re-read whole logs each tick (timings 64 MB, transcripts 110 MB, fwcore binary hash 83 MB, events, spool).
   Now cursor reads in 512 KiB chunks (`apps/runner/src/watch-mem.ts`), windowed timing samples (newest 3000), per-transcript
@@ -18,11 +17,9 @@ round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window
 - `fw watch --stream --tick` prints `TICK rss=.. heap=.. bound=..`; health.jsonl rows carry `mem`; alert `watch.rss fw-watch`.
 - Numbers and method: `research/notes/2026/10-2x-watch-memory.md`. Sampler scripts were scratch (not committed): spawn the
   watch with `FW_CONSOLE_DIR=<copy>` and `FW_WATCH_REAP=0`, `ps -o rss` every 60 s.
-
 ## Conventions
 - TS stand-ins (temporary): `windowRows`, `readFrom`, `nextCursor` in watch-mem.ts, checked against the goldens.
 - `apps/runner/src/next.ts` is outside the task's writes (transcript tail); the dry land may need `--allow`.
-
 ## Follow-ups
 - docs/team/tools/fw-watch.md does not mention `--tick`.
 - health.jsonl (195 MB) grows one snapshot per tick: disk only; needs a retention rule.

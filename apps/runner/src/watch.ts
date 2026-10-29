@@ -85,7 +85,6 @@ export async function slowWith(paths: Paths, core: CoreCall): Promise<{ slow: st
 }
 
 export interface MemCheck { line: string; alerts: Alert[]; mem: { rssKb: number; heapKb: number } }
-/** The watcher's own resident size against the Lean bound (ops.watchRss): its tick line and, above the bound, an alert. A failed call gives neither. */
 export async function memCheck(core: CoreCall, mem = ownMemoryKb()): Promise<MemCheck | null> {
   try {
     const r = await core({ op: "ops.watchRss", ...mem });
