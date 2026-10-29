@@ -7,6 +7,7 @@ import { PROFILE_TARGET } from '../platform.entries/logic';
 import { createGlintDriver } from '../platform.glint/driver';
 import { createPause } from '../platform.glint/pause';
 import { holdElements, X1, X2 } from '../platform.glint/logic';
+import { compositorKeyframes, compositorTiming } from '../platform.glint/compositor';
 import { ASK_TITLE, FLAGS, NETWORK, ORDERS, PROFILE, QUOTE, REVIEWS, TOPICS, UK_LAYERS, type Service } from './content';
 import { matchList } from './media';
 import v from './visuals.module.css';
@@ -18,6 +19,7 @@ export interface Subs {
   glint: boolean;
   glintPause?: boolean;
   glintHold?: boolean;
+  glintComp?: boolean;
   marquee: boolean;
 }
 
@@ -276,6 +278,23 @@ function HoldRing({ side, idBase }: { side: 'left' | 'right'; idBase: string }) 
   );
 }
 
+function CompDash({ side, playing }: { side: 'left' | 'right'; playing: boolean }) {
+  const layer = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = layer.current;
+    if (!playing || !el || typeof el.animate !== 'function') return;
+    const a = el.animate(compositorKeyframes(side), compositorTiming());
+    return () => a.cancel();
+  }, [playing, side]);
+  return (
+    <span className={cx(v.dash, side === 'left' ? v.dashLeft : v.dashRight)} data-fw-dash={side}>
+      <span className={cx(v.glintClip, playing && v.glintClipActive)} aria-hidden="true">
+        <span ref={layer} className={v.glintLayer} />
+      </span>
+    </span>
+  );
+}
+
 function Dash({ side, playing, hold }: { side: 'left' | 'right'; playing: boolean; hold?: boolean }) {
   const ref = useRef<SVGSVGElement>(null);
   const id = `secure-network-dash-${side}`;
@@ -367,8 +386,8 @@ export function Secure({ subs }: { subs: Subs }) {
   return (
     <div ref={root} className={cx(v.secure, subs.entriesFill && v.fillRelease)} data-fw-visual="secure" aria-hidden="true">
       <img className={v.rings} loading="lazy" decoding="async" src={`${NETWORK}/hex-rings.svg`} alt="" width="542" height="600" draggable={false} />
-      <Dash side="left" playing={playing} hold={subs.glintHold} />
-      <Dash side="right" playing={playing} hold={subs.glintHold} />
+      {subs.glintComp ? <CompDash side="left" playing={playing} /> : <Dash side="left" playing={playing} hold={subs.glintHold} />}
+      {subs.glintComp ? <CompDash side="right" playing={playing} /> : <Dash side="right" playing={playing} hold={subs.glintHold} />}
       <img className={cx(v.face, v.faceLeft)} loading="lazy" decoding="async" src={`${NETWORK}/portrait-left.png`} alt="" width="96" height="96" draggable={false} />
       <img className={cx(v.face, v.faceRight)} loading="lazy" decoding="async" src={`${NETWORK}/portrait-right.png`} alt="" width="96" height="96" draggable={false} />
       <div className={v.shield}>

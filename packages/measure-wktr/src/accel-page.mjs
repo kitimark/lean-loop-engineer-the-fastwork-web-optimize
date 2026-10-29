@@ -12,7 +12,7 @@ const RUN_SRC = `(() => {
   });
 })();`;
 
-export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid, rsIdleMs, rsReps, gh } = {}) {
+export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid, rsIdleMs, rsReps, gh, gk } = {}) {
   const pre = 'window.__fwN = { st: window.setTimeout.bind(window) };\n';
   const opts = { mode, sweepFrames, windowMs, settleMs };
   if (arms) opts.arms = arms;
@@ -20,6 +20,7 @@ export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 56
   if (rsIdleMs) opts.rsIdleMs = rsIdleMs;
   if (rsReps) opts.rsReps = rsReps;
   if (gh) opts.gh = true;
+  if (gk) opts.gk = true;
   return pre + bootstrapSource({ clock: 'pinned' }) + '\n' + probeSource(opts) + '\n' + RUN_SRC;
 }
 

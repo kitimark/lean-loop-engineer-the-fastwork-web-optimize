@@ -23768,7 +23768,8 @@
     "packages/premise-tests/pages/**",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     ".github/workflows/wktr.yml"
-   ]
+   ],
+   "evidence": "65b8ade"
   },
   {
    "devices": [
@@ -23939,7 +23940,11 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-phone-feel-capture.md",
-    "docs/team/handoffs/phone-feel-capture.md"
+    "docs/team/handoffs/phone-feel-capture.md",
+    "lean/Fw/Device/Thermal.lean",
+    "packages/contracts/golden/device/thermal.jsonl",
+    "packages/measure-webkit/src/device*.mjs",
+    "packages/measure-webkit/src/wip*.mjs"
    ]
   },
   {
@@ -23966,7 +23971,8 @@
     "docs/team/incidents/ledger.json",
     "research/notes/2026/10-2x-land-push-lane.md",
     "docs/team/handoffs/land-push-lane.md"
-   ]
+   ],
+   "evidence": "70cf04b"
   },
   {
    "devices": [

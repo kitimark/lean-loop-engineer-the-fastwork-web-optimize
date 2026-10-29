@@ -4661,6 +4661,40 @@
    "lesson": "At n = 4 a wide reference spread (Paint 9600 to 13104) hides any effect of hiding the pictures; decide with a larger n or a lower base spread, and separate decode from paint with a second probe.",
    "next": "A larger n or a lower base spread to decide the base contrast; a decode-versus-paint probe.",
    "evidence": "research/notes/2026/10-2x-phone-cols-probe.md (task phone-cols-probe)"
+  },
+  {
+   "id": "platform.glint:compositor",
+   "n": 95,
+   "part": "platform.glint",
+   "flags": [
+    "platform.glint:compositor"
+   ],
+   "flag": "platform.glint:compositor",
+   "visClass": "L",
+   "candidate": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "status": "partly-proved",
+   "chromium": "not measured",
+   "webkit": "NOT YET MEASURED VALIDLY. WKTR of the iOS 26.5 Simulator build, pref OFF, 3 jobs each, runs 40833327416 (r1) and 40837547847 (r2, results/glint-compositor): the probe pauses every running Web Animation before it counts, which paused the variant's own two transform animations (glint animations running 0 in every compositor arm; the pauses were 7 to 10 against 5 to 8 in the base arms), so the compositor arm's 0 idle recalcs per 100 frames (base 97-104, floor 0) say nothing about the variant. Only r2 j3 had other animations still running (20) and read 100 idle recalcs with the glint animations not attributable. The probe is fixed (glint animations are kept and counted, mid-page.mjs glintLive) and Lean judgeLive refuses a reading with glintLive 0; the corrected lane has not been run (3 pushes used). MEASURED (invalid reading) and retracted",
+   "visual": "L (look change for the user's review): look premise glint.compositor-pixels, both engines, dpr 1 and 2, 27 times (final run 40837548139, first run 40833327444): the stop positions are equal by Lean stops_eq and the dash interior (x from 2 px after each end, y one device pixel inside the top and bottom edge) differs by at most 3 of 255 (bound 12, fixed before the data); the edge pixels (the round-cap columns of the dash ends and the partly covered top and bottom rows) differ by up to 41 (dpr 1) and 94 (dpr 2) on Chromium 156 and 35 and 79 on WebKit 27.2, because the engines paint the stroked shape and the clip shape with different edge coverage. Never into a preset",
+   "mechanism": "INFERRED: the original ticks the SMIL timeline of each dash svg 60 times a second (WebKit SMILTimeContainer.cpp 1/60 s timer, then SVGAttributeAnimator, SVGLinearGradientElement, gradient invalidation); a CSS transform animation with linear easing on an HTML box is run by the compositor (WebKit KeyframeEffect.cpp canBeAccelerated, Chromium compositor_animations.cc), so the page would do no SMIL tick and no per-frame style write. Not measured: whether WKTR with threaded animations OFF still recalcs per frame for a running accelerated animation. Lean: stops_eq (same stop positions at every time), variant_no_smil, variant_no_writes.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintCompositor.stops_eq",
+    "Fw.Parts.PlatformGlintCompositor.shiftAt_eq",
+    "Fw.Parts.PlatformGlintCompositor.variant_no_smil",
+    "Fw.Parts.PlatformGlintCompositor.variant_no_writes",
+    "Fw.Device.GlintHoldCompositor.judgeC_atFloor",
+    "Fw.Device.GlintHoldCompositor.atFloor_below_base"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [
+    "the transform animation runs on the compositor in both engines and does not make the page recalc style per frame: INFERRED from source, NOT measured (the WKTR lane paused it)"
+   ],
+   "v1Evidence": "",
+   "lesson": "A moving gradient is a translation of a fixed gradient (glint_translate), so it can leave the SMIL timeline for a transform animation (class L for the edge pixels). A probe that pauses all Web Animations to isolate one cause also pauses the variant that replaces the cause with a Web Animation; the verdict must check that the variant's own animations ran (Lean judgeLive).",
+   "next": "re-run the WKTR accel lane with the fixed probe (push the branch, then [ci:wktr] [accel] with the temporary wktr.yml build config), then the user's look review of the dash edge pixels (class L)",
+   "evidence": "research/notes/2026/10-2x-glint-compositor.md; runs 40837548139 and 40833327444 (premise), 40833327416 and 40837547847 (WKTR, invalid for the variant)",
+   "userDecision": "pending"
   }
  ],
  "notes": [
@@ -5545,6 +5579,12 @@
    "task": "glint-hold-close",
    "field": "missingWhy",
    "text": "glint-hold-close (note research/notes/2026/10-2x-glint-hold-close.md). Lean: Fw.Parts.PlatformGlintPause.resume_seek_forward proves that along a run with nondecreasing observation times every resume seek of the pause machine targets an elapsed time at or after the one the clock froze at, so the flag path never issues the backward setCurrentTime that Chromium gets wrong (diff 235); that missingWhy item is closed. The Simulator per-zone item stays open: the WKTR idle recalc verdict answers a different question (style recalcs per 100 frames in WKTR cells, not per-zone counters on the swipe path). Gen.entry for this flag: not yet, blocker proofs only (look is met by class E, Fw.Preset.Gen.lookMet_of_exact)."
+  },
+  {
+   "entry": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "task": "glint-compositor",
+   "field": "webkit",
+   "text": "glint-compositor (note research/notes/2026/10-2x-glint-compositor.md; Lean lean/Fw/Device/GlintHoldCompositor.lean decided before the data). Look, MEASURED (CI premise glint.compositor-pixels, run 40837548139, both engines, dpr 1 and 2): class L, the dash interior differs by at most 3 of 255, the edge pixels (round-cap columns, partly covered top and bottom rows) by up to 94 (first run 40833327444). WKTR pref OFF accel lane, runs 40833327416 and 40837547847, 3 jobs each: INVALID for the variant, the probe paused the variant's own transform animations (glint animations running 0), so the compositor arm's 0 idle recalcs per 100 frames against base 97-104 and floor 0 is not a result; probe fixed and Lean judgeLive added, lane not re-run (3 pushes used). WKTR is not iOS Safari; no phone run."
   }
  ]
 }
