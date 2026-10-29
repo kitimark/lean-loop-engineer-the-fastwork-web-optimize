@@ -592,8 +592,7 @@ def q6Answer : Option String := some Fw.Parts.HeroExitScrollOffset.q6Text
 
 def acceptedLook (f : Flag) : Bool := lookDecisions.any fun d => d.flag == f && d.decision == .accepted
 
-/-- **The look requirement**: met by a class `e` or `eS` registration (same look proved in Lean) or by an accepted user
-look decision; a class `q`, `l` or unclassified flag needs the decision. -/
+/-- The look requirement: class `e` or `eS` (`exactLook`) or an accepted user look decision. -/
 def lookMet (reg : List Reg) (f : Flag) : Bool := exactLook reg f || acceptedLook f
 
 theorem lookMet_of_exact {reg : List Reg} {f : Flag} (h : exactLook reg f = true) : lookMet reg f = true := by
@@ -668,8 +667,6 @@ theorem enter_of_ok_exact {reg : List Reg} {ledger : List Row} {st : List Stored
   | look => exact lookMet_of_exact hx
   | q6 => rfl
 
-/-- **Entry agrees with the preset for a class `e` or `eS` flag**: a registered `optimized` flag whose look is proved
-the same enters exactly when `V2Proved.ok` admits it. -/
 theorem entry_enter_iff_ok_of_exact {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
     (hx : exactLook reg f = true) (ho : isOpt reg f = true) :
     entry reg ledger st f = .enter ↔ ok reg links ledger st f = true :=
@@ -841,7 +838,6 @@ def probesText (reg : List Reg) (p : List Flag) : String :=
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
 
-/-- The decided class `e` or `eS` flags whose entry decision differs from `V2Proved.ok`. -/
 def entryGaps (reg : List Reg) (ledger : List Row) (st : List Stored) : List Flag :=
   (decided reg).filter fun f => exactLook reg f && ((entry reg ledger st f == .enter) != ok reg links ledger st f)
 

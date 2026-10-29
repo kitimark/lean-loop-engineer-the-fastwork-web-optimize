@@ -100,7 +100,6 @@ def Obs.time : Obs → Rat
   | .hide t => t
   | .reveal t => t
 
-/-- The frozen elapsed time and the seek target of each resume seek along a run, in run order. -/
 def seeks (p : P) : List Obs → List (Rat × Rat)
   | [] => []
   | o :: os =>
@@ -108,7 +107,6 @@ def seeks (p : P) : List Obs → List (Rat × Rat)
       | .reveal t => if p.c.paused then [(p.c.elapsed t, t + p.off)] else []
       | .hide _ => []) ++ seeks (p.step o) os
 
-/-- `Same b p`, and a paused clock froze at an elapsed time no later than `now - b`. -/
 def Fwd (b now : Rat) (p : P) : Prop := Same b p ∧ (p.c.paused = true → p.c.accum ≤ now - b)
 
 theorem fwd_start (b now : Rat) : Fwd b now ⟨Cont.start b, -b⟩ := ⟨same_start b, by simp [Cont.start]⟩
@@ -142,8 +140,6 @@ theorem seek_head_forward (b now t : Rat) (p : P) (h : Fwd b now p) (ht : now �
   simp only [Cont.elapsed, hp, ↓reduceIte, h.1.1]
   grind
 
-/-- **Resume seeks go forward**: along a run with nondecreasing observation times, every resume seek targets an
-elapsed time at or after the one the clock froze at. -/
 theorem resume_seek_forward (b now : Rat) (p : P) (h : Fwd b now p) (os : List Obs)
     (hge : ∀ o ∈ os, now ≤ o.time) (hm : os.Pairwise fun a c => a.time ≤ c.time) :
     ∀ q ∈ seeks p os, q.1 ≤ q.2 := by
