@@ -212,6 +212,29 @@ theorem dominant_half (e : Entry) (h : e.dominant = true) : e.p < 2 * e.cut := b
 /-- Two writers whose cuts do not overlap (their sum is at most the floor) cannot both dominate: a `several` finding means the writes share frames. -/
 theorem several_overlap (p c₁ c₂ : Nat) (h₁ : p < 2 * c₁) (h₂ : p < 2 * c₂) : p < c₁ + c₂ := by omega
 
+/-- The sum of naturals that are each at least 1 is at least their count. -/
+theorem len_le_sum (xs : List Nat) (h : ∀ x ∈ xs, 1 ≤ x) : xs.length ≤ xs.sum := by
+  induction xs with
+  | nil => simp
+  | cons a t ih =>
+    have ha := h a (by simp)
+    have ht := ih (fun x hx => h x (by simp [hx]))
+    simp only [List.length_cons, List.sum_cons]
+    omega
+
+/-- Why silencing writers cannot take the floor below 100: a running animation track invalidates its target on every tick (WebKit `KeyframeEffect::animationDidTick`), so each frame of the window holds at least one recalc whether or not any DOM write happens, and a window of such frames reads at least 100 per 100 frames. -/
+theorem rate_one_per_frame (fs : List Frame) (h : ∀ f ∈ fs, 1 ≤ f.r) (hne : fs ≠ []) : 100 ≤ rate fs := by
+  have hs : (fs.map (·.r)).length ≤ (fs.map (·.r)).sum :=
+    len_le_sum _ (by simpa using h)
+  have hl : 0 < fs.length := by
+    cases fs with
+    | nil => exact absurd rfl hne
+    | cons a t => simp
+  have hz : ¬ (fs.length = 0) := by omega
+  simp only [rate, rpf100, List.length_map] at *
+  simp only [hz, ite_false]
+  exact (Nat.le_div_iff_mul_le hl).2 (by omega)
+
 /-- Jobs whose findings are `unread` are left out; two or more others must name the same finding. -/
 def overallF (fs : List F) : String := overallNames ((fs.filter fun f => f != .unread).map F.name)
 
