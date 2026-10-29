@@ -81,8 +81,8 @@ test('armFrames reads interned keys', () => {
 
 test('the arm list holds the floor, observed, flushed and intervention arms; the mode runs with the pref off', () => {
   for (const a of ['rs-idle-floor', 'rs-idle-obs', 'rs-idle-obsf', 'rs-flip-floor', 'rs-flip-obs', 'rs-flip-obsf', 'rs-idle-blockraf', 'rs-idle-blocktimer', 'rs-warm']) assert.ok(RS_ARMS.includes(a), a);
-  assert.equal(RS_ARMS.slice(-5, -1).every((a) => a.startsWith('rs-idle-block')), true);
-  assert.equal(RS_ARMS.at(-1), 'rs-idle-cancel');
+  assert.equal(RS_ARMS.slice(-7, -3).every((a) => a.startsWith('rs-idle-block')), true);
+  assert.deepEqual(RS_ARMS.slice(-3), ['rs-idle-cancel', 'rs-idle-hide', 'rs-idle-empty']);
   assert.equal(MODES['recalc-thr-off'], 'morph.geom:on,morph.tween:geom-timed');
   assert.equal(isRecalc('recalc-thr-off'), true);
   assert.ok(headerOf('recalc-thr-off', 'H').endsWith(THREADED_OFF));

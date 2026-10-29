@@ -492,7 +492,7 @@ function pageProbe(P) {
       if (typeof f === 'function') CSSStyleSheet.prototype[m] = function () { S.add('cssom:' + m); return f.apply(this, arguments); };
     }
   }
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel))?$/;
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const rsWindow = async (idle, tw, v, kt) => {
     const rec = v === 'obs' || v === 'obsf';
@@ -577,6 +577,9 @@ function pageProbe(P) {
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     }
+    // Diagnostics (not in the Lean decision, run last): hide = body display none, empty = body children removed.
+    if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
+    if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
     S.fine = vv === 'obs' ? {} : null;
     if (kind === 'idle') {
       out.engaged = out.rs.internals;
@@ -614,9 +617,10 @@ function pageProbe(P) {
       out.rs.fine = Object.entries(S.fine).sort((a, b) => b[1] - a[1]).slice(0, 15);
       S.fine = null;
     }
+    if (vv === 'hide') document.body.style.display = '';
     for (const a of toPause) { try { a.play(); } catch (x) { /* finished or gone */ } }
     await sleep(900);
-    out.nav = nav().className;
+    out.nav = vv === 'empty' ? '' : nav().className;
     return out;
   };
 

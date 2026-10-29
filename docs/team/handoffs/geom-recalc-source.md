@@ -1,5 +1,7 @@
-branch worktree-wf_bb119790-00f-1 (ci branch ci/geom-recalc-source), worktree .claude/worktrees/wf_bb119790-00f-1, last commit c536e5c0f
-CI runs: wktr 40792245957 (push 1 of max 3, in_progress); no data yet.
+branch worktree-wf_bb119790-00f-1 (ci branch ci/geom-recalc-source), worktree .claude/worktrees/wf_bb119790-00f-1, last commit 1576aad26 (pushed)
+CI runs: wktr 40792245957 (push 1, c536e5c0f, success, 3 jobs, verdict engine-internal in idle and flip in all 3 jobs; data in results/geom-recalc-source/r1);
+wktr 40795367330 (push 2 of max 3, 1576aad26, adds pre-callback recalc count per frame and the diagnostic arm rs-idle-cancel, queued).
+Run 1 facts (MEASURED): all-paused idle 95-103 recalcs per 100 frames, every recalc updates 0 elements (lastStyleUpdateSize 0), no mutation or raf key, only a gc timer interval; swallowing page rAF or timers leaves 98-100.
 
 Task geom-recalc-source (graph r560): name the source of the one style recalc per frame left when every running animation is paused (WKTR, pref OFF).
 State

@@ -5,9 +5,9 @@ const A = (kind) => ['floor', 'obs', 'obsf'].map((v) => `rs-${kind}-${v}`);
 export const IDLE_ARMS = A('idle');
 export const FLIP_ARMS = A('flip');
 const BLOCK = ['rs-idle-blockraf', 'rs-idle-blocktimer'];
-const CANCEL = 'rs-idle-cancel';
-// Order: a warm flip, the six arms, the six again reversed (order effects), then the intervention arms last (they swallow page callbacks), then the diagnostic cancel arm (it destroys the page's animations, not in the Lean decision).
-export const RS_ARMS = ['rs-warm', ...IDLE_ARMS, ...FLIP_ARMS, ...[...FLIP_ARMS].reverse(), ...[...IDLE_ARMS].reverse(), ...BLOCK, ...[...BLOCK].reverse(), CANCEL];
+const DIAG = ['rs-idle-cancel', 'rs-idle-hide', 'rs-idle-empty'];
+// Order: a warm flip, the six arms, the six again reversed (order effects), then the intervention arms last (they swallow page callbacks), then the diagnostic arms: cancel every animation, hide the body, empty the body (not in the Lean decision).
+export const RS_ARMS = ['rs-warm', ...IDLE_ARMS, ...FLIP_ARMS, ...[...FLIP_ARMS].reverse(), ...[...IDLE_ARMS].reverse(), ...BLOCK, ...[...BLOCK].reverse(), ...DIAG];
 
 export const C = { coverMinPct: 90, absentMinPct: 90, minQ: 10, residualMin: 75, shiftMax: 25, fellMax: 25, minValid: 2 };
 export const MF = { idle: 40, flip: 12 };
