@@ -1,6 +1,6 @@
 branch: worktree-wf_49266267-829-1
 worktree: .claude/worktrees/wf_49266267-829-1 (under the main checkout)
-last commit: COMMIT_SHA
+last commit: e64ac7211 (this file added in the next commit)
 run ids: none (local task, no CI)
 verified: Lean WatchMem compiles; goldens replay in check.sh; runner tests; local RSS before/after, before max 842 MB / after max 250 MB (local, 21 min, 60 s samples, slope -5 / +5 MB/min)
 open: next.ts outside writes (dry land may need --allow); follow-ups below
