@@ -1,12 +1,8 @@
-// TS stand-in of Lean Fw.Device.RecalcSource (lean/Fw/Device/RecalcSource.lean), replayed against packages/contracts/golden/device/recalc-source.jsonl.
-// The reducer from a WKTR accel report (arms rs-*) to the Lean Job (`jobOf`) is glue and is not golden-replayed.
-
 const A = (kind) => ['floor', 'obs', 'obsf'].map((v) => `rs-${kind}-${v}`);
 export const IDLE_ARMS = A('idle');
 export const FLIP_ARMS = A('flip');
 const BLOCK = ['rs-idle-blockraf', 'rs-idle-blocktimer'];
 const DIAG = ['rs-idle-cancel', 'rs-idle-hide', 'rs-idle-empty'];
-// Order: a warm flip, the six arms, the six again reversed (order effects), then the intervention arms last (they swallow page callbacks), then the diagnostic arms: cancel every animation, hide the body, empty the body (not in the Lean decision).
 export const RS_ARMS = ['rs-warm', ...IDLE_ARMS, ...FLIP_ARMS, ...[...FLIP_ARMS].reverse(), ...[...IDLE_ARMS].reverse(), ...BLOCK, ...[...BLOCK].reverse(), ...DIAG];
 
 export const C = { coverMinPct: 90, absentMinPct: 90, minQ: 10, residualMin: 75, shiftMax: 25, fellMax: 25, minValid: 2 };
@@ -61,13 +57,9 @@ const NEXT = {
 };
 export const emptyPm = (fs) => { const z = fs.flatMap((f) => f.sizes); return z.length === 0 ? 0 : Math.floor((z.filter((n) => n === 0).length * 1000) / z.length); };
 
-/** Expand a golden run list ([{n, f}]) to frames. */
 export const expand = (runs) => runs.flatMap(({ n, f }) => Array.from({ length: n }, () => f));
 export const jobOfGolden = (g) => ({ floor: expand(g.floor), base: expand(g.base), ivs: g.ivs.map((x) => ({ kind: x.kind, frames: expand(x.frames) })) });
 
-/* ---- glue: WKTR accel report -> Lean Job (not golden-replayed) ---- */
-
-/** Frames of every row of the named arm, pooled over the rows (order and reverse order). The page interns the keys: `rs.kt[i]`. */
 export function armFrames(report, name) {
   const out = [];
   for (const row of report.rows) {
@@ -87,7 +79,6 @@ export function jobOf(report, kind) {
   };
 }
 
-/** Report lines for one job: per arm frames and recalcs per frame, suspects, sources, verdict. */
 export function recalcTally(report) {
   const lines = [];
   const names = [...new Set(report.rows.filter((r) => r.rs).map((r) => r.arm))];

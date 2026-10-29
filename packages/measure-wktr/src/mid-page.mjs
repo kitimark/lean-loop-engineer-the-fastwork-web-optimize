@@ -31,7 +31,6 @@ function pageProbe(P) {
   const X = (window.__fwx = { created: [], suppress: new Set(), mode: P.mode, arm: null, n: 0, rows: [], tags: [], table: null, errors: [] });
   const CSSN = { backdropFilter: 'backdrop-filter' };
   const NONKEY = new Set(['offset', 'easing', 'composite']);
-  // Native entry points, captured before any wrapper (task geom-recalc-source wraps the page-facing ones; the probe itself never goes through them).
   const origRaf = window.requestAnimationFrame.bind(window);
   const origST = window.setTimeout.bind(window);
   const origSI = window.setInterval.bind(window);
@@ -446,12 +445,6 @@ function pageProbe(P) {
     return out;
   };
 
-  // Task geom-recalc-source. Arms `rs-<warm|idle|flip>[-floor|-obs|-obsf|-blockraf|-blocktimer]`. Every arm but rs-warm first pauses all running
-  // document animations. A frame is the stretch between two MessageChannel tasks that follow a rendering update, so a mutation and the recalc it
-  // causes fall in one frame. Per frame: r recalcs (styleRecalcCount delta), k page-side actions seen (interned in rs.kt), z element counts of the
-  // recalcs read one by one (lastStyleUpdateSize; -obsf adds a forced flush at the start of the frame callback, which splits the recalcs and so
-  // changes r: diagnostic only). -floor has no observer; -obs adds the MutationObserver and the key recording. -blockraf / -blocktimer swallow
-  // every page rAF / timer callback (the probe uses the native entry points). The wrappers exist in every rs arm, only recording differs.
   const S = X.rs = { cur: null, blockRaf: false, blockTimer: false, fine: null };
   if (P.rs) {
     S.partOf = (n) => {
@@ -472,7 +465,6 @@ function pageProbe(P) {
         }
       }
     };
-    // Call site: three frames above the wrapper (the site's clock is one shared call site), origin stripped (the port differs per job).
     const site = () => String(new Error().stack || '').split('\n').slice(2, 5).map((l) => l.replace(/https?:\/\/[^\/\s)]+\//g, '').slice(0, 70)).join('>');
     window.requestAnimationFrame = function (cb) {
       if (typeof cb !== 'function') return origRaf(cb);
@@ -564,10 +556,9 @@ function pageProbe(P) {
     await sleep(300);
     let toPause = [];
     if (vv === 'cancel') {
-      // Diagnostic (not in the Lean decision, runs last): cancel every document animation instead of pausing it.
       const all = document.getAnimations();
       out.rs.pausedN = all.length;
-      for (const a of all) { try { a.cancel(); } catch (x) { /* gone */ } }
+      for (const a of all) { try { a.cancel(); } catch (x) { } }
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     } else if (!warm) {
@@ -577,7 +568,6 @@ function pageProbe(P) {
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     }
-    // Diagnostics (not in the Lean decision, run last): hide = body display none, empty = body children removed.
     if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
     if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
     S.fine = vv === 'obs' ? {} : null;
@@ -618,7 +608,7 @@ function pageProbe(P) {
       S.fine = null;
     }
     if (vv === 'hide') document.body.style.display = '';
-    for (const a of toPause) { try { a.play(); } catch (x) { /* finished or gone */ } }
+    for (const a of toPause) { try { a.play(); } catch (x) { } }
     await sleep(900);
     out.nav = vv === 'empty' ? '' : nav().className;
     return out;

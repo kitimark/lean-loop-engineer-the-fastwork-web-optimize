@@ -46,7 +46,7 @@ The observer shifts the floor by at most 5 per 100 (Lean gate 25). Each idle arm
 
 ## Next step (one)
 By the Lean rule: no page-side fix; read the WebKit invalidation path. Concretely, task `geom-recalc-bisect` (probe only, no site edit): in idle with every animation paused, hide one top-level child of `body` at a time (then one `[data-fw]` part at a time inside the child whose removal drops the rate), read the recalc rate with the same arms, and stop at the subtree whose hide takes it below 25 per 100 (the Lean `fellMax`).
-Then read in WebKit what in that subtree marks style dirty without a change (the steps before the callbacks). Only when that names a page element or style feature does a same-look fix task exist; the Lean statement for it would be that the removed or changed feature leaves the computed values of the visible elements unchanged.
+Then read in WebKit what in that subtree marks style dirty without a change (the steps before the callbacks). Only when that names a page element or style feature does a same-look fix task exist.
 This also bounds `geom-sweep-compositor`: the sweep is 1 of the 2 idle recalcs (geom-sweep-paused, MEASURED), the other is this engine-internal recalc and is not removed by moving the sweep.
 
 ## Limits

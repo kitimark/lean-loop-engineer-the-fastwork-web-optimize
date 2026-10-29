@@ -1,18 +1,5 @@
 import Lean.Data.Json
-/-!
-# The recalc-source verdict
-Reads `packages/measure-wktr/src/recalc-source.mjs`: with every running animation paused, WebKit still runs about one style
-recalc per frame. Which page-side action, if any, is present in those frames?
-
-A frame is one task-bounded rendering update. Its `keys` are the page-side actions seen in it, each as `kind:what`
-(`mut:` DOM mutation by part and attribute, `raf:` requestAnimationFrame callback by call site, `timer:` timer callback by call
-site, `cssom:` stylesheet rule write, `anim:` Element.animate call). A key is present in a frame when its count is at least 1.
-`sizes` are the element counts of the recalcs the probe could read one by one (diagnostic, not in the verdict).
-A job has the plain all-paused arm (`floor`, no observer), the observed arm (`base`) and one arm per intervention
-(`ivs`: the kind of page callback the probe swallowed, with the frames of that arm).
-
-The thresholds are fixed here, before any data.
--/
+/-! Recalc-source verdict: which page-side action is present in the style-recalc frames of an all-paused page. -/
 namespace Fw.Device.RecalcSource
 open Lean
 
@@ -22,7 +9,6 @@ structure Frame where
   sizes : List Nat
   deriving DecidableEq, Repr
 
-/-- Recalcs per 100 frames, rounded down. -/
 def rpf100 (fs : List Frame) : Nat :=
   if fs.length = 0 then 0 else (fs.map (·.recalcs)).sum * 100 / fs.length
 
@@ -32,22 +18,16 @@ structure Job where
   ivs : List (String × List Frame)
   deriving DecidableEq, Repr
 
-/-- A source key must be present in at least this percent of the frames that have a recalc (the lead's rule). -/
 def coverMinPct : Nat := 90
 
-/-- ... and absent from at least this percent of the frames without one (the lead's rule). -/
 def absentMinPct : Nat := 90
 
-/-- Frames without a recalc needed before absence can be judged: with 10 the 10 percent leak bound is one whole frame. -/
 def minQ : Nat := 10
 
-/-- The plain all-paused arm must show this many recalcs per 100 frames (earlier readings 99 to 100; 75 keeps it far above the half of 50 and the 25 floor). -/
 def residualMin : Nat := 75
 
-/-- The observed arm may differ from the plain arm by at most this many recalcs per 100 frames, else the observer is the cause. -/
 def shiftMax : Nat := 25
 
-/-- A swallowed kind has "fallen" when its arm shows at most this many recalcs per 100 frames (the geom-sweep-paused `idleOffMax`). -/
 def fellMax : Nat := 25
 
 def kindOf (k : String) : String := (k.splitOn ":").headD ""
@@ -75,23 +55,19 @@ def Job.residual (j : Job) : Bool := residualMin ≤ rpf100 j.floor
 def Job.shifted (j : Job) : Bool :=
   shiftMax < rpf100 j.base - rpf100 j.floor || shiftMax < rpf100 j.floor - rpf100 j.base
 
-/-- The intervention arm of a kind fell: long enough and at most `fellMax` recalcs per 100 frames. -/
 def Job.fell (mf : Nat) (j : Job) (kind : String) : Bool :=
   match j.ivs.find? (·.1 == kind) with
   | some (_, fs) => mf ≤ fs.length && rpf100 fs ≤ fellMax
   | none => false
 
-/-- The intervention arm of a kind kept its recalcs: long enough and above `fellMax`. -/
 def Job.refuted (mf : Nat) (j : Job) (kind : String) : Bool :=
   match j.ivs.find? (·.1 == kind) with
   | some (_, fs) => mf ≤ fs.length && fellMax < rpf100 fs
   | none => false
 
-/-- Keys present in the recalc frames whose kind was not refuted by its intervention. -/
 def Job.suspects (mf : Nat) (j : Job) : List String :=
   j.universe.filter fun k => j.covered k && !j.refuted mf (kindOf k)
 
-/-- With contrast a suspect must also be absent from the frames without a recalc; without it, its kind's intervention must have fallen. -/
 def Job.sources (mf : Nat) (j : Job) : List String :=
   (j.suspects mf).filter fun k => if j.contrast then j.absent k else j.fell mf (kindOf k)
 
@@ -136,18 +112,15 @@ theorem why_several (mf : Nat) (j : Job) (h1 : j.hasFrames mf = true) (h2 : j.re
   have h' : (j.sources mf).length ≠ 1 := by omega
   simp [Job.why, h1, h2, h3, h', h]
 
-/-- No suspect at all: nothing page-side is present in 90 percent of the recalc frames, or the interventions refuted what is. -/
 theorem why_internal_noSuspect (mf : Nat) (j : Job) (h1 : j.hasFrames mf = true) (h2 : j.residual = true)
     (h3 : j.shifted = false) (h : j.suspects mf = []) : j.why mf = .internal := by
   have hs : j.sources mf = [] := by simp [Job.sources, h]
   simp [Job.why, h1, h2, h3, hs, h]
 
-/-- Contrast exists, suspects exist, and none of them is absent from the quiet frames: nothing separates a frame with a recalc from one without. -/
 theorem why_internal_leaky (mf : Nat) (j : Job) (h1 : j.hasFrames mf = true) (h2 : j.residual = true)
     (h3 : j.shifted = false) (hc : j.contrast = true) (h : j.sources mf = []) : j.why mf = .internal := by
   simp [Job.why, h1, h2, h3, h, hc]
 
-/-- No contrast and no fallen intervention: suspects stay suspects. -/
 theorem why_noContrast (mf : Nat) (j : Job) (h1 : j.hasFrames mf = true) (h2 : j.residual = true)
     (h3 : j.shifted = false) (hc : j.contrast = false) (h : j.sources mf = []) (hs : j.suspects mf ≠ []) :
     j.why mf = .noContrast := by
@@ -167,19 +140,16 @@ theorem suspects_not_refuted (mf : Nat) (j : Job) (k : String) (h : k ∈ j.susp
   simp only [Bool.and_eq_true, Bool.not_eq_true'] at this
   exact this.2
 
-/-- With contrast a source is absent from the quiet frames. -/
 theorem sources_absent (mf : Nat) (j : Job) (k : String) (hc : j.contrast = true) (h : k ∈ j.sources mf) :
     j.absent k = true := by
   have := (List.mem_filter.mp h).2
   simpa [hc] using this
 
-/-- Without contrast a source's kind has a fallen intervention. -/
 theorem sources_fell (mf : Nat) (j : Job) (k : String) (hc : j.contrast = false) (h : k ∈ j.sources mf) :
     j.fell mf (kindOf k) = true := by
   have := (List.mem_filter.mp h).2
   simpa [hc] using this
 
-/-- A kind is never both fallen and refuted. -/
 theorem fell_not_refuted (mf : Nat) (j : Job) (kind : String) (h : j.fell mf kind = true) :
     j.refuted mf kind = false := by
   unfold Job.fell at h
@@ -195,7 +165,6 @@ theorem fell_not_refuted (mf : Nat) (j : Job) (kind : String) (h : j.fell mf kin
 theorem thresholds_sane : fellMax < residualMin ∧ shiftMax ≤ fellMax ∧ 0 < minQ ∧ coverMinPct ≤ 100 ∧ absentMinPct ≤ 100 := by
   decide
 
-/-- One job's reading: its reason and the key it names. -/
 structure Res where
   why : Why
   src : Option String
@@ -212,10 +181,8 @@ inductive Verdict where
 def Verdict.name : Verdict → String
   | .inconclusive => "inconclusive" | .internal => "engine-internal" | .named k => s!"named {k}" | .several => "several"
 
-/-- At least this many jobs must be valid for a verdict. -/
 def minValid : Nat := 2
 
-/-- The verdict over the valid jobs `vs`. -/
 def overallOf (vs : List Res) : Verdict :=
   if vs.all (·.why == .internal) then .internal
   else if vs.all (·.why == .named) && vs.all (·.src == (vs.head?.bind (·.src))) then
@@ -275,7 +242,6 @@ def Verdict.next : Verdict → Next
 theorem next_fix_iff (v : Verdict) : v.next = .fixTask ↔ ∃ k, v = .named k := by
   cases v <;> simp [Verdict.next]
 
-/-- Share of the readable recalc element counts that are 0, per mille (diagnostic: an empty update is an invalidation without a style change). -/
 def emptyPm (fs : List Frame) : Nat :=
   let zs := fs.flatMap (·.sizes)
   if zs.length = 0 then 0 else (zs.filter (· = 0)).length * 1000 / zs.length
@@ -293,7 +259,6 @@ private def job (floor base : List Frame) (ivs : List (String × List Frame) := 
 
 private def fl : List Frame := rep 60 (fr 1)
 
-/-- Named cases: (name, minimum frames per arm, job). Idle cases use 40, flip cases 12. -/
 def cases : List (String × Nat × Job) :=
   [("named by contrast", 40, job fl (rep 70 (fr 1 [kA]) ++ rep 12 (fr 0))),
    ("leaky candidate dropped", 40, job fl (rep 70 (fr 1 [kA, kM]) ++ rep 6 (fr 0 [kM]) ++ rep 6 (fr 0))),
@@ -344,7 +309,6 @@ def combos : List (String × List String) :=
 private def frJ (f : Frame) : Json :=
   Json.mkObj [("recalcs", f.recalcs), ("keys", Json.arr (f.keys.map Json.str).toArray), ("sizes", Json.arr (f.sizes.map fun n => toJson n).toArray)]
 
-/-- Consecutive equal frames as (n, frame) runs: the golden stays short. -/
 def runs (fs : List Frame) : List (Nat × Frame) :=
   fs.foldr (fun f acc => match acc with
     | (n, g) :: t => if f == g then (n + 1, g) :: t else (1, f) :: acc

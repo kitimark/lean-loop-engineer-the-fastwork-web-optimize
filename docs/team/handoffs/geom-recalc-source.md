@@ -1,4 +1,4 @@
-branch worktree-wf_bb119790-00f-1 (ci branch ci/geom-recalc-source), worktree .claude/worktrees/wf_bb119790-00f-1, results commit 60bab8937 (CI pushes: 3 of 3 used, none left)
+branch worktree-wf_bb119790-00f-1 (ci branch ci/geom-recalc-source), worktree .claude/worktrees/wf_bb119790-00f-1, results commit 60bab8937 (CI pushes: 3 of 3 used)
 CI runs, all complete (success, 3 WKTR jobs each, mode recalc-thr-off, pref OFF):
 - 40792245957 (c536e5c0f) r1; 40795367330 (1576aad26) r2; 40797685228 (ee443d434) r3. Data in results/geom-recalc-source/r1..r3, table.txt, verdict.txt.
 
@@ -7,7 +7,7 @@ Result (MEASURED): Lean verdict engine-internal for idle in 9 of 9 jobs, flip in
 Next step: task geom-recalc-bisect (probe only): hide one body child at a time, then one [data-fw] part, find the subtree taking idle below 25 per 100; then read the WebKit path. No page-side fix.
 
 State
-- Lean decision lean/Fw/Device/RecalcSource.lean (thresholds fixed before data), golden packages/contracts/golden/device/recalc-source.jsonl, check.sh job and Trigger row wired.
+- Lean decision lean/Fw/Device/RecalcSource.lean, golden packages/contracts/golden/device/recalc-source.jsonl, check.sh job and Trigger row wired.
 - TS stand-in packages/measure-wktr/src/recalc-source.mjs (replays the golden; jobOf is glue, not replayed); probe in src/mid-page.mjs (rsArm, rsWindow); mode recalc-thr-off in src/accel-cli.mjs. wktr.yml mode edit reverted.
 - Note research/notes/2026/10-2x-geom-recalc-source.md, ledger note added, land.ts read-list has the golden.
 - Verified before the final steps: measure-wktr package tests 102 pass (fw slot).
