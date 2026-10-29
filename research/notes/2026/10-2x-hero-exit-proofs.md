@@ -21,8 +21,9 @@ Tags: CONFIRMED (Lean theorem or source cited), INFERRED (reasoned, not seen). N
   `crOrigR2` adds one style-only change for each fan-out element to `crOrig`.
 * `cr_orig_r2`: the original keeps `crOrigPasses`, and its style units become `crFull (heroTree ℓ)`.
 * `cr_style_saving`: whenever the threaded animation is on, both arms run the same number of style passes. The
-  variant's style units are at most `N + 3`, which is less than the original's 99 or 172.
-* `cr_lane_style_saving`: in the lane, the variant's units are exactly `N + 3`.
+  variant's style units are at most `animCount ℓ N` (`N + 3` in the phone band, `N + 4` above), which is less than
+  the original's 99 or 172.
+* `cr_lane_style_saving`: in the lane, the variant's units are exactly `animCount ℓ N`.
 * `Fw.Measure.quarantined_unsound`, linked in leanAgainst, says why the lane still cannot read the saving: only
   elementCount maps to units, and it is quarantined.
 
@@ -30,7 +31,7 @@ Tags: CONFIRMED (Lean theorem or source cited), INFERRED (reasoned, not seen). N
 
 * `rest_iff_before`: under RG11 the consumers sit at their rest values exactly when the scroll offset is at or above
   the track top. `rest_values` gives the rest values: opacity 1 and blur radius 0.
-* `opacity_edge`: the copy's and the cards' opacity takes the `opacityCross1` row exactly when one of the two frames
+* `opacity_edge`: the copy's, the cue's and the cards' opacity takes the `opacityCross1` row exactly when one of the two frames
   rests and the other does not. `isOpaque` flips at 1, `StyleOpacity.h:66`; the flip is Layout at
   `StyleDifference.cpp:208-214`@862f17d.
 * `filter_edge` is the filter-presence clause. The variant's `exitBlur` runs `blur(0px)` to `blur(18px)`
@@ -43,7 +44,7 @@ Tags: CONFIRMED (Lean theorem or source cited), INFERRED (reasoned, not seen). N
   variant rule has no `exitBlur` (`threaded.module.css:46-48`).
 * `wk_var_no_layout`: the variant's scrolled frame does no layout.
 * `wk_edge_work` and `wk_edge_layout`: the edge frame adds exactly one pass of layout, compositing update and paint.
-  That pass carries `edgeCount ℓ N` units: `N + 2` in the phone band and `N + 3` above.
+  That pass carries `edgeCount ℓ N` units: `N + 3` in the phone band and `N + 4` above.
 * `edgeFrames_eq`: along a run of frames, the edge frames are the starts plus the parks.
 * `edgeFrames_le_starts`: starts ≤ edge frames ≤ 2 · starts + 1, and ≤ 2 · starts when the run begins at rest. So each
   rest-to-live switch costs at most two layout frames, its start and its park.
@@ -88,3 +89,27 @@ height (`Fw.Parts.HeroExit.exitRange`). The variant uses `view-timeline: --hero-
 * The handover frames (`threaded.ts:132-156`, toggling `data-exit-live`) restyle once. Not modelled.
 * `lean/Fw/Preset/Gen.lean:698-705` (`threadedEvidence .proofs`) still says the missingWhy is open. It is outside this
   task's writes, so the regenerated decision text is stale on that clause.
+
+## Model fix: the cue's `exitFade` (CONFIRMED from source)
+
+* The original's cue reads the exit opacity: its rule is `opacity: calc(var(--copy-in) * var(--exit-opacity))`, and
+  the settled rule is `opacity: var(--exit-opacity)` (`snapshot/site/_app/immutable/assets/2.gBuqKVzi.css`, selector
+  `.scroll-cue`). The variant's cue runs `exitFade` in both bands (`threaded.module.css:33,60`). The model had left
+  the cue's opacity out of both arms.
+* Fixed: `HeroExit.cueOpacity` and `Consumer.cueOpacity`, which are covered by `consumer_eq_s`. The cue's
+  `cueReaders` now include opacity. `wkOrigChanges` has `2N + 5` changes. The cue's animations are opacity +
+  transform in the phone band, and opacity alone above 600 px.
+* Counts that changed:
+
+  | count | phone band | above 600 px |
+  |---|---|---|
+  | `animCount` (was `N + 3` in both) | `N + 3` | `N + 4` |
+  | Chromium compositor animations | `N + 2` (was `N + 2`) | `N + 2` (was `N + 1`) |
+  | `edgeCount` | `N + 3` (was `N + 2`) | `N + 4` (was `N + 3`) |
+
+* `cr_lane_mixed` now reads: props units `+1` in the phone band and `+2` above, style units `+0` and `+1`. Above
+  600 px the CI lane's ride-along adds one style unit over the original. `cr_real_trade`, `wk_trade` and the R2 style
+  saving hold as before. The golden rows use the phone band, and they are unchanged.
+* The golden `settled` list (`hero-exit.threaded.jsonl`) does not include `cueOpacity`. Adding it would require
+  changing the site's `threaded.ts` and `threaded.test.ts`, which are outside this task: a follow-up.
+

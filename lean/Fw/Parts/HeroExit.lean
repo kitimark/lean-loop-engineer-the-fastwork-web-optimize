@@ -303,6 +303,12 @@ def cueBlurPx (scatter : Rat) : Rat := scatter * 18
 The scroll cue's vertical exit motion in its settled state. -/
 def cueTranslateYPx (scatter : Rat) (le600 : Bool) : Rat := if le600 then scatter * -10 else 0
 
+/-- Scroll-cue opacity, TS form: `e`. The cue's rule is `opacity: calc(var(--copy-in) * var(--exit-opacity))`, and
+its settled rule `--copy-in: 1; opacity: var(--exit-opacity)`, in both bands.
+
+The scroll cue fades with the exit opacity once its entrance has finished. -/
+def cueOpacity (exitOpacityValue : Rat) : Rat := exitOpacityValue
+
 /-- Scroll-cue blur px, full reading (CSS 1911, 1925-1928, 1930-1933): includes the entrance and the splash state.
 
 The scroll cue's blur at any moment, before or after the desktop ring splash (`d`) completes. -/

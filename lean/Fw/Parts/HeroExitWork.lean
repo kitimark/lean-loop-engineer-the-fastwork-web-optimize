@@ -168,7 +168,7 @@ theorem cr_orig_r2 (m : CrMode) (l : Bool) (lo : LayerState) (r : Bool) (s : Sta
   · simp [hst]
 
 /-- **The style saving, in every mode** (threaded animation on): the variant's scrolled frame runs the original's
-single style pass, but its style units are at most its `N + 3` animations, below the `crFull (heroTree ℓ)` elements
+single style pass, but its style units are at most its `animCount ℓ N` animations, below the `crFull (heroTree ℓ)` elements
 the original's inherited write resolves (`99` in the phone band, `172` above). In the CI lane the variant's units
 are exactly the animation count.
 
@@ -181,23 +181,23 @@ theorem cr_style_saving (m : CrMode) (hm : m.threadedAnim = true) (l : Bool) (lo
   intro V O
   have hv := cr_var_exact m l (cardsShown l) r hm .style
   have ho := cr_orig_r2 m l lo r .style
-  have hn : (crAnims l (cardsShown l)).length = cardsShown l + 3 := by
-    cases l <;> simp [crAnims]
+  have hn : (crAnims l (cardsShown l)).length = animCount l (cardsShown l) := by
+    cases l <;> simp [crAnims, animCount]
   have hf := fanOut_add l
-  have hlt : cardsShown l + 3 < crFull (heroTree l) := by cases l <;> decide +kernel
+  have hlt : animCount l (cardsShown l) < crFull (heroTree l) := by cases l <;> decide +kernel
   refine ⟨?_, ?_, ?_, ?_⟩
   · show (frameWork _ _).passes _ = (frameWork _ _).passes _
     rw [hv.1, ho.1]; rfl
   · show (frameWork _ _).units _ ≤ _
     rw [hv.2, hn]
-    cases l <;> cases he : m.everyBeginFrameIsMainFrame <;> simp [crVarUnits, he] <;> omega
+    cases l <;> cases he : m.everyBeginFrameIsMainFrame <;> simp [crVarUnits, he, animCount] <;> omega
   · show _ < (frameWork _ _).units _
     rw [ho.2, hn]; simpa using hlt
   · show (frameWork _ _).units _ = _
     rw [ho.2]; simp
 
-/-- **The lane's style saving**: in the CI lane both arms run one style pass, the variant with exactly its `N + 3`
-animations as units and the original with the whole resolved subtree.
+/-- **The lane's style saving**: in the CI lane both arms run one style pass, the variant with exactly its
+`animCount ℓ N` animations as units and the original with the whole resolved subtree.
 
 The CI lane sees the same style pass count in both arms and a unit saving it cannot read from pass counts. -/
 theorem cr_lane_style_saving (l : Bool) (lo : LayerState) (r : Bool) :
@@ -317,25 +317,36 @@ def filterEdgeRow (a b : Filter) : Option WkProp :=
 #guard filterEdgeRow (.blur 2) (.blur 3) == none
 #guard filterEdgeRow .none .none == none
 
-/-- **Opacity edge (both opacity consumers)**: between two frames the copy's or a card's animated opacity takes the
-`opacityCross1` row exactly when one frame rests and the other does not.
+/-- The cue's opacity rests at `1` and moves. -/
+theorem cue_rest : Consumer.cueOpacity.anim 0 = 1 ∧ Consumer.cueOpacity.val 1 ≠ Consumer.cueOpacity.val 0 := by
+  refine ⟨?_, ?_⟩ <;> simp only [Consumer.anim, lerp, Consumer.val, HeroExit.cueOpacity] <;> grind
+
+/-- **Opacity edge (the three opacity consumers)**: between two frames the copy's, the cue's or a card's animated
+opacity takes the `opacityCross1` row exactly when one frame rests and the other does not.
 
 An opacity consumer crosses 1 on the frames that leave or reach progress 0. -/
 theorem opacity_edge (p q : Rat) :
     (opacityRow ((Consumer.copyOpacity 1).anim p) ((Consumer.copyOpacity 1).anim q) = some .opacityCross1 ↔
       restAt p != restAt q) ∧
     (opacityRow (Consumer.cardOpacity.anim p) (Consumer.cardOpacity.anim q) = some .opacityCross1 ↔
+      restAt p != restAt q) ∧
+    (opacityRow (Consumer.cueOpacity.anim p) (Consumer.cueOpacity.anim q) = some .opacityCross1 ↔
       restAt p != restAt q) := by
   obtain ⟨r1, r2, _, _, m1, m2, _, _⟩ := rest_values
+  obtain ⟨r5, m5⟩ := cue_rest
   have e1 := anim_rest_iff _ m1
   have e2 := anim_rest_iff _ m2
+  have e5 := anim_rest_iff _ m5
   rw [r1] at e1
   rw [r2] at e2
+  rw [r5] at e5
   have b1 : ∀ x, ((Consumer.copyOpacity 1).anim x == 1) = restAt x :=
     fun x => Bool.eq_iff_iff.mpr (by simp [restAt, e1 x])
   have b2 : ∀ x, (Consumer.cardOpacity.anim x == 1) = restAt x :=
     fun x => Bool.eq_iff_iff.mpr (by simp [restAt, e2 x])
-  refine ⟨?_, ?_⟩ <;> unfold opacityRow <;> simp only [b1, b2] <;>
+  have b5 : ∀ x, (Consumer.cueOpacity.anim x == 1) = restAt x :=
+    fun x => Bool.eq_iff_iff.mpr (by simp [restAt, e5 x])
+  refine ⟨?_, ?_, ?_⟩ <;> unfold opacityRow <;> simp only [b1, b2, b5] <;>
     cases restAt p <;> cases restAt q <;> simp <;> split <;> simp
 
 /-- **Filter presence (start and park frames)**: the variant's blur keyframes are `blur(0px)` to `blur(18px)`, so
@@ -382,21 +393,22 @@ def wkEdgeChanges (l : Bool) (N : Nat) : List (Change WkPropX) :=
 def wkEdge (m : WkMode) (l : Bool) (N : Nat) : FrameIn WkPropX :=
   { wkVar m l N with changes := (wkVar m l N).changes ++ wkEdgeChanges l N }
 
-/-- The number of edge rows: the copy's opacity, the cue's blur, each card's opacity, and the copy's blur above
-600 px. -/
-def edgeCount (l : Bool) (N : Nat) : Nat := if l then N + 2 else N + 3
+/-- The number of edge rows: the copy's opacity, the cue's opacity and blur, each card's opacity, and the copy's blur
+above 600 px. -/
+def edgeCount (l : Bool) (N : Nat) : Nat := if l then N + 3 else N + 4
 
 /-- The stages of an edge row on an own layer: layout, with its style, compositing update and paint. -/
 def edgeStages : List Stage := [.style, .layout, .props, .paint]
 
-#guard edgeCount true 4 == 6 && edgeCount false 10 == 13
+#guard edgeCount true 4 == 7 && edgeCount false 10 == 14
 
-/-- The edge rows, written out: the copy's opacity, the copy's blur above 600 px, the cue's blur, each card's
-opacity.
+/-- The edge rows, written out: the copy's opacity, the cue's opacity in the phone band, the copy's blur and the cue's
+opacity above 600 px, the cue's blur, each card's opacity.
 
 What `wkEdgeChanges` lists in each band. -/
 theorem wkEdgeChanges_eq (l : Bool) (N : Nat) :
-    wkEdgeChanges l N = [⟨2, .base .opacityCross1, .own⟩] ++ (if l then [] else [⟨2, .base .filter, .own⟩]) ++
+    wkEdgeChanges l N = [⟨2, .base .opacityCross1, .own⟩] ++
+      (if l then [⟨3, .base .opacityCross1, .own⟩] else [⟨2, .base .filter, .own⟩, ⟨3, .base .opacityCross1, .own⟩]) ++
       [⟨3, .base .filter, .own⟩] ++ (List.range N).map (fun i => ⟨4 + i, .base .opacityCross1, .own⟩) := by
   have hz : ((List.range N).map (4 + ·)).zip ((List.range N).map fun _ => wkAnim [.opacity, .transform]) =
       (List.range N).map fun i => (4 + i, wkAnim [.opacity, .transform]) := by
@@ -466,7 +478,7 @@ theorem wk_edge_work (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool
   exact h
 
 /-- **The edge cost on WebKit, as a trade fact**: the variant's scrolled frame does no layout, its edge frame one
-layout pass with `edgeCount ℓ N` units (`N + 2` in the phone band, `N + 3` above).
+layout pass with `edgeCount ℓ N` units (`N + 3` in the phone band, `N + 4` above).
 
 The variant's layout is confined to the frames that leave or reach progress 0. -/
 theorem wk_edge_layout (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :

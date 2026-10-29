@@ -16,7 +16,7 @@ every consumer (copy, scroll cue, cards) recomputes its `opacity`, `transform` a
 `view-timeline` on `.hero-track`, range `contain`, linear easing, `fill: both`), with keyframes
 `0% = g(1)` and `100% = g(0)` for the consumer's own value function `g` of `e`:
 
-* one animation of `opacity` + `transform` per consumer (copy; cue in the phone band; each card), and
+* one animation of `opacity` + `transform` per consumer (copy; cue, opacity alone above 600 px; each card), and
 * one separate animation of `filter: blur()` per blurred consumer (copy above 600 px; cue in both bands). Blur is
   split off because on Chromium a pixel-moving filter sets failure bit 12 and would drag the whole animation to the
   main thread (`merged_main`).
@@ -33,13 +33,14 @@ What is proved:
 * **Work, Chromium** (`chromiumAt m`, threaded animation on): exact per-frame tables for a scrolled frame
   (`cr_orig_exact`, `cr_var_exact`). The script callback is gone; opacity and transform go to the compositor; blur
   stays on main (bit 12, `blur_main`). In real Chrome the main-thread work strictly drops (`cr_real_trade`); in the CI
-  lane (every BeginFrame a main frame) the compositor animations' ride-along makes the props units one higher
-  (`cr_lane_mixed`). Either way the compositor stage gains work: a **trade**, never "dominates".
+  lane (every BeginFrame a main frame) the compositor animations' ride-along makes the props units `1 + [¬ℓ]` and the
+  style units `[¬ℓ]` higher (`cr_lane_mixed`). Either way the compositor stage gains work: a **trade**, never "dominates".
 * **Work, WebKit** (`webkitX m`, threaded scroll-driven on): every animation, blur included, is accelerated
   (`wk_all_comp`; with the threaded path off, all run on main: `wk_legacy_main`). Under the measured premise
   `WktrStyleRate.Holds` (WKTR fixtures, task wktr-p1p4: a scroll-timeline animation restyles its target once per
-  rendering update, accelerated or not) a scrolled frame keeps the scroll commit **and one style pass** with `N + 3`
-  restyle units on the web process (`wk_var_exact`). Against the original's own changes (`2N + 4` style units) the
+  rendering update, accelerated or not) a scrolled frame keeps the scroll commit **and one style pass** with
+  `animCount ℓ N` restyle units on the web process (`wk_var_exact`). Against the original's own changes (`2N + 5` style
+  units) the
   main-thread work still strictly drops (`wk_trade`), but not for any change list (`wk_trade_not_general`); the UI
   process gains the animations: again a trade.
 * **Golden rows** (`goldenJsonl` → `packages/contracts/golden/engine/hero-exit.jsonl`) in the `engine-check` schema.
@@ -133,6 +134,7 @@ inductive Consumer where
   | copyOpacity (c : Rat)
   | copyTranslateY (c : Rat) (l : Bool)
   | copyBlur (c : Rat) (l : Bool)
+  | cueOpacity
   | cueBlur
   | cueTranslateY (l : Bool)
   | cardOpacity
@@ -146,6 +148,7 @@ def Consumer.val : Consumer → Rat → Rat
   | .copyOpacity c, e => HeroExit.copyOpacity c e
   | .copyTranslateY c l, e => HeroExit.copyTranslateYPx c (exitScatter e) l
   | .copyBlur c l, e => HeroExit.copyBlurPx c (exitScatter e) l
+  | .cueOpacity, e => HeroExit.cueOpacity e
   | .cueBlur, e => HeroExit.cueBlurPx (exitScatter e)
   | .cueTranslateY l, e => HeroExit.cueTranslateYPx (exitScatter e) l
   | .cardOpacity, e => HeroExit.cardOpacity (exitScatter e)
@@ -162,7 +165,8 @@ def Consumer.anim (k : Consumer) (p : Rat) : Rat := lerp (k.val 1) (k.val 0) p
 Each `calc()` the original evaluates is a straight line in `e`. -/
 theorem val_affine (k : Consumer) (e : Rat) : k.val e = k.val 0 + (k.val 1 - k.val 0) * e := by
   cases k <;> simp only [Consumer.val, HeroExit.copyOpacity, HeroExit.copyTranslateYPx, HeroExit.copyBlurPx,
-    HeroExit.cueBlurPx, HeroExit.cueTranslateYPx, HeroExit.cardOpacity, HeroExit.cardTranslate, exitScatter] <;>
+    HeroExit.cueOpacity, HeroExit.cueBlurPx, HeroExit.cueTranslateYPx, HeroExit.cardOpacity, HeroExit.cardTranslate,
+    exitScatter] <;>
     (try split) <;> grind
 
 /-- The animation at progress `1 - e` shows the original's value at exit opacity `e`.
@@ -249,7 +253,8 @@ def copyReaders (l : Bool) : List CrKey :=
   if l then [.opacity, .transform] else [.opacity, .filter true, .transform]
 
 /-- The properties of the scroll cue that read `--exit-opacity` (settled; its translate is constant above 600 px). -/
-def cueReaders (l : Bool) : List CrKey := if l then [.filter true, .transform] else [.filter true]
+def cueReaders (l : Bool) : List CrKey :=
+  if l then [.opacity, .filter true, .transform] else [.opacity, .filter true]
 
 /-- The root scroller's offset change in a scrolled frame (`r`: the scroll crosses a cull-rect repaint). -/
 def scrollC (r : Bool) : Change CrProp := ⟨0, .scroll r, .own⟩
@@ -271,14 +276,20 @@ def crOrig (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) : FrameIn CrProp :=
 /-- A scroll-driven animation on a user-scrollable source, target on its own layer (`will-change`). -/
 def sAnim (x : Nat) (ps : List CrProp) : CrAnim := ⟨x, ps, .own, true, .scroll true⟩
 
+/-- The number of animations the variant declares with `N` cards: `N + 3` in the phone band, `N + 4` above 600 px. -/
+def animCount (l : Bool) (N : Nat) : Nat := if l then N + 3 else N + 4
+
+#guard animCount true 4 == 7 && animCount false 10 == 14
+
 /-- **The variant's animations** (property names stand for their `css` wrapping, e.g. opacity for
-`css(opacity)`): opacity + transform on the copy; transform on the cue (phone band only); a separate
-blur on the copy (above 600 px only) and on the cue; opacity + transform on each card.
+`css(opacity)`): opacity + transform on the copy; on the cue, opacity + transform in the phone band and opacity alone
+above 600 px; a separate blur on the copy (above 600 px only) and on the cue; opacity + transform on each card.
 
 The scroll-driven animations the variant declares. -/
 def crAnims (l : Bool) (N : Nat) : List CrAnim :=
   [sAnim 2 [.css .opacity, .css .transform]] ++
-    (if l then [sAnim 3 [.css .transform]] else [sAnim 2 [.css (.filter true)]]) ++
+    (if l then [sAnim 3 [.css .opacity, .css .transform]]
+      else [sAnim 2 [.css (.filter true)], sAnim 3 [.css .opacity]]) ++
     [sAnim 3 [.css (.filter true)]] ++ (List.range N).map (fun i => sAnim (4 + i) [.css .opacity, .css .transform])
 
 /-- **The variant's scrolled frame on Chromium** in mode `m`: the animation frame plus the scroll.
@@ -302,11 +313,11 @@ theorem blur_main (m : CrMode) (x : Nat) :
       simp [CrProp.movesPixels] at this
 
 /-- **Opacity and transform go to the compositor.** With threaded animation on, the variant's opacity + transform and
-transform-only scroll-driven animations run on the compositor.
+opacity-only scroll-driven animations run on the compositor.
 
 The fade and the motion leave the main thread. -/
 theorem opTr_comp (m : CrMode) (x : Nat) (hm : m.threadedAnim = true) :
-    crThread m (sAnim x [.css .opacity, .css .transform]) = .comp ∧ crThread m (sAnim x [.css .transform]) = .comp := by
+    crThread m (sAnim x [.css .opacity, .css .transform]) = .comp ∧ crThread m (sAnim x [.css .opacity]) = .comp := by
   constructor <;> simp [crThread, failBits, sAnim, hm, CrProp.movesPixels, CrProp.eligible]
 
 /-- **Why the blur is split off.** One animation of opacity, blur and transform together would run on the main thread
@@ -321,12 +332,12 @@ theorem merged_main (m : CrMode) (x : Nat) :
     simp [CrProp.movesPixels] at this
 
 /-- The variant's frame, computed: the blur animations' changes on main (one per blurred consumer), the scroll, and
-`N + 1 + [ℓ]` compositor animations.
+`N + 2` compositor animations.
 
 What the variant's frame consists of once the thread rule has run. -/
 theorem crVar_eq (m : CrMode) (l : Bool) (N : Nat) (r : Bool) (hm : m.threadedAnim = true) :
     crVar m l N r = ⟨0, 0, 0, 0, (if l then [] else [⟨2, .css (.filter true), .own⟩]) ++
-      [⟨3, .css (.filter true), .own⟩, scrollC r], N + (if l then 2 else 1)⟩ := by
+      [⟨3, .css (.filter true), .own⟩, scrollC r], N + 2⟩ := by
   have hb := fun x => (blur_main m x).2
   have hc := fun x => (opTr_comp m x hm)
   have hcards : ∀ a ∈ (List.range N).map (fun i => sAnim (4 + i) [.css .opacity, .css .transform]),
@@ -459,14 +470,14 @@ def crVarPasses (r : Bool) : Stage → Nat
   | .commit => 1 | .comp => 1
 
 /-- The variant's units per stage in a scrolled frame, with `b = 1 + [¬ℓ]` blur animations on main,
-`c = N + 1 + [ℓ]` compositor animations, and the ride-along `ε = [m.everyBeginFrameIsMainFrame] c`.
+`c = N + 2` compositor animations, and the ride-along `ε = [m.everyBeginFrameIsMainFrame] c`.
 
 Changed since CI run 39088367495: the raster units were `[r]`; each blur animation now adds one.
 
 The variant's stage units in one scrolled frame. -/
 def crVarUnits (m : CrMode) (l : Bool) (N : Nat) (r : Bool) : Stage → Nat :=
   let b := if l then 1 else 2
-  let c := N + (if l then 2 else 1)
+  let c := N + 2
   let e := if m.everyBeginFrameIsMainFrame then c else 0
   fun
   | .script => 0 | .style => b + e | .layout => 0 | .props => b + 1 + e
@@ -507,32 +518,35 @@ theorem cr_real_trade (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
   · left; rw [(hv .script).1, (ho .script).1]; simp [crVarPasses, crOrigPasses]
 
 /-- **CI lane: mixed.** When every BeginFrame is a main frame, the variant's scrolled frame drops the script and does no
-more passes on any main-thread stage and no more units on any main-thread stage other than `props` and `comp`, where the compositor
-animations' ride-along makes it one unit more than the original; it keeps the original's style units, and it adds a
-compositor pass. So in the lane the variant does not dominate on the main thread (props +1), and the original does
-not dominate it either (script).
+more passes on any main-thread stage and no more units on any main-thread stage other than `style`, `props` and `comp`,
+where the compositor animations' ride-along makes it `1 + [¬ℓ]` property-update units and `[¬ℓ]` style units more than
+the original; it adds a compositor pass. So in the lane the variant does not dominate on the main thread, and the
+original does not dominate it either (script).
 
-In the CI lane the variant removes the script but costs one more property-update unit and adds compositor work. -/
+In the CI lane the variant removes the script but costs more property-update units and adds compositor work. -/
 theorem cr_lane_mixed (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
     let V := frameWork (chromiumAt lane) (crVar lane l N r)
     let O := frameWork (chromiumAt lane) (crOrig l N lo r)
-    (∀ s, s ≠ .props → s ≠ .comp → V.passes s ≤ O.passes s ∧ V.units s ≤ O.units s) ∧
-      V.passes .props = O.passes .props ∧ V.units .props = O.units .props + 1 ∧
-      V.units .style = O.units .style ∧ V.passes .script < O.passes .script ∧
+    (∀ s, s ≠ .style → s ≠ .props → s ≠ .comp → V.passes s ≤ O.passes s ∧ V.units s ≤ O.units s) ∧
+      V.passes .style = O.passes .style ∧ V.passes .props = O.passes .props ∧
+      V.units .props = O.units .props + (if l then 1 else 2) ∧
+      V.units .style = O.units .style + (if l then 0 else 1) ∧ V.passes .script < O.passes .script ∧
       V.passes .comp = 1 ∧ O.passes .comp = 0 := by
   intro V O
   have hv := cr_var_exact lane l N r rfl
   have ho := cr_orig_exact lane l N lo r
-  refine ⟨fun s _ _ => ?_, ?_, ?_, ?_, ?_, (hv .comp).1, (ho .comp).1⟩
+  refine ⟨fun s _ _ _ => ?_, ?_, ?_, ?_, ?_, ?_, (hv .comp).1, (ho .comp).1⟩
   · show (frameWork _ _).passes s ≤ (frameWork _ _).passes s ∧ (frameWork _ _).units s ≤ (frameWork _ _).units s
     rw [(hv s).1, (hv s).2, (ho s).1, (ho s).2]
     cases l <;> cases lo <;> cases r <;> cases s <;>
       simp_all [crVarPasses, crVarUnits, crOrigPasses, crOrigUnits, blurs, lane] <;> omega
   · show (frameWork _ _).passes _ = (frameWork _ _).passes _
     rw [(hv _).1, (ho _).1]; rfl
-  · show (frameWork _ _).units _ = (frameWork _ _).units _ + 1
+  · show (frameWork _ _).passes _ = (frameWork _ _).passes _
+    rw [(hv _).1, (ho _).1]; rfl
+  · show (frameWork _ _).units _ = (frameWork _ _).units _ + _
     rw [(hv _).2, (ho _).2]; cases l <;> simp [crVarUnits, crOrigUnits, lane] <;> omega
-  · show (frameWork _ _).units _ = (frameWork _ _).units _
+  · show (frameWork _ _).units _ = (frameWork _ _).units _ + _
     rw [(hv _).2, (ho _).2]; cases l <;> simp [crVarUnits, crOrigUnits, lane] <;> omega
   · show (frameWork _ _).passes _ < (frameWork _ _).passes _
     rw [(hv _).1, (ho _).1]; simp [crVarPasses, crOrigPasses]
@@ -549,25 +563,25 @@ asynchronous scroller, two keyframes).
 -/
 def wkAnim (ps : List CssProp) : WkAnim := { WkAnim.clean ps .scroll with easing := .linear }
 
-/-- **The variant's animations on WebKit**, the same list as on Chromium: opacity + transform on the copy; transform on
-the cue (phone band only); a separate blur on the copy (above 600 px only) and on the cue; opacity + transform on
-each of the `N` cards.
+/-- **The variant's animations on WebKit**, the same list as on Chromium: opacity + transform on the copy; on the cue,
+opacity + transform in the phone band and opacity alone above 600 px; a separate blur on the copy (above 600 px only)
+and on the cue; opacity + transform on each of the `N` cards.
 -/
 def wkAnims (l : Bool) (N : Nat) : List WkAnim :=
-  [wkAnim [.opacity, .transform]] ++ (if l then [wkAnim [.transform]] else [wkAnim [.filter]]) ++
+  [wkAnim [.opacity, .transform]] ++
+    (if l then [wkAnim [.opacity, .transform]] else [wkAnim [.filter], wkAnim [.opacity]]) ++
     [wkAnim [.filter]] ++ (List.range N).map (fun _ => wkAnim [.opacity, .transform])
 
-/-- The variant declares `N + 3` animations in both bands.
-
-Three hero animations plus one per card. -/
-theorem wkAnims_length (l : Bool) (N : Nat) : (wkAnims l N).length = N + 3 := by
-  cases l <;> simp [wkAnims] <;> omega
+/-- The variant declares `animCount ℓ N` animations: three hero animations in the phone band, four above 600 px,
+plus one per card. -/
+theorem wkAnims_length (l : Bool) (N : Nat) : (wkAnims l N).length = animCount l N := by
+  cases l <;> simp [wkAnims, animCount] <;> omega
 
 /-- Every animation of the variant animates one of three property lists.
 
 The variant animates only opacity, transform and filter. -/
 theorem wkAnims_mem (l : Bool) (N : Nat) (a : WkAnim) (ha : a ∈ wkAnims l N) :
-    a = wkAnim [.opacity, .transform] ∨ a = wkAnim [.transform] ∨ a = wkAnim [.filter] := by
+    a = wkAnim [.opacity, .transform] ∨ a = wkAnim [.opacity] ∨ a = wkAnim [.filter] := by
   cases l <;> simp [wkAnims] at ha <;> grind
 
 /-- **Threaded scroll-driven on: each animation of the variant (each of its three property lists) is accelerated**, blur included (WebKit accelerates
@@ -575,7 +589,7 @@ theorem wkAnims_mem (l : Bool) (N : Nat) (a : WkAnim) (ha : a ∈ wkAnims l N) :
 
 Each property list the variant uses runs off the main thread when scroll-driven animations are threaded. -/
 theorem wk_anim_comp (m : WkMode) (hm : m.threadedScrollDriven = true) (ps : List CssProp)
-    (hps : ps = [.opacity, .transform] ∨ ps = [.transform] ∨ ps = [.filter]) : wkThread m (wkAnim ps) = .comp := by
+    (hps : ps = [.opacity, .transform] ∨ ps = [.opacity] ∨ ps = [.filter]) : wkThread m (wkAnim ps) = .comp := by
   obtain ⟨tsd, ttb, p⟩ := m
   simp only at hm
   subst hm
@@ -614,13 +628,13 @@ with a rendering update, one `restyle` of its target. -/
 card `i` element `4 + i` (the numbering of `wkOrigChanges`).
 -/
 def wkTargets (l : Bool) (N : Nat) : List Nat :=
-  [2] ++ (if l then [3] else [2]) ++ [3] ++ (List.range N).map (4 + ·)
+  [2] ++ (if l then [3] else [2, 3]) ++ [3] ++ (List.range N).map (4 + ·)
 
 /-- One target per animation.
 
 The target list is as long as the animation list. -/
-theorem wkTargets_length (l : Bool) (N : Nat) : (wkTargets l N).length = N + 3 := by
-  cases l <;> simp [wkTargets] <;> omega
+theorem wkTargets_length (l : Bool) (N : Nat) : (wkTargets l N).length = animCount l N := by
+  cases l <;> simp [wkTargets, animCount] <;> omega
 
 /-- The WebKit property a CSS property of the variant writes on the main thread (only opacity, transform and filter
 occur; any other property gives nothing).
@@ -645,7 +659,8 @@ def wkStep (m : WkMode) (f : FrameIn WkPropX) (p : Nat × WkAnim) : FrameIn WkPr
 def wkWith (m : WkMode) (l : Bool) (N : Nat) (f : FrameIn WkPropX) : FrameIn WkPropX :=
   ((wkTargets l N).zip (wkAnims l N)).foldl (wkStep m) f
 
-/-- **The variant's scrolled frame on WebKit** in mode `m`: the delivered scroll position plus the `N + 3` animations. -/
+/-- **The variant's scrolled frame on WebKit** in mode `m`: the delivered scroll position plus the `animCount ℓ N`
+animations. -/
 def wkVar (m : WkMode) (l : Bool) (N : Nat) : FrameIn WkPropX :=
   wkWith m l N (scrollStepX emptyX)
 
@@ -685,13 +700,13 @@ theorem wkPairs_comp (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool
   rcases wkAnims_mem l N p.2 ha with h | h | h <;> rw [h] <;> rfl
 
 /-- **The variant's scrolled frame on WebKit, rebuilt** (threaded scroll-driven on): the scroll position, one
-`restyle` per animation target, and `N + 3` compositor animations.
+`restyle` per animation target, and `animCount ℓ N` compositor animations.
 
 What the variant's frame consists of on WebKit: the old version (`scrollStep (compFrame (N + 3))`, no restyle) is
 refuted by the fixtures (`Fw.Engine.WebKit.style_rate_old_refuted`). -/
 theorem wkVar_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
     wkVar m l N = ⟨0, 0, 0, 0, ⟨0, .base .scrollPos, .none⟩ :: (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩),
-      N + 3⟩ := by
+      animCount l N⟩ := by
   have hz : ((wkTargets l N).zip (wkAnims l N)).map (fun p => (⟨p.1, .restyle, .own⟩ : Change WkPropX)) =
       (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩) := by
     have hf := List.map_fst_zip (l₁ := wkTargets l N) (l₂ := wkAnims l N)
@@ -704,18 +719,18 @@ theorem wkVar_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N
   simp [scrollStepX, emptyX, FrameIn.updates, hz, List.length_zip, wkTargets_length, wkAnims_length]
 
 /-- **The variant's idle frame on WebKit** (threaded scroll-driven on): no rendering update, so no ride-along; only
-the `N + 3` compositor animations, i.e. the old `compFrame (N + 3)` lifted.
+the `animCount ℓ N` compositor animations, i.e. `compFrame (animCount ℓ N)` lifted.
 
 Between scroll updates the variant costs the web process nothing. -/
 theorem wkIdle_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
-    wkIdle m l N = liftWkFrame (compFrame (N + 3)) := by
+    wkIdle m l N = liftWkFrame (compFrame (animCount l N)) := by
   rw [wkIdle, wkWith, foldl_wkStep m _ (wkPairs_comp m hm l N)]
   simp [emptyX, FrameIn.updates, liftWkFrame, compFrame, List.length_zip, wkTargets_length, wkAnims_length]
 
 /-- **Exact work of the variant's scrolled frame on WebKit** (threaded scroll-driven on), under the measured premise:
 the web process runs the scroll's commit pass and `μ_timeline` style passes (one per rendering update,
-as measured) with `N + 3` style units (one restyle per animation target); the compositor ticks the `N + 3`
-animations; nothing else.
+as measured) with `animCount ℓ N` style units (one restyle per animation target); the compositor ticks the
+`animCount ℓ N` animations; nothing else.
 
 What one scrolled frame of the variant costs WebKit, stage by stage (the earlier statement, style `0`, was refuted by
 the WKTR fixtures). -/
@@ -723,7 +738,7 @@ theorem wk_var_exact (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.
     (N : Nat) (s : Stage) :
     (frameWork (webkitX m) (wkVar m l N)).passes s =
         (if s = .commit ∨ s = .comp then 1 else if s = .style then μ.timeline else 0) ∧
-      (frameWork (webkitX m) (wkVar m l N)).units s = (if s = .style ∨ s = .comp then N + 3 else 0) := by
+      (frameWork (webkitX m) (wkVar m l N)).units s = (if s = .style ∨ s = .comp then animCount l N else 0) := by
   obtain ⟨_, h1, _⟩ := hμ
   rw [h1, wkVar_eq m hm l N]
   have h0 : wkStages ⟨0, .scrollPos, .none⟩ = [] := scrollPos_stages m 0 .none
@@ -736,7 +751,8 @@ theorem wk_var_exact (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.
   have hsub : ∀ t, t ∈ (wkTargets l N).flatMap (fun _ => [Stage.style]) → t = .style := by
     intro t ht; simp [List.mem_flatMap] at ht; exact ht.2
   cases s <;> simp only [frameWork, touched, stageUnits, forcedPasses, FrameIn.updates, webkitX, hfm] <;>
-    simp [h0, wkStagesOfX, hne, Function.comp_def, wkTargets_length] <;> (try intro h; exact absurd (hsub _ h) (by decide))
+    simp [h0, wkStagesOfX, hne, Function.comp_def, wkTargets_length] <;>
+    (try intro h; exact absurd (hsub _ h) (by decide)) <;> cases l <;> simp [animCount]
 
 /-- No WebKit style change dirties the compositor stage.
 
@@ -746,17 +762,17 @@ theorem comp_not_diff (d : Diff) : Stage.comp ∉ diffStages d := by
 
 /-- **The original's scrolled frame on WebKit** at layer state `λ`: the callback writes the inherited property,
 and each consumer's computed `opacity`, `transform` and `filter` change (copy: opacity, transform, and blur above
-600 px; cue: blur, and transform in the phone band; each card: opacity, transform).
+600 px; cue: opacity, blur, and transform in the phone band; each card: opacity, transform).
 -/
 def wkOrigChanges (l : Bool) (N : Nat) (lo : LayerState) : List (Change WkProp) :=
-  [⟨2, .opacity, lo⟩, ⟨2, .transform, lo⟩] ++ (if l then [] else [⟨2, .filter, lo⟩]) ++ [⟨3, .filter, lo⟩] ++
-    (if l then [⟨3, .transform, lo⟩] else []) ++
+  [⟨2, .opacity, lo⟩, ⟨2, .transform, lo⟩] ++ (if l then [] else [⟨2, .filter, lo⟩]) ++
+    [⟨3, .opacity, lo⟩, ⟨3, .filter, lo⟩] ++ (if l then [⟨3, .transform, lo⟩] else []) ++
     (List.range N).flatMap (fun i => [⟨4 + i, .opacity, lo⟩, ⟨4 + i, .transform, lo⟩])
 
-/-- The original writes `2N + 4` consumer changes per scrolled frame, in both bands.
+/-- The original writes `2N + 5` consumer changes per scrolled frame, in both bands.
 
-Four hero changes plus two per card. -/
-theorem wkOrigChanges_length (l : Bool) (N : Nat) (lo : LayerState) : (wkOrigChanges l N lo).length = 2 * N + 4 := by
+Five hero changes plus two per card. -/
+theorem wkOrigChanges_length (l : Bool) (N : Nat) (lo : LayerState) : (wkOrigChanges l N lo).length = 2 * N + 5 := by
   have h : ((List.range N).flatMap
       (fun i => ([⟨4 + i, .opacity, lo⟩, ⟨4 + i, .transform, lo⟩] : List (Change WkProp)))).length = 2 * N := by
     induction N with
@@ -784,8 +800,9 @@ theorem wkOrig_style (m : WkMode) (l : Bool) (N : Nat) (lo : LayerState) (hlo : 
 /-- **WebKit: still a trade, for the original's own change list** (threaded scroll-driven on, measured premise). The
 variant's scrolled frame does strictly less main-thread work than the original's scrolled frame with the changes
 `wkOrigChanges(ℓ, N, λ)`: the script pass is gone, the style pass stays (one each: the
-variant's ride-along, the original's consumer changes) with `N + 3 ≤ 2N + 4` units, and every other main-thread
-stage but the scroll's commit is empty. The compositor ticks `N + 3` animations where the original's does nothing.
+variant's ride-along, the original's consumer changes) with `animCount ℓ N ≤ 2N + 5` units, and every other
+main-thread stage but the scroll's commit is empty. The compositor ticks `animCount ℓ N` animations where the
+original's does nothing.
 
 On WebKit the variant still lightens the main thread and pays on the compositor; the earlier "for any change list"
 is false (`wk_trade_not_general`). -/
@@ -793,7 +810,7 @@ theorem wk_trade (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thre
     (N : Nat) (lo : LayerState) (hlo : lo ≠ .none) :
     let V := frameWork (webkitX m) (wkVar m l N)
     let O := frameWork (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo)))
-    mainLt V O ∧ V.passes .comp = 1 ∧ V.units .comp = N + 3 ∧ O.passes .comp = 0 ∧ O.units .comp = 0 := by
+    mainLt V O ∧ V.passes .comp = 1 ∧ V.units .comp = animCount l N ∧ O.passes .comp = 0 ∧ O.units .comp = 0 := by
   intro V O
   have hv := wk_var_exact μ hμ m hm l N
   have h1 : μ.timeline = 1 := hμ.2.1
@@ -813,7 +830,7 @@ theorem wk_trade (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thre
     show (if Stage.style ∈ touched (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) then 1 else 0) +
       forcedPasses (scrollStep (jsFrame (wkOrigChanges l N lo))) .style = 1
     simp only [this, ↓reduceIte]; rfl
-  have hosu : O.units .style = 2 * N + 4 := by
+  have hosu : O.units .style = 2 * N + 5 := by
     show stageUnits _ _ _ = _
     have hsp : (webkitAt m).stagesOf ⟨0, .scrollPos, .none⟩ = [] := scrollPos_stages m 0 .none
     simp only [stageUnits, scrollStep, jsFrame, List.countP_cons, hsp, List.not_mem_nil, decide_false,
@@ -834,7 +851,7 @@ theorem wk_trade (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thre
     by_cases hc : s = .commit
     · subst hc; simp [hoc]
     · by_cases hy : s = .style
-      · subst hy; simp [hosp, hosu]; omega
+      · subst hy; simp [hosp, hosu, animCount]; split <;> omega
       · simp [hc, hs, hy]
   · show (frameWork _ _).hits ≤ (frameWork _ _).hits
     simp [frameWork, wkVar_eq m hm l N, scrollStep, jsFrame]
@@ -1012,7 +1029,7 @@ theorem wk_tradeE (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.thr
     mainLt (frameWorkE (webkitX m) (wkVar m l N) ev)
       (frameWorkE (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) eo) ∧
     (frameWorkE (webkitX m) (wkVar m l N) ev).passes .comp = 1 ∧
-    (frameWorkE (webkitX m) (wkVar m l N) ev).units .comp = N + 3 ∧
+    (frameWorkE (webkitX m) (wkVar m l N) ev).units .comp = animCount l N ∧
     (frameWorkE (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) eo).passes .comp = 0 ∧
     (frameWorkE (webkitAt m) (scrollStep (jsFrame (wkOrigChanges l N lo))) eo).units .comp = 0 := by
   rw [frameWorkE_eq_of_dirty _ _ ev hv, frameWorkE_eq_of_dirty _ _ eo ho]

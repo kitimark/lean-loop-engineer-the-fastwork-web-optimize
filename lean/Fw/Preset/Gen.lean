@@ -696,13 +696,17 @@ theorem gate_blocked_of_own_fail {ledger : List Row} {st : List Stored} {f : Fla
 
 def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → String
   | .proofs =>
-    let status := match why links ledger heroExitThreaded with
+    let w := why links ledger heroExitThreaded
+    let status := match w with
       | .proved => "proved"
       | .notProved _ s => s
       | w => (whyJson w).compress
+    let r2 := if w == .proved then "closed by Fw.Parts.HeroExitWork.cr_lane_style_saving (R2 inherited fan-out \
+        units) and Fw.Parts.HeroExitWork.wk_edge_layout with edgeFrames_le_starts (WebKit edge-frame cost)"
+      else "open until the row is proved"
     "linked to ledger row hero-exit-threaded (v6, KD#2), status " ++ status ++ "; met only when that row is proved \
       (threaded_proofs_iff): Fw.Parts.HeroExitOpt.consumer_eq_s holds under the hypothesis RG11, cr_real_tradeE and \
-      wk_tradeE give a trade, and the row's missingWhy (R2 inherited fan-out units, WebKit edge-frame cost) is open"
+      wk_tradeE give a trade, and the row's missingWhy items are " ++ r2
   | .gate fam =>
     let cell (w : Walk) : String :=
       let runs := (runsFor st heroExitThreaded fam w).map fun s =>
@@ -1173,6 +1177,8 @@ private def threadedRow (status : String) : Row :=
   .notYet [.proofs, .gate .chromium, .gate .webkit]
 #guard threadedEvidence [threadedRow "partly-proved"] [] .proofs |>.startsWith
   "linked to ledger row hero-exit-threaded (v6, KD#2), status partly-proved;"
+#guard threadedEvidence [threadedRow "partly-proved"] [] .proofs |>.endsWith "items are open until the row is proved"
+#guard threadedEvidence [threadedRow "proved"] [] .proofs |>.endsWith "edgeFrames_le_starts (WebKit edge-frame cost)"
 #guard threadedEvidence [] [] .q6 == Fw.Parts.HeroExitScrollOffset.q6Text
 
 end Fw.Preset.Gen
