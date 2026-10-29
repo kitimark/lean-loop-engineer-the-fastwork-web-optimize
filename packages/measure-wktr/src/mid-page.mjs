@@ -543,11 +543,11 @@ function pageProbe(P) {
       if (typeof f === 'function') C.prototype[m] = function () { S.add('call:' + m); return f.apply(this, arguments); };
     }
   }
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil))?$/;
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const rsWindow = async (idle, tw, v, kt, ms) => {
-    const rec = v === 'obs' || v === 'obsf';
-    const fl = v === 'obsf';
+    const rec = v === 'obs' || v === 'obsf' || v === 'pallf';
+    const fl = v === 'obsf' || v === 'pallf';
     const dur = P.durationMs;
     const ref = X.created.find((c) => !c.tag.held);
     const phase = () => {
@@ -565,6 +565,8 @@ function pageProbe(P) {
     S.blockTimer = v === 'blocktimer';
     const frames = [];
     let prev = recalc();
+    const layNow = () => (P.lay && I ? ['layoutUpdateCount', 'compositingUpdateCount', 'layerFlushCount'].map((n) => (typeof I[n] === 'function' ? I[n]() : 0)) : null);
+    let prevL = layNow();
     const t0 = performance.now();
     let post = 0;
     try {
@@ -588,7 +590,10 @@ function pageProbe(P) {
         if (c !== null && base !== null && c > base) z.push(lastSize());
         const ks = S.cur ? Array.from(S.cur) : [];
         if (S.cur) S.cur = new Set();
-        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z, g: GH.read ? GH.read() : undefined });
+        const nl = layNow();
+        const y = nl && prevL ? nl.map((x, i) => x - prevL[i]) : undefined;
+        prevL = nl;
+        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z, g: GH.read ? GH.read() : undefined, y: y });
         prev = c;
         if (idle) { if (now - t0 >= (ms || P.rsIdleMs)) break; } else {
           const ph = phase();
@@ -622,14 +627,15 @@ function pageProbe(P) {
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     } else if (!warm) {
       const glintEl = (a) => !!(a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('[data-fw-dash]'));
-      toPause = document.getAnimations().filter((a) => a.playState === 'running' && !(P.gk && glintEl(a)));
+      const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf';
+      toPause = vv === 'nat' ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
       out.rs.glintLive = document.getAnimations().filter((a) => a.playState === 'running' && glintEl(a)).length;
     }
-    const smilSvgs = vv === 'smil' ? Array.from(document.querySelectorAll('svg')) : [];
+    const smilSvgs = vv === 'smil' || vv === 'pall' || vv === 'pallf' ? Array.from(document.querySelectorAll('svg')) : [];
     for (const g of smilSvgs) { try { g.pauseAnimations(); } catch (x) { } }
     if (smilSvgs.length) { out.rs.smilN = smilSvgs.length; await raf(); await raf(); await sleep(250); }
     if (GH.read) {
@@ -976,8 +982,8 @@ function pageProbe(P) {
   };
 }
 
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false, lay = false } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh, gk })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh, gk, lay })});`;
 }
