@@ -1,7 +1,7 @@
 # Handoff: hero-exit-anim-units
 
 * Branch `worktree-wf_6b79182b-802-1`, worktree `.claude/worktrees/wf_6b79182b-802-1`.
-* Last sha: ede28f3c7 (merge of main 0fee334, graph only; this handoff commit follows). check.sh green at f7df1e56e.
+* Last sha: 5f8b1ce00 (polish after round 2 at 131e66f9b). check.sh green at f7df1e56e.
 * CI run ids: none (no CI in this task).
 * Verified: `lake build` (all Fw), engine goldens rewritten by `scripts/EngineGoldens.lean --write`, preset rewritten
   by `Fw.Preset.Gen.run []`, check.sh via `fw slot run --kind check`.
