@@ -1,6 +1,6 @@
 // TS stand-in of lean/Fw/Device/RecalcBisect.lean: replays packages/contracts/golden/device/recalc-bisect.jsonl (test/recalc-bisect.test.mjs).
 // reportToJob and bisectTally are glue (not golden-replayed).
-export const BS_ARMS = ['bs-facts', 'bs-full-a', 'bs-hidden-a', 'bs-obs', 'bs-l1', 'bs-l2', 'bs-deep', 'bs-hold', 'bs-kill', 'bs-full-b', 'bs-hidden-b'];
+export const BS_ARMS = ['bs-facts', 'bs-full-a', 'bs-hidden-a', 'bs-obs', 'bs-l1', 'bs-l2', 'bs-deep', 'bs-hold', 'bs-kill', 'bs-pause', 'bs-full-b', 'bs-hidden-b'];
 export const BS_C = { minFrames: 40, minSpread: 50, bandDen: 4, maxDepth: 6, minValid: 2 };
 
 export const rpf100 = (a) => (a.frames === 0 ? 0 : Math.floor((a.recalcs * 100) / a.frames));
@@ -77,6 +77,7 @@ export function overall(rs) {
 // Stage 2 (Lean carrier / holder): kill/<feature> arms and only/<child> arms of the same job, read against its own hi and lo.
 export const KILL = 'kill';
 export const ONLY = 'only';
+export const PAUSE = 'pause';
 export const ready = (j) => hasFrames(j) && contrast(j);
 export const carrier = (j) => (ready(j) ? level(j, KILL) : { t: 'incomplete' });
 
@@ -89,6 +90,7 @@ export function levelKept(j, parent) {
   if (k.length === 0 && b.length === 0) return { t: 'none' };
   return { t: 'several' };
 }
+export const pauser = (j) => (ready(j) ? level(j, PAUSE) : { t: 'incomplete' });
 export const holder = (j) => (ready(j) ? levelKept(j, ONLY) : { t: 'incomplete' });
 export const levelName = (l) => (l.t === 'named' ? `named ${l.p}` : l.t);
 export const decided = (l) => l.t !== 'incomplete' && l.t !== 'leaf';
@@ -111,7 +113,7 @@ const arm = (r) => ({ frames: r.frames, recalcs: r.recalcs });
 export function reportToJob(report) {
   const reads = (names) => names.map((n) => rowOf(report, n)?.bs?.read).filter(Boolean).map(arm);
   const parts = [];
-  for (const n of ['bs-l1', 'bs-l2', 'bs-deep', 'bs-kill', 'bs-hold']) for (const r of rowOf(report, n)?.bs?.reads ?? []) parts.push({ path: r.path, parent: r.parent, kids: r.kids, arm: arm(r) });
+  for (const n of ['bs-l1', 'bs-l2', 'bs-deep', 'bs-kill', 'bs-hold', 'bs-pause']) for (const r of rowOf(report, n)?.bs?.reads ?? []) parts.push({ path: r.path, parent: r.parent, kids: r.kids, arm: arm(r) });
   for (const f of rowOf(report, 'bs-facts')?.bs?.parts ?? []) if (!parts.some((p) => p.path === f.path)) parts.push({ path: f.path, parent: f.parent, kids: f.kids, arm: { frames: 0, recalcs: 0 } });
   return { full: reads(['bs-full-a', 'bs-full-b']), hidden: reads(['bs-hidden-a', 'bs-hidden-b']), parts };
 }
@@ -125,9 +127,11 @@ export function bisectTally(report) {
   lines.push(`bisect: full ${j.full.map((a) => `${a.recalcs}/${a.frames}`).join(' ')} hidden ${j.hidden.map((a) => `${a.recalcs}/${a.frames}`).join(' ')} hi ${hi(j)} lo ${lo(j)} band ${band(j)}`);
   for (const p of j.parts) lines.push(`bisect: ${cls(j, p.arm).padEnd(8)} ${String(rpf100(p.arm)).padStart(3)} ${p.arm.recalcs}/${p.arm.frames} kids ${p.kids} ${p.path}`);
   lines.push(`bisect: why ${resName(r)}`);
-  lines.push(`bisect: carrier ${levelName(carrier(j))} holder ${levelName(holder(j))}`);
-  const k = rowOf(report, 'bs-kill')?.bs;
-  if (k) lines.push(`bisect: kill probes sticky/fixed ${JSON.stringify(k.pos)} svgs ${k.svgs} smil elements ${k.smilEls}`);
+  lines.push(`bisect: carrier ${levelName(carrier(j))} holder ${levelName(holder(j))} pauser ${levelName(pauser(j))}`);
+  const pz = rowOf(report, 'bs-pause')?.bs;
+  if (pz) lines.push(`bisect: pause groups ${JSON.stringify(pz.info)} reads [path, smil-elements, svgs] ${JSON.stringify((pz.reads ?? []).map((r) => [r.path, r.sm, r.n]))}`);
+  const ks = rowOf(report, 'bs-kill')?.bs;
+  if (ks) lines.push(`bisect: kill smil-elements ${JSON.stringify((ks.reads ?? []).map((r) => [r.path, r.sm]))}`);
   const obs = rowOf(report, 'bs-obs');
   const fr = obs?.rs?.frames ?? [];
   const kt = obs?.rs?.kt ?? [];

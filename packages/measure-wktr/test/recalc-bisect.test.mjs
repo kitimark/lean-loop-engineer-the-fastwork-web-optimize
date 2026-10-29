@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BS_ARMS, BS_C, band, bisectTally, carrier, cls, hi, holder, jobOfGolden, levelName, lo, overall, overall2, ready, reportToJob, res, resName, rpf100, valid } from '../src/recalc-bisect.mjs';
+import { BS_ARMS, BS_C, band, bisectTally, carrier, cls, hi, holder, jobOfGolden, pauser, levelName, lo, overall, overall2, ready, reportToJob, res, resName, rpf100, valid } from '../src/recalc-bisect.mjs';
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { MODES, headerOf, isBisect, THREADED_OFF } from '../src/accel-cli.mjs';
 
@@ -54,6 +54,7 @@ test('carry lines: stage 2 classes, carrier and holder replay the Lean golden', 
     assert.deepEqual(j.parts.map((p) => cls(j, p.arm)), l.classes, `${l.name} classes`);
     assert.equal(levelName(carrier(j)), l.carrier, `${l.name} carrier`);
     assert.equal(levelName(holder(j)), l.holder, `${l.name} holder`);
+    assert.equal(levelName(pauser(j)), l.pauser, `${l.name} pauser`);
   }
 });
 
@@ -61,7 +62,7 @@ test('overall2 lines replay the Lean golden', () => {
   const combos = lines.filter((l) => l.kind === 'overall2');
   assert.ok(combos.length >= 10);
   for (const l of combos) {
-    const v = overall2(l.jobs.map((n) => { const j = jobOfGolden(byName2.get(n).job); return l.which === 'carrier' ? carrier(j) : holder(j); }));
+    const v = overall2(l.jobs.map((n) => { const j = jobOfGolden(byName2.get(n).job); return l.which === 'carrier' ? carrier(j) : l.which === 'holder' ? holder(j) : pauser(j); }));
     assert.equal(v.name, l.verdict, l.name);
     assert.equal(v.next, l.next, `${l.name} next`);
   }

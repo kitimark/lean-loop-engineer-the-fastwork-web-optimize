@@ -327,6 +327,8 @@ def killParent : String := "kill"
 
 def onlyParent : String := "only"
 
+def pauseParent : String := "pause"
+
 def Job.ready (j : Job) : Bool := j.hasFrames && j.contrast
 
 /-- A feature carries the recalc when removing it alone drops the rate and removing any other leaves it. -/
@@ -345,6 +347,9 @@ def Job.levelKept (j : Job) (parent : String) : Level :=
 
 def Job.holder (j : Job) : Level := if j.ready then j.levelKept onlyParent else .incomplete
 
+/-- Third stage: `pause/<g>` parts have only the animation timelines of group `g` paused; the group that carries the recalc is the one whose pause alone drops the rate. -/
+def Job.pauser (j : Job) : Level := if j.ready then j.level pauseParent else .incomplete
+
 def Level.decided : Level → Bool
   | .incomplete => false | .leaf => false | _ => true
 
@@ -361,6 +366,12 @@ theorem carrier_void (j : Job) (h : j.ready = false) : j.carrier = .incomplete :
 
 theorem holder_void (j : Job) (h : j.ready = false) : j.holder = .incomplete := by
   simp [Job.holder, h]
+
+theorem pauser_void (j : Job) (h : j.ready = false) : j.pauser = .incomplete := by
+  simp [Job.pauser, h]
+
+theorem pauser_level (j : Job) (h : j.ready = true) : j.pauser = j.level pauseParent := by
+  simp [Job.pauser, h]
 
 theorem carrier_level (j : Job) (h : j.ready = true) : j.carrier = j.level killParent := by
   simp [Job.carrier, h]
@@ -478,6 +489,8 @@ private def K (f : String) (frames recalcs : Nat) : Part := P s!"kill/{f}" killP
 
 private def O (c : String) (frames recalcs : Nat) : Part := P s!"only/{c}" onlyParent 0 frames recalcs
 
+private def Z (g : String) (frames recalcs : Nat) : Part := P s!"pause/{g}" pauseParent 0 frames recalcs
+
 def cases2 : List (String × Job) :=
   [("kill one, only one", job [K "cv" 100 4, K "cq" 100 98, K "sticky" 100 97, O "hero" 100 99, O "pain" 100 6, O "bare" 100 5]),
    ("kill none, only bare", job [K "cv" 100 98, K "cq" 100 99, O "hero" 100 5, O "pain" 100 4, O "bare" 100 97]),
@@ -487,25 +500,41 @@ def cases2 : List (String × Job) :=
    ("only none", job [K "cv" 100 98, O "hero" 100 5, O "pain" 100 6, O "bare" 100 4]),
    ("no stage 2 arms", job [P "nav" "" 0 100 4]),
    ("not ready", ⟨[A 100 60, A 100 70], [A 100 20], [K "cv" 100 4, O "hero" 100 99]⟩),
+   ("pause one group", job [K "smil" 100 3, Z "dash" 100 4, Z "other" 100 98]),
+   ("pause both groups", job [K "smil" 100 3, Z "dash" 100 4, Z "other" 100 5]),
+   ("pause neither group", job [K "smil" 100 3, Z "dash" 100 97, Z "other" 100 98]),
+   ("pause group partial", job [K "smil" 100 3, Z "dash" 100 50, Z "other" 100 98]),
+   ("pause group unread", job [K "smil" 100 3, Z "dash" 10 0, Z "other" 100 98]),
    ("kill drop edge hit", ⟨[A 100 100], [A 100 0], [K "cv" 100 25, K "cq" 100 100, O "hero" 100 75, O "pain" 100 3]⟩),
    ("kill drop edge miss", ⟨[A 100 100], [A 100 0], [K "cv" 100 26, K "cq" 100 100, O "hero" 100 74, O "pain" 100 3]⟩)]
 
 private def case2Job (n : String) : Job := ((cases2.find? (·.1 == n)).map (·.2)).getD ⟨[], [], []⟩
 
-/-- `true`: the carrier (kill) level of each job; `false`: the holder (show-only) level. -/
-def combos2 : List (String × Bool × List String) :=
-  [("carrier same", true, ["kill one, only one", "kill one, only one", "kill one, only one"]),
-   ("carrier one void", true, ["kill one, only one", "not ready", "kill one, only one"]),
-   ("carrier one valid", true, ["kill one, only one", "not ready", "kill unread, only unread"]),
-   ("carrier none", true, ["kill none, only bare", "kill none, only bare", "only none"]),
-   ("carrier several", true, ["kill one, only one", "kill two, only two", "kill one, only one"]),
-   ("carrier named and none", true, ["kill one, only one", "kill none, only bare", "kill one, only one"]),
-   ("holder same", false, ["kill one, only one", "kill one, only one", "kill one, only one"]),
-   ("holder bare", false, ["kill none, only bare", "kill none, only bare", "kill none, only bare"]),
-   ("holder none", false, ["only none", "only none", "only none"]),
-   ("holder two kept", false, ["kill two, only two", "kill two, only two", "kill two, only two"]),
-   ("holder differs", false, ["kill one, only one", "kill none, only bare", "kill one, only one"]),
-   ("holder no jobs", false, [])]
+/-- Which level of each job the combo decides on: `carrier` (kill), `holder` (show-only) or `pauser` (pause group). -/
+def Job.pick : String → Job → Level
+  | "carrier", j => j.carrier
+  | "holder", j => j.holder
+  | _, j => j.pauser
+
+def combos2 : List (String × String × List String) :=
+  [("carrier same", "carrier", ["kill one, only one", "kill one, only one", "kill one, only one"]),
+   ("carrier one void", "carrier", ["kill one, only one", "not ready", "kill one, only one"]),
+   ("carrier one valid", "carrier", ["kill one, only one", "not ready", "kill unread, only unread"]),
+   ("carrier none", "carrier", ["kill none, only bare", "kill none, only bare", "only none"]),
+   ("carrier several", "carrier", ["kill one, only one", "kill two, only two", "kill one, only one"]),
+   ("carrier named and none", "carrier", ["kill one, only one", "kill none, only bare", "kill one, only one"]),
+   ("holder same", "holder", ["kill one, only one", "kill one, only one", "kill one, only one"]),
+   ("holder bare", "holder", ["kill none, only bare", "kill none, only bare", "kill none, only bare"]),
+   ("holder none", "holder", ["only none", "only none", "only none"]),
+   ("holder two kept", "holder", ["kill two, only two", "kill two, only two", "kill two, only two"]),
+   ("holder differs", "holder", ["kill one, only one", "kill none, only bare", "kill one, only one"]),
+   ("holder no jobs", "holder", []),
+   ("pauser same", "pauser", ["pause one group", "pause one group", "pause one group"]),
+   ("pauser both", "pauser", ["pause both groups", "pause both groups", "pause both groups"]),
+   ("pauser neither", "pauser", ["pause neither group", "pause neither group", "pause neither group"]),
+   ("pauser one unread", "pauser", ["pause one group", "pause group unread", "pause one group"]),
+   ("pauser one valid", "pauser", ["pause one group", "pause group unread", "not ready"]),
+   ("pauser partial", "pauser", ["pause group partial", "pause group partial", "pause one group"])]
 
 private def armJ (a : Arm) : Json := Json.mkObj [("frames", a.frames), ("recalcs", a.recalcs)]
 
@@ -534,10 +563,10 @@ private def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "overall"), ("name", n), ("jobs", strs ns), ("verdict", v.name), ("next", v.next.name)]).compress) ++
   (cases2.map fun (n, j) =>
     (Json.mkObj [("kind", "carry"), ("name", n), ("job", jobJ j), ("hi", j.hi), ("lo", j.lo), ("band", j.band), ("ready", j.ready),
-      ("classes", strs (j.parts.map fun p => (j.cls p.arm).name)), ("carrier", j.carrier.name), ("holder", j.holder.name)]).compress) ++
-  (combos2.map fun (n, kill, ns) =>
-    let v := overall2 (ns.map fun m => if kill then (case2Job m).carrier else (case2Job m).holder)
-    (Json.mkObj [("kind", "overall2"), ("name", n), ("which", if kill then "carrier" else "holder"), ("jobs", strs ns),
+      ("classes", strs (j.parts.map fun p => (j.cls p.arm).name)), ("carrier", j.carrier.name), ("holder", j.holder.name), ("pauser", j.pauser.name)]).compress) ++
+  (combos2.map fun (n, which, ns) =>
+    let v := overall2 (ns.map fun m => Job.pick which (case2Job m))
+    (Json.mkObj [("kind", "overall2"), ("name", n), ("which", which), ("jobs", strs ns),
       ("verdict", v.name), ("next", v.next.name)]).compress)
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"

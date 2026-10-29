@@ -685,10 +685,11 @@ function pageProbe(P) {
     await raf(); await raf(); await sleep(200);
     if (hook) hook.on();
     if (css || hook) { st.textContent = css; await raf(); await raf(); await sleep(250); }
+    const sm = document.querySelectorAll('animate,animateTransform,animateMotion,set').length;
     const kt = [];
     const t0 = performance.now();
     const fr = await rsWindow(true, 0, v, kt, P.bsIdleMs);
-    const r = { frames: fr.length, recalcs: fr.reduce((s, f) => s + f.r, 0), pre: fr.reduce((s, f) => s + (f.p || 0), 0), ms: Math.round(performance.now() - t0), paused: toPause.length };
+    const r = { sm: sm, frames: fr.length, recalcs: fr.reduce((s, f) => s + f.r, 0), pre: fr.reduce((s, f) => s + (f.p || 0), 0), ms: Math.round(performance.now() - t0), paused: toPause.length };
     if (v === 'obs') { r.kt = kt; r.fr = fr; }
     st.textContent = '';
     if (hook) hook.off();
@@ -750,7 +751,7 @@ function pageProbe(P) {
     out.adopted = document.adoptedStyleSheets ? document.adoptedStyleSheets.length : -1;
     return out;
   };
-  const BS_RE = /^bs-(facts|full-a|full-b|hidden-a|hidden-b|obs|l1|l2|deep|kill|hold)$/;
+  const BS_RE = /^bs-(facts|full-a|full-b|hidden-a|hidden-b|obs|l1|l2|deep|kill|hold|pause)$/;
   const bsArm = async (arm, kind) => {
     X.arm = arm;
     const out = { arm: arm, mode: 'timed', stages: [], engaged: !!(I && typeof I.styleRecalcCount === 'function'), bs: { kind: kind } };
@@ -782,30 +783,26 @@ function pageProbe(P) {
       for (const p of want.slice(0, 40)) out.bs.reads.push(await bsHidePart(p));
       B.reads[kind] = out.bs.reads;
     } else if (kind === 'kill') {
-      // Stage 2 (Lean carrier): one style feature removed on the whole page per arm, the rate read against the same full and hidden arms.
+      // Stage 2 (Lean carrier): run r2 (40808745010) read 15 features removed one at a time; only the SMIL pause dropped the rate in 3 of 3 jobs, so only it stays as the control.
       out.bs.reads = [];
-      const pos = { s: 0, f: 0 };
-      for (const el of document.querySelectorAll('*')) {
-        const ps = getComputedStyle(el).position;
-        if (ps === 'sticky') { el.setAttribute('data-fw-ps', 's'); pos.s++; } else if (ps === 'fixed') { el.setAttribute('data-fw-ps', 'f'); pos.f++; }
-      }
       const svgs = Array.from(document.querySelectorAll('svg'));
       const smil = { on: () => { for (const g of svgs) { try { g.pauseAnimations(); } catch (x) { } } }, off: () => { for (const g of svgs) { try { g.unpauseAnimations(); } catch (x) { } } } };
-      const KILLS = [
-        ['cv', '*{content-visibility:visible!important}'], ['cq', '*{container-type:normal!important}'],
-        ['sticky', '[data-fw-ps=s]{position:static!important}'], ['fixed', '[data-fw-ps=f]{position:static!important}'],
-        ['willchange', '*{will-change:auto!important}'], ['snap', '*{scroll-snap-type:none!important}'], ['contain', '*{contain:none!important}'],
-        ['anim', '*{animation:none!important}'], ['trans', '*{transition:none!important}'],
-        ['filter', '*{filter:none!important;backdrop-filter:none!important}'], ['svg', 'svg{display:none!important}'],
-        ['img', 'img,picture{display:none!important}'], ['overflow', '*{overflow:visible!important}'], ['ovanchor', '*{overflow-anchor:none!important}'],
-        ['smil', '', smil],
-      ];
-      out.bs.pos = pos;
-      out.bs.svgs = svgs.length;
-      out.bs.smilEls = document.querySelectorAll('animate,animateTransform,animateMotion,set').length;
-      for (const k of KILLS) {
-        const r = await bsRead(k[1], 'floor', k[2]);
-        out.bs.reads.push({ path: 'kill/' + k[0], parent: 'kill', kids: 0, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+      const r = await bsRead('', 'floor', smil);
+      out.bs.reads.push({ path: 'kill/smil', parent: 'kill', kids: 0, sm: r.sm, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+    } else if (kind === 'pause') {
+      // Stage 3 (Lean pauser): only the timelines of one svg group are paused; 'dash' are the svgs inside [data-fw-dash] (the secure-network glint), 'other' all the rest.
+      out.bs.reads = [];
+      const all = Array.from(document.querySelectorAll('svg'));
+      const dash = all.filter((g) => !!g.closest('[data-fw-dash]'));
+      const other = all.filter((g) => !g.closest('[data-fw-dash]'));
+      const secs = {};
+      for (const g of all) { const a = g.closest('[data-fw]'); const k = a ? a.getAttribute('data-fw') : '-'; secs[k] = (secs[k] || 0) + 1; }
+      out.bs.info = { total: all.length, dash: dash.length, other: other.length, secs: secs, smilNow: document.querySelectorAll('animate,animateTransform,animateMotion,set').length };
+      for (const grp of [['dash', dash], ['other', other]]) {
+        const list = grp[1];
+        const hook = { on: () => { for (const g of list) { try { g.pauseAnimations(); } catch (x) { } } }, off: () => { for (const g of list) { try { g.unpauseAnimations(); } catch (x) { } } } };
+        const r = await bsRead('', 'floor', hook);
+        out.bs.reads.push({ path: 'pause/' + grp[0], parent: 'pause', kids: 0, n: list.length, sm: r.sm, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
       }
     } else if (kind === 'hold') {
       // Stage 2 (Lean holder): only one child of the part the hide descent ended at stays shown (its ancestors' other children and its siblings hidden); 'bare' hides all its children.
@@ -820,7 +817,7 @@ function pageProbe(P) {
         const arms = kids.map((k) => [k.path, kids.filter((o) => o !== k)]).concat([['bare', kids]]);
         for (const a of arms) {
           const r = await bsRead(hideSet(sib.concat(a[1])), 'floor');
-          out.bs.reads.push({ path: 'only/' + a[0], parent: 'only', kids: 0, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
+          out.bs.reads.push({ path: 'only/' + a[0], parent: 'only', kids: 0, sm: r.sm, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
         }
       }
     } else if (kind === 'deep') {
