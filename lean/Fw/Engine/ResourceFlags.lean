@@ -76,7 +76,9 @@ def wkStyleElemPair : (Nat × Nat) × (Nat × Nat) :=
 def threadedWk : Footprint :=
   ⟨"hero.exit:threaded", .webkit,
     [(.style, ef (pairSign wkStyleElemPair.1 wkStyleElemPair.2)
-        "HeroExitWork.wk_style_saving: one style pass each, 6 restyled elements against 123"),
+        ("HeroExitWork.wk_style_saving: one style pass each, 6 restyled elements against 123; direction per " ++
+          "element only: the phone row counts style recalcs (passes tie per frame), so its drop follows the " ++
+          "frame drop 588 vs 693-696 (INFERRED)")),
      (.layout, ef (pairsSign wkFrames .layout) "HeroExitOpt.wkFrames"),
      (.paintRec, ef (combine (pairsSign wkFrames .paint) .up) "wkFrames paint down; promote_tween re-attach paint up"),
      (.script, ef (pairsSign wkFrames .script) "HeroExitOpt.wkFrames"),

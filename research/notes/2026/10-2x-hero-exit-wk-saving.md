@@ -25,7 +25,7 @@ the root has no box, each child under the same rule. Source, CONFIRMED:
 | Step | Source @862f17d |
 |---|---|
 | inherited custom properties live in the inherited rare data | `W/style/computed/StyleComputedStyleBase+GettersInlines.h:288-290` |
-| a new rare-data pointer fails `nonFastPathInheritedEqual` | `W/style/computed/StyleComputedStyle.cpp:296-297` |
+| a changed custom-property value fails `nonFastPathInheritedEqual` (`DataRef` compares by value, `Source/WTF/wtf/DataRef.h:87-90`@862f17d) | `W/style/computed/StyleComputedStyle.cpp:296-297` |
 | which adds `Change::Inherited` | `W/style/StyleChange.cpp:42-43` |
 | an inherited change resolves every child (`DescendantsToResolve::Children`) | `W/style/StyleTreeResolver.cpp:307-308` |
 | children resolve in full, no fast path under `Change::Inherited` | `W/style/StyleTreeResolver.cpp:1190-1204` |
@@ -61,3 +61,8 @@ the old `mechanisms` entry for the disagreement is removed.
 * The phone records count style recalcs, not elements, so the check agrees in direction only. The variant run also
   renders fewer frames (588 against 693-696). INFERRED.
 * RG11 stays a hypothesis of `consumer_eq_s`.
+
+## Open
+
+* The fan rows use synthetic element ids `100 + i`, not ids from the page tree.
+* Query-container deferral: that the deferred descendants resume in the same update is INFERRED, not read from source.

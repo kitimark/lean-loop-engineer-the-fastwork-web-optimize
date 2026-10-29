@@ -221,8 +221,9 @@ open Fw.Engine.WebKit
 /-- **The WebKit inherited-propagation rule**, a premise on `r`, the elements one style pass resolves after an
 inherited custom-property write on a root: the root and, unless it has no box, each child under the same rule.
 Source @862f17d (`WC/` = `Source/WebCore/`): inherited custom properties live in the inherited rare data
-(`WC/style/computed/StyleComputedStyleBase+GettersInlines.h:288-290`); a new rare-data pointer fails
-`nonFastPathInheritedEqual` (`WC/style/computed/StyleComputedStyle.cpp:296-297`), which adds `Change::Inherited`
+(`WC/style/computed/StyleComputedStyleBase+GettersInlines.h:288-290`); a changed custom-property value fails
+`nonFastPathInheritedEqual` (`WC/style/computed/StyleComputedStyle.cpp:296-297`; `DataRef` compares by value,
+`Source/WTF/wtf/DataRef.h:87-90`@862f17d), which adds `Change::Inherited`
 (`WC/style/StyleChange.cpp:42-43`); that resolves every child (`DescendantsToResolve::Children`,
 `WC/style/StyleTreeResolver.cpp:307-308`) in full, with no fast path under `Change::Inherited` (`:1190-1204`), each
 child inheriting the new data; `display: none` stops the descent (`:1387-1388`). -/
