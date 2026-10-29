@@ -1,0 +1,75 @@
+end-wktr results/end-wktr-flip/r1/wktr-j1 fp/recalc: base 244 floor 83 variant 87 per 100 frames, band 11 spread 11, frames base 96 floor 48 variant 57, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp/recalc: base 244 floor 83 variant 146 per 100 frames, band 11 spread 11, frames base 96 floor 48 variant 69, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 both/recalc: base 244 floor 83 variant 87 per 100 frames, band 11 spread 11, frames base 96 floor 48 variant 49, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp-iso/recalc: base 180 floor 83 variant 89 per 100 frames, band 6 spread 6, frames base 97 floor 48 variant 56, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 fp/layout: base 186 floor 16 variant 22 per 100 frames, band 22 spread 22, frames base 96 floor 48 variant 57, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp/layout: base 186 floor 16 variant 23 per 100 frames, band 22 spread 22, frames base 96 floor 48 variant 69, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 both/layout: base 186 floor 16 variant 18 per 100 frames, band 22 spread 22, frames base 96 floor 48 variant 49, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp-iso/layout: base 112 floor 16 variant 25 per 100 frames, band 6 spread 4, frames base 97 floor 48 variant 56, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 fp/compositing: base 266 floor 87 variant 89 per 100 frames, band 11 spread 0, frames base 96 floor 48 variant 57, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp/compositing: base 266 floor 87 variant 162 per 100 frames, band 11 spread 0, frames base 96 floor 48 variant 69, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 both/compositing: base 266 floor 87 variant 85 per 100 frames, band 11 spread 0, frames base 96 floor 48 variant 49, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp-iso/compositing: base 201 floor 87 variant 92 per 100 frames, band 7 spread 2, frames base 97 floor 48 variant 56, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j1 fp/layerFlush: base 133 floor 133 variant 128 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 57, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp/layerFlush: base 133 floor 133 variant 123 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 69, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j1 both/layerFlush: base 133 floor 133 variant 132 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 49, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j1 comp-iso/layerFlush: base 132 floor 133 variant 128 per 100 frames, band 1 spread 1, frames base 97 floor 48 variant 56, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j1 compositor flip residual: floor 83 own floor 79 live 89 band 6, cause no residual
+end-wktr results/end-wktr-flip/r1/wktr-j1 compositor flip mechanism: frames live 48 paused 49, rates written 68/61 animated 20/32 empty 0/0, one category: written; next: stop the DOM write the top key names while the flip runs
+end-wktr results/end-wktr-flip/r1/wktr-j1 compositor flip keys (frames with a recalc, live/paused): -
+end-wktr results/end-wktr-flip/r1/wktr-j2 fp/recalc: base 242 floor 70 variant 89 per 100 frames, band 10 spread 2, frames base 99 floor 48 variant 48, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp/recalc: base 242 floor 70 variant 142 per 100 frames, band 10 spread 2, frames base 99 floor 48 variant 57, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 both/recalc: base 242 floor 70 variant 92 per 100 frames, band 10 spread 2, frames base 99 floor 48 variant 50, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp-iso/recalc: base 173 floor 70 variant 70 per 100 frames, band 11 spread 11, frames base 96 floor 48 variant 48, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 fp/layout: base 176 floor 4 variant 75 per 100 frames, band 10 spread 1, frames base 99 floor 48 variant 48, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp/layout: base 176 floor 4 variant 14 per 100 frames, band 10 spread 1, frames base 99 floor 48 variant 57, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 both/layout: base 176 floor 4 variant 72 per 100 frames, band 10 spread 1, frames base 99 floor 48 variant 50, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp-iso/layout: base 106 floor 4 variant 4 per 100 frames, band 12 spread 12, frames base 96 floor 48 variant 48, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 fp/compositing: base 264 floor 70 variant 152 per 100 frames, band 12 spread 4, frames base 99 floor 48 variant 48, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp/compositing: base 264 floor 70 variant 159 per 100 frames, band 12 spread 4, frames base 99 floor 48 variant 57, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 both/compositing: base 264 floor 70 variant 136 per 100 frames, band 12 spread 4, frames base 99 floor 48 variant 50, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp-iso/compositing: base 201 floor 70 variant 70 per 100 frames, band 8 spread 2, frames base 96 floor 48 variant 48, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j2 fp/layerFlush: base 132 floor 133 variant 133 per 100 frames, band 2 spread 2, frames base 99 floor 48 variant 48, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp/layerFlush: base 132 floor 133 variant 128 per 100 frames, band 2 spread 2, frames base 99 floor 48 variant 57, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j2 both/layerFlush: base 132 floor 133 variant 132 per 100 frames, band 2 spread 2, frames base 99 floor 48 variant 50, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j2 comp-iso/layerFlush: base 133 floor 133 variant 133 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 48, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j2 compositor flip residual: floor 70 own floor 88 live 70 band 11, cause no residual
+end-wktr results/end-wktr-flip/r1/wktr-j2 compositor flip mechanism: frames live 57 paused 52, rates written 63/53 animated 24/32 empty 0/0, nothing above the band; next: no candidate: the residual is not in the recalcs
+end-wktr results/end-wktr-flip/r1/wktr-j2 compositor flip keys (frames with a recalc, live/paused): mut:nav#data-fw-morph 13/10 | mut:nav#style 13/10 | timer:interval@assets/entry-client-4GZ2_KIB.js:9:96426>T@assets/entry-client-4GZ2_KIB.js:47:15055>E@assets/entry-client-4GZ2_KIB.js:47:15540 13/10
+end-wktr results/end-wktr-flip/r1/wktr-j3 fp/recalc: base 237 floor 81 variant 91 per 100 frames, band 9 spread 8, frames base 96 floor 48 variant 48, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp/recalc: base 237 floor 81 variant 219 per 100 frames, band 9 spread 8, frames base 96 floor 48 variant 71, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 both/recalc: base 237 floor 81 variant 70 per 100 frames, band 9 spread 8, frames base 96 floor 48 variant 48, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp-iso/recalc: base 180 floor 81 variant 166 per 100 frames, band 6 spread 2, frames base 96 floor 48 variant 74, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 fp/layout: base 104 floor 14 variant 64 per 100 frames, band 8 spread 8, frames base 96 floor 48 variant 48, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp/layout: base 104 floor 14 variant 108 per 100 frames, band 8 spread 8, frames base 96 floor 48 variant 71, at floor false, verdict no change
+end-wktr results/end-wktr-flip/r1/wktr-j3 both/layout: base 104 floor 14 variant 2 per 100 frames, band 8 spread 8, frames base 96 floor 48 variant 48, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp-iso/layout: base 110 floor 14 variant 108 per 100 frames, band 6 spread 4, frames base 96 floor 48 variant 74, at floor false, verdict no change
+end-wktr results/end-wktr-flip/r1/wktr-j3 fp/compositing: base 267 floor 83 variant 154 per 100 frames, band 11 spread 2, frames base 96 floor 48 variant 48, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp/compositing: base 267 floor 83 variant 242 per 100 frames, band 11 spread 2, frames base 96 floor 48 variant 71, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 both/compositing: base 267 floor 83 variant 70 per 100 frames, band 11 spread 2, frames base 96 floor 48 variant 48, at floor true, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp-iso/compositing: base 202 floor 83 variant 186 per 100 frames, band 7 spread 4, frames base 96 floor 48 variant 74, at floor false, verdict cuts
+end-wktr results/end-wktr-flip/r1/wktr-j3 fp/layerFlush: base 133 floor 133 variant 133 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 48, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp/layerFlush: base 133 floor 133 variant 122 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 71, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j3 both/layerFlush: base 133 floor 133 variant 133 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 48, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j3 comp-iso/layerFlush: base 133 floor 133 variant 121 per 100 frames, band 0 spread 0, frames base 96 floor 48 variant 74, at floor true, verdict no-contrast
+end-wktr results/end-wktr-flip/r1/wktr-j3 compositor flip residual: floor 81 own floor 175 live 166 band 6, cause the variant markup
+end-wktr results/end-wktr-flip/r1/wktr-j3 compositor flip mechanism: frames live 71 paused 77, rates written 169/149 animated 11/24 empty 0/0, one category: written; next: stop the DOM write the top key names while the flip runs
+end-wktr results/end-wktr-flip/r1/wktr-j3 compositor flip keys (frames with a recalc, live/paused): timer:interval@assets/entry-client-4GZ2_KIB.js:9:96426>gc@assets/entry-client-4GZ2_KIB.js:45:19682>@assets/entry-client-4GZ2_KIB.js:45:23470 24/21 | ev:animationiteration 2/0 | mut:nav#data-fw-morph 38/36 | mut:nav#style 38/36
+end-wktr overall fp/recalc: cuts
+end-wktr overall comp/recalc: cuts
+end-wktr overall both/recalc: cuts
+end-wktr overall comp-iso/recalc: cuts
+end-wktr overall fp/layout: cuts
+end-wktr overall comp/layout: mixed
+end-wktr overall both/layout: cuts
+end-wktr overall comp-iso/layout: mixed
+end-wktr overall fp/compositing: cuts
+end-wktr overall comp/compositing: cuts
+end-wktr overall both/compositing: cuts
+end-wktr overall comp-iso/compositing: cuts
+end-wktr overall fp/layerFlush: inconclusive
+end-wktr overall comp/layerFlush: inconclusive
+end-wktr overall both/layerFlush: inconclusive
+end-wktr overall comp-iso/layerFlush: inconclusive
+end-wktr overall compositor flip residual cause: mixed
+end-wktr overall compositor flip mechanism: mixed
