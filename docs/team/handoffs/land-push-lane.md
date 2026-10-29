@@ -1,6 +1,6 @@
 # land-push-lane handoff
 
-- Branch: worktree-wf_830b5115-3ee-1; worktree: .claude/worktrees/wf_830b5115-3ee-1; work commit ee7757da5 (this handoff is the commit after it).
+- Branch: worktree-wf_830b5115-3ee-1; worktree: .claude/worktrees/wf_830b5115-3ee-1; work commit ee7757da5.
 - Verified: check.sh green, runner tests 3703/3703, ci-paths and ci-push node tests 62/62, dry land `VERDICT dry land-push-lane`, review ready `review`.
 - CI runs: none (accepted limit: no CI push of our own; the next real land exercises the CircleCI path).
 

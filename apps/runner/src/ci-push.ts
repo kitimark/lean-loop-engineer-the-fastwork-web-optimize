@@ -50,13 +50,10 @@ const linesOf = (t: string) => (t === "" ? [] : t.split("\n"));
 export type PushFacts = { sha: string; parents: string[]; tree: string; mergeTree: string; msg: string; ancestors: number[] };
 export type LandCheck = "ok" | "branch" | "marker" | "parent" | "tree" | "message" | "lanes" | "process";
 
-/** Lean `requested`: the message, ASCII upper case lowered, contains the token `[ci:<name>]`. */
 export const requested = (name: string, msg: string): boolean => msg.replace(/[A-Z]/g, (c) => c.toLowerCase()).includes(`[ci:${name}]`);
 
 const landMarker = (i: LandIntent): string => markerMessage({ task: i.task, mergeSha: i.merge, legs: i.legs ? { ...i.legs, cc: [] } : undefined } as StartCtx);
 
-/** Lean `landCheck`: the first identity check the push of `ref` with facts `f` fails against the land intent `i`, or "ok";
- *  `laneNames` are the names of Lean `lanes`. */
 export function landCheck(i: LandIntent, ref: string, f: PushFacts, laneNames: string[]): LandCheck {
   if (ref !== `refs/heads/${landBranch(i.task, i.merge, i.again)}`) return "branch";
   if (f.sha !== i.marker) return "marker";
@@ -68,7 +65,6 @@ export function landCheck(i: LandIntent, ref: string, f: PushFacts, laneNames: s
   return "ok";
 }
 
-/** `null` when no land intent names the pushed commit, else Lean `landCheck` over the facts read from git and `ps`. */
 export async function landAdmission(cwd: string, sha: string, remote: string, root: string = ROOT): Promise<{ task: string; check: LandCheck } | null> {
   const i = readIntent(sh(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), sha);
   if (!i) return null;
@@ -80,7 +76,6 @@ export async function landAdmission(cwd: string, sha: string, remote: string, ro
   return { task: i.task, check: landCheck(i, remote, f, laneNames) };
 }
 
-/** The seeder workflow files, from the head line of the Lean push lane golden. */
 function seederFiles(root: string): string[] {
   const first = readFileSync(join(root, "packages/contracts/golden/ci/pushlane.jsonl"), "utf8").split("\n")[0]!;
   return (JSON.parse(first) as { seeders: string[] }).seeders;

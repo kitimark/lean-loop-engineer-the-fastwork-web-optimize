@@ -46,4 +46,4 @@ foreign pid or another branch is refused with the failed check named.
 ## Accepted limits
 
 No CI push of our own: the next real land exercises the CircleCI path. CircleCI availability is out of scope. The render
-guard and the other ci-push rules are unchanged (the render guard still runs on land pushes).
+guard and the other ci-push rules are unchanged.

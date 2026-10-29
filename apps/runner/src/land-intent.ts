@@ -3,7 +3,6 @@ import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 
 export type Legs = { gh: string[]; all: string[] };
-/** Lean `Fw.Ci.Intent.LandIntent`: the record `fw land` writes before it pushes its marker commit. */
 export type LandIntent = { task: string; merge: string; again: boolean; marker: string; pid: number; legs: Legs | null };
 export type IntentStore = { write(i: LandIntent): () => void };
 

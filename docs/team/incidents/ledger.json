@@ -4726,7 +4726,7 @@
   {
    "id": "inc-land-push-lane",
    "at": "2026-10-29T12:00+07:00",
-   "title": "Our own pre-push hook broke the land path: fw land's CircleCI overflow push was refused as a push with no measuring lane",
+   "title": "Our pre-push hook refused fw land's CircleCI push as a push with no measuring lane",
    "symptom": "Land of phone-feel-kit: 'circleci: unavailable: Command failed: git push origin ci/land-phone-feel-kit-ff48bd9', then 'REFUSED: ci push lane check: ci/land-phone-feel-kit-ff48bd9 (7559239): the tip message names no lane whose inputs changed, so only the seeder lane would run; lanes that would run: lean'. The land fell back to GitHub (ci/land-...-again) and passed.",
    "cause": "CONFIRMED (apps/runner/src/land-remote.ts markerMessage and makePusher, apps/runner/src/ci-push.ts ciPushRefusals at ff48bd93a): when every leg goes to CircleCI the marker message carries no [ci:land] token, so on GitHub only the seeder lane (lean) would start; Lean Fw.Ci.Intent reasonOf returns noMeasuring and the hook, which runs inside the land's own git push, refused it.",
    "evidence": [

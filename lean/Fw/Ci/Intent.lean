@@ -698,13 +698,10 @@ theorem same_tree_no_measuring (S : String → List String) (msg : String) (diff
     rw [h] at hx'
     exact absurd hx' (by simp)
 
-/-! ## The land intent (task `land-push-lane`) -/
-
 def branchChar (c : Char) : Char := if c.isAlphanum || c == '.' || c == '_' || c == '-' then c else '_'
 
 def sha7 (sha : String) : String := String.ofList (sha.toList.take 7)
 
-/-- The branch `fw land` pushes for a task and its merge commit (TS `landBranch` in `land-remote.ts`). -/
 def landBranch (task merge : String) (again : Bool) : String :=
   "ci/land-" ++ String.ofList (task.toList.map branchChar) ++ "-" ++ sha7 merge ++ (if again then "-again" else "")
 
@@ -712,7 +709,6 @@ structure Legs where
   gh : List String
   all : List String
 
-/-- The message of the land's marker commit (TS `markerMessage` in `land-remote.ts`). -/
 def markerMessage (task merge : String) (legs : Option Legs) : String :=
   let base := "land " ++ task ++ " " ++ sha7 merge
   match legs with
@@ -727,7 +723,6 @@ def markerMessage (task merge : String) (legs : Option Legs) : String :=
 #guard markerMessage "t" "abcdef0123" (some ⟨[], ["x"]⟩) == "land t abcdef0"
 #guard markerMessage "t" "abcdef0123" (some ⟨["x"], ["x", "y"]⟩) == "[ci:land] land t abcdef0 [legs:x]"
 
-/-- The record `fw land` writes for the marker commit it is about to push; `pid` is the land process. -/
 structure LandIntent where
   task : String
   merge : String
@@ -736,7 +731,6 @@ structure LandIntent where
   pid : Nat
   legs : Option Legs
 
-/-- What the hook reads from git and the process table for the pushed commit. -/
 structure PushFacts where
   sha : String
   parents : List String
@@ -768,9 +762,6 @@ def LandCheck.tag : LandCheck → String
 
 def onlyLand (msg : String) : Bool := lanes.all fun l => !requested l.name msg || l.name == "land"
 
-/-- The first identity check a land push fails, or `ok`: the ref is the intent's land branch, the pushed commit is
-the marker, its only parent is the merge, its tree is the merge's, its message is the marker message and names no lane
-but `land`, and the land process is an ancestor of the hook. -/
 def landCheck (i : LandIntent) (ref : String) (f : PushFacts) : LandCheck :=
   if ref != "refs/heads/" ++ landBranch i.task i.merge i.again then .branch
   else if f.sha != i.marker then .marker
@@ -786,8 +777,6 @@ def landAdmits (ref : String) (li : Option LandIntent) (f : PushFacts) : Bool :=
   | some i => landCheck i ref f == .ok
   | none => false
 
-/-- The pre-push hook's lane verdict on one ref: refused iff the hook covers it, no verified land intent admits it,
-and `refuseNoLane` refuses it. -/
 def pushRefused (ref : String) (li : Option LandIntent) (f : PushFacts) (S : String → List String)
     (msgs : List String) (diff : List String) (differs : String → Bool) (landed : Bool) : Bool :=
   hookCovers ref && !landAdmits ref li f && refuseNoLane S msgs diff differs landed
@@ -807,7 +796,6 @@ theorem no_intent_unchanged (ref : String) (f : PushFacts) (S : String → List 
     pushRefused ref none f S msgs diff differs landed = (hookCovers ref && refuseNoLane S msgs diff differs landed) := by
   simp [pushRefused, landAdmits]
 
-/-- **A plain `ci/*` push without a measuring lane is still refused**, whatever its branch name says. -/
 theorem plain_no_measuring_refused (ref : String) (f : PushFacts) (S : String → List String) (msgs : List String)
     (diff : List String) (differs : String → Bool) (landed : Bool) (hc : hookCovers ref = true)
     (hm : measuringNames S (tipOf msgs) diff differs landed = []) :
@@ -824,8 +812,6 @@ theorem landCheck_ok_iff (i : LandIntent) (ref : String) (f : PushFacts) :
   by_cases e : f.msg = markerMessage i.task i.merge i.legs <;> cases onlyLand f.msg <;>
   by_cases h : i.pid ∈ f.ancestors <;> simp [a, b, c, d, e, h]
 
-/-- **A land push is admitted exactly by a verified intent.** On a ref the hook covers that the lane rule refuses,
-the push goes iff an intent is given and passes every identity check. -/
 theorem admitted_iff (ref : String) (li : Option LandIntent) (f : PushFacts) (S : String → List String)
     (msgs : List String) (diff : List String) (differs : String → Bool) (landed : Bool) (hc : hookCovers ref = true)
     (hr : refuseNoLane S msgs diff differs landed = true) :
@@ -867,7 +853,6 @@ theorem foreign_process_refused (i : LandIntent) (ref : String) (f : PushFacts) 
     landCheck i ref f ≠ .ok :=
   fun k => h ((landCheck_ok_iff i ref f).mp k).2.2.2.2.2.2
 
-/-- **An admitted land push runs only the land lane and lean.** -/
 theorem land_runs_only_land (i : LandIntent) (ref : String) (f : PushFacts) (h : landCheck i ref f = .ok)
     (S : String → List String) (diff : List String) (differs : String → Bool) (landed : Bool) (n : String)
     (hn : n ∈ startedNames S f.msg diff differs landed) : n = "land" ∨ n = "lean" := by
