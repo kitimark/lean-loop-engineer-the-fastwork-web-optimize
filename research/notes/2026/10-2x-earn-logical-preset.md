@@ -50,4 +50,4 @@ It did not enter, so there is nothing new to compose. The site registry/preset t
 | push | sha | run | result |
 |---|---|---|---|
 | 1 | c3512b93f | 40872462216 | walk complete; apple jobs hit the 18 min cap; earn-frames step cancelled |
-| 2 | 0bcadecfe | 40876250109 | earn-frames-only on the apple legs (message `[earn-frames]`, frames steps guarded); 390 cell decided |
+| 2 | 0bcadecfe | 40876250109 | earn-frames-only on the apple legs (message `[earn-frames]`, frames steps guarded); 390 cell decided. The workflow change is outside the task writes and is not landed; it stays on the ci ref |
