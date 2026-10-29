@@ -1,5 +1,5 @@
 branch: worktree-wf_bd6be3b9-683-1 (CI branch ci/cols-probe, pushed at 74f5304bf then at the push-2 commit)
-worktree: .claude/worktrees/wf_bd6be3b9-683-1 (under the main checkout)
+worktree: .claude/worktrees/wf_bd6be3b9-683-1
 last commit: see git log (data complete; the temporary workflow token is reverted in the last commit)
 CI runs (all success): chromium-counts 40792572637 (unusable, wrong profile), 40802455145, 40812007208 (swipe-touch-v1, 12 jobs each); toolbar-throttle 40792572994, 40802455303, 40812007170 (Sim, 9 job files pooled)
 Verified: check.sh green; Lean module, golden, measure-chromium cols-verdict + measure-webkit cols-report tests pass. Verdicts: Chromium pictures cost (both contrasts), WebKit Sim mixed (both), phone undecided; P2-P4 independent, P5 and P6 keep by the rule (P6 rests on Chromium alone).
@@ -19,5 +19,5 @@ Paint base 57400 vs base+off 131666 per 1000 pushes (1 job each); timed-fixed pu
 Conventions: commit message tokens drive the lanes. The cols tokens are a TEMPORARY edit of .github/workflows/toolbar-throttle.yml (not in
 the task's writes); patch results/cols-probe/toolbar-throttle-cols-token.patch; revert it before the dry land and list it in the report.
 WebKit layerCount/backingBytes are the census after the last cycle, Paint is milli-paints per push window. The counts lane has no
-RasterTask ms and no render-pass key: report those as not delivered (follow-up: add them to trace.mjs).
+RasterTask ms and no render-pass key: report those as not delivered.
 Read first: lean/Fw/Device/ColsProbe.lean, then research/notes/2026/10-2x-phone-cols-probe.md.

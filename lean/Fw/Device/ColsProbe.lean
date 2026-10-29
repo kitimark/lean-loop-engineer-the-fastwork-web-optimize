@@ -1,12 +1,8 @@
 import Lean.Data.Json
 import Fw.Device.PhoneArms
 /-!
-# Column picture probe on the CI lanes: arms, push labels, verdict rule
-Reads `research/notes/2026/10-27-end-columns-probe.md` P1. The probe flag `morph.columns:probe-off` hides the 21 column pictures
-(`visibility: hidden`). Four arms per engine: base, base+off, timed-fixed (morph.geom + geom-timed), timed-fixed+off.
+# Column picture probe: arms, push labels, verdict rule
 Twin: `packages/measure-chromium/src/cols-verdict.mjs`; golden `packages/contracts/golden/device/cols-probe.jsonl`.
-The rule is fixed before the data: per metric, the reference arm's own spread over its jobs is `[lo, hi]`; the off arm "costs" the
-pictures when every one of its jobs lies below `lo`.
 -/
 namespace Fw.Device.ColsProbe
 open Lean
@@ -19,7 +15,6 @@ inductive Engine where
 def Engine.name : Engine → String
   | .chromium => "chromium" | .webkit => "webkit"
 
-/-- Chromium counts lane: `trace.RasterTask`, `trace.DisplayItemListRaster`, `trace.PaintImage`, `trace.cc.Draw`. WebKit Simulator push lane: census layers, census backing bytes, timeline Paint rows per push. The counts lane records neither RasterTask milliseconds nor render passes. -/
 inductive Metric where
   | rasterTask | rasterItems | paintImage | draw | layers | backing | paint
   deriving DecidableEq, Repr
@@ -34,7 +29,6 @@ def Engine.metrics : Engine → List Metric
 
 theorem metrics_count : Engine.chromium.metrics.length = 4 ∧ Engine.webkit.metrics.length = 3 := by decide
 
-/-- One arm: whether the pictures are hidden and whether the flip (morph.geom with geom-timed) is on. -/
 structure CArm where
   id : String
   off : Bool
@@ -48,20 +42,16 @@ def ctimedOff : CArm := ⟨"timed-fixed+off", true, true⟩
 
 def arms : List CArm := [cbase, cbaseOff, ctimed, ctimedOff]
 
-/-- The fw flags, parts in increasing order (the part ids morph.columns < morph.geom < morph.tween). -/
 def CArm.flags (a : CArm) : List String :=
   (if a.off then [probeFlag] else []) ++ (if a.flip then ["morph.geom:on", "morph.tween:geom-timed"] else [])
 
 def CArm.search (a : CArm) : String := if a.flags.isEmpty then "" else "?fw=" ++ String.intercalate "," a.flags
 
-/-- The arm of the reference: the same page with the pictures shown. -/
 def CArm.ref (a : CArm) : CArm := ⟨if a.flip then ctimed.id else cbase.id, false, a.flip⟩
 
-/-- Simulator push lane arm name (`packages/measure-webkit/src/throttle/push-cycle.mjs` MORPH_ARMS). -/
 def CArm.wkArm (a : CArm) : String :=
   "morph-" ++ (if a.flip then "timed" else "base") ++ (if a.off then "-off" else "")
 
-/-- Chromium counts lane label: the default config is `rewrite`, the `arms=` list is f1, f2, f3 in the order of `chromiumArms`. -/
 def chromiumArms : List CArm := [cbaseOff, ctimed, ctimedOff]
 
 def CArm.crLabel (a : CArm) : String :=
@@ -81,7 +71,6 @@ theorem ref_is_arm : ∀ a ∈ arms, a.ref ∈ arms := by decide
 theorem ref_pairs : arms.map (fun a => (a.id, a.ref.id)) =
     [("base", "base"), ("base+off", "base"), ("timed-fixed", "timed-fixed"), ("timed-fixed+off", "timed-fixed")] := by decide
 
-/-- The search strings are the PhoneArms column arms' flags: the same four pages as the phone session. -/
 theorem same_pages_as_phone :
     (arms.zip colsArms).all (fun p => Fw.Device.Session.sameFlags p.1.flags p.2.flags) = true := by decide
 
@@ -108,7 +97,6 @@ inductive PushLabel where
 def PushLabel.name : PushLabel → String
   | .plain => "plain" | .flip => "flip" | .darkNoTake => "dark-no-take" | .lightFallback => "light-fallback"
 
-/-- The label of one push: `plain` for an arm without the flip; for a flip arm `flip` when a take ran in the push window, else `darkNoTake` (nav was on dark at the push but no take followed) or `lightFallback` (nav was not on dark). -/
 def pushLabel (p : PushLog) : PushLabel :=
   if p.flipArm then (if p.took then .flip else if p.onDark then .darkNoTake else .lightFallback) else .plain
 
@@ -123,7 +111,6 @@ theorem pushLabel_darkNoTake {p : PushLog} (h : p.flipArm = true) (ht : p.took =
 theorem pushLabel_light {p : PushLog} (h : p.flipArm = true) (ht : p.took = false) (hd : p.onDark = false) :
     pushLabel p = .lightFallback := by simp [pushLabel, h, ht, hd]
 
-/-- A flip arm counts as a flip arm only when at least 3 of 4 pushes took (per mille 750). -/
 def flipShareMin : Nat := 750
 
 def flipValid (took pushes : Nat) : Bool := decide (0 < pushes) && decide (flipShareMin * pushes ≤ 1000 * took)
@@ -154,7 +141,6 @@ inductive Cell where
 def Cell.name : Cell → String
   | .cost => "pictures cost" | .noCost => "no cost" | .mixed => "mixed" | .few => "few jobs" | .zero => "reference zero"
 
-/-- `few`: fewer than 3 jobs on either side. `zero`: the reference never exceeds 0, so nothing can be reduced. `cost`: every off job is below the reference's lowest job. `noCost`: every off job lies inside the reference's spread. Anything else (some below and some inside, or any above) is `mixed`. -/
 def below (ref off : List Nat) : Bool := off.all (fun o => decide (o < lo ref))
 
 def inside (ref off : List Nat) : Bool := off.all (fun o => decide (lo ref ≤ o ∧ o ≤ hi ref))
@@ -186,11 +172,9 @@ theorem cell_mixed {ref off : List Nat} (hr : ¬ ref.length < minJobs) (ho : ¬ 
     (hw : inside ref off = false) : Cell.of ref off = .mixed := by
   simp [Cell.of, hr, ho, h, hb, hw]
 
-/-- Cost and no cost never hold together: a job below the spread is not inside it. -/
 theorem cell_cost_ne_noCost (ref off : List Nat) : Cell.of ref off = .cost → Cell.of ref off ≠ .noCost := by
   intro h h2; rw [h] at h2; exact absurd h2 (by decide)
 
-/-- Checked cases the verdict rule must meet. -/
 theorem cell_cases :
     Cell.of [100, 104, 102] [60, 61, 59] = .cost ∧ Cell.of [100, 104, 102] [100, 103, 104] = .noCost ∧
     Cell.of [100, 104, 102] [60, 101, 59] = .mixed ∧ Cell.of [100, 104, 102] [105, 101, 102] = .mixed ∧
@@ -206,7 +190,6 @@ inductive Reading where
 def Reading.name : Reading → String
   | .cost => "pictures cost" | .noCost => "no cost" | .mixed => "mixed" | .few => "undecided (few jobs)"
 
-/-- `valid` is false when a flip arm of the contrast failed `flipValid`: the contrast is then `few`. Any metric at `cost` makes `cost`; else `few` if any cell has too few jobs; else `noCost` when every cell is `noCost` or `zero`; else `mixed`. -/
 def anyCost (cells : List Cell) : Bool := cells.any (· == .cost)
 
 def anyFew (cells : List Cell) : Bool := cells.isEmpty || cells.any (· == .few)
@@ -249,7 +232,6 @@ inductive Fate where
 def Fate.name : Fate → String
   | .keep => "keep" | .drop => "drop" | .open => "open" | .independent => "independent of picture cost"
 
-/-- Readings of the four contrasts: `bc` base against base+off on Chromium, `bw` on WebKit, `fc` timed-fixed against its off arm on Chromium, `fw` on WebKit. P2 (group opacity), P3 (track layers) and P4 (structure) do not depend on the pictures' own paint cost. P5 needs a cost in any contrast, P6 a cost on the base path (`bc`, `bw`): `keep` on a cost, `drop` when every contrast it reads is `noCost`, else `open`. -/
 def fate (p : Plan) (bc bw fc fw : Reading) : Fate :=
   match p with
   | .p2 | .p3 | .p4 => .independent
@@ -271,7 +253,6 @@ theorem fate_p6_keep {bc bw fc fw : Reading} (h : [bc, bw].any (· == .cost) = t
 theorem fate_p6_drop {bc bw fc fw : Reading} (h : [bc, bw].any (· == .cost) = false) (hn : [bc, bw].all (· == .noCost) = true) :
     fate .p6 bc bw fc fw = .drop := by simp [fate, h, hn]
 
-/-- P6 reads only the base path: a cost on the flip contrast alone keeps P5 and leaves P6 open. -/
 theorem fate_p6_flip_only : fate .p6 .noCost .noCost .cost .cost = .drop ∧ fate .p5 .noCost .noCost .cost .cost = .keep := by decide
 
 theorem fate_all_noCost : [Plan.p5, .p6].all (fun p => fate p .noCost .noCost .noCost .noCost == .drop) = true := by decide

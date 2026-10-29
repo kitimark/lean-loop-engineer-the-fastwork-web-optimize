@@ -1,7 +1,3 @@
-// Column picture probe verdict (twin of lean/Fw/Device/ColsProbe.lean; replayed against
-// packages/contracts/golden/device/cols-probe.jsonl). Both engines use it: Chromium counts lane here, WebKit Simulator push lane
-// through packages/measure-webkit/src/throttle/cols-report.mjs. Pure: no I/O.
-
 export const C = { minJobs: 3, flipShareMin: 750 };
 
 export const METRICS = {
@@ -26,7 +22,6 @@ export const wkArmOf = (a) => `morph-${a.flip ? 'timed' : 'base'}${a.off ? '-off
 export const crLabelOf = (a) => (a.id === 'base' ? 'rewrite' : `f${CHROMIUM_ARMS.indexOf(a.id) + 1}`);
 export const armById = (id) => ARMS.find((a) => a.id === id);
 
-/** The commit-message arms list for the Chromium counts lane (arms=a|b|c): f1, f2, f3 in CHROMIUM_ARMS order. */
 export const countsArmsToken = () => CHROMIUM_ARMS.map((id) => flagsOf(armById(id)).join(',')).join('|');
 
 export const flipValid = (took, pushes) => pushes > 0 && C.flipShareMin * pushes <= 1000 * took;
@@ -64,10 +59,6 @@ export function fate(plan, bc, bw, fc, fw) {
   return 'open';
 }
 
-/**
- * One contrast on one engine: jobs = { [armId]: [{ [metricName]: number }, ...] } (one entry per CI job), logs = { [armId]: { took, pushes } }
- * for the flip arms. Returns the per-metric cells, the reading, and the spread lines for the report.
- */
 export function contrast(engine, jobs, offId, logs = {}) {
   const off = armById(offId);
   const ref = armById(refOf(off));
@@ -81,7 +72,6 @@ export function contrast(engine, jobs, offId, logs = {}) {
   return { ref: ref.id, off: off.id, valid, cells, reading: reading(valid, cells.map((c) => c.cell)) };
 }
 
-/** The four contrasts of both engines to the fate of P2 to P6. */
 export function fates(readings) {
   const { bc, bw, fc, fw } = readings;
   return Object.fromEntries(['p2', 'p3', 'p4', 'p5', 'p6'].map((p) => [p, fate(p, bc, bw, fc, fw)]));

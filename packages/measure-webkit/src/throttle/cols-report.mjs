@@ -1,14 +1,9 @@
-// WebKit Simulator side of the column picture probe (Lean Fw.Device.ColsProbe, twin packages/measure-chromium/src/cols-verdict.mjs).
-// Input: the per-VM job files of push-cycle-cli.mjs run --morph-push (arms morph-base, morph-base-off, morph-timed, morph-timed-off).
-// Per job and arm: layerCount and backingBytes from the census after the last cycle (page at its end), Paint as thousandths of Paint rows
-// per push window (Lean PushCycle windows, morph-push.mjs), and the flip log (pushes, takes, on-dark at push).
 import { ARMS, contrast, wkArmOf } from '../../../measure-chromium/src/cols-verdict.mjs';
 import { takeStats } from '../../../measure-chromium/src/cols-reduce.mjs';
 import { MIN_WINS, passRec, passUsable, vmVec, windows } from './morph-push.mjs';
 
 const floorMean = (xs) => (xs.length ? Math.floor(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
 
-/** One arm in one job file: the usable passes' metrics, or null when the job has fewer than MIN_WINS push windows. */
 export function armJob(job, wkArm) {
   const ps = (job.passes ?? []).filter((p) => p.arm === wkArm && passUsable(p));
   const wins = ps.flatMap((p) => windows(passRec(p), p.push.starts));

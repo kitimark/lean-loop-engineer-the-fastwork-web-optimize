@@ -42,7 +42,7 @@ Census values are the last cycle at the page end. One base job (f5/vm2) had 141 
 
 ## Chromium finding about the harness (MEASURED, INFERRED for the consequence)
 Run 40792572637 used profile `push-cycle-d1000`: the page never reached its end (scrollY max 307 of 5189, `endGapPx` 4882, `input.start: 'end'` is
-not read by `run.mjs`), so all four arms were identical and no push happened. Result only kept as `results/cols-probe/chromium-run-40792572637-push-cycle-d1000.json`.
+not read by `run.mjs`), so all four arms were identical and no push happened. Kept as `results/cols-probe/chromium-run-40792572637-push-cycle-d1000.json`.
 INFERRED: the earlier Chromium push-cycle proxy (`research/notes/2026/10-2x-push-cycle-lag.md`) probably never reached the page end either; check before reusing it.
 
 ## Engine claims (CONFIRMED in source, from the phone note)
@@ -54,4 +54,4 @@ paint and raster and not decode (not checked).
 - Chromium counts: 40792572637 (unusable), 40802455145, 40812007208. Reduced: `results/cols-probe/chromium-run-*.json`.
 - Sim push lane: 40792572994, 40802455303, 40812007170. Reduced: `results/cols-probe/webkit-run-40792572994.json`, `results/cols-probe/webkit-pooled-40792572994-40802455303-40812007170.json`.
 - Reducers: `packages/measure-chromium/src/cols-reduce.mjs`, `packages/measure-webkit/src/throttle/cols-report.mjs` (`push-cycle-cli.mjs cols --in a.json,b.json`).
-- Limits: WebKit Sim is not iOS Safari; no phone and no Safari macOS in this task; the probe flag is probe-only and in no preset; three pushes used.
+- Limits: WebKit Sim is not iOS Safari; no phone and no Safari macOS in this task; the probe flag is in no preset; three pushes used.

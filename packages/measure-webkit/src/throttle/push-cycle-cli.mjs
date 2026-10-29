@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // node src/throttle/push-cycle-cli.mjs run --site dir --driver d [--arms original,rewrite,user] [--rounds 1] [--cycles 6] [--hold 600] [--vm n] [--out file]
 // node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file] [--expect 1,2,3]
-// node src/throttle/push-cycle-cli.mjs cols --in a.json,b.json [--md file] [--json file]   (task cols-probe: arms morph-base, -base-off, -timed, -timed-off)
+// node src/throttle/push-cycle-cli.mjs cols --in a.json,b.json [--md file] [--json file]
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';

@@ -1,18 +1,13 @@
-// Chromium side of the column picture probe: counts.json files of the four arms -> per-job metric sums, take stats, the Lean-twin
-// verdicts. Usage: node cols-reduce.mjs <dir> [--out file.json]; <dir> holds chromium-counts-<label>-<run>/counts.json (a
-// `pnpm fw ci <runId>` or `gh run download` tree). Labels: rewrite (base), f1 (base+off), f2 (timed-fixed), f3 (timed-fixed+off).
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ARMS, METRICS, contrast, crLabelOf, pushLabel } from './cols-verdict.mjs';
 
-/** Sum of one count key over the profile frames. */
 export const sumKey = (counts, key) => (counts.frames ?? []).reduce((s, f) => s + (f.counts?.[key] ?? 0), 0);
 
 export function jobOf(counts) {
   return Object.fromEntries(METRICS.chromium.map((m) => [m.name, sumKey(counts, m.key)]));
 }
 
-/** Pushes of a take log: each push event, took = a take event before the next push; dark = is-on-dark at the push. */
 export function takeStats(log = []) {
   const pushes = [];
   for (const e of log) {
