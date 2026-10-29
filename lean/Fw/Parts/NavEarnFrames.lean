@@ -1,9 +1,5 @@
 import Lean.Data.Json
 import Fw.Parts.NavEarnWebkit
-/-!
-Verdict of the recorded earn-button frame cells against `NavEarnWebkit.frameOk`.
-Record: `cd lean && lake env lean --run scripts/NavEarnFramesGolden.lean record <run> <leg>=<summary.json>... > <golden>`.
--/
 namespace Fw.Parts.NavEarnFrames
 open Lean Fw.Parts.NavEarnWebkit
 
