@@ -1,9 +1,10 @@
-# geom-recalc-bisect handoff (checkpoint 1, after push 1 of max 3)
+# geom-recalc-bisect handoff (checkpoint 2, after push 2 of max 3)
 
 - Branch: worktree-wf_02ef56dc-a11-1 (CI branch ci/geom-recalc-bisect)
 - Worktree: .claude/worktrees/wf_02ef56dc-a11-1
-- Last commit: 5f37a54eb
-- CI runs: wktr 40805577147 (push 1, [ci:wktr] [accel], 3 jobs) = running. Other workflows skipped by design.
+- Last commit: 5cc39310b (push 2)
+- CI runs: wktr 40805577147 (push 1) = success, results/geom-recalc-bisect/r1 (stage 1: Lean overall named div#root > page-root; no single child of page-root drops the rate: children kept 66-117 per 100, hide page-root 18-20, hide div#root 0; obs arm: site rAF subscribers and mutations people#style / pain#data-fw-pain-dark fire in only 10-18 of ~120 frames, recalcs 91-98 of 119).
+  wktr 40808745010 (push 2, stage 2: kill-feature + show-only arms, Lean carrier/holder) = running.
 - Temporary: .github/workflows/wktr.yml has `--modes bisect-thr-off` in the accel step. REVERT before land (git checkout main -- .github/workflows/wktr.yml).
 
 ## Verified
@@ -12,7 +13,7 @@
 - triggers.jsonl regenerated from Lean.
 
 ## Open
-- Read push-1 results, name the carrier (or the next probe), WebKit path @862f17d, fix proposal.
+- Read push-2 results (pnpm fw ci / gh run download -> node scratchpad proc.mjs-style tally into results/geom-recalc-bisect/r2), name the carrier feature, WebKit path @862f17d, fix proposal. One push left (3 max).
 - Note research/notes/2026/10-2x-geom-recalc-bisect.md, ledger entry, check.sh, ci-paths test, land-inputs test, runner ledger vitest, plan lint, dry land, fw review ready.
 
 ## Conventions
