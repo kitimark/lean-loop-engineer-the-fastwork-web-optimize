@@ -18,12 +18,19 @@ that floor? Unit of decision: one writer silenced in turn on top of the all-paus
 
 ## Answer
 - No page writer carries the floor. Dominant writer: none in 3 of 3 jobs. In the 2 jobs with comparable windows (j1, j3,
-  48 frames per arm) silencing all writers at once leaves the floor unchanged: 138 -> 133 and 135 -> 135 per 100 frames,
-  verdict `no writes`. In the job with long, unequal windows (j2) all writers together cut 40 of 154, spread over
+  48 frames per arm) silencing the six listed writer sets at once leaves the floor unchanged: 138 -> 133 and 135 -> 135 per 100 frames,
+  verdict `no writes`. In the job with long, unequal windows (j2) the six sets together cut 40 of 154, spread over
   publish (27), data (21), panel (20), style (7), class and platform (0); no single cut is over half the floor.
 - The floor is the running animation tracks. Every frame of every arm in every job holds at least one style recalc (0
-  frames with zero recalcs in 30 arm-windows) and the all-paused and natural windows hold no recorded DOM mutation in
-  any frame (48 of 48, 267 of 267), so the recalc needs no write. Lean: `rate_one_per_frame`.
+  frames with zero recalcs in 30 arm-windows). The recalc needs no write: with the six listed writer sets silenced
+  (`rs-flip-qwrite`, the arm that records mutations) 0 of 48 frames in j1 and 0 of 48 in j3 carry a `mut:` key and all 48
+  and 48 hold at least one recalc; in j2 432 of 448 frames carry no mutation and all 448 hold a recalc (the other 16
+  carry `mut:platform#data-fw-scene`, see the table notes). The natural and all-paused arms (`rs-flip-nat`,
+  `rs-flip-pall`) do not record mutations (`rsWindow` in `packages/measure-wktr/src/mid-page.mjs`, `rec` is on only for
+  `obs`, `obsf`, `pallf` and the q arms), so nothing is claimed about writes in those windows. The q arms do show writes
+  in the same kind of window: in j2 `rs-flip-qstyle` has 64 of 265 frames with `mut:nav#data-fw-morph` (it silences only the
+  nav inline style). Source of all counts: `rows[arm].rs.frames`, `kt`, in `results/end-floor-writes/r3/wktr-jN/accel-floor-v2p-thr-off-1.json`.
+  Lean: `rate_one_per_frame`.
 - No same-look cut was built: the deliverable is conditional on one writer carrying most of the floor, and none does.
   Negative finding.
 - Class decision over the 3 jobs by the Lean model (`overallW`, `overallF`): `mixed` (j1, j3: `no writes`; j2: `spread
@@ -33,7 +40,7 @@ that floor? Unit of decision: one writer silenced in turn on top of the all-paus
 Source: `results/end-floor-writes/r3/verdict.txt` (made by `node packages/measure-wktr/src/end-floor-cli.mjs
 wktr-j1 wktr-j2 wktr-j3 --out verdict.txt`), rows of `results/end-floor-writes/r3/wktr-jN/accel-floor-v2p-thr-off-1.json`
 (`rows[arm].rs.frames`, `.wins`). Floor = pooled `rs-flip-pall` read before and after the writer arms; reference =
-`rs-flip-qwrite` (every writer set silenced at once); mode `floor-v2p-thr-off` (v2-proved + morph.geom:on,
+`rs-flip-qwrite` (the six listed writer sets silenced at once: style, data, class, panel, plat, and pub, which is style plus data); mode `floor-v2p-thr-off` (v2-proved + morph.geom:on,
 morph.tween:geom-timed, WKTR pref off), 16 reps per arm.
 
 | arm | j1 | j2 | j3 |
@@ -45,10 +52,10 @@ morph.tween:geom-timed, WKTR pref off), 16 reps per arm.
 | qclass (nav class, tabindex, aria) | 135 | 156 | 135 |
 | qpanel (morph panel) | 137 | 134 | 133 |
 | qplat (platform style) | 133 | 157 | 133 |
-| qwrite (all writers) | 133 | 114 | 135 |
+| qwrite (all six listed sets) | 133 | 114 | 135 |
 | natural page | 135 | 160 | 133 |
 | frames per arm (pall x2 / qwrite) | 96 / 48 | 531 / 448 | 96 / 48 |
-| judge, every writer | no writes | carries x5 (not qclass, qplat) | no writes |
+| judge, each of the six sets | no writes | carries x5 (not qclass, qplat) | no writes |
 
 - j1 and j3: each rep window is 3 frames and holds 4 recalcs (frame counts 1, 1, 2: 32 frames with one recalc, 16 with
   two, 0 with none, in `rs-flip-pall` and `rs-flip-qwrite` alike). The extra recalc per rep is also there with all
@@ -61,6 +68,11 @@ morph.tween:geom-timed, WKTR pref off), 16 reps per arm.
 - Per-writer cut (floor - arm), j2 only where it is above the band 2: qpub 27, qdata 21, qpanel 20, qstyle 7. qpub is the
   style plus data sum and qdata is part of it, so they overlap (`several_overlap`: two cuts over half the floor each
   must share frames); none is over half of 154.
+- `platform#data-fw-scene` is in no silenced set (`KEYS.write`, `packages/measure-wktr/src/end-floor.mjs:5-13`, lists
+  `nav#style`, `nav#data-fw-morph`, the nav class/aria/tabindex keys, the four morph-panel keys, `platform#style`). In
+  `rs-flip-qwrite` it carries a mutation in 16 of 448 frames in j2 and in 0 of 48 frames in j1 and in j3 (same file, `kt` key
+  `mut:platform#data-fw-scene`). Those 16 frames still hold a recalc, but no claim is made that this writer is or is not
+  part of the j2 floor.
 
 ## How the arms were built
 Three pushes, kept under `results/end-floor-writes/r1`, `r2`, `r3`.
@@ -98,8 +110,14 @@ Three pushes, kept under `results/end-floor-writes/r1`, `r2`, `r3`.
 - The 3 jobs are not enough to give j2 a cause (INFERRED above). A pinned window (fixed frame
   count from the first track) would remove the long-window confound; it needs a harness arm that ends the window by
   frame count, not by the reference track. Follow-up, not run (3 pushes used).
-- The floor here (133 to 154) is higher than the all-paused floor of the earlier lanes (68 to 83) because this mode
-  adds the flip's own geom tracks to the window (INFERRED from mode difference `floor-v2p-thr-off`; not measured).
+- The floor here (133 to 154) is higher than the all-paused floor of the end-wktr-flip lane (70 to 83; `results/end-wktr-flip/r1/wktr-jN/accel-end-base-thr-off-1.json`
+  `rows[rs-flip-pall]`: 83, 71, 81 per 100 frames). What differs, from the mode strings (`packages/measure-wktr/src/accel-cli.mjs:31-39`):
+  `end-base-thr-off` is `morph.geom:on,morph.tween:geom-timed`, so both lanes carry the flip geom tracks;
+  `floor-v2p-thr-off` adds `engine.scroll:unthrottle`, `hero.exit:threaded` and `platform:faded-pause`. The rep window
+  does not differ in j1 and j3: `rs.wins` is 3 frames in all 16 reps in both lanes (48 frames); in j2 this lane's windows are 6 to
+  29 frames per rep over all arms (`rs-flip-pall` 15 to 18, `rs-flip-qwrite` 26 to 29). Measured contrast: the earlier `end-fp-thr-off` lane (geom plus `platform:faded-pause`
+  only) reads its natural flip at 88, 90, 92 (j1 to j3, `rows[rs-flip-nat]`), against 135, 160, 133 here. Which added flag raises the rate per 100 frames is not measured
+  (follow-up).
 - Attribution is per writer silenced in turn, not per call site. A cut of the floor itself would be a change to the flip
   tracks (fewer concurrent tracks per frame), a separate look-change question, not a writer cut.
 - `.github/workflows/wktr.yml` carried a temporary build config and `--modes floor-v2p-thr-off` for these runs; it is
