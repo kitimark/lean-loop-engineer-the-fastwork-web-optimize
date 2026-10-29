@@ -24081,6 +24081,29 @@
     "research/notes/2026/10-2x-shipped-preset.md",
     "docs/team/handoffs/shipped-preset.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "watch-memory",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "Overload 2026-10-29: the Mac ran at 113 MB free with heavy compression and lean/check preset v2-proved took 141 s vs 19 s baseline; `fw watch --stream` (the lead's Monitor, 5 min old) held 663 MB RSS. Find what the watcher keeps in memory (event log replay, run caches, timing samples), bound it (streaming reads, windowed state, Lean-decided retention), measure RSS before/after over a 30 min stream, and add a timing/RSS self-check alert.",
+   "writes": [
+    "apps/runner/src/watch*.ts",
+    "apps/runner/src/fw.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/src/events*.ts",
+    "apps/runner/test/watch*.test.ts",
+    "lean/Fw/Ops/Watch*.lean",
+    "packages/contracts/golden/ops/watch*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-watch-memory.md",
+    "docs/team/handoffs/watch-memory.md"
+   ]
   }
  ],
  "deadline": {
