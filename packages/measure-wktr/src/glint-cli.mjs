@@ -1,5 +1,3 @@
-// Offline verdicts of task glint-hold-wktr: node glint-cli.mjs <job dir>...  Each dir holds accel-glint-base-thr-off-<p>.json and accel-glint-hold-thr-off-<p>.json
-// (result files of the accel lane). Prints one line per job and cell, then the overall verdict per cell, all from glint-hold.mjs (the Lean rule).
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

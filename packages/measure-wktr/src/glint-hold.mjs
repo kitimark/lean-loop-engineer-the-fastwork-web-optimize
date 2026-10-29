@@ -1,11 +1,7 @@
-// TS stand-in of lean/Fw/Device/GlintHold.lean: replays packages/contracts/golden/device/glint-hold.jsonl (test/glint-hold.test.mjs).
-// reportToCells, glintLines and decideFiles are glue (not golden-replayed); they hold no decision rule of their own.
-// A frame is [recalcs, leftMs, rightMs]: the style recalcs counted in it and, per dash, the SMIL ms since its beginElement (null before it).
 export const GH_C = { minIdle: 40, minFlip: 12, minSpread: 50, bandDen: 16, minValid: 2 };
 
 const DUR = 5000;
 const SEG = 1000;
-// Segments whose value moves (Lean ramp_left, ramp_right): the hold ring ticks 2 animations there and none on the other three.
 const RAMP = { left: [0, 3], right: [1, 2] };
 const FAITHFUL = 2;
 
@@ -28,7 +24,6 @@ const spreadOf = (xs) => {
 };
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 
-/** Nums of a cell { baseOn: Arm[], baseOff: Arm, holdOn: Arm }; an Arm is a list of windows, a window a list of frames. */
 export const cellNums = (c) => ({
   nb: sum(c.baseOn.map((a) => armFrames(a).length)),
   bq: sum(c.baseOn.map((a) => armTicks(false, a))),
@@ -66,16 +61,12 @@ export function judge(minF, x) {
   return V.asPredicted;
 }
 
-/** The cell over jobs: at least minValid judged jobs, all alike. */
 export function overall(vs) {
   const js = vs.filter(judged);
   if (js.length < GH_C.minValid) return 'inconclusive';
   return js.slice(1).every((v) => v === js[0]) ? js[0] : 'mixed';
 }
 
-// ---- glue: accel reports to cells ----
-
-/** Frame arrays of one accel row, split by the window sizes the probe recorded. */
 export function rowArm(row) {
   const fr = row.rs.frames.map((f) => [f.r, f.g ? f.g[0] : null, f.g ? f.g[1] : null]);
   const wins = row.rs.wins && row.rs.wins.length ? row.rs.wins : [fr.length];
@@ -87,7 +78,6 @@ export function rowArm(row) {
 
 const rowsOf = (report, arm) => report.rows.filter((r) => r.arm === arm && r.rs);
 
-/** { idle, flip } cells of one job from the base-page and the hold-page accel reports (arms rs-idle, rs-idle-smil, rs-flip, rs-flip-smil). */
 export function reportToCells(base, hold) {
   const cell = (kind) => {
     const on = rowsOf(base, `rs-${kind}`).map(rowArm);
@@ -112,11 +102,9 @@ export const jobLine = (label, kind, d) => {
   return `glint ${label} ${kind}: base ${x.b} floor ${x.f} hold ${x.h} per 100 frames, predicted ${d.pred} band ${d.band} spread ${x.spread}, frames base ${x.nb} floor ${x.nf} hold ${x.n}, hold frames after a tick ${x.q}/${x.n}, base frames after a tick ${x.bq}/${x.nb} => ${d.verdict}`;
 };
 
-/** Lines for one job (idle and flip). */
 export const glintLines = (label, base, hold) => {
   const d = decideJob(base, hold);
   return [jobLine(label, 'idle', d.idle), jobLine(label, 'flip', d.flip)];
 };
 
-/** Overall verdicts over jobs given as [{idle, flip}] of decideJob. */
 export const overallJobs = (ds) => ({ idle: overall(ds.map((d) => d.idle.verdict)), flip: overall(ds.map((d) => d.flip.verdict)) });

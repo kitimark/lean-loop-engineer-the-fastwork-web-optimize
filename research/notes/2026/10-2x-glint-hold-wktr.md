@@ -31,7 +31,7 @@ Run 40823517468 (`results/glint-hold-wktr/r2`, recalcs per 100 frames; base = me
 | j2 | flip | 170 | 81 | 150 | 153 | 5 | 39/48 | cuts as predicted |
 | j3 | flip | 189 | 86 | 147 | 156 | 6 | 33/48 | cuts more |
 
-- Overall idle: **cuts as predicted** (3 of 3 jobs). Overall flip: **mixed** (cuts more twice, as predicted once; the Lean rule does not
+- Overall idle: cuts as predicted (3 of 3 jobs). Overall flip: mixed (cuts more twice, as predicted once; the Lean rule does not
   merge them). Reading, INFERRED: the cut is at least the predicted one in every job; none reads cuts less or no cut.
 - The cut is real but partial: idle falls from about 100 to about 74 per 100 frames (about 26 percent), not to the floor 0, because
   about 80 percent of hold frames still follow a tick (the two dashes ramp in different segments, so only segment 4 is quiet).
@@ -42,9 +42,9 @@ Run 40823517468 (`results/glint-hold-wktr/r2`, recalcs per 100 frames; base = me
 
 ## Mechanism (WebKit @862f17d)
 - SMIL timer 1/60 s per outermost svg: `SMILTimeContainer.cpp:42,86-92,261-316`; each tick runs `SVGAttributeAnimator.cpp:105-125`
-  -> `SVGLinearGradientElement.cpp:94-104` -> gradient resource invalidation (the last link INFERRED).
-- `<set>` and frozen pieces stop timers: `SVGSMILElement.cpp:1074-1088` `calculateNextProgressTime`. This is why only hold segments
-  stop ticking (CONFIRMED from source, consistent with the measured 26 percent cut).
+  then `SVGLinearGradientElement.cpp:94-104`, then gradient resource invalidation (the last link INFERRED).
+- `<set>` and frozen pieces stop timers: `SVGSMILElement.cpp:1074-1088` `calculateNextProgressTime`. So only hold segments
+  stop ticking (CONFIRMED from source, matching the measured 26 percent cut).
 
 ## Look (CONFIRMED by proof)
 Same look by `Fw.Parts.PlatformGlintHold.hold_eq_faithful` (class E, not a look candidate), pixels `glint.hold-pixels` run 40345059212

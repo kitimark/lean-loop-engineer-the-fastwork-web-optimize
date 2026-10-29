@@ -35,7 +35,6 @@ function pageProbe(P) {
   const origST = window.setTimeout.bind(window);
   const origSI = window.setInterval.bind(window);
   const origAnimate = Element.prototype.animate;
-  // Task glint-hold-wktr. The SMIL time of each dash svg since its beginElement burst (the page calls it once per animate/anchor right after render).
   const GH = (X.gh = { begin: new Map(), read: null });
   if (P.gh && window.SVGAnimationElement) {
     const ob = SVGAnimationElement.prototype.beginElement;
@@ -659,7 +658,6 @@ function pageProbe(P) {
           if (X.created.length === 0) { await toBottom(); await sleep(400); }
         }
         if (X.created.length === 0 && P.gh) {
-          // Run 40820116581: a flip arm that missed three wheels ended with fewer reps; flip back, scroll down and try the rep again (at most 8 misses per arm).
           out.rs.miss = (out.rs.miss || 0) + 1;
           if (out.rs.miss > 8) break;
           wheel(-120);
@@ -976,7 +974,6 @@ function pageProbe(P) {
   };
 }
 
-/** The init script for one mode. params: mode, arms, sweepFrames, windowMs, settleMs. */
 export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');

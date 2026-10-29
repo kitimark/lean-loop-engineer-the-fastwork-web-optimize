@@ -1,24 +1,17 @@
 import Lean.Data.Json
 import Fw.Parts.PlatformGlintHold
-/-! Glint hold-freeze in the WebKit recalc lane: predicted style recalcs per 100 frames from the hold schedule, and the verdict.
-
-The two dash svgs each carry their own SMIL container. The faithful page ticks both every frame; `platform.glint:hold-freeze` ticks a
-dash only in the segments where its value moves (`ticking`, Fw.Parts.PlatformGlintHold). A frame that follows a tick recalcs at the base
-rate, a frame that follows none at the floor rate (all SMIL paused). The numbers come from one job: the base page with SMIL running and paused,
-and the hold page. -/
+/-! Glint hold-freeze recalc prediction and verdict for the WebKit lane. -/
 namespace Fw.Device.GlintHold
 open Lean
 open Fw.Parts.PlatformGlint (Side)
 open Fw.Parts.PlatformGlintHold (ticking faithfulTicking holds ticking_le)
 
-/-- One frame: the style recalcs counted in it and, per dash, the SMIL time in ms since its `beginElement` at the frame end (`none` before it). -/
 structure Frame where
   recalcs : Nat
   l : Option Int
   r : Option Int
   deriving DecidableEq, Repr
 
-/-- Ticking SMIL animations of one dash at `e` ms since its begin: the faithful pair always, the hold ring only on a moving segment. -/
 def tickAt (hold : Bool) (s : Side) (e : Int) : Nat :=
   if e < 0 then 0 else if hold then ticking s (e : Rat) else faithfulTicking
 
@@ -26,7 +19,6 @@ def tickO (hold : Bool) (s : Side) : Option Int → Bool
   | none => false
   | some e => decide (0 < tickAt hold s e)
 
-/-- A frame follows a tick when a dash ticks at its end or at the end of the frame before. -/
 def frameTicks (hold : Bool) (prev : Option Frame) (f : Frame) : Bool :=
   tickO hold .left f.l || tickO hold .right f.r ||
     (match prev with
@@ -37,28 +29,23 @@ def ticksFrom (hold : Bool) : Option Frame → List Frame → Nat
   | _, [] => 0
   | p, f :: fs => (if frameTicks hold p f then 1 else 0) + ticksFrom hold (some f) fs
 
-/-- Frames of one arm that follow a tick. -/
 def ticks (hold : Bool) (fs : List Frame) : Nat := ticksFrom hold none fs
 
 def rpf100 (fs : List Frame) : Nat :=
   if fs.length = 0 then 0 else (fs.map (·.recalcs)).sum * 100 / fs.length
 
-/-- One arm is a list of windows (an idle arm has one, a flip arm one per flip); frames in different windows are not neighbours. -/
 abbrev Arm := List (List Frame)
 
 def Arm.frames (a : Arm) : List Frame := a.flatten
 
 def Arm.ticks (hold : Bool) (a : Arm) : Nat := (a.map (Fw.Device.GlintHold.ticks hold)).sum
 
-/-- The arms of one job for one cell (idle or flip): `baseOn` base page, SMIL running, one entry per arm; `baseOff` base page, SMIL paused;
-`holdOn` the hold page, SMIL running. -/
 structure Cell where
   baseOn : List Arm
   baseOff : Arm
   holdOn : Arm
   deriving DecidableEq, Repr
 
-/-- The numbers a cell is judged on. -/
 structure Nums where
   nb : Nat
   bq : Nat
@@ -94,10 +81,8 @@ def bandDen : Nat := 16
 
 def minValid : Nat := 2
 
-/-- The SMIL share of the base rate, per 100 frames. -/
 def Nums.s (x : Nums) : Nat := x.b - x.f
 
-/-- Prediction: the floor plus the SMIL share on the fraction of hold frames that follow a tick. -/
 def Nums.pred (x : Nums) : Nat := if x.n = 0 then x.b else x.f + x.s * x.q / x.n
 
 def Nums.band (x : Nums) : Nat := max (x.s / bandDen) x.spread
@@ -116,7 +101,6 @@ def V.judged : V → Bool
   | .asPredicted | .cutsLess | .cutsMore | .noCut => true
   | _ => false
 
-/-- The verdict of one cell of one job; `minF` is the least frames per arm. -/
 def judge (minF : Nat) (x : Nums) : V :=
   if x.nb < minF ∨ x.nf < minF ∨ x.n < minF then .unread
   else if x.bq < x.nb then .premise
@@ -133,7 +117,6 @@ inductive O where
 def O.name : O → String
   | .inconclusive => "inconclusive" | .mixed => "mixed" | .is v => v.name
 
-/-- The cell over jobs: at least `minValid` judged jobs, all alike. -/
 def overall (vs : List V) : O :=
   let js := vs.filter V.judged
   if js.length < minValid then .inconclusive
@@ -141,7 +124,6 @@ def overall (vs : List V) : O :=
     | [] => .inconclusive
     | v :: rest => if rest.all (· == v) then .is v else .mixed
 
--- The schedule: which segments move.
 def rampSegs (s : Side) : List Nat := (List.range 5).filter fun k => !holds s k
 
 theorem ramp_left : rampSegs .left = [0, 3] := by decide
@@ -184,10 +166,8 @@ theorem ticksFrom_le (p : Option Frame) (fs : List Frame) : ticksFrom true p fs 
     simp only [ticksFrom]
     omega
 
-/-- The hold ring never has more frames after a tick than the faithful pair. -/
 theorem ticks_hold_le (fs : List Frame) : ticks true fs ≤ ticks false fs := ticksFrom_le none fs
 
-/-- The hold ring never has more frames after a tick than the faithful pair, over the windows of an arm. -/
 theorem Arm.ticks_hold_le (a : Arm) : a.ticks true ≤ a.ticks false := by
   induction a with
   | nil => simp [Arm.ticks]
@@ -206,7 +186,6 @@ theorem ticksFrom_le_length (hold : Bool) (p : Option Frame) (fs : List Frame) :
 
 theorem ticks_le_length (hold : Bool) (fs : List Frame) : ticks hold fs ≤ fs.length := ticksFrom_le_length hold none fs
 
-/-- The prediction lies between the floor and the base rate. -/
 theorem pred_le_base (x : Nums) (hq : x.q ≤ x.n) (hf : x.f ≤ x.b) : x.pred ≤ x.b := by
   unfold Nums.pred Nums.s
   split
@@ -223,7 +202,6 @@ theorem floor_le_pred (x : Nums) : x.f ≤ x.pred ∨ x.n = 0 := by
   · exact Or.inr h
   · left; simp [h]
 
-/-- With every hold frame after a tick the prediction is the base rate. -/
 theorem pred_all_ticks (x : Nums) (hn : 0 < x.n) (hq : x.q = x.n) (hf : x.f ≤ x.b) : x.pred = x.b := by
   unfold Nums.pred Nums.s
   have hne : x.n ≠ 0 := by omega
@@ -231,13 +209,11 @@ theorem pred_all_ticks (x : Nums) (hn : 0 < x.n) (hq : x.q = x.n) (hf : x.f ≤ 
   rw [Nat.mul_div_cancel _ hn]
   omega
 
-/-- With no hold frame after a tick the prediction is the floor. -/
 theorem pred_no_ticks (x : Nums) (hn : 0 < x.n) (hq : x.q = 0) : x.pred = x.f := by
   unfold Nums.pred
   have hne : x.n ≠ 0 := by omega
   simp [hne, hq]
 
--- One theorem per branch of `judge`.
 theorem judge_unread (minF : Nat) (x : Nums) (h : x.nb < minF ∨ x.nf < minF ∨ x.n < minF) : judge minF x = .unread := by
   simp [judge, h]
 
@@ -272,19 +248,16 @@ theorem judge_asPredicted (minF : Nat) (x : Nums) (h0 : ¬(x.nb < minF ∨ x.nf 
     (h5 : ¬x.pred + x.band < x.h) : judge minF x = .asPredicted := by
   simp only [judge, h0, ite_false, h1, h2, h3, h4, h5]
 
-/-- A cut verdict is only given when the prediction itself is a cut of at least two bands. -/
 theorem judged_informative (minF : Nat) (x : Nums) (h : (judge minF x).judged = true) : 2 * x.band ≤ x.predCut := by
   unfold judge at h
   repeat' split at h
   all_goals (simp_all [V.judged]; try omega)
 
-/-- "No cut" means the observed cut is at most one band. -/
 theorem noCut_small (minF : Nat) (x : Nums) (h : judge minF x = .noCut) : x.b ≤ x.h + x.band := by
   unfold judge at h
   repeat' split at h
   all_goals simp_all
 
-/-- "Cuts less" means the observed cut is more than a band and the hold rate is above the prediction by more than a band. -/
 theorem cutsLess_spec (minF : Nat) (x : Nums) (h : judge minF x = .cutsLess) :
     x.h + x.band < x.b ∧ x.pred + x.band < x.h := by
   unfold judge at h
@@ -302,7 +275,6 @@ theorem asPredicted_spec (minF : Nat) (x : Nums) (h : judge minF x = .asPredicte
   repeat' split at h
   all_goals (simp_all; try omega)
 
--- Overall.
 theorem overall_inconclusive (vs : List V) (h : (vs.filter V.judged).length < minValid) : overall vs = .inconclusive := by
   simp [overall, h]
 
@@ -328,16 +300,13 @@ theorem overall_mixed (a b : V) (vs : List V) (ha : a.judged = true) (hb : b.jud
   subst h
   cases a <;> cases b <;> first | exact absurd rfl hab | (revert ha hb; decide)
 
--- Golden vectors.
 private def mkFrame (r : Nat) (l e : Option Int) : Frame := ⟨r, l, e⟩
 
-/-- `k` frames `step` ms apart; the left dash is `l0` ms and the right `r0` ms after its begin at the first frame; frame `i` has `rcs i` recalcs. -/
 private def runR (k step l0 r0 : Int) (rcs : Nat → Nat) : List Frame :=
   (List.range k.toNat).map fun i => mkFrame (rcs i) (some (step * (i : Int) + l0)) (some (step * (i : Int) + r0))
 
 private def run (k step l0 r0 : Int) (rc : Nat) : List Frame := runR k step l0 r0 fun _ => rc
 
-/-- The same phases with `onTick` recalcs on a frame after a hold-freeze tick and `off` on the others. -/
 private def holdRun (k step l0 r0 : Int) (onTick off : Nat → Nat) : List Frame :=
   let rec go (p : Option Frame) (i : Nat) : List Frame → List Frame
     | [] => []
@@ -361,7 +330,6 @@ private def numsJ (x : Nums) : Json :=
 private def cellJ (c : Cell) : Json :=
   Json.mkObj [("baseOn", Json.arr (c.baseOn.map armJ).toArray), ("baseOff", armJ c.baseOff), ("holdOn", armJ c.holdOn)]
 
-/-- Frame sets that exercise the schedule: a full 5 s window, dashes out of step, a window inside a hold segment, a flip-sized window. -/
 private def tickCases : List (String × List Frame) :=
   [("idle full cycle", run 50 100 0 0 0), ("idle offset dashes", run 50 100 0 1500 0), ("inside hold segment 4", run 30 25 4100 4100 0),
    ("inside ramp 0", run 30 25 100 100 0), ("flip window of 3", run 3 30 3900 3900 0),
@@ -370,7 +338,6 @@ private def tickCases : List (String × List Frame) :=
 
 private def baseTwo (r : Nat) : List Arm := [[runR 50 100 0 0 (rate r)], [runR 50 100 0 0 (rate r)]]
 
-/-- Cells (name, least frames, cell): each branch of `judge` appears; a full 5 s window at 100 ms steps is 50 frames. -/
 private def cellCases : List (String × Nat × Cell) :=
   let hold (l0 r0 : Int) (a b : Nat) : Arm := [holdRun 50 100 l0 r0 (rate a) (rate b)]
   let flipBase : List Arm := [[run 4 30 3000 3000 1, run 4 30 3000 3000 1, run 4 30 3000 3000 1, run 4 30 3000 3000 1],
@@ -389,7 +356,6 @@ private def cellCases : List (String × Nat × Cell) :=
       [holdRun 4 30 3950 3950 (rate 100) (rate 0), holdRun 4 30 4300 4300 (rate 100) (rate 0), holdRun 4 30 4300 4300 (rate 100) (rate 0),
        holdRun 4 30 4300 4300 (rate 100) (rate 0)]⟩)]
 
-/-- Number-level cases at the edges: (name, least frames, nums). -/
 private def numsCases : List (String × Nat × Nums) :=
   let ok : Nums := ⟨100, 100, 100, 100, 80, 100, 0, 80, 0⟩
   [("edge as predicted high", 40, { ok with h := 86 }), ("edge cuts less", 40, { ok with h := 87 }),
