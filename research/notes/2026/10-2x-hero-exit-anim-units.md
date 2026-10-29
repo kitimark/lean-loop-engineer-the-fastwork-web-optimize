@@ -6,11 +6,11 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
 ## Answer
 
 * `HeroExitOpt` counted a consumer's opacity and transform as one animation (`N + 3` / `N + 4`). The CSS declares
-  one animation name per property, so the count is `2N + 5` in both bands. The list is now read from `exitNames`,
+  one animation name per property, so the count is `2N + 5` in both bands. The list is read from `exitNames`,
   the names the site test checks against the CSS, with one property per name (`nameProp`): `animCount_eq`. CONFIRMED.
 * A style unit is per element in both engines. The compositor tick and the keyframe apply are per animation. CONFIRMED
   (source below).
-* WebKit: the variant's style units now equal the original's (`2N + 5` each, on the same `N + 2` elements:
+* WebKit: the variant's style units equal the original's (`2N + 5` each, on the same `N + 2` elements:
   `wk_style_elems`). The strict style drop is gone. `wk_trade` stays strict through the script pass, with the new
   conjunct `V.units .style = O.units .style` (also in `wk_tradeE`). CONFIRMED (Lean).
 * Chromium lane: style units `V = O + (N + 2)` (was `+ [¬ℓ]`), props `V = O + (N + 3)` (was `+ 1 + [¬ℓ]`), in both
@@ -27,7 +27,7 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
 ## Style unit: WebKit (per element)
 
 * `KeyframeEffect::animationDidTick` calls `invalidate()` (`W/animation/KeyframeEffect.cpp:2129-2132`), which reaches
-  `Element::invalidateStyleForAnimation` → `Node::invalidateStyle(Validity::AnimationInvalid)`
+  `Element::invalidateStyleForAnimation`, then `Node::invalidateStyle(Validity::AnimationInvalid)`
   (`W/dom/Element.cpp:2763-2767`).
 * `Node::invalidateStyle` marks ancestors only while the node is `Valid`, and `adjustStyleValidity` only raises the
   validity (`W/dom/Node.cpp:1018-1023`, `951-957`). A second animation on the same element adds no work there.
@@ -59,7 +59,7 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
 
 ## Evidence names
 
-`Gen.lean` now lists the theorems the proved branch of `threadedEvidence` cites (`threadedRowNames`, resolved names).
+`Gen.lean` lists the theorems the proved branch of `threadedEvidence` cites (`threadedRowNames`, resolved names).
 `#guard`s check that every theorem token in that text is one of them (or `threaded_proofs_iff`), and test the link
 check `threadedLinkGaps` on inline ledgers. `Gen.run` (run by check.sh's preset job) checks that each name is in row
 n 6's `leanFor` or `leanAgainst` of the ledger file. A compile-time read of the ledger would put `research/` in the

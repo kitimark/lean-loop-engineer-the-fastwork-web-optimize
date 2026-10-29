@@ -723,25 +723,21 @@ def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → Strin
   | .look => "accepted 2026-10-24 on the real iPhone (results/phone/2026-10-24-hero-exit-threaded/summary.md)"
   | .q6 => q6Answer.getD "open: no answer recorded"
 
-/-- The ledger-row theorems the proved branch of `threadedEvidence` cites. -/
 def threadedRowNames : List Name :=
   [``Fw.Parts.HeroExitWork.cr_lane_style_saving, ``Fw.Parts.HeroExitWork.wk_edge_layout,
     ``Fw.Parts.HeroExitWork.edgeFrames_le_starts, ``Fw.Parts.HeroExitOpt.consumer_eq_s,
     ``Fw.Parts.HeroExitOpt.cr_real_tradeE, ``Fw.Parts.HeroExitOpt.wk_tradeE]
 
-/-- The theorem names in a text: tokens that start with `Fw.` or contain `_`. -/
 def theoremTokens (t : String) : List String :=
   (t.splitToList fun c => c == ' ' || c == '(' || c == ')' || c == ',' || c == ';' || c == ':' || c == '\n').filter
     fun w => "Fw.".isPrefixOf w || w.contains '_'
 
-/-- The `leanFor` and `leanAgainst` links of the ledger row of flag `flag`. -/
 def rowLinks (ledger : Json) (flag : String) : List String :=
   let rows := ((ledger.getObjVal? "findings").toOption.bind (·.getArr?.toOption)).getD #[]
   match rows.toList.find? (fun r => (r.getObjValAs? String "flag").toOption == some flag) with
   | none => []
   | some r => ["leanFor", "leanAgainst"].flatMap fun k => (r.getObjValAs? (List String) k).toOption.getD []
 
-/-- The names of `threadedRowNames` missing from the hero.exit:threaded row's links. -/
 def threadedLinkGaps (ledger : Json) : List String :=
   (threadedRowNames.map toString).filter fun n => !(rowLinks ledger heroExitThreaded.key).contains n
 

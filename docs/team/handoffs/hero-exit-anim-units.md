@@ -1,7 +1,7 @@
 # Handoff: hero-exit-anim-units
 
 * Branch `worktree-wf_6b79182b-802-1`, worktree `.claude/worktrees/wf_6b79182b-802-1`.
-* Last sha: see `git log -1` on the branch (the task's final commit).
+* Last sha: `git log -1` on the branch.
 * CI run ids: none (no CI in this task).
 * Verified: `lake build` (all Fw), engine goldens rewritten by `scripts/EngineGoldens.lean --write`, preset rewritten
   by `Fw.Preset.Gen.run []`, check.sh via `fw slot run --kind check`.
