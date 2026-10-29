@@ -1,6 +1,6 @@
 # hero.exit:threaded: one animation per CSS name, and what a style unit is
 
-Tags: CONFIRMED (Lean theorem or source cited), INFERRED (reasoned, not seen). No CI or phone runs in this task. Pins:
+Tags: CONFIRMED (Lean theorem or source cited), INFERRED (reasoned, not seen). No CI or phone runs. Pins:
 WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/blink/renderer/core`).
 
 ## Answer
@@ -55,8 +55,7 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
 ## What the model keeps (INFERRED limits)
 
 * `Fw.Engine` units stay per change and per compositor animation. The per-element counts are the separate lemmas
-  `wk_style_elems` and `cr_lane_style_elems`, not a new engine unit. Moving the engines to per-element style units
-  is a follow-up.
+  `wk_style_elems` and `cr_lane_style_elems`, not a new engine unit.
 * The site test `apps/site/src/parts/hero.exit/threaded.test.ts` checks the animation names against the golden; it
   does not check `nameProp`, the property each name animates. Follow-up.
 * RG11 stays a hypothesis. Blur-kernel interior frames and data-exit-live handover frames stay unmodelled.

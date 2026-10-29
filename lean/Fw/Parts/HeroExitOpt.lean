@@ -669,8 +669,6 @@ rendering update for an accelerated animation on a scroll timeline, so the frame
 `Fw.Engine.WebKit.withAnim`: each accelerated scroll-driven animation adds one compositor animation and, in a frame
 with a rendering update, one `restyle` of its target. -/
 
-/-- The target element of each animation of `wkAnims`, in the same order: the copy is element 2, the cue element 3,
-card `i` element `4 + i` (the numbering of `wkOrigChanges`). -/
 def wkTargets (l : Bool) (N : Nat) : List Nat := (exitAnims l N).map Prod.fst
 
 theorem wkTargets_length (l : Bool) (N : Nat) : (wkTargets l N).length = animCount l N := by
