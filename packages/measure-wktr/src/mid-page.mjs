@@ -492,7 +492,7 @@ function pageProbe(P) {
       if (typeof f === 'function') CSSStyleSheet.prototype[m] = function () { S.add('cssom:' + m); return f.apply(this, arguments); };
     }
   }
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer))?$/;
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const rsWindow = async (idle, tw, v, kt) => {
     const rec = v === 'obs' || v === 'obsf';
@@ -520,7 +520,10 @@ function pageProbe(P) {
       for (;;) {
         let mid = null;
         let pz = [];
+        let pre = 0;
         await new Promise((res) => origRaf(() => {
+          const a0 = recalc();
+          pre = a0 !== null && prev !== null ? a0 - prev : 0;
           if (fl) { const a = recalc(); document.getAnimations(); mid = recalc(); if (a !== null && mid > a) pz.push(lastSize()); }
           const ch = new MessageChannel();
           ch.port1.onmessage = () => { ch.port1.close(); res(); };
@@ -534,7 +537,7 @@ function pageProbe(P) {
         if (c !== null && base !== null && c > base) z.push(lastSize());
         const ks = S.cur ? Array.from(S.cur) : [];
         if (S.cur) S.cur = new Set();
-        frames.push({ r: c === null || prev === null ? 0 : c - prev, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z });
+        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z });
         prev = c;
         if (idle) { if (now - t0 >= P.rsIdleMs) break; } else {
           const ph = phase();
@@ -560,7 +563,14 @@ function pageProbe(P) {
     out.scrollY = await toBottom();
     await sleep(300);
     let toPause = [];
-    if (!warm) {
+    if (vv === 'cancel') {
+      // Diagnostic (not in the Lean decision, runs last): cancel every document animation instead of pausing it.
+      const all = document.getAnimations();
+      out.rs.pausedN = all.length;
+      for (const a of all) { try { a.cancel(); } catch (x) { /* gone */ } }
+      await raf(); await raf(); await sleep(250);
+      out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
+    } else if (!warm) {
       toPause = document.getAnimations().filter((a) => a.playState === 'running');
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();

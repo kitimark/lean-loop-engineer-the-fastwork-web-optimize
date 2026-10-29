@@ -76,12 +76,13 @@ test('jobOf pools the rows of an arm and builds the idle and flip jobs; the tall
 
 test('armFrames reads interned keys', () => {
   const rows = [{ arm: 'rs-idle-obs', engaged: true, rs: { kt: ['mut:a#b', 'raf:x'], frames: [{ r: 1, k: [0, 1], z: [3] }] } }];
-  assert.deepEqual(jobOf({ rows }, 'idle').base, [{ recalcs: 1, keys: ['mut:a#b', 'raf:x'], sizes: [3] }]);
+  assert.deepEqual(jobOf({ rows }, 'idle').base, [{ recalcs: 1, pre: 0, keys: ['mut:a#b', 'raf:x'], sizes: [3] }]);
 });
 
 test('the arm list holds the floor, observed, flushed and intervention arms; the mode runs with the pref off', () => {
   for (const a of ['rs-idle-floor', 'rs-idle-obs', 'rs-idle-obsf', 'rs-flip-floor', 'rs-flip-obs', 'rs-flip-obsf', 'rs-idle-blockraf', 'rs-idle-blocktimer', 'rs-warm']) assert.ok(RS_ARMS.includes(a), a);
-  assert.equal(RS_ARMS.slice(-4).every((a) => a.startsWith('rs-idle-block')), true);
+  assert.equal(RS_ARMS.slice(-5, -1).every((a) => a.startsWith('rs-idle-block')), true);
+  assert.equal(RS_ARMS.at(-1), 'rs-idle-cancel');
   assert.equal(MODES['recalc-thr-off'], 'morph.geom:on,morph.tween:geom-timed');
   assert.equal(isRecalc('recalc-thr-off'), true);
   assert.ok(headerOf('recalc-thr-off', 'H').endsWith(THREADED_OFF));

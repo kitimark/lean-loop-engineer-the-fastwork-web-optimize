@@ -5,8 +5,9 @@ const A = (kind) => ['floor', 'obs', 'obsf'].map((v) => `rs-${kind}-${v}`);
 export const IDLE_ARMS = A('idle');
 export const FLIP_ARMS = A('flip');
 const BLOCK = ['rs-idle-blockraf', 'rs-idle-blocktimer'];
-// Order: a warm flip, the six arms, the six again reversed (order effects), then the intervention arms last (they swallow page callbacks).
-export const RS_ARMS = ['rs-warm', ...IDLE_ARMS, ...FLIP_ARMS, ...[...FLIP_ARMS].reverse(), ...[...IDLE_ARMS].reverse(), ...BLOCK, ...[...BLOCK].reverse()];
+const CANCEL = 'rs-idle-cancel';
+// Order: a warm flip, the six arms, the six again reversed (order effects), then the intervention arms last (they swallow page callbacks), then the diagnostic cancel arm (it destroys the page's animations, not in the Lean decision).
+export const RS_ARMS = ['rs-warm', ...IDLE_ARMS, ...FLIP_ARMS, ...[...FLIP_ARMS].reverse(), ...[...IDLE_ARMS].reverse(), ...BLOCK, ...[...BLOCK].reverse(), CANCEL];
 
 export const C = { coverMinPct: 90, absentMinPct: 90, minQ: 10, residualMin: 75, shiftMax: 25, fellMax: 25, minValid: 2 };
 export const MF = { idle: 40, flip: 12 };
@@ -72,7 +73,7 @@ export function armFrames(report, name) {
   for (const row of report.rows) {
     if (row.arm !== name || !row.rs || !row.engaged) continue;
     const kt = row.rs.kt;
-    for (const f of row.rs.frames ?? []) out.push({ recalcs: f.r, keys: (f.k ?? []).map((k) => (typeof k === 'number' && kt ? kt[k] : k)), sizes: f.z ?? [] });
+    for (const f of row.rs.frames ?? []) out.push({ recalcs: f.r, pre: f.p ?? 0, keys: (f.k ?? []).map((k) => (typeof k === 'number' && kt ? kt[k] : k)), sizes: f.z ?? [] });
   }
   return out;
 }
@@ -93,7 +94,7 @@ export function recalcTally(report) {
   for (const name of names) {
     const fs = armFrames(report, name);
     const sz = fs.flatMap((f) => f.sizes);
-    lines.push(`${name}: frames ${fs.length} rpf100 ${rpf100(fs)} readable sizes ${sz.length} empty ${emptyPm([{ sizes: sz }])}pm`);
+    lines.push(`${name}: frames ${fs.length} rpf100 ${rpf100(fs)} pre-callback rpf100 ${fs.length === 0 ? 0 : Math.floor((fs.reduce((t, f) => t + (f.pre ?? 0), 0) * 100) / fs.length)} readable sizes ${sz.length} empty ${emptyPm([{ sizes: sz }])}pm`);
   }
   for (const kind of ['idle', 'flip']) {
     const j = jobOf(report, kind);
