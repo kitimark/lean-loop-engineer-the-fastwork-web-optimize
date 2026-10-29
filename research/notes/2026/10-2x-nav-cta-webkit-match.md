@@ -9,12 +9,12 @@
   physical and eases them. Lean: `Fw.Parts.NavEarnWebkit.faithful_webkit_never_starts_padding`, `variant_webkit_set_eq_chromium_faithful`,
   `variant_webkit_timing_eq_chromium_faithful`, `variant_chromium_set`, `variant_chromium_timing`; value at every t: `Fw.Parts.NavEarnCurve.curve_identity`,
   `chromium_unchanged`, `faithful_webkit_snaps`.
-- **The unmodified snapshot differs the same way** (MEASURED locally, Playwright WebKit 27.2 against Chrome 155, real page, rAF log from the flip):
+- **The unmodified snapshot differs the same way** (CONFIRMED from source: snapshot/site/_app/immutable/assets/2.gBuqKVzi.css carries the same `padding-inline .68s` transition as the port; local debug trace, not a result: Playwright WebKit 27.2 against Chrome 155, rAF log from the flip):
   Chromium `padding-left` 0, 0.2, 0.47, 0.89, 1.47 ... px over the first frames and `padding-left, padding-right` listed as running transitions;
   WebKit snapshot, our faithful port: `padding-left` 24 px in the flip frame and only `max-width, opacity` running. So our port is faithful; this is
   a WebKit-versus-Chromium difference of the original, hence a flag (never in a preset in this task), not a port bug. With `?fw=nav:earn-logical` WebKit
   runs `max-width, opacity, padding-left, padding-right` and the padding is 0.05, 0.37, 0.73 ... px.
-- **Other animated parts do not differ** (MEASURED locally): the unmask `mask-position` animation and the `::after` sheen
+- **Other animated parts do not differ** (INFERRED from a local debug run, not a result; the CI frames of run 40858439757 show the logical arm within 10 px of its settled floor at 1280): the unmask `mask-position` animation and the `::after` sheen
   (`mix-blend-mode: screen`, translate) match Chromium frame by frame within anti-aliasing once the padding runs; there is no hover or press animation
   (`.btn` has none, nav.module.css:144-166).
 - **Recommendation (lead):** put `nav:earn-logical` in the preset. It is already accepted by the user (2026-10-25, class L) and proved; the
@@ -62,6 +62,11 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
   (entry) above its settled floor, the faithful entry is 1214 px above. The fixed bound is therefore not met at 390 on the Linux pair; reported, not
   re-fitted. The same capture on macOS (Chrome 155 against Playwright WebKit 27.2, debug run, not a result): 390 logical worst 62 px against 78, faithful 245
   (exit) and 1330 (entry); 1280 logical 60 against 256, faithful 295 and 2478.
+- **With the label (run 40858439757 artifacts, 1280):** the same frames compared with the label text kept give a worst frame of 803 px (logical exit),
+  585 px (logical entry) and 803 px (faithful exit), all above the 256 bound. The verdict frames above hide the label because text rasterization differs
+  between the engines at rest, so the label text alone puts every with-text frame over the bound; the table measures the animation, the with-text numbers
+  show what the text difference adds.
+
 - Chromium is unchanged: the faithful and the logical arm are pixel-identical (0 changed pixels) on all 17 frames of both scenarios and widths.
 - Earlier pushes: run 40852349397 (label metrics differ by 3 px between the Linux engines) and run 40855407833 (`text-rendering: geometricPrecision` did not equalise them); the third push fixed the label slot to 5.7em.
 - Summary with every frame: `results/nav-cta-webkit-match/summary.json`.

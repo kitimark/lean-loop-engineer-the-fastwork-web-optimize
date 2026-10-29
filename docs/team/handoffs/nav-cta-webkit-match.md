@@ -12,3 +12,5 @@ Done: Lean frameBound (NavEarnWebkit + golden row), packages/premise-tests/src/e
 .github/workflows/visual-diff.yml (shoot job, shard s0, artifacts earn-frames-<engine>; shoot filter gained @fw/premise-tests), Trigger.lean visual-diff input, triggers.jsonl,
 results/nav-cta-webkit-match/summary.json, note research/notes/2026/10-2x-nav-cta-webkit-match.md, ledger note on n=73.
 Read first: research/notes/2026/10-2x-nav-cta-webkit-match.md, then packages/premise-tests/src/earn-frames.mjs.
+Round 2: earn frames step is dispatch-only (input earnframes), trigger row regenerated, local runs labelled debug, with-text column added to the note. No pushes in round 2.
+Open follow-ups from review: padL vs curve golden; BAND from golden; per-width verdict; faithful-arm test assertion in earn-frames test.

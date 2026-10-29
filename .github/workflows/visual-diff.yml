@@ -51,6 +51,10 @@ on:
           default; the probe is an investigation, not part of the visual diff.
         type: boolean
         default: false
+      earnframes:
+        description: 'Capture the earn button frames (artifact earn-frames-<engine>)'
+        type: boolean
+        default: false
       peoplelayout:
         description: >-
           Also run the people-section layout probe (job people-layout: both engines, original against port at 1920, 1440, 1280,
@@ -323,14 +327,14 @@ jobs:
           parts_args=()
           if [ -n "$PARTS" ]; then parts_args=(--parts "$PARTS"); fi
           node src/cli.mjs run --engine "$ENGINE" --probes "$PROBES" --concurrency 2 --assets "$ASSETS" ${parts_args[@]+"${parts_args[@]}"} --out out/shard
-      - name: Earn button frames (task nav-cta-webkit-match; first shard only, compared offline)
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && matrix.shard == 's0' }}
+      - name: Earn button frames (dispatch earnframes=true; compare with packages/premise-tests/src/earn-frames-compare.mjs)
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && matrix.shard == 's0' && github.event_name == 'workflow_dispatch' && inputs.earnframes }}
         env:
           ENGINE: ${{ matrix.engine }}
         working-directory: packages/premise-tests
         run: node src/earn-frames.mjs --engine "$ENGINE" --out out-earn
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && matrix.shard == 's0' }}
+        if: ${{ !cancelled() && steps.stale.outcome == 'skipped' && matrix.shard == 's0' && github.event_name == 'workflow_dispatch' && inputs.earnframes }}
         with:
           name: earn-frames-${{ matrix.engine }}
           path: packages/premise-tests/out-earn
