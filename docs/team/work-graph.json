@@ -23655,7 +23655,9 @@
     "lean/scripts/check.sh",
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-hero-exit-anim-units.md",
-    "docs/team/handoffs/hero-exit-anim-units.md"
+    "docs/team/handoffs/hero-exit-anim-units.md",
+    "lean/Fw/Engine/ResourceFlags.lean",
+    "packages/contracts/golden/engine/resource.jsonl"
    ]
   }
  ],
