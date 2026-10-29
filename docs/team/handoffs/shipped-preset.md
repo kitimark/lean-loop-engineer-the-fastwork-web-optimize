@@ -1,8 +1,11 @@
 # shipped-preset handoff
 
 - Branch `worktree-wf_b22a9092-874-1`, worktree `.claude/worktrees/wf_b22a9092-874-1`. No CI or phone runs.
-- State: committed, main merged at b8fda182f; check.sh green there (slot; axiom check 0 failing); `@fw/site`
-  166 files / 8465 tests, `@fw/runner` 118 / 3704, `@fw/contracts` 11, ci-paths 56 pass.
+- State: committed, main merged at 87d9aa372 (main 8996544df, plan r585); check.sh green there (slot; axiom
+  check 0 failing); `@fw/runner` 118 / 3704 rerun there; `@fw/site` 166 / 8465 and `@fw/contracts` 11 at b8fda182f
+  (the later merge only moved work-graph.json); ci-paths 56 pass; plan lint 0 errors.
+- test-checkmap rerun (slot): every case passes but the Gen-closure case, which fails on main 8996544df too
+  (31 modules, 28 missing, same section run against main's checkout).
 
 ## What is verified
 - `lean/Fw/Preset/Shipped.lean`: `shipped = v2-proved ++ extras` (first look-accepted flag per free part),
