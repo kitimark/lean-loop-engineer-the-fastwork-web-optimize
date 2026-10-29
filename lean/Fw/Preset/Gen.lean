@@ -1,10 +1,11 @@
 import Lean.Data.Json
 import Fw.Preset.V2Proved
+import Fw.Preset.Shipped
 import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitWork
 import Fw.Parts.PlatformGlintHold
 /-!
-Generates the `v2-proved` preset and decision rows from the findings ledger and `part.json` files.
+Generates the `v2-proved` and `shipped` presets and their decision rows from the findings ledger and `part.json` files.
 Run from `lean/`: `printf 'import Fw.Preset.Gen\n#eval Fw.Preset.Gen.run ["--check"]\n' | lake env lean --stdin` (drop `--check` to write).
 -/
 namespace Fw.Preset.Gen
@@ -205,9 +206,11 @@ def parsePart (j : Json) : Except String (List Reg) := do
     if kind == .probe && vc.isSome then throw s!"{f.key}: a probe is measurement only and carries no look class"
     return { flag := f, kind, requires := ← rel "requires" f.key, conflicts := ← rel "conflicts" f.key, visClass := vc }
 
-def presetText (p : List Flag) : String :=
-  (Json.mkObj [("name", "v2-proved"), ("extends", "original"),
+def namedPresetText (name : String) (p : List Flag) : String :=
+  (Json.mkObj [("name", .str name), ("extends", "original"),
     ("fw", Json.mkObj (p.map fun f => (f.part, .str f.variant)))]).compress ++ "\n"
+
+def presetText (p : List Flag) : String := namedPresetText "v2-proved" p
 
 def whyJson : Why → Json
   | .proved => Json.mkObj [("verdict", "proved")]
@@ -608,6 +611,31 @@ theorem lookMet_false {reg : List Reg} {f : Flag} (hx : exactLook reg f = false)
     lookMet reg f = false := by
   simp [lookMet, hx, ha]
 
+def lookAccepted (f : Flag) : Bool :=
+  lookDecisions.any fun d => d.flag == f && d.decision == .accepted && d.review == .done
+
+theorem lookAccepted_iff {f : Flag} :
+    lookAccepted f = true ↔ ∃ d ∈ lookDecisions, d.flag = f ∧ d.decision = .accepted ∧ d.review = .done := by
+  simp [lookAccepted, and_assoc]
+
+def shippedNow (reg : List Reg) (ledger : List Row) (st : List Stored) : List Flag :=
+  Shipped.shipped lookAccepted reg links ledger st
+
+/-- **Every `shipped` member outside `v2-proved` has an accepted, reviewed user look decision in `lookDecisions`**. -/
+theorem shipped_extra_decided {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (h : f ∈ shippedNow reg ledger st) (hn : f ∉ preset reg links ledger st) :
+    ∃ d ∈ lookDecisions, d.flag = f ∧ d.decision = .accepted ∧ d.review = .done :=
+  lookAccepted_iff.1 (Shipped.shipped_extra_accepted h hn)
+
+theorem shipped_look_decided {reg : List Reg} {ledger : List Row} {st : List Stored} {f : Flag}
+    (h : f ∈ shippedNow reg ledger st) (hl : isLook reg f = true) :
+    ∃ d ∈ lookDecisions, d.flag = f ∧ d.decision = .accepted ∧ d.review = .done :=
+  lookAccepted_iff.1 (Shipped.shipped_look_accepted h hl)
+
+#guard lookAccepted ⟨"nav", "earn-logical"⟩ && lookAccepted ⟨"hero.exit", "threaded"⟩
+#guard !lookAccepted ⟨"nav", "earn-no-transition"⟩ && !lookAccepted ⟨"hero.accent", "draw-nolayout"⟩
+#guard !lookAccepted ⟨"nav", "faithful"⟩
+
 def reqMet (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : EntryReq → Bool
   | .proofs => why links ledger f == .proved
   | .gate fam => walks.all fun w => tcell st f fam w == .pass
@@ -808,9 +836,30 @@ def entryWord : Entry → String
   | .enter => "enter"
   | .notYet _ => "not yet"
 
+def reqWord : Shipped.Req → String
+  | .kind => "kind"
+  | .proofs => "proofs"
+  | .gate fam => "gate " ++ familyWord fam
+  | .look => "look"
+
+def reqsJson (rs : List Shipped.Req) : Json := .arr (rs.map (.str ∘ reqWord)).toArray
+
+def route (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
+  if ok reg links ledger st f then "v2-proved"
+  else if Shipped.lookOk lookAccepted reg links ledger st f then "look-accepted" else .null
+
+def presetsJson (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
+  Json.mkObj [
+    ("v2-proved", Json.mkObj [("member", .bool ((preset reg links ledger st).contains f)),
+      ("blockers", reqsJson (Shipped.blockersV2 reg links ledger st f))]),
+    ("shipped", Json.mkObj [("member", .bool ((shippedNow reg ledger st).contains f)),
+      ("route", route reg ledger st f),
+      ("blockers", reqsJson (Shipped.blockersShipped lookAccepted reg links ledger st f))])]
+
 def entryJson (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
   let head := [("decision", Json.str (entryWord (entry reg ledger st f))),
-    ("blockers", .arr ((blockers reg ledger st f).map (.str ·.word)).toArray)]
+    ("blockers", .arr ((blockers reg ledger st f).map (.str ·.word)).toArray),
+    ("presets", presetsJson reg ledger st f)]
   if f != heroExitThreaded then Json.mkObj head else
   Json.mkObj (head ++ [("requirements", .arr (entryReqs.map fun r => Json.mkObj [("req", .str r.word),
       ("met", .bool (reqMet reg ledger st f r)), ("evidence", .str (threadedEvidence ledger st r))]).toArray)])
@@ -840,6 +889,31 @@ def probesText (reg : List Reg) (p : List Flag) : String :=
 
 def decisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
   String.join ((decided reg).map fun f => (decision reg ledger st f).compress ++ "\n")
+
+def shippedDecided (reg : List Reg) : List Flag :=
+  decided reg ++ (lookCandidates reg).filter fun f => !(decided reg).contains f
+
+def shippedDecision (reg : List Reg) (ledger : List Row) (st : List Stored) (f : Flag) : Json :=
+  let s := shippedNow reg ledger st
+  let kind : Json := match reg.find? (·.flag == f) with
+    | some r => .str (kindWord r.kind)
+    | none => .null
+  let vc : Json := match (reg.find? (·.flag == f)).bind (·.visClass) with
+    | some c => .str (visClassWord c)
+    | none => .null
+  let shadow : Json := if !s.contains f && Shipped.okShipped lookAccepted reg links ledger st f then
+      match s.find? (·.part == f.part) with
+      | some g => .str g.key
+      | none => .null
+    else .null
+  Json.mkObj [("flag", .str f.key), ("kind", kind), ("visClass", vc), ("member", .bool (s.contains f)),
+    ("route", route reg ledger st f), ("shadowedBy", shadow),
+    ("blockers", reqsJson (Shipped.blockersShipped lookAccepted reg links ledger st f)),
+    ("lookRoute", reqsJson (Shipped.blockersLook lookAccepted reg links ledger st f)),
+    ("trajectory", .str (twhyWord (trajWhy st f))), ("userDecision", decisionOf f)]
+
+def shippedDecisionsText (reg : List Reg) (ledger : List Row) (st : List Stored) : String :=
+  String.join ((shippedDecided reg).map fun f => (shippedDecision reg ledger st f).compress ++ "\n")
 
 def unclassified (reg : List Reg) (f : Flag) : Bool :=
   reg.any (·.flag == f) && reg.all fun r => r.flag != f || r.visClass.isNone
@@ -871,6 +945,10 @@ def goldenLook : System.FilePath :=
 def goldenProbes : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "probes.jsonl"
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
+def goldenShipped : System.FilePath := ".." / "packages" / "contracts" / "golden" / "preset" / "shipped.json"
+def goldenShippedDecisions : System.FilePath :=
+  ".." / "packages" / "contracts" / "golden" / "preset" / "shipped.decisions.jsonl"
+def siteShipped : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "shipped.json"
 def readerFiles : List String :=
   ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/engines.mjs",
    "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs",
@@ -907,6 +985,7 @@ def run (args : List String) : IO Unit := do
   let reg ← readRegistry
   let st ← readStored
   let p ← IO.ofExcept (generate reg links ledger st)
+  let sp ← IO.ofExcept (Shipped.generate lookAccepted reg links ledger st)
   unless (threadedLinkGaps (← readJson ledgerPath)).isEmpty do
     throw (IO.userError
       s!"threadedEvidence cites theorems outside the ledger row's links: {threadedLinkGaps (← readJson ledgerPath)}")
@@ -929,7 +1008,9 @@ def run (args : List String) : IO Unit := do
     throw (IO.userError s!"{storedPath}: runs {unread} have no reader identity; fill it with Fw.Preset.Gen.record")
   let outs := [(goldenPreset, presetText p), (sitePreset, presetText p),
     (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p),
-    (goldenProbes, probesText reg p), (storedPath, storedText st), (goldenReaderFiles, readerFilesText)]
+    (goldenProbes, probesText reg p), (storedPath, storedText st), (goldenReaderFiles, readerFilesText),
+    (goldenShipped, namedPresetText "shipped" sp), (siteShipped, namedPresetText "shipped" sp),
+    (goldenShippedDecisions, shippedDecisionsText reg ledger st)]
   if args.contains "--check" then
     let mut stale : List String := []
     for (path, text) in outs do
@@ -937,12 +1018,12 @@ def run (args : List String) : IO Unit := do
       if cur != text then stale := stale ++ [path.toString]
     unless stale.isEmpty do
       throw (IO.userError s!"v2-proved: stale {stale}; regenerate with Fw.Preset.Gen.run []")
-    IO.println s!"v2-proved: up to date, {p.length} flags: {p.map (·.key)}"
+    IO.println s!"v2-proved: up to date, {p.length} flags: {p.map (·.key)}; shipped: {sp.map (·.key)}"
   else
     for (path, text) in outs do
       IO.FS.createDirAll (path.parent.getD ".")
       IO.FS.writeFile path text
-    IO.println s!"v2-proved: written, {p.length} flags: {p.map (·.key)}"
+    IO.println s!"v2-proved: written, {p.length} flags: {p.map (·.key)}; shipped: {sp.map (·.key)}"
 
 def engineOfArtifact : String → Except String Engine
   | "trajectory-chromium" => .ok .chromium
@@ -1262,7 +1343,23 @@ private def stFail (e : Engine) : Stored :=
 #guard blockers [] [] [] ⟨"nav", "earn-logical"⟩ == [.proofs, .gate .chromium, .gate .webkit]
 #guard blockers [] [] [] ⟨"hero.accent", "draw-nolayout"⟩ == [.proofs, .gate .chromium, .gate .webkit, .look]
 #guard entryJson [] [] [] ⟨"hero.accent", "draw-nolayout"⟩ == Json.mkObj [("decision", "not yet"),
-  ("blockers", Json.arr #["proofs", "gate chromium", "gate webkit", "look"])]
+  ("blockers", Json.arr #["proofs", "gate chromium", "gate webkit", "look"]),
+  ("presets", Json.mkObj [
+    ("v2-proved", Json.mkObj [("member", false), ("blockers", Json.arr #["kind", "proofs", "gate chromium", "gate webkit"])]),
+    ("shipped", Json.mkObj [("member", false), ("route", .null),
+      ("blockers", Json.arr #["kind", "proofs", "gate chromium", "gate webkit", "look"])])])]
+#guard Shipped.blockersShipped lookAccepted [earnLogicalReg] links [] [] earnLogicalReg.flag ==
+  [.proofs, .gate .chromium, .gate .webkit]
+#guard Shipped.blockersV2 [earnLogicalReg] links [] [] earnLogicalReg.flag ==
+  [.kind, .proofs, .gate .chromium, .gate .webkit, .look]
+#guard Shipped.blockersShipped lookAccepted [{ earnLogicalReg with kind := .ablation }] links [] [] earnLogicalReg.flag ==
+  [.kind, .proofs, .gate .chromium, .gate .webkit]
+#guard Shipped.blockersShipped lookAccepted [] links [] (walks.flatMap fun w => [Engine.chromium, .macWebkit].map
+  fun e => { stPass e w with search := "?fw=nav:earn-logical", flags := ["nav:earn-logical"] }) earnLogicalReg.flag ==
+  [.kind, .proofs]
+#guard route [] [] [] earnLogicalReg.flag == .null
+#guard reqWord (.gate .webkit) == "gate webkit" && reqWord .kind == "kind" && reqWord .look == "look"
+#guard shippedNow [] [] [] == []
 #guard blockers [holdReg .e] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit]
 #guard blockers [holdReg .eS] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit]
 #guard blockers [holdReg .q] [] [] holdFreeze == [.proofs, .gate .chromium, .gate .webkit, .look]

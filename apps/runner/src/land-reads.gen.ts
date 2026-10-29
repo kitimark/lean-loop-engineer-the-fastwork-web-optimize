@@ -19,6 +19,7 @@ export const CHECK_SH_READS: string[] = [
   "research/findings/ledger.json",
   "apps/site/src/parts/**",
   "apps/site/src/registry/presets/v2-proved.json",
+  "apps/site/src/registry/presets/shipped.json",
   "apps/site/src/registry/layer-opts.gen.ts",
   "packages/measure-chromium/scenarios.gen.json",
   "apps/runner/src/land-reads.gen.ts",
