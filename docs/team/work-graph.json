@@ -23715,7 +23715,11 @@
     "docs/team/incidents/ledger.json",
     "research/mistakes/ledger.json",
     "research/notes/2026/10-2x-ledger-note-check.md",
-    "docs/team/handoffs/ledger-note-check.md"
+    "docs/team/handoffs/ledger-note-check.md",
+    "scripts/checkmap.mjs",
+    "scripts/test-checkmap.mjs",
+    "scripts/checkmap*.test.mjs",
+    "packages/contracts/golden/checkmap/**"
    ]
   }
  ],
