@@ -231,6 +231,7 @@ child inheriting the new data; `display: none` stops the descent (`:1387-1388`).
 def WkInheritRule (r : Node → Nat) : Prop :=
   ∀ n f ks, r (mk n f ks) = 1 + if f.hidden then 0 else (ks.map r).sum
 
+/-- `wkFullL` sums `wkFull` over the children. -/
 theorem wkFullL_eq (ks : List Node) : wkFullL ks = (ks.map wkFull).sum := by
   induction ks with
   | nil => rfl
