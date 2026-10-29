@@ -4490,11 +4490,18 @@
     "Fw.Parts.PlatformGlintHold.hold_premise",
     "Fw.Parts.PlatformGlintHold.hold_eq_faithful",
     "Fw.Parts.PlatformGlintHold.ticking_hold",
-    "Fw.Parts.PlatformGlintHold.ticking_le"
+    "Fw.Parts.PlatformGlintHold.ticking_ramp",
+    "Fw.Parts.PlatformGlintHold.ticking_le",
+    "Fw.Parts.PlatformGlintHold.hold_resume_eq",
+    "Fw.Device.GlintHold.ramp_left",
+    "Fw.Device.GlintHold.ramp_right",
+    "Fw.Device.GlintHold.hold_both",
+    "Fw.Device.GlintHold.union_ramp"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "WebKit per-zone counts (see webkit); a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), no flag path seeks backward (createPause seeks forward)"
+    "WebKit Simulator per-zone counts (see webkit): no theorem can close a measurement; the WKTR idle recalc cut (run 40823517468) is a different measure",
+    "a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), and no flag path seeks backward (createPause seeks forward): hold_resume_eq proves the resumed hold sample equals the uninterrupted original, but no theorem states that every seek is forward"
    ],
    "premises": [
     "the begin chain of the ring keeps one piece active at every instant in both engines: MEASURED by the look premise glint.hold-pixels (run 40345059212), ids without a hyphen",
