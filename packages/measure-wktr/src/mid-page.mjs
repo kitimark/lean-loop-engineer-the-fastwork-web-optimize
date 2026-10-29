@@ -545,10 +545,13 @@ function pageProbe(P) {
   }
   // Task end-floor-writes. Arms `rs-flip-q<set>`: everything paused as in `pall`, plus the named writers silenced (the write call returns without
   // touching the DOM). A writer is a `part#what` key of the mutation table (`S.partOf` + attribute, `style` for inline style, `class` for class).
-  // The sets come from end-floor.mjs (checked against lean/Fw/Device/EndFloor.lean) through `P.qsets`.
+  // The sets come from end-floor.mjs (checked against lean/Fw/Device/EndFloor.lean) through `P.qsets`. Every q arm also holds the nav dark
+  // (`is-on-dark` on, its removal ignored): nav.hitTest writes that class from a data-fw-morph observer, and morph.geom creates no flip track
+  // until it is on (index.tsx `allowed`), so a silenced data-fw-morph or class write would end the flip itself. `qpin` silences nothing and is the floor.
   const QSETS = P.qsets || {};
   const isQ = (v) => Object.prototype.hasOwnProperty.call(QSETS, v);
-  const MU = X.mute = { set: null, undo: [] };
+  const MU = X.mute = { set: null, pin: null, undo: [] };
+  const DARK = 'is-on-dark';
   const muted = (el, what) => !!(MU.set && el && el.nodeType === 1 && MU.set.has(S.partOf(el) + '#' + what));
   const muteOn = (list) => {
     MU.set = new Set(list);
@@ -562,14 +565,28 @@ function pageProbe(P) {
     };
     const keep = (t, k) => { const v = t[k]; return typeof v === 'function' ? v.bind(t) : v; };
     const attrOf = (k) => 'data-' + String(k).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
-    patch(Element.prototype, 'setAttribute', (d) => ({ ...d, value: function (n) { return muted(this, String(n).toLowerCase()) ? undefined : d.value.apply(this, arguments); } }));
-    patch(Element.prototype, 'removeAttribute', (d) => ({ ...d, value: function (n) { return muted(this, String(n).toLowerCase()) ? undefined : d.value.apply(this, arguments); } }));
-    patch(Element.prototype, 'className', (d) => ({ ...d, set(v) { if (!muted(this, 'class')) d.set.call(this, v); } }));
+    const clGet = Object.getOwnPropertyDescriptor(Element.prototype, 'classList').get;
+    const repin = (el) => { if (MU.pin === el) clGet.call(el).add(DARK); };
+    patch(Element.prototype, 'setAttribute', (d) => ({ ...d, value: function (n) { if (muted(this, String(n).toLowerCase())) return undefined; const r = d.value.apply(this, arguments); if (String(n).toLowerCase() === 'class') repin(this); return r; } }));
+    patch(Element.prototype, 'removeAttribute', (d) => ({ ...d, value: function (n) { if (muted(this, String(n).toLowerCase())) return undefined; const r = d.value.apply(this, arguments); if (String(n).toLowerCase() === 'class') repin(this); return r; } }));
+    patch(Element.prototype, 'className', (d) => ({ ...d, set(v) { if (muted(this, 'class')) return; d.set.call(this, v); repin(this); } }));
     patch(HTMLElement.prototype, 'tabIndex', (d) => ({ ...d, set(v) { if (!muted(this, 'tabindex')) d.set.call(this, v); } }));
     patch(Element.prototype, 'classList', (d) => ({ ...d, get() {
       const real = d.get.call(this);
-      if (!muted(this, 'class')) return real;
-      return new Proxy(real, { get(t, k) { return k === 'add' || k === 'remove' || k === 'replace' ? function () { } : k === 'toggle' ? function (x) { return t.contains(x); } : keep(t, k); }, set() { return true; } });
+      const pin = MU.pin === this;
+      const mu = muted(this, 'class');
+      if (!pin && !mu) return real;
+      return new Proxy(real, {
+        get(t, k) {
+          if (k !== 'add' && k !== 'remove' && k !== 'replace' && k !== 'toggle') return keep(t, k);
+          return function (tok) {
+            if (pin && tok === DARK) { t.add(DARK); return k === 'toggle' ? true : undefined; }
+            if (mu) return k === 'toggle' ? t.contains(tok) : undefined;
+            return t[k].apply(t, arguments);
+          };
+        },
+        set(t, k, v) { if (!mu) t[k] = v; return true; },
+      });
     } }));
     patch(HTMLElement.prototype, 'style', (d) => ({ ...d, get() {
       const real = d.get.call(this);
@@ -581,9 +598,12 @@ function pageProbe(P) {
       const el = this;
       return new Proxy(real, { get(t, k) { return keep(t, k); }, set(t, k, v) { if (muted(el, attrOf(k))) return true; t[k] = v; return true; }, deleteProperty(t, k) { if (muted(el, attrOf(k))) return true; delete t[k]; return true; } });
     } }));
+    const nav = document.querySelector('[data-fw="nav"]');
+    if (nav) { MU.pin = nav; clGet.call(nav).add(DARK); }
   };
   const muteOff = () => {
     MU.set = null;
+    MU.pin = null;
     while (MU.undo.length) MU.undo.pop()();
   };
   const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|q[a-z]+))?$/;
@@ -690,7 +710,7 @@ function pageProbe(P) {
     if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
     if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
     S.fine = vv === 'obs' ? {} : null;
-    if (isQ(vv)) { muteOn(QSETS[vv]); out.rs.muted = QSETS[vv]; }
+    if (isQ(vv)) { muteOn(QSETS[vv]); out.rs.muted = QSETS[vv]; out.rs.pinned = !!MU.pin; }
     if (kind === 'idle') {
       out.engaged = out.rs.internals;
       out.rs.frames = await rsWindow(true, 0, vv, kt);

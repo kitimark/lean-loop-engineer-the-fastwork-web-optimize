@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EW } from '../src/end-wktr.mjs';
-import { ARM_OF, FLOOR_ARMS, FLOOR_OPTS, KEYS, QSETS, W, WRITERS, band, cellNums, cut, decideJobF, dominant, finding, framesOf, jobLinesF, judge, overallF, overallFloor, overallW } from '../src/end-floor.mjs';
+import { ARM_OF, FLOOR_ARMS, PIN_ARM, FLOOR_OPTS, KEYS, QSETS, W, WRITERS, band, cellNums, cut, decideJobF, dominant, finding, framesOf, jobLinesF, judge, overallF, overallFloor, overallW } from '../src/end-floor.mjs';
 import { decideDirsF } from '../src/end-floor-cli.mjs';
 import { accelHarnessSource } from '../src/accel-page.mjs';
 import { probeSource } from '../src/mid-page.mjs';
@@ -85,7 +85,7 @@ test('decideJobF: publish carries the floor, every other writer is idle', () => 
   const n = 100;
   const on = (keys) => Array.from({ length: n }, () => [1, keys]);
   const off = () => Array.from({ length: n }, () => [0, []]);
-  const rows = [row('rs-flip-nat', on([0, 1])), row('rs-flip-pall', on([0, 1])), row('rs-flip-pall', on([0, 1])), row('rs-flip-qwrite', off())];
+  const rows = [row('rs-flip-nat', on([0, 1])), row('rs-flip-pall', on([0, 1])), row('rs-flip-qpin', on([0, 1])), row('rs-flip-qpin', on([0, 1])), row('rs-flip-qwrite', off())];
   for (const w of WRITERS) rows.push(row(`rs-flip-${ARM_OF[w]}`, w === 'pub' ? off() : on([0, 1])));
   const d = decideJobF(rep(rows));
   assert.equal(d.cells.pub.verdict, W.carries);
@@ -115,8 +115,9 @@ test('decideDirsF reports a missing result file and decides the others', () => {
   assert.ok(r2.lines.some((l) => l.includes('fp: result file missing')));
 });
 
-test('the floor arms are one process: natural, floor, every writer set, reference, floor again', () => {
-  assert.deepEqual(FLOOR_ARMS, ['rs-flip-nat', 'rs-flip-pall', ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', 'rs-flip-pall']);
+test('the floor arms are one process: natural, paused, pinned floor, every writer set, reference, pinned floor again', () => {
+  assert.deepEqual(FLOOR_ARMS, ['rs-flip-nat', 'rs-flip-pall', 'rs-flip-qpin', ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', 'rs-flip-qpin']);
+  assert.deepEqual(QSETS[PIN_ARM], []);
   assert.equal(FLOOR_OPTS.rsReps, 16);
 });
 
@@ -138,4 +139,6 @@ test('the probe silences a set only in its own arm and fails loudly for an unkno
   assert.match(src, /unknown writer set/);
   assert.match(src, /muteOn\(QSETS\[vv\]\)/);
   assert.match(src, /muteOff\(\)/);
+  assert.match(src, /MU\.pin = nav/);
+  assert.match(src, /is-on-dark/);
 });

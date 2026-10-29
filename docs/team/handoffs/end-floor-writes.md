@@ -1,0 +1,7 @@
+- Branch worktree-wf_1aa4afc3-45b-1 (CI branch ci/end-floor-writes), worktree .claude/worktrees/wf_1aa4afc3-45b-1, last commit d70b29c07.
+- CI runs: push 1 of 3 (d70b29c07, [ci:wktr] [accel], mode floor-v2p-thr-off, 3 jobs): wktr run 40949084846, state running.
+- Verified: Lean EndFloor builds, golden end-floor.jsonl (48 lines) replayed by packages/measure-wktr/test/end-floor.test.mjs; measure-wktr package tests 151 pass; harness source passes `node --check`.
+- Open: results (results/end-floor-writes/r1/wktr-j{1,2,3}), verdict via `node packages/measure-wktr/src/end-floor-cli.mjs <job dirs> --out verdict.txt`, note research/notes/2026/10-2x-end-floor-writes.md, ledger entry, same-look cut if one writer dominates, final gates (check.sh, runner land-inputs, ci-paths, plan lint, dry land, review ready).
+- Design: arms rs-flip-q<set> in packages/measure-wktr/src/mid-page.mjs silence a writer set (prototype patches, only during that arm) on top of all-paused (pall); sets in src/end-floor.mjs (QSETS), model in lean/Fw/Device/EndFloor.lean.
+- Temporary edit: .github/workflows/wktr.yml (accel build config, --modes floor-v2p-thr-off, timeout 50); revert before the land (files outside the graph writes go in the report `open`).
+- Read first: research/notes/2026/10-2x-end-wktr-flip.md, lean/Fw/Device/EndFloor.lean, packages/measure-wktr/src/end-floor.mjs.
