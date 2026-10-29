@@ -24,5 +24,5 @@
 
 ## Limits
 - Scripted swipe, not the user; Serious induced; USB-drop handling unit-tested only; n = 2 per same-look arm; no CI.
-- The work-graph `writes` of this task omit `device.mjs`, `device-phone-pin.mjs`, `wip-close.mjs`, `Thermal.lean` and
-  `thermal.jsonl`; the lead adds them at land if `fw land` names them.
+- The work-graph `writes` of this task omit `Thermal.lean`; dry land passes only with `--allow lean/Fw/Device/Thermal.lean`
+  (`VERDICT dry phone-feel-capture`). The lead adds `Thermal.lean` and `thermal.jsonl` to `writes` on main, or lands with `--allow`.
