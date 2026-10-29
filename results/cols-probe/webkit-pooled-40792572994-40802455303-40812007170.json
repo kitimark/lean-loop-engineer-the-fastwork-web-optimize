@@ -1,9 +1,9 @@
 {
  "engine": "webkit",
- "jobs": 6,
+ "jobs": 9,
  "perJob": [
   {
-   "job": "1",
+   "job": "f1/vm1",
    "arm": "base",
    "passes": 0,
    "windows": 0,
@@ -15,7 +15,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f2/vm2",
    "arm": "base",
    "passes": 1,
    "windows": 5,
@@ -31,7 +31,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f3/vm3",
    "arm": "base",
    "passes": 0,
    "windows": 0,
@@ -43,7 +43,7 @@
    }
   },
   {
-   "job": "1",
+   "job": "f4/vm1",
    "arm": "base",
    "passes": 1,
    "windows": 6,
@@ -59,7 +59,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f5/vm2",
    "arm": "base",
    "passes": 1,
    "windows": 5,
@@ -75,7 +75,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f6/vm3",
    "arm": "base",
    "passes": 1,
    "windows": 6,
@@ -91,7 +91,43 @@
    }
   },
   {
-   "job": "1",
+   "job": "f7/vm1",
+   "arm": "base",
+   "passes": 0,
+   "windows": 0,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f8/vm2",
+   "arm": "base",
+   "passes": 0,
+   "windows": 0,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f9/vm3",
+   "arm": "base",
+   "passes": 0,
+   "windows": 0,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f1/vm1",
    "arm": "base+off",
    "passes": 0,
    "windows": 0,
@@ -103,7 +139,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f2/vm2",
    "arm": "base+off",
    "passes": 1,
    "windows": 6,
@@ -119,7 +155,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f3/vm3",
    "arm": "base+off",
    "passes": 0,
    "windows": 0,
@@ -131,7 +167,7 @@
    }
   },
   {
-   "job": "1",
+   "job": "f4/vm1",
    "arm": "base+off",
    "passes": 1,
    "windows": 6,
@@ -147,7 +183,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f5/vm2",
    "arm": "base+off",
    "passes": 0,
    "windows": 0,
@@ -159,7 +195,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f6/vm3",
    "arm": "base+off",
    "passes": 1,
    "windows": 6,
@@ -175,7 +211,43 @@
    }
   },
   {
-   "job": "1",
+   "job": "f7/vm1",
+   "arm": "base+off",
+   "passes": 0,
+   "windows": 0,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f8/vm2",
+   "arm": "base+off",
+   "passes": 0,
+   "windows": 0,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f9/vm3",
+   "arm": "base+off",
+   "passes": 0,
+   "windows": 0,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f1/vm1",
    "arm": "timed-fixed",
    "passes": 1,
    "windows": 6,
@@ -191,7 +263,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f2/vm2",
    "arm": "timed-fixed",
    "passes": 1,
    "windows": 6,
@@ -207,7 +279,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f3/vm3",
    "arm": "timed-fixed",
    "passes": 1,
    "windows": 6,
@@ -223,7 +295,7 @@
    }
   },
   {
-   "job": "1",
+   "job": "f4/vm1",
    "arm": "timed-fixed",
    "passes": 0,
    "windows": 0,
@@ -235,7 +307,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f5/vm2",
    "arm": "timed-fixed",
    "passes": 0,
    "windows": 0,
@@ -247,7 +319,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f6/vm3",
    "arm": "timed-fixed",
    "passes": 0,
    "windows": 0,
@@ -259,7 +331,51 @@
    }
   },
   {
-   "job": "1",
+   "job": "f7/vm1",
+   "arm": "timed-fixed",
+   "passes": 1,
+   "windows": 6,
+   "metrics": {
+    "layerCount": 128,
+    "backingBytes": 122557120,
+    "Paint": 104666
+   },
+   "log": {
+    "pushes": 12,
+    "took": 12,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f8/vm2",
+   "arm": "timed-fixed",
+   "passes": 1,
+   "windows": 1,
+   "metrics": null,
+   "log": {
+    "pushes": 0,
+    "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f9/vm3",
+   "arm": "timed-fixed",
+   "passes": 1,
+   "windows": 6,
+   "metrics": {
+    "layerCount": 124,
+    "backingBytes": 122557120,
+    "Paint": 18833
+   },
+   "log": {
+    "pushes": 12,
+    "took": 12,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f1/vm1",
    "arm": "timed-fixed+off",
    "passes": 1,
    "windows": 6,
@@ -275,7 +391,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f2/vm2",
    "arm": "timed-fixed+off",
    "passes": 0,
    "windows": 0,
@@ -287,7 +403,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f3/vm3",
    "arm": "timed-fixed+off",
    "passes": 1,
    "windows": 6,
@@ -303,7 +419,7 @@
    }
   },
   {
-   "job": "1",
+   "job": "f4/vm1",
    "arm": "timed-fixed+off",
    "passes": 0,
    "windows": 0,
@@ -315,7 +431,7 @@
    }
   },
   {
-   "job": "2",
+   "job": "f5/vm2",
    "arm": "timed-fixed+off",
    "passes": 0,
    "windows": 0,
@@ -327,7 +443,7 @@
    }
   },
   {
-   "job": "3",
+   "job": "f6/vm3",
    "arm": "timed-fixed+off",
    "passes": 0,
    "windows": 0,
@@ -335,6 +451,54 @@
    "log": {
     "pushes": 0,
     "took": 0,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f7/vm1",
+   "arm": "timed-fixed+off",
+   "passes": 1,
+   "windows": 6,
+   "metrics": {
+    "layerCount": 128,
+    "backingBytes": 122557120,
+    "Paint": 115500
+   },
+   "log": {
+    "pushes": 12,
+    "took": 12,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f8/vm2",
+   "arm": "timed-fixed+off",
+   "passes": 1,
+   "windows": 6,
+   "metrics": {
+    "layerCount": 128,
+    "backingBytes": 122557120,
+    "Paint": 125666
+   },
+   "log": {
+    "pushes": 12,
+    "took": 12,
+    "dark": 0
+   }
+  },
+  {
+   "job": "f9/vm3",
+   "arm": "timed-fixed+off",
+   "passes": 1,
+   "windows": 6,
+   "metrics": {
+    "layerCount": 124,
+    "backingBytes": 122557120,
+    "Paint": 105500
+   },
+   "log": {
+    "pushes": 12,
+    "took": 12,
     "dark": 0
    }
   }
@@ -351,13 +515,13 @@
    "dark": 0
   },
   "timed-fixed": {
-   "took": 36,
-   "pushes": 36,
+   "took": 60,
+   "pushes": 60,
    "dark": 0
   },
   "timed-fixed+off": {
-   "took": 24,
-   "pushes": 24,
+   "took": 60,
+   "pushes": 60,
    "dark": 0
   }
  },
@@ -431,48 +595,63 @@
      "ref": [
       128,
       128,
-      128
+      128,
+      128,
+      124
      ],
      "off": [
       128,
-      128
+      128,
+      128,
+      128,
+      124
      ],
-     "lo": 128,
+     "lo": 124,
      "hi": 128,
-     "cell": "few jobs"
+     "cell": "no cost"
     },
     {
      "metric": "backingBytes",
      "ref": [
       122557120,
       122557120,
+      122557120,
+      122557120,
       122557120
      ],
      "off": [
       122557120,
-      122015320
+      122015320,
+      122557120,
+      122557120,
+      122557120
      ],
      "lo": 122557120,
      "hi": 122557120,
-     "cell": "few jobs"
+     "cell": "mixed"
     },
     {
      "metric": "Paint",
      "ref": [
       90666,
       90000,
-      115666
+      115666,
+      104666,
+      18833
      ],
      "off": [
       91166,
-      93833
+      93833,
+      115500,
+      125666,
+      105500
      ],
-     "lo": 90000,
+     "lo": 18833,
      "hi": 115666,
-     "cell": "few jobs"
+     "cell": "mixed"
     }
    ],
-   "reading": "undecided (few jobs)"
+   "reading": "mixed"
   }
  }
 }

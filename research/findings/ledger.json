@@ -5457,6 +5457,12 @@
    "task": "timed-m0-webkit",
    "field": "mechanism",
    "text": "timed-m0-webkit: the 3 WebKit m=0 failures of run 40553185213 were an old reader (run commit 47f7fd747 lacks e56ef0507 and 59fd94946: no panel-mount agreement, no scroll-settle), not a rest difference; the earn button was open on one page and closed on the other with the sign flipping between bands. Current reader: timed cell 0 failed of 24 on both engines (run 40660480093). Lesson: compare the run commit with the reader fixes before chasing an engine difference. research/notes/2026/10-2x-timed-m0-webkit.md."
+  },
+  {
+   "entry": "morph.columns:probe-off (column pictures hidden, layout and tracks kept): on Chromium the pictures cost raster work (RasterTask -11% and PaintImage -13% on the base path, about -1% on the geom-timed path, same in two runs of 12 jobs); on the WebKit Simulator push lane no metric falls beyond the reference spread (layerCount, backing bytes, Paint), matching the phone.",
+   "task": "cols-probe",
+   "field": "mechanism",
+   "text": "cols-probe: Lean rule (Fw.Device.ColsProbe, decided before the data): Chromium swipe-touch-v1 runs 40802455145 and 40812007208 read pictures cost in both contrasts; WebKit Sim runs 40792572994, 40802455303, 40812007170 read mixed in both; phone 2026-10-27 undecided. Fate: P2, P3, P4 independent of picture cost; P5 and P6 keep by the rule, but P6 rests on Chromium alone, so rank it last. Flip pushes took on every push and nav was never on dark at a push (end of page). Not delivered: RasterTask ms and render passes (counts lane lacks them). Lesson: the Chromium profile push-cycle-d1000 never reached the page end (scrollY max 307 of 5189) so all arms were identical; check the scroll reach in every Chromium profile before reading arms, and treat the earlier Chromium push-cycle proxy as unchecked. Sim jobs with four arms lose passes (push server not ready after 420 s, Timeline.stop timeouts): use two arms per job. research/notes/2026/10-2x-cols-probe.md."
   }
  ]
 }

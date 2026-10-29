@@ -1,10 +1,9 @@
 branch: worktree-wf_bd6be3b9-683-1 (CI branch ci/cols-probe, pushed at 74f5304bf then at the push-2 commit)
 worktree: .claude/worktrees/wf_bd6be3b9-683-1 (under the main checkout)
-last commit: see git log; ci/cols-probe tip = push 3 (Sim cols-timed only)
-CI runs: push 1: chromium-counts 40792572637 (no result, wrong profile), toolbar-throttle 40792572994 (success, 6 of 12 passes usable); push 2 (7a34c9fd4): chromium-counts 40802455145 (success, swipe-touch-v1, 12 jobs: bc = pictures cost, fc = pictures cost; results/cols-probe/chromium-run-40802455145.json), toolbar-throttle 40802455303 (success; base 4 jobs, base+off 3 jobs; results pooled in results/cols-probe/webkit-pooled-*.json); push 3: toolbar-throttle cols-timed (timed-fixed+off had 2 jobs)
-Verified: Lean module builds, golden cols-probe.jsonl current, measure-chromium cols-verdict + measure-webkit cols-report tests pass. check.sh through the slot still to run at the end.
-Open: wait for push 3 sim jobs, pool all job files (`push-cycle-cli.mjs cols --in a.json,b.json,...`), note research/notes/2026/10-2x-cols-probe.md + ledger, check.sh, merge main, revert the workflow token, dry land, review ready.
-Lean fate so far: bc = cost (Chromium) so P5 keep and P6 keep by the rule; WebKit base contrast is mixed (no cost), phone undecided; P2/P3/P4 independent.
+last commit: see git log (data complete; the temporary workflow token is reverted in the last commit)
+CI runs (all success): chromium-counts 40792572637 (unusable, wrong profile), 40802455145, 40812007208 (swipe-touch-v1, 12 jobs each); toolbar-throttle 40792572994, 40802455303, 40812007170 (Sim, 9 job files pooled)
+Verified: check.sh green; Lean module, golden, measure-chromium cols-verdict + measure-webkit cols-report tests pass. Verdicts: Chromium pictures cost (both contrasts), WebKit Sim mixed (both), phone undecided; P2-P4 independent, P5 and P6 keep by the rule (P6 rests on Chromium alone).
+Open: merge main, dry land, review ready; follow-up: RasterTask ms and render passes in trace.mjs; the earlier Chromium push-cycle proxy may not have reached the page end.
 
 What it is: task cols-probe (P1 of research/notes/2026/10-27-end-columns-probe.md), CI lanes only. Lean Fw.Device.ColsProbe: arms
 (base, base+off, timed-fixed, timed-fixed+off), search/wkArm/crLabel rows, pushLabel, flipValid (750 per mille), Cell.of (cost when every
