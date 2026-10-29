@@ -23845,6 +23845,32 @@
     "research/notes/2026/10-2x-phone-feel-kit.md",
     "docs/team/handoffs/phone-feel-kit.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "glint-hold-close",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "glint-hold-cell"
+   ],
+   "title": "Close platform.glint:hold-freeze's proof gaps: resume_seek_forward (every pause-path seek is forward), make Gen.entry agree with V2Proved.ok for class E flags (no look decision needed when Lean proves same look), sync part.json provenance, and decide the Simulator per-zone item against the WKTR verdict; restate Gen.entry.",
+   "writes": [
+    "lean/Fw/Parts/PlatformGlint*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "apps/site/src/parts/platform.glint/part.json",
+    "packages/contracts/golden/parts/**",
+    "research/findings/ledger.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-glint-hold-close.md",
+    "docs/team/handoffs/glint-hold-close.md"
+   ]
   }
  ],
  "deadline": {
