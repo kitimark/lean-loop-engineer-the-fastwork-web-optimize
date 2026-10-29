@@ -1,6 +1,6 @@
 # ledger-merge flake: 'the same incident edited differently is a conflict with markers'
 
-Status: no deterministic repro; narrowed hypothesis list, no code change (accepted limit).
+Status: failure mode CONFIRMED and reproduced deterministically by stubbing the reset; fixed by identity (fresh dir per setup).
 
 ## Failing assertion (CONFIRMED, GitHub run 40853077465, land suites-a, ubuntu)
 `setup` (apps/runner/test/ledger-merge.test.ts:126-139) threw at its `ok(...)` helper: `git checkout -qb a` exited 128,
@@ -23,6 +23,9 @@ checkout -qb a gives exit 128 and the same message.
   unique), user identity and default branch (passed with -c and -b), merge driver registration (set after the branches exist).
 - Not reproduced: 12 local loops of the scratch-repo describe all passed (4/4 each).
 
-## Candidate fix, not applied (needs a repro first)
-Give each `setup` its own mkdtemp dir and pass `-c gc.auto=0 -c maintenance.auto=false`, so no path or background
-writer is reused. Follow-up: a stress repro that runs a detached writer against `rmSync(.git)` on a Linux runner (CI lane).
+## Fix (applied, round 2)
+Each `setup` makes its own mkdtemp dir (removed afterEach) and git runs with `-c gc.auto=0 -c maintenance.auto=false`, so a
+scratch repo cannot see an earlier test's state whatever the reason the old .git survived (that reason stays INFERRED).
+Regression (apps/runner/test/ledger-merge.test.ts, "regression: when the reset leaves the old repo behind"): the old
+setup with its remove stubbed to a no-op throws "a branch named 'a' already exists"; the fresh setup passes.
+Accepted limits: no retries or timeouts; no CI stress lane.
