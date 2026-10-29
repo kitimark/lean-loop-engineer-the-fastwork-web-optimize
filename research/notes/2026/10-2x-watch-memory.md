@@ -89,11 +89,13 @@ TICK rss=236MB heap=62MB bound=256MB
 TICK rss=241MB heap=89MB bound=256MB
 ```
 
-- Tick peak: 289 MB, the first tick (maximum of the 20 TICK values). That it is a start-up peak is INFERRED (`memCheck` runs after the pass's reads, watch.ts:339).
+- Tick peak: 289 MB, the first tick (maximum of the 20 TICK values). That it is a start-up peak is INFERRED (`memCheck` runs after the pass's reads, watch.ts:340).
 - `Fw.Ops.WatchMem.rssBoundKb` is 512 MB: 512 / 289 = 1.8 x the tick peak; 512 is below the before-arm mean (585 MB, line 63).
 - A first guess of 256 MB would have fired once: 1 of the 20 TICK values (289) is over 256.
 - Peak is 3.4 x lower than before: ps max before (842 MB) over ps max after (250 MB), line 63.
 - The 663 MB reading of the trigger (line 4) is over 512 MB, so it would alert.
+
+## Tests (fixture counts and named constants)
 
 Alert output unchanged: `apps/runner/test/watch-mem.test.ts`, describe "recorded event window", replays the committed window
 `apps/runner/test/fixtures/watch-mem/` (`timings.jsonl`: the newest 3400 rows of a recorded log reduced to tool, step, durMs, host, load,
