@@ -8,7 +8,9 @@
 //   node src/device-cli.mjs reduce --in rec-1.json,rec-2.json,...      (Lean reductions + comparison; no phone)
 //   node src/device-cli.mjs profile --in rec-k.json --id user-<name> --out ../measure-chromium/profiles/user-<name>.json
 //   node src/device-cli.mjs package --kind session --in rec-1.json,... --date YYYY-MM-DD --out results/phone/<date>
-//   node src/device-cli.mjs frames  --target original|rewrite [--site <dist/aot>] [--reps 5] [--speed 800] [--out file]
+//   node src/device-cli.mjs feel start --site <dist/aot> --dir <raw> [--pin Serious] [--seed n] [--resume|--fresh]   (holds server, proxy and pin; run in the background)
+//   node src/device-cli.mjs feel next | rate <label> <1-5> | status [--reveal] | stop --dir <raw>
+//   node src/device-cli.mjs frames --target original|rewrite [--site <dist/aot>] [--reps 5] [--speed 800] [--out file]
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -29,6 +31,7 @@ import { ConditionOwner, PIN, pinGate } from './device-thermal-pin.mjs';
 import * as PA from './device-phone-arms.mjs';
 import { readThermal } from './device-thermal.mjs';
 import { listPhone, readout } from './device.mjs';
+import { feelStart, feelCommand, waitGone } from './device-feel-run.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -38,7 +41,7 @@ const { values: v, positionals } = parseArgs({
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, pin: { type: 'string' }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, pin: { type: 'string' }, seed: { type: 'string', default: '0' }, fresh: { type: 'boolean', default: false }, resume: { type: 'boolean', default: false }, reveal: { type: 'boolean', default: false }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
@@ -110,6 +113,36 @@ async function main() {
         else await runBlocks(null);
       } catch (e) { log(`error: ${e.message}`); process.exitCode = 1; }
       process.exit(process.exitCode ?? 0);
+    }
+    case 'feel': {
+      const [sub, ...fa] = positionals;
+      if (!v.dir) throw new Error('feel needs --dir <raw dir>');
+      const dir = resolve(v.dir);
+      if (sub === 'start') {
+        if (!v.site) throw new Error('feel start needs --site <dist/aot>');
+        try {
+          const st = await feelStart({ site: resolve(v.site), dir, pin: v.pin ?? 'Serious', seed: Number(v.seed), resume: v.resume, fresh: v.fresh, settleMs: Number(v.settle), log });
+          console.log(JSON.stringify({ status: st.status, opened: st.opened, rated: st.ratings.filter((r) => r != null).length, pinEnd: st.pinEnd, verdicts: st.verdicts }));
+        } catch (e) { log(`error: ${e.message}`); process.exitCode = 1; }
+        process.exit(process.exitCode ?? 0);
+      }
+      if (!['next', 'rate', 'status', 'stop'].includes(sub)) throw new Error('feel needs a subcommand: start | next | rate <label> <1-5> | status | stop');
+      const args = sub === 'rate' ? { label: fa[0], rating: fa[1] } : sub === 'status' ? { reveal: v.reveal } : {};
+      let r;
+      try { r = await feelCommand(sub, dir, args); } catch (e) {
+        if (sub !== 'stop') throw e;
+        const did = await new ConditionOwner({ dir, log }).recover();
+        console.log(JSON.stringify({ noSession: e.message, ownerStopped: did }));
+        break;
+      }
+      console.log(r.text);
+      if (!r.ok) process.exitCode = 1;
+      if (sub === 'stop' && r.ok) {
+        const g = await waitGone(dir);
+        console.log(JSON.stringify(g));
+        if (!g.gone || !['cleared', 'heatRemains'].includes(g.pinEnd)) process.exitCode = 1;
+      }
+      break;
     }
     case 'pin-probe': {
       if (!v.pin || !v.dir) throw new Error('pin-probe needs --pin Fair|Serious and --dir <dir>');
@@ -206,7 +239,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | arms-run [--only <arm ids>] [--pin Fair|Serious] [--hand-reset <index> <reason>] | pin-probe --pin Serious --dir d [--hold s] | pin-stop --dir d | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
+      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | feel start|next|rate|status|stop | arms-run [--only <arm ids>] [--pin Fair|Serious] [--hand-reset <index> <reason>] | pin-probe --pin Serious --dir d [--hold s] | pin-stop --dir d | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
       process.exitCode = 2;
   }
 }
