@@ -23932,7 +23932,6 @@
     "packages/measure-webkit/test/**",
     "packages/measure-webkit/package.json",
     "lean/Fw/Device/Feel*.lean",
-    "lean/Fw/Device/Thermal.lean",
     "lean/scripts/FeelGolden.lean",
     "packages/contracts/golden/device/feel*.jsonl",
     "lean/Fw.lean",
