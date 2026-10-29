@@ -23726,6 +23726,97 @@
     "packages/contracts/golden/console/land-tier-local.jsonl"
    ],
    "evidence": "ac45bc5"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "glint-compositor",
+   "owner": "part-builder",
+   "stream": "parts",
+   "deps": [
+    "glint-hold-wktr"
+   ],
+   "title": "Remove the glint's SMIL style recalcs entirely (hold-freeze cuts only 26 percent idle: the two dashes ramp in different segments): a same-look flag platform.glint:compositor that draws each dash's moving gradient with a compositor-animated element (transform/opacity, no SMIL, no per-frame attribute writes), Lean proof that the gradient stop positions equal the original's at every t, look harness pixel bound, WKTR recalcs per 100 frames (target the all-paused floor), both engines.",
+   "writes": [
+    "apps/site/src/parts/platform.glint/**",
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/registry/**",
+    "lean/Fw/Parts/PlatformGlint*.lean",
+    "lean/scripts/PlatformGlint*Golden.lean",
+    "packages/contracts/golden/parts/platform-glint*.jsonl",
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "packages/premise-tests/src/**",
+    "lean/Fw/Device/GlintHold*.lean",
+    "packages/contracts/golden/device/glint*.jsonl",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-glint-compositor.md",
+    "results/glint-compositor/**",
+    "docs/team/handoffs/glint-compositor.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "glint-hold-cell",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "glint-hold-wktr"
+   ],
+   "title": "Decide the mac WebKit morph trajectory cell for platform.glint:hold-freeze (trajectory-probe macOS leg, Gen.record), close the ledger row's missingWhy with linked theorems, and state the flag's Gen.entry decision for v2-proved.",
+   "writes": [
+    "lean/Fw/Parts/PlatformGlintHold*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-webkit/**",
+    "research/findings/ledger.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-glint-hold-cell.md",
+    "results/glint-hold-cell/**",
+    "docs/team/handoffs/glint-hold-cell.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-wk-saving",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-anim-units"
+   ],
+   "title": "Prove wk_style_saving: hero.exit:threaded's WebKit per-element style work is strictly below the original's inherited --exit-opacity fan-out over heroTree at every band (WebKit inherited-propagation premise cited to source), link it in ledger row n 6, recompute the ResourceFlags WebKit style direction, restate the preset decision.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Engine/WebKit*.lean",
+    "lean/Fw/Engine/ResourceFlags.lean",
+    "packages/contracts/golden/engine/resource.jsonl",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-wk-saving.md",
+    "docs/team/handoffs/hero-exit-wk-saving.md"
+   ]
   }
  ],
  "deadline": {
