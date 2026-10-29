@@ -24,11 +24,12 @@ export function pageHtml(arm, fontUrl) {
 @font-face { font-family: 'Site Sans'; src: url(${fontUrl}); font-weight: 100 900; }
 html, body { margin: 0; background: #fff; font-family: 'Site Sans', sans-serif; overflow: hidden; text-rendering: geometricPrecision; }
 ${css}
+.label { display: inline-block; width: 5.7em; overflow: hidden; }
 .lang { background: #fff; color: #1f2937; border: 1px solid #e5e5e5; }
 </style>
 <header class="nav is-hero-pill is-hero-chrome-ready${arm === 'logical' ? ' is-earn-logical' : ''}">
   <div class="bar"><span class="logo"></span>
-    <div class="actions"><button class="btn lang" type="button">EN</button><button class="btn earn" type="button">Join waitlist</button></div>
+    <div class="actions"><button class="btn lang" type="button">EN</button><button class="btn earn" type="button"><span class="label">Join waitlist</span></button></div>
   </div>
 </header>`;
 }
