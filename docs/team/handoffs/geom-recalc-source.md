@@ -3,7 +3,7 @@ CI runs, all complete (success, 3 WKTR jobs each, mode recalc-thr-off, pref OFF)
 - 40792245957 (c536e5c0f) r1; 40795367330 (1576aad26) r2; 40797685228 (ee443d434) r3. Data in results/geom-recalc-source/r1..r3, table.txt, verdict.txt.
 
 Task geom-recalc-source (graph r560): name the source of the one style recalc per frame left when every running animation is paused (WKTR, pref OFF).
-Result (MEASURED): Lean verdict engine-internal for idle in 9 of 9 jobs, flip in 7 of 9 (2 no-frames, flips did not engage in r3 j1 and j2); overall engine-internal. No mutation or rAF key in any recalc frame; every readable recalc updates 0 elements; swallowing rAF or timers and cancelling all animations leave 93-100 per 100; hiding body leaves 0-11, empty body 0.
+Result (MEASURED): Lean verdict engine-internal for idle in 9 of 9 jobs, flip in 7 of 9 (2 no-frames, flips did not engage in r3 j1 and j2); overall engine-internal. No mutation or rAF key in any recalc frame; every readable recalc of the observed idle arm updates 0 elements (forced-flush arm: 2 read, both 18); swallowing rAF or timers and cancelling all animations leave 93-100 per 100; hiding body leaves 0-11, empty body 0.
 Next step: task geom-recalc-bisect (probe only): hide one body child at a time, then one [data-fw] part, find the subtree taking idle below 25 per 100; then read the WebKit path. No page-side fix.
 
 State
