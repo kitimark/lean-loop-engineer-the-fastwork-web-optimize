@@ -5620,7 +5620,7 @@
    "entry": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
    "task": "faded-pause-entry",
    "field": "missingWhy",
-   "text": "PENDING (filled after trajectory run 40900090514)"
+   "text": "Closed by linked Lean (PlatformFadedPause): resume restores the uninterrupted phase (resume_phase over step_inv/run_inv), settled entries are skipped (settled_skipped, restore_skips), the one data-fw-scene writer ORs observer and fade in any order (writer_or, writer_order_free, setFaded_idem, setActive_idem), and the escape premise is an iff (invisible_iff); WebKit cut judged by EndWktr.cuts_spec (run 40869911524). Gate: trajectory run 40900090514 at 80d9c0b recorded by Gen.record, chromium hero/morph, linux-webkit hero, mac-webkit hero/morph all pass (v2-proved.trajectory.jsonl); Gen.run enters the flag (v2-proved.decisions.jsonl). Left open: the +1 RecalcStyle/Layout attribution at the resume edge (INFERRED, not isolated by a run) and iOS Safari (WKTR stands in). New premise: faded implies active (Allowed), INFERRED. research/notes/2026/10-2x-faded-pause-entry.md"
   }
  ]
 }
