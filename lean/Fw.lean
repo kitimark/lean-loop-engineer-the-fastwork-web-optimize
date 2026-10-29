@@ -156,6 +156,7 @@ import Fw.Device.SimRelaunch
 import Fw.Device.SweepPause
 import Fw.Device.RecalcSource
 import Fw.Device.RecalcBisect
+import Fw.Device.GlintHold
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
