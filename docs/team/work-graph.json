@@ -23602,7 +23602,8 @@
     "docs/team/handoffs/hero-exit-proofs.md",
     "apps/site/src/registry/presets/v2-proved.json",
     "lean/Fw/Preset/Gen.lean"
-   ]
+   ],
+   "evidence": "e63ed64"
   },
   {
    "devices": [

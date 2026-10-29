@@ -68,6 +68,7 @@ import Fw.Parts.MorphMountToolbar
 import Fw.Parts.MorphMountToolbarGolden
 import Fw.Parts.ReactRootOpt
 import Fw.Parts.HeroExitOpt
+import Fw.Parts.HeroExitWork
 import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitCloseStart
 import Fw.Parts.PainNotes
