@@ -23519,6 +23519,86 @@
     "research/notes/2026/10-2x-hero-exit-gate-clear.md",
     "results/hero-exit-gate-clear/**",
     "docs/team/handoffs/hero-exit-gate-clear.md"
+   ],
+   "evidence": "53f95be"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-recalc-source",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-sweep-paused"
+   ],
+   "title": "Name the WebKit style recalc that remains at 1 per frame with every animation paused (geom-sweep-paused): WKTR pref OFF, all-paused idle and flip arms with a MutationObserver count by target and attribute, a requestAnimationFrame registration count by call site, and the element count per recalc read at frame end; Lean verdict decided before the data, then the same-look fix task if one source is named.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Device/RecalcSource*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/recalc-source*.jsonl",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-recalc-source.md",
+    "results/geom-recalc-source/**",
+    "docs/team/handoffs/geom-recalc-source.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gen-merge-retry-bound",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-gate-clear"
+   ],
+   "title": "Gen.merge newest-run-wins (hero-exit-gate-clear) lets a re-run replace a failed or no-verdict row with no bound: keep superseded fail and no-verdict rows visible in the trajectory golden, supersede only when the reader version differs or under a Lean retry bound, parse run ids strictly; prove it and regenerate the preset golden.",
+   "writes": [
+    "lean/Fw/Preset/Gen*.lean",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-gen-merge-retry-bound.md",
+    "docs/team/handoffs/gen-merge-retry-bound.md",
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/gate-breakpoints/test/reader-files.test.mjs",
+    "apps/runner/src/land.ts"
+   ],
+   "evidence": "dfe7107"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-proofs",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-gate-clear",
+    "gen-merge-retry-bound"
+   ],
+   "title": "Close the proofs blocker of hero.exit:threaded (ledger n 6, partly-proved): R2 inherited fan-out units in crOrig so the style-unit saving is proved, the WebKit edge-frame cost tabled (opacityCross1_layout and a filter-presence clause for start and park frames), RG11 justified from engine source; ledger row proved, Gen.entry regenerated.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Engine/WebKit*.lean",
+    "lean/Fw/Engine/WebKit/**",
+    "lean/Fw/Engine/Visual.lean",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-proofs.md",
+    "docs/team/handoffs/hero-exit-proofs.md"
    ]
   }
  ],

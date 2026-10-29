@@ -154,6 +154,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/device/**", "packages/measure-webkit/src/pathpix*.mjs", "scripts/port/fonts.mjs", "packages/measure-webkit/src/session.mjs", "packages/measure-webkit/src/page.mjs"],
   "packages/gate-breakpoints": ["packages/contracts/src/flag-key.mjs", "lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/morph-geom-timed.jsonl", "packages/contracts/golden/parts/**", "packages/contracts/fixtures/trajectory-gpu/**",
+    "packages/contracts/golden/preset/reader-files.json",
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
     "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
   "packages/premise-tests": ["packages/contracts/golden/morph-geom.jsonl", "packages/gate-breakpoints/src/align-equiv.mjs", "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/diff.mjs", "packages/visual-diff/src/run.mjs"],

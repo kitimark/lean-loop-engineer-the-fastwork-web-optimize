@@ -218,8 +218,8 @@ def q6Text : String :=
     (threaded_never_older) except in a WebKit main-thread frame with an in-frame script scroll (threaded_older_iff); \
     after the probe's 8 still frames both arms show the drawn offset (arms_equal_at_rest); the 25/40/40 new units of \
     run 40156078840 were judged at equal offsets on nodes that paint no box (measured_judgedEqual, measured_hidden), \
-    so unequal offsets do not explain them; the reducer judges rest rows without comparing offsets \
-    (judgedNow_unequal), and judgedEqual is the follow-up rule"
+    so unequal offsets do not explain them; the reducer skips a rest row whose arms read different offsets \
+    (judgedEqual, hero-exit-offset.test.mjs) and does not compare a node that paints no box (Fw.Gate.Consumer)"
 
 def engineWord : Engine → String
   | .chromium => "chromium"

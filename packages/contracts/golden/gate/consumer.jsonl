@@ -1,0 +1,8 @@
+{"fn":"keep","in":{"boxCand":[true,true,true,true],"boxOrig":[true,true,true,true],"n":4,"name":"all rendered"},"out":{"kept":[0,1,2,3]}}
+{"fn":"keep","in":{"boxCand":[false,false,false,false],"boxOrig":[false,false,false,false],"n":4,"name":"none rendered"},"out":{"kept":[]}}
+{"fn":"keep","in":{"boxCand":[false,false,false],"boxOrig":[true,false,true],"n":3,"name":"orig only"},"out":{"kept":[0,2]}}
+{"fn":"keep","in":{"boxCand":[false,true,false],"boxOrig":[false,false,false],"n":3,"name":"cand only"},"out":{"kept":[1]}}
+{"fn":"keep","in":{"boxCand":[true,false,true,false,false],"boxOrig":[true,false,false,true,false],"n":5,"name":"mixed"},"out":{"kept":[0,2,3]}}
+{"fn":"keep","in":{"boxCand":[true],"boxOrig":[true,true,true],"n":3,"name":"cand shorter, orig rendered"},"out":{"kept":[0,1,2]}}
+{"fn":"keep","in":{"boxCand":[false],"boxOrig":[false,false,false],"n":3,"name":"cand shorter, orig hidden"},"out":{"kept":[]}}
+{"fn":"keep","in":{"boxCand":[],"boxOrig":[],"n":2,"name":"no readings"},"out":{"kept":[]}}
