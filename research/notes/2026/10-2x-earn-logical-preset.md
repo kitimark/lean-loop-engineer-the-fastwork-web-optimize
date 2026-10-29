@@ -17,6 +17,8 @@ Rule fixed before the data (commit 81b3af044): the cell passes when every one of
 | 1280 | exit | logical | 53 | 256 | 0 | 53 |
 | 1280 | entry | logical | 60 | 256 | 0 | 45 |
 
+Keys, all under `chromiumVsWebkit['<leg>']['<width>/<scenario>/<arm>']` in results/earn-logical-preset/summary.json (leg apple-390_641; apple-640_1280 is identical): worst frame = `maxChanged`, settled = `settledChanged`, allowed = `allowed`, frames over = `failing`. With the label visible (`maxWithText`, not the verdict measure; text rasterization differs between the engines at rest) the logical arm's worst at 390 is 107 (exit) and 104 (entry), above 78.
+
 Both apple legs (`apple-390_641`, `apple-640_1280`) ran the harness at 390 and 1280 and gave identical numbers. The faithful arm exceeds the bound; the logical arm passes; in Chromium the two arms differ by 0 changed pixels. Recorded in `packages/contracts/golden/parts/nav.earn.frames.jsonl` by `Fw.Parts.NavEarnFrames` (`Cell.ok = frameOk width worst`; the check job `nav-earn-frames golden check` replays it). Result files: `results/earn-logical-preset/summary.json`.
 
 Limits (accepted): macOS WebKit stands in for iOS Safari; the rect differences that remain are 2 px at 390 and 4 px at 1280.
