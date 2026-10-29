@@ -1,22 +1,25 @@
-# geom-recalc-bisect handoff (checkpoint 3, push 3 of max 3 being sent)
+# geom-recalc-bisect handoff (final, 3 of 3 CI pushes used)
 
 - Branch: worktree-wf_02ef56dc-a11-1 (CI branch ci/geom-recalc-bisect)
 - Worktree: .claude/worktrees/wf_02ef56dc-a11-1
-- Last commit: see the branch log (push 3: stage 3 pauser arms bs-pause dash/other; kill trimmed to smil)
-- CI runs: wktr 40805577147 (push 1) = success, results/geom-recalc-bisect/r1 (stage 1: Lean overall named div#root > page-root; no single child of page-root drops the rate: children kept 66-117 per 100, hide page-root 18-20, hide div#root 0; obs arm: site rAF subscribers and mutations people#style / pain#data-fw-pain-dark fire in only 10-18 of ~120 frames, recalcs 91-98 of 119).
-  wktr 40808745010 (push 2, stage 2: kill-feature + show-only arms, Lean carrier/holder) = success (results/geom-recalc-bisect/r2: carrier kill/smil in 3 of 3 jobs; holder several/incomplete).
-  wktr 40812007953 (push 3, da281b56b; stage 3: which svg group ticks, Lean pauser) = running (check.sh lean gates green on da281b56b).
-- Temporary: .github/workflows/wktr.yml has `--modes bisect-thr-off` in the accel step. REVERT before land (git checkout main -- .github/workflows/wktr.yml).
+- Last commit: the branch tip (result commit 6f7d6c6a3, then the merge of main)
+- CI runs, all wktr success, 3 jobs, mode bisect-thr-off, pref OFF:
+  - 40805577147 (5f37a54e, stage 1 hide descent): Lean overall named page-root, no single child dropped the rate. results/geom-recalc-bisect/r1
+  - 40808745010 (5cc39310, stage 2 kill-feature and show-only): carrier named kill/smil 3 of 3, holder several/incomplete. r2
+  - 40812007953 (da281b56, stage 3 pause SMIL per svg group): pauser named pause/dash 3 of 3 (dash 0/121 0/120 0/121, other 96-100). r3
+- wktr.yml mode edit reverted (diff against main empty).
+
+## Result (MEASURED)
+The 93-100 recalcs per 100 frames with 0 elements updated come from the SMIL timeline (4 animate, x1/x2) of the 2 [data-fw-dash] svgs of the secure-network glint (platform part). WebKit path and fix proposal in research/notes/2026/10-2x-geom-recalc-bisect.md; ledger entry added.
+Next task proposal: glint-hold-wktr, measure platform.glint:hold-freeze in this lane (Lean PlatformGlintHold hold_eq_faithful, ticking_hold, ticking_le) and add a Lean statement from ticking animations to recalcs, decided before data.
 
 ## Verified
-- Lean lean/Fw/Device/RecalcBisect.lean (decision + proofs + golden), golden packages/contracts/golden/device/recalc-bisect.jsonl (38 lines), TS reader packages/measure-wktr/src/recalc-bisect.mjs replays it (test/recalc-bisect.test.mjs). measure-wktr tests: 108 pass.
-- Probe arms bs-* (mid-page.mjs) smoke-tested in headless Chromium only (shape, not a result).
-- triggers.jsonl regenerated from Lean.
+- Lean lean/Fw/Device/RecalcBisect.lean (stage 1 level/descend, stage 2 carrier/holder, stage 3 pauser, overall2) and golden packages/contracts/golden/device/recalc-bisect.jsonl (71 lines) green in lean/scripts/check.sh; TS reader packages/measure-wktr/src/recalc-bisect.mjs replays it; measure-wktr tests 110 pass.
+- apps/runner test/run.test.ts "replays the args of one case per lane" failed once before the merge of main (expected no vms=3 arg); not touched by this task, recheck after the merge.
 
 ## Open
-- Read push-3 results into results/geom-recalc-bisect/r3, name the svg group (pauser), WebKit path @862f17d, fix proposal (platform.glint:hold-freeze). No push left.
-- Note research/notes/2026/10-2x-geom-recalc-bisect.md, ledger entry, check.sh, ci-paths test, land-inputs test, runner ledger vitest, plan lint, dry land, fw review ready.
+- fw review ready with run:40812007953 evidence and dry land (lead lands). Limits: WKTR is not iOS Safari, no phone run, hide arms change layout and the glint mounts from an observer, so part-level hide reads are weak; stages 2 and 3 were chosen after the data before.
 
 ## Conventions
-- Results go to results/geom-recalc-bisect/r1.. (j<n>.json, tally.txt, verdict.txt); pnpm -s fw ci <runId> fetches.
-- Read first: lean/Fw/Device/RecalcBisect.lean header, research/notes/2026/10-2x-geom-recalc-source.md.
+- Probe arms bs-* in packages/measure-wktr/src/mid-page.mjs (bsRead, kinds facts, full/hidden, l1/l2/deep, kill, hold, pause); results r1..r3 hold j<n>-accel-bisect-thr-off-1.json, tally.txt, verdict.txt.
+- Read first: the note, then the RecalcBisect.lean header.
