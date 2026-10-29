@@ -5579,6 +5579,18 @@
    "task": "glint-hold-close",
    "field": "missingWhy",
    "text": "glint-hold-close (note research/notes/2026/10-2x-glint-hold-close.md). Lean: Fw.Parts.PlatformGlintPause.resume_seek_forward proves that along a run with nondecreasing observation times every resume seek of the pause machine targets an elapsed time at or after the one the clock froze at, so the flag path never issues the backward setCurrentTime that Chromium gets wrong (diff 235); that missingWhy item is closed. The Simulator per-zone item stays open: the WKTR idle recalc verdict answers a different question (style recalcs per 100 frames in WKTR cells, not per-zone counters on the swipe path). Gen.entry for this flag: not yet, blocker proofs only (look is met by class E, Fw.Preset.Gen.lookMet_of_exact)."
+  },
+  {
+   "entry": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "task": "end-wktr-flip",
+   "field": "webkit",
+   "text": "end-wktr-flip (MEASURED, WKTR pref OFF, flip arm at the page end, run 40869911524, 3 jobs, recalcs per 100 frames): base 244/242/237, all-paused floor 83/70/81, platform:faded-pause 87/89/91; the Lean rule (EndWktr.judge, decided before the data) says cuts in 3 of 3 jobs, at the floor + band in 1 of 3 (4-19 above the floor in the others). Compositing cuts the same; layout cuts; layerFlush is no-contrast (133 per 100 frames in every arm). This is the arm that matters at the page end on WebKit; look stays class E. WKTR is not iOS Safari: phone check pending. research/notes/2026/10-2x-end-wktr-flip.md"
+  },
+  {
+   "entry": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "task": "end-wktr-flip",
+   "field": "webkit",
+   "text": "end-wktr-flip (MEASURED, same run 40869911524): on the natural page the compositor alone cuts the flip recalcs to 146/142/219 per 100 frames against base 244/242/237 and floor 83/70/81 (cuts in 3 of 3, at the floor in 0 of 3); with faded-pause on it adds nothing the rule can see (both 87/92/70 against faded-pause 87/89/91). The glint-compositor r4 residual (80-88 against 68-75) split by cause (EndWktr.causeOf, in-process all-paused floor): no residual in j1 (89 against 83) and j2 (70 against 70), the all-paused floor itself moves by process (j2 70 in the base process, 88 for the compositor page); j3 reads high with everything paused (175) and is named variant markup by the rule but looks like a noisy process (both, same markup, reads 70). Mechanism by category: the frames with a recalc are the page's own nav style and data-fw-morph writes, same live and paused (written 68/61, 63/53, 169/149), animated and empty add nothing. Next candidate: the nav style/data-fw-morph writes at the page end (the floor), not the glint. research/notes/2026/10-2x-end-wktr-flip.md"
   }
  ]
 }
