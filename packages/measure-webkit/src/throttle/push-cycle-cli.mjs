@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // node src/throttle/push-cycle-cli.mjs run --site dir --driver d [--arms original,rewrite,user] [--rounds 1] [--cycles 6] [--hold 600] [--vm n] [--out file]
 // node src/throttle/push-cycle-cli.mjs report --in a.json,b.json [--md file] [--expect 1,2,3]
+// node src/throttle/push-cycle-cli.mjs cols --in a.json,b.json [--md file] [--json file]   (task cols-probe: arms morph-base, -base-off, -timed, -timed-off)
 import { parseArgs } from 'node:util';
 import { mkdirSync, writeFileSync, readFileSync, readdirSync, renameSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
@@ -15,6 +16,7 @@ import { searchOf, uploadName, periodMs, SEP_FULL_CYCLES } from './push-cycle.mj
 import { passFile } from '../session.mjs';
 import { reportMd } from './push-cycle-report.mjs';
 import { morphReportMd } from './morph-push.mjs';
+import { colsMd, reduceJobs } from './cols-report.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -26,7 +28,7 @@ const { values: v } = parseArgs({
     drag: { type: 'string', default: '480' }, velocity: { type: 'string', default: '150' }, target: { type: 'string', default: 'springboard' },
     timeout: { type: 'string', default: '480' }, reset: { type: 'boolean', default: false }, 'no-warmup': { type: 'boolean', default: false },
     settle: { type: 'string', default: '6000' }, vm: { type: 'string', default: '1' }, out: { type: 'string' }, driver: { type: 'string' },
-    in: { type: 'string' }, md: { type: 'string' }, expect: { type: 'string' }, keep: { type: 'boolean', default: true },
+    in: { type: 'string' }, md: { type: 'string' }, json: { type: 'string' }, expect: { type: 'string' }, keep: { type: 'boolean', default: true },
     separate: { type: 'boolean', default: false }, 'morph-push': { type: 'boolean', default: false }, morph: { type: 'boolean', default: false }, ratio: { type: 'string', default: '2' }, 'rest-cap': { type: 'string', default: '120000' },
   },
   allowNegative: true,
@@ -94,8 +96,16 @@ async function main() {
       if (v.md) writeFileSync(resolve(v.md), md); else console.log(md);
       break;
     }
+    case 'cols': {
+      if (!v.in) throw new Error('usage: cols --in a.json,b.json [--md file] [--json file]');
+      const jobs = v.in.split(',').map((f) => JSON.parse(readFileSync(resolve(f), 'utf8'))).map((j, i) => ({ ...j, vm: j.vm ?? i + 1 }));
+      const r = reduceJobs(jobs);
+      if (v.json) writeFileSync(resolve(v.json), `${JSON.stringify(r, null, 1)}\n`);
+      if (v.md) writeFileSync(resolve(v.md), colsMd(r)); else console.log(colsMd(r));
+      break;
+    }
     default:
-      console.error('usage: run|report');
+      console.error('usage: run|report|cols');
       process.exitCode = 2;
   }
 }
