@@ -45,6 +45,10 @@ def linkTable : List (Flag × List Key) :=
   let ksp : Key := ("hero",
     "hero:scene-pause: port the original paused-scene rule to the hero track (will-change auto and animations paused \
       while the scene is far off-screen), so WebKit stops keeping the hero layers composited at the end of the page")
+  let khf : Key := ("platform.glint",
+    "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces \
+      per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> \
+      animation is active in the hold segments (left [1,2,4], right [0,3,4])")
   [(⟨"engine.scroll", "batched"⟩, [k1]),
    (⟨"nav.hitTest", "elements-skip"⟩, [k4]),
    (⟨"nav.hitTest", "hit-skip"⟩, [k3]),
@@ -60,6 +64,7 @@ def linkTable : List (Flag × List Key) :=
    (⟨"hero.exit", "scoped"⟩, [k6i]),
    (⟨"engine.scroll", "unthrottle"⟩, [kut]),
    (⟨"hero", "scene-pause"⟩, [ksp]),
+   (⟨"platform.glint", "hold-freeze"⟩, [khf]),
    (⟨"hero.exit", "threaded"⟩, [threadedKey])]
 
 inductive Exclusion where
@@ -1021,7 +1026,7 @@ def record (args : List String) : IO Unit := do
 #guard links.map (·.1.key) == ["engine.scroll:batched", "nav.hitTest:elements-skip", "nav.hitTest:hit-skip",
   "hero.countdown:strip", "morph.countdown:strip", "morph.countdown:hidden-pause", "morph.columns:hidden-pause", "engine.scene:hidden-pause", "morph.mount:shift",
   "morph.tween:waapi", "pain.notes:visible", "people.card:mq", "hero.exit:scoped", "engine.scroll:unthrottle",
-  "hero:scene-pause", "hero.exit:threaded"]
+  "hero:scene-pause", "platform.glint:hold-freeze", "hero.exit:threaded"]
 #guard ((verdictJson [] ⟨"hero.accent", "steps"⟩).getObjValAs? String "verdict").toOption == some "excluded"
 #guard ((verdictJson [] ⟨"hero.countdown", "strip"⟩).getObjValAs? String "verdict").toOption == some "row-count"
 #guard ((verdictJson [] ⟨"morph.countdown", "hidden-pause"⟩).getObjValAs? String "verdict").toOption == some "row-count"
