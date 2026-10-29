@@ -23659,6 +23659,37 @@
     "lean/Fw/Engine/ResourceFlags.lean",
     "packages/contracts/golden/engine/resource.jsonl"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "glint-hold-wktr",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-recalc-bisect"
+   ],
+   "title": "Measure platform.glint:hold-freeze (same look, Lean hold_eq_faithful) where geom-recalc-bisect found the residual WebKit recalc: the SMIL x1/x2 animates of the 2 glint dash svgs; Lean ticks-to-recalcs statement decided before the data, WKTR pref OFF idle and flip arms base vs hold-freeze (recalcs per 100 frames, style ms), 3 jobs; then the trajectory gate cells for the preset.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Parts/PlatformGlint*.lean",
+    "lean/Fw/Device/GlintHold*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/glint-hold*.jsonl",
+    "packages/contracts/golden/parts/platform-glint*.jsonl",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-glint-hold-wktr.md",
+    "results/glint-hold-wktr/**",
+    "docs/team/handoffs/glint-hold-wktr.md"
+   ]
   }
  ],
  "deadline": {
