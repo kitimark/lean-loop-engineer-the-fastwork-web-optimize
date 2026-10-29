@@ -23019,7 +23019,8 @@
     "research/notes/2026/10-2x-cols-probe.md",
     "results/cols-probe/**",
     "docs/team/handoffs/cols-probe.md"
-   ]
+   ],
+   "evidence": "09186bc"
   },
   {
    "devices": [

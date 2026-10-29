@@ -1,0 +1,347 @@
+{
+ "engine": "chromium",
+ "files": [
+  "chromium-counts-rewrite-r1/counts.json",
+  "chromium-counts-rewrite-r2/counts.json",
+  "chromium-counts-rewrite-r3/counts.json",
+  "chromium-counts-f1-r1/counts.json",
+  "chromium-counts-f1-r2/counts.json",
+  "chromium-counts-f1-r3/counts.json",
+  "chromium-counts-f2-r1/counts.json",
+  "chromium-counts-f2-r2/counts.json",
+  "chromium-counts-f2-r3/counts.json",
+  "chromium-counts-f3-r1/counts.json",
+  "chromium-counts-f3-r2/counts.json",
+  "chromium-counts-f3-r3/counts.json"
+ ],
+ "jobs": {
+  "base": [
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   }
+  ],
+  "base+off": [
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   }
+  ],
+  "timed-fixed": [
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   }
+  ],
+  "timed-fixed+off": [
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   },
+   {
+    "RasterTask": 740,
+    "DisplayItemListRaster": 740,
+    "PaintImage": 41,
+    "cc.Draw": 1048
+   }
+  ]
+ },
+ "logs": {
+  "base": {
+   "took": 0,
+   "pushes": 0,
+   "dark": 0,
+   "jobs": [
+    {
+     "job": "chromium-counts-rewrite-r1",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-rewrite-r2",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-rewrite-r3",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    }
+   ]
+  },
+  "base+off": {
+   "took": 0,
+   "pushes": 0,
+   "dark": 0,
+   "jobs": [
+    {
+     "job": "chromium-counts-f1-r1",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-f1-r2",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-f1-r3",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    }
+   ]
+  },
+  "timed-fixed": {
+   "took": 0,
+   "pushes": 0,
+   "dark": 0,
+   "jobs": [
+    {
+     "job": "chromium-counts-f2-r1",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-f2-r2",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-f2-r3",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    }
+   ]
+  },
+  "timed-fixed+off": {
+   "took": 0,
+   "pushes": 0,
+   "dark": 0,
+   "jobs": [
+    {
+     "job": "chromium-counts-f3-r1",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-f3-r2",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    },
+    {
+     "job": "chromium-counts-f3-r3",
+     "pushes": 0,
+     "took": 0,
+     "dark": 0
+    }
+   ]
+  }
+ },
+ "contrasts": {
+  "base": {
+   "ref": "base",
+   "off": "base+off",
+   "valid": true,
+   "cells": [
+    {
+     "metric": "RasterTask",
+     "ref": [
+      740,
+      740,
+      740
+     ],
+     "off": [
+      740,
+      740,
+      740
+     ],
+     "lo": 740,
+     "hi": 740,
+     "cell": "no cost"
+    },
+    {
+     "metric": "DisplayItemListRaster",
+     "ref": [
+      740,
+      740,
+      740
+     ],
+     "off": [
+      740,
+      740,
+      740
+     ],
+     "lo": 740,
+     "hi": 740,
+     "cell": "no cost"
+    },
+    {
+     "metric": "PaintImage",
+     "ref": [
+      41,
+      41,
+      41
+     ],
+     "off": [
+      41,
+      41,
+      41
+     ],
+     "lo": 41,
+     "hi": 41,
+     "cell": "no cost"
+    },
+    {
+     "metric": "cc.Draw",
+     "ref": [
+      1048,
+      1048,
+      1048
+     ],
+     "off": [
+      1048,
+      1048,
+      1048
+     ],
+     "lo": 1048,
+     "hi": 1048,
+     "cell": "no cost"
+    }
+   ],
+   "reading": "no cost"
+  },
+  "flip": {
+   "ref": "timed-fixed",
+   "off": "timed-fixed+off",
+   "valid": false,
+   "cells": [
+    {
+     "metric": "RasterTask",
+     "ref": [
+      740,
+      740,
+      740
+     ],
+     "off": [
+      740,
+      740,
+      740
+     ],
+     "lo": 740,
+     "hi": 740,
+     "cell": "no cost"
+    },
+    {
+     "metric": "DisplayItemListRaster",
+     "ref": [
+      740,
+      740,
+      740
+     ],
+     "off": [
+      740,
+      740,
+      740
+     ],
+     "lo": 740,
+     "hi": 740,
+     "cell": "no cost"
+    },
+    {
+     "metric": "PaintImage",
+     "ref": [
+      41,
+      41,
+      41
+     ],
+     "off": [
+      41,
+      41,
+      41
+     ],
+     "lo": 41,
+     "hi": 41,
+     "cell": "no cost"
+    },
+    {
+     "metric": "cc.Draw",
+     "ref": [
+      1048,
+      1048,
+      1048
+     ],
+     "off": [
+      1048,
+      1048,
+      1048
+     ],
+     "lo": 1048,
+     "hi": 1048,
+     "cell": "no cost"
+    }
+   ],
+   "reading": "undecided (few jobs)"
+  }
+ }
+}

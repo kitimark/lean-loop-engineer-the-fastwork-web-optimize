@@ -188,6 +188,7 @@ const NEEDS = Object.freeze({ 'hero.countdown:strip': ['morph.countdown:strip'] 
 
 export const MORPH_ARMS = Object.freeze({
   'morph-base': '', 'morph-geom': '?fw=morph.geom:on', 'morph-timed': '?fw=morph.geom:on,morph.tween:geom-timed',
+  'morph-base-off': '?fw=morph.columns:probe-off', 'morph-timed-off': '?fw=morph.columns:probe-off,morph.geom:on,morph.tween:geom-timed',
 });
 
 export function searchOf(arm) {

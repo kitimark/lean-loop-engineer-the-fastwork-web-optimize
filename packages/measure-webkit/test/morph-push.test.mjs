@@ -88,7 +88,7 @@ test('the morph arms have their own pages and the base page is the default one',
   assert.equal(searchOf('morph-base'), '');
   assert.equal(searchOf('morph-geom'), '?fw=morph.geom:on');
   assert.equal(searchOf('morph-timed'), '?fw=morph.geom:on,morph.tween:geom-timed');
-  assert.deepEqual(searchesOf(Object.keys(MORPH_ARMS)), ['?fw=morph.geom:on', '?fw=morph.geom:on,morph.tween:geom-timed']);
+  assert.deepEqual(searchesOf(Object.keys(MORPH_ARMS)), ['?fw=morph.geom:on', '?fw=morph.geom:on,morph.tween:geom-timed', '?fw=morph.columns:probe-off', '?fw=morph.columns:probe-off,morph.geom:on,morph.tween:geom-timed']);
 });
 
 test('the recorder wraps requestAnimationFrame and still calls the native one', () => {

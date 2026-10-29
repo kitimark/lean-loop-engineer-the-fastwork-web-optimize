@@ -1,0 +1,54 @@
+{"flipShareMin":750,"kind":"consts","minJobs":3}
+{"chromium":["RasterTask","DisplayItemListRaster","PaintImage","cc.Draw"],"kind":"metrics","webkit":["layerCount","backingBytes","Paint"]}
+{"crLabel":"rewrite","flags":[],"flip":false,"id":"base","kind":"arm","off":false,"ref":"base","search":"","wkArm":"morph-base"}
+{"crLabel":"f1","flags":["morph.columns:probe-off"],"flip":false,"id":"base+off","kind":"arm","off":true,"ref":"base","search":"?fw=morph.columns:probe-off","wkArm":"morph-base-off"}
+{"crLabel":"f2","flags":["morph.geom:on","morph.tween:geom-timed"],"flip":true,"id":"timed-fixed","kind":"arm","off":false,"ref":"timed-fixed","search":"?fw=morph.geom:on,morph.tween:geom-timed","wkArm":"morph-timed"}
+{"crLabel":"f3","flags":["morph.columns:probe-off","morph.geom:on","morph.tween:geom-timed"],"flip":true,"id":"timed-fixed+off","kind":"arm","off":true,"ref":"timed-fixed","search":"?fw=morph.columns:probe-off,morph.geom:on,morph.tween:geom-timed","wkArm":"morph-timed-off"}
+{"cell":"pictures cost","hi":104,"kind":"cell","lo":100,"name":"clear cost","off":[60,61,59],"ref":[100,104,102]}
+{"cell":"no cost","hi":104,"kind":"cell","lo":100,"name":"inside","off":[100,103,104],"ref":[100,104,102]}
+{"cell":"mixed","hi":104,"kind":"cell","lo":100,"name":"one low","off":[60,101,59],"ref":[100,104,102]}
+{"cell":"mixed","hi":104,"kind":"cell","lo":100,"name":"above","off":[105,101,102],"ref":[100,104,102]}
+{"cell":"pictures cost","hi":104,"kind":"cell","lo":100,"name":"edge below","off":[99,99,99],"ref":[100,104,102]}
+{"cell":"no cost","hi":104,"kind":"cell","lo":100,"name":"edge inside","off":[100,100,100],"ref":[100,104,102]}
+{"cell":"reference zero","hi":0,"kind":"cell","lo":0,"name":"all zero","off":[0,0,0],"ref":[0,0,0]}
+{"cell":"few jobs","hi":104,"kind":"cell","lo":100,"name":"two ref","off":[60,61,59],"ref":[100,104]}
+{"cell":"few jobs","hi":104,"kind":"cell","lo":100,"name":"two off","off":[60,61],"ref":[100,104,102]}
+{"cell":"pictures cost","hi":500,"kind":"cell","lo":500,"name":"no spread cost","off":[0,0,0],"ref":[500,500,500]}
+{"cell":"no cost","hi":500,"kind":"cell","lo":500,"name":"no spread same","off":[500,500,500],"ref":[500,500,500]}
+{"cell":"mixed","hi":500,"kind":"cell","lo":500,"name":"no spread above","off":[501,500,500],"ref":[500,500,500]}
+{"cells":["no cost","pictures cost","no cost"],"kind":"reading","name":"one cost","reading":"pictures cost","valid":true}
+{"cells":["no cost","no cost","reference zero"],"kind":"reading","name":"all no cost","reading":"no cost","valid":true}
+{"cells":["reference zero","reference zero"],"kind":"reading","name":"all zero","reading":"no cost","valid":true}
+{"cells":["no cost","few jobs"],"kind":"reading","name":"few","reading":"undecided (few jobs)","valid":true}
+{"cells":["no cost","mixed"],"kind":"reading","name":"mixed","reading":"mixed","valid":true}
+{"cells":[],"kind":"reading","name":"empty","reading":"undecided (few jobs)","valid":true}
+{"cells":["pictures cost","pictures cost"],"kind":"reading","name":"invalid flip","reading":"undecided (few jobs)","valid":false}
+{"cells":["pictures cost","few jobs"],"kind":"reading","name":"cost and few","reading":"pictures cost","valid":true}
+{"flipArm":false,"kind":"push","label":"plain","name":"base push","onDark":true,"took":false}
+{"flipArm":true,"kind":"push","label":"flip","name":"flip took","onDark":true,"took":true}
+{"flipArm":true,"kind":"push","label":"flip","name":"flip took light","onDark":false,"took":true}
+{"flipArm":true,"kind":"push","label":"dark-no-take","name":"dark no take","onDark":true,"took":false}
+{"flipArm":true,"kind":"push","label":"light-fallback","name":"light fallback","onDark":false,"took":false}
+{"kind":"share","pushes":0,"took":0,"valid":false}
+{"kind":"share","pushes":10,"took":10,"valid":true}
+{"kind":"share","pushes":10,"took":8,"valid":true}
+{"kind":"share","pushes":10,"took":7,"valid":false}
+{"kind":"share","pushes":10,"took":0,"valid":false}
+{"kind":"share","pushes":4,"took":3,"valid":true}
+{"kind":"share","pushes":4,"took":2,"valid":false}
+{"bc":"pictures cost","bw":"pictures cost","fc":"pictures cost","fw":"pictures cost","kind":"fate","p5":"keep","p6":"keep"}
+{"bc":"pictures cost","bw":"pictures cost","fc":"no cost","fw":"no cost","kind":"fate","p5":"keep","p6":"keep"}
+{"bc":"pictures cost","bw":"pictures cost","fc":"mixed","fw":"mixed","kind":"fate","p5":"keep","p6":"keep"}
+{"bc":"pictures cost","bw":"pictures cost","fc":"undecided (few jobs)","fw":"undecided (few jobs)","kind":"fate","p5":"keep","p6":"keep"}
+{"bc":"no cost","bw":"no cost","fc":"pictures cost","fw":"pictures cost","kind":"fate","p5":"keep","p6":"drop"}
+{"bc":"no cost","bw":"no cost","fc":"no cost","fw":"no cost","kind":"fate","p5":"drop","p6":"drop"}
+{"bc":"no cost","bw":"no cost","fc":"mixed","fw":"mixed","kind":"fate","p5":"open","p6":"drop"}
+{"bc":"no cost","bw":"no cost","fc":"undecided (few jobs)","fw":"undecided (few jobs)","kind":"fate","p5":"open","p6":"drop"}
+{"bc":"mixed","bw":"mixed","fc":"pictures cost","fw":"pictures cost","kind":"fate","p5":"keep","p6":"open"}
+{"bc":"mixed","bw":"mixed","fc":"no cost","fw":"no cost","kind":"fate","p5":"open","p6":"open"}
+{"bc":"mixed","bw":"mixed","fc":"mixed","fw":"mixed","kind":"fate","p5":"open","p6":"open"}
+{"bc":"mixed","bw":"mixed","fc":"undecided (few jobs)","fw":"undecided (few jobs)","kind":"fate","p5":"open","p6":"open"}
+{"bc":"undecided (few jobs)","bw":"undecided (few jobs)","fc":"pictures cost","fw":"pictures cost","kind":"fate","p5":"keep","p6":"open"}
+{"bc":"undecided (few jobs)","bw":"undecided (few jobs)","fc":"no cost","fw":"no cost","kind":"fate","p5":"open","p6":"open"}
+{"bc":"undecided (few jobs)","bw":"undecided (few jobs)","fc":"mixed","fw":"mixed","kind":"fate","p5":"open","p6":"open"}
+{"bc":"undecided (few jobs)","bw":"undecided (few jobs)","fc":"undecided (few jobs)","fw":"undecided (few jobs)","kind":"fate","p5":"open","p6":"open"}

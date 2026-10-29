@@ -141,6 +141,7 @@ run_group() {
   job "morph-end-count golden check" lake env lean --run scripts/MorphEndCountGolden.lean --check ../packages/contracts/golden/device/morph-end-count.jsonl
   job "device-sim-relaunch golden check" lake env lean --run scripts/SimRelaunchGolden.lean --check ../packages/contracts/golden/device/sim-relaunch.jsonl
   job "device-sweep-pause golden check" sh -c "printf 'import Fw.Device.SweepPause\\n#eval Fw.Device.SweepPause.checkRepo\\n' | lake env lean --stdin"
+  job "device-cols-probe golden check" sh -c "printf 'import Fw.Device.ColsProbe\\n#eval Fw.Device.ColsProbe.checkRepo\\n' | lake env lean --stdin"
   job "device-recalc-source golden check" sh -c "printf 'import Fw.Device.RecalcSource\\n#eval Fw.Device.RecalcSource.checkRepo\\n' | lake env lean --stdin"
   job "device-recalc-bisect golden check" sh -c "printf 'import Fw.Device.RecalcBisect\\n#eval Fw.Device.RecalcBisect.checkRepo\\n' | lake env lean --stdin"
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
