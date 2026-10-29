@@ -198,7 +198,15 @@ def trajWhy (st : List Stored) (f : Flag) : TWhy :=
 def isLook (reg : List Reg) (f : Flag) : Bool :=
   reg.any fun r => r.flag == f && r.visClass == some .l
 
-/-- A flag qualifies for the arm: registered as `optimized`, proved, passing its trajectory cells, and no look change. -/
+def exactLook (reg : List Reg) (f : Flag) : Bool :=
+  reg.any (·.flag == f) && reg.all fun r => r.flag != f || r.visClass == some .e || r.visClass == some .eS
+
+theorem not_isLook_of_exactLook {reg : List Reg} {f : Flag} (h : exactLook reg f = true) : isLook reg f = false := by
+  simp only [exactLook, Bool.and_eq_true, List.all_eq_true, Bool.or_eq_true, bne_iff_ne, ne_eq, beq_iff_eq] at h
+  simp only [isLook, List.any_eq_false, Bool.and_eq_true, beq_iff_eq, not_and]
+  intro r hr hf hl
+  rcases h.2 r hr with (h' | h') | h' <;> simp_all
+
 def ok (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row) (st : List Stored) (f : Flag) : Bool :=
   isOpt reg f && why links ledger f == .proved && trajWhy st f == .pass && !isLook reg f
 
@@ -828,6 +836,11 @@ private def nv : List Fw.Gate.Trajectory.Group := [⟨"nav", "opacity", [], [390
 #guard preset regEx [(fa, [("a", "c")]), (fb, [("a", "c")])] [rowP "c"] (four ["b:x"]) == [fb]
 #guard preset regEx [(fa, [("a", "c")]), (fa2, [("a", "c")])] [rowP "c"] (four ["a:x", "a:y"]).tail == []
 #guard isLook [{ flag := fa, kind := .proposal, requires := [], conflicts := [], visClass := some .l }] fa
+#guard exactLook [{ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := some .e }] fa
+#guard exactLook [{ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := some .eS }] fa
+#guard !exactLook [{ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := some .q }] fa
+#guard !exactLook [{ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := none }] fa
+#guard !exactLook [] fa
 #guard !isLook regEx fa
 #guard preset ({ flag := fa, kind := .optimized, requires := [], conflicts := [], visClass := some .l } :: regEx)
   [(fa, [("a", "c")]), (fb, [("a", "c")])] [rowP "c"] stEx == [fb]
