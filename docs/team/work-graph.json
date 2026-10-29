@@ -24022,7 +24022,8 @@
     "lean/scripts/check.sh",
     "research/notes/2026/10-2x-earn-logical-preset.md",
     "results/earn-logical-preset/**",
-    "docs/team/handoffs/earn-logical-preset.md"
+    "docs/team/handoffs/earn-logical-preset.md",
+    "lean/scripts/NavEarn*Golden.lean"
    ]
   },
   {
