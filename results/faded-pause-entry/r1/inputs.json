@@ -1,0 +1,12 @@
+{
+  "event": "push",
+  "sha": "80d9c0b3cbe77ee77bfac8e7891f590f81c497fc",
+  "nonce": "",
+  "engines": "both",
+  "fw": "platform:faded-pause",
+  "preset": "",
+  "widths": "",
+  "debug": "nav-transition",
+  "diagnostic": false,
+  "source": "commit-line"
+}

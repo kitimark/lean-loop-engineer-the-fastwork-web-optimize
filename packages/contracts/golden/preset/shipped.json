@@ -1,1 +1,1 @@
-{"extends":"original","fw":{"engine.scroll":"unthrottle","hero.exit":"threaded"},"name":"shipped"}
+{"extends":"original","fw":{"engine.scroll":"unthrottle","hero.exit":"threaded","platform":"faded-pause"},"name":"shipped"}

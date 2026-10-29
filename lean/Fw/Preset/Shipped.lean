@@ -68,9 +68,12 @@ def blockersLook (accepted : Flag → Bool) (reg : List Reg) (links : List (Flag
     (st : List Stored) (f : Flag) : List Req :=
   reqs.filter fun r => !metLook accepted reg links ledger st f r
 
+/-- The shorter of the two routes' blocker lists; on a tie, the `v2-proved` route's. -/
 def blockersShipped (accepted : Flag → Bool) (reg : List Reg) (links : List (Flag × List Key)) (ledger : List Row)
     (st : List Stored) (f : Flag) : List Req :=
-  if ok reg links ledger st f then [] else blockersLook accepted reg links ledger st f
+  if (blockersLook accepted reg links ledger st f).length < (blockersV2 reg links ledger st f).length then
+    blockersLook accepted reg links ledger st f
+  else blockersV2 reg links ledger st f
 
 /-! ## Theorems -/
 
@@ -259,10 +262,26 @@ theorem blockersShipped_nil_iff {accepted : Flag → Bool} {reg : List Reg} {lin
     {ledger : List Row} {st : List Stored} {f : Flag} :
     blockersShipped accepted reg links ledger st f = [] ↔ okShipped accepted reg links ledger st f = true := by
   unfold blockersShipped okShipped
-  by_cases h : ok reg links ledger st f = true
-  · simp [h]
-  · simp only [Bool.not_eq_true] at h
-    simp [h, blockersLook_nil_iff]
+  rw [Bool.or_eq_true, ← blockersV2_nil_iff, ← blockersLook_nil_iff]
+  split <;> rename_i h
+  · constructor
+    · exact Or.inr
+    · rintro (hv | hl)
+      · rw [hv] at h; cases h
+      · exact hl
+  · constructor
+    · exact Or.inl
+    · rintro (hv | hl)
+      · exact hv
+      · rw [hl] at h
+        simpa using h
+
+/-- **`shipped` blocks no flag more than `v2-proved`**: its blocker list is never longer. -/
+theorem blockersShipped_length_le {accepted : Flag → Bool} {reg : List Reg} {links : List (Flag × List Key)}
+    {ledger : List Row} {st : List Stored} {f : Flag} :
+    (blockersShipped accepted reg links ledger st f).length ≤ (blockersV2 reg links ledger st f).length := by
+  unfold blockersShipped
+  split <;> omega
 
 /-! ## Examples -/
 
@@ -298,7 +317,8 @@ private def accEx (f : Flag) : Bool := f == fl || f == gl || f == ⟨"c", "probe
 #guard blockersShipped (fun _ => false) regEx linksEx [rowP] stEx gl == [.look]
 #guard blockersShipped accEx regEx linksEx [rowP] ((four ["b:look"]).take 3) gl == [.gate .webkit]
 #guard blockersShipped accEx regEx linksEx [rowP] stEx ⟨"c", "probe"⟩ == [.kind]
-#guard blockersShipped accEx regEx linksEx [] stEx fa == [.proofs, .look]
+#guard blockersShipped accEx regEx linksEx [] stEx fa == [.proofs]
+#guard blockersShipped accEx regEx linksEx [] stEx fa == blockersV2 regEx linksEx [] stEx fa
 #guard blockersV2 regEx linksEx [rowP] stEx fa == [] && blockersShipped accEx regEx linksEx [] stEx fa != []
 #guard (generate accEx regEx linksEx [rowP] stEx).toOption == some [fa, gl]
 #guard (generate accEx (⟨gl, .proposal, [], [fa], some .l⟩ :: regEx) linksEx [rowP] stEx).toOption.isNone

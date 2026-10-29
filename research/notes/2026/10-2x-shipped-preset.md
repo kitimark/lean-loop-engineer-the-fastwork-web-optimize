@@ -1,7 +1,7 @@
 # The `shipped` preset (task shipped-preset)
 
-Answer: `shipped` today equals `v2-proved` (`engine.scroll:unthrottle`, `hero.exit:threaded`; key `fw` of
-`apps/site/src/registry/presets/shipped.json`). The only accepted class L flag, `nav:earn-logical`, is blocked by
+Answer: `shipped` today equals `v2-proved` (`engine.scroll:unthrottle`, `hero.exit:threaded`, `platform:faded-pause`;
+key `fw` of `apps/site/src/registry/presets/shipped.json`). The only accepted class L flag, `nav:earn-logical`, is blocked by
 `gate webkit`: the macOS WebKit morph cell of run 40872462216 fails (key `blockers` of row 18 of
 `packages/contracts/golden/preset/shipped.decisions.jsonl`). No CI or phone run in this task.
 
@@ -29,14 +29,17 @@ stays same-look (`V2Proved.look_not_mem` unchanged).
 | `Shipped.shipped_proved`, `probe_not_mem_shipped` | members are proved and pass the trajectory; probes never enter |
 | `Shipped.shipped_eq_preset` | with no accepted look, `shipped = v2-proved` |
 | `blockersV2_nil_iff`, `blockersLook_nil_iff`, `blockersShipped_nil_iff` | no blockers exactly when the route admits the flag |
+| `Shipped.blockersShipped_length_le` | a flag's `shipped` blocker list is never longer than its `v2-proved` one |
 
 ## 2. Generated files (Gen.run)
 
 `Gen.run` writes `packages/contracts/golden/preset/shipped.json`, `shipped.decisions.jsonl` and
 `apps/site/src/registry/presets/shipped.json`; `--check` (check.sh job `preset v2-proved check`) compares them.
 Every `v2-proved.decisions.jsonl` row gains `entry.presets`: per preset `member` and `blockers` over `kind`, `proofs`,
-`gate chromium`, `gate webkit`, `look` (for `v2-proved` look means "not class L", for `shipped` "accepted"). No other
-field of that file changed. `shipped.decisions.jsonl` covers the decided flags plus the look-change candidates.
+`gate chromium`, `gate webkit`, `look`. The `v2-proved` route reads look as "not class L", the look-accepted route as
+"accepted"; the `shipped` blockers are the shorter of the two routes' lists (the `v2-proved` one on a tie), so an
+unclassified flag gets no `look` blocker under `shipped`. No other field of that file changed. `shipped.decisions.jsonl`
+covers the decided flags plus the look-change candidates.
 
 ## 3. Current membership (MEASURED on the generated golden)
 
@@ -45,8 +48,11 @@ field of that file changed. `shipped.decisions.jsonl` covers the decided flags p
 | `engine.scroll:unthrottle` | none | none | v2-proved | none | yes |
 | `hero.exit:threaded` | none | accepted 2026-10-24 | v2-proved | none | yes |
 | `nav:earn-logical` | L | accepted 2026-10-25 | none | gate webkit | no |
+| `platform:faded-pause` | E | none | v2-proved | none | yes |
 
-Keys: `visClass`, `userDecision.decision`, `route`, `blockers`, `member` of `shipped.decisions.jsonl` rows 14, 17, 18.
+`shipped.json` lists `engine.scroll:unthrottle`, `hero.exit:threaded`, `platform:faded-pause`, the same three flags as
+`v2-proved.json`, so `shipped` equals `v2-proved` today.
+Keys: `visClass`, `userDecision.decision`, `route`, `blockers`, `member` of `shipped.decisions.jsonl` rows 14, 17-19.
 For `nav:earn-logical`, `entry.presets` of `v2-proved.decisions.jsonl` row 18 reads `v2-proved` blockers
 `kind, gate webkit, look` and `shipped` blockers `gate webkit`; its `trajectory.cells` show chromium hero and morph
 pass, webkit hero pass, webkit morph fail (all run 40872462216, `10-2x-earn-logical-preset.md` §2).
