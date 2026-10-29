@@ -713,16 +713,20 @@ export const TESTS = [
               const px = g.getImageData(0, 0, c.width, c.height).data;
               const k = bmp.width / 130;
               const diff = (ra, rb) => {
-                let m = 0; let sat = 0;
+                let m = 0; let sat = 0; let core = 0;
                 for (let y = Math.round(6 * k); y < Math.round(14 * k); y++) for (let x = 0; x < bmp.width; x++) {
                   const a = ((ra * 30 * k + y) * bmp.width + x) * 4; const b = ((rb * 30 * k + y) * bmp.width + x) * 4;
-                  for (let i = 0; i < 3; i++) m = Math.max(m, Math.abs(px[a + i] - px[b + i]));
+                  for (let i = 0; i < 3; i++) {
+                    const d = Math.abs(px[a + i] - px[b + i]);
+                    m = Math.max(m, d);
+                    if (x >= 14 * k && x < 104 * k) core = Math.max(core, d);
+                  }
                   if (Math.max(px[a], px[a + 1], px[a + 2]) - Math.min(px[a], px[a + 1], px[a + 2]) > 100) sat++;
                 }
-                return [m, sat];
+                return [m, sat, core];
               };
               const l = diff(0, 1); const r = diff(2, 3);
-              res.push({ left: l[0], right: r[0], satLeft: l[1], satRight: r[1] });
+              res.push({ left: l[0], right: r[0], satLeft: l[1], satRight: r[1], coreLeft: l[2], coreRight: r[2] });
             }
             return res;
           }, shots);
@@ -732,8 +736,9 @@ export const TESTS = [
       const all = Object.values(out).flat();
       assert.ok(all.some((x) => x.satLeft > 20) && all.some((x) => x.satRight > 20), 'the colour band is drawn in both dashes');
       const worst = Math.max(...all.map((x) => Math.max(x.left, x.right)));
-      const o = { worst, bound: COMPOSITOR_BOUND, samples: out };
-      if (worst > COMPOSITOR_BOUND) throw Object.assign(new Error(`a pixel differs by ${worst} of 255 (bound: within ${COMPOSITOR_BOUND}; above it the flag is class L)`), { observed: o });
+      const worstCore = Math.max(...all.map((x) => Math.max(x.coreLeft, x.coreRight)));
+      const o = { worst, worstCore, bound: COMPOSITOR_BOUND, class: worst > COMPOSITOR_BOUND ? 'L' : 'E', samples: out };
+      if (worstCore > COMPOSITOR_BOUND) throw Object.assign(new Error(`a pixel inside the dash differs by ${worstCore} of 255 (bound: within ${COMPOSITOR_BOUND})`), { observed: o });
       return o;
     },
   },
