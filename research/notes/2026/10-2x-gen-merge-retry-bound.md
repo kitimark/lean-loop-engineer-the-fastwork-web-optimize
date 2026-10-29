@@ -39,8 +39,9 @@ CONFIRMED (Lean, `lean/Fw/Preset/V2Proved.lean`):
   is at another reader version; a fail counts while the newest run is at its reader.
 - The cell reads the conjunction (`keyOutcome`) of the live rows of each key: fail if any fails, else no verdict if any
   has none, else pass.
-- `retryBound = 2`: the first run plus one retry. A retry replaces a no-verdict only, so per reader version at most one
-  no-verdict is dropped; a second no-verdict at the same version stays live and keeps the cell pending.
+- `retryBound = 2`: the first run plus one retry. A retry replaces a no-verdict only, so at most one no-verdict is dropped
+  per stretch of runs since the last reader change; a second no-verdict in the same stretch stays live and keeps the cell
+  pending (retry_spent). Interleaved readers (A, B, A, ...) start a new stretch at each change.
 
 | Theorem | Statement |
 |---|---|
@@ -71,12 +72,12 @@ The rule change from "first later run at another reader" to "newest run" moves o
 
 ## Limits
 
-- A run at an older reader recorded last (for example from an unmerged `ci/*` branch) still supersedes the rows at the
+- A run at an older reader with a higher run number (for example from an unmerged `ci/*` branch) still supersedes the rows at the
   newer reader. Follow-up: order readers by commit ancestry.
 - Reader identity covers the 13 relative-import files of `cli.mjs`, not the lockfile, the engine versions or the CI
   workflow. Follow-up: add the probe's lockfile entries.
 
 ## Lesson
 
-A store where the newest run wins lets a re-run hide a failure. Keep every row, decide per row whether it counts (by
-reader code identity, not run order), and read a cell as the conjunction of the counting rows.
+A store where the newest run wins lets a re-run hide a failure. Keep every row, decide per row whether it counts (a row
+yields only to the newest run of its key at another reader version, or to one retry of a no-verdict), and read a cell as the conjunction of the counting rows.
