@@ -20,6 +20,8 @@ const transcriptTail = tailer<{ st: FoldState; hb: number | null }>(() => ({ st:
   const hb = handbackAtOf(text);
   return { st: foldText(t.st, text), hb: hb === null ? t.hb : Math.max(t.hb ?? 0, hb) };
 });
+/** The transcript signal fold and handback time of a file, read by cursor. */
+export const readTranscript = transcriptTail.read;
 export interface WatchFact { kind: "task" | "agent"; id: string }
 export type ChildFact = {
   pid: number; start?: number; chain: number[]; startedAt: number; watchedAt: number | null; producerExited: boolean; watch?: WatchFact;

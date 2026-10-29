@@ -24,8 +24,9 @@ export interface Cursor { ino: number; pos: number }
 const CHUNK = 512 << 10;
 
 /** The whole lines appended to `file` since `cur` (all of it for `undefined`, a truncated or replaced file), handed to `onText`
- *  in chunks of at most 4 MiB; a half-written last line is left for the next call. Returns the new cursor, or `null` when
- *  the file cannot be read (the caller keeps what it has). */
+ *  in pieces of at most CHUNK (512 KiB) bytes, or the longest line if that is longer: with no newline in the piece the cursor
+ *  stays (`nextCursor`) and the buffer doubles until a newline or the file end shows. A half-written last line is left for
+ *  the next call. Returns the new cursor, or `null` when the file cannot be read (the caller keeps what it has). */
 export function readAppended(file: string, cur: Cursor | undefined, onText: (text: string) => void, onReset: () => void): Cursor | null {
   let fd: number;
   try { fd = openSync(file, "r"); } catch { return null; }
@@ -34,12 +35,16 @@ export function readAppended(file: string, cur: Cursor | undefined, onText: (tex
     const start = readFrom(cur?.pos ?? 0, st.size, cur !== undefined && cur.ino === st.ino);
     if (start === 0 && cur !== undefined && cur.pos > 0) onReset();
     let pos = start;
-    const buf = Buffer.allocUnsafe(Math.min(CHUNK, Math.max(1, st.size - start)));
+    let buf = Buffer.allocUnsafe(Math.min(CHUNK, Math.max(1, st.size - start)));
     while (pos < st.size) {
       const n = readSync(fd, buf, 0, Math.min(buf.length, st.size - pos), pos);
       if (n <= 0) break;
       const nl = buf.subarray(0, n).lastIndexOf(10);
-      if (nl < 0) { if (n === CHUNK) { pos += n; continue; } break; }
+      if (nl < 0) {
+        if (pos + n >= st.size) break;
+        buf = Buffer.allocUnsafe(Math.min(buf.length * 2, st.size - pos));
+        continue;
+      }
       onText(buf.toString("utf8", 0, nl + 1));
       pos = nextCursor(pos, nl);
     }

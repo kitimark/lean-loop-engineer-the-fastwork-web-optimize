@@ -112,7 +112,7 @@ def nextCursor (start : Nat) : Option Nat → Nat
   | some i => start + i + 1
   | none => start
 
-/-- A log that only grew is read from the cursor: no byte is read twice. -/
+/-- A log that only grew (cursor not past the end) is read from the cursor. -/
 theorem read_grown (cursor size : Nat) (h : cursor ≤ size) : readFrom cursor size true = cursor := by
   simp [readFrom, h]
 
@@ -130,6 +130,9 @@ theorem readFrom_le (cursor size : Nat) (same : Bool) : readFrom cursor size sam
   unfold readFrom; split
   · rename_i h; simp at h; exact h.2
   · exact Nat.zero_le _
+
+/-- A chunk without a newline leaves the cursor at its start, however long the line is: the reader grows its buffer instead. -/
+theorem next_none (start : Nat) : nextCursor start none = start := rfl
 
 /-- The cursor stays inside the chunk that was read. -/
 theorem nextCursor_le (start len : Nat) (nl : Option Nat) (h : ∀ i, nl = some i → i < len) :
