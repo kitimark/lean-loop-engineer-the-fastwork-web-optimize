@@ -146,11 +146,11 @@ describe("a line longer than one chunk (Fw.Ops.WatchMem.nextCursor: no newline k
   it("appended in two halves, the long line arrives once and whole", () => {
     const file = join(tmp(), "b.jsonl");
     const bytes = Buffer.from(whole);
-    const cutAt = Buffer.byteLength(lines[0]) + 1 + (512 << 10) + 7;
+    const cutAt = Buffer.byteLength(lines[0] ?? "") + 1 + (512 << 10) + 7;
     writeFileSync(file, bytes.subarray(0, cutAt));
     const got: string[] = [];
     const c1 = readAppended(file, undefined, (t) => got.push(t), () => {});
-    expect(c1?.pos).toBe(Buffer.byteLength(lines[0]) + 1);
+    expect(c1?.pos).toBe(Buffer.byteLength(lines[0] ?? "") + 1);
     appendFileSync(file, bytes.subarray(cutAt, cutAt + (512 << 10)));
     const c2 = readAppended(file, c1 ?? undefined, (t) => got.push(t), () => {});
     expect(c2?.pos).toBe(c1?.pos);
