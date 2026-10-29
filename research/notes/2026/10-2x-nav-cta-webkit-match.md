@@ -62,7 +62,7 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
   (entry) above its settled floor, the faithful entry is 1214 px above. The fixed bound is therefore not met at 390 on the Linux pair; reported, not
   re-fitted. The same capture on macOS (Chrome 155 against Playwright WebKit 27.2, debug run, not a result): 390 logical worst 62 px against 78, faithful 245
   (exit) and 1330 (entry); 1280 logical 60 against 256, faithful 295 and 2478.
-- **With the label:** the label is hidden in the verdict frames because text rasterization differs between the engines at rest; the "Worst with label" column shows what the label adds.
+- The label is hidden in the verdict frames because text rasterization differs between the engines at rest; the "Worst with label" column shows what it adds.
 
 - Chromium is unchanged: the faithful and the logical arm are pixel-identical (0 changed pixels) on all 17 frames of both scenarios and widths.
 - Earlier pushes: run 40852349397 (label metrics differ by 3 px between the Linux engines) and run 40855407833 (`text-rendering: geometricPrecision` did not equalise them); the third push fixed the label slot to 5.7em.
