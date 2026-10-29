@@ -54,11 +54,11 @@ deriving DecidableEq, Repr
 
 /-- A static check. `exempt`: no check (the kind is not code our tools parse or run).
 
-The fourteen static checks, plus `exempt` for files with none.
+The fifteen static checks, plus `exempt` for files with none.
 -/
 inductive Check
   | lakeBuild | leanElab | nodeCheck | tsStrip | tscProject | jsonParse | jsonlParse | yamlParse | shParse | pyParse
-  | swiftParse | graphCheck | presetCheck | workflowParse | exempt
+  | swiftParse | graphCheck | presetCheck | ledgerNotes | workflowParse | exempt
 deriving DecidableEq, Repr
 
 /-- The check of a kind.
@@ -178,12 +178,12 @@ deriving DecidableEq, Repr
 /-- The checks that run, in plan order (`lakeBuild` before `leanElab`, which elaborates against the built modules). -/
 def order : List Check :=
   [.lakeBuild, .leanElab, .nodeCheck, .tsStrip, .tscProject, .jsonParse, .jsonlParse, .yamlParse, .shParse, .pyParse,
-    .swiftParse, .graphCheck, .presetCheck, .workflowParse]
+    .swiftParse, .graphCheck, .presetCheck, .ledgerNotes, .workflowParse]
 
 def heavy : Check → Bool
   | .lakeBuild | .leanElab | .presetCheck => true
   | .nodeCheck | .tsStrip | .tscProject | .jsonParse | .jsonlParse | .yamlParse | .shParse | .pyParse | .swiftParse
-  | .graphCheck | .workflowParse | .exempt => false
+  | .graphCheck | .ledgerNotes | .workflowParse | .exempt => false
 
 #guard order.filter heavy == [.lakeBuild, .leanElab, .presetCheck]
 #guard !heavy .tscProject && !heavy .exempt
@@ -218,6 +218,10 @@ def presetInputKey (s : List String) : Bool :=
 /-- `presetInputKey` of a path's segments. -/
 def presetInput (p : String) : Bool := presetInputKey (segs p)
 
+def ledgerInputKey (s : List String) : Bool := s == ["research", "findings", "ledger.json"]
+
+def ledgerInput (p : String) : Bool := ledgerInputKey (segs p)
+
 /-- The Python parse program (stdlib `ast`; writes no `__pycache__`).
 
 Python parses every file named on its command line without running it.
@@ -246,16 +250,14 @@ def cmdsFor (c : Check) (fs : List String) : List Cmd :=
   | .pyParse => [⟨c, ".", ["python3", "-c", pyProg] ++ fs, fs⟩]
   | .graphCheck => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "graph"] ++ fs, fs⟩]
   | .presetCheck => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "preset"], fs⟩]
+  | .ledgerNotes => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "ledger"] ++ fs, fs⟩]
   | .workflowParse => [⟨c, ".", ["node", "scripts/checkmap.mjs", "file", "workflow"] ++ fs, fs⟩]
   | .exempt => []
 
-/-- The files of a check among the paths: those whose check it is, except that the preset check takes every
-`presetInput`.
-
-The preset check is triggered by any generator input, every other check by the files of its kind.
--/
 def checkFiles (c : Check) (paths : List String) : List String :=
-  if c == .presetCheck then paths.filter (fun p => presetInput p || checkOfPath p == some .presetCheck) else paths.filter (checkOfPath · == some c)
+  if c == .presetCheck then paths.filter (fun p => presetInput p || checkOfPath p == some .presetCheck)
+  else if c == .ledgerNotes then paths.filter ledgerInput
+  else paths.filter (checkOfPath · == some c)
 
 /-- The plan for the paths `P`: for each check in `order`, the commands over the paths of that check (in their
 order); a check with no path gets no command.
@@ -561,6 +563,15 @@ theorem checkOfPath_ne_exempt (p : String) : checkOfPath p ≠ some .exempt := b
   · rename_i k _; by_cases h : checkOf k = .exempt <;> simp [h]
   · simp
 
+theorem checkOf_ne_ledgerNotes (k : Kind) : checkOf k ≠ .ledgerNotes := by
+  cases k <;> simp [checkOf]
+
+theorem checkOfPath_ne_ledgerNotes (p : String) : checkOfPath p ≠ some .ledgerNotes := by
+  unfold checkOfPath
+  split
+  · rename_i k _; by_cases h : checkOf k = .exempt <;> simp [h, checkOf_ne_ledgerNotes k]
+  · simp
+
 /-- The plan covers: every given path that has a check gets a command of that check over it.
 
 No checked file is skipped: the plan always runs its check on it.
@@ -575,7 +586,12 @@ theorem plan_covers (paths : List String) (p : String) (hp : p ∈ paths) (c : C
       have : c = .presetCheck := by simpa using h
       subst this
       exact List.mem_filter.mpr ⟨hp, by simp [hc]⟩
-    · exact List.mem_filter.mpr ⟨hp, by simp [hc]⟩
+    · split
+      · rename_i h2
+        have : c = .ledgerNotes := by simpa using h2
+        subst this
+        exact absurd hc (checkOfPath_ne_ledgerNotes p)
+      · exact List.mem_filter.mpr ⟨hp, by simp [hc]⟩
   obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers c _ p hne hf
   refine ⟨m, List.mem_flatMap.mpr ⟨c, mem_order c hne, ?_⟩, h1, h2⟩
   have : (checkFiles c paths).isEmpty = false := by
@@ -586,13 +602,15 @@ theorem plan_covers (paths : List String) (p : String) (hp : p ∈ paths) (c : C
   exact hm
 
 /-- The plan is sound: every file a command checks is a given path, and either its check is the command's or the
-command is the preset check and the file is a generator input.
+command is the preset check and the file is a generator input, or the command is the ledger-notes check and the file is
+the findings ledger.
 
 The plan never checks a file it was not given, and never with a check other than the file's own, except that the
-preset check also takes the generator's other inputs.
+preset check also takes the generator's other inputs and the ledger-notes check takes the findings ledger.
 -/
 theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : String) (hf : f ∈ m.files) :
-    f ∈ paths ∧ (checkOfPath f = some m.check ∨ (m.check = .presetCheck ∧ presetInput f = true)) := by
+    f ∈ paths ∧ (checkOfPath f = some m.check ∨ (m.check = .presetCheck ∧ presetInput f = true)
+      ∨ (m.check = .ledgerNotes ∧ ledgerInput f = true)) := by
   obtain ⟨c, _, hc⟩ := List.mem_flatMap.mp hm
   dsimp only at hc
   split at hc
@@ -608,10 +626,15 @@ theorem plan_sound (paths : List String) (m : Cmd) (hm : m ∈ plan paths) (f : 
       have hor := this.2
       simp only [Bool.or_eq_true, beq_iff_eq] at hor
       rcases hor with hi | hi
-      · exact ⟨this.1, Or.inr ⟨by rw [h1]; exact hc, hi⟩⟩
+      · exact ⟨this.1, Or.inr (Or.inl ⟨by rw [h1]; exact hc, hi⟩)⟩
       · exact ⟨this.1, Or.inl (by rw [h1, hc]; exact hi)⟩
-    · have := List.mem_filter.mp hmem
-      exact ⟨this.1, Or.inl (by rw [h1]; simpa using this.2)⟩
+    · split at hmem
+      · rename_i h
+        have hc' : c = .ledgerNotes := by simpa using h
+        have := List.mem_filter.mp hmem
+        exact ⟨this.1, Or.inr (Or.inr ⟨by rw [h1]; exact hc', this.2⟩)⟩
+      · have := List.mem_filter.mp hmem
+        exact ⟨this.1, Or.inl (by rw [h1]; simpa using this.2)⟩
 
 /-- Every generator input among the paths runs the preset check on it.
 
@@ -631,6 +654,61 @@ theorem presetInput_planned (paths : List String) (p : String) (hp : p ∈ paths
     | cons _ _ => rfl
   simp only [this, Bool.false_eq_true, ite_false]
   exact hm
+
+theorem ledgerInput_ledger : ledgerInputKey ["research", "findings", "ledger.json"] = true := by decide +kernel
+
+theorem ledgerInput_not :
+    ledgerInputKey ["docs", "team", "incidents", "ledger.json"] = false ∧ ledgerInputKey ["research", "mistakes", "ledger.json"] = false
+    ∧ ledgerInputKey ["research", "findings", "other.json"] = false ∧ ledgerInputKey ["apps", "runner", "test", "ledger-merge.test.ts"] = false := by
+  decide +kernel
+
+theorem ledgerInput_planned (paths : List String) (p : String) (hp : p ∈ paths) (hi : ledgerInput p = true) :
+    ∃ m ∈ plan paths, m.check = .ledgerNotes ∧ p ∈ m.files := by
+  have hf : p ∈ checkFiles .ledgerNotes paths := by
+    unfold checkFiles
+    simp only [beq_iff_eq, reduceCtorEq, ite_false, ite_true]
+    exact List.mem_filter.mpr ⟨hp, hi⟩
+  obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers .ledgerNotes _ p (by decide) hf
+  refine ⟨m, List.mem_flatMap.mpr ⟨.ledgerNotes, mem_order .ledgerNotes (by decide), ?_⟩, h1, h2⟩
+  have : (checkFiles .ledgerNotes paths).isEmpty = false := by
+    cases h : checkFiles .ledgerNotes paths with
+    | nil => rw [h] at hf; cases hf
+    | cons _ _ => rfl
+  simp only [this, Bool.false_eq_true, ite_false]
+  exact hm
+
+theorem ledgerInput_planStaged (paths deleted : List String) (p : String) (hp : p ∈ paths) (hi : ledgerInput p = true) :
+    ∃ m ∈ planStaged paths deleted, m.check = .ledgerNotes ∧ p ∈ m.files := by
+  have hf : p ∈ checkFiles .ledgerNotes paths := by
+    unfold checkFiles
+    simp only [beq_iff_eq, reduceCtorEq, ite_false, ite_true]
+    exact List.mem_filter.mpr ⟨hp, hi⟩
+  have hg : p ∈ checkFiles .ledgerNotes paths ++ (if (Check.ledgerNotes == .presetCheck) = true then deleted.filter presetInput else []) := by
+    simp only [beq_iff_eq, reduceCtorEq, ite_false, List.append_nil]
+    exact hf
+  obtain ⟨m, hm, h1, h2⟩ := cmdsFor_covers .ledgerNotes _ p (by decide) hg
+  refine ⟨m, List.mem_flatMap.mpr ⟨.ledgerNotes, mem_order .ledgerNotes (by decide), ?_⟩, h1, h2⟩
+  have : (checkFiles .ledgerNotes paths ++ (if (Check.ledgerNotes == .presetCheck) = true then deleted.filter presetInput else [])).isEmpty = false := by
+    cases h : (checkFiles .ledgerNotes paths ++ (if (Check.ledgerNotes == .presetCheck) = true then deleted.filter presetInput else [])) with
+    | nil => rw [h] at hg; cases hg
+    | cons _ _ => rfl
+  simp only [beq_iff_eq, reduceCtorEq, ite_false, List.append_nil] at this hm ⊢
+  simp only [this, Bool.false_eq_true, ite_false]
+  exact hm
+
+theorem findingsLedger_planned (paths deleted : List String) (h : "research/findings/ledger.json" ∈ paths) :
+    (∃ m ∈ plan paths, m.check = .ledgerNotes ∧ "research/findings/ledger.json" ∈ m.files)
+    ∧ ∃ m ∈ planStaged paths deleted, m.check = .ledgerNotes ∧ "research/findings/ledger.json" ∈ m.files := by
+  have hi : ledgerInput "research/findings/ledger.json" = true := by
+    have e : segs "research/findings/ledger.json" = ["research", "findings", "ledger.json"] := by
+      simp (config := {decide := true}) [segs, String.splitOn, String.splitOnAux]
+    unfold ledgerInput
+    rw [e]
+    exact ledgerInput_ledger
+  exact ⟨ledgerInput_planned paths _ h hi, ledgerInput_planStaged paths deleted _ h hi⟩
+
+theorem ledgerNotes_cmd (fs : List String) :
+    cmdsFor .ledgerNotes fs = [⟨.ledgerNotes, ".", ["node", "scripts/checkmap.mjs", "file", "ledger"] ++ fs, fs⟩] := rfl
 
 /-- A staged deletion of a generator input runs the preset check.
 
@@ -829,8 +907,11 @@ theorem runOk_iff (strict : Bool) (u : Nat) (codes : List Nat) :
   [["node", "--check", "a.mjs"], ["node", "scripts/checkmap.mjs", "file", "workflow", ".claude/workflows/build-review.js"]]
 #guard (plan ["docs/team/work-graph.json", "a.json"]).map (·.argv) ==
   [["node", "scripts/checkmap.mjs", "file", "json", "a.json"], ["node", "scripts/checkmap.mjs", "file", "graph", "docs/team/work-graph.json"]]
-#guard (plan ["research/findings/ledger.json"]).map (·.argv) == [["node", "scripts/checkmap.mjs", "file", "preset"]]
-#guard (plan ["research/findings/ledger.json", "packages/contracts/golden/preset/v2-proved.json"]).map (·.check) == [.jsonParse, .presetCheck]
+#guard (plan ["research/findings/ledger.json"]).map (·.argv) ==
+  [["node", "scripts/checkmap.mjs", "file", "preset"], ["node", "scripts/checkmap.mjs", "file", "ledger", "research/findings/ledger.json"]]
+#guard (plan ["research/mistakes/ledger.json", "docs/team/incidents/ledger.json"]).map (·.check) == [.jsonParse]
+#guard (planStaged ["a.mjs"] ["research/findings/ledger.json"]).map (·.check) == [.nodeCheck, .presetCheck]
+#guard (plan ["research/findings/ledger.json", "packages/contracts/golden/preset/v2-proved.json"]).map (·.check) == [.jsonParse, .presetCheck, .ledgerNotes]
 #guard (plan ["apps/site/src/parts/hero/part.json"]).map (·.check) == [.jsonParse, .presetCheck]
 #guard (plan ["lean/Fw/Preset/Gen.lean"]).map (·.check) == [.lakeBuild, .presetCheck]
 #guard (plan ["apps/site/src/registry/presets/v2-proved.json", "packages/contracts/golden/preset/v2-proved.decisions.jsonl"]).map (·.check) ==
@@ -870,7 +951,7 @@ def kindName : Kind → String
 def checkName : Check → String
   | .lakeBuild => "lakeBuild" | .leanElab => "leanElab" | .nodeCheck => "nodeCheck" | .tsStrip => "tsStrip"
   | .tscProject => "tscProject" | .jsonParse => "jsonParse" | .jsonlParse => "jsonlParse" | .yamlParse => "yamlParse"
-  | .shParse => "shParse" | .pyParse => "pyParse" | .swiftParse => "swiftParse" | .graphCheck => "graphCheck" | .presetCheck => "presetCheck" | .workflowParse => "workflowParse" | .exempt => "exempt"
+  | .shParse => "shParse" | .pyParse => "pyParse" | .swiftParse => "swiftParse" | .graphCheck => "graphCheck" | .presetCheck => "presetCheck" | .ledgerNotes => "ledgerNotes" | .workflowParse => "workflowParse" | .exempt => "exempt"
 
 /-- A string list as JSON. -/
 def strs (xs : List String) : Json := .arr (xs.toArray.map .str)

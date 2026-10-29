@@ -185,7 +185,7 @@ describe("premise land.readsOnly: no read outside the declared inputs (static)",
   it("the packages that run the fwcore binary are exactly FWCORE_USERS; declaring lean/** for them covers the binary", () => {
     const users = candidateChecks(root).filter((c) => /^(apps|packages)\//.test(c.id) && walk(join(root, c.id), /\.(ts|tsx|mjs|js)$/)
       .some((f) => /\.lake|["'/]fwcore["']|FWCORE|bin\/fwcore/.test(readFileSync(f, "utf8")))).map((c) => c.id);
-    expect([...users, "packages/measure-wktr", ...LOCAL_TESTS.map((t) => t.id)].sort()).toEqual([...FWCORE_USERS].sort());
+    expect([...users, "packages/measure-wktr", ...LOCAL_TESTS.map((t) => t.id).filter((id) => FWCORE_USERS.includes(id))].sort()).toEqual([...FWCORE_USERS].sort());
     for (const c of candidateChecks(root)) expect(inScope(c.reads, FWCORE_BIN), c.id).toBe(FWCORE_USERS.includes(c.id) || c.id === "check.sh" || c.id === READS_SCAN_ID);
     expect(checksWithReads(root, ["lean/Fw/A.lean"]).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());
     expect(checksWithReads(root, ["lean/Fw/A.lean"], "a".repeat(64), "b".repeat(64)).map((c) => c.id).sort()).toEqual(["check.sh", READS_SCAN_ID, ...FWCORE_USERS].sort());

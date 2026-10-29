@@ -73,7 +73,7 @@ describe("fw land --dry", () => {
   it("two notes under one (entry, task) refuse as lint naming the key; one note per key passes (inc-ledger-note-key-dup)", async () => {
     const { fx, wt, opts } = await setup(["research/**"]);
     const note = (task: string, field: string) => ({ entry: "e1", task, field, text: `${task} ${field}` });
-    const doc = (notes: unknown[]) => JSON.stringify({ findings: [{ n: 1, candidate: "e1" }], notes }, null, 1) + "\n";
+    const doc = (notes: unknown[]) => JSON.stringify({ findings: [{ n: 1, candidate: "e1", mechanism: "", missingWhy: "", next: "" }], notes }, null, 1) + "\n";
     fx.commit(wt, "research/findings/ledger.json", doc([note("t1", "mechanism"), note("t1", "missingWhy"), note("t2", "next")]));
     const bad = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], dryLocal: [] });
     expect(bad.kind).toBe("lint");
