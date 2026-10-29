@@ -4490,11 +4490,18 @@
     "Fw.Parts.PlatformGlintHold.hold_premise",
     "Fw.Parts.PlatformGlintHold.hold_eq_faithful",
     "Fw.Parts.PlatformGlintHold.ticking_hold",
-    "Fw.Parts.PlatformGlintHold.ticking_le"
+    "Fw.Parts.PlatformGlintHold.ticking_ramp",
+    "Fw.Parts.PlatformGlintHold.ticking_le",
+    "Fw.Parts.PlatformGlintHold.hold_resume_eq",
+    "Fw.Device.GlintHold.ramp_left",
+    "Fw.Device.GlintHold.ramp_right",
+    "Fw.Device.GlintHold.hold_both",
+    "Fw.Device.GlintHold.union_ramp"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "WebKit per-zone counts (see webkit); a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), no flag path seeks backward (createPause seeks forward)"
+    "WebKit Simulator per-zone counts (see webkit): no theorem can close a measurement; the WKTR idle recalc cut (run 40823517468) is a different measure",
+    "a backward setCurrentTime into segment 0 after the first cycle is wrong in Chromium (diff 235), and no flag path seeks backward (createPause seeks forward): hold_resume_eq proves the resumed hold sample equals the uninterrupted original, but no theorem states that every seek is forward"
    ],
    "premises": [
     "the begin chain of the ring keeps one piece active at every instant in both engines: MEASURED by the look premise glint.hold-pixels (run 40345059212), ids without a hyphen",
@@ -5507,6 +5514,12 @@
    "task": "hero-exit-anim-units",
    "field": "mechanism",
    "text": "Note research/notes/2026/10-2x-hero-exit-anim-units.md.\nCONFIRMED (source): style is resolved per element in both engines; the compositor tick and the keyframe apply are per animation (WebKit KeyframeEffect.cpp:2129-2132, Node.cpp:1006-1024, StyleTreeResolver.cpp:1160-1185, KeyframeEffectStack.cpp:141-182@862f17d; Blink element.cc:7419-7430, style_resolver.cc:1362-1364, css_animations.cc:2499@f842f52).\nCONFIRMED (Lean): HeroExitOpt counts one animation per CSS name, 2N + 5 in both bands (animCount_eq). WebKit: against the per-consumer list wkOrigChanges the variant restyles the same N + 2 elements (wk_style_elems) and its style units equal 2N + 5 (was a strict drop); the real original also resolves the hero subtree through the inherited --exit-opacity (WebKit StyleChange.cpp:42-43, StyleTreeResolver.cpp:306-307@862f17d, not modelled on WebKit), so per element WebKit style still drops; wk_trade stays strict through the script pass. Chromium lane: style + (N + 2), props + (N + 3) (was + [not l], + 1 + [not l]); per element the ride-along is a strict subset (cr_lane_style_elems). Real Chrome and the golden predictions are unchanged; the WebKit style footprint sign is now same and disagrees with the phone count (fewer frames per run, INFERRED)."
+  },
+  {
+   "entry": "platform.glint:hold-freeze: each glint dash's two repeating <animate> (x1, x2 over 5 s) become a ring of five pieces per attribute with fill=freeze, an <animate> ramp where the value moves and a <set> where it holds, so no non-<set> animation is active in the hold segments (left [1,2,4], right [0,3,4])",
+   "task": "glint-hold-cell",
+   "field": "webkit",
+   "text": "glint-hold-cell (note research/notes/2026/10-2x-glint-hold-cell.md). MEASURED: the mac WebKit trajectory cell passes on hero and morph, run 40831069482 (trajectory-probe push, fw=platform.glint:hold-freeze, engines=playwright-webkit, debug=nav-transition), recorded by Gen.record; the morph walk has 43 new units of 14416 at one width (641), which the rule does not fail. Chromium hero and morph pass (run 40823517367). The trajectory verdict of the decision row is pass. CONFIRMED (Lean): linkTable now links the flag to this row, so why computes not-proved (was no-link); leanFor adds ticking_ramp, hold_resume_eq and Fw.Device.GlintHold ramp_left, ramp_right, hold_both, union_ramp. The row stays partly-proved: (1) Simulator per-zone counts are a measurement no theorem closes (the WKTR idle recalc cut of run 40823517468 is another measure), (2) no theorem states that every seek of the pause path is forward (hold_resume_eq covers the value after resume only). Gen.entry: notYet [proofs, look]; ok fails on why alone (class E needs no look decision); not a v2-proved member."
   }
  ]
 }
