@@ -24080,7 +24080,14 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-shipped-preset.md",
-    "docs/team/handoffs/shipped-preset.md"
+    "docs/team/handoffs/shipped-preset.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ops/CheckMap.lean",
+    "scripts/checkmap.mjs",
+    "scripts/test-checkmap.mjs",
+    "lean/Fw/Console/LandSpeed.lean",
+    "apps/runner/src/land-reads.gen.ts",
+    "packages/contracts/golden/console/land-speed.jsonl"
    ]
   },
   {
