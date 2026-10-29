@@ -1,5 +1,7 @@
 # glint-compositor handoff
 
+PUSH 4 done: ci/glint-compositor tip 79077612d (wktr + premise-tests + lean lanes, temporary wktr.yml edit, MUST be reverted before the dry land). Run ids: pending (read with fw ci wait --branch ci/glint-compositor --workflow wktr). Then reduce with packages/measure-wktr/src/glint-compositor-cli.mjs, revert wktr.yml (git diff b49944ff4 b49944ff4~1 shows it), update note, check.sh, dry land.
+
 Branch `worktree-wf_f7fe370b-113-1`, worktree `.claude/worktrees/wf_f7fe370b-113-1`, CI branch `ci/glint-compositor` (tip ced74ee8c). Pushes used 3 of 3.
 CI runs: premise-tests 40837548139 success (final premise, both engines), 40833327444 and 40837035170 failed (older premise definitions, recorded the look numbers);
 wktr 40833327416 (r1) and 40837547847 (r3, "r2" in results/) success but INVALID for the variant; 40837035176 stopped (stale tip).
