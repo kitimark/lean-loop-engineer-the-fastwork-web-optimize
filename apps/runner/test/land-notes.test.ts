@@ -76,16 +76,14 @@ describe("a change to the findings ledger selects the ledger tests (Lean LandTie
 });
 
 describe("the commit check is planned and blocks (scripts/checkmap.mjs, Lean Fw.Ops.CheckMap ledgerNotes)", () => {
-  const bin = join(root, "lean/.lake/build/bin/fwcore");
-  const ask = (paths: string[]) => {
-    const r = spawnSync(bin, [], { input: JSON.stringify({ id: 1, op: "ops.checkMap", paths }) + "\n", encoding: "utf8" });
-    return JSON.parse(r.stdout.split("\n")[0] ?? "{}") as { cmds?: { check: string; argv: string[] }[] };
-  };
-  it("a staged findings ledger plans the ledger-notes command over it", () => {
-    const m = ask([LEDGER_FILE]);
-    expect(m.cmds?.map((c) => c.check)).toContain("ledgerNotes");
-    expect(m.cmds?.find((c) => c.check === "ledgerNotes")?.argv).toEqual(["node", "scripts/checkmap.mjs", "file", "ledger", LEDGER_FILE]);
-    expect(ask(["research/mistakes/ledger.json"]).cmds?.map((c) => c.check)).not.toContain("ledgerNotes");
+  const golden = readFileSync(join(root, "packages/contracts/golden/ops/checkmap.jsonl"), "utf8").trim().split("\n")
+    .map((l) => JSON.parse(l) as { request: { paths: string[] }; response: { cmds: { check: string; argv: string[] }[] } });
+  const planned = (paths: string[]) => golden.find((g) => JSON.stringify(g.request.paths) === JSON.stringify(paths))?.response.cmds;
+  it("the Lean golden plans the ledger-notes command over a staged findings ledger, and not over the other ledgers", () => {
+    const m = planned([LEDGER_FILE, "research/mistakes/ledger.json", "docs/team/incidents/ledger.json"]);
+    expect(m?.map((c) => c.check)).toContain("ledgerNotes");
+    expect(m?.find((c) => c.check === "ledgerNotes")?.argv).toEqual(["node", "scripts/checkmap.mjs", "file", "ledger", LEDGER_FILE]);
+    expect(golden.some((g) => !(g.request.paths ?? []).includes(LEDGER_FILE) && (g.response.cmds ?? []).some((c) => c.check === "ledgerNotes"))).toBe(false);
   });
   it("`checkmap file ledger` exits 1 on a bad note and 0 on a good one (working tree of a fixture checkout)", () => {
     const dir = mkdtempSync(join(tmpdir(), "land-notes-cm-"));
