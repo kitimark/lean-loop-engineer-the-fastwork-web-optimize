@@ -23850,7 +23850,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-phone-feel-kit.md",
     "docs/team/handoffs/phone-feel-kit.md"
-   ]
+   ],
+   "evidence": "bf2e1ed"
   },
   {
    "devices": [
@@ -23909,6 +23910,79 @@
     "research/notes/2026/10-2x-nav-cta-webkit-match.md",
     "results/nav-cta-webkit-match/**",
     "docs/team/handoffs/nav-cta-webkit-match.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "phone-feel-capture",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "phone-feel-kit"
+   ],
+   "title": "Feel sessions that capture while the user scrolls: per visit record the finger/scroll trace (replayable on CI and the phone), frame times and long frames, style/layout/paint counts per zone, end-of-page pin-fight events and a hero-card blink detector; Lean reducer joins each rating with its capture; fix the 10-29 session defects (USB-drop message, recover() TERM race, stop fallback, blind repeats).",
+   "writes": [
+    "packages/measure-webkit/src/device-feel*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/src/device-thermal-pin.mjs",
+    "packages/measure-webkit/src/wip.mjs",
+    "packages/measure-webkit/src/device-push*.mjs",
+    "packages/measure-webkit/test/**",
+    "packages/measure-webkit/package.json",
+    "lean/Fw/Device/Feel*.lean",
+    "lean/scripts/FeelGolden.lean",
+    "packages/contracts/golden/device/feel*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-2x-phone-feel-capture.md",
+    "docs/team/handoffs/phone-feel-capture.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "land-push-lane",
+   "owner": "lean-prover",
+   "stream": "ops",
+   "deps": [],
+   "title": "Regression from ci-push-lane-check: the pre-push hook refuses fw land's own overflow push ci/land-<task>-<sha> (its tip names no measuring lane), so CircleCI legs never start and lands fall back to GitHub. Give land pushes an identity-based allow (the land lane, from fw land's own push intent, never from the branch name pattern alone) in Fw.Ci.Intent, prove it cannot admit a plain ci/* push, wire ci-push.ts.",
+   "writes": [
+    "lean/Fw/Ci/Intent*.lean",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/**",
+    "apps/runner/src/ci-push*.ts",
+    "apps/runner/src/land*.ts",
+    "apps/runner/src/overflow*.ts",
+    "apps/runner/test/ci-push*.test.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/mistakes/ledger.json",
+    "docs/team/incidents/ledger.json",
+    "research/notes/2026/10-2x-land-push-lane.md",
+    "docs/team/handoffs/land-push-lane.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-merge-flake",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "Flaky runner test: ledger-merge.test.ts 'with the driver, the same incident edited differently is a conflict with markers' failed once on the land CI (run 40853077465) and passes locally and on retry; find the nondeterminism (scratch repo git config, timing, ordering) and fix it at the cause.",
+   "writes": [
+    "apps/runner/test/ledger-merge*.ts",
+    "apps/runner/src/ledger-merge*.ts",
+    "apps/runner/hooks/**",
+    "research/notes/2026/10-2x-ledger-merge-flake.md",
+    "docs/team/handoffs/ledger-merge-flake.md"
    ]
   }
  ],

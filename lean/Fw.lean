@@ -165,6 +165,8 @@ import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
 import Fw.Device.ReplayGolden
+import Fw.Device.Feel
+import Fw.Device.FeelGolden
 import Fw.Measure.Retry
 import Fw.Measure.Viewport
 import Fw.Measure.SimPlan
