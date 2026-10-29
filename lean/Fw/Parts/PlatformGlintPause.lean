@@ -96,6 +96,88 @@ theorem same_run (b : Rat) (p : P) (h : Same b p) (os : List Obs) : Same b (os.f
   | nil => exact h
   | cons o os ih => exact ih _ (same_step b p o h)
 
+def Obs.time : Obs → Rat
+  | .hide t => t
+  | .reveal t => t
+
+/-- The frozen elapsed time and the seek target of each resume seek along a run, in run order. -/
+def seeks (p : P) : List Obs → List (Rat × Rat)
+  | [] => []
+  | o :: os =>
+    (match o with
+      | .reveal t => if p.c.paused then [(p.c.elapsed t, t + p.off)] else []
+      | .hide _ => []) ++ seeks (p.step o) os
+
+/-- `Same b p`, and a paused clock froze at an elapsed time no later than `now - b`. -/
+def Fwd (b now : Rat) (p : P) : Prop := Same b p ∧ (p.c.paused = true → p.c.accum ≤ now - b)
+
+theorem fwd_start (b now : Rat) : Fwd b now ⟨Cont.start b, -b⟩ := ⟨same_start b, by simp [Cont.start]⟩
+
+theorem fwd_step (b now : Rat) (p : P) (o : Obs) (h : Fwd b now p) (ht : now ≤ o.time) : Fwd b o.time (p.step o) := by
+  obtain ⟨hs, hf⟩ := h
+  refine ⟨same_step b p o hs, ?_⟩
+  cases o with
+  | hide t =>
+    simp only [Obs.time] at ht ⊢
+    by_cases hp : p.c.paused = true
+    · have e : p.step (.hide t) = p := by simp [P.step, hp]
+      rw [e]; intro _; have := hf hp; grind
+    · have hp' : p.c.paused = false := by simpa using hp
+      have e : p.step (.hide t) = ⟨p.c.pause t, p.c.elapsed t - t⟩ := by simp [P.step, hp]
+      rw [e]; intro _
+      have he := hs.2 hp' t
+      simp only [Cont.elapsed, hp', Bool.false_eq_true, ↓reduceIte] at he
+      simp only [Cont.pause, hp', Bool.false_eq_true, ↓reduceIte]
+      grind
+  | reveal t =>
+    by_cases hp : p.c.paused = true
+    · have e : p.step (.reveal t) = ⟨(p.c.resume t).seek t (t + p.off), p.off⟩ := by simp [P.step, hp]
+      rw [e]; simp [Cont.seek, resume_running]
+    · have e : p.step (.reveal t) = p := by simp [P.step, hp]
+      rw [e]; intro h'; exact absurd h' hp
+
+theorem seek_head_forward (b now t : Rat) (p : P) (h : Fwd b now p) (ht : now ≤ t) (hp : p.c.paused = true) :
+    p.c.elapsed t ≤ t + p.off := by
+  have := h.2 hp
+  simp only [Cont.elapsed, hp, ↓reduceIte, h.1.1]
+  grind
+
+/-- **Resume seeks go forward**: along a run with nondecreasing observation times, every resume seek targets an
+elapsed time at or after the one the clock froze at. -/
+theorem resume_seek_forward (b now : Rat) (p : P) (h : Fwd b now p) (os : List Obs)
+    (hge : ∀ o ∈ os, now ≤ o.time) (hm : os.Pairwise fun a c => a.time ≤ c.time) :
+    ∀ q ∈ seeks p os, q.1 ≤ q.2 := by
+  induction os generalizing p now with
+  | nil => simp [seeks]
+  | cons o os ih =>
+    have ho := hge o (by simp)
+    have hm' := List.pairwise_cons.1 hm
+    intro q hq
+    simp only [seeks, List.mem_append] at hq
+    rcases hq with hq | hq
+    · cases o with
+      | hide t => simp at hq
+      | reveal t =>
+        by_cases hp : p.c.paused = true
+        · simp only [hp, ↓reduceIte, List.mem_singleton] at hq
+          subst hq
+          exact seek_head_forward b now t p h ho hp
+        · simp [hp] at hq
+    · exact ih o.time (p.step o) (fwd_step b now p o h ho) hm'.1 hm'.2 q hq
+
+theorem resume_seek_forward_start (b : Rat) (os : List Obs) (hm : os.Pairwise fun a c => a.time ≤ c.time) :
+    ∀ q ∈ seeks ⟨Cont.start b, -b⟩ os, q.1 ≤ q.2 := by
+  cases os with
+  | nil => simp [seeks]
+  | cons o os =>
+    refine resume_seek_forward b o.time _ (fwd_start b o.time) _ ?_ hm
+    intro x hx
+    rcases List.mem_cons.1 hx with rfl | hx
+    · exact Rat.le_refl
+    · exact (List.pairwise_cons.1 hm).1 x hx
+
+#guard seeks ⟨Cont.start 0, 0⟩ [.hide 1000, .reveal 4000, .hide 6000, .reveal 6000] == [(1000, 4000), (6000, 6000)]
+
 inductive Io
   | ratio (r : Rat)
   | reduced (b : Bool)
