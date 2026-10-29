@@ -23631,6 +23631,32 @@
     "results/geom-recalc-bisect/**",
     "docs/team/handoffs/geom-recalc-bisect.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-anim-units",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-proofs"
+   ],
+   "title": "hero.exit:threaded model counts one animation per consumer while the CSS runs 2N+5 animation-names: decide from WebKit 862f17d and Chromium f842f52 source whether style units grow per animation or per element, model it that way in HeroExitOpt, re-prove wk_trade / wk_var_exact / cr_* (strict or equality) and the ledger row, and guard the Gen.lean proved-branch theorem names against the row's links.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Engine/WebKit*.lean",
+    "lean/Fw/Engine/Chromium*.lean",
+    "lean/Fw/Preset/Gen.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-anim-units.md",
+    "docs/team/handoffs/hero-exit-anim-units.md"
+   ]
   }
  ],
  "deadline": {
