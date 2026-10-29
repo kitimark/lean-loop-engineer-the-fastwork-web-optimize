@@ -32,7 +32,6 @@ that floor? Unit of decision: one writer silenced in turn on top of the all-paus
   nav inline style). Source of all counts: `rows[arm].rs.frames`, `kt`, in `results/end-floor-writes/r3/wktr-jN/accel-floor-v2p-thr-off-1.json`.
   Lean: `rate_one_per_frame`.
 - No same-look cut was built: the deliverable is conditional on one writer carrying most of the floor, and none does.
-  Negative finding.
 - Class decision over the 3 jobs by the Lean model (`overallW`, `overallF`): `mixed` (j1, j3: `no writes`; j2: `spread
   over writers`). The mix comes from the window length, not from the writers (next section).
 
@@ -104,7 +103,7 @@ Three pushes, kept under `results/end-floor-writes/r1`, `r2`, `r3`.
 - Lean (`lean/Fw/Device/EndFloor.lean`, golden `packages/contracts/golden/device/end-floor.jsonl`, replayed by
   `packages/measure-wktr/test/end-floor.test.mjs`): `rate_one_per_frame` (a window whose frames each hold a recalc reads at
   least 100 per 100 frames), `noWrites_gap` (a `no writes` cell has floor - reference <= 2 band), `carries_cut`,
-  `dominant_half`, `several_overlap`, `finding_noWrites`. The rule `dominant` was fixed before the run.
+  `dominant_half`, `several_overlap`, `finding_noWrites`.
 
 ## Limits and follow-ups
 - The 3 jobs are not enough to give j2 a cause (INFERRED above). A pinned window (fixed frame

@@ -1,6 +1,5 @@
 import Lean.Data.Json
 import Fw.Device.EndWktr
-/-! Which DOM writer carries the all-paused style-recalc floor on the WKTR flip arm. -/
 namespace Fw.Device.EndFloor
 open Lean Fw.Device.EndWktr
 
