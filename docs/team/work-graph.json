@@ -23547,7 +23547,8 @@
     "research/notes/2026/10-2x-geom-recalc-source.md",
     "results/geom-recalc-source/**",
     "docs/team/handoffs/geom-recalc-source.md"
-   ]
+   ],
+   "evidence": "a66445b"
   },
   {
    "devices": [
@@ -23601,6 +23602,33 @@
     "docs/team/handoffs/hero-exit-proofs.md",
     "apps/site/src/registry/presets/v2-proved.json",
     "lean/Fw/Preset/Gen.lean"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-recalc-bisect",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-recalc-source"
+   ],
+   "title": "Find which element WebKit marks style-dirty every frame with nothing changing (geom-recalc-source: engine-internal, hiding the body leaves 0-11 per 100 frames): WKTR pref OFF, probe-only arms hiding one body subtree at a time (then bisect inside the hit), wrap or bound the unwrapped candidates (listeners, Resize/IntersectionObserver, microtasks, CSSOM style writes), name the element and style feature with WebKit 862f17d source, and propose one same-look fix.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Device/RecalcBisect*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/recalc-bisect*.jsonl",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-recalc-bisect.md",
+    "results/geom-recalc-bisect/**",
+    "docs/team/handoffs/geom-recalc-bisect.md"
    ]
   }
  ],

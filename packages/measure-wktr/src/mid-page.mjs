@@ -31,8 +31,12 @@ function pageProbe(P) {
   const X = (window.__fwx = { created: [], suppress: new Set(), mode: P.mode, arm: null, n: 0, rows: [], tags: [], table: null, errors: [] });
   const CSSN = { backdropFilter: 'backdrop-filter' };
   const NONKEY = new Set(['offset', 'easing', 'composite']);
+  const origRaf = window.requestAnimationFrame.bind(window);
+  const origST = window.setTimeout.bind(window);
+  const origSI = window.setInterval.bind(window);
   const origAnimate = Element.prototype.animate;
   Element.prototype.animate = function (frames, opts) {
+    if (X.rs && X.rs.cur) X.rs.add('anim:' + X.rs.partOf(this));
     const mg = this.getAttribute ? this.getAttribute('data-mg') : null;
     if (mg === null) return origAnimate.call(this, frames, opts);
     const first = Array.isArray(frames) && frames.length ? frames[0] : {};
@@ -60,8 +64,8 @@ function pageProbe(P) {
     return a;
   };
 
-  const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
-  const raf = () => new Promise((r) => requestAnimationFrame(() => r()));
+  const sleep = (ms) => new Promise((r) => origST(r, ms));
+  const raf = () => new Promise((r) => origRaf(() => r()));
   const I = window.internals || null;
   const recalc = () => (I && typeof I.styleRecalcCount === 'function' ? I.styleRecalcCount() : null);
   const mark = (name) => { try { performance.mark(name); } catch (e) { /* no user timing */ } };
@@ -217,7 +221,7 @@ function pageProbe(P) {
         while (next < P.mid.length && P.mid[next] <= ph) next++;
       }
     };
-    const poll = () => { if (!alive) return; check(); window.setTimeout(poll, 4); };
+    const poll = () => { if (!alive) return; check(); origST(poll, 4); };
     poll();
     let post = 0;
     let f = 0;
@@ -441,6 +445,175 @@ function pageProbe(P) {
     return out;
   };
 
+  const S = X.rs = { cur: null, blockRaf: false, blockTimer: false, fine: null };
+  if (P.rs) {
+    S.partOf = (n) => {
+      const e = n && n.nodeType === 1 ? n : n && n.parentElement;
+      const p = e && e.closest ? e.closest('[data-fw]') : null;
+      return p ? p.getAttribute('data-fw') : e ? e.localName : 'doc';
+    };
+    S.add = (k) => { if (S.cur) S.cur.add(k); };
+    S.onRecs = (recs) => {
+      for (const r of recs) {
+        const part = S.partOf(r.target);
+        const what = r.type === 'attributes' ? r.attributeName : r.type === 'childList' ? 'childList' : 'text';
+        S.add('mut:' + part + '#' + what);
+        if (S.fine) {
+          const e = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+          const fk = part + '|' + (e ? e.localName + '.' + String(e.className && e.className.baseVal !== undefined ? e.className.baseVal : e.className || '').slice(0, 40) : '?') + '|' + what;
+          S.fine[fk] = (S.fine[fk] || 0) + 1;
+        }
+      }
+    };
+    const site = () => String(new Error().stack || '').split('\n').slice(2, 5).map((l) => l.replace(/https?:\/\/[^\/\s)]+\//g, '').slice(0, 70)).join('>');
+    window.requestAnimationFrame = function (cb) {
+      if (typeof cb !== 'function') return origRaf(cb);
+      const s = site();
+      return origRaf(function (t) { if (S.blockRaf) return undefined; S.add('raf:' + s); return cb.call(this, t); });
+    };
+    const wrapTimer = (orig) => function (fn, ms) {
+      if (typeof fn !== 'function') return orig.apply(null, arguments);
+      const s = site();
+      const rest = Array.prototype.slice.call(arguments, 2);
+      return orig.apply(null, [function () { if (S.blockTimer) return undefined; S.add('timer:' + s); return fn.apply(this, arguments); }, ms].concat(rest));
+    };
+    window.setTimeout = wrapTimer(origST);
+    window.setInterval = wrapTimer(origSI);
+    for (const m of ['insertRule', 'deleteRule', 'replaceSync']) {
+      const f = CSSStyleSheet.prototype[m];
+      if (typeof f === 'function') CSSStyleSheet.prototype[m] = function () { S.add('cssom:' + m); return f.apply(this, arguments); };
+    }
+  }
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty))?$/;
+  const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
+  const rsWindow = async (idle, tw, v, kt) => {
+    const rec = v === 'obs' || v === 'obsf';
+    const fl = v === 'obsf';
+    const dur = P.durationMs;
+    const ref = X.created.find((c) => !c.tag.held);
+    const phase = () => {
+      if (ref) {
+        if (ref.a.playState === 'idle') return 9;
+        const c = ref.a.currentTime;
+        if (c !== null && c !== undefined) return c / dur;
+      }
+      return (performance.now() - tw) / dur;
+    };
+    const mo = rec ? new MutationObserver(S.onRecs) : null;
+    if (mo) mo.observe(document, { attributes: true, childList: true, subtree: true, characterData: true });
+    S.cur = rec ? new Set() : null;
+    S.blockRaf = v === 'blockraf';
+    S.blockTimer = v === 'blocktimer';
+    const frames = [];
+    let prev = recalc();
+    const t0 = performance.now();
+    let post = 0;
+    try {
+      for (;;) {
+        let mid = null;
+        let pz = [];
+        let pre = 0;
+        await new Promise((res) => origRaf(() => {
+          const a0 = recalc();
+          pre = a0 !== null && prev !== null ? a0 - prev : 0;
+          if (fl) { const a = recalc(); document.getAnimations(); mid = recalc(); if (a !== null && mid > a) pz.push(lastSize()); }
+          const ch = new MessageChannel();
+          ch.port1.onmessage = () => { ch.port1.close(); res(); };
+          ch.port2.postMessage(0);
+        }));
+        if (mo) S.onRecs(mo.takeRecords());
+        const now = performance.now();
+        const c = recalc();
+        const base = fl && mid !== null ? mid : prev;
+        const z = pz;
+        if (c !== null && base !== null && c > base) z.push(lastSize());
+        const ks = S.cur ? Array.from(S.cur) : [];
+        if (S.cur) S.cur = new Set();
+        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z });
+        prev = c;
+        if (idle) { if (now - t0 >= P.rsIdleMs) break; } else {
+          const ph = phase();
+          if ((ph >= 1 ? ++post > 2 : false) || now - t0 > P.capMs) break;
+        }
+      }
+    } finally {
+      if (mo) mo.disconnect();
+      S.cur = null;
+      S.blockRaf = false;
+      S.blockTimer = false;
+    }
+    return frames;
+  };
+  const rsArm = async (arm, kind, v) => {
+    X.arm = arm;
+    X.suppress = new Set();
+    X.created.length = 0;
+    const warm = kind === 'warm';
+    const vv = warm ? 'floor' : v || 'floor';
+    const kt = [];
+    const out = { arm: arm, mode: 'timed', stages: [], engaged: false, rs: { kind: kind, v: vv, frames: [], kt: kt, reps: 0, internals: !!(I && typeof I.styleRecalcCount === 'function') } };
+    out.scrollY = await toBottom();
+    await sleep(300);
+    let toPause = [];
+    if (vv === 'cancel') {
+      const all = document.getAnimations();
+      out.rs.pausedN = all.length;
+      for (const a of all) { try { a.cancel(); } catch (x) { } }
+      await raf(); await raf(); await sleep(250);
+      out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
+    } else if (!warm) {
+      toPause = document.getAnimations().filter((a) => a.playState === 'running');
+      out.rs.pausedN = toPause.length;
+      for (const a of toPause) a.pause();
+      await raf(); await raf(); await sleep(250);
+      out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
+    }
+    if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
+    if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
+    S.fine = vv === 'obs' ? {} : null;
+    if (kind === 'idle') {
+      out.engaged = out.rs.internals;
+      out.rs.frames = await rsWindow(true, 0, vv, kt);
+    } else {
+      out.wheels = 0;
+      const reps = warm ? 1 : P.rsReps;
+      for (let rep = 0; rep < reps; rep++) {
+        X.created.length = 0;
+        const tw = performance.now();
+        let w = 0;
+        while (X.created.length === 0 && w < 3) {
+          wheel(120);
+          w++;
+          out.wheels++;
+          const t0 = performance.now();
+          while (X.created.length === 0 && performance.now() - t0 < 3000) await raf();
+          if (X.created.length === 0) { await toBottom(); await sleep(400); }
+        }
+        if (X.created.length === 0) break;
+        out.rs.reps++;
+        out.tracks = X.created.length;
+        out.engaged = out.rs.internals;
+        await raf();
+        const fr = await rsWindow(false, tw, vv, kt);
+        if (!warm) for (const f of fr) out.rs.frames.push(f);
+        await sleep(900);
+        X.arm = arm + '~back';
+        wheel(-120);
+        await sleep(1500);
+        X.arm = arm;
+      }
+    }
+    if (S.fine) {
+      out.rs.fine = Object.entries(S.fine).sort((a, b) => b[1] - a[1]).slice(0, 15);
+      S.fine = null;
+    }
+    if (vv === 'hide') document.body.style.display = '';
+    for (const a of toPause) { try { a.play(); } catch (x) { } }
+    await sleep(900);
+    out.nav = vv === 'empty' ? '' : nav().className;
+    return out;
+  };
+
   const timedArm = async (arm) => {
     X.arm = arm;
     X.suppress = armSet(arm);
@@ -512,7 +685,8 @@ function pageProbe(P) {
       t.facts = { ua: navigator.userAgent, w: innerWidth, h: innerHeight, dpr: devicePixelRatio, mode: P.mode, hydrated: !!(window.__fw && window.__fw.hydrated), panel: !!document.querySelector('[data-fw="morph-panel"]') };
       for (const arm of P.arms) {
         const swm = SW_ARM.exec(arm);
-        const r = swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
+        const rsm = RS_ARM.exec(arm);
+        const r = rsm ? await rsArm(arm, rsm[1], rsm[2] || '') : swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
         X.rows.push(r);
       }
     } catch (e) {
@@ -527,8 +701,8 @@ function pageProbe(P) {
 }
 
 /** The init script for one mode. params: mode, arms, sweepFrames, windowMs, settleMs. */
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000 } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500 } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => String(a).startsWith('rs-')), rsReps, rsIdleMs })});`;
 }
