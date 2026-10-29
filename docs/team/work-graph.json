@@ -23983,7 +23983,8 @@
     "apps/runner/hooks/**",
     "research/notes/2026/10-2x-ledger-merge-flake.md",
     "docs/team/handoffs/ledger-merge-flake.md"
-   ]
+   ],
+   "evidence": "fc70d57"
   }
  ],
  "deadline": {
