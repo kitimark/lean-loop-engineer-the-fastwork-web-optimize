@@ -110,7 +110,6 @@ describe("findings notes keyed by (entry, task) (inc-findings-shared-entry; Lean
 
 describe("the 2026-10-18 land conflict in a scratch repo", () => {
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
-  // gc.auto=0 and maintenance.auto=false: git starts no detached background writer in a scratch repo.
   const gitIn = (dir: string, ...a: string[]) =>
     spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false",
       "-c", "gc.auto=0", "-c", "maintenance.auto=false", ...a], { cwd: dir, encoding: "utf8", env });
@@ -122,7 +121,6 @@ describe("the 2026-10-18 land conflict in a scratch repo", () => {
   const base = real.incidents.slice(0, n - 2);
   const [x, y] = [real.incidents[n - 2]!, real.incidents[n - 1]!];
 
-  /** Fresh history in `dir`: main = base ledger; branch a appends x, branch b appends y (or edits, via the callbacks). */
   const populate = (dir: string, a: Entry[], b: Entry[], driverOn: boolean) => {
     const ok = (...c: string[]) => okIn(dir, ...c);
     const file = join(dir, path);
@@ -137,7 +135,6 @@ describe("the 2026-10-18 land conflict in a scratch repo", () => {
     if (driverOn) ok("config", "merge.ledger.driver", `node ${script} %O %A %B`);
   };
 
-  // The pre-fix setup, kept for the regression test: one shared dir, reset by removing .git (the remove is injectable).
   const oldSetup = (dir: string, remove: (p: string) => void, a: Entry[], b: Entry[], driverOn: boolean) => {
     remove(join(dir, ".git"));
     populate(dir, a, b, driverOn);
@@ -148,7 +145,6 @@ describe("the 2026-10-18 land conflict in a scratch repo", () => {
   const file = () => join(dir, path);
   const git = (...a: string[]) => gitIn(dir, ...a);
   const ok = (...a: string[]) => okIn(dir, ...a);
-  /** Every setup gets its own mkdtemp directory, so no state of an earlier test can exist in it. */
   const setup = (a: Entry[], b: Entry[], driverOn: boolean) => {
     dir = mkdtempSync(join(tmpdir(), "ledger-merge-"));
     made.push(dir);

@@ -11,8 +11,7 @@ Status: failure mode CONFIRMED and reproduced deterministically by stubbing the 
 `checkout -qb a` fails with exactly that message only when refs/heads/a already exists. `setup` makes the repo fresh by
 `rmSync(.git)` then `git init -q -b main`. If the old .git survives the rm, `init` re-initialises it (git prints
 "re-init: ignored --initial-branch=main"), the old branch `a` from the previous test is still there, and the next
-`checkout -qb a` exits 128 with the logged text. Reproduced by hand in a scratch dir: init, branch a, init again,
-checkout -qb a gives exit 128 and the same message.
+`checkout -qb a` exits 128 with the logged text. Reproduced by hand in a scratch dir: init, branch a, init again, checkout -qb a gives exit 128 and the same message.
 
 ## Why .git could survive (INFERRED, not reproduced)
 - All four scratch-repo tests share one mkdtemp dir and rely on the rm-and-reinit; any residue of the old .git breaks the next test.
@@ -25,7 +24,7 @@ checkout -qb a gives exit 128 and the same message.
 
 ## Fix (applied, round 2)
 Each `setup` makes its own mkdtemp dir (removed afterEach) and git runs with `-c gc.auto=0 -c maintenance.auto=false`, so a
-scratch repo cannot see an earlier test's state whatever the reason the old .git survived (that reason stays INFERRED).
+scratch repo cannot see an earlier test's state (why the old .git survived stays INFERRED).
 Regression (apps/runner/test/ledger-merge.test.ts, "regression: when the reset leaves the old repo behind"): the old
 setup with its remove stubbed to a no-op throws "a branch named 'a' already exists"; the fresh setup passes.
 Accepted limits: no retries or timeouts; no CI stress lane.
