@@ -23574,6 +23574,32 @@
     "apps/runner/src/land.ts"
    ],
    "evidence": "dfe7107"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-exit-proofs",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-gate-clear",
+    "gen-merge-retry-bound"
+   ],
+   "title": "Close the proofs blocker of hero.exit:threaded (ledger n 6, partly-proved): R2 inherited fan-out units in crOrig so the style-unit saving is proved, the WebKit edge-frame cost tabled (opacityCross1_layout and a filter-presence clause for start and park frames), RG11 justified from engine source; ledger row proved, Gen.entry regenerated.",
+   "writes": [
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Engine/WebKit*.lean",
+    "lean/Fw/Engine/WebKit/**",
+    "lean/Fw/Engine/Visual.lean",
+    "packages/contracts/golden/preset/**",
+    "packages/contracts/golden/parts/hero-exit*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-hero-exit-proofs.md",
+    "docs/team/handoffs/hero-exit-proofs.md"
+   ]
   }
  ],
  "deadline": {
