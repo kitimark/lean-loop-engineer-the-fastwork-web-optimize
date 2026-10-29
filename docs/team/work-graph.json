@@ -23768,7 +23768,8 @@
     "packages/premise-tests/pages/**",
     "packages/contracts/golden/parts/footprint-diff.gen.json",
     ".github/workflows/wktr.yml"
-   ]
+   ],
+   "evidence": "65b8ade"
   },
   {
    "devices": [
@@ -23983,7 +23984,8 @@
     "apps/runner/hooks/**",
     "research/notes/2026/10-2x-ledger-merge-flake.md",
     "docs/team/handoffs/ledger-merge-flake.md"
-   ]
+   ],
+   "evidence": "fc70d57"
   }
  ],
  "deadline": {

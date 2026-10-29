@@ -1,11 +1,9 @@
 // One test per premise of lean/Fw/Ops/Premise.lean (`registry`). `id` is the registry's testId, `premise` its id; the
 // Lean lint (`premiseLint`, ported in apps/runner/src/premises.ts) fails when the two lists drift.
-// A test loads its tiny page from ../pages, drives the browser, and asserts with node:assert/strict. It returns what it
-// observed; the runner stores that next to the verdict.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { collectAlignFacts, alignEquiv, modeOf, contentFill, parseTracks } from '../../gate-breakpoints/src/align-equiv.mjs';
 
-/** Wait for n animation frames in the page. */
 export const frames = (page, n) =>
   page.evaluate(
     (count) => new Promise((resolve) => { let i = 0; const f = () => (++i >= count ? resolve() : requestAnimationFrame(f)); requestAnimationFrame(f); }),
@@ -17,6 +15,8 @@ export const waitSkipped = async (page) => {
   await page.waitForFunction(() => window.__cv.length > 0, null, { timeout: 3000 }).catch(() => {});
   return page.evaluate(() => ({ events: window.__cv.slice(), scrollY, innerHeight, top: document.getElementById('cv').getBoundingClientRect().top }));
 };
+
+export const COMPOSITOR_BOUND = 12;
 
 export const TESTS = [
   {
@@ -671,6 +671,67 @@ export const TESTS = [
       o.backWorst = Math.max(...o.samples.filter((x) => x.mode === 'back').map((x) => Math.max(x.left, x.right)));
       o.worst = worst;
       if (worst > 12) throw Object.assign(new Error(`a pixel differs by ${worst} of 255 (premise: within 12)`), { observed: o });
+      return o;
+    },
+  },
+  {
+    id: 'prem.glint.compositor-pixels', premise: 'glint.compositor-pixels', page: 'glint.compositor-pixels.html',
+    async run({ page }) {
+      const gold = readFileSync(new URL('../../contracts/golden/parts/platform-glint-compositor.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+      const kf = { ...gold.find((l) => l.fn === 'glint.compositor.const').out, keyframes: Object.fromEntries(gold.filter((l) => l.fn === 'glint.compositor.keyframes').map((l) => [l.in.side, l.out])) };
+      const plan = [0, 0.4, 0.999, 1, 1.001, 1.6, 2, 2.5, 2.999, 3, 3.6, 4, 4.5, 4.999, 5, 5.001, 6, 7.5, 9.999, 10, 11, 12.3, 14.5, 15.2, 17.7, 19.99, 23]
+        .map((s, i) => ({ s, resume: i % 3 === 2 }));
+      const browser = page.context().browser();
+      const out = {};
+      for (const dpr of [1, 2]) {
+        const ctx = await browser.newContext({ viewport: { width: 130, height: 130 }, deviceScaleFactor: dpr });
+        try {
+          const pg = await ctx.newPage();
+          await pg.goto(page.url(), { waitUntil: 'load' });
+          await frames(pg, 3);
+          await pg.evaluate((k) => window.start(k), kf);
+          const shots = [];
+          for (const { s, resume } of plan) {
+            await pg.evaluate(([t, r]) => window.seek(t, r), [s, resume]);
+            await frames(pg, 2);
+            await pg.waitForTimeout(150);
+            shots.push((await pg.screenshot({ clip: { x: 0, y: 0, width: 130, height: 130 } })).toString('base64'));
+          }
+          const rows = await pg.evaluate(async (list) => {
+            const res = [];
+            for (const b64 of list) {
+              const bmp = await createImageBitmap(await (await fetch(`data:image/png;base64,${b64}`)).blob());
+              const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+              const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(bmp, 0, 0);
+              const px = g.getImageData(0, 0, c.width, c.height).data;
+              const k = bmp.width / 130;
+              const diff = (ra, rb) => {
+                let m = 0; let sat = 0; let core = 0;
+                for (let y = Math.round(6 * k); y < Math.round(14 * k); y++) for (let x = 0; x < bmp.width; x++) {
+                  const a = ((ra * 30 * k + y) * bmp.width + x) * 4; const b = ((rb * 30 * k + y) * bmp.width + x) * 4;
+                  for (let i = 0; i < 3; i++) {
+                    const d = Math.abs(px[a + i] - px[b + i]);
+                    m = Math.max(m, d);
+                    if (x >= 14 * k && x < 104 * k && y >= 8 * k + 1 && y <= 11.2 * k - 2) core = Math.max(core, d);
+                  }
+                  if (Math.max(px[a], px[a + 1], px[a + 2]) - Math.min(px[a], px[a + 1], px[a + 2]) > 100) sat++;
+                }
+                return [m, sat, core];
+              };
+              const l = diff(0, 1); const r = diff(2, 3);
+              res.push({ left: l[0], right: r[0], satLeft: l[1], satRight: r[1], coreLeft: l[2], coreRight: r[2] });
+            }
+            return res;
+          }, shots);
+          out[`dpr${dpr}`] = plan.map((p, i) => ({ ...p, ...rows[i] }));
+        } finally { await ctx.close(); }
+      }
+      const all = Object.values(out).flat();
+      assert.ok(all.some((x) => x.satLeft > 20) && all.some((x) => x.satRight > 20), 'the colour band is drawn in both dashes');
+      const worst = Math.max(...all.map((x) => Math.max(x.left, x.right)));
+      const worstCore = Math.max(...all.map((x) => Math.max(x.coreLeft, x.coreRight)));
+      const o = { worst, worstCore, bound: COMPOSITOR_BOUND, class: worst > COMPOSITOR_BOUND ? 'L' : 'E', samples: out };
+      if (worstCore > COMPOSITOR_BOUND) throw Object.assign(new Error(`a pixel in the interior of the dash differs by ${worstCore} of 255 (bound: within ${COMPOSITOR_BOUND})`), { observed: o });
       return o;
     },
   },
