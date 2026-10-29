@@ -40,8 +40,8 @@ trajectory cell of `platform.glint:hold-freeze` recorded by `Gen.record`, the le
 
 `Fw.Preset.Gen.linkTable` now maps `platform.glint:hold-freeze` to the key (part `platform.glint`, the ledger row's exact candidate string).
 The row lists these theorems in `leanFor`: `hold_premise`, `hold_eq_faithful`, `ticking_hold`, `ticking_ramp`, `ticking_le`, `hold_resume_eq`
-(Fw.Parts.PlatformGlintHold) and `ramp_left`, `ramp_right`, `hold_both`, `union_ramp` (Fw.Device.GlintHold). `apps/site/src/parts/platform.glint/part.json`
-provenance names them too (outside the task's graph writes; it is the one file of the site that the trajectory lane reads, which the push needed).
+(Fw.Parts.PlatformGlintHold) and `ramp_left`, `ramp_right`, `hold_both`, `union_ramp` (Fw.Device.GlintHold). `apps/site/src/parts/platform.glint/part.json` provenance does not name the new links yet: it is outside this task's writes (follow-up).
+The trajectory push carried a one-line edit of that file (the only site file the lane reads) in commit 9c260e85a, reverted before the land.
 
 ## What stays open, and why (the missingWhy items)
 

@@ -10,7 +10,7 @@ Verified (Lean): `linkTable` has the hold-freeze entry, `why` = not-proved (row 
 
 Open: (1) Simulator per-zone counts: a measurement, more VMs or a lead decision on the WKTR verdict; (2) a theorem that every pause-path seek is forward
 (`resume_seek_forward` in Fw.Parts.PlatformGlintPause, outside this task's writes). Closing both makes the row `proved` and the flag a member.
-Outside the task's writes: `apps/site/src/parts/platform.glint/part.json` (provenance string; the lane needed a file it reads).
+Follow-up: `apps/site/src/parts/platform.glint/part.json` provenance should name ticking_ramp, hold_resume_eq and the GlintHold ramp theorems (outside the writes; the push carried an edit in 9c260e85a, reverted before the land).
 
 Conventions: a ci push needs fresh `origin/main` (`git fetch origin main:refs/remotes/origin/main`) and a changed file the lane reads; trajectory files only via
 `Gen.record` / `Gen.run` (scratch scripts under the scratchpad, `lake env lean <file>` from `lean/`).
