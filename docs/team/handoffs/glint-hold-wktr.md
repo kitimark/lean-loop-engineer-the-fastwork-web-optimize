@@ -11,7 +11,7 @@ hero pass, recorded by `Gen.record` (`v2-proved.trajectory.jsonl`, decisions reg
 Built
 - `lean/Fw/Device/GlintHold.lean` (statement and verdict rule decided before data) + golden `packages/contracts/golden/device/glint-hold.jsonl`
   (check.sh job, triggers declared in `land.ts`, `Trigger.lean`, `triggers.jsonl`).
-- TS stand-in (temporary, replays the golden): `packages/measure-wktr/src/glint-hold.mjs`, `glint-cli.mjs` (`node glint-cli.mjs <jobdir>...` prints
+- JS stand-in (temporary, replays the golden): `packages/measure-wktr/src/glint-hold.mjs`, `glint-cli.mjs` (`node glint-cli.mjs <jobdir>...` prints
   per-job and overall verdicts from `accel-glint-{base,hold}-thr-off-1.json`); probe changes in `mid-page.mjs`, modes in `accel-cli.mjs`.
 
 Open

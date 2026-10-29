@@ -6,8 +6,8 @@ accel lane, threaded-animations pref OFF, 3 jobs, recalcs per 100 frames for idl
 
 ## Decided before the data (Lean, CONFIRMED by the golden replay)
 `lean/Fw/Device/GlintHold.lean`, golden `packages/contracts/golden/device/glint-hold.jsonl` (check.sh job "device-glint-hold golden
-check"), replayed by `packages/measure-wktr/test/glint-hold.test.mjs` against the TS stand-in `src/glint-hold.mjs`.
-- Schedule (theorems `rampSegs`, `ticking_*`): per dash the hold ring ticks 2 animations on its 2 ramp segments of 5 and 0 on the
+check"), replayed by `packages/measure-wktr/test/glint-hold.test.mjs` against the JS stand-in `src/glint-hold.mjs`.
+- Schedule (theorems `ramp_left`, `ramp_right`, `hold_both`, `union_ramp` in Fw.Device.GlintHold; `ticking_hold`, `ticking_ramp`, `ticking_le` in Fw.Parts.PlatformGlintHold): per dash the hold ring ticks 2 animations on its 2 ramp segments of 5 and 0 on the
   3 hold segments; left holds [1,2,4], right [0,3,4]. The union of ramp segments is 4 of 5, so the dashes together are quiet only in
   segment 4. The faithful arm ticks 2 at every elapsed time.
 - Prediction: a frame that follows a SMIL tick (a dash ticks in that frame or the frame before) recalcs at the base rate b, any other
