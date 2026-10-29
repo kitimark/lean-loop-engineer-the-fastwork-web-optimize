@@ -14,7 +14,7 @@
   WebKit snapshot, our faithful port: `padding-left` 24 px in the flip frame and only `max-width, opacity` running. So our port is faithful; this is
   a WebKit-versus-Chromium difference of the original, hence a flag (never in a preset in this task), not a port bug. With `?fw=nav:earn-logical` WebKit
   runs `max-width, opacity, padding-left, padding-right` and the padding is 0.05, 0.37, 0.73 ... px.
-- **Other animated parts do not differ** (INFERRED from a local debug run, not a result; the CI frames of run 40858439757 show the logical arm within 10 px of its settled floor at 1280): the unmask `mask-position` animation and the `::after` sheen
+- **Other animated parts do not differ** (INFERRED from a local debug run, not a result; CI run 40858439757 agrees at 1280: the unmask and the sheen run only on exit (nav.module.css:223-235, `.nav:not(.is-hero-pill)`), where the logical arm's worst frame is 163 against a settled 153 (10 px); on entry it is 163 against 145 (18 px)): the unmask `mask-position` animation and the `::after` sheen
   (`mix-blend-mode: screen`, translate) match Chromium frame by frame within anti-aliasing once the padding runs; there is no hover or press animation
   (`.btn` has none, nav.module.css:144-166).
 - **Recommendation (lead):** put `nav:earn-logical` in the preset. It is already accepted by the user (2026-10-25, class L) and proved; the
@@ -43,18 +43,18 @@ screenshot of the top 100 px, with the earn label transparent for the verdict. E
 
 ## Results (MEASURED, run 40858439757, head 07a9b1285; Linux Chrome Headless Shell and Playwright WebKit)
 
-Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animation); allowed is the Lean bound.
+Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animation); allowed is the Lean bound. Keys, all under `chromiumVsWebkit['<width>/<scenario>/<arm>']` in summary.json: Worst frame = `maxChanged`, Settled = `settledChanged`, Allowed = `allowed`, Frames over bound = `failing`, Worst with label = `maxWithText`.
 
-| Width | Scenario | Arm | Worst frame | Settled | Allowed | Frames over bound |
-|---|---|---|---|---|---|---|
-| 1280 | exit | faithful | 314 | 153 | 256 | 3 |
-| 1280 | exit | logical | 163 | 153 | 256 | 0 |
-| 1280 | entry | faithful | 2516 | 145 | 256 | 3 |
-| 1280 | entry | logical | 163 | 145 | 256 | 0 |
-| 390 | exit | faithful | 231 | 121 | 78 | 17 |
-| 390 | exit | logical | 148 | 121 | 78 | 17 |
-| 390 | entry | faithful | 1338 | 124 | 78 | 17 |
-| 390 | entry | logical | 148 | 124 | 78 | 17 |
+| Width | Scenario | Arm | Worst frame | Settled | Allowed | Frames over bound | Worst with label |
+|---|---|---|---|---|---|---|---|
+| 1280 | exit | faithful | 314 | 153 | 256 | 3 | 803 |
+| 1280 | exit | logical | 163 | 153 | 256 | 0 | 803 |
+| 1280 | entry | faithful | 2516 | 145 | 256 | 3 | 3063 |
+| 1280 | entry | logical | 163 | 145 | 256 | 0 | 585 |
+| 390 | exit | faithful | 231 | 121 | 78 | 17 | 667 |
+| 390 | exit | logical | 148 | 121 | 78 | 17 | 667 |
+| 390 | entry | faithful | 1338 | 124 | 78 | 17 | 1757 |
+| 390 | entry | logical | 148 | 124 | 78 | 17 | 535 |
 
 - At 1280 the fix is inside the bound on every frame; the faithful rule is outside it (the padding snap).
 - At 390 every frame of both arms is over the absolute bound, because the settled frame already is (121 and 124 px): Linux Chromium and WebKitGTK
@@ -62,9 +62,7 @@ Changed pixels, the worst frame of 17; `settled` is the t=1800 frame (no animati
   (entry) above its settled floor, the faithful entry is 1214 px above. The fixed bound is therefore not met at 390 on the Linux pair; reported, not
   re-fitted. The same capture on macOS (Chrome 155 against Playwright WebKit 27.2, debug run, not a result): 390 logical worst 62 px against 78, faithful 245
   (exit) and 1330 (entry); 1280 logical 60 against 256, faithful 295 and 2478.
-- **With the label (run 40858439757 artifacts, 1280):** the same frames compared with the label text kept give a worst frame of 803 px (logical exit),
-  585 px (logical entry) and 803 px (faithful exit), all above the 256 bound. The table hides the label because text rasterization differs
-  between the engines at rest; the with-text numbers show what that difference adds.
+- **With the label:** the label is hidden in the verdict frames because text rasterization differs between the engines at rest; the "Worst with label" column shows what the label adds.
 
 - Chromium is unchanged: the faithful and the logical arm are pixel-identical (0 changed pixels) on all 17 frames of both scenarios and widths.
 - Earlier pushes: run 40852349397 (label metrics differ by 3 px between the Linux engines) and run 40855407833 (`text-rendering: geometricPrecision` did not equalise them); the third push fixed the label slot to 5.7em.

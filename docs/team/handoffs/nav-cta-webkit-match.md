@@ -9,8 +9,8 @@ the Linux engines (logical worst 148, faithful entry 1338); Chromium faithful vs
 Open: the 390 bound is not met on the Linux pair (floor); a 390 judgement needs macOS WebKit (trajectory-probe frames lane, apple legs) or a floor-relative bound (new Lean rule);
 no iPhone check; whether nav:earn-logical goes into a preset.
 Done: Lean frameBound (NavEarnWebkit + golden row), packages/premise-tests/src/earn-frames.mjs, earn-frames-compare.mjs, test/earn-frames.test.mjs, a step in
-.github/workflows/visual-diff.yml (shoot job, shard s0, artifacts earn-frames-<engine>; shoot filter gained @fw/premise-tests), Trigger.lean visual-diff input, triggers.jsonl,
+.github/workflows/visual-diff.yml (shoot job, shard s0, a dispatch-only step (input earnframes), artifacts earn-frames-<engine>; shoot filter gained @fw/premise-tests),
 results/nav-cta-webkit-match/summary.json, note research/notes/2026/10-2x-nav-cta-webkit-match.md, ledger note on n=73.
 Read first: research/notes/2026/10-2x-nav-cta-webkit-match.md, then packages/premise-tests/src/earn-frames.mjs.
-Round 2: earn frames step is dispatch-only (input earnframes), trigger row regenerated, local runs labelled debug, with-text column added to the note. No pushes in round 2.
-Open follow-ups from review: padL vs curve golden; BAND from golden; per-width verdict; faithful-arm test assertion in earn-frames test.
+Round 2: earn frames step is dispatch-only (input earnframes), Trigger.lean and triggers.jsonl back to main (no diff), local runs labelled debug, with-text column added to the note. No pushes in round 2.
+Open follow-ups from review: padL vs curve golden; BAND from golden; per-width verdict; faithful-arm test assertion in earn-frames test; @fw/premise-tests in the shoot install filter on every run (accepted limit).
