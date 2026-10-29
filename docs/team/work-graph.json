@@ -23630,7 +23630,8 @@
     "research/notes/2026/10-2x-geom-recalc-bisect.md",
     "results/geom-recalc-bisect/**",
     "docs/team/handoffs/geom-recalc-bisect.md"
-   ]
+   ],
+   "evidence": "2036ea3"
   },
   {
    "devices": [
@@ -23658,7 +23659,8 @@
     "docs/team/handoffs/hero-exit-anim-units.md",
     "lean/Fw/Engine/ResourceFlags.lean",
     "packages/contracts/golden/engine/resource.jsonl"
-   ]
+   ],
+   "evidence": "2c929e2"
   },
   {
    "devices": [

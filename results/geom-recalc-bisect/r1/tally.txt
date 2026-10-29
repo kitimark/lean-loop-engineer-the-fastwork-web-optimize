@@ -1,0 +1,75 @@
+j1 bisect: full 50/45 116/121 hidden 0/122 0/122 hi 95 lo 0 band 23
+j1 bisect: dropped    0 0/122 kids 2 div#root
+j1 bisect: kept      91 103/113 kids 3 nav
+j1 bisect: kept     100 83/83 kids 2 div#root > nav
+j1 bisect: dropped   20 24/119 kids 5 div#root > page-root
+j1 bisect: kept     117 60/51 kids 0 nav > a
+j1 bisect: kept     100 41/41 kids 0 nav > a[1]
+j1 bisect: kept     100 73/73 kids 0 nav > a[2]
+j1 bisect: kept     114 78/68 kids 3 div#root > page-root > hero-exit
+j1 bisect: kept      93 86/92 kids 3 div#root > page-root > people
+j1 bisect: kept     100 75/75 kids 2 div#root > page-root > pain
+j1 bisect: kept     100 95/95 kids 2 div#root > page-root > commission
+j1 bisect: kept      76 86/113 kids 2 div#root > page-root > platform
+j1 bisect: why found div#root > div#root > page-root none
+j1 bisect: carrier incomplete holder incomplete
+j1 bisect: obs frames 119 with recalc 91 keys [["raf:i@assets/entry-client-DN21yM_l.js:9:96077>@__fw/harness.js:451:104",30],["raf:subscribe@assets/entry-client-DN21yM_l.js:9:96188>a@assets/entry-client-DN21yM_l.js:47:66313>o@assets/entry-client-DN21yM_l.js:47:66729",10],["mut:people#style",10],["mut:pain#data-fw-pain-dark",10],["timer:interval@assets/entry-client-DN21yM_l.js:9:96426>gc@assets/entry-client-DN21yM_l.js:45:19682>@assets/entry-client-DN21yM_l.js:45:23470",4],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>zd@assets/entry-client-DN21yM_l.js:8:123339",1],["mut:platform#childList",1],["mut:platform#class",1],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>mf@assets/entry-client-DN21yM_l.js:8:132389",1],["ev:transitionrun",1],["ev:transitionstart",1],["ev:transitionend",1]]
+j1 bisect: body features {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j1 bisect: rules {"sheets":2,"rules":2278,"kinds":{"CSSLayerStatementRule":2,"CSSLayerBlockRule":3,"CSSStyleRule":1815,"CSSMediaRule":261,"CSSKeyframesRule":63,"CSSKeyframeRule":125,"CSSSupportsRule":2,"CSSPropertyRule":2,"CSSFontFaceRule":5},"hits":{"hover":294,"sticky":29,"has":12,"focus":23,"scrollFn":7,"timeline":17,"container":4,"contentVis":3},"adopted":0} observers {"ro":5,"io":17,"mql":32,"roT":{"pain-notes":1,"commission-card":2,"hero-countdown":8,"morph-countdown-clock":8},"ioT":{"people":2,"platform":7,"hero-accent":1,"people-card":1,"people-deck":1,"pain":2,"commission-typing":1,"commission-card":1,"commission":1}}
+j1 bisect: feat div#root {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j1 bisect: feat nav {}
+j1 bisect: feat div#root > nav {"fixed":1,"willChange":1,"backdrop":2,"<svg>":5,"cssAnim":6,"filter":2,"<img>":21}
+j1 bisect: feat div#root > page-root {"sticky":2,"container":20,"willChange":100,"<picture>":32,"<img>":101,"cssAnim":36,"<svg>":30,"filter":7,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4}
+j1 bisect: feat nav > a {}
+j1 bisect: feat nav > a[1] {}
+j1 bisect: feat nav > a[2] {}
+j2 bisect: full 71/64 115/121 hidden 0/122 0/121 hi 95 lo 0 band 23
+j2 bisect: dropped    0 0/120 kids 2 div#root
+j2 bisect: kept     100 79/79 kids 3 nav
+j2 bisect: kept     100 82/82 kids 2 div#root > nav
+j2 bisect: dropped   20 25/121 kids 5 div#root > page-root
+j2 bisect: kept     100 71/71 kids 0 nav > a
+j2 bisect: kept     100 93/93 kids 0 nav > a[1]
+j2 bisect: kept     100 80/80 kids 0 nav > a[2]
+j2 bisect: kept     114 101/88 kids 3 div#root > page-root > hero-exit
+j2 bisect: kept     100 74/74 kids 3 div#root > page-root > people
+j2 bisect: kept     100 66/66 kids 2 div#root > page-root > pain
+j2 bisect: kept     100 82/82 kids 2 div#root > page-root > commission
+j2 bisect: between   66 79/118 kids 2 div#root > page-root > platform
+j2 bisect: why found div#root > div#root > page-root several
+j2 bisect: carrier incomplete holder incomplete
+j2 bisect: obs frames 121 with recalc 98 keys [["raf:i@assets/entry-client-DN21yM_l.js:9:96077>@__fw/harness.js:451:104",38],["raf:subscribe@assets/entry-client-DN21yM_l.js:9:96188>a@assets/entry-client-DN21yM_l.js:47:66313>o@assets/entry-client-DN21yM_l.js:47:66729",18],["mut:people#style",18],["mut:pain#data-fw-pain-dark",18],["timer:interval@assets/entry-client-DN21yM_l.js:9:96426>gc@assets/entry-client-DN21yM_l.js:45:19682>@assets/entry-client-DN21yM_l.js:45:23470",4],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>zd@assets/entry-client-DN21yM_l.js:8:123339",1],["mut:platform#childList",1],["mut:platform#class",1],["micro:Rf@assets/entry-client-DN21yM_l.js:8:136268>jf@assets/entry-client-DN21yM_l.js:8:134433>mf@assets/entry-client-DN21yM_l.js:8:132389",1],["ev:transitionrun",1],["ev:transitionstart",1],["ev:transitionend",1]]
+j2 bisect: body features {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j2 bisect: rules {"sheets":2,"rules":2278,"kinds":{"CSSLayerStatementRule":2,"CSSLayerBlockRule":3,"CSSStyleRule":1815,"CSSMediaRule":261,"CSSKeyframesRule":63,"CSSKeyframeRule":125,"CSSSupportsRule":2,"CSSPropertyRule":2,"CSSFontFaceRule":5},"hits":{"hover":294,"sticky":29,"has":12,"focus":23,"scrollFn":7,"timeline":17,"container":4,"contentVis":3},"adopted":0} observers {"ro":5,"io":17,"mql":32,"roT":{"pain-notes":1,"commission-card":2,"hero-countdown":8,"morph-countdown-clock":8},"ioT":{"people":2,"platform":7,"hero-accent":1,"people-card":1,"people-deck":1,"pain":2,"commission-typing":1,"commission-card":1,"commission":1}}
+j2 bisect: feat div#root {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j2 bisect: feat nav {}
+j2 bisect: feat div#root > nav {"fixed":1,"willChange":1,"backdrop":2,"<svg>":5,"cssAnim":6,"filter":2,"<img>":21}
+j2 bisect: feat div#root > page-root {"sticky":2,"container":20,"willChange":100,"<picture>":32,"<img>":101,"<svg>":30,"cssAnim":36,"filter":7,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4}
+j2 bisect: feat nav > a {}
+j2 bisect: feat nav > a[1] {}
+j2 bisect: feat nav > a[2] {}
+j3 bisect: full 53/45 64/54 hidden 0/121 0/122 hi 100 lo 0 band 25
+j3 bisect: dropped    0 0/122 kids 2 div#root
+j3 bisect: kept      96 113/117 kids 3 nav
+j3 bisect: kept     100 72/72 kids 2 div#root > nav
+j3 bisect: dropped   18 22/121 kids 5 div#root > page-root
+j3 bisect: kept      94 113/120 kids 0 nav > a
+j3 bisect: kept     100 80/80 kids 0 nav > a[1]
+j3 bisect: kept     100 55/55 kids 0 nav > a[2]
+j3 bisect: kept     116 79/68 kids 3 div#root > page-root > hero-exit
+j3 bisect: kept     100 74/74 kids 3 div#root > page-root > people
+j3 bisect: kept     100 62/62 kids 2 div#root > page-root > pain
+j3 bisect: kept     100 63/63 kids 2 div#root > page-root > commission
+j3 bisect: between   67 78/115 kids 2 div#root > page-root > platform
+j3 bisect: why found div#root > div#root > page-root several
+j3 bisect: carrier incomplete holder incomplete
+j3 bisect: obs frames 55 with recalc 55 keys [["raf:subscribe@assets/entry-client-DN21yM_l.js:9:96188>a@assets/entry-client-DN21yM_l.js:47:66313>o@assets/entry-client-DN21yM_l.js:47:66729",16],["mut:people#style",16],["mut:pain#data-fw-pain-dark",16],["timer:interval@assets/entry-client-DN21yM_l.js:9:96426>gc@assets/entry-client-DN21yM_l.js:45:19682>@assets/entry-client-DN21yM_l.js:45:23470",4]]
+j3 bisect: body features {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j3 bisect: rules {"sheets":2,"rules":2278,"kinds":{"CSSLayerStatementRule":2,"CSSLayerBlockRule":3,"CSSStyleRule":1815,"CSSMediaRule":261,"CSSKeyframesRule":63,"CSSKeyframeRule":125,"CSSSupportsRule":2,"CSSPropertyRule":2,"CSSFontFaceRule":5},"hits":{"hover":294,"sticky":29,"has":12,"focus":23,"scrollFn":7,"timeline":17,"container":4,"contentVis":3},"adopted":0} observers {"ro":5,"io":17,"mql":32,"roT":{"pain-notes":1,"commission-card":2,"hero-countdown":8,"morph-countdown-clock":8},"ioT":{"people":2,"platform":7,"hero-accent":1,"people-card":1,"people-deck":1,"pain":2,"commission-typing":1,"commission-card":1,"commission":1}}
+j3 bisect: feat div#root {"fixed":2,"willChange":101,"backdrop":2,"<svg>":36,"cssAnim":42,"filter":9,"<img>":122,"sticky":2,"container":20,"<picture>":32,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4,"<dialog>":1,"<input>":2}
+j3 bisect: feat nav {}
+j3 bisect: feat div#root > nav {"fixed":1,"willChange":1,"backdrop":2,"<svg>":5,"cssAnim":6,"filter":2,"<img>":21}
+j3 bisect: feat div#root > page-root {"sticky":2,"container":20,"willChange":100,"<picture>":32,"<img>":101,"cssAnim":36,"<svg>":30,"filter":7,"scrollable":2,"snap":1,"contain":6,"contentVis":2,"<animate>":4}
+j3 bisect: feat nav > a {}
+j3 bisect: feat nav > a[1] {}
+j3 bisect: feat nav > a[2] {}

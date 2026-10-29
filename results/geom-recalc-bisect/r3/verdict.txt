@@ -1,0 +1,8 @@
+stage1 found div#root > div#root > page-root several | found div#root > div#root > page-root several | found div#root > div#root > page-root incomplete
+stage1 overall named div#root > div#root > page-root -> read the WebKit path that restyles the named part, propose one same-look fix
+carrier named kill/smil | named kill/smil | named kill/smil
+carrier overall named kill/smil -> read the WebKit path that restyles the named part, propose one same-look fix
+holder several | several | several
+holder overall several -> one show-only arm per part
+pauser named pause/dash | named pause/dash | named pause/dash
+pauser overall named pause/dash -> read the WebKit path that restyles the named part, propose one same-look fix
