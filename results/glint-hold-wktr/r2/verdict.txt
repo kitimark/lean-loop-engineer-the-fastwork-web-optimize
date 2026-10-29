@@ -1,0 +1,8 @@
+glint results/glint-hold-wktr/r2/j1 idle: base 99 floor 0 hold 73 per 100 frames, predicted 78 band 6 spread 3, frames base 501 floor 302 hold 292, hold frames after a tick 232/292, base frames after a tick 501/501 => cuts as predicted
+glint results/glint-hold-wktr/r2/j1 flip: base 193 floor 85 hold 156 per 100 frames, predicted 172 band 6 spread 2, frames base 103 floor 62 hold 48, hold frames after a tick 39/48, base frames after a tick 103/103 => cuts more
+glint results/glint-hold-wktr/r2/j2 idle: base 101 floor 0 hold 74 per 100 frames, predicted 79 band 6 spread 2, frames base 322 floor 298 hold 272, hold frames after a tick 215/272, base frames after a tick 322/322 => cuts as predicted
+glint results/glint-hold-wktr/r2/j2 flip: base 170 floor 81 hold 150 per 100 frames, predicted 153 band 5 spread 4, frames base 96 floor 48 hold 48, hold frames after a tick 39/48, base frames after a tick 96/96 => cuts as predicted
+glint results/glint-hold-wktr/r2/j3 idle: base 100 floor 0 hold 74 per 100 frames, predicted 80 band 6 spread 1, frames base 369 floor 301 hold 295, hold frames after a tick 236/295, base frames after a tick 369/369 => cuts as predicted
+glint results/glint-hold-wktr/r2/j3 flip: base 189 floor 86 hold 147 per 100 frames, predicted 156 band 6 spread 4, frames base 96 floor 53 hold 48, hold frames after a tick 33/48, base frames after a tick 96/96 => cuts more
+glint overall idle: cuts as predicted
+glint overall flip: mixed
