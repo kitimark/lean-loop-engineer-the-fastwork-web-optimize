@@ -4722,6 +4722,36 @@
    "leanVerdict": "provable",
    "leanReason": "Check selection is a Lean function of the changed paths; 'a change to research/findings/ledger.json selects the ledger tests' is proved as findingsLedger_planned and ledger_selects_notes.",
    "hardening": "ledger-note-check"
+  },
+  {
+   "id": "inc-land-push-lane",
+   "at": "2026-10-29T12:00+07:00",
+   "title": "Our own pre-push hook broke the land path: fw land's CircleCI overflow push was refused as a push with no measuring lane",
+   "symptom": "Land of phone-feel-kit: 'circleci: unavailable: Command failed: git push origin ci/land-phone-feel-kit-ff48bd9', then 'REFUSED: ci push lane check: ci/land-phone-feel-kit-ff48bd9 (7559239): the tip message names no lane whose inputs changed, so only the seeder lane would run; lanes that would run: lean'. The land fell back to GitHub (ci/land-...-again) and passed.",
+   "cause": "CONFIRMED (apps/runner/src/land-remote.ts markerMessage and makePusher, apps/runner/src/ci-push.ts ciPushRefusals at ff48bd93a): when every leg goes to CircleCI the marker message carries no [ci:land] token, so on GitHub only the seeder lane (lean) would start; Lean Fw.Ci.Intent reasonOf returns noMeasuring and the hook, which runs inside the land's own git push, refused it.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/ci-push.ts",
+     "note": "the hook that refused the push"
+    },
+    {
+     "kind": "file",
+     "ref": "apps/runner/src/land-remote.ts",
+     "note": "makePusher, the land's push"
+    }
+   ],
+   "repro": "Run makePusher with legs {gh: [], cc: [...]} in a repo whose core.hooksPath is scripts/hooks: before land-push-lane the hook refuses the push of ci/land-<task>-<sha7>.",
+   "fix": {
+    "task": "land-push-lane",
+    "commits": [],
+    "note": "Lean Fw.Ci.Intent landCheck admits a ci push only through a verified land intent (the record fw land writes for its marker commit: branch, marker, single parent, tree, message, no lane but land, land process an ancestor of the hook); plain_no_measuring_refused, admitted_iff, land_admitted; golden pushlane.jsonl rows landBranch, marker, landCheck; TS twin in apps/runner/src/ci-push.ts, record I/O in apps/runner/src/land-intent.ts."
+   },
+   "regression": "Every land since ci-push-lane-check lost its CircleCI legs.",
+   "mistakeClass": "c-spec-gap",
+   "leanVerdict": "provable",
+   "leanReason": "The check that would have caught it: a test that sends the land's own pusher through the hook (now in apps/runner/test/ci-push-lane-check.test.ts); the admission itself is the Lean decision landCheck with one theorem per refusal branch.",
+   "hardening": "land-push-lane"
   }
  ]
 }

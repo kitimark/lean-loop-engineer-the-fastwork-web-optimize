@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { renderGuard } from "./land.ts";
+import { ancestors, readIntent, type LandIntent } from "./land-intent.ts";
+import { landBranch, markerMessage, type StartCtx } from "./land-remote.ts";
 
 export const MAIN_REF = "refs/heads/main";
 export const BASE = "origin/main";
@@ -44,6 +46,39 @@ type Guard = {
 };
 const sh = (cwd: string, ...a: string[]) => execFileSync("git", a, { cwd, encoding: "utf8", maxBuffer: 64 << 20, stdio: ["ignore", "pipe", "pipe"] }).trim();
 const linesOf = (t: string) => (t === "" ? [] : t.split("\n"));
+
+export type PushFacts = { sha: string; parents: string[]; tree: string; mergeTree: string; msg: string; ancestors: number[] };
+export type LandCheck = "ok" | "branch" | "marker" | "parent" | "tree" | "message" | "lanes" | "process";
+
+/** Lean `requested`: the message, ASCII upper case lowered, contains the token `[ci:<name>]`. */
+export const requested = (name: string, msg: string): boolean => msg.replace(/[A-Z]/g, (c) => c.toLowerCase()).includes(`[ci:${name}]`);
+
+const landMarker = (i: LandIntent): string => markerMessage({ task: i.task, mergeSha: i.merge, legs: i.legs ? { ...i.legs, cc: [] } : undefined } as StartCtx);
+
+/** Lean `landCheck`: the first identity check the push of `ref` with facts `f` fails against the land intent `i`, or "ok";
+ *  `laneNames` are the names of Lean `lanes`. */
+export function landCheck(i: LandIntent, ref: string, f: PushFacts, laneNames: string[]): LandCheck {
+  if (ref !== `refs/heads/${landBranch(i.task, i.merge, i.again)}`) return "branch";
+  if (f.sha !== i.marker) return "marker";
+  if (f.parents.length !== 1 || f.parents[0] !== i.merge) return "parent";
+  if (f.tree !== f.mergeTree) return "tree";
+  if (f.msg !== landMarker(i)) return "message";
+  if (!laneNames.every((n) => !requested(n, f.msg) || n === "land")) return "lanes";
+  if (!f.ancestors.includes(i.pid)) return "process";
+  return "ok";
+}
+
+/** `null` when no land intent names the pushed commit, else Lean `landCheck` over the facts read from git and `ps`. */
+export async function landAdmission(cwd: string, sha: string, remote: string, root: string = ROOT): Promise<{ task: string; check: LandCheck } | null> {
+  const i = readIntent(sh(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"), sha);
+  if (!i) return null;
+  const g = (await import(pathToFileURL(join(root, ".github/scripts/changed-inputs.mjs")).href)) as Guard;
+  const laneNames = g.loadIntent(root).lanes.lanes.map((l) => l.name);
+  const tree = (rev: string) => { try { return sh(cwd, "rev-parse", `${rev}^{tree}`); } catch { return ""; } };
+  const f: PushFacts = { sha, parents: sh(cwd, "rev-list", "--parents", "-n", "1", sha).split(" ").slice(1), tree: tree(sha), mergeTree: tree(i.merge),
+    msg: sh(cwd, "log", "-1", "--format=%B", sha), ancestors: ancestors() };
+  return { task: i.task, check: landCheck(i, remote, f, laneNames) };
+}
 
 /** The seeder workflow files, from the head line of the Lean push lane golden. */
 function seederFiles(root: string): string[] {
@@ -97,8 +132,14 @@ export async function ciPushRefusals(stdin: string, cwd: string, base: string = 
     if (rg.hits.length)
       out.push(`REFUSED: ci push render guard: ${base}..${remote.replace(/^refs\/(heads\/)?/, "")} (${sha.slice(0, 7)}) writes media outside snapshot/, and a later removal leaves the blob in history:${rg.hits.map((h) => `\n  ${h.path} (${h.media}) in ${h.commit}`).join("")}\nmove the other changes to a new branch from ${base} without these commits, or add the path with its reason to Fw.Land.RenderGuard.allowlist`);
     if (remote.startsWith("refs/heads/ci/")) {
+      let land: { task: string; check: LandCheck } | null = null;
+      try { land = await landAdmission(cwd, sha, remote); } catch (e) { console.error(`ci push land intent not read: ${String((e as Error).message ?? e).split("\n")[0]}`); }
+      if (land?.check === "ok") {
+        console.error(`ci push lane check: ${remote.slice("refs/heads/".length)} (${sha.slice(0, 7)}) is fw land's push for ${land.task} (land intent verified)`);
+        continue;
+      }
       const r = await laneRefusal(cwd, base, sha, remote);
-      if (r) out.push(r);
+      if (r) out.push(land ? `${r}\n  land intent of ${land.task} not verified: ${land.check}` : r);
     }
   }
   return out;
