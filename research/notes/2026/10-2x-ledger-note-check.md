@@ -18,7 +18,7 @@ Task ledger-note-check, mistake class c-late-check (m219 hero-exit-gate-clear, m
 | theorems | same | `ledgerInput_planned`, `ledgerInput_planStaged`, `findingsLedger_planned` (plan and staged plan, whatever else is staged or deleted), `ledgerInput_not` (other ledgers do not trigger), `plan_covers`/`plan_sound` extended |
 | Lean `ledgerNotesReads`, `localTests` third entry | `lean/Fw/Console/LandTier.lean` | the dry land's local tier selects `runner:ledger-notes` (ledger-merge + land-notes tests); `ledger_selects_notes`, `ledgerNotes_reads_ledger`, no fwcore build (`ledgerNotes_no_core`) |
 | golden | `packages/contracts/golden/ops/checkmap.jsonl` (3 cases), `golden/console/land-tier-local.jsonl` (5 cases) | TS replays them (`land-tier.test.ts`, `test-checkmap.mjs`) |
-| the rule | `apps/runner/src/land-notes.ts` `noteShapeProblems` | TS stand-in (no Lean spec of the shape yet), one rule for the commit check, the dry land and the tests |
+| the rule | `apps/runner/src/land-notes.ts` `noteShapeProblems` | TS stand-in (no Lean spec of the shape yet), one rule for the commit check and the dry land; the ledger test states it separately |
 | dry land | `ledgerNoteKeyCheck` in `apps/runner/src/land.ts` | also refuses a bad shape, in every dry land |
 | fixtures | `apps/runner/test/land-notes.test.ts`, `scripts/test-checkmap.mjs` section 3b | free-text entry, `gate` field, empty text, repeated key refused; real ledger untouched |
 
