@@ -4292,6 +4292,44 @@
         "research/notes/2026/10-2x-timed-m0-webkit.md"
       ],
       "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m219",
+      "classId": "c-late-check",
+      "title": "Builder of hero-exit-gate-clear landed a findings-ledger note the ledger test refuses; only the land's remote suite caught it",
+      "when": "2026-10-29 (land of hero-exit-gate-clear)",
+      "who": "builder",
+      "symptom": "The land's remote suite refused 'every note names a finding by its candidate, carries task, field and text': the note had field 'gate', which is not a findings field.",
+      "rootCause": "The note rule (entry names a finding's candidate, field is a findings field) lived only in apps/runner test/ledger-merge.test.ts, which no builder check, commit checkmap or dry land selected when research/findings/ledger.json changed; the remote land suite ran it last.",
+      "detectedBy": "the land's remote suite (apps/runner ledger-merge test)",
+      "cost": "one refused land and one extra round",
+      "leanVerdict": "provable",
+      "leanReason": "Which checks a changed path selects is a Lean function (Fw.Ops.CheckMap plan, Fw.Console.LandTier selectLocal); 'a change to the findings ledger selects the ledger tests' is a membership theorem.",
+      "empiricalCheck": "stage a ledger whose note has a free-text entry or a field outside the findings fields: scripts/checkmap.mjs --staged and the dry land must refuse it",
+      "evidence": [
+        "research/notes/2026/10-2x-ledger-note-check.md",
+        "docs/team/incidents/ledger.json inc-ledger-note-late"
+      ],
+      "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m220",
+      "classId": "c-late-check",
+      "title": "Builder of cols-probe landed a findings-ledger note the ledger test refuses; only the land's remote suite caught it",
+      "when": "2026-10-29 (land of cols-probe)",
+      "who": "builder",
+      "symptom": "The same remote-suite test refused the land: the note's entry was free text, not the candidate of a finding.",
+      "rootCause": "The note rule (entry names a finding's candidate, field is a findings field) lived only in apps/runner test/ledger-merge.test.ts, which no builder check, commit checkmap or dry land selected when research/findings/ledger.json changed; the remote land suite ran it last.",
+      "detectedBy": "the land's remote suite (apps/runner ledger-merge test)",
+      "cost": "one refused land and one extra round",
+      "leanVerdict": "provable",
+      "leanReason": "Which checks a changed path selects is a Lean function (Fw.Ops.CheckMap plan, Fw.Console.LandTier selectLocal); 'a change to the findings ledger selects the ledger tests' is a membership theorem.",
+      "empiricalCheck": "stage a ledger whose note has a free-text entry or a field outside the findings fields: scripts/checkmap.mjs --staged and the dry land must refuse it",
+      "evidence": [
+        "research/notes/2026/10-2x-ledger-note-check.md",
+        "docs/team/incidents/ledger.json inc-ledger-note-late"
+      ],
+      "evidenceStatus": "CONFIRMED"
     }
   ],
   "dropped": [

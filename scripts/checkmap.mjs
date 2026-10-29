@@ -12,7 +12,7 @@
 //   node scripts/checkmap.mjs --tracked       every tracked file is mapped to a kind (no command runs)
 //   node scripts/checkmap.mjs --paths a b ..  these paths
 //   --strict: a missing tool (exit 127) or a missing fwcore fails instead of being skipped.
-//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|preset|tsc|workflow> <args..>   our own checks (argv emitted by Lean).
+//   node scripts/checkmap.mjs file <json|jsonl|ts|graph|ledger|preset|tsc|workflow> <args..>   our own checks (argv emitted by Lean).
 //                                             With --staged, modes json, jsonl, ts and graph read each file's index blob
 //                                             (`:path`), and mode preset exports the index inputs of Fw.Preset.Gen into a
 //                                             temp tree and runs its --check there. Mode tsc and the tools Lean names
@@ -169,6 +169,15 @@ async function fileMode([mode, ...files]) {
       let text;
       try { text = source(top, f); } catch (e) { fail(f, e); continue; }
       for (const p of checkGraph(text)) fail(`${f} task`, p);
+    }
+    return bad ? 1 : 0;
+  }
+  if (mode === "ledger") {  // the findings ledger's notes (Lean CheckMap.ledgerNotes; the rule is apps/runner/src/land-notes.ts, also run by the dry land and the ledger tests)
+    const { noteShapeProblems } = await import("../apps/runner/src/land-notes.ts");
+    for (const f of files) {
+      let text;
+      try { text = source(top, f); } catch (e) { fail(f, e); continue; }
+      for (const p of noteShapeProblems(text)) fail(f, p);
     }
     return bad ? 1 : 0;
   }
