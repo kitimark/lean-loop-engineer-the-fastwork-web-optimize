@@ -57,6 +57,7 @@ function summarize(rows) {
     s.frames++;
     if (!r.ok) s.failing++;
     if (r.changed > s.maxChanged) { s.maxChanged = r.changed; s.worstT = r.t; }
+    if (r.t === 1800) s.settledChanged = r.changed;
     s.maxChannel = Math.max(s.maxChannel, r.maxChannel);
     s.maxWithText = Math.max(s.maxWithText, r.changedWithText ?? 0);
     s.maxRectDelta = Math.max(s.maxRectDelta, r.maxRectDelta);
@@ -79,7 +80,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const summary = { bound, chromiumVsWebkit: summarize(cross), chromiumFaithfulVsLogical: summarize(sameCr), chromium: cr.idx.browser, webkit: wk.idx.browser,
     verdict: { fixWithinBound: cross.filter((r) => r.arm === 'logical').every((r) => r.ok), chromiumUnchanged: sameCr.every((r) => r.ok),
       faithfulExceedsBound: cross.some((r) => r.arm === 'faithful' && !r.ok) }, frames: cross };
-  for (const [k, s] of Object.entries(summary.chromiumVsWebkit)) console.log(`${k.padEnd(22)} frames ${s.frames} failing ${s.failing} max ${s.maxChanged} (allowed ${s.allowed}) with text ${s.maxWithText} at t=${s.worstT} rect ${s.maxRectDelta}px`);
+  for (const [k, s] of Object.entries(summary.chromiumVsWebkit)) console.log(`${k.padEnd(22)} frames ${s.frames} failing ${s.failing} max ${s.maxChanged} settled ${s.settledChanged} (allowed ${s.allowed}) with text ${s.maxWithText} at t=${s.worstT} rect ${s.maxRectDelta}px`);
   for (const [k, s] of Object.entries(summary.chromiumFaithfulVsLogical)) console.log(`chromium ${k.padEnd(22)} max ${s.maxChanged} (allowed ${s.allowed})`);
   console.log(JSON.stringify(summary.verdict));
   if (opt('out', '')) writeFileSync(resolve(opt('out', '')), `${JSON.stringify(summary, null, 1)}\n`);

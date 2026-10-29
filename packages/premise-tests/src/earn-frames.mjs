@@ -22,7 +22,7 @@ export function pageHtml(arm, fontUrl) {
   const css = readFileSync(resolve(here, '../../../apps/site/src/parts/nav/nav.module.css'), 'utf8').replace(/:global\(([^)]*)\)/g, '$1');
   return `<!doctype html><meta charset="utf-8"><style>
 @font-face { font-family: 'Site Sans'; src: url(${fontUrl}); font-weight: 100 900; }
-html, body { margin: 0; background: #fff; font-family: 'Site Sans', sans-serif; overflow: hidden; }
+html, body { margin: 0; background: #fff; font-family: 'Site Sans', sans-serif; overflow: hidden; text-rendering: geometricPrecision; }
 ${css}
 .lang { background: #fff; color: #1f2937; border: 1px solid #e5e5e5; }
 </style>

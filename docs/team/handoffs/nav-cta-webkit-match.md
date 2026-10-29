@@ -1,5 +1,5 @@
 Branch: worktree-wf_1f25b75f-c5b-1 (CI ref ci/nav-cta-webkit-match). Worktree: .claude/worktrees/wf_1f25b75f-c5b-1. Last sha: `git log -1`.
-CI runs: 40852349397 visual-diff (push 1 of 3, head 2ae7abb96) in progress; 40852349320 lean success.
+CI runs: 40852349397 visual-diff success (push 1 of 3, head 2ae7abb96): Linux settled earn width differs 3 px between engines (Chromium integer text metrics), so the absolute bound fails on both arms; fix: text-rendering geometricPrecision in the capture page, push 2; 40852349320 lean success.
 Finding (MEASURED locally, Playwright WebKit 27.2 vs Chrome 155, real built site and snapshot original): the cause is already known and already has a flag.
 The faithful rule (and the unmodified snapshot) lists `padding-inline`; WebKit never starts that transition (ledger n=73, Styleable.cpp:553-566@862f17d), so the
 earn side padding snaps 0 -> 24 px in the flip frame and the language button jumps 48 px. `nav:earn-logical` (listed longhands) eases it like Chromium; accepted by
