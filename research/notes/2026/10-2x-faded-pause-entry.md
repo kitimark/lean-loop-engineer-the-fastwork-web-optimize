@@ -43,7 +43,7 @@ and platform:faded-pause. Source: packages/contracts/golden/preset/v2-proved.dec
   `Gen.record ["40900090514", <sha>, "-", trajectory-chromium, trajectory-playwright-webkit, trajectory-apple]`.
   All five cells pass:
 
-| engine | walk | outcome | groups (content / coverage) | widths per group |
+| engine | walk | outcome | groups (content / coverage) | widths per content / coverage list |
 |---|---|---|---|---|
 | chromium | hero | pass | 0 | - |
 | chromium | morph | pass | 3 (3 / 0) | 1 |
@@ -52,8 +52,11 @@ and platform:faded-pause. Source: packages/contracts/golden/preset/v2-proved.dec
 | mac-webkit | morph | pass | 42 (4 / 42) | 1 |
 
 Source: the v2-proved.trajectory.jsonl rows whose `run` is 40900090514.
-- `Fw.Gate.Trajectory.outcome` fails a cell only when one group repeats at 2 or more widths (`repeats`). Every group
-  here sits at a single width.
+- `Fw.Gate.Trajectory.outcome` tests content and coverage repeats separately (lean/Fw/Gate/Trajectory.lean:2985-2986):
+  a content list at 2 or more widths fails the cell, a coverage list at 2 or more widths leaves it unjudged. In every
+  group the content units sit at one width and the coverage units sit at one width. In the mac-webkit morph row
+  (v2-proved.trajectory.jsonl:89), logo.color has content [390] and coverage [1280]; earn.opacity, earn.max-width and
+  nav.background-color have content [640] and coverage [1280].
 - Chromium: nav.rect, nav.background-color and nav.transform.shift at 1280 (steps close@0 and close-hold@0).
 - mac-webkit: 4 content groups at 390 or 640, and coverage groups from one open@2 step at 1280.
 - The run summaries count these units as "new" against the faithful arm (summary-*.md in trajectory-chromium and
