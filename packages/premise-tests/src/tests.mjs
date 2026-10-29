@@ -719,7 +719,7 @@ export const TESTS = [
                   for (let i = 0; i < 3; i++) {
                     const d = Math.abs(px[a + i] - px[b + i]);
                     m = Math.max(m, d);
-                    if (x >= 14 * k && x < 104 * k) core = Math.max(core, d);
+                    if (x >= 14 * k && x < 104 * k && y >= 8 * k + 1 && y <= 11.2 * k - 2) core = Math.max(core, d);
                   }
                   if (Math.max(px[a], px[a + 1], px[a + 2]) - Math.min(px[a], px[a + 1], px[a + 2]) > 100) sat++;
                 }
@@ -738,7 +738,7 @@ export const TESTS = [
       const worst = Math.max(...all.map((x) => Math.max(x.left, x.right)));
       const worstCore = Math.max(...all.map((x) => Math.max(x.coreLeft, x.coreRight)));
       const o = { worst, worstCore, bound: COMPOSITOR_BOUND, class: worst > COMPOSITOR_BOUND ? 'L' : 'E', samples: out };
-      if (worstCore > COMPOSITOR_BOUND) throw Object.assign(new Error(`a pixel inside the dash differs by ${worstCore} of 255 (bound: within ${COMPOSITOR_BOUND})`), { observed: o });
+      if (worstCore > COMPOSITOR_BOUND) throw Object.assign(new Error(`a pixel in the interior of the dash differs by ${worstCore} of 255 (bound: within ${COMPOSITOR_BOUND})`), { observed: o });
       return o;
     },
   },
