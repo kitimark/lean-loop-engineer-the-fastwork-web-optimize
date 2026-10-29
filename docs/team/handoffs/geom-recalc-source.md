@@ -1,19 +1,18 @@
-branch worktree-wf_bb119790-00f-1 (ci branch ci/geom-recalc-source), worktree .claude/worktrees/wf_bb119790-00f-1, last commit ee443d434 (pushed; push 3 of 3, none left)
-CI runs: wktr 40792245957 (push 1, c536e5c0f, success, 3 jobs, verdict engine-internal in idle and flip in all 3 jobs; data in results/geom-recalc-source/r1);
-wktr 40795367330 (push 2, 1576aad26, success, 3 jobs: engine-internal again; pre-callback recalcs = all recalcs, rs-idle-cancel (every animation cancelled) still 93-100 per 100; data r2);
-wktr 40797685228 (push 3, ee443d434, in_progress: diagnostic arms rs-idle-hide, rs-idle-empty).
-Run 1 facts (MEASURED): all-paused idle 95-103 recalcs per 100 frames, every recalc updates 0 elements (lastStyleUpdateSize 0), no mutation or raf key, only a gc timer interval; swallowing page rAF or timers leaves 98-100.
+branch worktree-wf_bb119790-00f-1 (ci branch ci/geom-recalc-source), worktree .claude/worktrees/wf_bb119790-00f-1, results commit 60bab8937 (CI pushes: 3 of 3 used, none left)
+CI runs, all complete (success, 3 WKTR jobs each, mode recalc-thr-off, pref OFF):
+- 40792245957 (c536e5c0f) r1; 40795367330 (1576aad26) r2; 40797685228 (ee443d434) r3. Data in results/geom-recalc-source/r1..r3, table.txt, verdict.txt.
 
 Task geom-recalc-source (graph r560): name the source of the one style recalc per frame left when every running animation is paused (WKTR, pref OFF).
+Result (MEASURED): Lean verdict engine-internal for idle in 9 of 9 jobs, flip in 7 of 9 (2 no-frames, flips did not engage in r3 j1 and j2); overall engine-internal. No mutation or rAF key in any recalc frame; every readable recalc updates 0 elements; swallowing rAF or timers and cancelling all animations leave 93-100 per 100; hiding body leaves 0-11, empty body 0.
+Next step: task geom-recalc-bisect (probe only): hide one body child at a time, then one [data-fw] part, find the subtree taking idle below 25 per 100; then read the WebKit path. No page-side fix.
+
 State
-- Lean decision lean/Fw/Device/RecalcSource.lean (thresholds fixed before data, golden packages/contracts/golden/device/recalc-source.jsonl, check.sh job + Trigger row wired). Committed 96cd00fe9.
-- TS stand-in packages/measure-wktr/src/recalc-source.mjs (replays the golden; jobOf report glue is not golden-replayed); probe arms rs-* in src/mid-page.mjs (rsArm, rsWindow, wrappers for rAF, timers, CSSOM, MutationObserver); mode recalc-thr-off in src/accel-cli.mjs; temporary ACCEL_MODES edit in .github/workflows/wktr.yml (REVERT before land).
-- Verified: measure-wktr package tests 102 pass (fw slot). Probe never ran in a real page yet: the push is the first run; a page error shows as report.error / rows missing.
+- Lean decision lean/Fw/Device/RecalcSource.lean (thresholds fixed before data), golden packages/contracts/golden/device/recalc-source.jsonl, check.sh job and Trigger row wired.
+- TS stand-in packages/measure-wktr/src/recalc-source.mjs (replays the golden; jobOf is glue, not replayed); probe in src/mid-page.mjs (rsArm, rsWindow); mode recalc-thr-off in src/accel-cli.mjs. wktr.yml mode edit reverted.
+- Note research/notes/2026/10-2x-geom-recalc-source.md, ledger note added, land.ts read-list has the golden.
+- Verified before the final steps: measure-wktr package tests 102 pass (fw slot).
 Open
-- Wait: pnpm -s fw ci wait --branch ci/geom-recalc-source --workflow wktr; fetch with pnpm -s fw ci <runId>; 3 jobs needed; at most 2 more pushes.
-- Verdict per job and overall: node-side recalcTally prints it in the run log; store results under results/geom-recalc-source/.
-- Note research/notes/2026/10-2x-geom-recalc-source.md, ledger note, revert wktr.yml, check.sh + tests via fw slot, ci-paths + land-inputs tests, required reads (LandSpeed.checkShReads, land.ts), merge main, plan lint, dry land (VERDICT dry geom-recalc-source), fw review ready.
+- check.sh, package tests, ci-paths test, land-inputs test via fw slot after the last commit; merge main; plan lint; dry land (VERDICT dry geom-recalc-source); fw review ready with run:<id> evidence.
 Conventions
-- Frame = stretch between two MessageChannel tasks after a rendering update; keys kind:what (mut/raf/timer/cssom/anim); page interns keys in rs.kt.
-- Block arms run last (they swallow page callbacks). Dirty-element scans are not in the verdict.
-Read first: lean/Fw/Device/RecalcSource.lean header, then mid-page.mjs "Task geom-recalc-source".
+- Frame = stretch between two MessageChannel tasks after a rendering update; keys kind:what; page interns keys in rs.kt. cancel/hide/empty are diagnostics outside the Lean decision and run last.
+Read first: the note above, then lean/Fw/Device/RecalcSource.lean header, then mid-page.mjs "Task geom-recalc-source".
