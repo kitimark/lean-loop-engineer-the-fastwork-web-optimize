@@ -642,7 +642,7 @@ jobs:
       # strips. Review material for a person, no verdict; artifact frames-apple-<leg>.
       - id: fs
         name: The flag of the frames run (from the head commit message)
-        if: ${{ contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
+        if: ${{ contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') && !contains(github.event.head_commit.message, '[earn-frames]') }}
         env:
           HEAD_MSG: ${{ github.event.head_commit.message }}
         run: |
@@ -652,7 +652,7 @@ jobs:
           echo "search=$search" >> "$GITHUB_OUTPUT"
           echo "frames search: $search"
       - name: Capture the nav band through both pushes (screenshots, then the screencast), then compose the strips
-        if: ${{ contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
+        if: ${{ contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') && !contains(github.event.head_commit.message, '[earn-frames]') }}
         env:
           ENGINE: ${{ matrix.engine }}
           WIDTHS: ${{ matrix.widths }}
@@ -667,7 +667,7 @@ jobs:
           node src/trajectory/frames.mjs capture --engine "$ENGINE" --widths "$WIDTHS" --search "$SEARCH" --source screencast --reps 3 --out out/frames/raw-screencast
           node src/trajectory/frames.mjs strips --in out/frames/raw-screenshot,out/frames/raw-screencast --out out/frames/strips --run "$RUN_ID"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') }}
+        if: ${{ (!cancelled()) && steps.stale.outcome == 'skipped' && contains(github.event.head_commit.message, '[frames:') && !contains(github.event.head_commit.message, '[transitions:') && !contains(github.event.head_commit.message, '[earn-frames]') }}
         with:
           name: frames-apple-${{ matrix.leg }}
           path: packages/gate-breakpoints/out/frames
