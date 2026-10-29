@@ -284,7 +284,7 @@
    ],
    "missingWhy": [],
    "premises": [
-    "RG11 progress = clamp((y − T)/max(1, h − v)) with engine quanta, a hypothesis of consumer_eq_s: CONFIRMED for h − v ≥ 1 with v the scrollport height (WebKit ViewTimeline.cpp:509-511,535,564,578-579@862f17d; Chromium timeline_range.cc:45-85, view_timeline.cc:335-341@f842f52; quantum 1/16 px in cc/animation/scroll_timeline.cc:128-130@f842f52, float in WebKit); INFERRED for h − v < 1 and for a scrollport that changes height (dynamic toolbars), research/notes/2026/10-2x-hero-exit-proofs.md",
+    "RG11 progress = clamp((y − T)/max(1, h − v)) with engine quanta, a hypothesis of consumer_eq_s: CONFIRMED for h − v ≥ 1 with v the scrollport height (WebKit ViewTimeline.cpp:509-511,535,564,578-579@862f17d; Chromium timeline_range.cc:73-89, view_timeline.cc:335-341@f842f52; quantum 1/16 px in cc/animation/scroll_timeline.cc:128-130@f842f52, float in WebKit); INFERRED for h − v < 1 and for a scrollport that changes height (dynamic toolbars), research/notes/2026/10-2x-hero-exit-proofs.md",
     "blur cannot be composited in Chromium (bit 12): CONFIRMED compositor_animations.cc:405-417@f842f52",
     "custom properties are never accelerated in WebKit: CONFIRMED StyleInterpolation.cpp:256-265@862f17d",
     "threadedScrollDriven on in the WebKit lane, shipping Safari OPEN (R7/O2)",
