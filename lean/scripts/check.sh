@@ -145,6 +145,7 @@ run_group() {
   job "device-recalc-source golden check" sh -c "printf 'import Fw.Device.RecalcSource\\n#eval Fw.Device.RecalcSource.checkRepo\\n' | lake env lean --stdin"
   job "device-recalc-bisect golden check" sh -c "printf 'import Fw.Device.RecalcBisect\\n#eval Fw.Device.RecalcBisect.checkRepo\\n' | lake env lean --stdin"
   job "device-glint-hold golden check" sh -c "printf 'import Fw.Device.GlintHold\\n#eval Fw.Device.GlintHold.checkRepo\\n' | lake env lean --stdin"
+  job "device-glint-compositor golden check" sh -c "printf 'import Fw.Device.GlintHoldCompositor\\n#eval Fw.Device.GlintHoldCompositor.checkRepo\\n' | lake env lean --stdin"
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"
@@ -231,6 +232,7 @@ run_group() {
   job "platform-entries-fill golden check" lake env lean --run scripts/PlatformEntriesFillGolden.lean --check ../packages/contracts/golden/parts/platform-entries-fill.jsonl
   job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl
   job "platform-glint-hold golden check" sh -c 'printf "import Fw.Parts.PlatformGlintHoldGolden\n#eval Fw.Parts.PlatformGlintHoldGolden.gen [\"--check\"]\n" | lake env lean --stdin'
+  job "platform-glint-compositor golden check" sh -c 'printf "import Fw.Parts.PlatformGlintCompositorGolden\n#eval Fw.Parts.PlatformGlintCompositorGolden.gen [\"--check\"]\n" | lake env lean --stdin'
   job "platform-faded-pause golden check" lake env lean --run scripts/PlatformFadedPauseGolden.lean --check ../packages/contracts/golden/parts/platform-faded-pause.jsonl
   job "gpu-elapsed golden check" lake env lean --run scripts/GpuElapsedGolden.lean --check ../results/gpu-safari/lane/elapsed.golden.jsonl
   job "image-arm golden check" lake env lean --run scripts/ImageArmGolden.lean --check ../packages/contracts/golden/gate/image-arm.jsonl

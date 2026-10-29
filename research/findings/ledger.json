@@ -4507,6 +4507,38 @@
    "userDecision": "pending"
   },
   {
+   "id": "platform.glint:compositor",
+   "n": 95,
+   "part": "platform.glint",
+   "flags": [
+    "platform.glint:compositor"
+   ],
+   "flag": "platform.glint:compositor",
+   "visClass": "L",
+   "candidate": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "status": "partly-proved",
+   "chromium": "not measured",
+   "webkit": "not measured",
+   "visual": "L, provisional from a local debug run (not a result): the leftmost cap column differs by up to 41 of 255 on WebKit at device ratio 1 against the bound 12; CI premise glint.compositor-pixels decides",
+   "mechanism": "INFERRED: the original ticks the SMIL timeline of each dash svg 60 times a second (WebKit SMILTimeContainer.cpp 1/60 s timer, then SVGAttributeAnimator, SVGLinearGradientElement, gradient invalidation); a CSS transform animation on an HTML box with linear easing runs on the compositor (WebKit KeyframeEffect.cpp canBeAccelerated, Chromium compositor_animations.cc). Lean: stops_eq (same stop positions at every time), variant_no_smil, variant_no_writes.",
+   "leanFor": [
+    "Fw.Parts.PlatformGlintCompositor.stops_eq",
+    "Fw.Parts.PlatformGlintCompositor.shiftAt_eq",
+    "Fw.Parts.PlatformGlintCompositor.variant_no_smil",
+    "Fw.Parts.PlatformGlintCompositor.variant_no_writes",
+    "Fw.Device.GlintHoldCompositor.judgeC_atFloor",
+    "Fw.Device.GlintHoldCompositor.atFloor_below_base"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [],
+   "premises": [],
+   "v1Evidence": "",
+   "lesson": "A moving gradient is a translation of a fixed gradient (glint_translate), so it can leave the SMIL timeline for a transform animation; the price is the edge rasterisation of the clip.",
+   "next": "CI premise and WKTR lane results (note research/notes/2026/10-2x-glint-compositor.md), then the user's look review",
+   "evidence": "research/notes/2026/10-2x-glint-compositor.md",
+   "userDecision": "pending"
+  },
+  {
    "id": "morph.geom:on",
    "n": 91,
    "part": "morph.geom",

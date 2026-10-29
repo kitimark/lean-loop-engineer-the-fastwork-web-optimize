@@ -32,6 +32,17 @@
         "limit": "same look: the hold sample equals the original at every elapsed time (hold_eq_faithful). Per side 3 of 5 key-time segments hold, where only <set> pieces are active and no non-<set> animation ticks (ticking_hold); never more ticking than the original (ticking_le). Premises (INFERRED, tested by the look premise in both engines): the begin chain keeps exactly one piece per attribute active at every instant (the begin of a piece is the end of the one before it); pauseAnimations and the resume seek of the one clock writer (platform.glint/pause.ts createPause, as for platform:faded-pause) keep the sampled values equal (golden run, hold.test.ts)"
       }
     },
+    "compositor": {
+      "kind": "proposal",
+      "tier": "T0",
+      "visClass": "L",
+      "provenance": {
+        "lean": "Fw.Parts.PlatformGlintCompositor stops_eq, shiftAt_eq, stops_eq_all, variant_no_smil, variant_no_writes, faithful_writes; keyframes generated into compositor.gen.ts by PlatformGlintCompositorGolden",
+        "webkit": "Source/WebCore/animation/KeyframeEffect.cpp:1970-2022 canBeAccelerated (replace composite, linear timing, transform) @862f17dcae0a; LayerBasedSVGEngineEnabled default false (Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:4592-4604), so a transform on an SVG child is not accelerated and the moving layer is an HTML box",
+        "chromium": "third_party/blink/renderer/core/animation/compositor_animations.cc:315-335 (transform on a non-SVG box starts on the compositor) @f842f52",
+        "limit": "look change (L), for the user's visual review, never into a preset (task glint-compositor): the dash is an HTML box with a clip-path of the stadium shape holding one fixed 120 px gradient layer moved by translateX (linear, 5 s, six keyframes from the Lean golden) instead of an SVG line stroked with an animated gradient. Same stop positions at every time (stops_eq); the engines rasterise the two edges differently, so the cap pixels of the dash end can differ (bound fixed before the data: 12 of 255 per channel, premise glint.compositor-pixels). Premises (INFERRED, tested): no SMIL tick and no main-thread write per frame needs the engine to run the transform animation on the compositor (WKTR lane, pref OFF); the start is the effect's first frame, not the beginElement of the original (at most one frame of phase)"
+      }
+    },
     "probe-off": {
       "kind": "probe",
       "provenance": {

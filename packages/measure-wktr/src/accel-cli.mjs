@@ -11,6 +11,7 @@ import { SWEEP_ARMS, sweepTally } from './sweep-pause.mjs';
 import { RS_ARMS, recalcTally } from './recalc-source.mjs';
 import { BS_ARMS, bisectTally } from './recalc-bisect.mjs';
 import { glintLines } from './glint-hold.mjs';
+import { glintCompositorLines } from './glint-compositor.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -24,6 +25,7 @@ export const MODES = {
   'bisect-thr-off': 'morph.geom:on,morph.tween:geom-timed',
   'glint-base-thr-off': 'morph.geom:on,morph.tween:geom-timed',
   'glint-hold-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform.glint:hold-freeze',
+  'glint-comp-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform.glint:compositor',
 };
 export const MID_AT = [0.3, 0.5, 0.8];
 export const MID_ARMS = ['all', 'idle', 'no-translate', 'no-transform', 'none', 'all-again'];
@@ -32,7 +34,7 @@ export const isMid = (mode) => mode === 'mid' || mode === 'mid-thr-off';
 export const isSweep = (mode) => mode === 'sweep-thr-off';
 export const isRecalc = (mode) => mode === 'recalc-thr-off';
 export const isBisect = (mode) => mode === 'bisect-thr-off';
-export const isGlint = (mode) => mode === 'glint-base-thr-off' || mode === 'glint-hold-thr-off';
+export const isGlint = (mode) => mode === 'glint-base-thr-off' || mode === 'glint-hold-thr-off' || mode === 'glint-comp-thr-off';
 export const GLINT_BASE_ARMS = ['rs-idle', 'rs-idle-smil', 'rs-idle', 'rs-flip', 'rs-flip-smil', 'rs-flip'];
 export const GLINT_HOLD_ARMS = ['rs-idle', 'rs-flip'];
 export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true };
@@ -113,6 +115,9 @@ async function main() {
             try { for (const l of bisectTally(got.report)) console.log(`${mode} pass ${p} ${l}`); } catch (e) { console.log(`${mode} pass ${p}: bisect summary failed ${String(e.message).slice(0, 120)}`); }
           }
           if (isGlint(mode)) glintReports.set(`${mode}:${p}`, got.report);
+          if (isGlint(mode) && glintReports.has(`glint-base-thr-off:${p}`) && glintReports.has(`glint-comp-thr-off:${p}`)) {
+            try { for (const l of glintCompositorLines(`${v.label} pass ${p}`, glintReports.get(`glint-base-thr-off:${p}`), glintReports.get(`glint-comp-thr-off:${p}`))) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: glint compositor summary failed ${String(e.message).slice(0, 120)}`); }
+          }
           if (isGlint(mode) && glintReports.has(`glint-base-thr-off:${p}`) && glintReports.has(`glint-hold-thr-off:${p}`)) {
             try { for (const l of glintLines(`${v.label} pass ${p}`, glintReports.get(`glint-base-thr-off:${p}`), glintReports.get(`glint-hold-thr-off:${p}`))) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: glint summary failed ${String(e.message).slice(0, 120)}`); }
           }
