@@ -4518,9 +4518,9 @@
    "candidate": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
    "status": "partly-proved",
    "chromium": "not measured",
-   "webkit": "not measured",
-   "visual": "L, provisional from a local debug run (not a result): the leftmost cap column differs by up to 41 of 255 on WebKit at device ratio 1 against the bound 12; CI premise glint.compositor-pixels decides",
-   "mechanism": "INFERRED: the original ticks the SMIL timeline of each dash svg 60 times a second (WebKit SMILTimeContainer.cpp 1/60 s timer, then SVGAttributeAnimator, SVGLinearGradientElement, gradient invalidation); a CSS transform animation on an HTML box with linear easing runs on the compositor (WebKit KeyframeEffect.cpp canBeAccelerated, Chromium compositor_animations.cc). Lean: stops_eq (same stop positions at every time), variant_no_smil, variant_no_writes.",
+   "webkit": "WKTR of the iOS 26.5 Simulator build, threaded-animations pref OFF, 3 jobs, run 40833327416 (results/glint-compositor/r1, not phone time). Idle recalcs per 100 frames: base 102/100/100, floor (every svg timeline paused) 0/0/0, compositor 0/0/0 -> within the floor band in 3 of 3 jobs (Lean Fw.Device.GlintHoldCompositor, rule decided before the data). Flip: base 193/232/185, floor 92/81/74, compositor 94/85/90 -> within the floor band, within, cuts partly; overall flip mixed. MEASURED",
+   "visual": "L (look change for the user's review): look premise glint.compositor-pixels run 40833327444, both engines, dpr 1 and 2, 27 times: the stop positions are equal by Lean stops_eq and inside the dash (from 2 px after each end) no channel differs by more than the bound 12 of 255 (fixed before the data); the round-cap columns of the dash ends differ by 35 to 94 of 255 (Chromium 156 worst 41 at dpr 1, 94 at dpr 2; WebKit 27.2 worst 35, 79) because the engines paint the stroked cap with less coverage than the exact clip shape. Never into a preset",
+   "mechanism": "INFERRED: the original ticks the SMIL timeline of each dash svg 60 times a second (WebKit SMILTimeContainer.cpp 1/60 s timer, then SVGAttributeAnimator, SVGLinearGradientElement, gradient invalidation); a CSS transform animation with linear easing on an HTML box is run by the compositor (WebKit KeyframeEffect.cpp canBeAccelerated, Chromium compositor_animations.cc), so the page does no SMIL tick and no per-frame style write. MEASURED (WKTR, pref OFF): idle recalcs 100 -> 0 per 100 frames, the all-paused floor. Lean: stops_eq (same stop positions at every time), variant_no_smil, variant_no_writes.",
    "leanFor": [
     "Fw.Parts.PlatformGlintCompositor.stops_eq",
     "Fw.Parts.PlatformGlintCompositor.shiftAt_eq",
@@ -4531,11 +4531,13 @@
    ],
    "leanAgainst": [],
    "missingWhy": [],
-   "premises": [],
+   "premises": [
+    "the transform animation runs on the compositor in both engines: INFERRED from source, the WKTR idle recalcs of 0 per 100 frames agree (internals.acceleratedAnimationsForElement was not read for the glint layers)"
+   ],
    "v1Evidence": "",
-   "lesson": "A moving gradient is a translation of a fixed gradient (glint_translate), so it can leave the SMIL timeline for a transform animation; the price is the edge rasterisation of the clip.",
-   "next": "CI premise and WKTR lane results (note research/notes/2026/10-2x-glint-compositor.md), then the user's look review",
-   "evidence": "research/notes/2026/10-2x-glint-compositor.md",
+   "lesson": "A moving gradient is a translation of a fixed gradient (glint_translate), so it can leave the SMIL timeline for a transform animation and the idle style recalcs fall to the paused-timeline floor; the price is the edge rasterisation of the clip (class L).",
+   "next": "the user's look review of the dash end caps (class L); not a preset member; phone not measured",
+   "evidence": "research/notes/2026/10-2x-glint-compositor.md; runs 40833327416 (WKTR), 40833327444 (premise)",
    "userDecision": "pending"
   },
   {
@@ -5539,6 +5541,12 @@
    "task": "hero-exit-anim-units",
    "field": "mechanism",
    "text": "Note research/notes/2026/10-2x-hero-exit-anim-units.md.\nCONFIRMED (source): style is resolved per element in both engines; the compositor tick and the keyframe apply are per animation (WebKit KeyframeEffect.cpp:2129-2132, Node.cpp:1006-1024, StyleTreeResolver.cpp:1160-1185, KeyframeEffectStack.cpp:141-182@862f17d; Blink element.cc:7419-7430, style_resolver.cc:1362-1364, css_animations.cc:2499@f842f52).\nCONFIRMED (Lean): HeroExitOpt counts one animation per CSS name, 2N + 5 in both bands (animCount_eq). WebKit: against the per-consumer list wkOrigChanges the variant restyles the same N + 2 elements (wk_style_elems) and its style units equal 2N + 5 (was a strict drop); the real original also resolves the hero subtree through the inherited --exit-opacity (WebKit StyleChange.cpp:42-43, StyleTreeResolver.cpp:306-307@862f17d, not modelled on WebKit), so per element WebKit style still drops; wk_trade stays strict through the script pass. Chromium lane: style + (N + 2), props + (N + 3) (was + [not l], + 1 + [not l]); per element the ride-along is a strict subset (cr_lane_style_elems). Real Chrome and the golden predictions are unchanged; the WebKit style footprint sign is now same and disagrees with the phone count (fewer frames per run, INFERRED)."
+  },
+  {
+   "entry": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "task": "glint-compositor",
+   "field": "webkit",
+   "text": "glint-compositor (MEASURED, CI WKTR of the iOS 26.5 Simulator build, pref OFF, 3 jobs, run 40833327416; note research/notes/2026/10-2x-glint-compositor.md; Lean lean/Fw/Device/GlintHoldCompositor.lean decided before the data): idle style recalcs per 100 frames fall from 100-102 (base) to 0 (compositor), the all-paused floor, in 3 of 3 jobs (verdict within the floor band); flip 193/232/185 base, 74-92 floor, 94/85/90 compositor (within, within, cuts partly; overall mixed). Look: class L, the dash end caps differ by 35 to 94 of 255 in both engines (premise glint.compositor-pixels run 40833327444); inside the dash within the bound 12. WKTR is not iOS Safari; no phone run."
   }
  ]
 }
