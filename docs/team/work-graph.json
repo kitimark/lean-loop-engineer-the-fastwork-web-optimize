@@ -23521,6 +23521,54 @@
     "docs/team/handoffs/hero-exit-gate-clear.md"
    ],
    "evidence": "53f95be"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "geom-recalc-source",
+   "owner": "measure-engineer",
+   "stream": "measure",
+   "deps": [
+    "geom-sweep-paused"
+   ],
+   "title": "Name the WebKit style recalc that remains at 1 per frame with every animation paused (geom-sweep-paused): WKTR pref OFF, all-paused idle and flip arms with a MutationObserver count by target and attribute, a requestAnimationFrame registration count by call site, and the element count per recalc read at frame end; Lean verdict decided before the data, then the same-look fix task if one source is named.",
+   "writes": [
+    "packages/measure-wktr/src/**",
+    "packages/measure-wktr/test/**",
+    "lean/Fw/Device/RecalcSource*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/device/recalc-source*.jsonl",
+    "apps/runner/src/land.ts",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-geom-recalc-source.md",
+    "results/geom-recalc-source/**",
+    "docs/team/handoffs/geom-recalc-source.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "gen-merge-retry-bound",
+   "owner": "lean-prover",
+   "stream": "measure",
+   "deps": [
+    "hero-exit-gate-clear"
+   ],
+   "title": "Gen.merge newest-run-wins (hero-exit-gate-clear) lets a re-run replace a failed or no-verdict row with no bound: keep superseded fail and no-verdict rows visible in the trajectory golden, supersede only when the reader version differs or under a Lean retry bound, parse run ids strictly; prove it and regenerate the preset golden.",
+   "writes": [
+    "lean/Fw/Preset/Gen*.lean",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-2x-gen-merge-retry-bound.md",
+    "docs/team/handoffs/gen-merge-retry-bound.md"
+   ]
   }
  ],
  "deadline": {
