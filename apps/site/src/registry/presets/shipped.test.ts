@@ -5,15 +5,21 @@ import { describe, expect, it } from 'vitest';
 import { App } from '../../App';
 import { parts, presets, resolveSearch } from '../index';
 
-const golden = (name: string) =>
-  readFileSync(new URL(`../../../../../packages/contracts/golden/preset/${name}`, import.meta.url), 'utf8');
+const goldenPreset = readFileSync(
+  new URL('../../../../../packages/contracts/golden/preset/shipped.json', import.meta.url),
+  'utf8',
+);
+const goldenDecisions = readFileSync(
+  new URL('../../../../../packages/contracts/golden/preset/shipped.decisions.jsonl', import.meta.url),
+  'utf8',
+);
 
 type Row = { flag: string; kind: string | null; visClass: string | null; member: boolean; route: string | null; blockers: string[]; userDecision: { decision: string; review: string } | null };
-const rows: Row[] = golden('shipped.decisions.jsonl').trim().split('\n').map((l) => JSON.parse(l));
+const rows: Row[] = goldenDecisions.trim().split('\n').map((l) => JSON.parse(l));
 
 describe('shipped preset', () => {
   it('equals the Lean golden byte for byte', () => {
-    expect(readFileSync(new URL('./shipped.json', import.meta.url), 'utf8')).toBe(golden('shipped.json'));
+    expect(readFileSync(new URL('./shipped.json', import.meta.url), 'utf8')).toBe(goldenPreset);
   });
 
   it('holds every v2-proved member with the same variant', () => {

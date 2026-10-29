@@ -89,7 +89,7 @@ pgit("config", "user.name", "test");
 pgit("config", "user.email", ["test", "example.invalid"].join(String.fromCharCode(64)));
 mkdirSync(join(pdir, "scripts"), { recursive: true });
 copyFileSync(join(here, "checkmap.mjs"), join(pdir, "scripts/checkmap.mjs"));
-for (const f of ["research/findings/ledger.json", "apps/site/src/registry/presets/v2-proved.json"]) {
+for (const f of ["research/findings/ledger.json", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/presets/shipped.json"]) {
   mkdirSync(dirname(join(pdir, f)), { recursive: true });
   copyFileSync(join(repo, f), join(pdir, f));
 }
