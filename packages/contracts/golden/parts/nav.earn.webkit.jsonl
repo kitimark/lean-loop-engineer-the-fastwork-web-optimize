@@ -34,3 +34,4 @@
 {"fn":"reduced","in":{"arm":"faithful","dir":"rtl","engine":"webkit","rule":"base"},"out":{"computed":["none","0s","ease","0s","normal"],"starts":[]}}
 {"fn":"reduced","in":{"arm":"variant","dir":"rtl","engine":"webkit","rule":"hero"},"out":{"computed":["none","0s","ease","0s","normal"],"starts":[]}}
 {"fn":"reduced","in":{"arm":"variant","dir":"rtl","engine":"webkit","rule":"base"},"out":{"computed":["none","0s","ease","0s","normal"],"starts":[]}}
+{"fn":"frameBound","in":{},"out":{"allowed1280":256,"allowed390":78,"bandHeight":100,"permille":2,"threshold":40}}

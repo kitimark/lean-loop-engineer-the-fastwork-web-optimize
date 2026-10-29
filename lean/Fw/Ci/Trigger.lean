@@ -289,7 +289,7 @@ def table (_ : Unit := ()) : List Wf := [
     "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",
     ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**", ".github/actions/gate-engine/**",
-    "scripts/slot-self.mjs", own "visual-diff.yml"], []⟩,
+    "packages/premise-tests/src/earn-frames.mjs", "scripts/slot-self.mjs", own "visual-diff.yml"], []⟩,
   ⟨"webkit-sim.yml", ciAll, [
     "packages/measure-webkit/**", "snapshot/**", "snapshot.lock.json", ".github/scripts/check-simulator.sh",
     ".github/scripts/verify-snapshot.mjs", ".github/scripts/runner-info.sh", ".github/scripts/changed-inputs.mjs",
