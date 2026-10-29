@@ -23850,7 +23850,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/10-2x-phone-feel-kit.md",
     "docs/team/handoffs/phone-feel-kit.md"
-   ]
+   ],
+   "evidence": "bf2e1ed"
   },
   {
    "devices": [
