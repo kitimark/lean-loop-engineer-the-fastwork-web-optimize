@@ -1,7 +1,5 @@
 import { EW, rpf100, spreadOf, overallNames } from './end-wktr.mjs';
 
-// TS stand-in for lean/Fw/Device/EndFloor.lean; test/end-floor.test.mjs replays packages/contracts/golden/device/end-floor.jsonl.
-
 export const WRITERS = ['style', 'data', 'pub', 'cls', 'panel', 'plat'];
 export const ARM_OF = { style: 'qstyle', data: 'qdata', pub: 'qpub', cls: 'qclass', panel: 'qpanel', plat: 'qplat', write: 'qwrite' };
 export const KEYS = {
@@ -14,10 +12,8 @@ export const KEYS = {
 };
 KEYS.write = [...KEYS.pub, ...KEYS.cls, ...KEYS.panel, ...KEYS.plat];
 
-/** The sets the page silences, by arm variant (`rs-flip-<variant>`). */
 export const QSETS = Object.fromEntries(Object.entries(ARM_OF).map(([w, arm]) => [arm, KEYS[w]]));
 
-/** The arms of one process: floor read, every writer set, the reference, floor read again, then the natural page. */
 export const FLOOR_ARMS = [
   'rs-flip-nat', 'rs-flip-pall', ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', 'rs-flip-pall',
 ];
@@ -73,7 +69,6 @@ export const framesOf = (row) => {
   return (row.rs.frames ?? []).map((f) => ({ r: f.r, keys: (f.k ?? []).map((k) => (typeof k === 'number' ? kt[k] : k)) }));
 };
 
-/** One job: the report of one process holding the arms of FLOOR_ARMS. */
 export function decideJobF(rep) {
   const pall = rowsOf(rep, 'rs-flip-pall').map(framesOf);
   const all = rowsOf(rep, 'rs-flip-qwrite').map(framesOf)[0] ?? [];

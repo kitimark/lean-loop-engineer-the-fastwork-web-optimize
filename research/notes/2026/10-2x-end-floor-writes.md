@@ -25,7 +25,7 @@ that floor? Unit of decision: one writer silenced in turn on top of the all-paus
   frames with zero recalcs in 30 arm-windows) and the all-paused and natural windows hold no recorded DOM mutation in
   any frame (48 of 48, 267 of 267), so the recalc needs no write. Lean: `rate_one_per_frame`.
 - No same-look cut was built: the deliverable is conditional on one writer carrying most of the floor, and none does.
-  Negative finding; ledger row below.
+  Negative finding.
 - Class decision over the 3 jobs by the Lean model (`overallW`, `overallF`): `mixed` (j1, j3: `no writes`; j2: `spread
   over writers`). The mix comes from the window length, not from the writers (next section).
 
@@ -57,27 +57,27 @@ morph.tween:geom-timed, WKTR pref off), 16 reps per arm.
   254, qstyle 265 over 16 reps), so the arms cover different phases of the flip and the rate differences follow the window,
   not only the writer. qwrite has 91% of its frames at exactly one recalc (407 of 448) against 76% for pall (203 of 267).
   INFERRED, not shown: muting data-fw-morph and class changes how long the flip lives, so the arms are not comparable
-  in j2. Rule of reading: the 3 jobs do not agree on a writer, so no writer is named.
+  in j2. The 3 jobs do not agree on a writer, so no writer is named.
 - Per-writer cut (floor - arm), j2 only where it is above the band 2: qpub 27, qdata 21, qpanel 20, qstyle 7. qpub is the
   style plus data sum and qdata is part of it, so they overlap (`several_overlap`: two cuts over half the floor each
   must share frames); none is over half of 154.
 
-## How the arms were built (what failed first)
-Three pushes, each a finding about the harness. All kept under `results/end-floor-writes/r1`, `r2`, `r3`.
+## How the arms were built
+Three pushes, kept under `results/end-floor-writes/r1`, `r2`, `r3`.
 1. Run 40949084846 (r1, muting from before the wheel): qdata, qpub, qclass and qwrite created no flip track in 3 of 3
    jobs (frames 0, verdict `unread`; qstyle, qpanel, qplat read, floors 138/141/143 against natural 133/150/137).
    Cause (CONFIRMED in source): morph.geom timed tracks need `is-on-dark` (`apps/site/src/parts/morph.geom/index.tsx:53`),
    which nav.hitTest writes from a `data-fw-morph` observer; muting the attribute removes the flip itself.
 2. Run 40957179099 (r2, pin `is-on-dark` in every arm): the pin moved the window to the flip start, floors 200 to 344
    against 152 unpinned, so the arms were not comparable. Cancelled after j1 (kept as `results/end-floor-writes/r2/wktr-j1`, not used).
-3. Run 40960310474 (r3, this note): writers silenced only while the frame window runs, the flip starts naturally.
+3. Run 40960310474 (r3): writers silenced only while the frame window runs, the flip starts naturally.
    Leaks (silenced keys seen in a muted arm): 0 of 0 in all 3 jobs; the frame counts are equal across arms in j1 and j3.
 
 ## Why (CONFIRMED, WebKit 862f17d, file:line)
 - A running animation invalidates its target on each tick: `WebAnimation::needsTick` (animation/WebAnimation.cpp:1553)
   holds while the play state is running; `WebAnimation::tick` (1558) calls `KeyframeEffect::animationDidTick`
   (animation/KeyframeEffect.cpp:2129), which calls `invalidate()` (1731) -> `invalidateElement` (125-135) ->
-  `Element::invalidateStyleForAnimation` (dom/Element.cpp:2763, read from the raw file at the pinned sha, `Validity::AnimationInvalid`). One recalc per frame,
+  `Element::invalidateStyleForAnimation` (dom/Element.cpp:2763, `Validity::AnimationInvalid`). One recalc per frame,
   no write needed. The all-paused arm pauses the page's animations, but the flip's own tracks are created after the
   pause and run (INFERRED: the extra recalc per rep in j1 and j3 is the frame a new track becomes ready, `animationBecameReady`, KeyframeEffect.cpp:2145).
 - An inline-style write always marks the element: `StyledElement::inlineStyleChanged` (dom/StyledElement.cpp:214) ->
@@ -95,7 +95,7 @@ Three pushes, each a finding about the harness. All kept under `results/end-floo
   `dominant_half`, `several_overlap`, `finding_noWrites`. The rule `dominant` was fixed before the run.
 
 ## Limits and follow-ups
-- WKTR is not iOS Safari; the 3 jobs are not enough to give j2 a cause (INFERRED above). A pinned window (fixed frame
+- The 3 jobs are not enough to give j2 a cause (INFERRED above). A pinned window (fixed frame
   count from the first track) would remove the long-window confound; it needs a harness arm that ends the window by
   frame count, not by the reference track. Follow-up, not run (3 pushes used).
 - The floor here (133 to 154) is higher than the all-paused floor of the earlier lanes (68 to 83) because this mode

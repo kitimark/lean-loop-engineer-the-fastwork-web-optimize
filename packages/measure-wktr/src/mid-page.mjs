@@ -543,11 +543,6 @@ function pageProbe(P) {
       if (typeof f === 'function') C.prototype[m] = function () { S.add('call:' + m); return f.apply(this, arguments); };
     }
   }
-  // Task end-floor-writes. Arms `rs-flip-q<set>`: everything paused as in `pall`, plus the named writers silenced (the write call returns without
-  // touching the DOM). A writer is a `part#what` key of the mutation table (`S.partOf` + attribute, `style` for inline style, `class` for class).
-  // The sets come from end-floor.mjs (checked against lean/Fw/Device/EndFloor.lean) through `P.qsets`. The writers are silenced only while the
-  // frame window runs (from the first flip track on): morph.geom creates no track until nav.hitTest has written `is-on-dark` from a
-  // data-fw-morph observer (morph.geom index.tsx `allowed`), so a writer silenced from the wheel on would end the flip itself.
   const QSETS = P.qsets || {};
   const isQ = (v) => Object.prototype.hasOwnProperty.call(QSETS, v);
   const MU = X.mute = { set: null, undo: [] };

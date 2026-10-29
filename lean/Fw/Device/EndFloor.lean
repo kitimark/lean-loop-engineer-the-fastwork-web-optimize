@@ -1,13 +1,9 @@
 import Lean.Data.Json
 import Fw.Device.EndWktr
-/-! End of page on the WKTR flip arm: which DOM writer carries the all-paused style-recalc floor.
-
-The floor is the flip with every animation and SMIL paused (`pall` in `EndWktr`). A writer arm repeats the flip with the
-same pause and one set of DOM writes silenced; the mutation table of that arm must then hold none of the silenced keys. -/
+/-! Which DOM writer carries the all-paused style-recalc floor on the WKTR flip arm. -/
 namespace Fw.Device.EndFloor
 open Lean Fw.Device.EndWktr
 
-/-- A set of writes silenced together, named by its harness arm. -/
 inductive Writer where
   | style | data | pub | cls | panel | plat | write
   deriving DecidableEq, Repr
@@ -18,7 +14,6 @@ def Writer.arm : Writer → String
   | .style => "qstyle" | .data => "qdata" | .pub => "qpub" | .cls => "qclass" | .panel => "qpanel" | .plat => "qplat"
   | .write => "qwrite"
 
-/-- The `part#what` mutation keys the arm silences (`what`: an attribute name, `style`, or `class`). -/
 def Writer.keys : Writer → List String
   | .style => ["nav#style"]
   | .data => ["nav#data-fw-morph"]
@@ -29,13 +24,11 @@ def Writer.keys : Writer → List String
   | .write => ["nav#style", "nav#data-fw-morph", "nav#class", "nav-earn#aria-hidden", "nav-earn#tabindex", "morph-panel#aria-hidden",
       "morph-panel#data-expanded", "morph-panel#data-start-selling-scene", "morph-panel#tabindex", "platform#style"]
 
-/-- Every writer set is inside the reference arm `qwrite`, so the reference silences at least what any writer arm does. -/
 theorem keys_in_write (w : Writer) : ∀ k ∈ w.keys, k ∈ Writer.write.keys := by
   cases w <;> decide
 
 theorem pub_keys : Writer.pub.keys = Writer.style.keys ++ Writer.data.keys := rfl
 
-/-- One frame of a flip window: style recalcs in it and the mutation keys seen in it. -/
 structure Frame where
   r : Nat
   keys : List String
@@ -43,10 +36,8 @@ structure Frame where
 
 def rate (fs : List Frame) : Nat := rpf100 (fs.map (·.r))
 
-/-- Frames that carry a key the arm silenced: a write that got through. -/
 def leaks (muted : List String) (fs : List Frame) : Nat := (fs.filter fun f => f.keys.any (muted.contains ·)).length
 
-/-- Two floor reads (before and after the writer arms), the reference arm with every write silenced, and one writer arm. -/
 structure Cell where
   pall : List (List Frame)
   all : List Frame
@@ -77,13 +68,10 @@ def Cell.nums (c : Cell) : Nums where
   leakV := leaks c.muted c.var
   leakA := leaks Writer.write.keys c.all
 
-/-- Recalcs per 100 frames the silenced writers can account for in all: floor minus reference. -/
 def Nums.gap (x : Nums) : Nat := x.p - x.a
 
-/-- Smallest difference the rule reads: a sixteenth of the gap, or the spread of the two floor reads when larger. -/
 def Nums.band (x : Nums) : Nat := max (x.gap / bandDen) x.spread
 
-/-- Recalcs per 100 frames removed by silencing this writer alone. -/
 def Nums.cut (x : Nums) : Nat := x.p - x.s
 
 inductive W where
@@ -125,7 +113,6 @@ theorem judge_noEffect (x : Nums) (h0 : ¬(x.np < minFlip ∨ x.na < minFlip ∨
     (h2 : ¬x.gap ≤ 2 * x.band) (h3 : ¬x.s + x.band < x.p) (h4 : ¬x.p + x.band < x.s) : judge x = .noEffect := by
   simp only [judge, h0, h1, h2, h3, h4, ite_false]
 
-/-- A `carries` verdict means the arm's rate is below the floor by more than the band, so the cut exceeds the band. -/
 theorem carries_cut (x : Nums) (h : judge x = .carries) : x.band < x.cut := by
   by_cases h1 : x.np < minFlip ∨ x.na < minFlip ∨ x.nv < minFlip
   · simp [judge, h1] at h
@@ -140,7 +127,6 @@ theorem carries_cut (x : Nums) (h : judge x = .carries) : x.band < x.cut := by
   · simp [judge, h1, h2, h3, h4, h5] at h
   · simp [judge, h1, h2, h3, h4, h5] at h
 
-/-- A `noWrites` verdict means even silencing every write moves the floor by at most two bands. -/
 theorem noWrites_gap (x : Nums) (h : judge x = .noWrites) : x.gap ≤ 2 * x.band := by
   by_cases h1 : x.np < minFlip ∨ x.na < minFlip ∨ x.nv < minFlip
   · simp [judge, h1] at h
@@ -154,7 +140,6 @@ theorem noWrites_gap (x : Nums) (h : judge x = .noWrites) : x.gap ≤ 2 * x.band
   · simp [judge, h1, h2, h3, h4, h5] at h
   · simp [judge, h1, h2, h3, h4, h5] at h
 
-/-- A writer arm with its verdict, the floor it was read against, and the cut. -/
 structure Entry where
   w : Writer
   v : W
@@ -162,7 +147,6 @@ structure Entry where
   cut : Nat
   deriving DecidableEq, Repr
 
-/-- The writer carries most of the floor: its arm is below the floor by more than the band and the cut is over half the floor. -/
 def Entry.dominant (e : Entry) : Bool := e.v == .carries && e.p < 2 * e.cut
 
 inductive F where
@@ -173,7 +157,6 @@ def F.name : F → String
   | .unread => "unread" | .noWrites => "no writes" | .dominant w => "dominant " ++ w.arm | .several => "several dominate"
   | .spread => "spread over writers" | .joint => "joint"
 
-/-- One job: the reference arm's verdict, then the writer arms (the reference itself excluded). -/
 def finding (allV : W) (es : List Entry) : F :=
   if allV = .unread ∨ allV = .leaked then .unread
   else if allV = .noWrites then .noWrites
@@ -204,15 +187,12 @@ theorem finding_joint (allV : W) (es : List Entry) (h0 : ¬(allV = .unread ∨ a
     (h : es.filter Entry.dominant = []) (hc : es.any (·.v == .carries) = false) : finding allV es = .joint := by
   simp [finding, h0, h1, h, hc]
 
-/-- A dominant writer's own cut is over half the floor. -/
 theorem dominant_half (e : Entry) (h : e.dominant = true) : e.p < 2 * e.cut := by
   simp only [Entry.dominant, Bool.and_eq_true, decide_eq_true_eq] at h
   exact h.2
 
-/-- Two writers whose cuts do not overlap (their sum is at most the floor) cannot both dominate: a `several` finding means the writes share frames. -/
 theorem several_overlap (p c₁ c₂ : Nat) (h₁ : p < 2 * c₁) (h₂ : p < 2 * c₂) : p < c₁ + c₂ := by omega
 
-/-- The sum of naturals that are each at least 1 is at least their count. -/
 theorem len_le_sum (xs : List Nat) (h : ∀ x ∈ xs, 1 ≤ x) : xs.length ≤ xs.sum := by
   induction xs with
   | nil => simp
@@ -222,7 +202,6 @@ theorem len_le_sum (xs : List Nat) (h : ∀ x ∈ xs, 1 ≤ x) : xs.length ≤ x
     simp only [List.length_cons, List.sum_cons]
     omega
 
-/-- Why silencing writers cannot take the floor below 100: a running animation track invalidates its target on every tick (WebKit `KeyframeEffect::animationDidTick`), so each frame of the window holds at least one recalc whether or not any DOM write happens, and a window of such frames reads at least 100 per 100 frames. -/
 theorem rate_one_per_frame (fs : List Frame) (h : ∀ f ∈ fs, 1 ≤ f.r) (hne : fs ≠ []) : 100 ≤ rate fs := by
   have hs : (fs.map (·.r)).length ≤ (fs.map (·.r)).sum :=
     len_le_sum _ (by simpa using h)
@@ -235,13 +214,11 @@ theorem rate_one_per_frame (fs : List Frame) (h : ∀ f ∈ fs, 1 ≤ f.r) (hne 
   simp only [hz, ite_false]
   exact (Nat.le_div_iff_mul_le hl).2 (by omega)
 
-/-- Jobs whose findings are `unread` are left out; two or more others must name the same finding. -/
 def overallF (fs : List F) : String := overallNames ((fs.filter fun f => f != .unread).map F.name)
 
 theorem overallF_inconclusive (fs : List F) (h : (fs.filter fun f => f != .unread).length < minValid) : overallF fs = "inconclusive" := by
   simpa [overallF] using overallNames_inconclusive _ (by simpa using h)
 
-/-- Verdicts of one writer over the jobs: `unread` and `leaked` jobs are left out; two or more others must agree. -/
 def overallW (vs : List W) : String := overallNames ((vs.filter fun v => v != .unread && v != .leaked).map W.name)
 
 theorem overallW_inconclusive (vs : List W) (h : (vs.filter fun v => v != .unread && v != .leaked).length < minValid) :
@@ -252,7 +229,6 @@ private def fr (r : Nat) (ks : List String := []) : Frame := ⟨r, ks⟩
 
 private def quiet (k : Nat) : List Frame := (List.range k).map fun _ => fr 0
 
-/-- `k` frames of which `n` out of every 20 carry `r` recalcs and the keys. -/
 private def mixed (k n r : Nat) (ks : List String) : List Frame :=
   (List.range k).map fun i => if i % 20 < n then fr r ks else fr 0
 
@@ -273,7 +249,6 @@ private def numsJ (x : Nums) : Json :=
 
 private def pub : List String := Writer.pub.keys
 
-/-- Two floor reads of 100 frames at 80 recalcs per 100 frames; the reference arms below sit at 0. -/
 private def floorReads : List (List Frame) := [mixed 100 16 1 pub, mixed 100 16 1 pub]
 
 private def cellCases : List (String × Cell) :=
