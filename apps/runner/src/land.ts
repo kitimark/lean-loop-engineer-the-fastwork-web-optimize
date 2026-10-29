@@ -168,7 +168,8 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/measure-chromium/src/fwcore.mjs", "packages/gate-breakpoints/src/smooth/schedule.mjs", "packages/gate-breakpoints/src/smooth/reduce.mjs",
     "packages/gate-breakpoints/src/smooth/bound.mjs",
     "packages/gate-breakpoints/src/trajectory/reduce.mjs", "packages/gate-breakpoints/src/page.mjs",
-    "packages/measure-chromium/src/pathpix*.mjs", "packages/contracts/golden/gate/path-pix.jsonl"],
+    "packages/measure-chromium/src/pathpix*.mjs", "packages/contracts/golden/gate/path-pix.jsonl",
+    "packages/measure-chromium/src/cols-verdict.mjs", "packages/measure-chromium/src/cols-reduce.mjs"],
   "packages/snapshot-extract": ["packages/gate-breakpoints/src/**"],
   "packages/visual-diff": ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/**", "apps/site/src/breakpoints.gen.json", "packages/contracts/golden/gate/**", "scripts/port/**", "packages/contracts/golden/port/**"],
 };
