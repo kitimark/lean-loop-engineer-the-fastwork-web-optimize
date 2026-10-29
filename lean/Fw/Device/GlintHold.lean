@@ -43,12 +43,19 @@ def ticks (hold : Bool) (fs : List Frame) : Nat := ticksFrom hold none fs
 def rpf100 (fs : List Frame) : Nat :=
   if fs.length = 0 then 0 else (fs.map (·.recalcs)).sum * 100 / fs.length
 
-/-- The arms of one job for one cell (idle or flip): `baseOn` base page, SMIL running, one list per arm; `baseOff` base page, SMIL paused;
+/-- One arm is a list of windows (an idle arm has one, a flip arm one per flip); frames in different windows are not neighbours. -/
+abbrev Arm := List (List Frame)
+
+def Arm.frames (a : Arm) : List Frame := a.flatten
+
+def Arm.ticks (hold : Bool) (a : Arm) : Nat := (a.map (Fw.Device.GlintHold.ticks hold)).sum
+
+/-- The arms of one job for one cell (idle or flip): `baseOn` base page, SMIL running, one entry per arm; `baseOff` base page, SMIL paused;
 `holdOn` the hold page, SMIL running. -/
 structure Cell where
-  baseOn : List (List Frame)
-  baseOff : List Frame
-  holdOn : List Frame
+  baseOn : List Arm
+  baseOff : Arm
+  holdOn : Arm
   deriving DecidableEq, Repr
 
 /-- The numbers a cell is judged on. -/
@@ -67,15 +74,15 @@ structure Nums where
 def spreadOf (xs : List Nat) : Nat := xs.foldl max 0 - xs.foldl min (xs.foldl max 0)
 
 def Cell.nums (c : Cell) : Nums where
-  nb := c.baseOn.flatten.length
-  bq := (c.baseOn.map (ticks false)).sum
-  nf := c.baseOff.length
-  n := c.holdOn.length
-  q := ticks true c.holdOn
-  b := rpf100 c.baseOn.flatten
-  f := rpf100 c.baseOff
-  h := rpf100 c.holdOn
-  spread := spreadOf (c.baseOn.map rpf100)
+  nb := (c.baseOn.map fun a => a.frames.length).sum
+  bq := (c.baseOn.map (Arm.ticks false)).sum
+  nf := c.baseOff.frames.length
+  n := c.holdOn.frames.length
+  q := c.holdOn.ticks true
+  b := rpf100 (c.baseOn.map Arm.frames).flatten
+  f := rpf100 c.baseOff.frames
+  h := rpf100 c.holdOn.frames
+  spread := spreadOf (c.baseOn.map fun a => rpf100 a.frames)
 
 def minIdle : Nat := 40
 
@@ -179,6 +186,15 @@ theorem ticksFrom_le (p : Option Frame) (fs : List Frame) : ticksFrom true p fs 
 
 /-- The hold ring never has more frames after a tick than the faithful pair. -/
 theorem ticks_hold_le (fs : List Frame) : ticks true fs ≤ ticks false fs := ticksFrom_le none fs
+
+/-- The hold ring never has more frames after a tick than the faithful pair, over the windows of an arm. -/
+theorem Arm.ticks_hold_le (a : Arm) : a.ticks true ≤ a.ticks false := by
+  induction a with
+  | nil => simp [Arm.ticks]
+  | cons w t ih =>
+    have h := Fw.Device.GlintHold.ticks_hold_le w
+    simp only [Arm.ticks, List.map_cons, List.sum_cons] at ih ⊢
+    omega
 
 theorem ticksFrom_le_length (hold : Bool) (p : Option Frame) (fs : List Frame) : ticksFrom hold p fs ≤ fs.length := by
   induction fs generalizing p with
@@ -337,11 +353,13 @@ private def frameJ (f : Frame) : Json :=
 
 private def framesJ (fs : List Frame) : Json := Json.arr (fs.map frameJ).toArray
 
+private def armJ (a : Arm) : Json := Json.arr (a.map framesJ).toArray
+
 private def numsJ (x : Nums) : Json :=
   Json.mkObj [("nb", x.nb), ("bq", x.bq), ("nf", x.nf), ("n", x.n), ("q", x.q), ("b", x.b), ("f", x.f), ("h", x.h), ("spread", x.spread)]
 
 private def cellJ (c : Cell) : Json :=
-  Json.mkObj [("baseOn", Json.arr (c.baseOn.map framesJ).toArray), ("baseOff", framesJ c.baseOff), ("holdOn", framesJ c.holdOn)]
+  Json.mkObj [("baseOn", Json.arr (c.baseOn.map armJ).toArray), ("baseOff", armJ c.baseOff), ("holdOn", armJ c.holdOn)]
 
 /-- Frame sets that exercise the schedule: a full 5 s window, dashes out of step, a window inside a hold segment, a flip-sized window. -/
 private def tickCases : List (String × List Frame) :=
@@ -350,21 +368,26 @@ private def tickCases : List (String × List Frame) :=
    ("not begun", (List.range 20).map fun _ => mkFrame 0 none none),
    ("begun halfway", (List.range 20).map fun i => mkFrame 0 (if i < 10 then none else some 4000) (if i < 10 then none else some 4000))]
 
-private def baseTwo (r : Nat) : List (List Frame) := [runR 50 100 0 0 (rate r), runR 50 100 0 0 (rate r)]
+private def baseTwo (r : Nat) : List Arm := [[runR 50 100 0 0 (rate r)], [runR 50 100 0 0 (rate r)]]
 
 /-- Cells (name, least frames, cell): each branch of `judge` appears; a full 5 s window at 100 ms steps is 50 frames. -/
 private def cellCases : List (String × Nat × Cell) :=
-  [("as predicted", minIdle, ⟨baseTwo 100, still 50 0, holdRun 50 100 0 0 (rate 100) (rate 0)⟩),
-   ("as predicted dashes out of step", minIdle, ⟨baseTwo 100, still 50 0, holdRun 50 100 0 1500 (rate 100) (rate 0)⟩),
-   ("as predicted base 90 floor 10", minIdle, ⟨baseTwo 90, still 50 10, holdRun 50 100 0 0 (rate 90) (rate 10)⟩),
-   ("no cut", minIdle, ⟨baseTwo 100, still 50 0, run 50 100 0 0 1⟩),
-   ("cuts less", minIdle, ⟨baseTwo 100, still 50 0, runR 50 100 0 0 (fun i => if i % 25 < 23 then 1 else 0)⟩),
-   ("cuts more", minIdle, ⟨baseTwo 100, still 50 0, run 50 100 0 0 0⟩),
-   ("unread", minIdle, ⟨[run 10 25 0 0 1, run 10 25 0 0 1], still 50 0, holdRun 50 100 0 0 (rate 100) (rate 0)⟩),
-   ("premise", minIdle, ⟨[(List.range 50).map fun _ => mkFrame 1 none none, run 50 100 0 0 1], still 50 0, holdRun 50 100 0 0 (rate 100) (rate 0)⟩),
-   ("no contrast", minIdle, ⟨baseTwo 100, still 50 100, holdRun 50 100 0 0 (rate 100) (rate 100)⟩),
-   ("uninformative", minIdle, ⟨baseTwo 100, still 50 0, holdRun 40 25 100 100 (rate 100) (rate 0)⟩),
-   ("flip window", minFlip, ⟨[run 16 30 3000 3000 1, run 16 30 3000 3000 1], still 16 0, holdRun 16 30 4000 4000 (rate 100) (rate 0)⟩)]
+  let hold (l0 r0 : Int) (a b : Nat) : Arm := [holdRun 50 100 l0 r0 (rate a) (rate b)]
+  let flipBase : List Arm := [[run 4 30 3000 3000 1, run 4 30 3000 3000 1, run 4 30 3000 3000 1, run 4 30 3000 3000 1],
+    [run 4 30 3000 3000 1, run 4 30 3000 3000 1, run 4 30 3000 3000 1, run 4 30 3000 3000 1]]
+  [("as predicted", minIdle, ⟨baseTwo 100, [still 50 0], hold 0 0 100 0⟩),
+   ("as predicted dashes out of step", minIdle, ⟨baseTwo 100, [still 50 0], hold 0 1500 100 0⟩),
+   ("as predicted base 90 floor 10", minIdle, ⟨baseTwo 90, [still 50 10], hold 0 0 90 10⟩),
+   ("no cut", minIdle, ⟨baseTwo 100, [still 50 0], [run 50 100 0 0 1]⟩),
+   ("cuts less", minIdle, ⟨baseTwo 100, [still 50 0], [runR 50 100 0 0 (fun i => if i % 25 < 23 then 1 else 0)]⟩),
+   ("cuts more", minIdle, ⟨baseTwo 100, [still 50 0], [run 50 100 0 0 0]⟩),
+   ("unread", minIdle, ⟨[[run 10 25 0 0 1], [run 10 25 0 0 1]], [still 50 0], hold 0 0 100 0⟩),
+   ("premise", minIdle, ⟨[[(List.range 50).map fun _ => mkFrame 1 none none], [run 50 100 0 0 1]], [still 50 0], hold 0 0 100 0⟩),
+   ("no contrast", minIdle, ⟨baseTwo 100, [still 50 100], hold 0 0 100 100⟩),
+   ("uninformative", minIdle, ⟨baseTwo 100, [still 50 0], [holdRun 40 25 100 100 (rate 100) (rate 0)]⟩),
+   ("flip windows", minFlip, ⟨flipBase, [still 4 0, still 4 0, still 4 0, still 4 0],
+      [holdRun 4 30 3950 3950 (rate 100) (rate 0), holdRun 4 30 4300 4300 (rate 100) (rate 0), holdRun 4 30 4300 4300 (rate 100) (rate 0),
+       holdRun 4 30 4300 4300 (rate 100) (rate 0)]⟩)]
 
 /-- Number-level cases at the edges: (name, least frames, nums). -/
 private def numsCases : List (String × Nat × Nums) :=
