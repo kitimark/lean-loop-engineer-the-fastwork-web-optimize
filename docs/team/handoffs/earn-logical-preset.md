@@ -1,0 +1,5 @@
+Branch worktree-wf_b7ea9beb-3ca-1 (CI ref ci/earn-logical-preset). Worktree .claude/worktrees/wf_b7ea9beb-3ca-1. Last sha: `git log -1` (push 1 = c3512b93f).
+CI runs: push 1 trajectory-probe (fw=nav:earn-logical engines=both debug=nav-transition + [earn-frames]): running, id to be read with `pnpm fw ci wait`.
+Rule fixed before the data: the 390 cell passes when every one of the 17 frames of the logical arm, exit and entry, is within Lean frameBound (allowed390 78, golden nav.earn.webkit.jsonl row frameBound), on macOS Playwright WebKit against macOS Playwright Chromium, in the earn-frames-apple-390 leg. No verdict twice (2 pushes) = pending.
+Plan: (1) read earn-frames-apple-<leg> summary.json; (2) Gen.record the walk (chromium, linux-webkit, apple artifacts); (3) linkTable entry nav:earn-logical -> ledger n=73 candidate; Gen.run; (4) note, ledger note, tests, check.sh, dry land, review ready.
+Known structural point (INFERRED from lean/Fw/Preset/V2Proved.lean ok, look_not_mem): ok needs kind optimized and not isLook; nav:earn-logical is kind proposal, class L, so Gen.run cannot make it a member whatever the data say.
