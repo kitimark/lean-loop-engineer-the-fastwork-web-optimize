@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { LEDGER_FILE, ledgerNoteKeyCheck } from "../src/land.ts";
 import { noteKeyDups, noteKeyRefusal, onePerKey, type NoteKey } from "../src/land-verdict.ts";
 
@@ -109,24 +109,23 @@ describe("findings notes keyed by (entry, task) (inc-findings-shared-entry; Lean
 });
 
 describe("the 2026-10-18 land conflict in a scratch repo", () => {
-  const dir = mkdtempSync(join(tmpdir(), "ledger-merge-"));
-  afterAll(() => rmSync(dir, { recursive: true, force: true }));
   const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
-  const git = (...a: string[]) =>
-    spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false", ...a],
-      { cwd: dir, encoding: "utf8", env });
-  const ok = (...a: string[]) => { const r = git(...a); expect(r.status, r.stderr).toBe(0); return r.stdout; };
+  // gc.auto=0 and maintenance.auto=false: git starts no detached background writer in a scratch repo.
+  const gitIn = (dir: string, ...a: string[]) =>
+    spawnSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "commit.gpgsign=false",
+      "-c", "gc.auto=0", "-c", "maintenance.auto=false", ...a], { cwd: dir, encoding: "utf8", env });
+  const okIn = (dir: string, ...a: string[]) => { const r = gitIn(dir, ...a); expect(r.status, r.stderr).toBe(0); return r.stdout; };
   const path = "docs/team/incidents/ledger.json";
-  const file = join(dir, path);
   const real = JSON.parse(readFileSync(join(repo, path), "utf8")) as { incidents: Entry[] };
   const n = real.incidents.length;
   const doc = (incidents: Entry[]) => JSON.stringify({ ...real, incidents }, null, 1) + "\n";
   const base = real.incidents.slice(0, n - 2);
   const [x, y] = [real.incidents[n - 2]!, real.incidents[n - 1]!];
 
-  /** Fresh history: main = base ledger; branch a appends x, branch b appends y (or edits, via the callbacks). */
-  const setup = (a: Entry[], b: Entry[], driverOn: boolean) => {
-    rmSync(join(dir, ".git"), { recursive: true, force: true });
+  /** Fresh history in `dir`: main = base ledger; branch a appends x, branch b appends y (or edits, via the callbacks). */
+  const populate = (dir: string, a: Entry[], b: Entry[], driverOn: boolean) => {
+    const ok = (...c: string[]) => okIn(dir, ...c);
+    const file = join(dir, path);
     ok("init", "-q", "-b", "main");
     mkdirSync(dirname(file), { recursive: true });
     writeFileSync(join(dir, ".gitattributes"), `${path} merge=ledger\n`);
@@ -138,31 +137,60 @@ describe("the 2026-10-18 land conflict in a scratch repo", () => {
     if (driverOn) ok("config", "merge.ledger.driver", `node ${script} %O %A %B`);
   };
 
+  // The pre-fix setup, kept for the regression test: one shared dir, reset by removing .git (the remove is injectable).
+  const oldSetup = (dir: string, remove: (p: string) => void, a: Entry[], b: Entry[], driverOn: boolean) => {
+    remove(join(dir, ".git"));
+    populate(dir, a, b, driverOn);
+  };
+
+  const made: string[] = [];
+  let dir = "";
+  const file = () => join(dir, path);
+  const git = (...a: string[]) => gitIn(dir, ...a);
+  const ok = (...a: string[]) => okIn(dir, ...a);
+  /** Every setup gets its own mkdtemp directory, so no state of an earlier test can exist in it. */
+  const setup = (a: Entry[], b: Entry[], driverOn: boolean) => {
+    dir = mkdtempSync(join(tmpdir(), "ledger-merge-"));
+    made.push(dir);
+    populate(dir, a, b, driverOn);
+  };
+  afterEach(() => { for (const d of made.splice(0)) rmSync(d, { recursive: true, force: true }); });
+
+  it("regression: when the reset leaves the old repo behind, the old setup fails with 'a branch named a already exists', the fresh one passes", () => {
+    const shared = mkdtempSync(join(tmpdir(), "ledger-merge-old-"));
+    made.push(shared);
+    oldSetup(shared, (p) => rmSync(p, { recursive: true, force: true }), [...base, x], [...base, y], false);
+    expect(() => oldSetup(shared, () => {}, [...base, x], [...base, y], false)).toThrow(/a branch named 'a' already exists/);
+    setup([...base, x], [...base, y], false);
+    expect(git("branch", "--list", "a").stdout).toContain("a");
+    expect(shared).not.toBe(dir);
+  });
+
   it("without the driver, two appends conflict (the land refusal)", () => {
     setup([...base, x], [...base, y], false);
     expect(git("merge", "-q", "--no-edit", "b").status).not.toBe(0);
-    expect(readFileSync(file, "utf8")).toContain("<<<<<<<");
+    expect(readFileSync(file(), "utf8")).toContain("<<<<<<<");
   });
 
   it("with the driver, two appends merge cleanly to base, ours', theirs'", () => {
     setup([...base, x], [...base, y], true);
     const r = git("merge", "-q", "--no-edit", "b");
     expect(r.status, r.stderr).toBe(0);
-    expect(readFileSync(file, "utf8")).toBe(doc([...base, x, y]));
+    expect(readFileSync(file(), "utf8")).toBe(doc([...base, x, y]));
   });
 
   it("with the driver, one side's backfill and the other's append both survive", () => {
     const filled = base.map((e) => ({ ...e, backfilled: true }));
     setup(filled, [...base, y], true);
     expect(git("merge", "-q", "--no-edit", "b").status).toBe(0);
-    expect(readFileSync(file, "utf8")).toBe(doc([...filled, y]));
+    expect(readFileSync(file(), "utf8")).toBe(doc([...filled, y]));
   });
 
   it("with the driver, the same incident edited differently is a conflict with markers", () => {
     const first = base[0]!;
     setup([{ ...first, title: "ours" }, ...base.slice(1)], [{ ...first, title: "theirs" }, ...base.slice(1)], true);
     expect(git("merge", "-q", "--no-edit", "b").status).not.toBe(0);
-    const t = readFileSync(file, "utf8");
+    const t = readFileSync(file(), "utf8");
     expect(t).toContain('<<<<<<< ours\n  {\n   "id": ' + JSON.stringify(first.id));
     expect(t).toContain('"title": "theirs"');
     expect(ok("diff", "--name-only", "--diff-filter=U").trim()).toBe(path);
