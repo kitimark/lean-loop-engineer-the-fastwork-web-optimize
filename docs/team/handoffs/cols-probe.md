@@ -1,10 +1,10 @@
 branch: worktree-wf_bd6be3b9-683-1 (CI branch ci/cols-probe, pushed at 74f5304bf then at the push-2 commit)
 worktree: .claude/worktrees/wf_bd6be3b9-683-1 (under the main checkout)
-last commit: see git log; push 2 carries chromium swipe-touch-v1 and the Sim cols-base token
-CI runs: push 1: chromium-counts 40792572637 (success, no result: profile push-cycle-d1000 never reached the page end, scrollY max 307 of 5189), toolbar-throttle 40792572994 (success; 3 jobs, 6 of 12 arm passes usable, results/cols-probe/webkit-run-40792572994.json), lean 40792572727 (success)
+last commit: see git log; ci/cols-probe tip = push 3 (Sim cols-timed only)
+CI runs: push 1: chromium-counts 40792572637 (no result, wrong profile), toolbar-throttle 40792572994 (success, 6 of 12 passes usable); push 2 (7a34c9fd4): chromium-counts 40802455145 (success, swipe-touch-v1, 12 jobs: bc = pictures cost, fc = pictures cost; results/cols-probe/chromium-run-40802455145.json), toolbar-throttle 40802455303 (success; base 4 jobs, base+off 3 jobs; results pooled in results/cols-probe/webkit-pooled-*.json); push 3: toolbar-throttle cols-timed (timed-fixed+off had 2 jobs)
 Verified: Lean module builds, golden cols-probe.jsonl current, measure-chromium cols-verdict + measure-webkit cols-report tests pass. check.sh through the slot still to run at the end.
-Open: push 2 (chromium swipe-touch-v1 + Sim [throttle:push-cycle-morph:cols-base], 2 arms per job), maybe push 3 (cols-timed for timed-fixed+off), pool jobs across pushes with
-`push-cycle-cli.mjs cols --in a.json,b.json` (comma list); note + ledger; merge main; revert the workflow token; dry land; review ready.
+Open: wait for push 3 sim jobs, pool all job files (`push-cycle-cli.mjs cols --in a.json,b.json,...`), note research/notes/2026/10-2x-cols-probe.md + ledger, check.sh, merge main, revert the workflow token, dry land, review ready.
+Lean fate so far: bc = cost (Chromium) so P5 keep and P6 keep by the rule; WebKit base contrast is mixed (no cost), phone undecided; P2/P3/P4 independent.
 
 What it is: task cols-probe (P1 of research/notes/2026/10-27-end-columns-probe.md), CI lanes only. Lean Fw.Device.ColsProbe: arms
 (base, base+off, timed-fixed, timed-fixed+off), search/wkArm/crLabel rows, pushLabel, flipValid (750 per mille), Cell.of (cost when every

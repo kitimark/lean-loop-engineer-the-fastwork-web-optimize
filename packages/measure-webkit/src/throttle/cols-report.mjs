@@ -27,7 +27,7 @@ export function reduceJobs(jobs) {
     jobsBy[a.id] = []; logs[a.id] = { took: 0, pushes: 0, dark: 0 };
     jobs.forEach((job, i) => {
       const r = armJob(job, wkArmOf(a));
-      perJob.push({ job: job.vm ?? i + 1, arm: a.id, passes: r.passes, windows: r.windows, metrics: r.metrics, log: r.log });
+      perJob.push({ job: `f${i + 1}/vm${job.vm ?? "?"}`, arm: a.id, passes: r.passes, windows: r.windows, metrics: r.metrics, log: r.log });
       if (!r.metrics) return;
       jobsBy[a.id].push(r.metrics);
       for (const k of ['took', 'pushes', 'dark']) logs[a.id][k] += r.log[k];
