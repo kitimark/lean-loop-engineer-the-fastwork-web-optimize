@@ -1,11 +1,13 @@
 import "./land-timeout.ts";
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { makeRepo } from "../../console-api/test/reconcile-fixture.ts";
-import { laneReason, lanesTrailer, requiredLanes } from "../src/ci-push.ts";
+import { landCheck, laneReason, lanesTrailer, requiredLanes, type PushFacts } from "../src/ci-push.ts";
+import { fileIntents, intentPath, type LandIntent } from "../src/land-intent.ts";
+import { landBranch, makePusher, markerMessage, type StartCtx } from "../src/land-remote.ts";
 
 const ROOT = resolve(import.meta.dirname, "../../..");
 const HOOKS = join(ROOT, "scripts/hooks");
@@ -165,5 +167,89 @@ describe("ci push lane check (the hook)", () => {
     const r = push("main");
     expect(r.stderr).not.toContain("lane check");
     expect(r.status).toBe(0);
+  });
+});
+
+type LandRow = { kind: "landCheck"; name: string; intent: LandIntent | null; ref: string; facts: PushFacts; check: string | null; admit: boolean };
+const landRows = rows.filter((r) => r.kind === "landCheck") as LandRow[];
+
+describe("Lean golden replay (Fw.Ci.Intent landCheck)", () => {
+  it("landBranch and markerMessage of land-remote.ts equal Lean", () => {
+    const branches = rows.filter((x) => x.kind === "landBranch");
+    const markers = rows.filter((x) => x.kind === "marker");
+    expect(branches.length).toBeGreaterThanOrEqual(4);
+    expect(markers.length).toBeGreaterThanOrEqual(5);
+    for (const r of branches) expect(landBranch(r.task, r.merge, r.again), r.task).toBe(r.branch);
+    for (const r of markers) expect(markerMessage({ task: r.task, mergeSha: r.merge, legs: r.legs ? { ...r.legs, cc: [] } : undefined } as StartCtx)).toBe(r.msg);
+  });
+
+  it("the hook's landCheck equals Lean on every case, and every check occurs", async () => {
+    const g = await import(pathToFileURL(join(ROOT, ".github/scripts/changed-inputs.mjs")).href);
+    const names = (g.loadIntent(ROOT) as { lanes: { lanes: { name: string }[] } }).lanes.lanes.map((l) => l.name);
+    expect(new Set(landRows.map((r) => r.check))).toEqual(new Set([null, "ok", "branch", "marker", "parent", "tree", "message", "lanes", "process"]));
+    for (const r of landRows) {
+      const c = r.intent ? landCheck(r.intent, r.ref, r.facts, names) : null;
+      expect(c, r.name).toBe(r.check);
+      expect(c === "ok", r.name).toBe(r.admit);
+    }
+  });
+});
+
+describe("ci push lane check: fw land's own push (land intent)", () => {
+  const landSetup = () => {
+    const s = setup();
+    s.commit("packages/measure-wktr/a.mjs", "fix x");
+    const run = (a: string[]) => execFileSync("git", ["-c", `core.hooksPath=${HOOKS}`, ...a], { cwd: s.fx.root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    const merge = run(["rev-parse", "HEAD"]);
+    const common = run(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+    const marker = () => run(["commit-tree", run(["rev-parse", `${merge}^{tree}`]), "-p", merge, "-m", `land t ${merge.slice(0, 7)}`]);
+    return { ...s, run, merge, common, marker, branch: `ci/land-t-${merge.slice(0, 7)}` };
+  };
+  const ctx = (merge: string) => ({ task: "t", mergeSha: merge, want: { sha: merge, laneId: "land", laneDigest: "d" }, legs: { all: ["check-sh"], gh: [], cc: ["check-sh"] } }) as StartCtx;
+
+  it("passes the land's all-CircleCI push, whose tip names no lane, and drops the intent after the push", async () => {
+    const { push, remoteHas, run, merge, common, branch } = landSetup();
+    expect(push("ci/x").status).not.toBe(0);
+    const out = await makePusher({ git: run, intent: fileIntents(() => common) })(ctx(merge));
+    expect(out.branch).toBe(branch);
+    expect(run(["log", "-1", "--format=%B", out.marker])).toBe(`land t ${merge.slice(0, 7)}`);
+    expect(remoteHas(`refs/heads/${branch}`)).toBe(true);
+    expect(existsSync(intentPath(common, out.marker))).toBe(false);
+  });
+
+  it("refuses a hand-made ci/land push of the same commit without the intent", () => {
+    const { fx, push, remoteHas, marker, branch } = landSetup();
+    fx.git(fx.root, "branch", "-f", branch, marker());
+    const r = push(branch);
+    expect(r.status).not.toBe(0);
+    expect(r.stderr).toContain(`REFUSED: ci push lane check: ${branch}`);
+    expect(r.stderr).not.toContain("land intent");
+    expect(remoteHas(`refs/heads/${branch}`)).toBe(false);
+  });
+
+  it("refuses an intent whose land process is not pushing, and names the failed check", () => {
+    const { fx, push, remoteHas, merge, common, marker, branch } = landSetup();
+    const m = marker();
+    fx.git(fx.root, "branch", "-f", branch, m);
+    const drop = fileIntents(() => common).write({ task: "t", merge, again: false, marker: m, pid: 1, legs: { gh: [], all: ["check-sh"] } });
+    try {
+      const r = push(branch);
+      expect(r.status).not.toBe(0);
+      expect(r.stderr).toContain("land intent of t not verified: process");
+      expect(remoteHas(`refs/heads/${branch}`)).toBe(false);
+    } finally { drop(); }
+  });
+
+  it("refuses an intent pushed to another ci branch", () => {
+    const { fx, push, remoteHas, merge, common, marker } = landSetup();
+    const m = marker();
+    fx.git(fx.root, "branch", "-f", "ci/land-x", m);
+    const drop = fileIntents(() => common).write({ task: "t", merge, again: false, marker: m, pid: process.pid, legs: { gh: [], all: ["check-sh"] } });
+    try {
+      const r = push("ci/land-x");
+      expect(r.status).not.toBe(0);
+      expect(r.stderr).toContain("land intent of t not verified: branch");
+      expect(remoteHas("refs/heads/ci/land-x")).toBe(false);
+    } finally { drop(); }
   });
 });

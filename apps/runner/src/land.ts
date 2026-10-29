@@ -18,6 +18,7 @@ const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix 
 const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefix + step, fn, exitOf);
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
+import { fileIntents } from "./land-intent.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { noteShapeProblems } from "./land-notes.ts";
@@ -763,7 +764,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     let overflow: OverflowPlan | undefined;
     if (!adapters) {
       const gh = chargedGh(realEnv(mainDir));
-      const push = makePusher({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m) });
+      const push = makePusher({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), intent: fileIntents(() => git(mainDir, ["rev-parse", "--path-format=absolute", "--git-common-dir"])) });
       adapters = { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh, cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }, push) };
       try {
         const cc = await realCircle(mainDir, join(mainDir, ".fw-console", "circleci"), logLine);
