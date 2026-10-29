@@ -308,18 +308,20 @@ describe("critical path", () => {
 
 describe("cli", () => {
   it("parses flags", () => {
-    const base = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null };
+    const base = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null, tick: false };
     expect(parseWatchArgs([])).toEqual(base);
     expect(parseWatchArgs(["--until-alert"]).intervalS).toBe(300);
     expect(parseWatchArgs(["--interval", "300", "--stream"])).toEqual({ ...base, intervalS: 300, stream: true });
     expect(parseWatchArgs(["--stream"]).intervalS).toBe(300);
+    expect(parseWatchArgs(["--stream", "--tick"])).toMatchObject({ stream: true, tick: true });
+    expect(() => parseWatchArgs(["--tick"])).toThrow();
     for (const bad of [["--stream", "--until-alert"], ["--stream", "--json"], ["--keep", "4", "--stream"]]) expect(() => parseWatchArgs(bad)).toThrow();
     expect(parseWatchArgs(["--json", "--interval", "30"])).toEqual({ ...base, json: true, intervalS: 30 });
     expect(() => parseWatchArgs(["--interval", "x"])).toThrow();
     expect(() => parseWatchArgs(["--nope"])).toThrow();
   });
   it("parses --keep/--note/--unkeep alone", () => {
-    const base = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null };
+    const base = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null, tick: false };
     expect(parseWatchArgs(["--keep", "42", "--note", "monitor"])).toEqual({ ...base, keep: 42, note: "monitor" });
     expect(parseWatchArgs(["--unkeep", "42"])).toEqual({ ...base, unkeep: 42 });
     for (const bad of [["--keep"], ["--keep", "0"], ["--keep", "1.5"], ["--keep", "4", "--interval", "9"], ["--keep", "4", "--unkeep", "4"],
@@ -353,7 +355,7 @@ describe.skipIf(!have)("fwcore ops.watchDiff / ops.watchKeep", () => {
       const paths = pathsFor("/x/r", { FW_CONSOLE_DIR: dir } as never);
       const decide = keepDecider(core);
       const rows = [{ pid: 7, start: 1000, args: "/usr/bin/caffeinate -i" }, { pid: 8, start: 2000, args: "Python x.py" }];
-      const o = (x: object) => ({ json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null, ...x });
+      const o = (x: object) => ({ json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null, tick: false, ...x });
       expect(await declareKeep(paths, o({ keep: 7, note: "awake" }), rows, decide)).toContain("pid 7 (caffeinate) declared");
       await declareKeep(paths, o({ keep: 8 }), rows, decide);
       expect(readKeep(paths)).toEqual([{ pid: 7, start: 1000, note: "awake" }, { pid: 8, start: 2000, note: null }]);

@@ -14,6 +14,7 @@ import { foldFile, sweepCache } from "./watch-cache.ts";
 import { BG_TEXT, finishInfo, finishSignals, foldText, initFold, parseNotifications, waitingNote } from "./watch-fold.ts";
 import { parseWaits } from "./slot-queue.ts";
 import { rawOf, spanWork } from "./timing.ts";
+import { tailer, windowRows } from "./watch-mem.ts";
 export { parseNotifications, waitingNote };
 
 export interface SpoolEvent {
@@ -495,14 +496,12 @@ export function collectAgents(p: Paths, now: number, owners?: Map<string, string
   return out;
 }
 
-export function collectLead(p: Paths): LeadSnap {
-  try { return summarizeLead(parseSpool(readFileSync(join(p.consoleDir, "spool", "main.jsonl"), "utf8"))); }
-  catch { return { lastToolAt: null, noteAt: null }; }
-}
+const leadTail = tailer<LeadSnap>(() => ({ lastToolAt: null, noteAt: null }), (l, text) => {
+  const c = summarizeLead(parseSpool(text));
+  return { lastToolAt: c.lastToolAt === null ? l.lastToolAt : Math.max(l.lastToolAt ?? 0, c.lastToolAt), noteAt: c.noteAt === null ? l.noteAt : Math.max(l.noteAt ?? 0, c.noteAt) };
+}).read;
+export function collectLead(p: Paths): LeadSnap { return leadTail(join(p.consoleDir, "spool", "main.jsonl")); }
 
-// ---- system ----
-/** A command's stdout; `null` when it failed or timed out; `"missing"` when the program is not installed.
- * `anyExit`: a nonzero exit status still gives its stdout (lsof exits 1 when one of its pids has ended). */
 export type RunOut = string | null | { missing: true };
 export type Runner = (cmd: string, args: string[], timeout: number, cwd?: string, anyExit?: boolean) => Promise<RunOut>;
 const run: Runner = (cmd, args, timeout, cwd, anyExit = false) =>
@@ -787,14 +786,9 @@ export async function collectSystem(p: Paths, prev: Prev | null = null, now = Da
   };
 }
 
-/** The feedback events of the console log (`<consoleDir>/events.jsonl`, written only by console-api), oldest first, in the wire shape.
- *  Only I/O: the log may hold events the reducer refused to act on; fwcore's fold (the reducer's rule) decides which count. An unreadable
- *  log gives no events. */
-export function collectFeedback(p: Paths): FeedbackEv[] {
-  let raw: string;
-  try { raw = readFileSync(join(p.consoleDir, "events.jsonl"), "utf8"); } catch { return []; }
+function feedbackIn(text: string): FeedbackEv[] {
   const out: FeedbackEv[] = [];
-  for (const line of raw.split("\n")) {
+  for (const line of text.split("\n")) {
     if (!line.includes('"review.feedback')) continue;
     let e: Record<string, unknown>;
     try { e = JSON.parse(line); } catch { continue; }
@@ -805,9 +799,9 @@ export function collectFeedback(p: Paths): FeedbackEv[] {
   }
   return out;
 }
+const feedbackTail = tailer<FeedbackEv[]>(() => [], (all, text) => [...all, ...feedbackIn(text)]).read;
+export function collectFeedback(p: Paths): FeedbackEv[] { return feedbackTail(join(p.consoleDir, "events.jsonl")); }
 
-/** The critical path from console-api (GET /api/plan): `string[]`; `null` when the call failed; `[]` when
- *  console-api is not running (no api.json and no FW_API), like a missing program. */
 export type PlanFetch = (url: string) => Promise<unknown>;
 const getJson: PlanFetch = async (url) => {
   const r = await fetch(url, { signal: AbortSignal.timeout(3000) });
@@ -845,8 +839,9 @@ export async function collectSnapshot(p: Paths, now = Date.now(), params: Record
 }
 
 export interface TimingSample { tool: string; step: string; durMs: number; host: "local" | "ci"; load: number; runKind?: string; exit?: number; skipped?: true; waitMs?: number; waits?: { why: string; ms: number }[]; work?: Record<string, string>; startMs?: number; commit?: string; phases?: { how: string; updMs: number } }
-export function parseSamples(text: string, cap = 3000): TimingSample[] {
-  const rows: { at: number; s: TimingSample }[] = [];
+type SampleRow = { at: number; s: TimingSample };
+function sampleRows(text: string): SampleRow[] {
+  const rows: SampleRow[] = [];
   for (const line of text.split("\n")) {
     if (!line.trim()) continue;
     try {
@@ -855,21 +850,18 @@ export function parseSamples(text: string, cap = 3000): TimingSample[] {
       rows.push({ at: Number.isFinite(o.startMs) ? o.startMs : 0, s: { tool: o.tool, step: o.step, durMs: Math.round(o.durMs), host: o.host, load: Number.isFinite(o.load) ? Math.floor(Math.max(0, o.load)) : 0, ...(typeof o.kind === "string" && o.kind !== "" ? { runKind: o.kind } : {}), ...(Number.isInteger(o.exit) ? { exit: o.exit } : {}), ...(o.skipped === true ? { skipped: true as const } : {}), ...queueOf(o.queue), ...spanWork(o), ...rawOf(o) } });
     } catch {}
   }
-  return rows.sort((a, b) => a.at - b.at).slice(-cap).map((r) => r.s);
+  return rows;
 }
+export const SAMPLE_CAP = 3000;
+export function parseSamples(text: string, cap = SAMPLE_CAP): TimingSample[] { return windowRows([], sampleRows(text), cap).map((r) => r.s); }
+const sampleTail = tailer<SampleRow[]>(() => [], (w, text) => windowRows(w, sampleRows(text), SAMPLE_CAP)).read;
 function queueOf(q: unknown): { waitMs?: number; waits?: { why: string; ms: number }[] } {
   const o = q as { waitMs?: unknown; waits?: unknown } | null | undefined;
   if (o === null || typeof o !== "object" || typeof o.waitMs !== "number" || !(o.waitMs > 0)) return {};
   return { waitMs: Math.round(o.waitMs), waits: parseWaits(o.waits) };
 }
-/** The samples of the console's timings file (empty when there is none). */
-export function readSamples(p: Paths): TimingSample[] {
-  try { return parseSamples(readFileSync(join(p.consoleDir, "timings.jsonl"), "utf8")); } catch { return []; }
-}
+export function readSamples(p: Paths): TimingSample[] { return sampleTail(join(p.consoleDir, "timings.jsonl")).map((r) => r.s); }
 
-// ---- resource baseline (task sup-baseline): a 20 s per-kind footprint sampler ----
-// TS STAND-IN: `argv0Base`, `roleOf`, `kindAt`, `kindsOf`, `resVerdict` and `trippedBy` mirror Fw.Obs.Health.Res (lean/Fw/Obs/Health.lean, proved there);
-// test/watch-collect-sup.test.ts replays packages/contracts/golden/obs/sup-health.jsonl against them. The rest is I/O glue.
 export type ProcKind = "leanBuild" | "leanServe" | "fwcore" | "node" | "pnpm" | "chromium" | "simulator" | "webkit" | "system" | "other";
 export const PROC_KINDS: readonly ProcKind[] = ["leanBuild", "leanServe", "fwcore", "node", "pnpm", "chromium", "simulator", "webkit", "system", "other"];
 /** `Fw.Obs.Health.Res.ProcKind.heavy`: our builds, browsers, Simulator device and Safari; never the language server or a system service. */
