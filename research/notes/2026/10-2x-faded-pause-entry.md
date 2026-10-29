@@ -14,7 +14,7 @@ gate cells of platform:faded-pause recorded through Gen.record, each missingWhy 
 Lean theorem or left open with a reason, and the v2-proved decision Gen.run computes.
 
 ## Answer
-Gen.run decides **enter** with no blockers, so v2-proved now has 3 flags: engine.scroll:unthrottle, hero.exit:threaded
+Gen.run decides enter with no blockers, so v2-proved now has 3 flags: engine.scroll:unthrottle, hero.exit:threaded
 and platform:faded-pause. Source: packages/contracts/golden/preset/v2-proved.decisions.jsonl, the `entry` of row
 `platform:faded-pause`. No other flag's decision changed; that row is the only line that differs in the decisions file.
 `Gen.run []` regenerated these four files, and `Gen.run ["--check"]` reports "up to date, 3 flags":
@@ -61,8 +61,7 @@ Source: the v2-proved.trajectory.jsonl rows whose `run` is 40900090514.
   - chromium: 4 of 14416
   - apple: 48 of 14416
 - These units are on the nav morph at the top of the page. The flag acts only after the platform fade reaches 0, at the
-  page end. So I infer (INFERRED) that the units are morph-walk noise and that the flag does not cause them. Gen's rule
-  passes these cells whatever their cause.
+  page end. INFERRED: the units are morph-walk noise, not caused by the flag. Gen's rule passes these cells whatever the cause.
 
 ## Lean (lean/Fw/Parts/PlatformFadedPause.lean)
 The earlier theorems (zero_iff, faded_same_pixels, frame_same, visible_phase, faded_no_tick, faded_run, glint_phase,
@@ -108,7 +107,7 @@ not empty) requires 16 of them by name.
     'Conflicts').
   - platform.glint/part.json declares no conflict between them.
   - Follow-up: declare that conflict, or prove the two compose, before hold-freeze can enter.
-- New consequence: the preset now carries platform:faded-pause. part.json declares it in conflict with:
+- The preset carries platform:faded-pause. part.json declares it in conflict with:
   - morph.tween:waapi
   - morph.tween:waapi-scoped
   - platform.sweep:offscreen-pause
@@ -121,7 +120,5 @@ not empty) requires 16 of them by name.
 - WKTR recalcs per 100 frames: base 244/242/237, faded-pause 87/89/91, all-paused floor 83/70/81; bands 11/10/9; cuts in
   3 of 3 (run 40869911524, results/end-wktr-flip/r1/verdict.txt 'fp/recalc' lines, judged by `Fw.Device.EndWktr.judge`).
 - WKTR layouts per 100 frames: 186/176/104 to 22/75/64, cuts in 3 of 3 (same file, 'fp/layout' lines).
-- Trajectory: run 40900090514 at 80d9c0b. Cell outcomes come from v2-proved.trajectory.jsonl. Unit counts come from the
-  summary files in the artifacts:
-  - trajectory-chromium: 14416 units, 4 new
-  - trajectory-apple: 14416 units, 48 new
+- Trajectory: run 40900090514 at 80d9c0b. Cell outcomes come from v2-proved.trajectory.jsonl. Unit counts (14416 units; 4 new in
+  trajectory-chromium, 48 new in trajectory-apple) come from the summary files in the artifacts.
