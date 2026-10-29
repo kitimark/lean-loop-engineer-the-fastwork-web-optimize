@@ -16,11 +16,12 @@ const alive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { 
 /** A control server on 127.0.0.1: POST /<command> with a JSON body and the session token; one command at a time. */
 export async function startControl({ token, handlers }) {
   let chain = Promise.resolve();
+  let closing = false;
   const server = http.createServer((req, res) => {
     let body = '';
     req.on('data', (d) => { body += d; });
     req.on('end', () => {
-      const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj)); };
+      const send = (code, obj) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(obj), () => { if (closing) setImmediate(() => server.closeIdleConnections?.()); }); };
       if (req.method !== 'POST' || req.headers['x-feel-token'] !== token) return send(403, { ok: false, text: 'refused' });
       const cmd = (req.url || '').slice(1);
       const h = handlers[cmd];
@@ -31,7 +32,13 @@ export async function startControl({ token, handlers }) {
     });
   });
   await new Promise((ok, bad) => { server.once('error', bad); server.listen(0, '127.0.0.1', ok); });
-  return { port: server.address().port, close: () => new Promise((ok) => { server.closeAllConnections?.(); server.close(() => ok()); }) };
+  // close lets an answer in flight finish (a stop's own reply), then drops what is left after a short grace
+  return { port: server.address().port, close: () => new Promise((ok) => {
+    closing = true;
+    const t = setTimeout(() => server.closeAllConnections?.(), 2000);
+    server.close(() => { clearTimeout(t); ok(); });
+    server.closeIdleConnections?.();
+  }) };
 }
 
 /** Send one command to the running session of `dir`. */

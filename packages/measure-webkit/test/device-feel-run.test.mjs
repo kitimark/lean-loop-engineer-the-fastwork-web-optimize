@@ -78,3 +78,13 @@ test('the control server takes a command only with the token and runs commands o
     assert.equal(g.gone, true);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('a stop that closes the control server still gets its reply', async () => {
+  let control;
+  let closed;
+  const handlers = { stop: () => { closed = Promise.resolve().then(() => control.close()); return { ok: true, text: 'stopping' }; } };
+  control = await startControl({ token: 't0k', handlers });
+  const r = await fetch(`http://127.0.0.1:${control.port}/stop`, { method: 'POST', headers: { 'x-feel-token': 't0k' }, body: '{}' });
+  assert.equal((await r.json()).text, 'stopping');
+  await closed;
+});
