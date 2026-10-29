@@ -24175,6 +24175,38 @@
     "docs/team/tools/fw-watch.md",
     "docs/team/handoffs/watch-memory-note.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-floor-writes",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "faded-pause-entry"
+   ],
+   "title": "End of page on WebKit after faded-pause: the WKTR all-paused floor is 70-83 recalcs per 100 frames (end-wktr-flip). Attribute it per writer (nav style, data-fw-morph, scroll-driven JS) on CI, and try a same-look cut, Lean first.",
+   "writes": [
+    "research/notes/2026/10-2x-end-floor-writes.md",
+    "results/end-floor-writes/**",
+    "packages/measure-wktr/**",
+    "lean/Fw/Device/EndFloor*.lean",
+    "lean/Fw/Parts/EndFloor*.lean",
+    "lean/scripts/EndFloor*Golden.lean",
+    "packages/contracts/golden/device/end-floor*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    ".github/workflows/wktr.yml",
+    "apps/runner/src/land.ts",
+    "apps/site/src/parts/nav/**",
+    "apps/site/src/parts/morph.tween/**",
+    "apps/site/src/parts/platform/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-floor-writes.md"
+   ]
   }
  ],
  "deadline": {
