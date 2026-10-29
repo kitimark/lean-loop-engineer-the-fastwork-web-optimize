@@ -23910,7 +23910,9 @@
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-nav-cta-webkit-match.md",
     "results/nav-cta-webkit-match/**",
-    "docs/team/handoffs/nav-cta-webkit-match.md"
+    "docs/team/handoffs/nav-cta-webkit-match.md",
+    ".github/workflows/visual-diff.yml",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -23991,6 +23993,36 @@
     "docs/team/handoffs/ledger-merge-flake.md"
    ],
    "evidence": "fc70d57"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "earn-logical-preset",
+   "owner": "measure-engineer",
+   "stream": "parts",
+   "deps": [
+    "nav-cta-webkit-match"
+   ],
+   "title": "Put nav:earn-logical (user-accepted look 2026-10-25; makes the Join waitlist padding transition run on WebKit like Chromium, per the user's 10-29 report) through Gen.entry for v2-proved: decide the 390 px frame cell on macOS WebKit (trajectory-probe apple legs) since the Linux pair's settled frame already differs 121-124 px, record via Gen.record, and let Gen.run decide membership (never by hand).",
+   "writes": [
+    "lean/Fw/Preset/Gen.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/contracts/golden/preset/**",
+    "apps/site/src/registry/presets/v2-proved.json",
+    "lean/Fw/Parts/NavEarn*.lean",
+    "packages/contracts/golden/parts/nav.earn*.jsonl",
+    "packages/premise-tests/src/earn-frames*.mjs",
+    "packages/measure-webkit/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/findings/ledger.json",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/10-2x-earn-logical-preset.md",
+    "results/earn-logical-preset/**",
+    "docs/team/handoffs/earn-logical-preset.md"
+   ]
   }
  ],
  "deadline": {
