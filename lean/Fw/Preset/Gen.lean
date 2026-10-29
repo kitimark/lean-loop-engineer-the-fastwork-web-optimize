@@ -708,8 +708,9 @@ def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → Strin
       | .notProved _ s => s
       | w => (whyJson w).compress
     let r2 := if w == .proved then "closed by Fw.Parts.HeroExitWork.cr_lane_style_saving (R2 inherited fan-out \
-        units) and Fw.Parts.HeroExitWork.wk_edge_layout with Fw.Parts.HeroExitWork.edgeFrames_le_starts (WebKit \
-        edge-frame cost)"
+        units), Fw.Parts.HeroExitWork.wk_style_saving with Fw.Parts.HeroExitWork.wk_trade_r2E (WebKit inherited \
+        fan-out per element) and Fw.Parts.HeroExitWork.wk_edge_layout with Fw.Parts.HeroExitWork.edgeFrames_le_starts \
+        (WebKit edge-frame cost)"
       else "open until the row is proved"
     "linked to ledger row hero-exit-threaded (v6, KD#2), status " ++ status ++ "; met only when that row is proved \
       (Fw.Preset.Gen.threaded_proofs_iff): Fw.Parts.HeroExitOpt.consumer_eq_s holds under the hypothesis RG11, \
@@ -731,7 +732,8 @@ def threadedEvidence (ledger : List Row) (st : List Stored) : EntryReq → Strin
 def threadedRowNames : List Name :=
   [``Fw.Parts.HeroExitWork.cr_lane_style_saving, ``Fw.Parts.HeroExitWork.wk_edge_layout,
     ``Fw.Parts.HeroExitWork.edgeFrames_le_starts, ``Fw.Parts.HeroExitOpt.consumer_eq_s,
-    ``Fw.Parts.HeroExitOpt.cr_real_tradeE, ``Fw.Parts.HeroExitOpt.wk_tradeE]
+    ``Fw.Parts.HeroExitOpt.cr_real_tradeE, ``Fw.Parts.HeroExitOpt.wk_tradeE,
+    ``Fw.Parts.HeroExitWork.wk_style_saving, ``Fw.Parts.HeroExitWork.wk_trade_r2E]
 
 def theoremTokens (t : String) : List String :=
   (t.splitToList fun c => c == ' ' || c == '(' || c == ')' || c == ',' || c == ';' || c == ':' || c == '\n').filter
