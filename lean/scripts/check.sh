@@ -137,6 +137,7 @@ run_group() {
   job "device-session golden check" lake env lean --run scripts/DeviceSessionGolden.lean --check ../packages/contracts/golden/device/session.jsonl
   job "device-stillruns golden check" lake env lean --run scripts/StillRunsGolden.lean --check ../packages/contracts/golden/device/stillruns.jsonl
   job "device-finishruns golden check" lake env lean --run scripts/FinishRunsGolden.lean --check ../packages/contracts/golden/device/finishruns.jsonl
+  job "device-feel golden check" lake env lean --run scripts/FeelGolden.lean --check ../packages/contracts/golden/device/feel.jsonl
   job "device-sim-touch golden check" lake env lean --run scripts/SimTouchGolden.lean --check ../packages/contracts/golden/device/sim-touch.jsonl
   job "morph-end-count golden check" lake env lean --run scripts/MorphEndCountGolden.lean --check ../packages/contracts/golden/device/morph-end-count.jsonl
   job "device-sim-relaunch golden check" lake env lean --run scripts/SimRelaunchGolden.lean --check ../packages/contracts/golden/device/sim-relaunch.jsonl
