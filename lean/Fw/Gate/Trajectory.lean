@@ -2923,10 +2923,12 @@ structure Group where
   coverage : List Nat
   deriving DecidableEq, Repr
 
-/-- The stored result of one engine of one run on one path, with the flag set of the run's search. -/
+/-- The stored result of one engine of one run on one path, with the flag set of the run's search and the identity of
+the reader code at the run's commit (`reader`, empty when unknown). -/
 structure Stored where
-  run : String
+  run : Nat
   sha : String
+  reader : String
   search : String
   flags : List String
   engine : Engine
@@ -3125,27 +3127,27 @@ theorem outcome_same_by_proof (s : Stored) (hc : covers s.engine s.walk = true)
 
 /-- **Branch measured width, content**: a unit of the unthrottle flag repeated at the two coarse widths fails the cell. -/
 theorem outcome_unthrottle_coarse_fail :
-    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+    outcome ⟨1, "s", "", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
       [⟨"nav", "p", [390, 640], []⟩]⟩ = .fail := by decide
 
 /-- **Branch measured width, coverage**: a coverage unit repeated at the two coarse widths gives no verdict. -/
 theorem outcome_unthrottle_coarse_coverage :
-    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+    outcome ⟨1, "s", "", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
       [⟨"nav", "p", [], [390, 640]⟩]⟩ = .unjudged .coverage := by decide
 
 /-- **Branch same by proof (the run 40080296257 shape)**: content at 641, coverage at 641 and 1280, of the flag alone, is a pass. -/
 theorem outcome_unthrottle_fine_same :
-    outcome ⟨"1", "s", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
+    outcome ⟨1, "s", "", "?fw=engine.scroll:unthrottle", ["engine.scroll:unthrottle"], .macWebkit, .morph, allowedWidths,
       [⟨"nav", "p", [641], [641, 1280]⟩]⟩ = .pass := by decide
 
 /-- The same units under a flag whose rule is active at every width stay unjudged: the proof is the flag's, not the probe's. -/
 theorem outcome_other_flag_unproved :
-    outcome ⟨"1", "s", "?fw=hero.exit:scoped", ["hero.exit:scoped"], .macWebkit, .morph, allowedWidths,
+    outcome ⟨1, "s", "", "?fw=hero.exit:scoped", ["hero.exit:scoped"], .macWebkit, .morph, allowedWidths,
       [⟨"nav", "p", [641], [641, 1280]⟩]⟩ = .unjudged .coverage := by decide
 
 /-- A run that shares the search with an active flag is measured at every width. -/
 theorem outcome_shared_search_unproved :
-    outcome ⟨"1", "s", "?fw=a:b,engine.scroll:unthrottle", ["a:b", "engine.scroll:unthrottle"], .macWebkit, .morph,
+    outcome ⟨1, "s", "", "?fw=a:b,engine.scroll:unthrottle", ["a:b", "engine.scroll:unthrottle"], .macWebkit, .morph,
       allowedWidths, [⟨"nav", "p", [], [641, 1280]⟩]⟩ = .unjudged .coverage := by decide
 
 /-- The fine-pointer flag element: an empty block of no height, because the rule that sizes it is behind the guard. -/
@@ -3406,7 +3408,7 @@ theorem settle_capped : (settleWalk fullPush gapPush fun _ => pushOf [1000] [100
 
 /-- A Mac morph cell of a flag active at every width with no node-property group passes (outcome reads only the groups). -/
 theorem outcome_active_flag_settled :
-    outcome ⟨"1", "s", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
+    outcome ⟨1, "s", "", "?fw=engine.scroll:batched", ["engine.scroll:batched"], .macWebkit, .morph, allowedWidths, []⟩ = .pass := by
   decide
 
 inductive ArmRole where
@@ -3603,7 +3605,7 @@ theorem groupsOf_complete (walk : String) (us : List UnitRow) (u : UnitRow) (hu 
   holds_foldl _ [] u (Or.inr (List.mem_filter.2 ⟨hu, by simp [hn, hw]⟩))
 
 private def urow (w : Nat) (node : String) (cov isNew : Bool) : UnitRow := ⟨w, "morph", node, "p", cov, isNew⟩
-private def stored (gs : List Group) : Stored := ⟨"1", "s", "?fw=a:b", ["a:b"], .chromium, .morph, allowedWidths, gs⟩
+private def stored (gs : List Group) : Stored := ⟨1, "s", "", "?fw=a:b", ["a:b"], .chromium, .morph, allowedWidths, gs⟩
 
 #guard repeats [390, 390, 390] == false
 #guard repeats [390, 1280]
@@ -6085,7 +6087,7 @@ def casesStable : List Case :=
 
 /-- A stored run of the flags `fl` whose search names them. -/
 def cellRun (fl : List String) (e : Engine) (w : Walk) (ws : List Nat) (gs : List Group) : Stored :=
-  ⟨"1", "s", "?fw=" ++ ",".intercalate fl, fl, e, w, ws, gs⟩
+  ⟨1, "s", "", "?fw=" ++ ",".intercalate fl, fl, e, w, ws, gs⟩
 
 def casesCell : List Case :=
   let un := ["engine.scroll:unthrottle"]
