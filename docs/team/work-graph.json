@@ -23567,7 +23567,11 @@
     "lean/scripts/check.sh",
     "research/findings/ledger.json",
     "research/notes/2026/10-2x-gen-merge-retry-bound.md",
-    "docs/team/handoffs/gen-merge-retry-bound.md"
+    "docs/team/handoffs/gen-merge-retry-bound.md",
+    "lean/Fw/Gate/Trajectory.lean",
+    "lean/Fw/Preset/V2Proved.lean",
+    "packages/gate-breakpoints/test/reader-files.test.mjs",
+    "apps/runner/src/land.ts"
    ]
   }
  ],
