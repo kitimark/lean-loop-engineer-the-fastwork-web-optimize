@@ -1,9 +1,7 @@
 import Lean.Data.Json
-/-! Recalc-bisect verdict: which subtree of the page carries the style recalc that runs every frame with nothing changing. -/
 namespace Fw.Device.RecalcBisect
 open Lean
 
-/-- One idle arm: the frames read and the style recalcs counted in them. -/
 structure Arm where
   frames : Nat
   recalcs : Nat
@@ -11,7 +9,6 @@ structure Arm where
 
 def Arm.rpf100 (a : Arm) : Nat := if a.frames = 0 then 0 else a.recalcs * 100 / a.frames
 
-/-- One page part with its own arm: `parent` is the path of the part it sits in ("" for the top level), `kids` its element children. -/
 structure Part where
   path : String
   parent : String
@@ -19,7 +16,6 @@ structure Part where
   arm : Arm
   deriving DecidableEq, Repr
 
-/-- `full` are arms with nothing hidden, `hidden` arms with the whole body hidden, `parts` one arm per part with that part hidden. -/
 structure Job where
   full : List Arm
   hidden : List Arm
@@ -40,10 +36,8 @@ def Arm.ok (a : Arm) : Bool := minFrames ≤ a.frames
 
 def readable (as : List Arm) : List Arm := as.filter (·.ok)
 
-/-- The full rate is the lowest read full arm, so a drifting full arm narrows the spread instead of widening it. -/
 def Job.hi (j : Job) : Nat := ((readable j.full).map (·.rpf100)).foldl min 100
 
-/-- The hidden rate is the highest read hidden arm. -/
 def Job.lo (j : Job) : Nat := ((readable j.hidden).map (·.rpf100)).foldl max 0
 
 def Job.spread (j : Job) : Nat := j.hi - j.lo
@@ -61,7 +55,6 @@ inductive Cls where
 def Cls.name : Cls → String
   | .dropped => "dropped" | .kept => "kept" | .between => "between" | .unread => "unread"
 
-/-- `dropped`: the part's hide brought the rate to the hidden band; `kept`: it left the rate in the full band. -/
 def Job.cls (j : Job) (a : Arm) : Cls :=
   if !a.ok then .unread
   else if a.rpf100 ≤ j.lo + j.band then .dropped
@@ -79,7 +72,6 @@ def Job.kids (j : Job) (parent : String) : List Part := j.parts.filter (·.paren
 
 def Job.clsOf (j : Job) (parent : String) (c : Cls) : List Part := (j.kids parent).filter (j.cls ·.arm == c)
 
-/-- A parent that has element children but no arm in this level is `incomplete`; the top level without parts is too. -/
 def Job.level (j : Job) (parent : String) : Level :=
   if (j.kids parent).isEmpty then
     (if parent == "" then .incomplete else
@@ -220,7 +212,6 @@ theorem level_named_inv (j : Job) (parent p : String) (h : j.level parent = .nam
           simpa using h1
       · split at h <;> simp_all
 
-/-- The sibling-stays condition of the task: a named part's siblings are all `kept`. -/
 theorem named_siblings_kept (j : Job) (parent p : String) (h : j.level parent = .named p) (q : Part)
     (hq : q ∈ j.kids parent) (hne : q.path ≠ p) : j.cls q.arm = .kept := by
   obtain ⟨d, hd, hdp, hb, hu⟩ := level_named_inv j parent p h
@@ -318,10 +309,6 @@ def Verdict.next : Verdict → Next
 theorem next_read_iff (v : Verdict) : v.next = .readSource ↔ ∃ p, v = .named p := by
   cases v <;> simp [Verdict.next]
 
-/-! Stage 2, added after the first CI run (wktr 40805577147: hiding any one child of the named part left the rate, so the
-carrier is not one child). The arms are read in the same job, against its own `hi` and `lo`:
-`kill/<f>` parts have one style feature removed on the whole page (a probe stylesheet or an API call), `only/<c>` parts have
-everything hidden but one child `c` of the named part, and `only/bare` the named part with all its children hidden. -/
 
 def killParent : String := "kill"
 
@@ -331,10 +318,8 @@ def pauseParent : String := "pause"
 
 def Job.ready (j : Job) : Bool := j.hasFrames && j.contrast
 
-/-- A feature carries the recalc when removing it alone drops the rate and removing any other leaves it. -/
 def Job.carrier (j : Job) : Level := if j.ready then j.level killParent else .incomplete
 
-/-- Like `level`, but a part is named by being `kept`: it alone holds the rate up when everything else is hidden. -/
 def Job.levelKept (j : Job) (parent : String) : Level :=
   if (j.kids parent).isEmpty then .incomplete
   else if !(j.clsOf parent .unread).isEmpty then .incomplete
@@ -347,7 +332,6 @@ def Job.levelKept (j : Job) (parent : String) : Level :=
 
 def Job.holder (j : Job) : Level := if j.ready then j.levelKept onlyParent else .incomplete
 
-/-- Third stage: `pause/<g>` parts have only the animation timelines of group `g` paused; the group that carries the recalc is the one whose pause alone drops the rate. -/
 def Job.pauser (j : Job) : Level := if j.ready then j.level pauseParent else .incomplete
 
 def Level.decided : Level → Bool
@@ -510,7 +494,6 @@ def cases2 : List (String × Job) :=
 
 private def case2Job (n : String) : Job := ((cases2.find? (·.1 == n)).map (·.2)).getD ⟨[], [], []⟩
 
-/-- Which level of each job the combo decides on: `carrier` (kill), `holder` (show-only) or `pauser` (pause group). -/
 def Job.pick : String → Job → Level
   | "carrier", j => j.carrier
   | "holder", j => j.holder

@@ -25,7 +25,7 @@ Not a style feature the page writes: `setPresentationalHintStyleIsDirty` is reac
 
 Order of decision and data: stage 1 (hide descent, `overall`) and stage 3 (`pauser`, which SMIL group) were decided in Lean before their data. Stage 2 (`kill` one feature, `only` show-only one child, `carrier`, `holder`) was added after stage 1's data, because stage 1 named no single child; its arms and its Lean level were not decided before any data. Stage 3 was designed after stage 2's data had named SMIL, but its Lean `pauser` was written before run 40812007953 returned. Results `results/geom-recalc-bisect/r1..r3` (`j<n>-accel-bisect-thr-off-1.json`, `tally.txt`, `verdict.txt`). Decision `lean/Fw/Device/RecalcBisect.lean` (thresholds `minFrames 40`, `minSpread 50`, band = spread/4 of the job's own `hi` and `lo`), golden `packages/contracts/golden/device/recalc-bisect.jsonl` (71 lines), TS stand-in `packages/measure-wktr/src/recalc-bisect.mjs` that replays it (`reportToJob` and `bisectTally` are glue, not replayed).
 
-## Table: recalcs per 100 frames (run 40812007953; floor = all hidden; frames in the arm in brackets)
+## Recalcs per 100 frames (run 40812007953; floor = all hidden; frames in the arm in brackets)
 | job | full (hi) | floor (lo) | pause dash | pause other | pause all svgs | Lean pauser |
 | --- | --- | --- | --- | --- | --- | --- |
 | j1 | 90 | 0 | 0 (121) | 100 (44) | 11 (120) | named pause/dash |

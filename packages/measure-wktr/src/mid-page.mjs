@@ -18,8 +18,6 @@
 // (`internals.styleRecalcCount()` in WebKitTestRunner). Chromium counts recalcs from the trace (marks `fwx:<arm>:<stage>:start|end`).
 // For the arm `all` the mid-window table lists every tag with its play state and, in WebKitTestRunner, the accelerated animations the
 // element's graphics layer holds (`internals.acceleratedAnimationsForElement`, Internals.cpp:1534@862f17d).
-// With `P.mid` (timed, task geom-webkit-midflip) the arms are read at those phases of the tween instead (state, pending, accelerated,
-// threaded flag, `timeToNextAnimationTick`, per-frame recalc counts) before the settle cancel.
 
 import { BS_C } from './recalc-bisect.mjs';
 
@@ -485,7 +483,6 @@ function pageProbe(P) {
       const f = CSSStyleSheet.prototype[m];
       if (typeof f === 'function') CSSStyleSheet.prototype[m] = function () { S.add('cssom:' + m); return f.apply(this, arguments); };
     }
-    // Task geom-recalc-bisect: the candidates geom-recalc-source left unwrapped. Each logs a key in the frame it runs (only while S.cur is set).
     S.cn = { ro: 0, io: 0, mql: 0, roT: {}, ioT: {} };
     for (const t of ['scroll', 'scrollend', 'resize', 'pointermove', 'pointerdown', 'pointerup', 'pointerover', 'touchstart', 'touchmove', 'wheel', 'transitionrun', 'transitionstart', 'transitionend', 'transitioncancel', 'animationstart', 'animationiteration', 'animationend', 'animationcancel', 'visibilitychange', 'focusin', 'focusout', 'mouseover', 'mousemove', 'readystatechange']) window.addEventListener(t, () => S.add('ev:' + t), true);
     for (const nm of ['ResizeObserver', 'IntersectionObserver']) {
@@ -649,9 +646,6 @@ function pageProbe(P) {
     return out;
   };
 
-  // Task geom-recalc-bisect. Arms bs-*: idle, every running animation paused, one subtree hidden at a time by a probe stylesheet
-  // (display:none on [data-fw-bs=n], a tag this probe sets on the subtree root; the part id is its data-fw, else tag#id, repeated ids
-  // get [n]). The page only schedules which subtrees to read (stand-in of Lean cls/descend); the verdict is decided offline.
   const BS_SKIP = new Set(['SCRIPT', 'STYLE', 'LINK', 'META', 'NOSCRIPT', 'TEMPLATE', 'TITLE', 'BASE']);
   const B = X.bs = { tag: 0, css: null, parts: [], reads: {}, c: P.bsC || {} };
   const bsRaw = (el) => el.getAttribute('data-fw') || (el.localName + (el.id ? '#' + el.id : ''));
@@ -783,14 +777,12 @@ function pageProbe(P) {
       for (const p of want.slice(0, 40)) out.bs.reads.push(await bsHidePart(p));
       B.reads[kind] = out.bs.reads;
     } else if (kind === 'kill') {
-      // Stage 2 (Lean carrier): run r2 (40808745010) read 15 features removed one at a time; only the SMIL pause dropped the rate in 3 of 3 jobs, so only it stays as the control.
       out.bs.reads = [];
       const svgs = Array.from(document.querySelectorAll('svg'));
       const smil = { on: () => { for (const g of svgs) { try { g.pauseAnimations(); } catch (x) { } } }, off: () => { for (const g of svgs) { try { g.unpauseAnimations(); } catch (x) { } } } };
       const r = await bsRead('', 'floor', smil);
       out.bs.reads.push({ path: 'kill/smil', parent: 'kill', kids: 0, sm: r.sm, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
     } else if (kind === 'pause') {
-      // Stage 3 (Lean pauser): only the timelines of one svg group are paused; 'dash' are the svgs inside [data-fw-dash] (the secure-network glint), 'other' all the rest.
       out.bs.reads = [];
       const all = Array.from(document.querySelectorAll('svg'));
       const dash = all.filter((g) => !!g.closest('[data-fw-dash]'));
@@ -805,7 +797,6 @@ function pageProbe(P) {
         out.bs.reads.push({ path: 'pause/' + grp[0], parent: 'pause', kids: 0, n: list.length, sm: r.sm, frames: r.frames, recalcs: r.recalcs, pre: r.pre, ms: r.ms, paused: r.paused });
       }
     } else if (kind === 'hold') {
-      // Stage 2 (Lean holder): only one child of the part the hide descent ended at stays shown (its ancestors' other children and its siblings hidden); 'bare' hides all its children.
       out.bs.reads = [];
       const at = B.parts.find((p) => p.path === B.at);
       out.bs.at = B.at || null;
