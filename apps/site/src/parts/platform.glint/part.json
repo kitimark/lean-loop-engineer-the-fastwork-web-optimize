@@ -26,7 +26,7 @@
       "tier": "T0",
       "visClass": "E",
       "provenance": {
-        "lean": "Fw.Parts.PlatformGlintHold hold_premise, hold_same_segments, hold_eq_faithful, hold_resume_eq, active_unique, ticking_hold, ticking_ramp, ticking_le; Fw.Device.GlintHold ramp_left, ramp_right, hold_both, union_ramp",
+        "lean": "Fw.Parts.PlatformGlintHold hold_premise, hold_same_segments, hold_eq_faithful, active_unique, ticking_hold, ticking_le",
         "webkit": "Source/WebCore/svg/animation/SVGSMILElement.cpp:1074-1088 @862f17dcae0a",
         "chromium": "third_party/blink/renderer/core/svg/animation/svg_smil_element.cc:1285-1301 @f842f52",
         "limit": "same look: the hold sample equals the original at every elapsed time (hold_eq_faithful). Per side 3 of 5 key-time segments hold, where only <set> pieces are active and no non-<set> animation ticks (ticking_hold); never more ticking than the original (ticking_le). Premises (INFERRED, tested by the look premise in both engines): the begin chain keeps exactly one piece per attribute active at every instant (the begin of a piece is the end of the one before it); pauseAnimations and the resume seek of the one clock writer (platform.glint/pause.ts createPause, as for platform:faded-pause) keep the sampled values equal (golden run, hold.test.ts)"
