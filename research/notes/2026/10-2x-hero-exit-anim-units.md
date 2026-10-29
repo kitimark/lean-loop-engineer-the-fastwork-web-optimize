@@ -10,9 +10,12 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
   the names the site test checks against the CSS, with one property per name (`nameProp`): `animCount_eq`. CONFIRMED.
 * A style unit is per element in both engines. The compositor tick and the keyframe apply are per animation. CONFIRMED
   (source below).
-* WebKit: the variant's style units equal the original's (`2N + 5` each, on the same `N + 2` elements:
-  `wk_style_elems`). The strict style drop is gone. `wk_trade` stays strict through the script pass, with the new
-  conjunct `V.units .style = O.units .style` (also in `wk_tradeE`). CONFIRMED (Lean).
+* WebKit: against the per-consumer list `wkOrigChanges` the variant restyles the same `N + 2` elements
+  (`wk_style_elems`) and its style units equal `2N + 5`; the real original also resolves the hero subtree through the
+  inherited `--exit-opacity` (WebKit `StyleChange.cpp:42-43`, `StyleTreeResolver.cpp:306-307`@862f17d, not modelled
+  on WebKit), so per element WebKit style still drops. The modelled strict style drop is gone. `wk_trade` stays
+  strict through the script pass, with the new conjunct `V.units .style = O.units .style` (also in `wk_tradeE`).
+  CONFIRMED (Lean for the model, source for the fan-out).
 * Chromium lane: style units `V = O + (N + 2)` (was `+ [¬ℓ]`), props `V = O + (N + 3)` (was `+ 1 + [¬ℓ]`), in both
   bands (`cr_lane_mixed`). Per element the ride-along covers `N + 2` elements, a strict subset of the original's `N + 3`
   (`cr_lane_style_elems`). Real Chrome: only the compositor units change (`cr_real_trade` keeps its statement).
@@ -21,8 +24,9 @@ WebKit 862f17d (`W` = `Source/WebCore`), Chromium f842f52 (`B` = `third_party/bl
 * Ledger row n 6 stays `proved`; `why` gives `proved`; `Gen.run` keeps `hero.exit:threaded` at `enter`, no blockers.
 * One measured check flips: the WebKit style footprint sign is now `same`, while the phone count went down (627-631
   against 646-651 records per run). INFERRED cause: the variant run renders fewer frames (588 against 693-696), so it
-  records fewer style recalcs while each rendering update costs the same. `ResourceFlags` lists it as a disagreement
-  with that mechanism.
+  records fewer style recalcs while each rendering update costs the same in the model. `ResourceFlags` lists it as a disagreement
+  with that mechanism; the predicted same uses `wkOrigChanges`, which omits the original's inherited `--exit-opacity`
+  fan-out on WebKit (R2 is modelled for Chromium only).
 
 ## Style unit: WebKit (per element)
 

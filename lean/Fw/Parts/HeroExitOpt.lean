@@ -34,10 +34,12 @@ What is proved:
   (`wk_all_comp`; with the threaded path off, all run on main: `wk_legacy_main`). Under the measured premise
   `WktrStyleRate.Holds` (WKTR fixtures, task wktr-p1p4: a scroll-timeline animation restyles its target once per
   rendering update, accelerated or not) a scrolled frame keeps the scroll commit **and one style pass** with
-  `animCount ℓ N` restyle units on the web process (`wk_var_exact`). Against the original's own changes (`2N + 5` style
-  units on the same elements, `wk_style_elems`) the style units are equal and the main-thread work drops by the script
-  pass (`wk_trade`), but not for any change list (`wk_trade_not_general`); the UI
-  process gains the animations: again a trade.
+  `animCount ℓ N` restyle units on the web process (`wk_var_exact`). The variant's ride-along targets are the elements
+  of the model's original change list `wkOrigChanges` (copy, cue, the `N` cards, `wk_style_elems`). Since the style
+  units are equal (`2N + 5` each) against `wkOrigChanges`, which omits the WebKit inherited fan-out, the main-thread
+  work drops by the script pass (`wk_trade`), but not for any change list (`wk_trade_not_general`). The real original
+  also resolves the inherited `--exit-opacity` fan-out of the hero subtree on WebKit, which `wkOrigChanges` omits, so
+  per element WebKit style work still drops. The UI process gains the animations: again a trade.
 * **Golden rows** (`goldenJsonl` → `packages/contracts/golden/engine/hero-exit.jsonl`) in the `engine-check` schema.
 * **Changed since CI run 39088367495 (engine-model-fix).** On Chromium a `filter: blur()` value change on an own layer
   rasters (MEASURED), so both arms keep one raster pass (`crOrigPasses`, `crVarPasses`) and the golden raster row is

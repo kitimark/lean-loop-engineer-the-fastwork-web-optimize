@@ -545,7 +545,8 @@ def withCheck (c : Check) : List Obs := observations.filter (obsCheck · == c)
 def mechanisms : List (String × Eng × Res × String) :=
   [("hero.exit:threaded", .webkit, .style,
      "INFERRED: per rendering update the style units are equal (wk_trade); the run renders fewer frames \
-       (588 vs 693-696, the frames row), so it records fewer style recalcs"),
+       (588 vs 693-696, the frames row), so it records fewer style recalcs ; the predicted same uses wkOrigChanges, \
+       which omits the original's inherited --exit-opacity fan-out on WebKit (R2 is modelled for Chromium only)"),
    ("hero.exit:threaded", .webkit, .paintRec,
      "INFERRED: re-attach paints of the promoted animation targets (promote_tween) outweigh the per-frame paint drop"),
    ("hero.exit:threaded", .webkit, .repaint,

@@ -5,7 +5,10 @@
 * CI run ids: none (no CI in this task).
 * Verified: `lake build` (all Fw), engine goldens rewritten by `scripts/EngineGoldens.lean --write`, preset rewritten
   by `Fw.Preset.Gen.run []`, check.sh via `fw slot run --kind check`.
-* Open: the engines still count style per change and per compositor animation; per-element style units in
+* Round 2: the WebKit "same elements / equal style units" text now names `wkOrigChanges` as the model's list and
+  states the original's inherited `--exit-opacity` fan-out (not modelled on WebKit) in the module doc, the note, the
+  ledger row n 6 and note, and the `ResourceFlags` mechanism. The theorem docstrings were cut by polish 4ad54138b.
+* Open: a WebKit analogue of `cr_style_saving` over `heroTree`; the engines still count style per change and per compositor animation; per-element style units in
   `Fw.Engine` are a follow-up. The site test does not check `nameProp` against the CSS. `ResourceFlags.lean` and
   `golden/engine/resource.jsonl` were edited outside the graph row's writes (a guard broke).
 
