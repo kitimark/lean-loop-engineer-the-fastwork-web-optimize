@@ -1,9 +1,9 @@
 branch: worktree-wf_49266267-829-1
 worktree: .claude/worktrees/wf_49266267-829-1 (under the main checkout)
-last commit: e64ac7211 (this file added in the next commit)
+last commit: the round-3 fix commit on 29fbbed68 (git log -1 on the branch)
 run ids: none (local task, no CI)
 verified: Lean WatchMem compiles; goldens replay in check.sh; runner tests; local RSS before/after, before max 842 MB / after max 250 MB (local, 21 min, 60 s samples, slope -5 / +5 MB/min)
-open: next.ts outside writes (dry land may need --allow); follow-ups below
+open: follow-ups below; round 3 (final design round) applied fixes 1-8 of the Fable spec
 
 round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window fixture + replay test, raw RSS rows in the note, read_grown docstring. No CI runs. Samples: the note's raw rows.
 ## State
@@ -19,7 +19,7 @@ round 2 (review refused r1): long-line cursor fix (grow buffer), recorded-window
   watch with `FW_CONSOLE_DIR=<copy>` and `FW_WATCH_REAP=0`, `ps -o rss` every 60 s.
 ## Conventions
 - TS stand-ins (temporary): `windowRows`, `readFrom`, `nextCursor` in watch-mem.ts, checked against the goldens.
-- `apps/runner/src/next.ts` is outside the task's writes (transcript tail); the dry land may need `--allow`.
+- `apps/runner/src/next.ts` is in the task's writes (row r586); the dry land reports scope ok.
 ## Follow-ups
 - docs/team/tools/fw-watch.md does not mention `--tick`.
 - health.jsonl (195 MB) grows one snapshot per tick: disk only; needs a retention rule.

@@ -92,7 +92,7 @@ describe("incremental readers equal the whole-file reads", () => {
     expect(collectFeedback(p).map((e) => e.ref)).toEqual(["z"]);
   });
 
-  it.skipIf(!have)("the slow verdicts of a recorded window are the same as from a whole-file read", async () => {
+  it.skipIf(!have)("slow alerts on a synthetic log are the same as from a whole-file read", async () => {
     const dir = tmp(), file = join(dir, "timings.jsonl");
     const lines: string[] = [];
     for (let i = 0; i < 3500; i++) lines.push(sampleLine(2_000_000 + (i * 31) % 997, i));
@@ -231,5 +231,7 @@ describe("recorded event window: cursor reads equal whole-file reads (alert list
     const r = await core({ op: "obs.slow", detail: true, samples: parseSamples(b.toString("utf8")) });
     const strs = (x: unknown) => (Array.isArray(x) ? (x as unknown[]).filter((y): y is string => typeof y === "string") : []);
     expect(slowAlerts(via.slow, via.details)).toEqual(slowAlerts(strs(r.slow), strs(r.details)));
+    // The slow list is empty on this recorded window; the "timing samples" deep-equal above is the proof.
+    expect(via.slow).toEqual([]);
   });
 });

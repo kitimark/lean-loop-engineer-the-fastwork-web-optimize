@@ -1,11 +1,11 @@
 # fw watch memory (task watch-memory, 2026-10-29)
 
-Trigger: the Mac ran at 113 MB free with 604k pages in the compressor; `node apps/runner/src/fw.ts watch --interval 300 --stream`
+Trigger (local single reading, not committed, MEASURED once): the Mac ran at 113 MB free with 604k pages in the compressor; `node apps/runner/src/fw.ts watch --interval 300 --stream`
 held 663 MB resident five minutes after it started. All numbers below are MEASURED local harness numbers of our own tool
 (not a site result), copies of `.fw-console/` read through `FW_CONSOLE_DIR`, `FW_WATCH_REAP=0`, `--interval 60`
 (stricter than the 300 s of the Monitor: more ticks per hour).
 
-## Cause (MEASURED, one pass at a time, `process.memoryUsage()` and a wrapper on `readFileSync`)
+## Cause (local single readings, not committed, MEASURED once; one pass at a time, `process.memoryUsage()` and a wrapper on `readFileSync`)
 
 Every tick re-read whole files and kept the text alive until the next collection:
 
@@ -41,8 +41,8 @@ last sample dropped, 20 samples each. Same console copy, same filter (`fw watch 
 
 | arm | max RSS | mean RSS | slope |
 |---|---|---|---|
-| before (whole-file reads) | 842 MB | 585 MB | -5 MB/min (sawtooth 150 to 860 MB, no trend) |
-| after (cursors, window, chunked hash) | 250 MB | 183 MB | +5 MB/min (cold-start fill, flat from minute 3: 126 to 256 MB) |
+| before (whole-file reads) | 842 MB | 585 MB | -5 MB/min |
+| after (cursors, window, chunked hash) | 250 MB | 183 MB | +5 MB/min |
 
 Source of every number above: the sampler logs (rows `t_s,rss_kb` below, `ps -o rss=` of the watch pid every 60 s; MB = rss_kb / 1024; sampler `sample.mjs`, scratch, spawns the stream with
 `FW_CONSOLE_DIR=<copy>` `FW_WATCH_REAP=0`). The table drops the first and last row of each file (start-up and shutdown), leaving 20 points.
@@ -62,8 +62,38 @@ after:  0,480 60,25600 120,199152 180,69952 240,216896 300,139072 360,212624 420
 
 Recomputed from the raw rows: before max 842, mean 585, slope -5.2 MB/min; after max 250, mean 183, slope +5.0 MB/min.
 
-The tick line's own reading (taken inside the tick, at its peak) was at most 289 MB. `Fw.Ops.WatchMem.rssBoundKb` is 512 MB:
-1.7 x the after-arm peak, below the before-arm mean. A first guess of 256 MB fired once in the after arm (289 MB). Peak is 3.4 x lower than before; the lead's 663 MB incident would alert.
+Method for every number in this section: MB = rss_kb / 1024, rounded half-up like `Fw.Ops.WatchMem.mb`; max, mean and least squares run over minutes 1-20 (the 20 points above); ratios are to one decimal.
+
+Raw block, after arm, stream log; bound then 256 MB (the 20 TICK lines, verbatim):
+
+```
+TICK rss=289MB heap=32MB bound=256MB
+TICK rss=237MB heap=93MB bound=256MB
+TICK rss=154MB heap=26MB bound=256MB
+TICK rss=212MB heap=26MB bound=256MB
+TICK rss=214MB heap=26MB bound=256MB
+TICK rss=209MB heap=26MB bound=256MB
+TICK rss=216MB heap=26MB bound=256MB
+TICK rss=235MB heap=101MB bound=256MB
+TICK rss=199MB heap=26MB bound=256MB
+TICK rss=219MB heap=31MB bound=256MB
+TICK rss=217MB heap=24MB bound=256MB
+TICK rss=250MB heap=96MB bound=256MB
+TICK rss=123MB heap=24MB bound=256MB
+TICK rss=169MB heap=60MB bound=256MB
+TICK rss=236MB heap=83MB bound=256MB
+TICK rss=241MB heap=94MB bound=256MB
+TICK rss=222MB heap=24MB bound=256MB
+TICK rss=240MB heap=83MB bound=256MB
+TICK rss=236MB heap=62MB bound=256MB
+TICK rss=241MB heap=89MB bound=256MB
+```
+
+- Tick peak: 289 MB, the first tick (maximum of the 20 TICK values). That it is a start-up peak is INFERRED (`memCheck` runs after the pass's reads, watch.ts:339).
+- `Fw.Ops.WatchMem.rssBoundKb` is 512 MB: 512 / 289 = 1.8 x the tick peak; 512 is below the before-arm mean (585 MB, line 63).
+- A first guess of 256 MB would have fired once: 1 of the 20 TICK values (289) is over 256.
+- Peak is 3.4 x lower than before: ps max before (842 MB) over ps max after (250 MB), line 63.
+- The 663 MB reading of the trigger (line 4) is over 512 MB, so it would alert.
 
 Alert output unchanged: `apps/runner/test/watch-mem.test.ts`, describe "recorded event window", replays the committed window
 `apps/runner/test/fixtures/watch-mem/` (`timings.jsonl`: the newest 3400 rows of a recorded log reduced to tool, step, durMs, host, load,
@@ -71,8 +101,30 @@ startMs, exit; `spool/main.jsonl`: 400 recorded hook lines reduced to six fields
 synthetic, shaped like the real ones, the transcript with a tool_use whose tool_result line is 747 kB, longer than one 512 KiB chunk). Each file
 grows in three appends cut inside lines through the cursor readers; the test deep-equals the slow alert list (`slowAlerts`), the transcript
 signal facts (`finishSignals`), `handbackAtOf`, `collectLead` and `collectFeedback` against the whole-file results. Window rows equal a sort
-of everything on random logs (same file). The live OPEN lines of the two arms differ only where the world differs (load average, a CI run
-that started between arms), plus `watch.rss fw-watch` once in the after arm (289 MB, against the 256 MB first guess).
+of everything on random logs (same file). The slow list is empty on this recorded window (the window ends after the slow samples); the non-empty case is
+the synthetic test "slow alerts on a synthetic log" (watch-mem.test.ts). The reduction drops kind, work, queue, commit and phases, so subjects lose
+their work suffix and those parser branches have no recorded coverage.
+
+Live OPEN lines of the two arms (first 60 characters of each OPEN line, verbatim). Both arms opened the same three `timing.slow` subjects; the
+after arm adds `watch.rss fw-watch` once (the 289 MB tick, over the 256 MB first guess):
+
+```
+after arm:
+OPEN ci.slow trajectory-probe@ci/faded-pause-entry in_progre
+OPEN sys.contended load load average 11 (1 min, floor) over 
+OPEN sys.contended load load average 14 (1 min, floor) over 
+OPEN timing.slow fw/slot run check sh lean/scripts/check.sh 
+OPEN timing.slow lean/check/parallel group 
+OPEN timing.slow lean/check/preset v2-proved check local sam
+OPEN watch.rss fw-watch fw watch holds 289 MB resident, over
+before arm:
+OPEN sys.contended load load average 10 (1 min, floor) over 
+OPEN sys.contended load load average 13 (1 min, floor) over 
+OPEN sys.contended load load average 9 (1 min, floor) over 8
+OPEN timing.slow fw/slot run check sh lean/scripts/check.sh 
+OPEN timing.slow lean/check/parallel group 
+OPEN timing.slow lean/check/preset v2-proved check local sam
+```
 
 Long lines: `readAppended` follows `Fw.Ops.WatchMem.nextCursor` (no newline: the cursor stays) by doubling its buffer until a newline or the file
 end shows; golden row "a line longer than one chunk keeps the cursor at its start", theorem `next_none`, test "a line longer than one chunk".
@@ -80,5 +132,9 @@ end shows; golden row "a line longer than one chunk keeps the cursor at its star
 ## Accepted limits
 
 - A last line without a newline is counted when its newline arrives (one tick later), not at once.
-- Feedback events are all kept (26 in 48k events); the lead's notes cache and the fold caches on disk are unchanged.
-- `health.jsonl` (195 MB) still grows by one snapshot per tick: disk, not memory (follow-up).
+- Local single readings, not committed, MEASURED once: feedback events are all kept (26 in 48k events); the lead's notes cache and the fold caches on disk are unchanged.
+- `health.jsonl` (195 MB, local single reading, not committed) still grows by one snapshot per tick: disk, not memory (follow-up).
+- 20-minute arms cannot separate a cold-start fill from a slow leak, and the after arm's slope over minutes 1-20 is positive (+5.0 MB/min, line 63). Boundedness rests on the Lean window and cursor theorems and the `watch.rss` alert at `rssBoundKb`, not on this trace.
+- Other processes are out of scope; local measurement of our own tool only, no CI. The read buffer grows to the longest line.
+- Fixtures: events and transcripts are synthetic but real-shaped; the timings fixture drops kind, work, queue, commit and phases; the recorded timings window yields no slow alert.
+- Fixture counts and constants: 3400 timing rows, 400 spool lines, a 747 kB line (746,828 bytes, kB = 1000); chunk 512 KiB (`CHUNK`), 3000 samples (`SAMPLE_CAP`), `rssBoundKb`.
