@@ -5597,6 +5597,12 @@
    "task": "nav-cta-webkit-match",
    "field": "webkit",
    "text": "Note research/notes/2026/10-2x-nav-cta-webkit-match.md. User report 2026-10-29: the Join waitlist animation differs on WebKit, Chromium is correct. INFERRED from a local debug run, not a result (Playwright WebKit 27.2, Chrome 155, real page and the unmodified snapshot): the snapshot and our faithful port show padding-left 24 px in the flip frame on WebKit against an eased 0, 0.2, 0.47 px on Chromium, so this is the original's WebKit difference and nav:earn-logical (not in a preset) is its fix; with the flag WebKit runs padding-left and padding-right transitions. MEASURED frame by frame (run 40858439757, Linux Chrome Headless Shell against Playwright WebKit, 17 times, exit and entry, Lean bound 2 per mille of the 100 px band at channel difference 40): at 1280 the logical arm is within the bound on every frame (worst 163 of 256) and the faithful arm is over it on 3 frames per scenario (worst 314 exit, 2516 entry); at 390 both arms exceed 78 px on every frame because the settled frame already differs by 121 to 124 px between the two Linux engines (logical worst 148, faithful entry 1338); Chromium faithful against logical is 0 changed pixels on all frames. The iPhone is not measured."
+  },
+  {
+   "entry": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
+   "task": "earn-logical-preset",
+   "field": "webkit",
+   "text": "Note research/notes/2026/10-2x-earn-logical-preset.md. MEASURED on macOS (run 40876250109, Playwright WebKit against Playwright Chromium, 17 frames, exit and entry, Lean frameBound allowed 78 at 390 and 256 at 1280): the 390 cell passes, logical worst 60 on exit and 60 on entry, 0 frames over; the faithful arm is over (worst 245 exit, 1332 entry). Recorded in packages/contracts/golden/parts/nav.earn.frames.jsonl through Fw.Parts.NavEarnFrames. Gen.run for nav:earn-logical (walk run 40872462216): not yet, blocker gate webkit (the macOS WebKit morph cell fails); chromium hero and morph, linux-webkit hero and macOS WebKit hero pass. Membership is also closed structurally (kind proposal, class L; Fw.Preset.V2Proved.look_not_mem). macOS WebKit stands in for iOS Safari; the iPhone is not measured."
   }
  ]
 }
