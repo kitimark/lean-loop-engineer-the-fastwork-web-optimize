@@ -1,0 +1,8 @@
+glint-compositor j1 idle: base 97 floor 0 compositor 0 per 100 frames, band 6 spread 5, frames base 295 floor 295 compositor 299, glint animations running 0, verdict variant animation not running
+glint-compositor j1 flip: base 172 floor 77 compositor 89 per 100 frames, band 5 spread 5, frames base 96 floor 48 compositor 48, glint animations running 0, verdict variant animation not running
+glint-compositor j2 idle: base 99 floor 0 compositor 0 per 100 frames, band 6 spread 1, frames base 348 floor 301 compositor 301, glint animations running 0, verdict variant animation not running
+glint-compositor j2 flip: base 190 floor 96 compositor 77 per 100 frames, band 10 spread 10, frames base 97 floor 51 compositor 48, glint animations running 0, verdict variant animation not running
+glint-compositor j3 idle: base 104 floor 0 compositor 100 per 100 frames, band 9 spread 9, frames base 296 floor 302 compositor 267, glint animations running 0, verdict variant animation not running
+glint-compositor j3 flip: base 168 floor 68 compositor 177 per 100 frames, band 6 spread 4, frames base 96 floor 48 compositor 77, glint animations running 0, verdict variant animation not running
+glint-compositor overall idle: inconclusive
+glint-compositor overall flip: inconclusive

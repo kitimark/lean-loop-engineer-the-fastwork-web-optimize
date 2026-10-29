@@ -621,11 +621,13 @@ function pageProbe(P) {
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     } else if (!warm) {
-      toPause = document.getAnimations().filter((a) => a.playState === 'running');
+      const glintEl = (a) => !!(a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('[data-fw-dash]'));
+      toPause = document.getAnimations().filter((a) => a.playState === 'running' && !(P.gk && glintEl(a)));
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
+      out.rs.glintLive = document.getAnimations().filter((a) => a.playState === 'running' && glintEl(a)).length;
     }
     const smilSvgs = vv === 'smil' ? Array.from(document.querySelectorAll('svg')) : [];
     for (const g of smilSvgs) { try { g.pauseAnimations(); } catch (x) { } }
@@ -974,8 +976,8 @@ function pageProbe(P) {
   };
 }
 
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh, gk })});`;
 }
