@@ -23693,6 +23693,30 @@
     "results/glint-hold-wktr/**",
     "docs/team/handoffs/glint-hold-wktr.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "ledger-note-check",
+   "owner": "console-builder",
+   "stream": "console",
+   "deps": [],
+   "title": "Two builders in one day landed ledger notes that break apps/runner ledger-merge (hero-exit-gate-clear: field 'gate'; cols-probe: free-text entry) and only the land's remote suite caught it: make the commit checkmap and the dry land run the ledger tests whenever research/findings/ledger.json changes (Lean-decided check selection, blocking), with a test that a bad note is refused before the land.",
+   "writes": [
+    "apps/runner/src/checkmap*.ts",
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/checkmap*.test.ts",
+    "apps/runner/test/land*.test.ts",
+    "lean/Fw/Ops/**",
+    "packages/contracts/golden/ops/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "docs/team/incidents/ledger.json",
+    "research/mistakes/ledger.json",
+    "research/notes/2026/10-2x-ledger-note-check.md",
+    "docs/team/handoffs/ledger-note-check.md"
+   ]
   }
  ],
  "deadline": {
