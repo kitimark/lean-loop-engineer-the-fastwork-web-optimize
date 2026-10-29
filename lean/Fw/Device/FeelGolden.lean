@@ -95,7 +95,7 @@ private def jointLineJ (c : Nat × List (Option Nat) × List (Option Nat) × Lis
     ("same", Json.arr ((List.range nSame).map fun a => jointJ (jointSame seed rs caps a)).toArray),
     ("lookJoint", Json.arr ((ls.zip lcaps).map fun p => jointJ (jointLook seed rs caps p.1 p.2)).toArray)]
 
-private def captureLines : List String :=
+private def captureLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "capconsts"), ("long17Cs", long17Cs), ("long33Cs", long33Cs), ("blinkDrop", blinkDrop), ("blinkWithin", blinkWithin),
       ("idleMs", idleMs), ("zonePx", zonePx), ("capMargin", capMargin)]).compress] ++
   (captureCases.map fun c =>
@@ -125,7 +125,7 @@ def goldenLines (_ : Unit) : List String :=
       ("grid", Json.arr (scores.map fun x => toJson (scores.map fun b => cellCode (cell x b))).toArray)]).compress,
     (Json.mkObj [("kind", "reduce"), ("scores", toJson scores), ("codes", toJson reduceGrid)]).compress,
     (Json.mkObj [("kind", "reduceLook"), ("scores", toJson scores), ("codes", toJson lookGrid)]).compress ] ++
-  (sessionCases.map fun c => (sessionJ c).compress) ++ captureLines
+  (sessionCases.map fun c => (sessionJ c).compress) ++ captureLines ()
 
 def goldenText (_ : Unit) : String := String.intercalate "\n" (goldenLines ()) ++ "\n"
 
