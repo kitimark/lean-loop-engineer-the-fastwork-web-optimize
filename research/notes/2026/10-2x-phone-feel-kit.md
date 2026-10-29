@@ -24,7 +24,7 @@ once; labels go by first appearance, so the letters are always `A B C B C A`. Fo
 Rating: a whole number 1 (rough) to 5 (smooth) per visit. A cell compares an arm's visit to `base`'s visit of the same
 round: better if at least 1 above, worse if at least 1 below, else same. The arm verdict is felt better / same / worse
 when both visits agree, otherwise mixed. A look-change arm has one visit; its score is compared against both `base`
-scores. The verdict table names the arms, so `feel stop` prints it at every stop (the lead reads it, the person does not); `status` hides names
+scores. `feel stop` prints the verdict table with arm names (the lead reads it, the person does not); `status` hides names
 unless `--reveal`.
 
 The Serious pin gate (`pinGate` from `device-thermal-pin.mjs`): `feel next` refuses to open an arm unless the owner is
@@ -47,7 +47,7 @@ rises, and refuses on Critical, a locked phone, a dead owner or a fall below the
 | viewport | 430 x 775 |
 | Processes after stop | none of mine (session, owner, proxy) |
 
-All verdicts of the dry run are `same` because every score was 3; that is the expected reducer output, not a result.
+All dry-run verdicts are `same` because every score was 3, not a result.
 
 INFERRED from L2: `morph.stage` changes the page height, so it is a layout change as well as a look change; the user
 should expect a longer page on L2.
@@ -55,8 +55,7 @@ should expect a longer page on L2.
 Defect fixed: `feel stop` answered "fetch failed" because the session closed the control server with
 `closeAllConnections` before the reply was written; the client then stopped the owner itself, so the pin still cleared.
 The server now closes after the reply is flushed (`startControl().close`, test "a stop that closes the control server still gets its
-reply"). The dry run's own stop went through the old code, so the fixed stop path is covered by the unit test only,
-not by a second device run (limit).
+reply"). The dry run's stop used the old code; the fix is covered by the unit test only, not a device run (limit).
 
 ## Commands for the lead
 
