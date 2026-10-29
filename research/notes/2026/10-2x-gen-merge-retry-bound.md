@@ -21,7 +21,7 @@ their theorems, and the preset goldens regenerated with `Gen.record`. No CI runs
   With a bound of 1 the no-verdict would stay live and the cell would read pending.
 - The rows the previous merge deleted are back in the stored file, marked superseded: 5 rows of run 40156078840
   (old reader `6ee3baa8`, 3 of them fails) are superseded by reader change; the 40668662980 linux-webkit hero pass and
-  the 40671695274 rows are kept live or superseded per the rule.
+  the 40671695274 rows follow the rule.
 - No other flag changes a cell or a verdict (each flag's cells and verdict compared before and after; only the
   evidence text and the new `superseded` field differ).
 
@@ -78,6 +78,5 @@ The rule change from "first later run at another reader" to "newest run" moves o
 
 ## Lesson
 
-A store of measurement runs that lets the newest run win also lets a re-run hide a failure. Keep every row, decide per
-row whether it counts (identity of the reader code, not run order), and read a cell as the conjunction of the rows that
-count.
+A store where the newest run wins lets a re-run hide a failure. Keep every row, decide per row whether it counts (by
+reader code identity, not run order), and read a cell as the conjunction of the counting rows.

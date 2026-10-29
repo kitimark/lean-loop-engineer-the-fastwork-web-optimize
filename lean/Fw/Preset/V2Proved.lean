@@ -118,49 +118,30 @@ def families : List Family := [.chromium, .webkit]
 def runsFor (st : List Stored) (f : Flag) (fam : Family) (w : Walk) : List Stored :=
   st.filter fun s => s.flags.contains f.key && s.engine.family == fam && s.walk == w
 
-/-! ## Superseded rows
-
-The rows of one key (flags, engine, path) are taken in run order. A row stays stored when a later run supersedes it; it
-only stops counting. -/
-
-/-- How many runs of one key at one reader version may stand in for a row with no verdict: the first run and one
-retry. -/
 def retryBound : Nat := 2
 
-/-- Whether two stored rows hold the same key: flags, engine and path. -/
 def sameKey (a b : Stored) : Bool := a.flags == b.flags && a.engine == b.engine && a.walk == b.walk
 
-/-- The rows of `s`'s key from later runs, oldest first. -/
 def later (st : List Stored) (s : Stored) : List Stored :=
   (st.filter fun n => sameKey s n && decide (s.run < n.run)).mergeSort fun a b => decide (a.run ≤ b.run)
 
-/-- The newest run of `s`'s key, up to `s`, that was read at another reader version. -/
 def lastChange (st : List Stored) (s : Stored) : Option Nat :=
   ((st.filter fun q => sameKey s q && decide (q.run ≤ s.run) && q.reader != s.reader).map (·.run)).max?
 
-/-- The runs of `s`'s key after its last reader change, up to and including `s`, each run once. -/
 def sinceChange (st : List Stored) (s : Stored) : List Nat :=
   ((st.filter fun r => sameKey s r && decide (r.run ≤ s.run) && (lastChange st s).all (· < r.run)).map (·.run)).eraseDups
 
-/-- The position of `s`'s run among the runs of its key since the last reader change, 1 for the first. -/
 def streak (st : List Stored) (s : Stored) : Nat := (sinceChange st s).length
 
-/-- Whether an outcome is no verdict. -/
 def noVerdict : Outcome → Bool
   | .unjudged _ => true
   | _ => false
 
-/-- Why a row stopped counting, with the run that superseded it. -/
 inductive Super where
-  /-- The newest run of the key, read at another reader version. -/
   | reader (run : Nat)
-  /-- The next run of the key at the same reader version, after a row with no verdict. -/
   | retry (run : Nat)
   deriving DecidableEq, Repr
 
-/-- **The supersession of a row**: by the newest run of its key when that run was read at another reader version; else
-by the next run when the row has no verdict and the next run is at most the `retryBound`-th since the last reader
-change; else none. -/
 def supersede (st : List Stored) (s : Stored) : Option Super :=
   match (later st s).getLast? with
   | some n =>
@@ -171,30 +152,23 @@ def supersede (st : List Stored) (s : Stored) : Option Super :=
       | none => none
   | none => none
 
-/-- A row counts when no run supersedes it. -/
 def live (st : List Stored) (s : Stored) : Bool := (supersede st s).isNone
 
-/-- The conjunction of outcomes: fail when one fails, else the first no verdict, else pass. -/
 def conj (os : List Outcome) : Outcome :=
   if os.contains .fail then .fail else (os.find? (· != .pass)).getD .pass
 
-/-- **The verdict of a key**: the conjunction of the outcomes of its rows that count. -/
 def keyOutcome (st : List Stored) (s : Stored) : Outcome :=
   conj ((st.filter fun r => sameKey s r && live st r).map outcome)
 
-/-- The rows of `runsFor` that count. -/
 def liveFor (st : List Stored) (f : Flag) (fam : Family) (w : Walk) : List Stored :=
   (runsFor st f fam w).filter (live st)
 
-/-- The trajectory verdict of a flag on one engine family and path. -/
 inductive TCell where
   | pass
   | fail
   | pending
 deriving DecidableEq, Repr
 
-/-- A cell, read on the rows that count, each with its key's verdict: keys of the flag alone decide (fail first); else a
-shared key's fail leaves it pending and its pass passes. -/
 def tcell (st : List Stored) (f : Flag) (fam : Family) (w : Walk) : TCell :=
   let rs := liveFor st f fam w
   let own := rs.filter (·.flags == [f.key])
@@ -204,7 +178,6 @@ def tcell (st : List Stored) (f : Flag) (fam : Family) (w : Walk) : TCell :=
   else if rs.any (keyOutcome st · == .pass) then .pass
   else .pending
 
-/-- The four cells of a flag, families outer, paths inner. -/
 def cells (st : List Stored) (f : Flag) : List TCell :=
   families.flatMap fun fam => walks.map (tcell st f fam)
 
@@ -518,22 +491,18 @@ theorem mem_runsFor {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {s :
     s ∈ runsFor st f fam w ↔ s ∈ st ∧ f.key ∈ s.flags ∧ s.engine.family = fam ∧ s.walk = w := by
   simp [runsFor, and_assoc]
 
-/-- A row of `liveFor` is a row of `runsFor` that counts. -/
 theorem mem_liveFor {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {s : Stored} :
     s ∈ liveFor st f fam w ↔ s ∈ runsFor st f fam w ∧ live st s = true := by
   simp [liveFor]
 
-/-- A row of `later` is a row of the same key from a later run. -/
 theorem mem_later {st : List Stored} {s n : Stored} :
     n ∈ later st s ↔ n ∈ st ∧ sameKey s n = true ∧ s.run < n.run := by
   simp [later, List.mem_mergeSort]
 
-/-- **A reader change supersedes**: the newest run of the key, read at another reader version, supersedes the row. -/
 theorem supersede_reader {st : List Stored} {s n : Stored} (hn : (later st s).getLast? = some n)
     (hv : n.reader ≠ s.reader) : supersede st s = some (.reader n.run) := by
   simp [supersede, hn, hv]
 
-/-- A reader supersession names the newest run of the key, read at another reader version. -/
 theorem reader_needs_change {st : List Stored} {s : Stored} {m : Nat} (h : supersede st s = some (.reader m)) :
     ∃ n ∈ (later st s).getLast?, n.reader ≠ s.reader := by
   unfold supersede at h
@@ -547,8 +516,6 @@ theorem reader_needs_change {st : List Stored} {s : Stored} {m : Nat} (h : super
       · cases h
   · cases h
 
-/-- **A retry supersedes a row with no verdict**: when the newest run of the key is at the row's reader version, the next
-run supersedes a row with no verdict whose position since the last reader change is below `retryBound`. -/
 theorem supersede_retry {st : List Stored} {s n : Stored} (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader)
     (hn : n ∈ later st s) (hu : noVerdict (outcome s) = true) (hk : streak st s < retryBound) :
     ∃ m, supersede st s = some (.retry m) := by
@@ -559,7 +526,6 @@ theorem supersede_retry {st : List Stored} {s n : Stored} (hr : ∀ n ∈ (later
     | none => simp_all
     | some m => exact ⟨m.run, by simp [supersede, hl, hr l hl, h, hu, hk]⟩
 
-/-- **A retry hides no verdict**: a retry supersedes only a row with no verdict below the bound, never a fail or a pass. -/
 theorem retry_needs_noVerdict {st : List Stored} {s : Stored} {m : Nat} (h : supersede st s = some (.retry m)) :
     noVerdict (outcome s) = true ∧ streak st s < retryBound := by
   unfold supersede at h
@@ -574,7 +540,6 @@ theorem retry_needs_noVerdict {st : List Stored} {s : Stored} {m : Nat} (h : sup
       · cases h
   · cases h
 
-/-- A row with a verdict counts while the newest run of its key is at its reader version. -/
 theorem live_of_judged {st : List Stored} {s : Stored} (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader)
     (hj : noVerdict (outcome s) = false) : live st s = true := by
   cases h : supersede st s with
@@ -586,8 +551,6 @@ theorem live_of_judged {st : List Stored} {s : Stored} (hr : ∀ n ∈ (later st
       exact absurd (hr n hn) hv
     | retry m => simp [(retry_needs_noVerdict h).1] at hj
 
-/-- **The retry bound**: a row at or past the `retryBound`-th run since the last reader change counts while the newest
-run of its key is at its reader version. -/
 theorem live_of_bound {st : List Stored} {s : Stored} (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader)
     (hk : retryBound ≤ streak st s) : live st s = true := by
   cases h : supersede st s with
@@ -599,11 +562,9 @@ theorem live_of_bound {st : List Stored} {s : Stored} (hr : ∀ n ∈ (later st 
       exact absurd (hr n hn) hv
     | retry m => exact absurd (retry_needs_noVerdict h).2 (Nat.not_lt.2 hk)
 
-/-- A fail among the outcomes makes the conjunction fail. -/
 theorem conj_fail {os : List Outcome} (h : Outcome.fail ∈ os) : conj os = .fail := by
   simp [conj, h]
 
-/-- A passing conjunction has only passing outcomes. -/
 theorem conj_pass {os : List Outcome} (h : conj os = .pass) : ∀ o ∈ os, o = .pass := by
   intro o ho
   unfold conj at h
@@ -616,24 +577,20 @@ theorem conj_pass {os : List Outcome} (h : conj os = .pass) : ∀ o ∈ os, o = 
       simp_all
     | none => simpa using List.find?_eq_none.1 hf o ho
 
-/-- A failing row that counts fails its key. -/
 theorem keyOutcome_fail {st : List Stored} {s : Stored} (hs : s ∈ st) (hl : live st s = true)
     (hf : outcome s = .fail) : keyOutcome st s = .fail :=
   conj_fail (List.mem_map.2 ⟨s, List.mem_filter.2 ⟨hs, by simp [sameKey, hl]⟩, hf⟩)
 
-/-- A key that passes passes in each of its rows that count. -/
 theorem keyOutcome_pass {st : List Stored} {s : Stored} (hs : s ∈ st) (hl : live st s = true)
     (h : keyOutcome st s = .pass) : outcome s = .pass :=
   conj_pass h _ (List.mem_map.2 ⟨s, List.mem_filter.2 ⟨hs, by simp [sameKey, hl]⟩, rfl⟩)
 
-/-- A row with no verdict that counts keeps its key from passing. -/
 theorem keyOutcome_ne_pass {st : List Stored} {s r : Stored} (hr : r ∈ st) (hk : sameKey s r = true)
     (hl : live st r = true) (hu : noVerdict (outcome r) = true) : keyOutcome st s ≠ .pass := by
   intro h
   have := conj_pass h (outcome r) (List.mem_map.2 ⟨r, List.mem_filter.2 ⟨hr, by simp [hk, hl]⟩, rfl⟩)
   simp [this, noVerdict] at hu
 
-/-- A row of the key after its last reader change, up to `s`, has its run in `sinceChange`. -/
 theorem mem_sinceChange {st : List Stored} {s r : Stored} (hr : r ∈ st) (hk : sameKey s r = true) (hle : r.run ≤ s.run)
     (hc : ∀ q ∈ st, sameKey s q = true → q.run ≤ s.run → q.reader ≠ s.reader → q.run < r.run) :
     r.run ∈ sinceChange st s := by
@@ -655,9 +612,6 @@ private theorem two_le_length {l : List Nat} {a b : Nat} (ha : a ∈ l) (hb : b 
     exact absurd (ha.trans hb.symm) hne
   · simp
 
-/-- **A no verdict counts against the bound**: an earlier run of the key since the last reader change, whatever its
-outcome, makes a row at least the second; such a row with no verdict counts while the newest run of its key is at its
-reader version, so its key cannot pass. -/
 theorem retry_spent {st : List Stored} {u v : Stored} (hu : u ∈ st) (hv : v ∈ st) (hk : sameKey v u = true)
     (hlt : u.run < v.run) (hc : ∀ q ∈ st, sameKey v q = true → q.run ≤ v.run → q.reader ≠ v.reader → q.run < u.run)
     (hr : ∀ n ∈ (later st v).getLast?, n.reader = v.reader) (hn : noVerdict (outcome v) = true) :
@@ -669,7 +623,6 @@ theorem retry_spent {st : List Stored} {u v : Stored} (hu : u ∈ st) (hv : v �
   have hl := live_of_bound hr (two_le_length h1 h2 (Nat.ne_of_lt hlt))
   exact ⟨hl, keyOutcome_ne_pass hv hvv hl hn⟩
 
-/-- A failing key of the flag alone fails the cell. -/
 theorem tcell_own_fail {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {s : Stored}
     (hs : s ∈ liveFor st f fam w) (ho : s.flags = [f.key]) (hf : keyOutcome st s = .fail) :
     tcell st f fam w = .fail := by
@@ -677,15 +630,12 @@ theorem tcell_own_fail {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {
     List.any_eq_true.2 ⟨s, List.mem_filter.2 ⟨hs, by simp [ho]⟩, by simp [hf]⟩
   simp only [tcell, this, ↓reduceIte]
 
-/-- **A fail is not hidden by a later run at its reader version**: a failing run of the flag alone fails the cell while
-the newest run of its key is at its reader version, whatever the later runs read. -/
 theorem fail_not_hidden {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {s : Stored}
     (hs : s ∈ runsFor st f fam w) (ho : s.flags = [f.key]) (hf : outcome s = .fail)
     (hr : ∀ n ∈ (later st s).getLast?, n.reader = s.reader) : tcell st f fam w = .fail := by
   have hl : live st s = true := live_of_judged hr (by simp [hf, noVerdict])
   exact tcell_own_fail (mem_liveFor.2 ⟨hs, hl⟩) ho (keyOutcome_fail (mem_runsFor.1 hs).1 hl hf)
 
-/-- With no failing key of the flag alone, a passing one passes the cell. -/
 theorem tcell_own_pass {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {s : Stored}
     (hn : ((liveFor st f fam w).filter (·.flags == [f.key])).any (keyOutcome st · == .fail) = false)
     (hs : s ∈ liveFor st f fam w) (ho : s.flags = [f.key]) (hp : keyOutcome st s = .pass) :
@@ -694,14 +644,12 @@ theorem tcell_own_pass {st : List Stored} {f : Flag} {fam : Family} {w : Walk} {
     List.any_eq_true.2 ⟨s, List.mem_filter.2 ⟨hs, by simp [ho]⟩, by simp [hp]⟩
   simp only [tcell, hn, this, Bool.false_eq_true, ↓reduceIte]
 
-/-- With no decided key of the flag alone, a failing shared key leaves the cell pending. -/
 theorem tcell_shared_fail {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     (hn : ((liveFor st f fam w).filter (·.flags == [f.key])).any (keyOutcome st · == .fail) = false)
     (hn' : ((liveFor st f fam w).filter (·.flags == [f.key])).any (keyOutcome st · == .pass) = false)
     (hf : (liveFor st f fam w).any (keyOutcome st · == .fail) = true) : tcell st f fam w = .pending := by
   simp only [tcell, hn, hn', hf, Bool.false_eq_true, ↓reduceIte]
 
-/-- With no decided key of the flag alone and no failing key, a passing shared key passes the cell. -/
 theorem tcell_shared_pass {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     (hn : ((liveFor st f fam w).filter (·.flags == [f.key])).any (keyOutcome st · == .fail) = false)
     (hn' : ((liveFor st f fam w).filter (·.flags == [f.key])).any (keyOutcome st · == .pass) = false)
@@ -709,7 +657,6 @@ theorem tcell_shared_pass {st : List Stored} {f : Flag} {fam : Family} {w : Walk
     (hp : (liveFor st f fam w).any (keyOutcome st · == .pass) = true) : tcell st f fam w = .pass := by
   simp only [tcell, hn, hn', hf, hp, Bool.false_eq_true, ↓reduceIte]
 
-/-- A cell with no passing and no failing key is pending. -/
 theorem tcell_undecided {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     (h : ∀ s ∈ liveFor st f fam w, keyOutcome st s ≠ .pass ∧ keyOutcome st s ≠ .fail) : tcell st f fam w = .pending := by
   have hf : (liveFor st f fam w).any (keyOutcome st · == .fail) = false :=
@@ -722,7 +669,6 @@ theorem tcell_undecided {st : List Stored} {f : Flag} {fam : Family} {w : Walk}
     List.any_eq_false.2 fun s hs => by simpa using (h s (List.mem_filter.1 hs).1).1
   simp only [tcell, hf, hp, hof, hop, Bool.false_eq_true, ↓reduceIte]
 
-/-- **A passing cell has a passing stored run** that counts, of a flag set holding the flag, on its family and path. -/
 theorem tcell_pass_run {st : List Stored} {f : Flag} {fam : Family} {w : Walk} (h : tcell st f fam w = .pass) :
     ∃ s ∈ st, f.key ∈ s.flags ∧ s.engine.family = fam ∧ s.walk = w ∧ outcome s = .pass := by
   have run : ∀ s ∈ liveFor st f fam w, keyOutcome st s = .pass →

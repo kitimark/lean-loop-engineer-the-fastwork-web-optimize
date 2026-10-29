@@ -1,5 +1,3 @@
-// The reader files of Fw.Preset.Gen.readerFiles (packages/contracts/golden/preset/reader-files.json, written by
-// Fw.Preset.Gen.run) are src/trajectory/cli.mjs and every file it reaches by relative imports.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';

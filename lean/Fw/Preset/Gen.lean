@@ -518,7 +518,6 @@ def superWord : Option Super → String
   | some (.reader r) => s!", superseded by {r} (reader)"
   | some (.retry r) => s!", superseded by {r} (retry)"
 
-/-- A stored row with its outcome and its supersession among the rows `st`. -/
 def storedJson (st : List Stored) (s : Stored) : Json :=
   Json.mkObj [("run", .str (toString s.run)), ("sha", .str s.sha), ("reader", .str s.reader), ("search", .str s.search),
     ("flags", toJson s.flags), ("engine", .str (engineWord s.engine)), ("path", .str (walkWord s.walk)),
@@ -527,7 +526,6 @@ def storedJson (st : List Stored) (s : Stored) : Json :=
       ("content", toJson g.content), ("coverage", toJson g.coverage)]).toArray),
     ("outcome", .str (outcomeWord (outcome s))), ("superseded", superJson (supersede st s))]
 
-/-- A run id: a nonempty string of decimal digits read as a number; anything else is an error. -/
 def parseRunId (t : String) : Except String Nat :=
   if !t.isEmpty && t.all Char.isDigit then .ok (t.foldl (fun n c => 10 * n + (c.toNat - '0'.toNat)) 0)
   else .error s!"run id {t.quote} is not a decimal number"
@@ -558,7 +556,6 @@ def parseStored (j : Json) : Except String Stored := do
 def parseStoredText (t : String) : Except String (List Stored) :=
   ((t.splitOn "\n").filter (!·.isEmpty)).mapM fun l => do parseStored (← Json.parse l)
 
-/-- The stored file: every row, superseded or not, in run, engine and path order. -/
 def storedText (st : List Stored) : String :=
   let key (s : Stored) := engineWord s.engine ++ " " ++ walkWord s.walk
   String.join ((st.mergeSort fun a b => a.run < b.run || (a.run == b.run && key a ≤ key b)).map fun s => (storedJson st s).compress ++ "\n")
@@ -766,7 +763,6 @@ def goldenLook : System.FilePath :=
 def goldenProbes : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "probes.jsonl"
 def sitePreset : System.FilePath := ".." / "apps" / "site" / "src" / "registry" / "presets" / "v2-proved.json"
-/-- The files the trajectory probe runs: `src/trajectory/cli.mjs` and its relative imports, closed. -/
 def readerFiles : List String :=
   ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/engines.mjs",
    "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs",
@@ -875,19 +871,14 @@ def storedOf (run : Nat) (sha reader : String) (e : Engine) (presetKeys : Option
              groups := groupsOf (walkWord w) us }
     else none
 
-/-- Whether a new row re-records a stored one: the same run, engine and path. -/
 def sameRow (n s : Stored) : Bool := n.run == s.run && n.engine == s.engine && n.walk == s.walk
 
-/-- **The merge of new rows**: a new row replaces only the stored row of its own run, engine and path; every other row
-stays, superseded or not. -/
 def merge (old new : List Stored) : List Stored :=
   old.filter (fun s => !new.any (sameRow · s)) ++ new
 
 theorem merge_new_mem {old new : List Stored} {n : Stored} (h : n ∈ new) : n ∈ merge old new :=
   List.mem_append_right _ h
 
-/-- **Superseded rows are kept**: a stored row leaves the file only when a new row re-records its run, engine and
-path. -/
 theorem merge_keeps {old new : List Stored} {s : Stored} (hs : s ∈ old) :
     s ∈ merge old new ∨ ∃ n ∈ new, sameRow n s = true := by
   by_cases h : new.any (sameRow · s) = true
@@ -897,13 +888,11 @@ theorem merge_keeps {old new : List Stored} {s : Stored} (hs : s ∈ old) :
 theorem sameRow_self (n : Stored) : sameRow n n = true := by
   simp [sameRow]
 
-/-- **The merge is idempotent**: recording the same rows twice gives the file of recording them once. -/
 theorem merge_idem (old new : List Stored) : merge (merge old new) new = merge old new := by
   have hn : new.filter (fun s => !new.any (sameRow · s)) = [] :=
     List.filter_eq_nil_iff.2 fun n hn => by simpa using ⟨n, hn, sameRow_self n⟩
   simp only [merge, List.filter_append, hn, List.append_nil, List.filter_filter, Bool.and_self]
 
-/-- The reader identity of a commit: the git object id of its `ls-tree` listing of `readerFiles`. -/
 def readerOf (sha : String) : IO String := do
   let ls ← IO.Process.output { cmd := "git", args := #["ls-tree", "--full-tree", sha, "--"] ++ readerFiles.toArray }
   unless ls.exitCode == 0 do throw (IO.userError s!"git ls-tree {sha}: {ls.stderr}")
@@ -915,7 +904,6 @@ def readerOf (sha : String) : IO String := do
     unless o.exitCode == 0 do throw (IO.userError s!"git hash-object: {o.stderr}")
     pure (String.ofList (o.stdout.toList.takeWhile Char.isAlphanum))
 
-/-- The rows with their reader identity, read from git for each row that has none. -/
 def fillReaders (st : List Stored) : IO (List Stored) := do
   let mut known : List (String × String) := []
   let mut out : Array Stored := #[]
