@@ -77,10 +77,7 @@ It was not seen before the push because the arm was never run against a variant 
 arm is SMIL). Lean-provable? The decision "a reading needs the variant's animations running" is: `judgeLive` (theorems `judgeLive_notRunning`, `judgeLive_of_live`) refuses a
 reading with `glintLive = 0`; with it the stand-in re-judges r1 and r2 as "variant animation not running" in every cell (`results/glint-compositor/*/verdict.txt`).
 
-Fix committed, not run (the 3 pushes are used): the probe keeps the glint animations when the arm option `gk` is set (the glint modes set it) and records `rs.glintLive`.
-To measure: push `ci/glint-compositor` once more with `[ci:wktr] [accel]` and the temporary wktr.yml build/mode edit of commit 5eaad3bb4 (build `--config
-"?fw=morph.geom:on,morph.tween:geom-timed,platform.glint:compositor"`, accel `--modes glint-base-thr-off,glint-comp-thr-off`), 3 jobs, then
-`node packages/measure-wktr/src/glint-compositor-cli.mjs <job dirs>`.
+Fix: the probe keeps the glint animations when the arm option `gk` is set and records `rs.glintLive`; measured in push 4 (run 40845872049, next section).
 
 ## WKTR pref OFF accel lane, valid reading (MEASURED, run 40845872049 at 79077612d, 3 jobs, results/glint-compositor/r4)
 The corrected probe keeps the variant's animations (`rs.glintLive` = 2 in every cell of both arms), so Lean `judgeLive` accepts all six cells. The rule `judgeC` was
