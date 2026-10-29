@@ -24,8 +24,8 @@ Tags: CONFIRMED (Lean theorem or source cited), INFERRED (reasoned, not seen). N
   variant's style units are at most `animCount ℓ N` (`N + 3` in the phone band, `N + 4` above), which is less than
   the original's 99 or 172.
 * `cr_lane_style_saving`: in the lane, the variant's units are exactly `animCount ℓ N`.
-* `Fw.Measure.quarantined_unsound`, linked in leanAgainst, says why the lane still cannot read the saving: only
-  elementCount maps to units, and it is quarantined.
+* `Fw.Measure.quarantined_unsound`, linked in leanAgainst, says the lane cannot read the saving, because only
+  elementCount maps to units and it is quarantined.
 
 ## Item 2: the WebKit edge frames, a proved cost (CONFIRMED, Lean)
 

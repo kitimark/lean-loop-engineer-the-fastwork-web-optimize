@@ -13,13 +13,7 @@ The original (`Fw.Parts.HeroExit`) runs one `requestAnimationFrame` callback per
 rect, computes `e = exitOpacity` and writes the inherited custom property `--exit-opacity` on `.hero`;
 every consumer (copy, scroll cue, cards) recomputes its `opacity`, `transform` and `filter: blur()` from it by
 `calc()`. The variant drops the callback and gives each consumer its own CSS animation on a scroll timeline (a
-`view-timeline` on `.hero-track`, range `contain`, linear easing, `fill: both`), with keyframes
-`0% = g(1)` and `100% = g(0)` for the consumer's own value function `g` of `e`:
-
-* one animation of `opacity` + `transform` per consumer (copy; cue, opacity alone above 600 px; each card), and
-* one separate animation of `filter: blur()` per blurred consumer (copy above 600 px; cue in both bands). Blur is
-  split off because on Chromium a pixel-moving filter sets failure bit 12 and would drag the whole animation to the
-  main thread (`merged_main`).
+`view-timeline` on `.hero-track`).
 
 `pointer-events` is not a visual consumer: the variant flips it from an IntersectionObserver sentinel placed at the
 threshold that `HeroExit.pointerOff_iff_threshold` proves (`sentinel_iff_pointerOff`); its delivery (one
@@ -47,14 +41,7 @@ What is proved:
 * **Changed since CI run 39088367495 (engine-model-fix).** On Chromium a `filter: blur()` value change on an own layer
   rasters (MEASURED), so both arms keep one raster pass (`crOrigPasses`, `crVarPasses`) and the golden raster row is
   `≤o`, not `<o`; the variant still rasters fewer units. On WebKit the compositing table (`wkCompUpdate`) gives the
-  original's shared-layer changes a compositing update, so that row is `<o`, not `≤o`. Every trade theorem still
-  holds as stated.
-
-The frames where the opacity crosses 1 and the inherited restyle beyond one change per consumer (gap R2) are in
-`Fw.Parts.HeroExitWork`. Not modelled (open): resident layers (the variant adds a composited layer per animated
-consumer, so the core `claim` is a trade at best) and which scroll offset the compositor shows (path premise C3).
-
-All values `Rat`; no `Float`.
+  original's shared-layer changes a compositing update.
 -/
 namespace Fw.Parts.HeroExitOpt
 
@@ -276,16 +263,10 @@ def crOrig (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) : FrameIn CrProp :=
 /-- A scroll-driven animation on a user-scrollable source, target on its own layer (`will-change`). -/
 def sAnim (x : Nat) (ps : List CrProp) : CrAnim := ⟨x, ps, .own, true, .scroll true⟩
 
-/-- The number of animations the variant declares with `N` cards: `N + 3` in the phone band, `N + 4` above 600 px. -/
 def animCount (l : Bool) (N : Nat) : Nat := if l then N + 3 else N + 4
 
 #guard animCount true 4 == 7 && animCount false 10 == 14
 
-/-- **The variant's animations** (property names stand for their `css` wrapping, e.g. opacity for
-`css(opacity)`): opacity + transform on the copy; on the cue, opacity + transform in the phone band and opacity alone
-above 600 px; a separate blur on the copy (above 600 px only) and on the cue; opacity + transform on each card.
-
-The scroll-driven animations the variant declares. -/
 def crAnims (l : Bool) (N : Nat) : List CrAnim :=
   [sAnim 2 [.css .opacity, .css .transform]] ++
     (if l then [sAnim 3 [.css .opacity, .css .transform]]
@@ -312,10 +293,6 @@ theorem blur_main (m : CrMode) (x : Nat) :
     · have := ((crThread_comp_iff m _).mp h).2.2.2.1 (.css (.filter true)) (by simp [sAnim])
       simp [CrProp.movesPixels] at this
 
-/-- **Opacity and transform go to the compositor.** With threaded animation on, the variant's opacity + transform and
-opacity-only scroll-driven animations run on the compositor.
-
-The fade and the motion leave the main thread. -/
 theorem opTr_comp (m : CrMode) (x : Nat) (hm : m.threadedAnim = true) :
     crThread m (sAnim x [.css .opacity, .css .transform]) = .comp ∧ crThread m (sAnim x [.css .opacity]) = .comp := by
   constructor <;> simp [crThread, failBits, sAnim, hm, CrProp.movesPixels, CrProp.eligible]
@@ -331,10 +308,6 @@ theorem merged_main (m : CrMode) (x : Nat) :
   · have := ((crThread_comp_iff m _).mp h).2.2.2.1 (.css (.filter true)) (by simp [sAnim])
     simp [CrProp.movesPixels] at this
 
-/-- The variant's frame, computed: the blur animations' changes on main (one per blurred consumer), the scroll, and
-`N + 2` compositor animations.
-
-What the variant's frame consists of once the thread rule has run. -/
 theorem crVar_eq (m : CrMode) (l : Bool) (N : Nat) (r : Bool) (hm : m.threadedAnim = true) :
     crVar m l N r = ⟨0, 0, 0, 0, (if l then [] else [⟨2, .css (.filter true), .own⟩]) ++
       [⟨3, .css (.filter true), .own⟩, scrollC r], N + 2⟩ := by
@@ -517,13 +490,6 @@ theorem cr_real_trade (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
   · simp [frameWork, crVar, crOrig, animFrame, jsWrite]
   · left; rw [(hv .script).1, (ho .script).1]; simp [crVarPasses, crOrigPasses]
 
-/-- **CI lane: mixed.** When every BeginFrame is a main frame, the variant's scrolled frame drops the script and does no
-more passes on any main-thread stage and no more units on any main-thread stage other than `style`, `props` and `comp`,
-where the compositor animations' ride-along makes it `1 + [¬ℓ]` property-update units and `[¬ℓ]` style units more than
-the original; it adds a compositor pass. So in the lane the variant does not dominate on the main thread, and the
-original does not dominate it either (script).
-
-In the CI lane the variant removes the script but costs more property-update units and adds compositor work. -/
 theorem cr_lane_mixed (l : Bool) (N : Nat) (lo : LayerState) (r : Bool) :
     let V := frameWork (chromiumAt lane) (crVar lane l N r)
     let O := frameWork (chromiumAt lane) (crOrig l N lo r)
@@ -563,17 +529,11 @@ asynchronous scroller, two keyframes).
 -/
 def wkAnim (ps : List CssProp) : WkAnim := { WkAnim.clean ps .scroll with easing := .linear }
 
-/-- **The variant's animations on WebKit**, the same list as on Chromium: opacity + transform on the copy; on the cue,
-opacity + transform in the phone band and opacity alone above 600 px; a separate blur on the copy (above 600 px only)
-and on the cue; opacity + transform on each of the `N` cards.
--/
 def wkAnims (l : Bool) (N : Nat) : List WkAnim :=
   [wkAnim [.opacity, .transform]] ++
     (if l then [wkAnim [.opacity, .transform]] else [wkAnim [.filter], wkAnim [.opacity]]) ++
     [wkAnim [.filter]] ++ (List.range N).map (fun _ => wkAnim [.opacity, .transform])
 
-/-- The variant declares `animCount ℓ N` animations: three hero animations in the phone band, four above 600 px,
-plus one per card. -/
 theorem wkAnims_length (l : Bool) (N : Nat) : (wkAnims l N).length = animCount l N := by
   cases l <;> simp [wkAnims, animCount] <;> omega
 
@@ -630,9 +590,6 @@ card `i` element `4 + i` (the numbering of `wkOrigChanges`).
 def wkTargets (l : Bool) (N : Nat) : List Nat :=
   [2] ++ (if l then [3] else [2, 3]) ++ [3] ++ (List.range N).map (4 + ·)
 
-/-- One target per animation.
-
-The target list is as long as the animation list. -/
 theorem wkTargets_length (l : Bool) (N : Nat) : (wkTargets l N).length = animCount l N := by
   cases l <;> simp [wkTargets, animCount] <;> omega
 
@@ -659,8 +616,6 @@ def wkStep (m : WkMode) (f : FrameIn WkPropX) (p : Nat × WkAnim) : FrameIn WkPr
 def wkWith (m : WkMode) (l : Bool) (N : Nat) (f : FrameIn WkPropX) : FrameIn WkPropX :=
   ((wkTargets l N).zip (wkAnims l N)).foldl (wkStep m) f
 
-/-- **The variant's scrolled frame on WebKit** in mode `m`: the delivered scroll position plus the `animCount ℓ N`
-animations. -/
 def wkVar (m : WkMode) (l : Bool) (N : Nat) : FrameIn WkPropX :=
   wkWith m l N (scrollStepX emptyX)
 
@@ -699,11 +654,6 @@ theorem wkPairs_comp (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool
   refine ⟨wk_all_comp m hm l N p.2 ha, ?_⟩
   rcases wkAnims_mem l N p.2 ha with h | h | h <;> rw [h] <;> rfl
 
-/-- **The variant's scrolled frame on WebKit, rebuilt** (threaded scroll-driven on): the scroll position, one
-`restyle` per animation target, and `animCount ℓ N` compositor animations.
-
-What the variant's frame consists of on WebKit: the old version (`scrollStep (compFrame (N + 3))`, no restyle) is
-refuted by the fixtures (`Fw.Engine.WebKit.style_rate_old_refuted`). -/
 theorem wkVar_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
     wkVar m l N = ⟨0, 0, 0, 0, ⟨0, .base .scrollPos, .none⟩ :: (wkTargets l N).map (fun e => ⟨e, .restyle, .own⟩),
       animCount l N⟩ := by
@@ -718,22 +668,11 @@ theorem wkVar_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N
   rw [wkVar, wkWith, foldl_wkStep m _ (wkPairs_comp m hm l N)]
   simp [scrollStepX, emptyX, FrameIn.updates, hz, List.length_zip, wkTargets_length, wkAnims_length]
 
-/-- **The variant's idle frame on WebKit** (threaded scroll-driven on): no rendering update, so no ride-along; only
-the `animCount ℓ N` compositor animations, i.e. `compFrame (animCount ℓ N)` lifted.
-
-Between scroll updates the variant costs the web process nothing. -/
 theorem wkIdle_eq (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool) (N : Nat) :
     wkIdle m l N = liftWkFrame (compFrame (animCount l N)) := by
   rw [wkIdle, wkWith, foldl_wkStep m _ (wkPairs_comp m hm l N)]
   simp [emptyX, FrameIn.updates, liftWkFrame, compFrame, List.length_zip, wkTargets_length, wkAnims_length]
 
-/-- **Exact work of the variant's scrolled frame on WebKit** (threaded scroll-driven on), under the measured premise:
-the web process runs the scroll's commit pass and `μ_timeline` style passes (one per rendering update,
-as measured) with `animCount ℓ N` style units (one restyle per animation target); the compositor ticks the
-`animCount ℓ N` animations; nothing else.
-
-What one scrolled frame of the variant costs WebKit, stage by stage (the earlier statement, style `0`, was refuted by
-the WKTR fixtures). -/
 theorem wk_var_exact (μ : WktrStyleRate) (hμ : μ.Holds) (m : WkMode) (hm : m.threadedScrollDriven = true) (l : Bool)
     (N : Nat) (s : Stage) :
     (frameWork (webkitX m) (wkVar m l N)).passes s =
@@ -760,18 +699,11 @@ The web process never runs compositor work for a style change. -/
 theorem comp_not_diff (d : Diff) : Stage.comp ∉ diffStages d := by
   cases d <;> simp [diffStages]
 
-/-- **The original's scrolled frame on WebKit** at layer state `λ`: the callback writes the inherited property,
-and each consumer's computed `opacity`, `transform` and `filter` change (copy: opacity, transform, and blur above
-600 px; cue: opacity, blur, and transform in the phone band; each card: opacity, transform).
--/
 def wkOrigChanges (l : Bool) (N : Nat) (lo : LayerState) : List (Change WkProp) :=
   [⟨2, .opacity, lo⟩, ⟨2, .transform, lo⟩] ++ (if l then [] else [⟨2, .filter, lo⟩]) ++
     [⟨3, .opacity, lo⟩, ⟨3, .filter, lo⟩] ++ (if l then [⟨3, .transform, lo⟩] else []) ++
     (List.range N).flatMap (fun i => [⟨4 + i, .opacity, lo⟩, ⟨4 + i, .transform, lo⟩])
 
-/-- The original writes `2N + 5` consumer changes per scrolled frame, in both bands.
-
-Five hero changes plus two per card. -/
 theorem wkOrigChanges_length (l : Bool) (N : Nat) (lo : LayerState) : (wkOrigChanges l N lo).length = 2 * N + 5 := by
   have h : ((List.range N).flatMap
       (fun i => ([⟨4 + i, .opacity, lo⟩, ⟨4 + i, .transform, lo⟩] : List (Change WkProp)))).length = 2 * N := by
@@ -799,10 +731,7 @@ theorem wkOrig_style (m : WkMode) (l : Bool) (N : Nat) (lo : LayerState) (hlo : 
 
 /-- **WebKit: still a trade, for the original's own change list** (threaded scroll-driven on, measured premise). The
 variant's scrolled frame does strictly less main-thread work than the original's scrolled frame with the changes
-`wkOrigChanges(ℓ, N, λ)`: the script pass is gone, the style pass stays (one each: the
-variant's ride-along, the original's consumer changes) with `animCount ℓ N ≤ 2N + 5` units, and every other
-main-thread stage but the scroll's commit is empty. The compositor ticks `animCount ℓ N` animations where the
-original's does nothing.
+`wkOrigChanges(ℓ, N, λ)`.
 
 On WebKit the variant still lightens the main thread and pays on the compositor; the earlier "for any change list"
 is false (`wk_trade_not_general`). -/

@@ -1,7 +1,7 @@
 # hero-exit-proofs handoff
 
 * Branch `worktree-wf_9bb60fc8-e86-1`, worktree `.claude/worktrees/wf_9bb60fc8-e86-1`. Finish commit 0dd947446
-  (main merged at 90a159471); this handoff is in the next commit.
+  (main merged at 90a159471).
 * CI runs: none (the task allows no CI or phone runs).
 * Verified at 0dd947446:
   * `lean/scripts/check.sh` is green in a check slot, with the axiom check showing 0 failing.
