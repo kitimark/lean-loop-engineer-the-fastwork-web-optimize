@@ -13,6 +13,7 @@ import { attachFresh } from './poll.mjs';
 import { capped, waitForTarget } from './target.mjs';
 import { remainingMs } from './inspector.mjs';
 import { NAV_WAIT_MS } from './sim-host.mjs';
+import { closedMessage } from './wip-close.mjs';
 
 /**
  * The Target-domain bookkeeping of one connection, as a pure step (TS stand-in; WebKit Target.json and TargetManager.js@862f17dc).
@@ -44,7 +45,11 @@ export function targetStep(state, m) {
   return done();
 }
 
-export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
+let defaultProbe = () => null;
+/** The USB probe every later `connect` runs when the proxy closes the connection (a phone run sets it; null means unreadable). */
+export function setUsbProbe(fn) { defaultProbe = fn ?? (() => null); }
+
+export async function connect(wsUrl, { timeoutMs = T(15000), usbProbe = (...a) => defaultProbe(...a) } = {}) {
   const ws = new WebSocket(wsUrl);
   const fail = (e) => { try { ws.close(); } catch { /* already closed */ } throw e; };
   let t;
@@ -60,9 +65,11 @@ export async function connect(wsUrl, { timeoutMs = T(15000) } = {}) {
   const pending = new Map(), listeners = new Set();
   let onClosed;
   const closedP = new Promise((r) => { onClosed = r; });
-  const closedError = () => new Error(selfClosed ? 'connection closed by this tool' : `connection closed by the proxy (code ${closed?.code}): another inspector client took the tab?`);
+  const closedError = () => new Error(closedMessage(selfClosed, closed?.code, closed?.usb));
   ws.addEventListener('close', (ev) => {
-    closed = { code: ev.code };
+    let usb = null;
+    if (!selfClosed) { try { usb = usbProbe(); } catch { usb = null; } }
+    closed = { code: ev.code, usb };
     onClosed();
     for (const p of pending.values()) p.rej(closedError());
     pending.clear();

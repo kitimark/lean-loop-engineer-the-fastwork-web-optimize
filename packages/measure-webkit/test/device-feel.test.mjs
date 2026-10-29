@@ -24,17 +24,17 @@ test('order, labels and letters follow the Lean golden for every seed', () => {
   }
 });
 
-test('every same-look arm is shown twice, never twice in a row, once per round; labels are blind', () => {
+test('every same-look arm is shown twice, never twice in a row, once per round; each visit has its own letter', () => {
   for (let seed = 0; seed < 7; seed++) {
     const same = planOf(seed).filter((v) => v.group === 'same');
     assert.equal(same.length, FEEL.repeats * FEEL.nSame);
     for (let a = 0; a < FEEL.nSame; a++) {
       assert.deepEqual(same.filter((v) => v.arm === a).map((v) => v.round), [0, 1]);
-      assert.equal(new Set(same.filter((v) => v.arm === a).map((v) => v.label)).size, 1);
+      assert.equal(new Set(same.filter((v) => v.arm === a).map((v) => v.label)).size, 2);
     }
     same.slice(1).forEach((v, i) => assert.notEqual(v.arm, same[i].arm));
     assert.equal(same[0].label, 'A');
-    assert.deepEqual(same.map((v) => v.label), [...'ABCBCA']);
+    assert.deepEqual(same.map((v) => v.label), [...'ABCDEF']);
     const look = planOf(seed).filter((v) => v.group === 'look');
     assert.deepEqual(look.map((v) => v.label), ['L1', 'L2', 'L3', 'L4']);
   }

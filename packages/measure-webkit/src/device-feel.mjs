@@ -69,7 +69,7 @@ export function verdicts(seed, ratings) {
 export const verdictText = (v) => FEEL.texts[v];
 
 export function freshState({ seed, pin, site }) {
-  return { schema: 1, seed, pin, site, status: 'starting', pid: null, control: null, opened: 0, ratings: Array(VISITS).fill(null), log: [], plan: planOf(seed).map((v) => ({ index: v.index, group: v.group, id: v.id, label: v.label, search: v.search, text: v.text })) };
+  return { schema: 1, seed, pin, site, status: 'starting', pid: null, control: null, opened: 0, ratings: Array(VISITS).fill(null), captures: Array(VISITS).fill(null), log: [], plan: planOf(seed).map((v) => ({ index: v.index, group: v.group, id: v.id, label: v.label, search: v.search, text: v.text })) };
 }
 
 export const stateFile = (dir) => join(dir, 'feel.json');

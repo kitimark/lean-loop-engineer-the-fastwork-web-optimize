@@ -1,5 +1,5 @@
 import { loadState, saveState } from './device-phone-run.mjs';
-import { PIN, clearWait, closeAct, conditionSet, endVerdict, profileOf } from './device-thermal-pin.mjs';
+import { PIN, clearWait, closeAct, conditionSetDrop, endVerdictDrop, profileOf } from './device-thermal-pin.mjs';
 
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -24,8 +24,8 @@ export async function pinnedSession({ target, dir, log, owner, sense, body, sign
     let b;
     try { b = sense(); } catch (e) { b = { state: null, error: e.message }; }
     note({ before: { at: new Date(now()).toISOString(), state: b.state ?? null, ...(b.error ? { error: b.error } : {}) } });
-    await owner.recover();
-    const rec = await owner.start({ profile, target });
+    await owner.recover({ read: () => sense().state ?? null });
+    const rec = await owner.start({ profile, target, before: b.state ?? null });
     note({ owner: { pid: rec.pid, start: rec.start, spawnedAt: rec.spawnedAt } });
     result = await body({ target, held: () => owner.alive(), onHeld: () => { owner.phase = 'held'; } });
   } catch (e) {
@@ -44,12 +44,14 @@ export async function pinnedSession({ target, dir, log, owner, sense, body, sign
     await sleep(PIN.pinPollS * 1000);
   }
   const back = readbacks[readbacks.length - 1].state;
-  const end = endVerdict(target, stopped.gone, stopped.acked, back);
-  note({ stoppedAt: new Date(now()).toISOString(), signals: stopped.signals, acked: stopped.acked, readback: readbacks, after: readbacks[readbacks.length - 1], end, conditionSet: conditionSet(stopped.gone, stopped.acked) });
-  log(`condition owner ${stopped.gone ? (stopped.acked ? 'gone, clear confirmed' : 'gone, clear NOT confirmed') : 'STILL RUNNING'}; reported state after: ${back ?? 'unreadable'}; end ${end}`);
+  const before = owner.rec?.before ?? null;
+  const usbDropped = stopped.usbDropped === true || (owner.rec !== null && owner.usbDropped());
+  const end = endVerdictDrop(target, usbDropped, stopped.gone, stopped.acked, before, back);
+  note({ stoppedAt: new Date(now()).toISOString(), signals: stopped.signals, acked: stopped.acked, usbDropped, readback: readbacks, after: readbacks[readbacks.length - 1], end, conditionSet: conditionSetDrop(target, usbDropped, stopped.gone, stopped.acked, before, back) });
+  log(`condition owner ${stopped.gone ? (stopped.acked ? 'gone, clear confirmed' : end === 'clearedDrop' ? 'gone after a USB drop, the phone reads its pre-pin state' : 'gone, clear NOT confirmed') : 'STILL RUNNING'}; reported state after: ${back ?? 'unreadable'}; end ${end}`);
   if (signals) { process.off('SIGINT', onSig); process.off('SIGTERM', onSig); process.off('exit', onExit); }
   if (failure) throw failure;
   if (end === 'stuck') throw new Error(`the condition owner (pid ${owner.rec?.pid}) did not exit; stop it by hand with kill -TERM`);
-  if (end === 'unconfirmed') throw new Error('the condition owner ended without confirming its clear; the induced state may remain on the phone, the next run clears it (pin-stop does the same)');
+  if (end === 'unconfirmed') throw new Error(`the condition owner ended without confirming its clear${usbDropped ? ' (the phone is not on USB: plug it in and unlock it)' : ''}; the induced state may remain on the phone, the next run clears it (pin-stop does the same)`);
   return { ...result, pin: { end, readback: readbacks } };
 }

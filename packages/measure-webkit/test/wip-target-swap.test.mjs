@@ -94,3 +94,42 @@ test('between the old page being destroyed and the commit a command is refused b
     await c.close();
   } finally { globalThis.WebSocket = saved; }
 });
+
+const closeWith = async (probe) => {
+  const saved = globalThis.WebSocket;
+  globalThis.WebSocket = FakeSocket;
+  try {
+    const cp = connect('ws://x', probe === undefined ? {} : { usbProbe: probe });
+    await new Promise((r) => setTimeout(r, 5));
+    FakeSocket.last.push(created('page-1'));
+    const c = await cp;
+    const p = c.send('Runtime.evaluate', { expression: '1' }, { timeoutMs: 15000 });
+    FakeSocket.last.close();
+    return await p.catch((e) => e.message);
+  } finally { globalThis.WebSocket = saved; }
+};
+
+test('a proxy close names the phone not on USB when the USB probe cannot see the phone', async () => {
+  assert.match(await closeWith(() => false), /not on USB.*plug it in/);
+});
+
+test('a proxy close with the phone on USB blames another inspector client; no probe says the bus is unreadable', async () => {
+  assert.match(await closeWith(() => true), /on USB, so another inspector client probably took the tab/);
+  assert.match(await closeWith(), /could not be read/);
+  assert.match(await closeWith(() => { throw new Error('idevice_id missing'); }), /could not be read/);
+});
+
+test('a close this tool made never runs the probe and says so', async () => {
+  const saved = globalThis.WebSocket;
+  globalThis.WebSocket = FakeSocket;
+  try {
+    let probed = 0;
+    const cp = connect('ws://x', { usbProbe: () => { probed++; return false; } });
+    await new Promise((r) => setTimeout(r, 5));
+    FakeSocket.last.push(created('page-1'));
+    const c = await cp;
+    await c.close();
+    assert.equal(probed, 0);
+    await assert.rejects(c.send('Runtime.evaluate', { expression: '1' }), /closed by this tool/);
+  } finally { globalThis.WebSocket = saved; }
+});

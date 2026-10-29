@@ -16,7 +16,7 @@ import { join, resolve } from 'node:path';
 import { serveTree } from './serve.mjs';
 import { snapshotRoot, FIXTURES } from './session.mjs';
 import { phoneIds, sleep } from './sim.mjs';
-import { navigateTab, openTab, connect } from './wip.mjs';
+import { navigateTab, openTab, connect, setUsbProbe } from './wip.mjs';
 import { T } from './timeouts.mjs';
 import { canonSearch } from '../../contracts/src/flag-key.mjs';
 import { tabPlan } from './device-faults.mjs';
@@ -124,6 +124,10 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
   const phone = selectPhone();
   const host = lanAddress();
   const say = (s) => log(redact(s, phone.udid, host));
+  setUsbProbe(() => {
+    const r = run('idevice_id', ['-l']);
+    return r.status === 0 ? r.stdout.split('\n').map((s) => s.trim()).includes(phone.udid) : null;
+  });
   process.env.FW_WK_LIST_PORT = String(PHONE_PORTS.list);
   process.env.FW_WK_TABS_PORT = String(PHONE_PORTS.tabs);
   let root = null, rewrite = null, startPath = customStart ?? '/';
@@ -193,6 +197,7 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
     return await fn(ctx);
   } finally {
     await cleanup();
+    setUsbProbe(null);
   }
 }
 export { openTab };

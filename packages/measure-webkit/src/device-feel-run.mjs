@@ -7,7 +7,8 @@ import { serveTree } from './serve.mjs';
 import { pageInfo, scrollHold } from './page.mjs';
 import { otherDeviceClis, phoneSense } from './device-phone-run.mjs';
 import { pinnedSession } from './device-phone-pin.mjs';
-import { ConditionOwner, PIN, WHY_TEXT, pinTarget, pinGate, pinWhy } from './device-thermal-pin.mjs';
+import { ConditionOwner, PIN, WHY_TEXT, fallbackAct, mayKill, pinTarget, pinGate, pinWhy, psInfo } from './device-thermal-pin.mjs';
+import { visitCapture } from './device-feel-capture.mjs';
 import { armHashes, cmdNext, cmdRate, cmdStatus, freshState, loadFeel, saveFeel, stateFile, summaryText, verdicts } from './device-feel.mjs';
 
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -96,6 +97,7 @@ export async function feelStart({ site, dir, pin: target, seed = 0, resume = fal
   }
   st ??= freshState({ seed, pin: target, site: 'dist/aot' });
   st.pid = process.pid;
+  st.pidStart = psInfo(process.pid)?.start ?? '';
   const save = () => saveFeel(dir, st);
   save();
   const owner = new ConditionOwner({ dir, log });
@@ -119,9 +121,28 @@ export async function feelStart({ site, dir, pin: target, seed = 0, resume = fal
         const g = await gate();
         save();
         if (!g.ok) throw new Error(`the thermal pin did not hold: ${g.why}`);
+        let vcap = null;
+        const finishCapture = async () => {
+          if (!vcap?.cap.open) return;
+          const { cap, index } = vcap;
+          const r = await cap.finish();
+          if (r.capture) { st.captures[index] = r.capture; st.log.find((l) => l.index === index).captureFile = r.file; } else st.log.find((l) => l.index === index).captureError = r.error;
+          save();
+        };
         const handlers = {
-          next: () => cmdNext(st, { gate, open: (v) => openArm({ ctx, setArm: (h) => { current = h; }, hashes, visit: v, settleMs, log }), now: Date.now }).then((r) => { save(); return r; }),
-          rate: ({ label, rating }) => { const r = cmdRate(st, label, rating); save(); return r; },
+          next: async () => {
+            await finishCapture();
+            const r = await cmdNext(st, { gate, open: (v) => openArm({ ctx, setArm: (h) => { current = h; }, hashes, visit: v, settleMs, log }), now: Date.now });
+            if (r.ok) {
+              const visit = st.plan[st.opened - 1];
+              const cap = visitCapture({ ctx, visit, dir, log });
+              vcap = { cap, index: visit.index };
+              if (!(await cap.start())) st.log.find((l) => l.index === visit.index).captureError = 'the capture did not start';
+            }
+            save();
+            return r;
+          },
+          rate: async ({ label, rating }) => { const r = cmdRate(st, label, rating); if (r.ok) await finishCapture(); save(); return r; },
           status: ({ reveal }) => cmdStatus(st, { reveal }),
           stop: () => { stopRequested('stop'); return { ok: true, text: `${summaryText(st)}\nstopping: the pin clears now` }; },
         };
@@ -133,6 +154,7 @@ export async function feelStart({ site, dir, pin: target, seed = 0, resume = fal
         await stopped;
         st.status = 'stopping';
         save();
+        await finishCapture();
         await control.close();
       },
     }), {
@@ -146,7 +168,9 @@ export async function feelStart({ site, dir, pin: target, seed = 0, resume = fal
     st.status = 'failed';
     st.error = e.message;
     st.pinEnd = loadStatePinEnd(dir);
+    st.verdicts = verdicts(st.seed, st.ratings);
     save();
+    e.feelState = st;
     throw e;
   }
   st.control = null;
@@ -169,4 +193,28 @@ export async function waitGone(dir, { maxS = 400, sleep = sleepMs } = {}) {
   for (let i = 0; i < maxS && st.pid && alive(st.pid); i++) await sleep(1000);
   const end = loadFeel(dir);
   return { gone: !(end.pid && alive(end.pid)), status: end.status, pinEnd: end.pinEnd ?? null };
+}
+
+/**
+ * `feel stop` with no control server (Lean `fallbackAct`): SIGTERM the recorded session when its identity (pid and start time) still
+ * matches, wait for its own clean-up, then recover the owner. Only a process this session started is signalled.
+ */
+export async function stopFallback(dir, { owner, read = () => null, log = () => {}, ps = psInfo, isAlive = alive, kill = (pid, sig) => process.kill(pid, sig), sleep = sleepMs, now = Date.now }) {
+  const st = loadFeel(dir);
+  const mine = () => st.pid && isAlive(st.pid) && mayKill(st.pid, st.pid, st.pidStart ?? '', ps(st.pid)?.start ?? '');
+  let sent = false;
+  let t0 = now();
+  for (;;) {
+    const act = fallbackAct(Boolean(mine()), sent, Math.floor((now() - t0) / 1000));
+    if (act === 'term') {
+      log(`no control server: SIGTERM the recorded session (pid ${st.pid})`);
+      kill(st.pid, 'SIGTERM');
+      sent = true;
+      t0 = now();
+    } else if (act === 'wait') await sleep(1000);
+    else break;
+  }
+  const gone = !mine();
+  const ownerStopped = await owner.recover({ read });
+  return { signalled: sent, sessionGone: gone, ownerStopped };
 }

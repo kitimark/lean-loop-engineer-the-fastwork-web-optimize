@@ -64,28 +64,27 @@ structure Visit where
   label : Nat
   deriving DecidableEq
 
+/-- A visit's label is its position, so no letter repeats: the person cannot tell which visit shows an arm twice. -/
 def visitsOf (seed : Nat) : List Visit :=
-  (order seed).mapIdx fun i a => ⟨a, i / nSame, (order seed).idxOf a⟩
+  (order seed).mapIdx fun i a => ⟨a, i / nSame, i⟩
 
 def letter (i : Nat) : Char := Char.ofNat (65 + i)
 
-theorem labels_const (seed : Nat) : (visitsOf seed).map (·.label) = [0, 1, 2, 1, 2, 0] := by
-  have : ∀ r, r < 3 → ((orderR r).mapIdx fun i a => (⟨a, i / 3, (orderR r).idxOf a⟩ : Visit)).map (·.label) = [0, 1, 2, 1, 2, 0] := by decide
+theorem labels_fresh (seed : Nat) : (visitsOf seed).map (·.label) = [0, 1, 2, 3, 4, 5] := by
+  have : ∀ r, r < 3 → ((orderR r).mapIdx fun i a => (⟨a, i / 3, i⟩ : Visit)).map (·.label) = [0, 1, 2, 3, 4, 5] := by decide
   exact this _ (Nat.mod_lt _ (by decide))
 
-theorem labels_inj (seed : Nat) : ∀ a b, a < nSame → b < nSame → (order seed).idxOf a = (order seed).idxOf b → a = b := by
-  have : ∀ r, r < 3 → ∀ a, a < 3 → ∀ b, b < 3 → (orderR r).idxOf a = (orderR r).idxOf b → a = b := by decide
-  intro a b ha hb h
-  exact this _ (Nat.mod_lt _ (by decide)) a ha b hb h
+theorem labels_nodup (seed : Nat) : ((visitsOf seed).map (·.label)).Nodup := by
+  rw [labels_fresh]; decide
 
 theorem one_per_round (seed : Nat) : ∀ a, a < nSame → ∀ j, j < repeats →
     ((visitsOf seed).filter fun v => v.arm == a && v.round == j).length = 1 := by
   have : ∀ r, r < 3 → ∀ a, a < 3 → ∀ j, j < 2 →
-      (((orderR r).mapIdx fun i a => (⟨a, i / 3, (orderR r).idxOf a⟩ : Visit)).filter fun v => v.arm == a && v.round == j).length = 1 := by decide
+      (((orderR r).mapIdx fun i a => (⟨a, i / 3, i⟩ : Visit)).filter fun v => v.arm == a && v.round == j).length = 1 := by decide
   exact this _ (Nat.mod_lt _ (by decide))
 
 theorem first_label_A (seed : Nat) : (visitsOf seed).head?.map (·.label) = some 0 := by
-  have : ∀ r, r < 3 → (((orderR r).mapIdx fun i a => (⟨a, i / 3, (orderR r).idxOf a⟩ : Visit)).head?.map (·.label)) = some 0 := by decide
+  have : ∀ r, r < 3 → (((orderR r).mapIdx fun i a => (⟨a, i / 3, i⟩ : Visit)).head?.map (·.label)) = some 0 := by decide
   exact this _ (Nat.mod_lt _ (by decide))
 
 inductive Cell where
@@ -219,5 +218,177 @@ theorem scores_complete (seed : Nat) (s0 s1 s2 s3 s4 s5 : Nat) :
     all_goals rfl
   intro a ha
   exact this _ (Nat.mod_lt _ (by decide)) a ha
+
+/-! ## The capture of a visit and the joint reducer
+
+A visit's capture is what the page and the Inspector saw while the person scrolled (reduced by `Fw.Device.FeelCapture`). The
+joint reducer sets each arm's rating verdict next to the captures of its visits and flags a disagreement for the lead. -/
+
+/-- What one visit's scroll showed. `moving` counts frames in which the scroll moved; `long17` and `long33` count those that took
+more than 16.7 ms and more than 33 ms; `fights` counts page pins that went against the finger; `blinks` counts hero-card
+dips; `zoneWork` is style, layout and paint records per 500 px zone. -/
+structure Capture where
+  moving : Nat
+  long17 : Nat
+  long33 : Nat
+  pins : Nat
+  fights : Nat
+  reversals : Nat
+  retargets : Nat
+  blinks : Nat
+  zoneWork : List Nat
+  deriving DecidableEq
+
+/-- Counts that could be felt, per visit: long frames, pin fights and blinks. -/
+def Capture.score (c : Capture) : Nat := c.long33 + c.fights + c.blinks
+
+/-- Median of a list of counts; for an even length the upper middle. -/
+def medianOf (l : List Nat) : Nat := (l.mergeSort (· ≤ ·)).getD (l.length / 2) 0
+
+/-- Sum of work lists position by position; the shorter list counts as zero beyond its end. -/
+def addZones : List Nat → List Nat → List Nat
+  | [], b => b
+  | a, [] => a
+  | x :: a, y :: b => (x + y) :: addZones a b
+
+/-- The first zone with the most work; none when no zone has any. -/
+def topZone (w : List Nat) : Option Nat :=
+  let m := w.foldl max 0
+  if m = 0 then none else w.findIdx? (· == m)
+
+/-- One arm's captures side by side: medians over its visits, the zone with the most work over all of them. -/
+structure Summary where
+  visits : Nat
+  long17 : Nat
+  long33 : Nat
+  fights : Nat
+  blinks : Nat
+  topZone : Option Nat
+  deriving DecidableEq
+
+def Summary.score (s : Summary) : Nat := s.long33 + s.fights + s.blinks
+
+def summaryOf (cs : List Capture) : Option Summary :=
+  if cs.isEmpty then none
+  else some ⟨cs.length, medianOf (cs.map (·.long17)), medianOf (cs.map (·.long33)), medianOf (cs.map (·.fights)),
+    medianOf (cs.map (·.blinks)), topZone (cs.foldl (fun acc c => addZones acc c.zoneWork) [])⟩
+
+/-- Events by which two arms count as measured differently. -/
+def capMargin : Nat := 2
+
+inductive Dir where
+  | lighter | same | heavier
+  deriving DecidableEq
+
+def Dir.flip : Dir → Dir
+  | .lighter => .heavier | .same => .same | .heavier => .lighter
+
+def Dir.code : Dir → String
+  | .lighter => "lighter" | .same => "same" | .heavier => "heavier"
+
+/-- An arm measured against base: heavier when its score is at least `capMargin` above base, lighter when that far below. -/
+def measured (a b : Summary) : Dir :=
+  if b.score + capMargin ≤ a.score then .heavier else if a.score + capMargin ≤ b.score then .lighter else .same
+
+theorem measured_heavier {a b : Summary} (h : b.score + capMargin ≤ a.score) : measured a b = .heavier := by simp [measured, h]
+
+theorem measured_lighter {a b : Summary} (h : a.score + capMargin ≤ b.score) : measured a b = .lighter := by
+  have : ¬ (b.score + capMargin ≤ a.score) := by unfold capMargin at *; omega
+  simp [measured, this, h]
+
+theorem measured_same {a b : Summary} (h1 : a.score < b.score + capMargin) (h2 : b.score < a.score + capMargin) :
+    measured a b = .same := by
+  have h3 : ¬ (b.score + capMargin ≤ a.score) := by unfold capMargin at *; omega
+  have h4 : ¬ (a.score + capMargin ≤ b.score) := by unfold capMargin at *; omega
+  simp [measured, h3, h4]
+
+theorem measured_swap (a b : Summary) : measured b a = (measured a b).flip := by
+  by_cases h1 : b.score + capMargin ≤ a.score
+  · have h2 : ¬ a.score + capMargin ≤ b.score := by unfold capMargin at *; omega
+    simp [measured, h1, h2, Dir.flip]
+  · by_cases h2 : a.score + capMargin ≤ b.score <;> simp [measured, h1, h2, Dir.flip]
+
+theorem measured_self (a : Summary) : measured a a = .same := by
+  apply measured_same <;> (unfold capMargin; omega)
+
+/-- What the lead is told: the rating and the capture disagree. Nothing is flagged for a mixed, same or missing verdict. -/
+inductive Flag where
+  | none | feltWorseMeasuredLighter | feltBetterMeasuredHeavier
+  deriving DecidableEq
+
+def Flag.code : Flag → String
+  | .none => "none" | .feltWorseMeasuredLighter => "felt worse, measured lighter" | .feltBetterMeasuredHeavier => "felt better, measured heavier"
+
+def Flag.flip : Flag → Flag
+  | .none => .none | .feltWorseMeasuredLighter => .feltBetterMeasuredHeavier | .feltBetterMeasuredHeavier => .feltWorseMeasuredLighter
+
+def flagOf (v : Verdict) (d : Option Dir) : Flag :=
+  match v, d with
+  | .worse, some .lighter => .feltWorseMeasuredLighter
+  | .better, some .heavier => .feltBetterMeasuredHeavier
+  | _, _ => .none
+
+theorem flagOf_worse_lighter : flagOf .worse (some .lighter) = .feltWorseMeasuredLighter := rfl
+
+theorem flagOf_better_heavier : flagOf .better (some .heavier) = .feltBetterMeasuredHeavier := rfl
+
+theorem flagOf_worse_not_lighter {d : Dir} (h : d ≠ .lighter) : flagOf .worse (some d) = .none := by
+  cases d <;> simp_all [flagOf]
+
+theorem flagOf_better_not_heavier {d : Dir} (h : d ≠ .heavier) : flagOf .better (some d) = .none := by
+  cases d <;> simp_all [flagOf]
+
+theorem flagOf_unmeasured (v : Verdict) : flagOf v none = .none := by cases v <;> rfl
+
+theorem flagOf_quiet {v : Verdict} (h : v = .same ∨ v = .mixed ∨ v = .unrated) (d : Option Dir) : flagOf v d = .none := by
+  rcases h with rfl | rfl | rfl <;> cases d <;> simp [flagOf] <;> split <;> rfl
+
+theorem flagOf_flip (v : Verdict) (d : Dir) : flagOf v.flip (some d.flip) = (flagOf v (some d)).flip := by
+  cases v <;> cases d <;> rfl
+
+/-- An arm's joint line: the rating verdict, the capture summary and the disagreement flag. -/
+structure Joint where
+  verdict : Verdict
+  summary : Option Summary
+  flag : Flag
+  deriving DecidableEq
+
+/-- Captures of the visits that showed arm `a`, in visit order (`caps` is indexed like the ratings). -/
+def capturesOf (seed : Nat) (caps : List (Option Capture)) (a : Nat) : List Capture :=
+  ((order seed).zip caps).filterMap fun p => if p.1 = a then p.2 else none
+
+def jointWith (v : Verdict) (cs bs : List Capture) : Joint :=
+  let s := summaryOf cs
+  ⟨v, s, flagOf v (match s, summaryOf bs with | some s, some b => some (measured s b) | _, _ => none)⟩
+
+def jointSame (seed : Nat) (rs : List (Option Nat)) (caps : List (Option Capture)) (a : Nat) : Joint :=
+  jointWith (sameVerdict seed rs a) (capturesOf seed caps a) (capturesOf seed caps baseArm)
+
+def jointLook (seed : Nat) (rs : List (Option Nat)) (caps : List (Option Capture)) (x : Option Nat) (c : Option Capture) : Joint :=
+  jointWith (lookVerdict seed rs x) c.toList (capturesOf seed caps baseArm)
+
+theorem jointWith_base_quiet (v : Verdict) (cs : List Capture) : (jointWith v cs cs).flag = .none := by
+  unfold jointWith
+  cases h : summaryOf cs with
+  | none => simp [flagOf_unmeasured]
+  | some s => simp [measured_self]; cases v <;> rfl
+
+theorem jointWith_flag_worse {cs bs : List Capture} {s b : Summary} (hs : summaryOf cs = some s) (hb : summaryOf bs = some b)
+    (h : s.score + capMargin ≤ b.score) : (jointWith .worse cs bs).flag = .feltWorseMeasuredLighter := by
+  simp [jointWith, hs, hb, measured_lighter h, flagOf]
+
+theorem jointWith_flag_better {cs bs : List Capture} {s b : Summary} (hs : summaryOf cs = some s) (hb : summaryOf bs = some b)
+    (h : b.score + capMargin ≤ s.score) : (jointWith .better cs bs).flag = .feltBetterMeasuredHeavier := by
+  simp [jointWith, hs, hb, measured_heavier h, flagOf]
+
+theorem jointWith_unmeasured (v : Verdict) {cs : List Capture} (h : summaryOf cs = none) (bs : List Capture) :
+    (jointWith v cs bs).flag = .none := by
+  simp [jointWith, h, flagOf_unmeasured]
+
+theorem jointSame_verdict (seed : Nat) (rs : List (Option Nat)) (caps : List (Option Capture)) (a : Nat) :
+    (jointSame seed rs caps a).verdict = sameVerdict seed rs a := rfl
+
+theorem jointSame_base_quiet (seed : Nat) (rs : List (Option Nat)) (caps : List (Option Capture)) :
+    (jointSame seed rs caps baseArm).flag = .none := jointWith_base_quiet _ _
 
 end Fw.Device.Feel
