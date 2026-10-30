@@ -24387,6 +24387,39 @@
     "apps/runner/src/land.ts"
    ],
    "evidence": "1b2b297"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scrolldriven-park",
+   "owner": "part-builder",
+   "stream": "experiment",
+   "deps": [
+    "end-floor-dirty"
+   ],
+   "title": "End-of-page floor carrier (end-floor-dirty): the 14 finished scroll-driven animations of v2-proved (13 ViewTimeline hero.exit:threaded, 1 ScrollTimeline engine.scroll:unthrottle fw-ut) are ticked every frame by WebKit and restyle 7 targets. Split the floor per flag on CI WKTR, then a same-look park variant per carrying flag (cancel finished animations, hold the fill value as static style, restore before the next frame that needs them), Lean-proved fill equality and restore rule, gates on both engines.",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "apps/site/src/parts/engine.scroll/**",
+    "apps/site/src/registry/**",
+    "lean/Fw/Parts/ScrollPark*.lean",
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/Fw/Parts/EngineScroll*.lean",
+    "lean/scripts/ScrollPark*Golden.lean",
+    "packages/contracts/golden/parts/scroll-park*.jsonl",
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "results/scrolldriven-park/**",
+    "research/notes/2026/10-30-scrolldriven-park.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/scrolldriven-park.md",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts"
+   ]
   }
  ],
  "deadline": {
