@@ -8,7 +8,7 @@ Task `park-attrib`, follow-up of `10-30-scrolldriven-park.md` section 4. No flag
 differ in exactly one part (flag = part with its variant; a part set in one run and absent in the other counts as differing). Anything else is
 `notAttributable`. Proved: `same_commit`, `one_part`, `other_commit_not_attributable`, `two_parts_not_attributable`,
 `zero_parts_not_attributable` (`lean/Fw/Ops/Attrib.lean:37-62`); the cause carries the failing and the passing variant, and they differ
-(`causedBy_values_differ`, line 91). Golden `packages/contracts/golden/ops/attrib.jsonl` (17 rows, generator `lean/Fw/Ops/AttribGolden.lean`,
+(`causedBy_values_differ`, line 91). Golden `packages/contracts/golden/ops/attrib.jsonl` (18 rows, generator `lean/Fw/Ops/AttribGolden.lean`,
 job "attrib golden check" in `lean/scripts/check.sh`).
 
 ## 2. Runs (MEASURED, every number from the merge job output of the run)
