@@ -6,3 +6,5 @@
 - Verified locally (debug, not a result): Chromium smoke of the built site: parked at the bottom, 0 scroll-driven animations, computed styles equal the unparked build; restored near the top.
 - Open: CI runs and their verdicts, note `research/notes/2026/10-30-scrolldriven-park.md`, ledger lesson text, gate and engine-check pushes for the new variants, dry land, review ready. iOS Safari with threaded scroll-driven animations ON is OPEN.
 - Read first: lean/Fw/Parts/ScrollPark.lean header, then park.ts and scroll-park.mjs.
+- Push 1 (commit a4b6046d6 on ci/scrolldriven-park, tip message [ci:wktr] [accel]); wktr run id: see next line when listed
+- wktr run 41045232315 (push 1, running). Next: wait with fw ci wait 41045232315, download, scroll-park-cli, then gate and engine-check pushes.
