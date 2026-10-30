@@ -1,5 +1,4 @@
 import Fw.Device.Feel
-/-! Times in hundredths of a millisecond, scroll positions in tenths of a pixel, opacity in per mille. -/
 namespace Fw.Device.Feel
 
 def long17Cs : Nat := 1700

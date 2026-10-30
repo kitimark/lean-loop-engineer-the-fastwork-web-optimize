@@ -1,9 +1,6 @@
 import Lean.Data.Json
 import Fw.Device.Feel
 import Fw.Device.FeelCapture
-/-!
-Writes `packages/contracts/golden/device/feel.jsonl`.
--/
 namespace Fw.Device.Feel
 open Lean
 
