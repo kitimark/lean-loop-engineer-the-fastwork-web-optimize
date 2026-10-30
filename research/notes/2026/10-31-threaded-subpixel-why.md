@@ -140,9 +140,9 @@ Blending and printing (all CONFIRMED):
 
 - **hero.exit:threaded gate failure (r603 threaded-subpixel-why):** classify the WebKit card `translate` difference
   at scroll 0 as a float32/double timeline artifact: no layout pixel moves; on the hero cards a painted pixel changes
-  by at most one 8-bit level (INFERRED coverage model, `residue_pair_level_lt`). The flag is not wrong. A fix belongs in
-  the gate comparison, for example an absolute tolerance on length components backed by `residue_lt_gateTol`, as a
-  separate gate task decided by the lead. This task changes no flag, preset or gate. Card rects differ by up to
+  by at most one 8-bit level (INFERRED coverage model, `residue_pair_level_lt`). The flag is not wrong. A fix belongs
+  in the gate comparison, for example an absolute tolerance on length components backed by `residue_lt_gateTol`, as
+  a separate gate task decided by the lead. This task changes no flag, preset or gate. Card rects differ by up to
   2^-13 px, likely the float ulp of rect coordinates in [1024, 2048) (INFERRED), so a rect tolerance must not reuse
   `residue_lt_gateTol`.
 - Follow-up (gate): find why the gate passes the same 1e-6 residue on the hero copy and cue `transform` and
