@@ -16,7 +16,7 @@ band `band = 10` per 100, theorem `band_eq`).
 - `engine.scroll:unthrottle` alone (ScrollTimeline `fw-ut`, one animation) costs one style recalc per frame while idle at the end of the page.
   The part.json limit text said "one restyled element per scroll frame"; it is corrected with this run id.
 
-## 2. Park variants (class E candidates)
+## 2. Park variants (unthrottle-park class E; threaded-park class L, section 4)
 
 - `hero.exit:threaded-park`: while the end of the exit range is more than one viewport above the viewport top, the 13 finished animations are
   cancelled and each target holds the keyframe end value as a static style; restored by the observer rule or the scroll rule.
@@ -37,10 +37,10 @@ band `band = 10` per 100, theorem `band_eq`).
 
 Sources: `results/scrolldriven-park/r1/verdict.txt:79` (`both parks: mixed (jobs none | none | cut)`), `results/scrolldriven-park/r2/rates.txt`,
 `results/scrolldriven-park/r2/parkdiag.txt`. One park alone never cuts (`none`, 3 of 3 jobs, both arms), as the `shared` split predicts. Both parks cut the
-end-of-page floor from 100 to 0-1 per 100 in 1 of 3 jobs per run; in the other jobs the hero animations stay scroll-driven (13 of 14; the fw-ut
+end-of-page floor from 100 to 0 per 100 (1 recalc in 576 frames) in 1 of 3 jobs per run; in the other jobs the hero animations stay scroll-driven (13 of 14; the fw-ut
 animation is the one parked) so the floor stays. Mid-page: no cut (`partial` in j3 of run 1, base floor remains).
 
-Mechanism of the intermittent engagement (INFERRED, not tested): the hero park trigger is an IntersectionObserver on a one-pixel sentinel. An
+Mechanism of the intermittent engagement (INFERRED, not tested): the hero park trigger is an IntersectionObserver on a zero-height sentinel. An
 observer reports when the sentinel's intersection state changes. A scroll that jumps from the top of the page to the end moves the sentinel from
 below the viewport to above it without ever intersecting, so no callback arrives and the page is never parked. The Lean `ioParked` assumes an
 observation every frame; the TS glue does not give that. Fix candidate (follow-up, needs a Lean statement of the delivery rule): a trigger that
@@ -51,9 +51,11 @@ reports on `scrollY` crossing the boundary regardless of jumps.
 - Gate on the pair `engine.scroll:unthrottle-park,hero.exit:threaded-park`, run 41054732597: chromium pass (7056 readings, 7049 pass, 0 fail,
   7 excused); playwright-webkit fail, 147 readings, all of them `translate` on the card: `hero.orbit` 1060 probes (original `0px`, rewrite
   `-0.000022px -0.000015px`) and `hero.deck` 164 probes (`0px` against `-0.00001px -0.000008px`). The parts `hero.exit` and `engine.scroll`
-  pass on both engines. Baseline gate of the default config on the same workflow, run 41058963051: merge job success, so the failure comes
-  from the park pair (MEASURED).
-- Reading (INFERRED): the park holds the card `translate` formula `CARD_CALC` (Lean `cardCalcCss`), whose value at the end is the sub-pixel
+  pass on both engines. Baseline gate of the default config (flags none, so without hero.exit:threaded), run 41058963051: merge job success. The
+  failure comes with the pair against the faithful build; whether it comes from the park or from threaded is INFERRED, untested
+  (follow-up: gate ?fw=engine.scroll:unthrottle,hero.exit:threaded on the same commit).
+- Reading (INFERRED, not tested; the failing readings are taken at scroll 0, where the park should be released, and no held opacity
+  differs, so the reading is unconfirmed): the park holds the card `translate` formula `CARD_CALC` (Lean `cardCalcCss`), whose value at the end is the sub-pixel
   residual of the scatter variables; the finished animation computes to `0px`. `held_eq_shown` proves held = formula, not held = the computed
   string of the unparked page. The proof holds and the gate still refuses, so the premise "held text = shown text" needs the computed end
   value.

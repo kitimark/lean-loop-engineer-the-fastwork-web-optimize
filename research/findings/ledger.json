@@ -4721,7 +4721,7 @@
    "visClass": "L",
    "chromium": "pass",
    "webkit": "fail",
-   "visual": "look-change class L: the park holds the card translate formula and Playwright WebKit reads -0.000022px -0.000015px (hero.orbit, 1060 probes) against the original 0px, and hero.deck -0.00001px -0.000008px (164 probes), gate run 41054732597 (the pair with engine.scroll:unthrottle-park); chromium passes. The Lean identity held_eq_shown holds for the formula, not for the computed 0px of the unparked page, so the gate refuses same-look.",
+   "visual": "INFERRED: look-change class L: the park holds the card translate formula and Playwright WebKit reads -0.000022px -0.000015px (hero.orbit, 1060 probes) against the original 0px, and hero.deck -0.00001px -0.000008px (164 probes), gate run 41054732597 (the pair with engine.scroll:unthrottle-park); chromium passes. The baseline gate run 41058963051 had no flags (no hero.exit:threaded), so whether the failure comes from the park or from threaded is INFERRED, untested. The Lean identity held_eq_shown holds for the formula, not for the computed 0px of the unparked page, so the gate refuses same-look.",
    "mechanism": "INFERRED from WebKit 862f17d: a finished animation on a non-monotonic timeline stays relevant and is ticked every frame (WebAnimation.cpp:1729, AnimationTimelinesController.cpp:128-181); an idle (cancelled) one leaves the set. Measurement pending.",
    "leanFor": [
     "Fw.Parts.ScrollPark.held_eq_shown",
@@ -4743,8 +4743,8 @@
     "A scroll event of a frame is dispatched before the animations update (scroll_no_stale): INFERRED, not read from the pinned source in this row"
    ],
    "v1Evidence": "",
-   "lesson": "A park that holds a calc() value must be gated on the computed string: the formula's residual (about 2e-5 px) differs from the 0px the finished animation shows. An IntersectionObserver on a thin sentinel reports only crossings, so a jump over it never parks: the floor was cut in 1 of 3 WKTR jobs per run (runs 41045232315, 41050949125).",
-   "next": "Hold the card translate as the computed end value, add a jump-proof park trigger with a Lean delivery rule, then re-run the WKTR park arms and the gate.",
+   "lesson": "INFERRED: A park that holds a calc() value must be gated on the computed string: the formula's residual (about 2e-5 px) differs from the 0px the finished animation shows. INFERRED, not tested: an IntersectionObserver on a thin sentinel reports only state changes, so a jump over it may never park; the floor was cut in 1 of 3 WKTR jobs per run (runs 41045232315, 41050949125).",
+   "next": "Gate ?fw=engine.scroll:unthrottle,hero.exit:threaded on the same commit to locate the translate difference; then hold the card translate as the computed end value, add a jump-proof park trigger with a Lean delivery rule, then re-run the WKTR park arms and the gate.",
    "evidence": "run:41045232315 run:41050949125 run:41054732597 research/notes/2026/10-30-scrolldriven-park.md"
   },
   {
