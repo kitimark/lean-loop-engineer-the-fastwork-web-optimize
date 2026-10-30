@@ -261,6 +261,7 @@ import Fw.Plan.Overlap
 import Fw.Plan.ReviewReady
 import Fw.Plan.Workflow
 import Fw.Plan.WritesClosure
+import Fw.Plan.Claims
 import Fw.Obs.Timing
 import Fw.Obs.Backoff
 import Fw.Obs.LandInputsCost
