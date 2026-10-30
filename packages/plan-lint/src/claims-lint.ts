@@ -37,7 +37,6 @@ export class ClaimsServer {
   close(): void { this.proc.stdin.end(); }
 }
 
-/** A repo-relative path the note names, read as JSON (`.json`) or lines; null when it is outside the repo or missing. */
 export function readArtifact(root: string, path: string): Artifact | null {
   const rel = normalize(path);
   if (isAbsolute(rel) || rel.startsWith("..")) return null;

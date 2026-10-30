@@ -91,13 +91,13 @@ run_group() {
   job "lake test" $bin/fwcore fwtest
   job "engine golden cite lint" lake env lean --run scripts/EngineCiteLint.lean
   job "port golden check" lake env lean --run scripts/PortGolden.lean --check  # golden/port/* the port digest is checked against (Fw.Port.*, Fw.Site.Assets)
-  job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check  # golden/ops/lakegc.jsonl (Fw.Ops.LakeGc)
-  job "diskgc golden check" lake env lean --run scripts/DiskGcGolden.lean --check  # golden/ops/diskgc.jsonl (Fw.Ops.DiskGc)
+  job "lakegc golden check" lake env lean --run scripts/LakeGcGolden.lean --check
+  job "diskgc golden check" lake env lean --run scripts/DiskGcGolden.lean --check
   job "writes-closure golden check" lake env lean --run scripts/WritesClosureGolden.lean --check
-  job "claims golden check" lake env lean --run scripts/ClaimsGolden.lean --check ../packages/contracts/golden/plan/claims.jsonl  # golden/plan/claims.jsonl (Fw.Plan.Claims)
-  job "rebuild golden check" lake env lean --run scripts/RebuildGolden.lean --check  # golden/ops/rebuild.jsonl: the Lake-graph rebuild set of each sampled land equals what CI built (Fw.Ops.Rebuild)
-  job "lspreap golden check" lake env lean --run scripts/ReapGolden.lean --check  # golden/ops/lspreap.jsonl (Fw.Ops.Reap)
-  job "pool-caps golden check" lake env lean --run scripts/PoolCapsGolden.lean --check  # golden/ci/pool-caps.jsonl (Fw.Ci.Pool.Caps), read by scripts/ci-paths.mjs
+  job "claims golden check" lake env lean --run scripts/ClaimsGolden.lean --check ../packages/contracts/golden/plan/claims.jsonl
+  job "rebuild golden check" lake env lean --run scripts/RebuildGolden.lean --check
+  job "lspreap golden check" lake env lean --run scripts/ReapGolden.lean --check
+  job "pool-caps golden check" lake env lean --run scripts/PoolCapsGolden.lean --check
   job "pool-key golden check" lake env lean --run scripts/PoolKeyGolden.lean --check
   job "pool-fallback golden check" lake env lean --run scripts/PoolFallbackGolden.lean --check
   job "pool-tier golden check" lake env lean --run scripts/PoolGolden.lean --check

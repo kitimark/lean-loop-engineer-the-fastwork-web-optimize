@@ -6,7 +6,6 @@ import { NOTE_RE } from "./claims-lint.ts";
 export const CLAIMS_CLI = "packages/plan-lint/src/cli.ts";
 export const CLAIMS_TIMEOUT_MS = 5 * 60_000;
 
-/** The CLI's `WARN` and summary lines over the changed notes and handoffs present in `dir`; a CLI failure is one more line, never an exception. */
 export function landLint(dir: string, changed: string[], timeoutMs = CLAIMS_TIMEOUT_MS): Promise<string[]> {
   const files = changed.filter((p) => NOTE_RE.test(p) && existsSync(join(dir, p))).sort();
   if (!files.length) return Promise.resolve(["claims lint: no changed note or handoff"]);

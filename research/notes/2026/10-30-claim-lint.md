@@ -10,8 +10,7 @@
   exit code do not change; a lint that cannot run prints `claims lint: not run (...)`.
 - Every rule is Lean (`lean/Fw/Plan/Claims.lean`). The TypeScript in `packages/plan-lint/src/claims-lint.ts` reads the
   note, the artifacts it names and `git ls-files`, and asks `lean/scripts/ClaimsGolden.lean --serve` for the findings.
-- At aed97053b the lint finds 1432 warnings in 354 of 1177 files (table below). No existing note fails: the lint is a
-  warning.
+- At aed97053b the lint finds 1432 warnings in 354 of 1177 files (table below). No existing note fails.
 - Refused fragments in the golden (`packages/contracts/golden/plan/claims.jsonl`, each row names the commit that holds
   the fragment verbatim). The lint catches 2 of the 7:
   - caught: end-floor-writes r2 "70 to 83" over the listed 83, 71, 81 (`rangeEnds`, 42c52ed52); watch-memory r2, a `MEASURED`

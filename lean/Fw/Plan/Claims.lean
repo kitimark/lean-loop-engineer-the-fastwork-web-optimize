@@ -1,9 +1,6 @@
 import Lean.Data.Json
 
-/-!
-# Claim lint (task claim-lint): a status tag needs its kind of source, and a number that names an artifact key equals it
-Rule table, examples and accepted limits: `research/notes/2026/10-30-claim-lint.md`; golden `packages/contracts/golden/plan/claims.jsonl`.
--/
+/-! Claim lint rules: `research/notes/2026/10-30-claim-lint.md`; golden `packages/contracts/golden/plan/claims.jsonl`. -/
 
 namespace Fw.Plan.Claims
 open Lean
@@ -25,7 +22,6 @@ def roundQ (q : Q) (d : Nat) : Int :=
   let r : Nat := (2 * q.num.natAbs * 10 ^ d + q.den) / (2 * q.den)
   if q.num < 0 then -(r : Int) else r
 
-/-- Key rule: the written `w` equals `q` rounded half away from zero to `w`'s own decimal places. -/
 def numOk (w : Dec) (q : Q) : Bool := roundQ q w.e == w.m
 
 theorem numOk_iff (w : Dec) (q : Q) : numOk w q = true ↔ roundQ q w.e = w.m := by
@@ -77,7 +73,6 @@ theorem roundQ_exact (m : Int) (e d : Nat) (h : e ≤ d) : roundQ ⟨m, 10 ^ e�
 def Q.le (a b : Q) : Bool := decide (a.num * b.den ≤ b.num * a.den)
 def Q.eqv (a b : Q) : Bool := a.num * b.den == b.num * a.den
 
-/-- Range rule: `a to b` over listed values holds iff `a` is their least and `b` their greatest value. -/
 def rangeOk (a b : Q) (xs : List Q) : Bool :=
   xs.all (fun x => a.le x && x.le b) && xs.any (fun x => x.eqv a) && xs.any (fun x => x.eqv b)
 
@@ -109,7 +104,6 @@ def tagOk : Tag → Cites → Bool
   | .measured, c => (c.run || c.committed) && !c.scratch
   | .inferred, _ => true
 
-/-- Status rule: the tag's own source, and a theorem name whenever the sentence states a bound. -/
 def claimOk (t : Tag) (c : Cites) : Bool := tagOk t c && (!c.bound || c.thm)
 
 theorem claim_ok_iff (t : Tag) (c : Cites) :
@@ -687,7 +681,6 @@ def notePathsOf (us : List Unit') : List String :=
 def tablePairs (bs : List Block) : List (Block × Block) :=
   (bs.zip (bs.drop 1)).filter fun (a, b) => a.kind == .prose && b.kind == .table
 
-/-- Every finding of one note, in line order. -/
 def lint (text : String) (committed : List String) (files : List (String × Content)) : List Finding :=
   let bs := blocks text
   let us := units bs
@@ -696,7 +689,6 @@ def lint (text : String) (committed : List String) (files : List (String × Cont
     quoteFindings cx u) ++ (tablePairs bs).flatMap (fun (c, t) => tableFindings cx c t)
   fs.mergeSort (fun a b => a.line ≤ b.line)
 
-/-- The files the rules read (JSON keys, `.txt` quotes, captions) and every path the note names. -/
 def reads (text : String) : List String × List String :=
   let bs := blocks text
   let us := units bs
@@ -886,7 +878,6 @@ def goldenLines (_ : Unit) : List String :=
   ((lintCases.map fun c => (c.name, lintReq c)) ++ (readCases.map fun c => (c.name, readReq c))).map fun (n, r) =>
     (Json.mkObj [("name", n), ("req", r), ("res", handle r)]).compress
 
-/-- The exact bytes of `packages/contracts/golden/plan/claims.jsonl`. -/
 def goldenText (_ : Unit := ()) : String := String.intercalate "" ((goldenLines ()).map (· ++ "\n"))
 
 def argAfter : List String → String → Option String
