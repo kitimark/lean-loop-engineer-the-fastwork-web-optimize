@@ -113,7 +113,7 @@ if (sub === 'plan') { console.log('stub plan'); process.exit(Number(process.env.
 if (sub === 'build-cmd') { console.log('true'); process.exit(0); }
 if (sub === 'probe') { if (mode === 'locked') { console.log('probe: locked\\nThe iPhone is locked: unlock it and keep it awake.'); process.exit(3); } console.log('probe: ready'); process.exit(0); }
 if (sub === 'ask') { console.log('stub ask'); process.exit(0); }
-if (sub === 'status') process.exit(readFileSync(log, 'utf8').split('\\n').includes('start') ? 0 : 1);
+if (sub === 'status') process.exit(mode !== 'dies' && readFileSync(log, 'utf8').split('\\n').includes('start') ? 0 : 1);
 if (sub === 'start') { if (mode === 'dies') { console.error('error: phone proxy listed no tabs'); process.exit(1); } setTimeout(() => {}, 30000); }
 `;
 function runScript(mode, extra = []) {
@@ -122,7 +122,7 @@ function runScript(mode, extra = []) {
   writeFileSync(stub, STUB);
   const logFile = join(d, 'calls.txt');
   const r = spawnSync('sh', [SCRIPT, '--seed', '4', '--date', '2026-01-02', ...extra], {
-    encoding: 'utf8', timeout: 60000,
+    encoding: 'utf8',
     env: { ...process.env, FEEL_CLI: `node ${stub}`, FEEL_MAIN: d, FEEL_WAIT_S: '10', FEEL_POLL_S: '1', STUB_LOG: logFile, STUB_MODE: mode },
   });
   const calls = existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean) : [];
@@ -166,7 +166,7 @@ test('script: --plan stops before the probe; missing arms exit 4 and name the bu
   const d = mkdtempSync(join(tmpdir(), 'feel-script-'));
   const stub = join(d, 'stub.mjs');
   writeFileSync(stub, STUB);
-  const r = spawnSync('sh', [SCRIPT, '--seed', '4', '--date', '2026-01-02'], { encoding: 'utf8', timeout: 60000, env: { ...process.env, FEEL_CLI: `node ${stub}`, FEEL_MAIN: d, STUB_LOG: join(d, 'c.txt'), STUB_MODE: 'ready', STUB_PLAN_RC: '4' } });
+  const r = spawnSync('sh', [SCRIPT, '--seed', '4', '--date', '2026-01-02'], { encoding: 'utf8', env: { ...process.env, FEEL_CLI: `node ${stub}`, FEEL_MAIN: d, STUB_LOG: join(d, 'c.txt'), STUB_MODE: 'ready', STUB_PLAN_RC: '4' } });
   assert.equal(r.status, 4);
   assert.ok(!readFileSync(join(d, 'c.txt'), 'utf8').includes('probe'));
   rmSync(d, { recursive: true, force: true });
