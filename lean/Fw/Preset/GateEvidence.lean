@@ -1,9 +1,5 @@
 import Lean.Data.Json
 import Fw.Preset.V2Proved
-/-!
-Breakpoint-gate evidence of preset members: the gate runs on record, the flag set each member entered its preset with, and
-the rule that marks a member proved, pending (a named waiver) or unproved (the preset check fails).
--/
 namespace Fw.Preset.GateEvidence
 open Lean Fw.Preset
 
@@ -13,8 +9,6 @@ deriving DecidableEq, Repr
 inductive Verdict | pass | fail
 deriving DecidableEq, Repr
 
-/-- One engine verdict of one breakpoint-gate run; `flags` is the run's exact flag set: its `?fw=` keys, or the keys of
-its `?preset=` at the run's head sha. -/
 structure GateRun where
   run : Nat
   sha : String
@@ -96,8 +90,6 @@ def unnested : List (List String) → List (List String × List String)
   | [] => []
   | s :: rest => (rest.filter fun t => !(subset s t || subset t s)).map (s, ·) ++ unnested rest
 
-/-- Objections to the admission sets of preset `p` against its current flag set `cur`: a set outside `cur`, no set equal
-to `cur`, or two sets not nested. -/
 def setProblems (ads : List Admission) (p : String) (cur : List String) : List String :=
   let sets := (ads.filter (·.preset == p)).map (·.set)
   (sets.filterMap fun s => if subset s cur then none else some s!"{p}: admission set {s} holds flags outside {cur}") ++
@@ -106,8 +98,6 @@ def setProblems (ads : List Admission) (p : String) (cur : List String) : List S
 
 def tieProblems (ads : List Admission) (ps : List (String × List String)) : List String :=
   ps.flatMap fun (p, cur) => setProblems ads p cur
-
-/-! ## The tables -/
 
 def unthrottle : Flag := ⟨"engine.scroll", "unthrottle"⟩
 def threaded : Flag := ⟨"hero.exit", "threaded"⟩
@@ -188,8 +178,6 @@ def reportLine (rs : List GateRun) (ads : List Admission) (ws : List Waiver) (p 
   | .proved c w => s!"gate evidence: {p} {f.key} proved (chromium run:{c}, playwright-webkit run:{w})"
   | .pending r => s!"gate evidence: {p} {f.key} pending ({r})"
   | .unproved r => s!"gate evidence: {p} {f.key} unproved ({r})"
-
-/-! ## Theorems -/
 
 theorem passOn_some {rs : List GateRun} {s : List String} {e : Engine} {n : Nat} (h : passOn rs s e = some n) :
     ∃ r ∈ rs, r.run = n ∧ r.engine = e ∧ sameSet r.flags s = true ∧ r.verdict = .pass ∧
@@ -355,8 +343,6 @@ theorem tieProblems_of_mem {ads : List Admission} {ps : List (String × List Str
   simp only [tieProblems, List.flatMap_eq_nil_iff] at he
   exact h (he _ hm)
 
-/-- A forged admission row naming only a new member `X` is not nested with the first `v2-proved` admission set, so the
-tie check fails whatever runs exist. -/
 theorem forged_single_fails {X : Flag} {sha : String} {cur : List String} (hx : X.key ≠ unthrottle.key) :
     setProblems (admissions ++ [⟨"v2-proved", X, sha, [X.key]⟩]) "v2-proved" cur ≠ [] :=
   setProblems_of_unnested
@@ -368,8 +354,6 @@ theorem waivers_pinned : waivers.map (fun w => (w.preset, w.flag.key)) =
     [("v2-proved", "hero.exit:threaded"), ("v2-proved", "platform:faded-pause"),
      ("shipped", "engine.scroll:unthrottle"), ("shipped", "hero.exit:threaded"),
      ("shipped", "platform:faded-pause")] := by decide
-
-/-! ## Examples -/
 
 private def members : List (String × Flag) :=
   [("v2-proved", unthrottle), ("v2-proved", threaded), ("v2-proved", fadedPause),
