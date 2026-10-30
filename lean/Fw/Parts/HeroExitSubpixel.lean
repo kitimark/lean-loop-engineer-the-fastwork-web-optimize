@@ -1,0 +1,157 @@
+import Fw.Parts.HeroExit
+import Fw.Parts.HeroOrbit
+import Fw.Parts.HeroDeck
+
+/-! WebKit's card `translate` under `hero.exit:threaded` at scroll 0: a float32 timeline time against a double range start,
+and the bound of the resulting residue. -/
+
+namespace Fw.Parts.HeroExitSubpixel
+
+def roundBits (k : Nat) (q : Rat) : Rat := ((q * 2 ^ k + 1 / 2).floor : Rat) / 2 ^ k
+
+def ieeeStep (p k : Nat) (q : Rat) : Bool :=
+  decide ((2 : Rat) ^ (p - 1) ≤ q * 2 ^ k) && decide (q * 2 ^ k < 2 ^ p) &&
+    decide ((q * 2 ^ k + 1 / 2).floor ≠ q * 2 ^ k + 1 / 2)
+
+def single : Nat := 24
+
+def double : Nat := 53
+
+def trackPx (v : Rat) : Rat := 2 * v
+
+theorem trackPx_eq (v : Rat) : HeroExit.trackHeightPx v false = some (trackPx v) := rfl
+
+-- ViewTimeline.cpp:509-511, ScrollTimeline.cpp:389-395@862f17d
+def ratio (v : Rat) : Rat := (0 - (0 - v)) / ((0 + trackPx v) - (0 - v))
+
+theorem ratio_third (v : Rat) (hv : 0 < v) : ratio v = 1 / 3 := by
+  unfold ratio trackPx
+  have : v ≠ 0 := by grind
+  grind
+
+-- ScrollTimeline.h:102-105 and ScrollTimeline.cpp:395-396@862f17d
+def timeline32 : Rat := roundBits 18 (roundBits 25 (1 / 3) * 100)
+
+-- ViewTimeline.cpp:584-592,626-642@862f17d
+-- WebAnimation.cpp:1531-1545@862f17d
+def start64 : Rat := roundBits 47 (roundBits 54 (1 / 3) * 100)
+
+def end64 : Rat := roundBits 46 (roundBits 53 (2 / 3) * 100)
+
+-- WebAnimation.cpp:518@862f17d
+def local64 : Rat := timeline32 - start64
+
+-- AnimationEffect.cpp:458-460@862f17d
+def duration64 : Rat := end64 - start64
+
+-- AnimationEffectTiming.cpp:279@862f17d
+def progress64 : Rat := roundBits 76 (local64 / duration64)
+
+theorem timeline32_ratio (v : Rat) (hv : 0 < v) :
+    timeline32 = roundBits 18 (roundBits 25 (ratio v) * 100) := by
+  rw [ratio_third v hv]
+  rfl
+
+theorem start64_ratio (v : Rat) (hv : 0 < v) :
+    start64 = roundBits 47 (roundBits 54 (ratio v) * 100) := by
+  rw [ratio_third v hv]
+  rfl
+
+theorem ieee_steps :
+    ieeeStep single 25 (1 / 3) ∧ ieeeStep single 18 (roundBits 25 (1 / 3) * 100) ∧
+    ieeeStep double 54 (1 / 3) ∧ ieeeStep double 47 (roundBits 54 (1 / 3) * 100) ∧
+    ieeeStep double 53 (2 / 3) ∧ ieeeStep double 46 (roundBits 53 (2 / 3) * 100) ∧
+    ieeeStep double 76 (local64 / duration64) := by
+  decide +kernel
+
+theorem subtractions_exact : roundBits 71 local64 = local64 ∧ roundBits 47 duration64 = duration64 := by
+  decide +kernel
+
+-- WebAnimationTime.cpp:165-171@862f17d
+theorem after_start : start64 < timeline32 := by decide +kernel
+
+theorem progress_pos : 0 < progress64 := by decide +kernel
+
+theorem ideal_progress : (timeline32 - 100 / 3) / (100 / 3) = 1 / (100 * 2 ^ 17) := by decide +kernel
+
+theorem progress_near_ideal :
+    progress64 - 1 / (100 * 2 ^ 17) < 1 / (10 ^ 6 * 100 * 2 ^ 17) ∧
+    1 / (100 * 2 ^ 17) - progress64 < 1 / (10 ^ 6 * 100 * 2 ^ 17) := by
+  decide +kernel
+
+def maxScatter : Rat := 48
+
+theorem orbit_scatter_le (l t : Rat) :
+    -maxScatter ≤ HeroOrbit.scatterX l ∧ HeroOrbit.scatterX l ≤ maxScatter ∧
+    -maxScatter ≤ HeroOrbit.scatterY l t ∧ HeroOrbit.scatterY l t ≤ maxScatter := by
+  unfold HeroOrbit.scatterX HeroOrbit.scatterY maxScatter
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> (repeat' split) <;> grind
+
+theorem deck_scatter_le :
+    HeroDeck.slots.all (fun s => decide (-maxScatter ≤ s.sx ∧ s.sx ≤ maxScatter ∧ -maxScatter ≤ s.sy ∧ s.sy ≤ maxScatter)) := by
+  decide +kernel
+
+def residue (a v : Rat) : Rat := a / 100 * v * progress64
+
+def widest : Rat := 2560
+
+def gateTol : Rat := 1 / 10 ^ 4
+
+theorem residue_neg (a v : Rat) : residue (-a) v = -residue a v := by
+  unfold residue
+  grind
+
+theorem residue_upper (a v : Rat) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v) (hv : v ≤ widest) :
+    residue a v ≤ residue maxScatter widest := by
+  have hp : 0 ≤ progress64 := by decide +kernel
+  have h1 : a / 100 * v ≤ maxScatter / 100 * v :=
+    Rat.mul_le_mul_of_nonneg_right (by unfold maxScatter at *; grind) hv0
+  have h2 : maxScatter / 100 * v ≤ maxScatter / 100 * widest :=
+    Rat.mul_le_mul_of_nonneg_left hv (by decide +kernel)
+  exact Rat.mul_le_mul_of_nonneg_right (Rat.le_trans h1 h2) hp
+
+theorem residue_le_max (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v)
+    (hv : v ≤ widest) :
+    residue (-maxScatter) widest ≤ residue a v ∧ residue a v ≤ residue maxScatter widest := by
+  have hn := residue_upper (-a) v (by grind) hv0 hv
+  rw [residue_neg] at hn
+  rw [residue_neg]
+  exact ⟨by grind, residue_upper a v ha hv0 hv⟩
+
+theorem residue_lt_gateTol (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v)
+    (hv : v ≤ widest) :
+    -gateTol < residue a v ∧ residue a v < gateTol := by
+  have hm := residue_le_max a v hlo ha hv0 hv
+  have hlb : -gateTol < residue (-maxScatter) widest := by decide +kernel
+  have hub : residue maxScatter widest < gateTol := by decide +kernel
+  grind
+
+def dprMax : Rat := 3
+
+theorem residue_level_change_lt (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v)
+    (hv : v ≤ widest) :
+    -(1 / 10) < dprMax * 255 * residue a v ∧ dprMax * 255 * residue a v < 1 / 10 := by
+  have hm := residue_le_max a v hlo ha hv0 hv
+  have hc : (0 : Rat) ≤ dprMax * 255 := by decide +kernel
+  have hlb : -(1 / 10) < dprMax * 255 * residue (-maxScatter) widest := by decide +kernel
+  have hub : dprMax * 255 * residue maxScatter widest < 1 / 10 := by decide +kernel
+  have hl : dprMax * 255 * residue (-maxScatter) widest ≤ dprMax * 255 * residue a v :=
+    Rat.mul_le_mul_of_nonneg_left hm.1 hc
+  have hu : dprMax * 255 * residue a v ≤ dprMax * 255 * residue maxScatter widest :=
+    Rat.mul_le_mul_of_nonneg_left hm.2 hc
+  grind
+
+theorem residue_pair_level_lt (ax vx ay vy : Rat) (hxlo : -maxScatter ≤ ax) (hx : ax ≤ maxScatter)
+    (hvx0 : 0 ≤ vx) (hvx : vx ≤ widest) (hylo : -maxScatter ≤ ay) (hy : ay ≤ maxScatter)
+    (hvy0 : 0 ≤ vy) (hvy : vy ≤ widest) :
+    dprMax * 255 * residue ax vx + dprMax * 255 * residue ay vy < 1 / 5 ∧
+    dprMax * 255 * residue ax vx - dprMax * 255 * residue ay vy < 1 / 5 ∧
+    -(dprMax * 255 * residue ax vx) + dprMax * 255 * residue ay vy < 1 / 5 ∧
+    -(dprMax * 255 * residue ax vx) - dprMax * 255 * residue ay vy < 1 / 5 := by
+  have hX := residue_level_change_lt ax vx hxlo hx hvx0 hvx
+  have hY := residue_level_change_lt ay vy hylo hy hvy0 hvy
+  generalize dprMax * 255 * residue ax vx = lx at *
+  generalize dprMax * 255 * residue ay vy = ly at *
+  grind
+
+end Fw.Parts.HeroExitSubpixel

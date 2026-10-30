@@ -24475,7 +24475,8 @@
     "docs/team/handoffs/threaded-subpixel-why.md",
     "lean/Fw/Parts/HeroExitSubpixel*.lean",
     "lean/Fw.lean"
-   ]
+   ],
+   "evidence": "d94d1b5"
   }
  ],
  "deadline": {
