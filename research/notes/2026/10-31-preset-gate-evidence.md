@@ -47,7 +47,7 @@ so a later failing run of the same set withdraws the proof.
 | `setProblems_of_outside`, `_of_no_full`, `_of_unnested` | 323, 330, 343 | one theorem per objection of `setProblems` |
 | `forged_single_fails` | 360 | an extra v2-proved row whose set is only a new member `X` fails `setProblems` |
 
-`Fw.Preset.Gen.gate_fails_of_new_v2` and `gate_fails_of_new_shipped` (`lean/Fw/Preset/Gen.lean:1003`, `:1009`) apply this
+`Fw.Preset.Gen.gate_fails_of_new_v2` and `gate_fails_of_new_shipped` (`lean/Fw/Preset/Gen.lean:1004`, `:1010`) apply this
 to the generated presets: a new member without an admission row makes the list `run` throws on non-empty.
 `tie_fails_of_forged_v2` (`:998`) does the same for a forged single-flag row against the generated flag sets.
 
