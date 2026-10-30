@@ -24286,6 +24286,30 @@
     "apps/runner/src/land.ts",
     "docs/team/handoffs/flip-accel-webkit.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "feel-session-2-prep",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "phone-feel-capture"
+   ],
+   "title": "Prepare the next captured phone feel session: arms from the generated presets (v2-proved now with faded-pause, the previous 2-flag v2-proved, base) plus labelled look arms (nav:earn-logical, platform.glint:compositor, morph.end.nobounce, morph.stage), arms built, one ready script; nothing touches the phone.",
+   "writes": [
+    "lean/Fw/Device/Feel.lean",
+    "packages/contracts/golden/device/feel.jsonl",
+    "lean/scripts/Feel*Golden.lean",
+    "packages/measure-webkit/src/device-feel*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/test/device-feel*.test.mjs",
+    "scripts/feel-session.sh",
+    "research/notes/2026/10-2x-phone-feel-kit.md",
+    "research/notes/2026/10-30-feel-session-2-prep.md",
+    "docs/team/handoffs/feel-session-2-prep.md"
+   ]
   }
  ],
  "deadline": {
