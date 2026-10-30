@@ -4,8 +4,8 @@
 {"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":36,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"no floor","rate":10,"verdict":"noFloor"}
 {"base":{"raf":360,"recalcs":360,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"base keeps a floor","rate":100,"verdict":"baseFloor"}
 {"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":3,"rendered":360},"name":"carries","rate":100,"verdict":"carries"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":39,"rendered":360},"name":"carries at the band","rate":100,"verdict":"carries"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":40,"rendered":360},"name":"one above the band","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":39,"rendered":360},"name":"minusF at the band","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":40,"rendered":360},"name":"minusF one above the band","rate":100,"verdict":"partial"}
 {"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":180,"rendered":360},"name":"partial","rate":100,"verdict":"partial"}
 {"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":321,"rendered":360},"name":"partial one over the band","rate":100,"verdict":"partial"}
 {"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":360,"rendered":360},"name":"none","rate":100,"verdict":"none"}
