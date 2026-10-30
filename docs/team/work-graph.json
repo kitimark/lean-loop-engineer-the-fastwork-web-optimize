@@ -24423,7 +24423,11 @@
     "packages/contracts/golden/device/scroll-park*.jsonl",
     "lean/Fw/Parts/Footprint*.lean",
     "packages/contracts/golden/parts/footprint*.gen.json",
-    "packages/contracts/golden/parts/contracts.gen.json"
+    "packages/contracts/golden/parts/contracts.gen.json",
+    "lean/Fw/Parts/Bridge.lean",
+    "packages/contracts/golden/preset/shipped.decisions.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl"
    ]
   }
  ],
