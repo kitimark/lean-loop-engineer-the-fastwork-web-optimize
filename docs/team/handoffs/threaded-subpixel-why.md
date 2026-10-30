@@ -1,7 +1,7 @@
 # threaded-subpixel-why (handoff)
 
 ## State
-- Branch `worktree-wf_053cfe73-6c8-1`; the last commit is in `git log -1` on that branch. No CI run, no push.
+- Branch `worktree-wf_053cfe73-6c8-1`; work commit 18ba89308 (round 3, check.sh green, dry land `VERDICT dry`). No CI run, no push.
 - Answer: `research/notes/2026/10-31-threaded-subpixel-why.md`. WebKit computes the view-timeline time in float32
   and the `contain` start in double. At scroll 0 the card is active at p = 1/(100·2^17), so translate = p × scatter
   (-1e-4 < translate < 1e-4 px per component). This is a numeric artifact: no layout pixel moves, and on the cards a
