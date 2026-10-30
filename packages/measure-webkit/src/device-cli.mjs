@@ -29,7 +29,9 @@ import { ConditionOwner, PIN, pinGate } from './device-thermal-pin.mjs';
 import * as PA from './device-phone-arms.mjs';
 import { readThermal } from './device-thermal.mjs';
 import { listPhone, readout } from './device.mjs';
-import { feelStart, feelCommand, waitGone } from './device-feel-run.mjs';
+import { feelStart, feelCommand, stopFallback, waitGone } from './device-feel-run.mjs';
+import { summaryText } from './device-feel.mjs';
+import { jointText } from './device-feel-cap.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
 const [cmd, ...rest] = argv;
@@ -39,7 +41,7 @@ const { values: v, positionals } = parseArgs({
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, pin: { type: 'string' }, seed: { type: 'string', default: '0' }, fresh: { type: 'boolean', default: false }, resume: { type: 'boolean', default: false }, reveal: { type: 'boolean', default: false }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, pin: { type: 'string' }, seed: { type: 'string' }, fresh: { type: 'boolean', default: false }, resume: { type: 'boolean', default: false }, reveal: { type: 'boolean', default: false }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
@@ -118,10 +120,20 @@ async function main() {
       const dir = resolve(v.dir);
       if (sub === 'start') {
         if (!v.site) throw new Error('feel start needs --site <dist/aot>');
+        if (v.seed === undefined || !Number.isInteger(Number(v.seed))) throw new Error('feel start needs --seed <whole number>: the seed fixes the blind order, and a default would repeat one order in every session');
+        const report = (st) => {
+          console.log(summaryText(st));
+          console.log(jointText(st.seed, st.ratings, st.captures ?? []));
+        };
         try {
           const st = await feelStart({ site: resolve(v.site), dir, pin: v.pin ?? 'Serious', seed: Number(v.seed), resume: v.resume, fresh: v.fresh, settleMs: Number(v.settle), log });
+          report(st);
           console.log(JSON.stringify({ status: st.status, opened: st.opened, rated: st.ratings.filter((r) => r != null).length, pinEnd: st.pinEnd, verdicts: st.verdicts }));
-        } catch (e) { log(`error: ${e.message}`); process.exitCode = 1; }
+        } catch (e) {
+          log(`error: ${e.message}`);
+          if (e.feelState) report(e.feelState);
+          process.exitCode = 1;
+        }
         process.exit(process.exitCode ?? 0);
       }
       if (!['next', 'rate', 'status', 'stop'].includes(sub)) throw new Error('feel needs a subcommand: start | next | rate <label> <1-5> | status | stop');
@@ -129,8 +141,8 @@ async function main() {
       let r;
       try { r = await feelCommand(sub, dir, args); } catch (e) {
         if (sub !== 'stop') throw e;
-        const did = await new ConditionOwner({ dir, log }).recover();
-        console.log(JSON.stringify({ noSession: e.message, ownerStopped: did }));
+        const out = await stopFallback(dir, { owner: new ConditionOwner({ dir, log }), read: (() => { const sense = phoneSense(); return () => sense().state ?? null; })(), log });
+        console.log(JSON.stringify({ noSession: e.message, ...out }));
         break;
       }
       console.log(r.text);
@@ -168,7 +180,8 @@ async function main() {
     case 'pin-stop': {
       if (!v.dir) throw new Error('pin-stop needs --dir <dir>');
       const owner = new ConditionOwner({ dir: resolve(v.dir), log });
-      const did = await owner.recover();
+      const sense = phoneSense();
+      const did = await owner.recover({ read: () => sense().state ?? null });
       console.log(JSON.stringify({ stopped: did }));
       break;
     }

@@ -234,6 +234,35 @@ test('session: an owner that dies by itself leaves the condition possibly set: t
   } finally { rmSync(e.dir, { recursive: true, force: true }); }
 });
 
+const DROP_LINE = 'userspace tunnel transport closed (device disconnected?); tearing down\n';
+const dropBody = (pin, c, ee, w) => {
+  const dying = phone(w, { senses: [S('Serious')], held: pin.held, onVisit: () => { w.procs.clear(); w.log += DROP_LINE; } });
+  return block(ee, { ...dying, pin });
+};
+
+test('session: a USB drop that kills the owner, with the phone reading its pre-pin state, ends clearedDrop without an error', async () => {
+  const e = setup();
+  try {
+    const o = await session3(e, { senses: [S('Serious')], readSenses: [S('Nominal')], body: dropBody });
+    assert.deepEqual(o.w.signals, []);
+    assert.equal(o.err, undefined);
+    assert.equal(o.st.pin.end, 'clearedDrop');
+    assert.equal(o.st.pin.conditionSet, false);
+    assert.equal(o.st.pin.usbDropped, true);
+    assert.equal(o.st.pin.acked, false);
+  } finally { rmSync(e.dir, { recursive: true, force: true }); }
+});
+
+test('session: a USB drop with the phone still hot stays unconfirmed and says the phone is not on USB', async () => {
+  const e = setup();
+  try {
+    const o = await session3(e, { senses: [S('Serious')], readSenses: [S('Nominal'), S('Serious')], body: dropBody });
+    assert.match(o.err.message, /not on USB/);
+    assert.equal(o.st.pin.end, 'unconfirmed');
+    assert.equal(o.st.pin.conditionSet, true);
+  } finally { rmSync(e.dir, { recursive: true, force: true }); }
+});
+
 test('session: an owner that needs SIGKILL never confirmed its clear: gone, unconfirmed, condition possibly set', async () => {
   const e = setup();
   try {

@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "target": "ES2023", "module": "ESNext", "moduleResolution": "Bundler", "strict": true, "noEmit": true,
+    "allowImportingTsExtensions": true, "erasableSyntaxOnly": true, "skipLibCheck": true,
+    "noUncheckedIndexedAccess": true, "types": ["node"], "typeRoots": ["../gh-budget/node_modules/@types"], "lib": ["ES2023"]
+  },
+  "include": ["src", "test"]
+}

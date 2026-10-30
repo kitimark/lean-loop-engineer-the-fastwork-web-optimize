@@ -3430,7 +3430,8 @@
     "docs/team/incidents/ledger.json",
     "docs/team/handoffs/claim-lint.md",
     "apps/runner/src/land.ts"
-   ]
+   ],
+   "evidence": "377e6a3"
   },
   {
    "id": "plan-principles-lint",
@@ -23957,7 +23958,8 @@
     "packages/contracts/golden/device/thermal.jsonl",
     "packages/measure-webkit/src/device*.mjs",
     "packages/measure-webkit/src/wip*.mjs"
-   ]
+   ],
+   "evidence": "45fa907"
   },
   {
    "devices": [

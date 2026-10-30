@@ -28,6 +28,7 @@ import { ConsoleUnreachable } from "./land-queue.ts";
 import { WORKFLOW_LINT_ARGV, WORKFLOW_LINT_ID, WORKFLOW_LINT_READS } from "./land-checks-workflow.ts";
 import { chargedGh, fwcoreCall, ghCost } from "./run.ts";
 import { chargedOnce, GH_BOUNDS, realEnv, type Env } from "@fw/gh-budget";
+import { landLint } from "../../../packages/plan-lint/src/land-lint.ts";
 
 export type Http = {
   get(path: string): Promise<{ status: number; body: any }>;
@@ -136,7 +137,7 @@ const WALLCLOCK_LINT_TESTS = ["scripts/*.test.mjs", "apps/*/test/**", "packages/
 export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "apps/console-web": ["results/review-reports/**"],
   "apps/console-api": ["research/findings/ledger.json", "lean/Fw/Console/PreviewFacts.lean", "snapshot/site/index.html", "apps/console-web/**", "results/review-reports/**","apps/runner/hooks/lib.mjs", "apps/runner/src/plan.ts", "packages/contracts/golden/**", "apps/site/src/registry/resolve.ts", "apps/site/src/registry/types.ts", ...WALLCLOCK_LINT_FILES],
-  "apps/runner": ["lean/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
+  "apps/runner": ["lean/**", "packages/plan-lint/**", ...WALLCLOCK_LINT_FILES, ...WALLCLOCK_LINT_TESTS, "apps/console-api/**", "docs/team/work-graph.json", "docs/team/incidents/ledger.json", "lean/scripts/check-imports.mjs",
     "packages/contracts/golden/**", "packages/gh-budget/test/util.ts", "scripts/span.sh",
     ".github/workflows/**", ".github/actions/setup-lean/action.yml", ".github/scripts/changed-inputs.mjs", ".github/scripts/changed-inputs.test.mjs", "scripts/ci-paths.mjs", "scripts/ci-paths.test.mjs",
     "scripts/ci-push.mjs", "scripts/ci-push.test.mjs", "scripts/hooks/**",
@@ -736,6 +737,12 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     c.on("error", (e) => done(null, e));
     c.on("close", (code) => done(code));
   });
+  let claimsRan = false;
+  const claimsLint = async (dir: string): Promise<void> => {
+    if (claimsRan) return;
+    claimsRan = true;
+    lines.push(...await span("fw land", "claims lint", () => landLint(dir, changed), () => 0));
+  };
   let phase1Built = false;
   const twoPhaseChecks = async (dir: string, main0: string, c: string): Promise<Check[]> => {
     const d0 = storedDigest(mainDir, main0);
@@ -852,6 +859,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { }
       if (marks) return fail(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict", outcome({ merges: false }));
       lines.push(`dry: merge ok (${main} ${main0.slice(0, 7)}, tip ${sha.slice(0, 7)}), no conflict markers`);
+      await claimsLint(slot.dir);
       const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes(READS_SCAN_ID);
       let test = true, detail = "";
       if (selected) {
@@ -943,6 +951,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         let marks = "";
         try { marks = git(slot.dir, ["grep", "-n", "-E", MARKER_RE]); } catch { }
         if (marks) return { kind: "refuse", msg: `conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, k: "conflict" };
+        await claimsLint(slot.dir);
         const bad = o.checks ? await runChecks(slot.dir, o.checks) : await tieredChecks(slot.dir, main0, c, await twoPhaseChecks(slot.dir, main0, c));
         let act = prelockAction(git(mainDir, ["rev-parse", "HEAD"]), main0, bad === null, attempt, maxRetry);
         if (act === "refuse") return { kind: "refuse", msg: bad!, k: badKind };
@@ -996,6 +1005,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
 
   let mergeSha: string;
   if (!o.task) {
+    await claimsLint(worktreeOf(o.cwd, branch) ?? mainDir);
     const bad = await runChecks(worktreeOf(o.cwd, branch) ?? mainDir, checks);
     if (bad) return fail(bad, badKind);
     const e = await requestLand();
@@ -1045,6 +1055,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       try { marks = git(mainDir, ["grep", "-n", "-E", MARKER_RE]); } catch { }
       if (marks) return abort(`conflict markers after the merge:\n${marks.split("\n").slice(0, 10).join("\n")}`, "conflict");
       lines.push("no conflict markers");
+      await claimsLint(mainDir);
       const ev = writeEvidence(mainDir, o.task, sha.slice(0, 7));
       if (ev === "failed") return abort("could not write the evidence into docs/team/work-graph.json");
       if (ev === "written") lines.push(`evidence ${sha.slice(0, 7)} written into docs/team/work-graph.json (in the merge commit)`);

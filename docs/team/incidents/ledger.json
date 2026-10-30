@@ -2410,6 +2410,11 @@
      "kind": "file",
      "ref": "research/notes/2026/10-19-c3-decision.md",
      "note": "the corrected count"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/plan/claims.jsonl",
+     "note": "recurred in nav-cta-webkit-match r2 (\"within 10 px of its settled floor at 1280\", true for exit only), watch-memory r2 (\"1.7 x\" for 512/289 with no operands written, ranges in KiB/1000, MEASURED with no committed source) and end-floor-writes r2 (a frame count stated for the wrong rows, a Lesson generalized past j2, \"70 to 83\" over the listed 83, 71, 81); hardening claim-lint (lean/Fw/Plan/Claims.lean; catches the end-floor-writes range and the watch-memory MEASURED tag; the other five name no artifact key and stay unchecked)"
     }
    ],
    "repro": "Restate a count from a note written from memory: the review compares it with the merge log's gate verdict line and refuses.",

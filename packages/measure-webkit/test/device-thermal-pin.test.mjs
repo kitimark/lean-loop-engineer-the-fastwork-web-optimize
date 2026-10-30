@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  ConditionOwner, OWNER_PY, PIN, blockValid, clearWait, closeAct, conditionSet, endVerdict, laneGates, lanesRun, mayKill, pinGate, pinTarget, pinWhy,
-  profileListed, profileOf, psInfo, recoverAct, stopAct, visitOk, whyPin,
+  ConditionOwner, DROP, OWNER_PY, PIN, blockValid, clearWait, closeAct, conditionSet, endVerdict, laneGates, lanesRun, mayKill, pinGate, pinTarget, pinWhy,
+  profileListed, profileOf, psInfo, recoverAct, stopAct, visitOk, whyPin, conditionSetDrop, droppedClear, dropInLog, dropWindow, endVerdictDrop, fallbackAct, recoverActD, termGate,
 } from '../src/device-thermal-pin.mjs';
 import { fakeWorld, mkOwner } from './pin-world.mjs';
 
@@ -232,3 +232,134 @@ test('no signal is ever SIGINT', async () => {
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+
+test('USB-drop rules match the Lean golden', () => {
+  const d = of('dropconsts')[0];
+  assert.equal(DROP.setWaitMaxS, d.setWaitMaxS);
+  assert.equal(DROP.sessionWaitS, d.sessionWaitS);
+  assert.ok(of('term').length >= 10 && of('enddrop').length >= 100 && of('recoverd').length >= 10 && of('fallback').length >= 10);
+  for (const t of of('term')) assert.equal(termGate(t.alive, t.setAcked, t.waitedS), t.gate, JSON.stringify(t));
+  for (const e of of('enddrop')) {
+    assert.equal(endVerdictDrop(e.target, e.usbDropped, e.ownerGone, e.acked, e.before, e.back), e.end, JSON.stringify(e));
+    assert.equal(conditionSetDrop(e.target, e.usbDropped, e.ownerGone, e.acked, e.before, e.back), e.conditionSet, JSON.stringify(e));
+    if (e.end === 'clearedDrop') assert.ok(e.usbDropped && e.ownerGone && !e.acked && droppedClear(e.target, e.before, e.back));
+  }
+  for (const r of of('recoverd')) assert.equal(recoverActD(r.hasRecord, r.alive, r.acked, r.dropped), r.act, JSON.stringify(r));
+  for (const f of of('fallback')) assert.equal(fallbackAct(f.sessionAlive, f.sent, f.sinceS), f.act, JSON.stringify(f));
+});
+
+test('stop waits for the owner to acknowledge its set before the first SIGTERM', async () => {
+  const w = fakeWorld({ heldAfterS: 20 });
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    const t0 = w.t;
+    const r = await owner.stop();
+    assert.deepEqual(w.signals, ['SIGTERM']);
+    assert.ok((w.t - t0) / 1000 >= 20, 'the signal went out only after the held line');
+    assert.equal(r.acked, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('an owner that never acknowledges its set is signalled after the bound and its clear stays unconfirmed', async () => {
+  const w = fakeWorld({ heldAfterS: Infinity, ackOnTerm: false });
+  const lines = [];
+  const { dir } = mkOwner(w);
+  const owner = new ConditionOwner({ dir, ...w.opts, log: (l) => lines.push(l) });
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious' });
+    const t0 = w.t;
+    const r = await owner.stop();
+    assert.deepEqual(w.signals, ['SIGTERM']);
+    assert.ok((w.t - t0) / 1000 >= DROP.setWaitMaxS);
+    assert.equal(r.acked, false);
+    assert.ok(lines.some((l) => /did not acknowledge its set/.test(l)));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('recover: an owner that died on a USB drop while the phone reads its pre-pin state needs no clear cycle', async () => {
+  const w = fakeWorld();
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    w.procs.clear();
+    w.log += 'userspace tunnel transport closed (device disconnected?); tearing down\n';
+    const next = new ConditionOwner({ dir, ...w.opts });
+    assert.equal(await next.recover({ read: () => 'Nominal' }), false);
+    assert.equal(w.spawned.length, 1, 'no clear cycle');
+    assert.deepEqual(w.signals, []);
+    const rec = JSON.parse(readFileSync(join(dir, 'pin-owner.json'), 'utf8'));
+    assert.equal(rec.usbDropped, true);
+    assert.equal(rec.stoppedBy, 'recover-dropped');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('recover: a USB drop with the phone still hot, or unreadable, or without a drop in the log still runs the clear cycle', async () => {
+  for (const [read, dropLine] of [[() => 'Serious', true], [() => null, true], [() => 'Nominal', false]]) {
+    const w = fakeWorld();
+    const { dir, owner } = mkOwner(w);
+    try {
+      await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+      w.procs.clear();
+      if (dropLine) w.log += 'userspace tunnel transport closed (device disconnected?); tearing down\n';
+      const next = new ConditionOwner({ dir, ...w.opts });
+      assert.equal(await next.recover({ read }), true);
+      assert.equal(w.spawned.length, 2);
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  }
+});
+
+test('a drop line from an earlier owner in the same log does not count for a new owner', async () => {
+  const w = fakeWorld();
+  w.log = 'userspace tunnel transport closed (device disconnected?); tearing down\n';
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    assert.equal(owner.usbDropped(), false);
+    w.log += 'ConnectionTerminatedError: The DTX service channel is closed.\n';
+    assert.equal(owner.usbDropped(), true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+const TEARDOWN = 'userspace tunnel transport closed (device disconnected?); tearing down\n';
+
+test('drop window: a tunnel-closed line counts only before the clear line, and before our SIGTERM when no clear line came', () => {
+  const clear = 'fw-pin held pid=7\nfw-pin cleared pid=7\n';
+  assert.equal(dropInLog(clear + TEARDOWN, 0, 7), false, 'normal clear then teardown');
+  assert.equal(dropInLog('fw-pin held pid=7\n' + TEARDOWN, 0, 7), true, 'mid-run drop, no clear line');
+  assert.equal(dropInLog('fw-pin held pid=7\n' + TEARDOWN + 'fw-pin cleared pid=7\n', 0, 7), true, 'drop before the clear line');
+  assert.equal(dropInLog('fw-pin held pid=7\n' + TEARDOWN, 0, 7, 'fw-pin held pid=7\n'.length), false, 'teardown after our SIGTERM, no clear line');
+  assert.equal(dropInLog(TEARDOWN + clear, TEARDOWN.length, 7), false, 'a line of an earlier owner does not count');
+  assert.equal(dropWindow(clear + TEARDOWN, 0, 7), 'fw-pin held pid=7\n');
+  assert.equal(dropWindow('fw-pin cleared pid=8\n' + TEARDOWN, 0, 7), 'fw-pin cleared pid=8\n' + TEARDOWN, 'another pid clear line is not ours');
+});
+
+test('a normal stop whose owner prints the tunnel-closed line after its clear gives usbDropped false', async () => {
+  const w = fakeWorld({ teardownLine: true });
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    const r = await owner.stop();
+    assert.equal(r.acked, true);
+    assert.ok(w.log.includes('tunnel transport closed'), 'the teardown line is in the log');
+    assert.equal(r.usbDropped, false);
+    assert.equal(owner.usbDropped(), false);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'pin-owner.json'), 'utf8')).usbDropped, false);
+    const next = new ConditionOwner({ dir, ...w.opts });
+    assert.equal(await next.recover({ read: () => 'Nominal' }), false);
+    assert.equal(w.spawned.length, 1);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a real drop mid-run gives usbDropped true, also after the owner has been stopped', async () => {
+  const w = fakeWorld({ teardownLine: true, ackOnTerm: false });
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    w.procs.clear();
+    w.log += TEARDOWN;
+    assert.equal(owner.usbDropped(), true);
+    const r = await owner.stop();
+    assert.equal(r.usbDropped, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});

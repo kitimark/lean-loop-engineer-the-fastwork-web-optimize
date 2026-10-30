@@ -476,11 +476,12 @@ theorem closeAct_iff (p : Phase) : closeAct p = .stopOwner ↔ p.mayBeAlive = tr
   cases p <;> simp [closeAct, Phase.mayBeAlive]
 
 inductive End where
-  | cleared | heatRemains | unread | unconfirmed | stuck
+  | cleared | heatRemains | unread | unconfirmed | stuck | clearedDrop
   deriving DecidableEq
 
 def End.name : End → String
   | .cleared => "cleared" | .heatRemains => "heatRemains" | .unread => "unread" | .unconfirmed => "unconfirmed" | .stuck => "stuck"
+  | .clearedDrop => "clearedDrop"
 
 def endVerdict (target : Thermal) (ownerGone acked : Bool) (back : Option Thermal) : End :=
   if ¬ ownerGone then .stuck
@@ -555,6 +556,125 @@ theorem mayKill_start {p : Nat} {a b : String} (h : a ≠ b) (q : Nat) : mayKill
 
 theorem mayKill_blank (p q : Nat) (b : String) : mayKill p q "" b = false := by
   simp [mayKill]
+
+def setWaitMaxS : Nat := 60
+
+inductive Term where
+  | gone | go | wait | late
+  deriving DecidableEq
+
+def Term.name : Term → String
+  | .gone => "gone" | .go => "go" | .wait => "wait" | .late => "late"
+
+def termGate (alive setAcked : Bool) (waitedS : Nat) : Term :=
+  if ¬ alive then .gone else if setAcked then .go else if waitedS < setWaitMaxS then .wait else .late
+
+theorem termGate_gone (a : Bool) (w : Nat) : termGate false a w = .gone := rfl
+
+theorem termGate_go_iff (al a : Bool) (w : Nat) : termGate al a w = .go ↔ al = true ∧ a = true := by
+  cases al <;> cases a <;> simp [termGate] <;> split <;> simp
+
+theorem termGate_no_early_term {w : Nat} (h : w < setWaitMaxS) : termGate true false w = .wait := by simp [termGate, h]
+
+theorem termGate_late {w : Nat} (h : setWaitMaxS ≤ w) : termGate true false w = .late := by
+  have : ¬ w < setWaitMaxS := by omega
+  simp [termGate, this]
+
+def droppedClear (target : Thermal) (before back : Option Thermal) : Bool :=
+  match before, back with
+  | some p, some b => decide (b = p) && decide (b.rank < target.rank)
+  | _, _ => false
+
+def endVerdictDrop (target : Thermal) (usbDropped ownerGone acked : Bool) (before back : Option Thermal) : End :=
+  if usbDropped && ownerGone && !acked && droppedClear target before back then .clearedDrop else endVerdict target ownerGone acked back
+
+def conditionSetDrop (target : Thermal) (usbDropped ownerGone acked : Bool) (before back : Option Thermal) : Bool :=
+  conditionSet ownerGone acked && !(usbDropped && ownerGone && !acked && droppedClear target before back)
+
+theorem endVerdict_ne_clearedDrop (t : Thermal) (g a : Bool) (b : Option Thermal) : endVerdict t g a b ≠ .clearedDrop := by
+  unfold endVerdict
+  split
+  · simp
+  · split
+    · simp
+    · split <;> try simp
+      split <;> simp
+
+theorem endVerdictDrop_iff (t : Thermal) (u g a : Bool) (p b : Option Thermal) :
+    endVerdictDrop t u g a p b = .clearedDrop ↔ u = true ∧ g = true ∧ a = false ∧ droppedClear t p b = true := by
+  unfold endVerdictDrop
+  split
+  · rename_i h
+    simp only [Bool.and_eq_true, Bool.not_eq_true'] at h
+    simp [h.1.1.1, h.1.1.2, h.1.2, h.2]
+  · rename_i h
+    simp only [Bool.and_eq_true, Bool.not_eq_true', not_and] at h
+    constructor
+    · intro e; exact absurd e (endVerdict_ne_clearedDrop t g a b)
+    · rintro ⟨h1, h2, h3, h4⟩
+      exact absurd h4 (by simpa [h1, h2, h3] using h)
+
+theorem endVerdictDrop_noUsb (t : Thermal) (g a : Bool) (p b : Option Thermal) : endVerdictDrop t false g a p b = endVerdict t g a b := by
+  simp [endVerdictDrop]
+
+theorem endVerdictDrop_acked (t : Thermal) (u g : Bool) (p b : Option Thermal) : endVerdictDrop t u g true p b = endVerdict t g true b := by
+  simp [endVerdictDrop]
+
+theorem endVerdictDrop_running (t : Thermal) (u a : Bool) (p b : Option Thermal) : endVerdictDrop t u false a p b = .stuck := by
+  simp [endVerdictDrop, endVerdict]
+
+theorem droppedClear_changed {t : Thermal} {p b : Thermal} (h : b ≠ p) : droppedClear t (some p) (some b) = false := by
+  simp [droppedClear, h]
+
+theorem droppedClear_hot {t : Thermal} {p : Thermal} (h : ¬ p.rank < t.rank) : droppedClear t (some p) (some p) = false := by
+  simp [droppedClear, h]
+
+theorem droppedClear_unread (t : Thermal) (p : Option Thermal) : droppedClear t p none = false := by cases p <;> rfl
+
+theorem droppedClear_unknown_before (t : Thermal) (b : Option Thermal) : droppedClear t none b = false := by cases b <;> rfl
+
+theorem conditionSetDrop_cleared {t : Thermal} {p b : Option Thermal} (h : droppedClear t p b = true) :
+    conditionSetDrop t true true false p b = false := by simp [conditionSetDrop, conditionSet, h]
+
+theorem conditionSetDrop_noUsb (t : Thermal) (g a : Bool) (p b : Option Thermal) : conditionSetDrop t false g a p b = conditionSet g a := by
+  simp [conditionSetDrop]
+
+def recoverActD (hasRecord alive acked d : Bool) : Recover :=
+  if hasRecord && !alive && !acked && d then .nothing else recoverAct hasRecord alive acked
+
+theorem recoverActD_dropped : recoverActD true false false true = .nothing := rfl
+
+theorem recoverActD_not_dropped (r l a : Bool) : recoverActD r l a false = recoverAct r l a := by simp [recoverActD]
+
+theorem recoverActD_alive (r a d : Bool) (h : r = true) : recoverActD r true a d = .stopOwner := by simp [recoverActD, recoverAct, h]
+
+def sessionWaitS : Nat := 330
+
+inductive Fallback where
+  | term | wait | recover
+  deriving DecidableEq
+
+def Fallback.name : Fallback → String
+  | .term => "term" | .wait => "wait" | .recover => "recover"
+
+def fallbackAct (sessionAlive sent : Bool) (sinceS : Nat) : Fallback :=
+  if ¬ sessionAlive then .recover
+  else if ¬ sent then .term
+  else if sinceS < sessionWaitS then .wait else .recover
+
+theorem fallbackAct_term_first (s : Nat) : fallbackAct true false s = .term := rfl
+
+theorem fallbackAct_gone (sent : Bool) (s : Nat) : fallbackAct false sent s = .recover := rfl
+
+theorem fallbackAct_wait {s : Nat} (h : s < sessionWaitS) : fallbackAct true true s = .wait := by simp [fallbackAct, h]
+
+theorem fallbackAct_give_up {s : Nat} (h : sessionWaitS ≤ s) : fallbackAct true true s = .recover := by
+  have : ¬ s < sessionWaitS := by omega
+  simp [fallbackAct, this]
+
+theorem fallbackAct_no_recover_while_live {s : Nat} (h : s < sessionWaitS) (sent : Bool) : fallbackAct true sent s ≠ .recover := by
+  cases sent <;> simp [fallbackAct, h]
+
 
 section Golden
 
@@ -675,7 +795,18 @@ private def pinLines (_ : Unit) : List String :=
   ([Thermal.serious, .fair].flatMap fun t => thCases.flatMap fun b => ([0, 299, 300] : List Nat).map fun w =>
     (Json.mkObj [("kind", "clearwait"), ("target", t.name), ("back", thJ b), ("waitedS", toJson w), ("wait", boolJ (clearWait t b w))]).compress) ++
   (killCases.map fun c =>
-    (Json.mkObj [("kind", "kill"), ("recPid", c.1), ("curPid", c.2.1), ("recStart", c.2.2.1), ("curStart", c.2.2.2), ("ok", boolJ (mayKill c.1 c.2.1 c.2.2.1 c.2.2.2))]).compress)
+    (Json.mkObj [("kind", "kill"), ("recPid", c.1), ("curPid", c.2.1), ("recStart", c.2.2.1), ("curStart", c.2.2.2), ("ok", boolJ (mayKill c.1 c.2.1 c.2.2.1 c.2.2.2))]).compress) ++
+  [(Json.mkObj [("kind", "dropconsts"), ("setWaitMaxS", setWaitMaxS), ("sessionWaitS", sessionWaitS)]).compress] ++
+  ([true, false].flatMap fun al => [true, false].flatMap fun a => ([0, 59, 60] : List Nat).map fun w =>
+    (Json.mkObj [("kind", "term"), ("alive", boolJ al), ("setAcked", boolJ a), ("waitedS", toJson w), ("gate", (termGate al a w).name)]).compress) ++
+  ([Thermal.serious, .fair].flatMap fun t => [true, false].flatMap fun u => [true, false].flatMap fun g => [true, false].flatMap fun a =>
+    [(some Thermal.nominal : Option Thermal), some .fair, none].flatMap fun p => thCases.map fun b =>
+    (Json.mkObj [("kind", "enddrop"), ("target", t.name), ("usbDropped", boolJ u), ("ownerGone", boolJ g), ("acked", boolJ a), ("before", thJ p), ("back", thJ b),
+      ("end", (endVerdictDrop t u g a p b).name), ("conditionSet", boolJ (conditionSetDrop t u g a p b))]).compress) ++
+  ([true, false].flatMap fun r => [true, false].flatMap fun l => [true, false].flatMap fun a => [true, false].map fun d =>
+    (Json.mkObj [("kind", "recoverd"), ("hasRecord", boolJ r), ("alive", boolJ l), ("acked", boolJ a), ("dropped", boolJ d), ("act", (recoverActD r l a d).name)]).compress) ++
+  ([true, false].flatMap fun al => [true, false].flatMap fun sent => ([0, 329, 330] : List Nat).map fun w =>
+    (Json.mkObj [("kind", "fallback"), ("sessionAlive", boolJ al), ("sent", boolJ sent), ("sinceS", toJson w), ("act", (fallbackAct al sent w).name)]).compress)
 
 def goldenLines (_ : Unit) : List String := baseLines () ++ pinLines ()
 
