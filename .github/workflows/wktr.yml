@@ -271,7 +271,7 @@ jobs:
           set -euo pipefail
           node packages/measure-wktr/src/accel-cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
-            --passes 1 --modes probe-v2p-thr-off --arms rs-flip-pbpoff,rs-flip-pbdn,rs-flip-pbpd,rs-flip-pbpdt,rs-idle-pbpd,rs-flip-pbphide,rs-flip-pbphidep,rs-flip-pbphidec,rs-flip-pbpd,rs-flip-pbpoff --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+            --passes 1 --modes probe-v2p-thr-off --arms rs-flip-pbpoff,rs-flip-pbdn,rs-flip-pbpd,rs-flip-pbpdt,rs-idle-pbpd,rs-flip-pbpft,rs-flip-pbpfh,rs-flip-pbphide,rs-flip-pbpd,rs-flip-pbpoff --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 
       # Toolbar gate (task toolbar-wktr-gate). Hook presence first: the symbols the gate calls exist in the pinned binary (hooks.json),
