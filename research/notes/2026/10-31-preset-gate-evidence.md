@@ -15,10 +15,14 @@ Playwright WebKit (run 41087718575, 147 readings; `10-31-park-attrib.md:23`). Me
   full flag set at that commit.
 - `waivers`: the members admitted before this rule that lack evidence, each with a reason.
 
-`status` (line 69): a member is **proved** when, on Chromium and on Playwright WebKit, the newest run whose flag set equals
+`status` (line 66): a member is **proved** when, on Chromium and on Playwright WebKit, the newest run whose flag set equals
 its admission set passes. Without that pair a waived member is **pending** with the waiver's reason. Any other member is
 **unproved**, and so is a member with no admission row or whose admission set lacks it. An unproved member, a waiver or
 admission of a non-member, or a waiver of a proved member makes `problems` non-empty and the check throws.
+
+`setProblems` (line 101) ties the admission sets of each preset to its current flag set: every admission set is a subset
+of it, one equals it, and every two are nested. A hand-typed row `<"v2-proved", X, sha, [X.key]>` for a new member is
+not nested with `[engine.scroll:unthrottle]`, so `Gen.run` throws before any run is read.
 
 ### Which flag set counts
 
@@ -33,16 +37,19 @@ so a later failing run of the same set withdraws the proof.
 
 | theorem | line | statement |
 |---|---|---|
-| `proved_evidence` | 240 | proved implies an admission row whose set holds the member, and on each engine a passing run of exactly that set that is the newest of that set |
-| `not_proved_of_no_admission` | 266 | no admission row, not proved |
-| `not_proved_of_no_run` | 282 | an admission set with no recorded run, not proved |
-| `problems_of_no_admission` | 303 | a member without an admission row fails the check, whatever the waivers |
-| `problems_of_no_pass` | 309 | an unwaived member without a passing pair fails the check |
-| `waivers_pinned` | 316 | the waivers are exactly the five pre-rule members below |
-| `status_of_*` | 207-232 | one theorem per branch of `status` |
+| `proved_evidence` | 237 | proved implies an admission row whose set holds the member, and on each engine a passing run of exactly that set that is the newest of that set |
+| `not_proved_of_no_admission` | 262 | no admission row, not proved |
+| `not_proved_of_no_run` | 277 | an admission set with no recorded run, not proved |
+| `problems_of_no_admission` | 295 | a member without an admission row fails the check, whatever the waivers |
+| `problems_of_no_pass` | 300 | an unwaived member without a passing pair fails the check |
+| `waivers_pinned` | 367 | the waivers are exactly the five pre-rule members below |
+| `status_of_*` | 210-235 | one theorem per branch of `status` |
+| `setProblems_of_outside`, `_of_no_full`, `_of_unnested` | 323, 330, 343 | one theorem per objection of `setProblems` |
+| `forged_single_fails` | 360 | an extra v2-proved row whose set is only a new member `X` fails `setProblems` |
 
-`Fw.Preset.Gen.gate_fails_of_new_v2` and `gate_fails_of_new_shipped` (`lean/Fw/Preset/Gen.lean:996`, `:1002`) apply this
+`Fw.Preset.Gen.gate_fails_of_new_v2` and `gate_fails_of_new_shipped` (`lean/Fw/Preset/Gen.lean:1003`, `:1009`) apply this
 to the generated presets: a new member without an admission row makes the list `run` throws on non-empty.
+`tie_fails_of_forged_v2` (`:998`) does the same for a forged single-flag row against the generated flag sets.
 
 ## Evidence per member
 
@@ -58,8 +65,8 @@ Admission sets come from `git log` of `packages/contracts/golden/preset/v2-prove
 | shipped | hero.exit:threaded | fb2934b2e | unthrottle, threaded | pending | as v2-proved |
 | shipped | platform:faded-pause | 9446c6407 | all three | pending | as v2-proved |
 
-Runs in the table (CONFIRMED with `gh run view` for head sha, branch and conclusion; engine verdicts from the merge job
-output as quoted in the cited notes):
+Runs in the table (CONFIRMED: `gh run view` for head sha, branch and conclusion; engine verdicts from each run's
+merge-job log):
 
 | run | head | `?fw=` | Chromium | Playwright WebKit | source |
 |---|---|---|---|---|---|
@@ -74,7 +81,7 @@ output as quoted in the cited notes):
   0bd2a50c6:apps/site/src/registry/presets/v2-proved.json`).
 - The shipped preset was created with threaded already in it, so its unthrottle admission set holds threaded. That is why
   unthrottle is proved in v2-proved and pending in shipped.
-- The verdict of 39774976109 comes from its task's handoff, not a re-read merge log.
+- The verdicts of all six runs were re-read from their merge-job logs (`gate verdict <engine>:` lines).
 
 ## Output
 
@@ -86,6 +93,8 @@ output as quoted in the cited notes):
 
 - The tables are Lean data written from the runs above; the gate merge job does not feed them yet.
 - Admission rows are written by hand from git history; the check cannot replay git (CI clones are shallow).
+  `setProblems` ties them to the generated flag sets, but two members added in one commit could still claim a nested
+  set between the earlier sets and the current one; that set holds every earlier member and needs its own passing run.
 - A waiver needs a Lean edit and a change to `waivers_pinned`, so it shows in review; the rule does not stop a reviewer
   from accepting one.
 - No preset changed. Whether threaded stays is the user's decision (console step threaded-look).

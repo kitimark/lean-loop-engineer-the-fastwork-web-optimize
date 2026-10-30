@@ -13,6 +13,8 @@ deriving DecidableEq, Repr
 inductive Verdict | pass | fail
 deriving DecidableEq, Repr
 
+/-- One engine verdict of one breakpoint-gate run; `flags` is the run's exact flag set: its `?fw=` keys, or the keys of
+its `?preset=` at the run's head sha. -/
 structure GateRun where
   run : Nat
   sha : String
@@ -33,6 +35,8 @@ structure Waiver where
   flag : Flag
   reason : String
 deriving DecidableEq, Repr
+
+def subset (a b : List String) : Bool := a.all b.contains
 
 def sameSet (a b : List String) : Bool := a.all b.contains && b.all a.contains
 
@@ -87,6 +91,21 @@ def problems (rs : List GateRun) (ads : List Admission) (ws : List Waiver) (ms :
     else none) ++
   (ads.filterMap fun a =>
     if isMember a.preset a.flag then none else some s!"admission for non-member {a.preset} {a.flag.key}")
+
+def unnested : List (List String) → List (List String × List String)
+  | [] => []
+  | s :: rest => (rest.filter fun t => !(subset s t || subset t s)).map (s, ·) ++ unnested rest
+
+/-- Objections to the admission sets of preset `p` against its current flag set `cur`: a set outside `cur`, no set equal
+to `cur`, or two sets not nested. -/
+def setProblems (ads : List Admission) (p : String) (cur : List String) : List String :=
+  let sets := (ads.filter (·.preset == p)).map (·.set)
+  (sets.filterMap fun s => if subset s cur then none else some s!"{p}: admission set {s} holds flags outside {cur}") ++
+  (if cur.isEmpty || sets.any (sameSet · cur) then [] else [s!"{p}: no admission set equals its flag set {cur}"]) ++
+  (unnested sets).map fun (s, t) => s!"{p}: admission sets {s} and {t} are not nested"
+
+def tieProblems (ads : List Admission) (ps : List (String × List String)) : List String :=
+  ps.flatMap fun (p, cur) => setProblems ads p cur
 
 /-! ## The tables -/
 
@@ -284,6 +303,67 @@ theorem problems_of_no_pass {rs : List GateRun} {ads : List Admission} {ws : Lis
     (hw : waiverOf ws p f = none) : problems rs ads ws ms ≠ [] :=
   problems_of_unproved hm (status_of_no_waiver h hc hn hw)
 
+theorem subset_refl (a : List String) : subset a a = true := by
+  simp [subset]
+
+theorem nested_of_unnested_nil : ∀ {l : List (List String)}, unnested l = [] →
+    ∀ s ∈ l, ∀ t ∈ l, (subset s t || subset t s) = true
+  | [], _, s, hs, _, _ => by simp at hs
+  | x :: rest, h, s, hs, t, ht => by
+    simp only [unnested, List.append_eq_nil_iff, List.map_eq_nil_iff, List.filter_eq_nil_iff] at h
+    simp only [List.mem_cons] at hs ht
+    rcases hs with rfl | hs <;> rcases ht with rfl | ht
+    · simp [subset_refl]
+    · have := h.1 t ht
+      revert this; cases subset s t <;> cases subset t s <;> simp
+    · have := h.1 s hs
+      revert this; cases subset s t <;> cases subset t s <;> simp
+    · exact nested_of_unnested_nil h.2 s hs t ht
+
+theorem setProblems_of_outside {ads : List Admission} {p : String} {cur : List String} {a : Admission} (ha : a ∈ ads)
+    (hp : a.preset = p) (hs : subset a.set cur = false) : setProblems ads p cur ≠ [] := by
+  intro he
+  simp only [setProblems, List.append_eq_nil_iff, List.filterMap_eq_nil_iff] at he
+  have := he.1.1 a.set (List.mem_map.mpr ⟨a, List.mem_filter.mpr ⟨ha, by simp [hp]⟩, rfl⟩)
+  simp [hs] at this
+
+theorem setProblems_of_no_full {ads : List Admission} {p : String} {cur : List String} (hc : cur ≠ [])
+    (h : ∀ a ∈ ads, a.preset = p → sameSet a.set cur = false) : setProblems ads p cur ≠ [] := by
+  intro he
+  simp only [setProblems, List.append_eq_nil_iff] at he
+  have h2 := he.1.2
+  split at h2
+  · rename_i hk
+    have hce : cur.isEmpty = false := by cases cur <;> simp_all
+    simp only [hce, Bool.false_or, List.any_eq_true, List.mem_map, List.mem_filter, beq_iff_eq] at hk
+    obtain ⟨_, ⟨a, ⟨ha, hp⟩, rfl⟩, hs⟩ := hk
+    simp [h a ha hp] at hs
+  · simp at h2
+
+theorem setProblems_of_unnested {ads : List Admission} {p : String} {cur : List String} {a b : Admission}
+    (ha : a ∈ ads) (hb : b ∈ ads) (hpa : a.preset = p) (hpb : b.preset = p) (hab : subset a.set b.set = false)
+    (hba : subset b.set a.set = false) : setProblems ads p cur ≠ [] := by
+  intro he
+  simp only [setProblems, List.append_eq_nil_iff, List.map_eq_nil_iff] at he
+  have := nested_of_unnested_nil he.2 a.set (List.mem_map.mpr ⟨a, List.mem_filter.mpr ⟨ha, by simp [hpa]⟩, rfl⟩)
+    b.set (List.mem_map.mpr ⟨b, List.mem_filter.mpr ⟨hb, by simp [hpb]⟩, rfl⟩)
+  simp [hab, hba] at this
+
+theorem tieProblems_of_mem {ads : List Admission} {ps : List (String × List String)} {p : String} {cur : List String}
+    (hm : (p, cur) ∈ ps) (h : setProblems ads p cur ≠ []) : tieProblems ads ps ≠ [] := by
+  intro he
+  simp only [tieProblems, List.flatMap_eq_nil_iff] at he
+  exact h (he _ hm)
+
+/-- A forged admission row naming only a new member `X` is not nested with the first `v2-proved` admission set, so the
+tie check fails whatever runs exist. -/
+theorem forged_single_fails {X : Flag} {sha : String} {cur : List String} (hx : X.key ≠ unthrottle.key) :
+    setProblems (admissions ++ [⟨"v2-proved", X, sha, [X.key]⟩]) "v2-proved" cur ≠ [] :=
+  setProblems_of_unnested
+    (a := ⟨"v2-proved", unthrottle, "8dae67ead587a268d3c5d49f6624bd2f6cf0af7a", [unthrottle.key]⟩)
+    (b := ⟨"v2-proved", X, sha, [X.key]⟩) (by simp [admissions]) (by simp) rfl rfl
+    (by simp [subset, Ne.symm hx]) (by simp [subset, hx])
+
 theorem waivers_pinned : waivers.map (fun w => (w.preset, w.flag.key)) =
     [("v2-proved", "hero.exit:threaded"), ("v2-proved", "platform:faded-pause"),
      ("shipped", "engine.scroll:unthrottle"), ("shipped", "hero.exit:threaded"),
@@ -320,6 +400,20 @@ private def members : List (String × Flag) :=
 #guard passOn runs [fadedPause.key] .webkit == some 40287895072
 #guard passOn (runs ++ [⟨41100000000, "x", .webkit, [threaded.key], .pass⟩]) [threaded.key] .webkit == some 41100000000
 #guard passOn (runs ++ [⟨41000000000, "x", .webkit, [threaded.key], .pass⟩]) [threaded.key] .webkit == none
+#guard tieProblems admissions [("v2-proved", [unthrottle.key, threaded.key, fadedPause.key]),
+  ("shipped", [unthrottle.key, threaded.key, fadedPause.key])] == []
+#guard setProblems (admissions ++ [⟨"v2-proved", ⟨"nav.earn", "x"⟩, "0", ["nav.earn:x"]⟩]) "v2-proved"
+  [unthrottle.key, threaded.key, fadedPause.key, "nav.earn:x"] ==
+  ["v2-proved: no admission set equals its flag set " ++
+     "[engine.scroll:unthrottle, hero.exit:threaded, platform:faded-pause, nav.earn:x]",
+   "v2-proved: admission sets [engine.scroll:unthrottle] and [nav.earn:x] are not nested",
+   "v2-proved: admission sets [engine.scroll:unthrottle, hero.exit:threaded] and [nav.earn:x] are not nested",
+   "v2-proved: admission sets [engine.scroll:unthrottle, hero.exit:threaded, platform:faded-pause] and " ++
+     "[nav.earn:x] are not nested"]
+#guard setProblems admissions "v2-proved" [unthrottle.key, threaded.key] ==
+  ["v2-proved: admission set [engine.scroll:unthrottle, hero.exit:threaded, platform:faded-pause] holds flags " ++
+     "outside [engine.scroll:unthrottle, hero.exit:threaded]"]
+#guard setProblems [] "v2-proved" [] == []
 #guard sameSet [threaded.key, unthrottle.key] [unthrottle.key, threaded.key]
 #guard !sameSet [threaded.key] [unthrottle.key, threaded.key]
 

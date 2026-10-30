@@ -992,6 +992,15 @@ def goldenGateEvidence : System.FilePath :=
 def presetMembers (p sp : List Flag) : List (String × Flag) :=
   p.map ("v2-proved", ·) ++ sp.map ("shipped", ·)
 
+def presetSets (p sp : List Flag) : List (String × List String) :=
+  [("v2-proved", p.map (·.key)), ("shipped", sp.map (·.key))]
+
+theorem tie_fails_of_forged_v2 {p sp : List Flag} {X : Flag} {sha : String}
+    (hx : X.key ≠ GateEvidence.unthrottle.key) :
+    GateEvidence.tieProblems (GateEvidence.admissions ++ [⟨"v2-proved", X, sha, [X.key]⟩]) (presetSets p sp) ≠ [] :=
+  GateEvidence.tieProblems_of_mem (p := "v2-proved") (cur := p.map (·.key)) (by simp [presetSets])
+    (GateEvidence.forged_single_fails hx)
+
 theorem gate_fails_of_new_v2 {reg : List Reg} {ledger : List Row} {st : List Stored} {sp : List Flag} {f : Flag}
     (hf : f ∈ preset reg links ledger st) (h : GateEvidence.admissionOf GateEvidence.admissions "v2-proved" f = none) :
     GateEvidence.problems GateEvidence.runs GateEvidence.admissions GateEvidence.waivers
@@ -1049,6 +1058,8 @@ def run (args : List String) : IO Unit := do
   unless (refusedMembers lookDecisions p).isEmpty do
     throw (IO.userError s!"refused flags in v2-proved: {(refusedMembers lookDecisions p).map (·.key)}")
   let ms := presetMembers p sp
+  let tieBad := GateEvidence.tieProblems GateEvidence.admissions (presetSets p sp)
+  unless tieBad.isEmpty do throw (IO.userError s!"preset gate evidence: admission sets off the flag sets: {tieBad}")
   let gateBad := GateEvidence.problems GateEvidence.runs GateEvidence.admissions GateEvidence.waivers ms
   unless gateBad.isEmpty do throw (IO.userError s!"preset gate evidence (Fw.Preset.GateEvidence): {gateBad}")
   for (pn, f) in ms do
