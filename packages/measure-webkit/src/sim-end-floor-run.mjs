@@ -26,7 +26,9 @@ export async function runEndFloor({ siteDir, rounds = 3, settleMs = 2500, onProg
 
   const oneArm = async (ctx, id) => {
     ctx.setArm(id);
-    await ctx.c.evaluate(`history.replaceState(null, '', '/'); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
+    // the page resolves its config from location.search at run time, so the reload must carry the arm's query; the server answers "/" with the arm's HTML
+    const search = ARMS.find((a) => a.id === id).search;
+    await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
     meta.ua = info.ua;
@@ -36,7 +38,7 @@ export async function runEndFloor({ siteDir, rounds = 3, settleMs = 2500, onProg
     let page;
     try { page = await ctx.c.runAsync(endFloorJs({ settleMs }), { pollMs: 1000, timeoutMs: T(180000) }); } catch (e) { await tl.stop().catch(() => {}); throw e; }
     const rows = await tl.stop();
-    const arm = { config: info.fw?.configHash ?? null, mode: info.fw?.mode ?? null, hydrated: info.fw?.hydrated ?? null, maxY: page.maxY, anims: page.anims };
+    const arm = { config: info.fw?.configHash ?? null, mode: info.fw?.mode ?? null, hydrated: info.fw?.hydrated ?? null, maxY: page.maxY, anims: page.anims, animsBack: page.animsBack, animsPaused: page.animsPaused };
     for (const stage of STAGES) arm[stage] = { ...windowOf(rows, stage, page[stage].raf), cls: page[stage].cls, y: page[stage].y, pageMs: page[stage].pageMs };
     return arm;
   };
@@ -58,7 +60,7 @@ export async function runEndFloor({ siteDir, rounds = 3, settleMs = 2500, onProg
             }
           }
           r.arms[id] = got;
-          log(`end-floor round ${round + 1} ${id}: ${STAGES.map((s) => `${s} raf ${got[s].raf} rendered ${got[s].rendered} recalcs ${got[s].recalcs}`).join('; ')}`);
+          log(`end-floor round ${round + 1} ${id}: ${STAGES.map((s) => `${s} raf ${got[s].raf} seen ${got[s].seen} recalcs ${got[s].recalcs}`).join('; ')}`);
           onProgress?.(snapshot());
         }
         onRound?.(round + 1, rounds, snapshot());

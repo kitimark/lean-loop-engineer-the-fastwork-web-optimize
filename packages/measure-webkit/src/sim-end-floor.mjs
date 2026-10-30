@@ -1,13 +1,13 @@
 // sim-end-floor: the end-of-page idle style-recalc rate per arm on the iOS Simulator (task sim-end-floor).
 //
-// TS STAND-IN of lean/Fw/Device/SimEndFloor.lean: BAND, WIN_RAF, MIN_RENDERED, MIN_ROUNDS, rate, readable, flagV, pair, cmp and the
+// TS STAND-IN of lean/Fw/Device/SimEndFloor.lean: BAND, WIN_RAF, MIN_SEEN, MIN_ROUNDS, rate, readable, flagV, pair, cmp and the
 // overall lines are checked against packages/contracts/golden/device/sim-end-floor.jsonl (test/sim-end-floor.test.mjs). The page script
 // and the Timeline tally only count; they decide nothing.
 import { markTime } from './reduce.mjs';
 
 export const BAND = 10;
 export const WIN_RAF = 360;
-export const MIN_RENDERED = 288;
+export const MIN_SEEN = 288;
 export const MIN_ROUNDS = 2;
 
 const V2P = 'engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause';
@@ -18,13 +18,16 @@ export const ARMS = Object.freeze([
   { id: 'minusT', fw: 'engine.scroll:unthrottle,platform:faded-pause', search: '?fw=engine.scroll:unthrottle,platform:faded-pause' },
   { id: 'minusU', fw: 'hero.exit:threaded,platform:faded-pause', search: '?fw=hero.exit:threaded,platform:faded-pause' },
 ]);
-/** The two reads of one load: at the end of the page after the jump there settled (`end`), and after a scroll up by one viewport and back to the end settled (`back`). */
-export const STAGES = Object.freeze(['end', 'back']);
+/**
+ * The reads of one load: at the end of the page after the jump there settled (`end`, the pinned unit), after a scroll up by one viewport and back to the
+ * end settled (`back`), and with every document animation paused (`paused`, a diagnostic: whether animations carry the floor).
+ */
+export const STAGES = Object.freeze(['end', 'back', 'paused']);
 /** The `--config` queries the site build needs (the default config is always built). */
 export const BUILD_SEARCHES = Object.freeze(ARMS.filter((a) => a.search !== '').map((a) => a.search));
 
 export const rate = (w) => (w.raf === 0 ? 0 : Math.floor((w.recalcs * 100) / w.raf));
-export const readable = (w) => w.raf === WIN_RAF && MIN_RENDERED <= w.rendered;
+export const readable = (w) => w.raf === WIN_RAF && MIN_SEEN <= w.seen;
 
 export function flagV(full, minusF, base) {
   if (!(readable(full) && readable(minusF) && readable(base))) return 'unreadable';
@@ -76,9 +79,9 @@ export function windowOf(rows, stage, raf) {
   const a = markTime(rows, `ef:a-${stage}`);
   const b = markTime(rows, `ef:b-${stage}`);
   const t = Object.fromEntries(TALLY.map((k) => [k, 0]));
-  if (a === null || b === null || !(b > a)) return { raf, rendered: 0, recalcs: 0, marks: false, tally: t, spanMs: null };
+  if (a === null || b === null || !(b > a)) return { raf, seen: 0, recalcs: 0, marks: false, tally: t, spanMs: null };
   for (const [type, start] of rows) if (type in t && start >= a && start < b) t[type]++;
-  return { raf, rendered: t.RenderingFrame, recalcs: t.RecalculateStyles, marks: true, tally: t, spanMs: Math.round((b - a) * 1000) };
+  return { raf, seen: t.FireAnimationFrame, recalcs: t.RecalculateStyles, marks: true, tally: t, spanMs: Math.round((b - a) * 1000) };
 }
 
 /** The in-page script of one load: scroll to the end, settle, read the `end` window, go up one viewport and back, settle, read the `back` window, then list the animations. */
@@ -96,9 +99,23 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500 } = {
     return { raf: n, pageMs: Math.round(b - a), cls: root.className, y: Math.round(scrollY) };
   };
   const out = {};
+  const kind = (t) => (!t ? 'none' : window.ViewTimeline && t instanceof ViewTimeline ? 'view' : window.ScrollTimeline && t instanceof ScrollTimeline ? 'scroll' : 'document');
+  const desc = (e) => (e ? (e.tagName || '?').toLowerCase() + (e.id ? '#' + e.id : '') + (typeof e.className === 'string' && e.className ? '.' + e.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') : '-').slice(0, 48);
+  const census = () => {
+    const an = document.getAnimations();
+    const by = {};
+    const running = [];
+    for (const a of an) {
+      const k = kind(a.timeline) + ':' + a.playState;
+      by[k] = (by[k] || 0) + 1;
+      if (a.playState === 'running' && running.length < 24) running.push([kind(a.timeline), a.animationName || a.transitionProperty || a.id || '', desc(a.effect && a.effect.target)]);
+    }
+    return { total: an.length, by, running, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
+  };
   scrollTo({ top: root.scrollHeight - innerHeight, behavior: 'instant' });
   await frame(); await frame();
   await sleep(${settleMs});
+  out.anims = census();
   out.end = await win('end');
   scrollTo({ top: Math.max(0, root.scrollHeight - 2 * innerHeight), behavior: 'instant' });
   await frame(); await frame();
@@ -107,16 +124,20 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500 } = {
   await frame(); await frame();
   await sleep(${settleMs});
   out.back = await win('back');
-  const kind = (t) => (!t ? 'none' : window.ViewTimeline && t instanceof ViewTimeline ? 'view' : window.ScrollTimeline && t instanceof ScrollTimeline ? 'scroll' : 'document');
-  const an = document.getAnimations();
-  const by = {};
-  for (const a of an) { const k = kind(a.timeline) + ':' + a.playState; by[k] = (by[k] || 0) + 1; }
-  out.anims = { total: an.length, by, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
+  out.animsBack = census();
+  for (const a of document.getAnimations()) { try { a.pause(); } catch (e) { /* not pausable */ } }
+  await frame(); await frame();
+  await sleep(${backMs});
+  out.paused = await win('paused');
+  out.animsPaused = census();
   out.maxY = Math.round(root.scrollHeight - innerHeight);
   return out;
 })()`;
 
-/** The rows file: one line per round, arm and stage. */
+const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
+const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}` : 'no census');
+
+/** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
 export function rowLines(raw) {
   const out = [];
   for (const r of raw.rounds) {
@@ -125,8 +146,12 @@ export function rowLines(raw) {
         const w = r.arms[a.id]?.[stage];
         if (!w) { out.push(`round ${r.round} ${stage} ${a.id}: unread`); continue; }
         const t = w.tally;
-        out.push(`round ${r.round} ${stage} ${a.id}: raf ${w.raf} rendered ${w.rendered} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} rafFire ${t.FireAnimationFrame}) html "${w.cls ?? ''}" y ${w.y ?? '-'} anims ${JSON.stringify(r.arms[a.id].anims ?? null)}`);
+        out.push(`round ${r.round} ${stage} ${a.id}: raf ${w.raf} seen ${w.seen} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} renderingFrame ${t.RenderingFrame}) span ${w.spanMs ?? '-'} ms html "${w.cls ?? ''}" y ${w.y ?? '-'}`);
       }
+    }
+    for (const a of ARMS) {
+      const arm = r.arms[a.id];
+      if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
     }
   }
   return out;
@@ -135,13 +160,13 @@ export function rowLines(raw) {
 /** The verdict file: per stage and round the flag verdicts, the pair and the WKTR comparison, then the overall lines. */
 export function verdictLines(raw) {
   const out = [];
-  out.push(`sim-end-floor band ${BAND} per 100, window ${WIN_RAF} rAF callbacks, rendered frames at least ${MIN_RENDERED}, rounds ${raw.rounds.length}`);
+  out.push(`sim-end-floor band ${BAND} per 100, window ${WIN_RAF} rAF callbacks, seen rAF callbacks at least ${MIN_SEEN}, rounds ${raw.rounds.length}`);
   const meta = raw.meta ?? {};
   out.push(`runtime ${meta.runtime ?? '-'} ua ${meta.ua ?? '-'}`);
   for (const stage of STAGES) {
     const per = [];
     for (const r of raw.rounds) {
-      const arm = (id) => r.arms[id]?.[stage] ?? { raf: 0, rendered: 0, recalcs: 0 };
+      const arm = (id) => r.arms[id]?.[stage] ?? { raf: 0, seen: 0, recalcs: 0 };
       const v = roundVerdict({ base: arm('base'), v2p: arm('v2p'), minusT: arm('minusT'), minusU: arm('minusU') });
       per.push(v);
       out.push(`${stage} round ${r.round}: rates base ${rate(arm('base'))} v2p ${rate(arm('v2p'))} minusT ${rate(arm('minusT'))} minusU ${rate(arm('minusU'))}; hero.exit:threaded ${v.threaded}; engine.scroll:unthrottle ${v.unthrottle}; pair ${v.pair}; vs WKTR ${v.cmp}`);

@@ -1,20 +1,20 @@
-{"band":10,"kind":"consts","minRendered":288,"minRounds":2,"winRaf":360}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":100,"recalcs":100,"rendered":100},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"raf differs","rate":100,"verdict":"unreadable"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":100},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"too few rendered","rate":100,"verdict":"unreadable"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":36,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"no floor","rate":10,"verdict":"noFloor"}
-{"base":{"raf":360,"recalcs":360,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"base keeps a floor","rate":100,"verdict":"baseFloor"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":3,"rendered":360},"name":"carries","rate":100,"verdict":"carries"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":39,"rendered":360},"name":"minusF at the band","rate":100,"verdict":"carries"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":40,"rendered":360},"name":"minusF one above the band","rate":100,"verdict":"partial"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":180,"rendered":360},"name":"partial","rate":100,"verdict":"partial"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":321,"rendered":360},"name":"partial one over the band","rate":100,"verdict":"partial"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":360,"rendered":360},"name":"none","rate":100,"verdict":"none"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":324,"rendered":360},"name":"none at the margin","rate":100,"verdict":"none"}
-{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":327,"rendered":360},"name":"none below the margin","rate":100,"verdict":"none"}
-{"base":{"raf":360,"recalcs":0,"rendered":360},"full":{"raf":360,"recalcs":39,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"full at the band","rate":10,"verdict":"noFloor"}
-{"base":{"raf":360,"recalcs":0,"rendered":360},"full":{"raf":360,"recalcs":40,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"full one above the band","rate":11,"verdict":"carries"}
-{"base":{"raf":360,"recalcs":39,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"base at the band","rate":100,"verdict":"carries"}
-{"base":{"raf":360,"recalcs":40,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"base one above the band","rate":100,"verdict":"baseFloor"}
+{"band":10,"kind":"consts","minRounds":2,"minSeen":288,"winRaf":360}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":100,"recalcs":100,"seen":100},"kind":"flag","minusF":{"raf":360,"recalcs":36,"seen":360},"name":"raf differs","rate":100,"verdict":"unreadable"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":100},"kind":"flag","minusF":{"raf":360,"recalcs":36,"seen":360},"name":"too few seen","rate":100,"verdict":"unreadable"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":36,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"seen":360},"name":"no floor","rate":10,"verdict":"noFloor"}
+{"base":{"raf":360,"recalcs":360,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"seen":360},"name":"base keeps a floor","rate":100,"verdict":"baseFloor"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":3,"seen":360},"name":"carries","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":39,"seen":360},"name":"minusF at the band","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":40,"seen":360},"name":"minusF one above the band","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":180,"seen":360},"name":"partial","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":321,"seen":360},"name":"partial one over the band","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":360,"seen":360},"name":"none","rate":100,"verdict":"none"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":324,"seen":360},"name":"none at the margin","rate":100,"verdict":"none"}
+{"base":{"raf":360,"recalcs":3,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":327,"seen":360},"name":"none below the margin","rate":100,"verdict":"none"}
+{"base":{"raf":360,"recalcs":0,"seen":360},"full":{"raf":360,"recalcs":39,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"seen":360},"name":"full at the band","rate":10,"verdict":"noFloor"}
+{"base":{"raf":360,"recalcs":0,"seen":360},"full":{"raf":360,"recalcs":40,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"seen":360},"name":"full one above the band","rate":11,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":39,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"seen":360},"name":"base at the band","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":40,"seen":360},"full":{"raf":360,"recalcs":360,"seen":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"seen":360},"name":"base one above the band","rate":100,"verdict":"baseFloor"}
 {"kind":"pair","name":"unreadable first","threaded":"unreadable","unthrottle":"none","verdict":"unreadable"}
 {"kind":"pair","name":"unreadable second","threaded":"none","unthrottle":"unreadable","verdict":"unreadable"}
 {"kind":"pair","name":"no floor","threaded":"noFloor","unthrottle":"noFloor","verdict":"noFloor"}

@@ -6,7 +6,9 @@ import Fw.Device.EndFloorDirty
 Four arms are read in one round on the Simulator: `base` (no flags), `v2p` (v2-proved), `minusT` (v2p without `hero.exit:threaded`) and
 `minusU` (v2p without `engine.scroll:unthrottle`). One window of an arm is the same count of `requestAnimationFrame` callbacks (`winRaf`)
 at the end of the page; its recalcs are the `RecalculateStyles` records the Web Inspector Timeline holds between two page marks, and its
-rendered frames are the `RenderingFrame` records between the same marks. The rate is recalcs per 100 rAF callbacks. -/
+seen callbacks are the `FireAnimationFrame` records between the same marks (the page's own callbacks: a window whose Timeline lost records is
+not read; `RenderingFrame` reads 0 on iOS 27.0 24A434, docs/report/v2-report.md, so it cannot be the frame count). The rate is recalcs per 100 rAF
+callbacks. -/
 namespace Fw.Device.SimEndFloor
 
 open Lean Fw.Device.EndWktr Fw.Device.EndFloorDirty
@@ -19,30 +21,30 @@ theorem band_eq : band = floorBand := rfl
 /-- rAF callbacks in every window: equal for all arms by construction. -/
 def winRaf : Nat := 360
 
-/-- Rendering frames the Timeline must show in a window for it to count as read (the Timeline did not drop its records). -/
-def minRendered : Nat := EndFloorDirty.minFrames
+/-- rAF callbacks the Timeline must show in a window for it to count as read (the Timeline did not drop its records). -/
+def minSeen : Nat := EndFloorDirty.minFrames
 
-theorem minRendered_le_winRaf : minRendered ≤ winRaf := by decide
+theorem minSeen_le_winRaf : minSeen ≤ winRaf := by decide
 
 /-- Rounds a verdict needs (`EndWktr.minValid`). -/
 def minRounds : Nat := minValid
 
-/-- One window of one arm: rAF callbacks, `RenderingFrame` records and `RecalculateStyles` records. -/
+/-- One window of one arm: rAF callbacks the page counted, `FireAnimationFrame` records the Timeline shows, and its `RecalculateStyles` records. -/
 structure Win where
   raf : Nat
-  rendered : Nat
+  seen : Nat
   recalcs : Nat
   deriving DecidableEq, Repr
 
 def Win.rate (w : Win) : Nat := if w.raf = 0 then 0 else w.recalcs * 100 / w.raf
 
-def Win.readable (w : Win) : Bool := w.raf == winRaf && minRendered ≤ w.rendered
+def Win.readable (w : Win) : Bool := w.raf == winRaf && minSeen ≤ w.seen
 
 theorem readable_raf (w : Win) (h : w.readable = true) : w.raf = winRaf := by
   simp [Win.readable] at h
   exact h.1
 
-theorem readable_rendered (w : Win) (h : w.readable = true) : minRendered ≤ w.rendered := by
+theorem readable_seen (w : Win) (h : w.readable = true) : minSeen ≤ w.seen := by
   simp [Win.readable] at h
   exact h.2
 
@@ -226,10 +228,10 @@ theorem overallPair_inconclusive (ps : List Pair) (h : (ps.filter fun p => p != 
     overallPair ps = "inconclusive" := by
   simpa [overallPair] using overallNames_inconclusive _ (by simpa [minRounds] using h)
 
-private def w (rendered recalcs : Nat) : Win := ⟨winRaf, rendered, recalcs⟩
+private def w (seen recalcs : Nat) : Win := ⟨winRaf, seen, recalcs⟩
 
 private def flagCases : List (String × Win × Win × Win) :=
-  [("raf differs", ⟨100, 100, 100⟩, w 360 36, w 360 3), ("too few rendered", w 100 360, w 360 36, w 360 3),
+  [("raf differs", ⟨100, 100, 100⟩, w 360 36, w 360 3), ("too few seen", w 100 360, w 360 36, w 360 3),
    ("no floor", w 360 36, w 360 36, w 360 3), ("base keeps a floor", w 360 360, w 360 36, w 360 360),
    ("carries", w 360 360, w 360 3, w 360 3), ("minusF at the band", w 360 360, w 360 39, w 360 3),
    ("minusF one above the band", w 360 360, w 360 40, w 360 3), ("partial", w 360 360, w 360 180, w 360 3),
@@ -255,12 +257,12 @@ private def overallPairCases : List (String × List Pair) :=
 
 private def pairNames : List Pair := [.unreadable, .noFloor, .baseFloor, .threaded, .unthrottle, .both, .sharedOrOther, .mixed]
 
-private def wJ (x : Win) : Json := Json.mkObj [("raf", x.raf), ("rendered", x.rendered), ("recalcs", x.recalcs)]
+private def wJ (x : Win) : Json := Json.mkObj [("raf", x.raf), ("seen", x.seen), ("recalcs", x.recalcs)]
 
 private def flagJ (v : FlagV) : Json := Json.str v.name
 
 def goldenLines (_ : Unit) : List String :=
-  [(Json.mkObj [("kind", "consts"), ("band", band), ("winRaf", winRaf), ("minRendered", minRendered), ("minRounds", minRounds)]).compress] ++
+  [(Json.mkObj [("kind", "consts"), ("band", band), ("winRaf", winRaf), ("minSeen", minSeen), ("minRounds", minRounds)]).compress] ++
   (flagCases.map fun (n, f, m, b) =>
     (Json.mkObj [("kind", "flag"), ("name", n), ("full", wJ f), ("minusF", wJ m), ("base", wJ b), ("rate", f.rate),
       ("verdict", Json.str (flagV f m b).name)]).compress) ++

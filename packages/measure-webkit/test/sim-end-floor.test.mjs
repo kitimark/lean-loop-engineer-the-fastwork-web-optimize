@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ARMS, BAND, BUILD_SEARCHES, MIN_RENDERED, MIN_ROUNDS, STAGES, WIN_RAF, cmp, endFloorJs, flagV, overallFlag, overallPair, pair, rate, rowLines, verdictLines, windowOf,
+  ARMS, BAND, BUILD_SEARCHES, MIN_SEEN, MIN_ROUNDS, STAGES, WIN_RAF, cmp, endFloorJs, flagV, overallFlag, overallPair, pair, rate, rowLines, verdictLines, windowOf,
 } from '../src/sim-end-floor.mjs';
 import { armTrees, rotate } from '../src/sim-end-floor-run.mjs';
 import { canonSearch } from '../../contracts/src/flag-key.mjs';
@@ -17,7 +17,7 @@ test('constants equal the Lean consts line', () => {
   const k = of('consts')[0];
   assert.equal(BAND, k.band);
   assert.equal(WIN_RAF, k.winRaf);
-  assert.equal(MIN_RENDERED, k.minRendered);
+  assert.equal(MIN_SEEN, k.minSeen);
   assert.equal(MIN_ROUNDS, k.minRounds);
 });
 
@@ -64,14 +64,15 @@ test('windowOf counts only rows between the two marks of the stage', () => {
   const rows = [
     ['RecalculateStyles', 0.5, 0.51, null],
     ['TimeStamp', 1, null, 'ef:a-end'],
-    ['RecalculateStyles', 1.1, 1.11, null], ['RenderingFrame', 1.1, 1.12, null],
-    ['RecalculateStyles', 1.2, 1.21, null], ['RenderingFrame', 1.2, 1.22, null], ['Layout', 1.2, 1.21, null],
+    ['RecalculateStyles', 1.1, 1.11, null], ['FireAnimationFrame', 1.1, 1.12, null],
+    ['RecalculateStyles', 1.2, 1.21, null], ['FireAnimationFrame', 1.2, 1.22, null], ['Layout', 1.2, 1.21, null], ['RenderingFrame', 1.2, 1.22, null],
     ['TimeStamp', 2, null, 'ef:b-end'],
     ['RecalculateStyles', 2.1, 2.11, null],
   ];
   const w = windowOf(rows, 'end', 360);
   assert.equal(w.recalcs, 2);
-  assert.equal(w.rendered, 2);
+  assert.equal(w.seen, 2);
+  assert.equal(w.tally.RenderingFrame, 1);
   assert.equal(w.tally.Layout, 1);
   assert.equal(w.raf, 360);
   assert.equal(w.marks, true);
@@ -81,7 +82,7 @@ test('windowOf counts only rows between the two marks of the stage', () => {
   assert.equal(none.recalcs, 0);
 });
 
-test('endFloorJs is a well-formed async expression that reads both stages', () => {
+test('endFloorJs is a well-formed async expression that reads all stages', () => {
   const src = endFloorJs();
   assert.doesNotThrow(() => new Function(`return ${src};`));
   for (const s of STAGES) assert.match(src, new RegExp(`win\\('${s}'\\)`));
@@ -89,14 +90,15 @@ test('endFloorJs is a well-formed async expression that reads both stages', () =
 });
 
 test('report lines: rows and verdicts are derived from the raw windows only', () => {
-  const w = (rendered, recalcs, raf = WIN_RAF) => ({ raf, rendered, recalcs, marks: true, spanMs: 6000, cls: 'x', y: 7, tally: { Layout: 0, Paint: 0, Composite: 0, ScheduleStyleRecalculation: 0, FireAnimationFrame: raf } });
-  const arms = (b, v, t, u) => Object.fromEntries([['base', b], ['v2p', v], ['minusT', t], ['minusU', u]].map(([id, n]) => [id, { end: w(360, n), back: w(360, n), anims: null }]));
+  const w = (seen, recalcs, raf = WIN_RAF) => ({ raf, seen, recalcs, marks: true, spanMs: 6000, cls: 'x', y: 7, tally: { Layout: 0, Paint: 0, Composite: 0, ScheduleStyleRecalculation: 0, RenderingFrame: 0, FireAnimationFrame: raf } });
+  const arms = (b, v, t, u) => Object.fromEntries([['base', b], ['v2p', v], ['minusT', t], ['minusU', u]].map(([id, n]) => [id, { end: w(360, n), back: w(360, n), paused: w(360, 0), anims: { total: 1, by: { 'document:running': 1 }, running: [['document', 'x', 'div']] } }]));
   const raw = { meta: { runtime: 'rt', ua: 'ua' }, rounds: [{ round: 1, arms: arms(0, 360, 360, 360) }, { round: 2, arms: arms(0, 360, 360, 360) }] };
   const verdict = verdictLines(raw);
   assert.ok(verdict.some((l) => l === 'end overall pair: sharedOrOther'));
   assert.ok(verdict.some((l) => l === 'end overall vs WKTR: same'));
   assert.ok(verdict.some((l) => l === 'back overall hero.exit:threaded: none'));
-  assert.equal(rowLines(raw).length, 2 * STAGES.length * ARMS.length);
+  assert.equal(rowLines(raw).length, 2 * STAGES.length * ARMS.length * 2);
+  assert.ok(rowLines(raw).some((l) => l.includes('census: 1 animations')));
   const cut = { rounds: [{ round: 1, arms: arms(0, 360, 0, 360) }, { round: 2, arms: arms(0, 360, 0, 360) }] };
   const v2 = verdictLines(cut);
   assert.ok(v2.some((l) => l === 'end overall pair: threaded'));
