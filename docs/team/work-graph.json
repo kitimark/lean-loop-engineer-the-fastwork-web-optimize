@@ -24217,6 +24217,75 @@
     "docs/team/handoffs/end-floor-writes.md"
    ],
    "evidence": "d539d0e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-floor-note",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-floor-writes",
+    "claim-lint"
+   ],
+   "title": "Text follow-ups split from end-floor-writes (3rd refusal): range endpoints named by job, the non-empty hypothesis in the rate_one_per_frame paraphrase, why this lane's floor is above end-wktr-flip's (flags and harness options), data-fw-morph selector use.",
+   "writes": [
+    "research/notes/2026/10-2x-end-floor-writes.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-floor-note.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-floor-window",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-floor-writes"
+   ],
+   "title": "CI follow-up split from end-floor-writes: a frame-count-pinned window arm so j2's per-writer cuts compare like with like; run or remove floor-fp-thr-off; add platform#data-fw-scene to a silenced set.",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "results/end-floor-window/**",
+    "research/notes/2026/10-2x-end-floor-window.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-floor-window.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "flip-accel-webkit",
+   "owner": "part-builder",
+   "stream": "experiment",
+   "deps": [
+    "end-floor-writes"
+   ],
+   "title": "End of page on WebKit: the remaining floor is the flip's own running animation tracks (end-floor-writes). Make the end-of-page flip run accelerated-only (transform/opacity, no geom/layout tracks) so WebKit composites it without a style recalc per frame; same look proved in Lean, measured on WKTR.",
+   "writes": [
+    "apps/site/src/parts/morph.geom/**",
+    "apps/site/src/parts/morph.end.flip/**",
+    "apps/site/src/parts/morph.tween/**",
+    "lean/Fw/Parts/FlipAccel*.lean",
+    "lean/scripts/FlipAccel*Golden.lean",
+    "packages/contracts/golden/parts/flip-accel*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "results/flip-accel-webkit/**",
+    "research/notes/2026/10-30-flip-accel-webkit.md",
+    "research/findings/ledger.json",
+    "apps/runner/src/land.ts",
+    "docs/team/handoffs/flip-accel-webkit.md"
+   ]
   }
  ],
  "deadline": {
