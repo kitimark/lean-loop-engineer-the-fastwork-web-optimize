@@ -15,6 +15,7 @@ import { glintCompositorLines } from './glint-compositor.mjs';
 import { jobLinesE } from './end-wktr.mjs';
 import { FLOOR_ARMS, FLOOR_OPTS, QSETS, jobLinesF } from './end-floor.mjs';
 import { ARMS as PROBE_ARMS, jobLinesP } from './end-floor-probe.mjs';
+import { jobLinesD } from './end-floor-dirty.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -141,6 +142,7 @@ async function main() {
           }
           if (isProbe(mode)) {
             try { for (const l of jobLinesP(`${v.label} ${mode} pass ${p}`, got.report).lines) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: probe summary failed ${String(e.message).slice(0, 120)}`); }
+            try { for (const l of jobLinesD(`${v.label} ${mode} pass ${p}`, got.report).lines) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: dirty summary failed ${String(e.message).slice(0, 120)}`); }
           }
           if (isEnd(mode)) {
             endReports.set(`${END_KEY(mode)}:${p}`, got.report);

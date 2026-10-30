@@ -1,0 +1,40 @@
+{"carrierShare":90,"documentShare":90,"floorBand":10,"kind":"consts","minFrames":288,"skipFrames":8}
+{"bare":0,"groups":[[287,1,["e:a"]]],"hit":287,"kind":"verdict","name":"short reading","name2":"unread","rate":100,"top":"e:a","verdict":{"kind":"unread","name":null}}
+{"bare":2,"groups":[[400,0,[]],[2,1,[]]],"hit":2,"kind":"verdict","name":"no floor","name2":"noFloor","rate":0,"top":null,"verdict":{"kind":"noFloor","name":null}}
+{"bare":40,"groups":[[360,0,[]],[40,1,[]]],"hit":40,"kind":"verdict","name":"floor exactly at the band","name2":"noFloor","rate":10,"top":null,"verdict":{"kind":"noFloor","name":null}}
+{"bare":44,"groups":[[356,0,[]],[44,1,[]]],"hit":44,"kind":"verdict","name":"floor one above the band","name2":"documentLevel","rate":11,"top":null,"verdict":{"kind":"documentLevel","name":null}}
+{"bare":400,"groups":[[400,1,[]]],"hit":400,"kind":"verdict","name":"document level, every recalc bare","name2":"documentLevel","rate":100,"top":null,"verdict":{"kind":"documentLevel","name":null}}
+{"bare":36,"groups":[[36,1,[]],[4,1,["e:a"]],[260,0,[]]],"hit":40,"kind":"verdict","name":"document level, exactly 90 percent bare","name2":"documentLevel","rate":13,"top":"e:a","verdict":{"kind":"documentLevel","name":null}}
+{"bare":35,"groups":[[35,1,[]],[5,1,["e:a"]],[260,0,[]]],"hit":40,"kind":"verdict","name":"document level, one frame below 90 percent","name2":"spread","rate":13,"top":"e:a","verdict":{"kind":"spread","name":null}}
+{"bare":0,"groups":[[400,1,["e:a|div[0]","p:a"]]],"hit":400,"kind":"verdict","name":"one name in every recalc frame","name2":"carrier e:a|div[0]","rate":100,"top":"e:a|div[0]","verdict":{"kind":"carrier","name":"e:a|div[0]"}}
+{"bare":0,"groups":[[400,1,["p:a","e:a|div[0]"]]],"hit":400,"kind":"verdict","name":"element beats its part on a tie","name2":"carrier e:a|div[0]","rate":100,"top":"e:a|div[0]","verdict":{"kind":"carrier","name":"e:a|div[0]"}}
+{"bare":0,"groups":[[36,1,["e:a|div[0]"]],[4,1,["e:b|svg[0]"]],[260,0,[]]],"hit":40,"kind":"verdict","name":"carrier exactly at the share","name2":"carrier e:a|div[0]","rate":13,"top":"e:a|div[0]","verdict":{"kind":"carrier","name":"e:a|div[0]"}}
+{"bare":0,"groups":[[35,1,["e:a|div[0]"]],[5,1,["e:b|svg[0]"]],[260,0,[]]],"hit":40,"kind":"verdict","name":"carrier one below the share","name2":"spread","rate":13,"top":"e:a|div[0]","verdict":{"kind":"spread","name":null}}
+{"bare":0,"groups":[[200,1,["e:a|div[0]"]],[200,1,["e:b|div[0]"]]],"hit":400,"kind":"verdict","name":"two names alternate","name2":"spread","rate":100,"top":"e:a|div[0]","verdict":{"kind":"spread","name":null}}
+{"bare":0,"groups":[[100,1,["p:a","e:a|x[0]"]],[100,1,["p:a","e:a|y[0]"]],[100,1,["p:a","e:a|z[0]"]],[100,1,["p:a","e:a|w[0]"]]],"hit":400,"kind":"verdict","name":"part carries what no element does","name2":"carrier p:a","rate":100,"top":"p:a","verdict":{"kind":"carrier","name":"p:a"}}
+{"bare":200,"groups":[[200,1,[]],[200,1,["e:a|div[0]"]]],"hit":400,"kind":"verdict","name":"recalcs without dirt and with dirt mixed","name2":"spread","rate":100,"top":"e:a|div[0]","verdict":{"kind":"spread","name":null}}
+{"bare":0,"groups":[[400,2,["e:a|div[0]"]]],"hit":400,"kind":"verdict","name":"two recalcs in a frame count once as a frame","name2":"carrier e:a|div[0]","rate":200,"top":"e:a|div[0]","verdict":{"kind":"carrier","name":"e:a|div[0]"}}
+{"frames":[[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,["x"],["y"]],[1,[],[]],[1,[],[]]],"kind":"rep","name":"carry from the previous frame","sets":[[1,[]],[1,["x"]],[1,["y"]],[1,[]]]}
+{"frames":[[1,["x"],["x"]],[1,["x"],["x"]],[1,["x"],["x"]],[1,["x"],["x"]],[1,["x"],["x"]]],"kind":"rep","name":"shorter than the skip","sets":[]}
+{"frames":[[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]],[1,["x","y"],["x"]]],"kind":"rep","name":"duplicate name is kept once","sets":[[1,["x","y"]],[1,["x","y"]]]}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":576,"recalcs":3},"kind":"hide","name":"confirmed","ref":{"frames":576,"recalcs":588},"verdict":"confirmed"}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":576,"recalcs":63},"kind":"hide","name":"exactly at the band","ref":{"frames":576,"recalcs":588},"verdict":"confirmed"}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":576,"recalcs":64},"kind":"hide","name":"one above the band","ref":{"frames":576,"recalcs":588},"verdict":"notConfirmed"}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":576,"recalcs":590},"kind":"hide","name":"no change","ref":{"frames":576,"recalcs":588},"verdict":"notConfirmed"}
+{"carrier":"e:a","hidden":"e:b","hide":{"frames":576,"recalcs":3},"kind":"hide","name":"other element hidden","ref":{"frames":576,"recalcs":588},"verdict":"unmatched"}
+{"carrier":"e:a","hidden":null,"hide":{"frames":576,"recalcs":3},"kind":"hide","name":"nothing hidden","ref":{"frames":576,"recalcs":588},"verdict":"unmatched"}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":576,"recalcs":3},"kind":"hide","name":"no floor to remove","ref":{"frames":576,"recalcs":5},"verdict":"noReference"}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":576,"recalcs":3},"kind":"hide","name":"reference short","ref":{"frames":100,"recalcs":100},"verdict":"unread"}
+{"carrier":"e:a","hidden":"e:a","hide":{"frames":100,"recalcs":3},"kind":"hide","name":"hide short","ref":{"frames":576,"recalcs":588},"verdict":"unread"}
+{"kind":"arm","name":"two reps do not share names","reps":[[[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,[],[]],[1,["x"],["y"]]],[[1,["z"],[]],[1,["z"],[]],[1,["z"],[]],[1,["z"],[]],[1,["z"],[]],[1,["z"],[]],[1,["z"],[]],[1,["z"],[]],[1,["z"],[]]]],"sets":[[1,["x"]],[1,["z"]]]}
+{"kind":"hideOverall","name":"all confirmed","overall":"confirmed","verdicts":["confirmed","confirmed","confirmed"]}
+{"kind":"hideOverall","name":"one not confirmed","overall":"mixed","verdicts":["confirmed","notConfirmed","confirmed"]}
+{"kind":"hideOverall","name":"one unread","overall":"confirmed","verdicts":["confirmed","unread","confirmed"]}
+{"kind":"hideOverall","name":"two unread","overall":"inconclusive","verdicts":["confirmed","unread","unread"]}
+{"kind":"hideOverall","name":"unmatched everywhere","overall":"unmatched","verdicts":["unmatched","unmatched","unmatched"]}
+{"kind":"overall","name":"three alike","overall":"documentLevel","verdicts":[{"kind":"documentLevel","name":null},{"kind":"documentLevel","name":null},{"kind":"documentLevel","name":null}]}
+{"kind":"overall","name":"same carrier","overall":"carrier e:a","verdicts":[{"kind":"carrier","name":"e:a"},{"kind":"carrier","name":"e:a"},{"kind":"carrier","name":"e:a"}]}
+{"kind":"overall","name":"different carriers","overall":"mixed","verdicts":[{"kind":"carrier","name":"e:a"},{"kind":"carrier","name":"e:b"},{"kind":"carrier","name":"e:a"}]}
+{"kind":"overall","name":"one unread","overall":"spread","verdicts":[{"kind":"spread","name":null},{"kind":"unread","name":null},{"kind":"spread","name":null}]}
+{"kind":"overall","name":"two unread","overall":"inconclusive","verdicts":[{"kind":"spread","name":null},{"kind":"unread","name":null},{"kind":"unread","name":null}]}
+{"kind":"overall","name":"no floor","overall":"noFloor","verdicts":[{"kind":"noFloor","name":null},{"kind":"noFloor","name":null},{"kind":"noFloor","name":null}]}
