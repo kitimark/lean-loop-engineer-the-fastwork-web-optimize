@@ -1,7 +1,7 @@
 ---
 id: 2026-10-30-end-floor-probe
 kind: note
-title: "end-floor-probe: the harness probe does not force the floor; with no harness rAF at all WKTR still reads one style recalc per rendering update, and the 55 flip tracks are idle 1 to 6 frames after creation"
+title: "end-floor-probe: the harness probe does not force the floor; with no harness rAF at all WKTR still reads one style recalc per rendering update, and the 55 flip tracks are idle 1 to 6 rAF samples (333 to 543 ms) after creation"
 status: draft
 created: 2026-10-30
 topics: [webkit, wktr, end-of-page, floor, style-recalc, harness-artifact, lean, negative-result]
@@ -30,7 +30,7 @@ reads at the end of the page? Q2: when do the flip tracks leave the running stat
   hop (`pbnomc`) leaves the rate at 102 to 104 per 100 frames in 15 of 15 job-arm pairs, each `probeInnocent`. The repeat of the primary pair
   (`pbon#2` against `pboff#2`) reads the same in 3 of 3 jobs. With every CSS animation and SMIL clock paused (`pbpon` against `pbpoff`)
   both arms read 102 to 104 per 100 frames, `probeInnocent` in 3 of 3 jobs.
-- Q2: the 55 flip tracks are created running and idle again within 1 to 6 sampled frames (MEASURED, run 41002916093,
+- Q2: the 55 flip tracks are created running and idle again by the 1st to 6th harness rAF callback after creation (one sample per rAF callback; the first callback lands hundreds of ms after creation, so a cancel at sample 1 is an upper bound, not a frame count) (MEASURED, run 41002916093,
   `results/end-floor-probe/r1/verdict.txt`): at sample 0 (a microtask after the creating `Element.animate`) every rep reads 55 tracks made,
   55 running, 0 pending, 0 idle; the first sample at which all 55 read idle is sample 2 to 6 in j1, 1 to 2 in j2, 2 to 5 in j3, 333 to 543 ms
   after creation; `end-floor-cre overall cancel: all cancelled (jobs all cancelled | all cancelled | all cancelled)`. Lean tick class per
@@ -42,7 +42,7 @@ reads at the end of the page? Q2: when do the flip tracks leave the running stat
   What sets `needsStyleRecalc` at every rendering update stays open (follow-up, `geom-recalc-source`). No flag was changed.
 
 ## WebKit source for each probe call (862f17d)
-None of the probe calls resolves style, so none can raise the counter.
+None of the probe calls resolves style, so none can raise the counter. This holds because the probe reads only Element.animate results (mid-page.mjs:89): on CSS animations, StyleOriginatedAnimation overrides bindingsPlayState, bindingsCurrentTime and bindingsPending to flush pending style changes (StyleOriginatedAnimation.cpp:134-144@862f17d).
 - The counter is `Document::resolveStyle`'s `++m_styleRecalcCount` (`Document.cpp:2936`), reached from `updateStyleIfNeeded` only when
   `needsStyleRecalc()` holds (`Document.cpp:3025-3050`). Group `c`: `Internals::styleRecalcCount` returns the field (`Internals.cpp:4441-4448`,
   `Document.h:1557`); `lastStyleUpdateSize` returns `m_lastStyleUpdateSizeForTesting` (`Internals.cpp:4450-4456`). Reads only.
