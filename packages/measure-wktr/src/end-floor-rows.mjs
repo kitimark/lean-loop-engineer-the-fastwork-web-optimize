@@ -3,7 +3,6 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { framesOf, rate } from './end-floor.mjs';
 
-// Unproved TS stand-in: counts frames and mutation keys per recorded row. No threshold, verdict or pooling.
 export const rowLine = (job, file, i, row) => {
   const fs = framesOf(row);
   const wins = row.rs.wins ?? [];

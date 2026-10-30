@@ -34,8 +34,7 @@ a code constant with file:line, or a run id, sha or count of jobs, rows and arms
   nothing about writes. The q arms do record: j2 rows[2] `rs-flip-qstyle` has 265 frames, 201 without a `mut:` key, and a
   `mut:nav#data-fw-morph` count of 64 (it silences only the nav inline style). Lean: `rate_one_per_frame`
   (`lean/Fw/Device/EndFloor.lean:204`, a window whose frames each hold a recalc reads at least 100 per 100 frames; arithmetic only).
-- INFERRED, not measured per track: the recalcs in frames without a recorded mutation come from the running flip tracks. The
-  WebKit source below confirms that a ticking animation invalidates its target.
+- INFERRED, not measured per track: the recalcs in frames without a recorded mutation come from the running flip tracks.
 
 ## Numbers (per 100 frames, wktr run 40960310474, push 3 at 104183cb1)
 Source: `results/end-floor-writes/r3/verdict.txt` (made by `node packages/measure-wktr/src/end-floor-cli.mjs
