@@ -24458,6 +24458,24 @@
     "apps/runner/src/land.ts"
    ],
    "evidence": "00b5b3d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "threaded-subpixel-why",
+   "owner": "researcher",
+   "stream": "experiment",
+   "deps": [
+    "park-attrib"
+   ],
+   "title": "Why WebKit computes the hero card translate -0.000022px -0.000015px under hero.exit:threaded where the original computes 0px (park-attrib: same-commit gate pair 41086902481/41087718575). Read WebKit 862f17d (calc interpolation, scroll-driven animation progress at range end, fill forwards, float vs double, computed-style serialization) and the flag's keyframes; say whether the value is float residue of an end-of-range interpolation (a numeric artifact) or a real offset, and whether any visible pixel can differ (device pixel snapping). Input to the user's preset decision for hero.exit:threaded.",
+   "writes": [
+    "research/notes/2026/10-31-threaded-subpixel-why.md",
+    "docs/team/handoffs/threaded-subpixel-why.md",
+    "lean/Fw/Parts/HeroExitSubpixel*.lean",
+    "lean/Fw.lean"
+   ]
   }
  ],
  "deadline": {
