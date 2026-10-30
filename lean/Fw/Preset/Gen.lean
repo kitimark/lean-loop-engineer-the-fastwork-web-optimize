@@ -1,6 +1,7 @@
 import Lean.Data.Json
 import Fw.Preset.V2Proved
 import Fw.Preset.Shipped
+import Fw.Preset.GateEvidence
 import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitWork
 import Fw.Parts.PlatformGlintHold
@@ -985,6 +986,24 @@ def readerFiles : List String :=
 
 def readerFilesText : String := (toJson readerFiles).compress ++ "\n"
 
+def goldenGateEvidence : System.FilePath :=
+  ".." / "packages" / "contracts" / "golden" / "preset" / "gate-evidence.jsonl"
+
+def presetMembers (p sp : List Flag) : List (String × Flag) :=
+  p.map ("v2-proved", ·) ++ sp.map ("shipped", ·)
+
+/-- **A new member without an admission row fails the preset check**: `run` throws on the non-empty list. -/
+theorem gate_fails_of_new_v2 {reg : List Reg} {ledger : List Row} {st : List Stored} {sp : List Flag} {f : Flag}
+    (hf : f ∈ preset reg links ledger st) (h : GateEvidence.admissionOf GateEvidence.admissions "v2-proved" f = none) :
+    GateEvidence.problems GateEvidence.runs GateEvidence.admissions GateEvidence.waivers
+      (presetMembers (preset reg links ledger st) sp) ≠ [] :=
+  GateEvidence.problems_of_no_admission (by simp [presetMembers, hf]) h
+
+theorem gate_fails_of_new_shipped {p sp : List Flag} {f : Flag} (hf : f ∈ sp)
+    (h : GateEvidence.admissionOf GateEvidence.admissions "shipped" f = none) :
+    GateEvidence.problems GateEvidence.runs GateEvidence.admissions GateEvidence.waivers (presetMembers p sp) ≠ [] :=
+  GateEvidence.problems_of_no_admission (by simp [presetMembers, hf]) h
+
 def goldenReaderFiles : System.FilePath :=
   ".." / "packages" / "contracts" / "golden" / "preset" / "reader-files.json"
 def storedPath : System.FilePath :=
@@ -1030,6 +1049,11 @@ def run (args : List String) : IO Unit := do
     throw (IO.userError s!"look decisions name no look-change candidate and no refused registered flag: {(staleDecisions reg).map (·.key)}")
   unless (refusedMembers lookDecisions p).isEmpty do
     throw (IO.userError s!"refused flags in v2-proved: {(refusedMembers lookDecisions p).map (·.key)}")
+  let ms := presetMembers p sp
+  let gateBad := GateEvidence.problems GateEvidence.runs GateEvidence.admissions GateEvidence.waivers ms
+  unless gateBad.isEmpty do throw (IO.userError s!"preset gate evidence (Fw.Preset.GateEvidence): {gateBad}")
+  for (pn, f) in ms do
+    IO.println (GateEvidence.reportLine GateEvidence.runs GateEvidence.admissions GateEvidence.waivers pn f)
   let unread := (st.filter (·.reader.isEmpty)).map (·.run)
   unless unread.isEmpty do
     throw (IO.userError s!"{storedPath}: runs {unread} have no reader identity; fill it with Fw.Preset.Gen.record")
@@ -1037,7 +1061,8 @@ def run (args : List String) : IO Unit := do
     (goldenDecisions, decisionsText reg ledger st), (goldenLook, lookText reg p),
     (goldenProbes, probesText reg p), (storedPath, storedText st), (goldenReaderFiles, readerFilesText),
     (goldenShipped, namedPresetText "shipped" sp), (siteShipped, namedPresetText "shipped" sp),
-    (goldenShippedDecisions, shippedDecisionsText reg ledger st)]
+    (goldenShippedDecisions, shippedDecisionsText reg ledger st),
+    (goldenGateEvidence, GateEvidence.membersText GateEvidence.runs GateEvidence.admissions GateEvidence.waivers ms)]
   if args.contains "--check" then
     let mut stale : List String := []
     for (path, text) in outs do

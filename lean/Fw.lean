@@ -364,6 +364,7 @@ import Fw.Ops.LeanFirstProofs
 import Fw.Spec.Reach
 import Fw.Spec.MathFacts
 import Fw.Spec.MathFactsGuards
+import Fw.Preset.GateEvidence
 import Fw.Preset.Gen
 import Fw.Preset.Shipped
 import Fw.Faithful.Band
