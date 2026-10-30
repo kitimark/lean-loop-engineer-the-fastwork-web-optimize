@@ -24456,7 +24456,8 @@
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
     "apps/runner/src/land.ts"
-   ]
+   ],
+   "evidence": "00b5b3d"
   }
  ],
  "deadline": {
