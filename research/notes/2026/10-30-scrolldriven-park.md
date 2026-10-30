@@ -48,11 +48,20 @@ reports on `scrollY` crossing the boundary regardless of jumps.
 
 ## 4. Class and gate
 
-- Look and restore proofs hold (above). The breakpoint gate for both park flags on one page (run 41054732597): chromium pass (7056 readings,
-  7049 pass, 0 fail, 7 excused); playwright-webkit fail only in `hero.orbit` and `hero.deck` cells (147 fail readings); parts `hero.exit` and
-  `engine.scroll` pass on both engines. A default-config baseline run is the comparison (see handoff for its id and result).
-- Class E claim: `engine.scroll:unthrottle-park` keeps class E (proofs hold, parks every time in the trace); `hero.exit:threaded-park` keeps
-  class E for the look, but does not deliver the cut reliably; recorded as a negative finding, not shipped to any preset.
+- Gate on the pair `engine.scroll:unthrottle-park,hero.exit:threaded-park`, run 41054732597: chromium pass (7056 readings, 7049 pass, 0 fail,
+  7 excused); playwright-webkit fail, 147 readings, all of them `translate` on the card: `hero.orbit` 1060 probes (original `0px`, rewrite
+  `-0.000022px -0.000015px`) and `hero.deck` 164 probes (`0px` against `-0.00001px -0.000008px`). The parts `hero.exit` and `engine.scroll`
+  pass on both engines. Baseline gate of the default config on the same workflow, run 41058963051: merge job success, so the failure comes
+  from the park pair (MEASURED).
+- Reading (INFERRED): the park holds the card `translate` formula `CARD_CALC` (Lean `cardCalcCss`), whose value at the end is the sub-pixel
+  residual of the scatter variables; the finished animation computes to `0px`. `held_eq_shown` proves held = formula, not held = the computed
+  string of the unparked page. The proof is true and the gate still refuses, so the premise "held text = shown text" needs the computed end
+  value; recorded as a negative finding.
+- Class: `hero.exit:threaded-park` goes to class L (look-change, for the user's visual review; the difference is about 2e-5 px) and does not
+  cut the floor reliably, so it is not shipped. `engine.scroll:unthrottle-park` stays class E on its proofs, gate chromium pass (in the pair),
+  gate webkit unread alone.
+- engine-check: chromium-counts run 41050949109 passed for the pair, but the lane measures a swipe, not the idle end floor, so no prediction
+  row exists for the park; not delivered.
 
 ## 5. OPEN
 
