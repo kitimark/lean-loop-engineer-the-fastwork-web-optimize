@@ -88,6 +88,7 @@ function pageProbe(P) {
     }
     X.created.push({ tag: tag, a: a, el: this });
     X.tags.push(tag);
+    if (X.onFirst && X.created.length === 1) { const f = X.onFirst; X.onFirst = null; f(); }
     return a;
   };
 
@@ -583,7 +584,7 @@ function pageProbe(P) {
     MU.set = null;
     while (MU.undo.length) MU.undo.pop()();
   };
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|q[a-z]+))?$/;
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|pb[a-z]+|q[a-z]+))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const tkRead = () => {
     if (!I || typeof I.timeToNextAnimationTick !== 'function') return null;
@@ -667,6 +668,96 @@ function pageProbe(P) {
     }
     return frames;
   };
+  // End-floor probe (task end-floor-probe). Probe call groups of one rsWindow frame: c = the style-recalc counter read around the frame
+  // (`styleRecalcCount` twice, `lastStyleUpdateSize`), g = the glint SVG clock (`getCurrentTime`), p = the reference track's `playState` and
+  // `currentTime`, t = the tick probe (`timeToNextAnimationTick`, `acceleratedAnimationsForElement`), m = the MessageChannel hop that ends the frame.
+  // `pboff` reads the counter at the window's start and, after one MessageChannel hop, at its end only; frames are counted by rAF callbacks.
+  const PB = {
+    pbon: { c: 1, g: 1, p: 1, t: 1, m: 1 }, pboff: { c: 0, g: 0, p: 0, t: 0, m: 0 }, pbconly: { c: 1, g: 0, p: 0, t: 0, m: 0 },
+    pbnotk: { c: 1, g: 1, p: 1, t: 0, m: 1 }, pbnoph: { c: 1, g: 1, p: 0, t: 1, m: 1 }, pbnogh: { c: 1, g: 0, p: 1, t: 1, m: 1 },
+    pbnomc: { c: 1, g: 1, p: 1, t: 1, m: 0 }, pbpon: { c: 1, g: 1, p: 1, t: 1, m: 1 }, pbpoff: { c: 0, g: 0, p: 0, t: 0, m: 0 },
+  };
+  const ruNow = () => { try { return I && typeof I.renderingUpdateCount === 'function' ? I.renderingUpdateCount() : null; } catch (x) { return null; } };
+  const hop = () => new Promise((res) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); res(); }; ch.port2.postMessage(0); });
+  const pbWindow = async (cfg) => {
+    const dur = P.durationMs;
+    const ref = X.created.find((c) => !c.tag.held);
+    const phase = () => {
+      if (ref) {
+        if (ref.a.playState === 'idle') return 9;
+        const c = ref.a.currentTime;
+        if (c !== null && c !== undefined) return c / dur;
+      }
+      return 0;
+    };
+    const frames = [];
+    let n = 0;
+    let prev = recalc();
+    const c0 = prev;
+    const u0 = ruNow();
+    const t0 = performance.now();
+    while (n < P.rsWin && performance.now() - t0 <= 4 * P.capMs) {
+      let pre = 0;
+      await new Promise((res) => origRaf(() => {
+        if (cfg.c) { const a0 = recalc(); pre = a0 !== null && prev !== null ? a0 - prev : 0; }
+        if (!cfg.m) { res(); return; }
+        const ch = new MessageChannel();
+        ch.port1.onmessage = () => { ch.port1.close(); res(); };
+        ch.port2.postMessage(0);
+      }));
+      n++;
+      if (cfg.c) {
+        const c = recalc();
+        const fr = { r: c === null || prev === null ? 0 : c - prev, p: pre };
+        prev = c;
+        if (cfg.g && GH.read) fr.g = GH.read();
+        if (cfg.t) fr.u = tkRead();
+        if (cfg.p) fr.h = Math.min(9999, Math.round(phase() * 1000));
+        fr.t = Math.round(performance.now() - t0);
+        frames.push(fr);
+      }
+    }
+    if (!cfg.m) await hop();
+    const c1 = recalc();
+    const u1 = ruNow();
+    return { frames: frames, tot: { n: n, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'raf' } };
+  };
+  // No harness rAF at all: the counter and the engine's rendering-update count at the start and the end of a timer window; frames are rendering updates.
+  const pbNoRaf = async () => {
+    const c0 = recalc();
+    const u0 = ruNow();
+    const t0 = performance.now();
+    await sleep(1500);
+    const c1 = recalc();
+    const u1 = ruNow();
+    return { frames: [], tot: { n: u0 !== null && u1 !== null ? u1 - u0 : 0, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'update' } };
+  };
+  // Flip-track states from the frame they are created (the first Element.animate of the rep): sample 0 is a microtask after the creating
+  // call stack, then one sample at the start of every rAF callback until every track reads idle in 3 samples in a row (or 300 samples, 12 s).
+  // Sample = [ms since creation, tracks made, running, paused, finished, idle, pending, m, q, d, a, recalcs since the previous sample].
+  const creRun = () => new Promise((resolve) => {
+    const samples = [];
+    const t0 = performance.now();
+    let prev = recalc();
+    let still = 0;
+    const take = () => {
+      const now = performance.now();
+      const c = recalc();
+      const st = { running: 0, paused: 0, finished: 0, idle: 0 };
+      let pend = 0;
+      for (const x of X.created) { const s = x.a.playState; if (s in st) st[s]++; if (x.a.pending) pend++; }
+      const u = tkRead() || [0, 0, 0, 0];
+      samples.push([Math.round(now - t0), X.created.length, st.running, st.paused, st.finished, st.idle, pend, u[0], u[1], u[2], u[3], c !== null && prev !== null ? c - prev : 0]);
+      prev = c;
+      return X.created.length > 0 && st.idle === X.created.length;
+    };
+    const step = () => {
+      if (take()) still++; else still = 0;
+      if (still >= 3 || samples.length >= 300 || performance.now() - t0 > 12000) { resolve(samples); return; }
+      origRaf(step);
+    };
+    queueMicrotask(() => { take(); origRaf(step); });
+  });
   const rsArm = async (arm, kind, v) => {
     X.arm = arm;
     X.suppress = new Set();
@@ -687,15 +778,15 @@ function pageProbe(P) {
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     } else if (!warm) {
       const glintEl = (a) => !!(a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('[data-fw-dash]'));
-      const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf' && !isQ(vv);
-      toPause = vv === 'nat' ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
+      const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf' && !isQ(vv) && !/^pbp/.test(vv);
+      toPause = vv === 'nat' || (/^pb/.test(vv) && !/^pbp/.test(vv)) ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();
       await raf(); await raf(); await sleep(250);
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
       out.rs.glintLive = document.getAnimations().filter((a) => a.playState === 'running' && glintEl(a)).length;
     }
-    const smilSvgs = vv === 'smil' || vv === 'pall' || vv === 'pallf' || isQ(vv) ? Array.from(document.querySelectorAll('svg')) : [];
+    const smilSvgs = vv === 'smil' || vv === 'pall' || vv === 'pallf' || /^pbp/.test(vv) || isQ(vv) ? Array.from(document.querySelectorAll('svg')) : [];
     for (const g of smilSvgs) { try { g.pauseAnimations(); } catch (x) { } }
     if (smilSvgs.length) { out.rs.smilN = smilSvgs.length; await raf(); await raf(); await sleep(250); }
     if (GH.read) {
@@ -716,6 +807,8 @@ function pageProbe(P) {
       const reps = warm ? 1 : P.rsReps;
       for (let rep = 0; rep < reps; rep++) {
         X.created.length = 0;
+        X.creP = null;
+        if (vv === 'pbcre') X.onFirst = () => { X.creP = creRun(); };
         const tw = performance.now();
         let w = 0;
         while (X.created.length === 0 && w < 3) {
@@ -736,6 +829,7 @@ function pageProbe(P) {
           rep--;
           continue;
         }
+        X.onFirst = null;
         if (X.created.length === 0) break;
         out.rs.reps++;
         out.tracks = X.created.length;
@@ -743,8 +837,11 @@ function pageProbe(P) {
         await raf();
         if (isQ(vv)) muteOn(QSETS[vv]);
         let fr;
-        try { fr = await rsWindow(false, tw, vv, kt); } finally { if (isQ(vv)) muteOff(); }
-        if (!warm) { for (const f of fr) out.rs.frames.push(f); out.rs.wins.push(fr.length); }
+        let tot = null;
+        try {
+          if (vv === 'pbcre') { fr = []; (out.rs.cre || (out.rs.cre = [])).push(await X.creP); } else if (vv === 'pbnoraf') { const o = await pbNoRaf(); fr = o.frames; tot = o.tot; } else if (PB[vv]) { const o = await pbWindow(PB[vv]); fr = o.frames; tot = o.tot; } else fr = await rsWindow(false, tw, vv, kt);
+        } finally { if (isQ(vv)) muteOff(); }
+        if (!warm) { for (const f of fr) out.rs.frames.push(f); out.rs.wins.push(tot ? tot.n : fr.length); if (tot) (out.rs.pb || (out.rs.pb = [])).push(tot); }
         await sleep(900);
         X.arm = arm + '~back';
         wheel(-120);
