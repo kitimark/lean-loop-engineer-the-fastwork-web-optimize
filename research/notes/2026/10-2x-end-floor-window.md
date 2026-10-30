@@ -20,11 +20,12 @@ carries a tick probe, and Lean decides per arm whether the window holds a transi
   equal (the previous run's j2 windows ran 245 to 531 frames).
 - Every arm reads the same rate (MEASURED): `rate 102 per 100 frames` in 30 of 30 rows, `r=0 0` and `r=1 564` in 30 of 30. `verdict.txt`:
   floor 102, arm 102, reference 102, cut 0 in 21 of 21 arm lines (3 jobs x 7 writer sets), each `verdict no writes`, finding
-  `no writes` in j1, j2, j3 and overall. The earlier j2 spread (cuts 7 to 27 against floors 114 to 160) was a window effect, not a writer
-  (the pinned run measures the same arms with cut 0).
-- The recalcs above 100 are the 12 first frames: 576 frames with 564 at `r=1` leaves 12 frames with 2 (one per rep; the first frame of
-  each rep also carries `p=1`, a recalc before the frame callback). INFERRED from the counts: 564 + 12 x 2 = 588 recalcs per 576 frames
-  is 102.
+  `no writes` in j1, j2, j3 and overall. The earlier j2 spread (results/end-floor-writes/r3/verdict.txt: floor 154, cuts 7 to 27 over
+  qstyle, qpanel, qdata and qpub, qwrite 40, with arm windows of 251 to 448 frames against a floor of 531) was a window effect, not a
+  writer (INFERRED: the pinned run reads cut 0 for the same arms in all 3 jobs).
+- The recalcs above 100 come from the 12 first frames (MEASURED, read from the result files): in every row the 12 frames not at `r=1` are
+  the first frame of each rep. Each has 2 or 3 recalcs, and 1 or 2 of them land before the frame callback (`p`). 17 of 30 rows read 12
+  frames at 2 (588 recalcs per 576 frames); 13 rows have 1 to 4 first frames at 3 (589 to 592). All round to 102 per 100 frames.
 - No tracked animation ticks or is accelerated in any sampled frame (MEASURED): all 30 rows read `class empty`, `rep classes empty`,
   `frames ticking 0 quiet 0 idle 576`, `accelerated tracks at first frame 0 to 0`, `first-frame phase 9000 to 9000 per mille`. The Lean
   verdict per arm and per job is `empty` (`end-floor-window overall v2p <arm>: empty (jobs empty empty empty)` for nat, pall[0], pall[1],
@@ -46,7 +47,7 @@ carries a tick probe, and Lean decides per arm whether the window holds a transi
   a running track would be accelerated; those tracks were not running.
 - `h` (phase per mille) is page-side, not WebKit: `rsWindow` (`mid-page.mjs:610-617`) returns 9 (`9000` per mille) when the reference
   track's `playState` is `idle`, otherwise the track's `currentTime` over the 680 ms duration. Reading 9000 in the first frame of all 360 reps
-  means the reference track was idle (cancelled or ended) before the window's first frame.
+  means the reference track was idle (cancelled: an ended track reads `finished` and would report its currentTime, not 9000) before the window's first frame.
 - `t` is the frame time from the window start; `window ms` in rows.txt is the last frame's `t`: 884 to 1300 over the 30 rows.
 
 ## The Lean parts
