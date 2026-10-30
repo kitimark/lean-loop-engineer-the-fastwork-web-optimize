@@ -24329,6 +24329,34 @@
     "lean/Fw/Device/FeelGolden.lean"
    ],
    "evidence": "9ec1c2c"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-floor-probe",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-floor-window"
+   ],
+   "title": "End-of-page floor (~1 style recalc per frame on WKTR with every track idle and no page writer): test whether the harness's own per-frame probe forces it (probe-off arm reading the count once at window end vs probe-on), and read each flip track's playState/tkRead from creation to idle (Lean repClass_transient).",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "results/end-floor-probe/**",
+    "research/notes/2026/10-30-end-floor-probe.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-floor-probe.md",
+    "lean/Fw/Device/EndFloor*.lean",
+    "lean/scripts/EndFloor*Golden.lean",
+    "packages/contracts/golden/device/end-floor*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts"
+   ]
   }
  ],
  "deadline": {
