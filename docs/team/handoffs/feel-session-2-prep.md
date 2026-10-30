@@ -1,0 +1,24 @@
+branch: worktree-wf_8092b7fe-92d-1
+worktree: .claude/worktrees/wf_8092b7fe-92d-1 (under the main checkout)
+last commit: e9fa80213 (work), handoff committed after it
+CI runs: none (the task needs no CI; nothing touches the phone)
+verified locally: lake build, `FeelGolden --check`, measure-webkit feel tests (32) + device-feel-plan tests (13), 7 arms built
+  from the generated build command and every `?fw=` resolved in dist/aot/configs.json.
+open: check.sh via slot, ci-paths/land-inputs tests, merge main, `fw plan lint`, dry land, `fw review ready`.
+
+State
+- Arm flags: `Fw.Device.Feel.sameArmsOf` reads the generated preset golden `packages/contracts/golden/preset/v2-proved.json`
+  (via `Fw.Preset.Gen.presetKeys`); `feel.jsonl` has a `preset` row and `device-feel.mjs` throws when it disagrees with the file.
+- Arms: base, v2-proved, v2-proved-2flag (blind, shown twice, never twice in a row) + L1..L4 labelled
+  (`nav:earn-logical`, `platform.glint:compositor`, `morph.end.nobounce:on`, `morph.stage:on`). 10 visits, about 21 min (estimate).
+- `scripts/feel-session.sh [--seed N] [--date D] [--build] [--plan]`: plan, read-only probe (exit 3 + ask), background
+  `feel start` (pin Serious, capture, fresh dir `.local/phone/<date>-feel2`), never `feel next`. Tested against a stub CLI.
+- New TS: `packages/measure-webkit/src/device-feel-plan.mjs` (TS stand-in of Lean probeOf/failOf/estimateS, golden-checked).
+- Conflicts: none of the four look flags conflicts with the v2-proved flags; `platform:faded-pause` conflicts are in
+  `apps/site/src/parts/platform/part.json:48`. The kit composes each look arm alone against base, not on v2-proved.
+
+Conventions
+- Regenerate the golden from Lean (`FeelGolden`), never hand-edit `feel.jsonl`. `FeelGolden.lean` is outside the task's writes glob.
+- Web Inspector cannot be probed read-only before the proxy runs; the script classifies a failed start (`failOf`) and prints the ask.
+
+Read first: research/notes/2026/10-30-feel-session-2-prep.md, then lean/Fw/Device/Feel.lean (session-start section).
