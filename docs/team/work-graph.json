@@ -24477,6 +24477,30 @@
     "lean/Fw.lean"
    ],
    "evidence": "d94d1b5"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "preset-gate-evidence",
+   "owner": "lean-prover",
+   "stream": "experiment",
+   "deps": [
+    "threaded-subpixel-why"
+   ],
+   "title": "Close the process hole that let hero.exit:threaded into v2-proved (commit d6174ba8c) with no breakpoint-gate run: Lean preset membership (Fw.Preset.V2Proved / Gen) requires, per member flag set, a recorded passing breakpoint-gate run on both engines (run id, commit, exact flag set) from one canonical evidence table; a member without it is listed as pending with a named user decision step (threaded-look) instead of silently passing; no preset change.",
+   "writes": [
+    "lean/Fw/Preset/**",
+    "lean/scripts/Preset*Golden.lean",
+    "packages/contracts/golden/preset/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-31-preset-gate-evidence.md",
+    "docs/team/handoffs/preset-gate-evidence.md"
+   ]
   }
  ],
  "deadline": {
