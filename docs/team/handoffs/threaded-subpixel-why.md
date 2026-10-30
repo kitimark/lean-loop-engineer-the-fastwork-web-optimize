@@ -6,7 +6,7 @@
   and the `contain` start in double. At scroll 0 the card is active at p = 1/(100·2^17), so translate = p × scatter
   (-1e-4 < translate < 1e-4 px per component). This is a numeric artifact: no layout pixel moves, and on the cards a
   painted pixel changes by at most one 8-bit level (INFERRED, `residue_pair_level_lt`).
-- Lean: `lean/Fw/Parts/HeroExitSubpixel.lean`, imported in `lean/Fw.lean`. `check.sh` is green through the slot.
+- Lean: `lean/Fw/Parts/HeroExitSubpixel.lean`, imported in `lean/Fw.lean`.
 - `residue_le_max`, `residue_lt_gateTol`, `residue_level_change_lt` take `-48 ≤ a ≤ 48`, two-sided;
   `residue_pair_level_lt` bounds both components, every sign, by 0.2 of a level; `timeline32_ratio`/`start64_ratio`
   tie the 1/3 literal to `ratio v`. Claims lint: 0 warnings.

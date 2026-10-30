@@ -17,7 +17,7 @@ topics: [hero.exit, threaded, webkit, scroll-driven-animations, float32, gate-br
   p ≈ 1/(100·2^17) ≈ 7.63e-8. The card translate is p × scatter: up to 2.2e-5 px at width 601 and 5.5e-5 px at
   width 1512. The exact value is 0 px, the `from` keyframe. (CONFIRMED, WebKit 862f17d `ScrollTimeline.cpp:383-397`,
   `ViewTimeline.cpp:503-517`; MEASURED, run 41087718575.)
-- **No layout pixel moves; on the hero cards a painted pixel changes by at most one 8-bit level.** A transform
+- No layout pixel moves; on the hero cards a painted pixel changes by at most one 8-bit level. A transform
   skips layout, so LayoutUnit (1/64 px) never sees it. -1e-4 < residue < 1e-4 CSS px per component
   (`residue_lt_gateTol`, scatter within ±48 vw/vh, viewport sides ≤ 2560 px). At dpr ≤ 3, each component stays
   inside ±0.1 of a level (`residue_level_change_lt`) and |x| + |y| < 0.2 of a level (`residue_pair_level_lt`). The
