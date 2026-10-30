@@ -51,8 +51,9 @@ park holds a formula with a sub-pixel residual (`10-30-scrolldriven-park.md` sec
 
 ## 4. What comes with what
 
-- MEASURED (attributed by the rule): `hero.exit:threaded` causes the WebKit card-translate gate failure; the same-commit pair above, flag-set difference of size 1. This also
-  covers the park flags: they ride on threaded (`threaded-park`) and fail for it.
+- MEASURED (attributed by the rule): `hero.exit:threaded` causes the WebKit card-translate gate failure; the same-commit pair above, flag-set difference of size 1.
+- INFERRED, not attributed by the rule: the park pair 41054732597 fails the same 147 WebKit readings (readings-table sha256 e524c0ee...3550), so the
+  park flags add no failing reading of their own; no same-commit pair separates threaded-park from threaded.
 - INFERRED, not read from source: why WebKit computes `-0.000022px -0.000015px` for the card `translate` under threaded where the original computes `0px`.
   The carrier of the sub-pixel value is the cards' scroll-driven animation that `hero.exit:threaded` adds; unthrottle animates one separate element.
 - v2-proved and the shipped preset hold `hero.exit:threaded` (`apps/site/src/registry/presets/v2-proved.json`). Its preset entry (commit d6174ba8c, 2026-10-29) had no
