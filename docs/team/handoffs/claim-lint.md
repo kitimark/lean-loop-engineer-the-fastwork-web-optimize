@@ -1,7 +1,7 @@
 # Claim lint
 
 - Branch `worktree-wf_fa4e4bfe-ec3-1`, round 1. Rules, golden and plan-lint I/O in aed97053b; note, ledger row and
-  handoff in the next commit. No CI runs.
+  handoff in 29f57888f, init-cost fix a1941aa94. No CI runs.
 
 ## Rule (lean/Fw/Plan/Claims.lean)
 - Status tags: `claimOk` with `claim_ok_iff`, `confirmed_ok_iff`, `measured_ok_iff`, `measured_scratch_refused`,
@@ -15,7 +15,7 @@
 ## Verified
 - Golden `packages/contracts/golden/plan/claims.jsonl`, 40 rows from the refused fragments (nav-cta-webkit-match r2,
   watch-memory r2/r3, end-floor-writes r1/r2); check.sh job "claims golden check"; lean.yml trigger row lists it.
-- `node --test packages/plan-lint/test/claims-lint.test.ts` 33/33; tsc on packages/plan-lint clean.
+- check.sh green (a1941aa94); plan-lint node tests 44/44, tsc clean; ci-paths 56/56; land-inputs 73/73.
 - Corpus: 1432 warnings in 354 of 1177 files, listed in research/notes/2026/10-30-claim-lint.md. CLI exits 0.
 - `#print axioms`: `claim_ok_iff` none, the rest propext/Classical.choice/Quot.sound.
 

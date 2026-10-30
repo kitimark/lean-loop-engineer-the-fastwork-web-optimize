@@ -99,5 +99,5 @@ section with no run id. The notes with the most warnings are `10-17-token-usage-
 
 ## Speed
 
-One local run over the 1177 default files took 34 s on this Mac, through the Lean interpreter. The 33 node tests take
+One local run over the 1177 default files took 34 s on this Mac, through the Lean interpreter. The 44 node tests take
 under 1 s.
