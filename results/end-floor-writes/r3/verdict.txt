@@ -1,0 +1,38 @@
+end-floor wktr-j1 v2p qstyle: floor 138 arm 135 reference 133 per 100 frames, cut 3, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p qdata: floor 138 arm 135 reference 133 per 100 frames, cut 3, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p qpub: floor 138 arm 135 reference 133 per 100 frames, cut 3, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p qclass: floor 138 arm 135 reference 133 per 100 frames, cut 3, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p qpanel: floor 138 arm 137 reference 133 per 100 frames, cut 1, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p qplat: floor 138 arm 133 reference 133 per 100 frames, cut 5, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p qwrite: floor 138 arm 133 reference 133 per 100 frames, cut 5, band 10 spread 10, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j1 v2p natural page 135 per 100 frames over 48 frames
+end-floor wktr-j1 v2p finding: no writes
+end-floor wktr-j1 fp: result file missing
+end-floor wktr-j2 v2p qstyle: floor 154 arm 147 reference 114 per 100 frames, cut 7, band 2 spread 1, frames floor 531 reference 448 arm 265, leaks 0/0, verdict carries
+end-floor wktr-j2 v2p qdata: floor 154 arm 133 reference 114 per 100 frames, cut 21, band 2 spread 1, frames floor 531 reference 448 arm 425, leaks 0/0, verdict carries
+end-floor wktr-j2 v2p qpub: floor 154 arm 127 reference 114 per 100 frames, cut 27, band 2 spread 1, frames floor 531 reference 448 arm 405, leaks 0/0, verdict carries
+end-floor wktr-j2 v2p qclass: floor 154 arm 156 reference 114 per 100 frames, cut 0, band 2 spread 1, frames floor 531 reference 448 arm 251, leaks 0/0, verdict no effect
+end-floor wktr-j2 v2p qpanel: floor 154 arm 134 reference 114 per 100 frames, cut 20, band 2 spread 1, frames floor 531 reference 448 arm 419, leaks 0/0, verdict carries
+end-floor wktr-j2 v2p qplat: floor 154 arm 157 reference 114 per 100 frames, cut 0, band 2 spread 1, frames floor 531 reference 448 arm 254, leaks 0/0, verdict raises
+end-floor wktr-j2 v2p qwrite: floor 154 arm 114 reference 114 per 100 frames, cut 40, band 2 spread 1, frames floor 531 reference 448 arm 448, leaks 0/0, verdict carries
+end-floor wktr-j2 v2p natural page 160 per 100 frames over 245 frames
+end-floor wktr-j2 v2p finding: spread over writers
+end-floor wktr-j2 fp: result file missing
+end-floor wktr-j3 v2p qstyle: floor 135 arm 133 reference 135 per 100 frames, cut 2, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p qdata: floor 135 arm 137 reference 135 per 100 frames, cut 0, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p qpub: floor 135 arm 135 reference 135 per 100 frames, cut 0, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p qclass: floor 135 arm 135 reference 135 per 100 frames, cut 0, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p qpanel: floor 135 arm 133 reference 135 per 100 frames, cut 2, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p qplat: floor 135 arm 133 reference 135 per 100 frames, cut 2, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p qwrite: floor 135 arm 135 reference 135 per 100 frames, cut 0, band 0 spread 0, frames floor 96 reference 48 arm 48, leaks 0/0, verdict no writes
+end-floor wktr-j3 v2p natural page 133 per 100 frames over 48 frames
+end-floor wktr-j3 v2p finding: no writes
+end-floor wktr-j3 fp: result file missing
+end-floor overall v2p qstyle: mixed
+end-floor overall v2p qdata: mixed
+end-floor overall v2p qpub: mixed
+end-floor overall v2p qclass: mixed
+end-floor overall v2p qpanel: mixed
+end-floor overall v2p qplat: mixed
+end-floor overall v2p qwrite: mixed
+end-floor overall v2p finding: mixed

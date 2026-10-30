@@ -149,6 +149,7 @@ run_group() {
   job "device-glint-hold golden check" sh -c "printf 'import Fw.Device.GlintHold\\n#eval Fw.Device.GlintHold.checkRepo\\n' | lake env lean --stdin"
   job "device-glint-compositor golden check" sh -c "printf 'import Fw.Device.GlintHoldCompositor\\n#eval Fw.Device.GlintHoldCompositor.checkRepo\\n' | lake env lean --stdin"
   job "device-end-wktr golden check" sh -c "printf 'import Fw.Device.EndWktr\\n#eval Fw.Device.EndWktr.checkRepo\\n' | lake env lean --stdin"
+  job "device-end-floor golden check" sh -c "printf 'import Fw.Device.EndFloor\\n#eval Fw.Device.EndFloor.checkRepo\\n' | lake env lean --stdin"
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"

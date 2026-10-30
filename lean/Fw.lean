@@ -163,6 +163,7 @@ import Fw.Device.RecalcBisect
 import Fw.Device.GlintHold
 import Fw.Device.GlintHoldCompositor
 import Fw.Device.EndWktr
+import Fw.Device.EndFloor
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
