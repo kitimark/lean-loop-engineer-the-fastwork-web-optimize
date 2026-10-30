@@ -13,7 +13,7 @@ Last commit: see `git log -1`; the gate ran on 72d0bfd91 (workflow edit since re
 - Result: the failure is present without the park flags; park not the cause; threaded the INFERRED carrier; rule says notAttributable (no same-commit one-part pair).
 - Note research/notes/2026/10-31-park-attrib.md; ledger row hero.exit.threaded-park (visual, lesson, next, evidence, missingWhy) updated.
 ## Open
-- Same-commit attribution needs two lead dispatches on the final ci/park-attrib commit (fw empty, fw=hero.exit:threaded).
+- Same-commit attribution needs two lead dispatches on one ref at one commit, e.g. --ref main (fw empty, fw=hero.exit:threaded). The remote ci/park-attrib holds 72d0bfd91 (workflow edit); the final commit was refused by the pre-push lane check.
 - v2-proved/shipped hold hero.exit:threaded; no passing breakpoint-gate with it is on record (39774976109, 41078004214 fail WebKit).
 ## Conventions
 - BSD sed needs `sed -i ''`; pnpm install --offline --frozen-lockfile before pnpm fw in a fresh worktree; lean goldens run from lean/.

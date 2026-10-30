@@ -4744,7 +4744,7 @@
    ],
    "v1Evidence": "",
    "lesson": "A gate failure is attributed to a flag only between two runs on one commit that differ in exactly that flag (Fw.Ops.Attrib.verdict, goldens ops/attrib.jsonl): the park pair against the faithful baseline differed in two parts and two commits, and the failure was threaded's own. INFERRED, not tested: an IntersectionObserver on a thin sentinel reports only state changes, so a jump over it may never park; the floor was cut in 1 of 3 WKTR jobs per run (runs 41045232315, 41050949125).",
-   "next": "Dispatch breakpoint-gate twice on the final commit of ci/park-attrib, fw empty and fw=hero.exit:threaded, to attribute the translate to threaded by the rule; then read why WebKit computes the card translate -0.000022px where the original gives 0px under threaded (a v2-proved and shipped member, no passing breakpoint-gate on record with it); then add a jump-proof park trigger with a Lean delivery rule and re-run the WKTR park arms and the gate.",
+   "next": "Dispatch breakpoint-gate twice on one ref at one commit (main), fw empty and fw=hero.exit:threaded, to attribute the translate to threaded by the rule; then read why WebKit computes the card translate -0.000022px where the original gives 0px under threaded (a v2-proved and shipped member, no passing breakpoint-gate on record with it); then add a jump-proof park trigger with a Lean delivery rule and re-run the WKTR park arms and the gate.",
    "evidence": "run:41045232315 run:41050949125 run:41054732597 research/notes/2026/10-30-scrolldriven-park.md run:41078004214 research/notes/2026/10-31-park-attrib.md"
   },
   {

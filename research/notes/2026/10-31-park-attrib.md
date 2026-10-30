@@ -55,8 +55,9 @@ formula with a sub-pixel residual (`10-30-scrolldriven-park.md` section 4) is wi
 
 ## 5. OPEN
 
-- One same-commit pair would attribute it by the rule: two dispatches of breakpoint-gate on the final commit of `ci/park-attrib` (its workflow builds the default
-  prerendered config, flags come from the `fw` input): `fw` empty and `fw=hero.exit:threaded`, engines both. Verdict `causedBy hero.exit` if the first passes and the
-  second fails. Lead dispatch (not started here).
+- One same-commit pair would attribute it by the rule: two dispatches of breakpoint-gate on one ref at one commit, `fw` empty and `fw=hero.exit:threaded`, engines both
+  (`pnpm -s fw run --gate --engines both --ref main` and the same with `--fw hero.exit:threaded`; main's workflow builds the unflagged site and takes the flags from the
+  `fw` input). Verdict `causedBy hero.exit` if the first passes and the second fails. Lead dispatch, not started here. The remote `ci/park-attrib` still holds
+  72d0bfd91 with the temporary workflow edit: the final commit could not be pushed (the pre-push lane check refuses a tip that names no changed lane).
 - Why the rewrite computes `-0.000022px -0.000015px` for the card `translate` where the original computes `0px` under threaded: not read from WebKit source here.
 - The WebKit breakpoint-gate cell for v2-proved and shipped (threaded is a member): refused by 147 readings; not mine to change (no preset change).
