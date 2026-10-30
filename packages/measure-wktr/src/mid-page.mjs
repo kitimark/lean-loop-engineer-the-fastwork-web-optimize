@@ -735,8 +735,7 @@ function pageProbe(P) {
     const u1 = ruNow();
     return { frames: [], tot: { n: u0 !== null && u1 !== null ? u1 - u0 : 0, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'update' } };
   };
-  // Dirty-set sampler (task end-floor-dirty). Reads only: Internals::nodeNeedsStyleRecalc is Node::needsStyleRecalc (Internals.cpp:938-941@862f17d);
-  // Internals::styleChangeType first runs styleScope().flushPendingUpdate() (Internals.cpp:961-966), so the typed arm reads types after the pure pass.
+  // Internals::styleChangeType first runs styleScope().flushPendingUpdate() (Internals.cpp:961-966@862f17d).
   const PD = {
     pbdn: { t: 0 }, pbpd: { t: 0 }, pbpdt: { t: 1 },
     pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' }, pbphides: { t: 0, hide: 'set' },
@@ -746,7 +745,6 @@ function pageProbe(P) {
   const DN = { names: new WeakMap(), nodes: new Map(), cnt: new Map(), ref: null };
   const DTY = ['NoStyleChange', 'AnimationInvalid', 'InlineStyleInvalid', 'InlineStyleChange', 'FullStyleChange'];
   const DCAP = 600;
-  // <html> carries data-fw, so it is no part: a name under it without a closer part gets '-'.
   const partName = (el) => { let c = el; while (c) { const p = c.closest ? c.closest('[data-fw]') : null; if (p && p !== document.documentElement) return p.getAttribute('data-fw'); if (p) return '-'; const r = c.getRootNode ? c.getRootNode() : null; c = r && r.host ? r.host : null; } return '-'; };
   const nameOf = (n) => {
     let v = DN.names.get(n);
@@ -816,7 +814,6 @@ function pageProbe(P) {
     for (const n of dirty) if (n.nodeType === 1) elN++;
     return { ids: ids, types: types, total: total, ms: performance.now() - w0, capped: capped, dirty: dirty.length, elN: elN };
   };
-  // Mutation evidence for the window: DOM records through a MutationObserver, CSSOM writes through counting wrappers.
   const mutStart = () => {
     const mu = new Map();
     const bump = (k) => mu.set(k, (mu.get(k) || 0) + 1);
@@ -923,8 +920,6 @@ function pageProbe(P) {
     const nm = (x) => (x ? 'p:' + x.getAttribute('data-fw') : null);
     return { name: best ? best[0] : null, count: best ? best[1] : 0, el: el, part: partEl, ctrl: ctrl, names: { el: best && el ? nameOf(el)[0] : null, part: nm(partEl), ctrl: nm(ctrl) } };
   };
-  // Animation facts (task end-floor-dirty): every animation of the document with its timeline kind, its target and its play state.
-  // Reads only: Document.getAnimations() builds the list, it changes no style.
   const animRead = () => {
     const kinds = {};
     const els = [];
@@ -1018,7 +1013,6 @@ function pageProbe(P) {
       out.rs.top = { name: tp.name, count: tp.count };
       if (pick && !el) out.rs.skipped = 'root';
       out.rs.hid = el ? (pd.hide === 'el' || pd.hide === 'set' ? tp.name : tp.names[pd.hide]) : null;
-      // 'set': also hide every element dirty in at least 90 percent as many frames as the top name (the tie of equal carriers), so one hidden element cannot leave the others dirty.
       if (el && pd.hide === 'set') {
         for (const [k, c] of (DN.ref || DN.cnt)) {
           if (!k.startsWith('e:') || 100 * c < 90 * tp.count) continue;

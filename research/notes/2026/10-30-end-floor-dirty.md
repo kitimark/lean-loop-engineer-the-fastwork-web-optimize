@@ -14,7 +14,7 @@ Task `end-floor-dirty`, branch `ci/end-floor-dirty` (worktree branch `worktree-w
 element, style feature or document-level path makes `Document::needsStyleRecalc` true every frame? WKTR (Simulator
 `internals`) with the threaded-animations pref OFF stands in for iOS Safari; every number is a class count, never phone time. The build
 is the accel-lane build with `morph.geom:on, morph.tween:geom-timed, engine.scroll:unthrottle, hero.exit:threaded, platform:faded-pause`
-(the temporary `wktr.yml` edit of pushes 2 and 3, reverted before the land).
+(the temporary `wktr.yml` edit of pushes 2 and 3).
 
 ## Answer
 - A named carrier set, not a document-level path (MEASURED, wktr run 41030064819, 3 of 3 jobs, `results/end-floor-dirty/r3/verdict.txt`).
@@ -56,7 +56,7 @@ A same-look fix task (name for the lead: `scrolldriven-park`): at the end-of-pag
 fill value as static style and park (cancel) those animations, restoring them when the scroll leaves the end range. The look is identical
 if and only if the parked value equals the finished fill value; that equality is a Lean statement to prove for each of the 7 targets before the
 flag exists. It is a candidate, not a result: the WKTR pref was OFF (main-thread scroll-driven animations); iOS Safari with threaded
-scroll-driven animations ON may tick differently (OPEN), and the phone feel is untouched by this note.
+scroll-driven animations ON may tick differently (OPEN).
 
 ## Stand-ins and limits
 - Lean decides carrier, documentLevel, spread, hide and flush verdicts (`lean/Fw/Device/EndFloorDirty.lean`, constants `carrierShare 90`,

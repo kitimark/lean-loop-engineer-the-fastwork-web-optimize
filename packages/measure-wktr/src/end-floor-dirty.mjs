@@ -1,7 +1,6 @@
 import { overallNames } from './end-wktr.mjs';
 import { MIN_FRAMES, PROBE_BAND } from './end-floor-probe.mjs';
 
-// Port of lean/Fw/Device/EndFloorDirty.lean; the golden pins it (test/end-floor-dirty.test.mjs).
 export const FLOOR_BAND = PROBE_BAND;
 export const CARRIER_SHARE = 90;
 export const DOCUMENT_SHARE = 90;
@@ -72,7 +71,6 @@ export function hideVerdict(carrier, hidden, ref, hide) {
   return readingRate(hide) <= FLOOR_BAND ? 'confirmed' : 'notConfirmed';
 }
 
-// flushVerdict: `auto` are the recalcs of the rendering updates, `flush` those of the forced getComputedStyle flush.
 export function flushVerdict(x) {
   if (x.frames < MIN_FRAMES) return 'unread';
   const a = FLOOR_BAND < Math.floor((x.auto * 100) / x.frames);
@@ -82,7 +80,6 @@ export function flushVerdict(x) {
 export const flushOverall = (fs) => overallNames(fs.filter((f) => f !== 'unread'));
 export const hideOverall = (hs) => overallNames(hs.filter((h) => h !== 'unread'));
 
-// Page rows. A rep is [r, pre, hIds, eIds, timelineInvalidations, traversals, lastStyleUpdateSize, (hTypes, eTypes)]; ids index row.rs.kt.
 export function rowsByKey(rep) {
   const seen = new Map();
   const out = new Map();
@@ -106,7 +103,6 @@ export function readingOf(row) {
   return { frames: sum(pb.map((t) => t.n)), recalcs: sum(pb.map((t) => t.r)), ru: sum(pb.map((t) => t.u ?? 0)), ms: sum(pb.map((t) => t.w ?? 0)) };
 }
 
-// Frames after the skipped leading ones of each rep: the frames the verdicts read.
 const skipped = (dn) => dn.flatMap((w) => w.f.slice(SKIP_FRAMES));
 const per100 = (x, n) => (n === 0 ? 0 : Math.round((x * 100) / n));
 
@@ -146,7 +142,6 @@ export function factsOf(row) {
   };
 }
 
-// Animation facts of the pbpan arm against the steady dirty names of its own frames: a name is steady if it is in CARRIER_SHARE percent of the recalc frames.
 export function animOf(an, xs) {
   if (!an) return null;
   const hit = hitN(xs);

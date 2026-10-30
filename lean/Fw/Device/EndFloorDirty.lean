@@ -3,33 +3,22 @@ import Fw.Device.EndFloorProbe
 namespace Fw.Device.EndFloorDirty
 open Lean Fw.Device.EndWktr
 
-/-- Recalcs per 100 frames at or below which the floor counts as gone (the probe band). -/
 def floorBand : Nat := EndFloorProbe.probeBand
 
-/-- Percent of recalc frames in which one name must be dirty to be the carrier. -/
 def carrierShare : Nat := 90
 
-/-- Percent of recalc frames with no dirty name at all for the document-level verdict. -/
 def documentShare : Nat := 90
 
-/-- Leading frames of every rep that are not read: the flip tracks may still run there. -/
 def skipFrames : Nat := 8
 
-/-- Frames a reading needs, after the skipped ones. -/
 def minFrames : Nat := EndFloorProbe.minFrames
 
-/-- One sampled frame: recalcs in the frame, names dirty at the start of the frame's rAF callback (`h`), names dirty in
-the first task after the frame's rendering update (`e`). -/
 structure Frame where
   r : Nat
   h : List String
   e : List String
   deriving DecidableEq, Repr
 
-/-- A frame's recalcs against the names that vary around it: dirty in some of the three samples that bracket the frame
-(`prev`, the previous frame's first task after its update; `h`, the rAF start; `e`, the first task after the frame's own
-update) and clean in another, so something cleaned or made them dirty. A name dirty in all three is inert: the resolver
-leaves it alone (or it is made dirty again before every sample) and the samples cannot tell it from a carrier. -/
 def varies (prev : List String) (f : Frame) : List String :=
   ((prev ++ f.h ++ f.e).eraseDups).filter fun n => !(prev.contains n && f.h.contains n && f.e.contains n)
 
@@ -37,17 +26,14 @@ def pair : List String → List Frame → List (Nat × List String)
   | _, [] => []
   | prev, f :: fs => (f.r, varies prev f) :: pair f.e fs
 
-/-- A name dirty in all three samples of a frame is not offered as a cause. -/
 theorem varies_inert (prev : List String) (f : Frame) (n : String) (hp : n ∈ prev) (hh : n ∈ f.h) (he : n ∈ f.e) :
     n ∉ varies prev f := by
   simp [varies, hp, hh, he]
 
-/-- A name dirty in the sample after the update and clean at the rAF start of the same frame is offered. -/
 theorem varies_cleaned (prev : List String) (f : Frame) (n : String) (he : n ∈ f.e) (hh : n ∉ f.h) :
     n ∈ varies prev f := by
   simp [varies, he, hh]
 
-/-- The read frames of one rep. -/
 def repSets (fs : List Frame) : List (Nat × List String) := (pair [] fs).drop skipFrames
 
 def hitN : List (Nat × List String) → Nat
@@ -70,8 +56,6 @@ def rate (xs : List (Nat × List String)) : Nat := if xs.length = 0 then 0 else 
 
 def names (xs : List (Nat × List String)) : List String := (xs.flatMap (·.2)).eraseDups
 
-/-- `a` beats `b`: more recalc frames with the name dirty, or the same count and the smaller name (element names `e:`
-sort before part names `p:`). -/
 def better (xs : List (Nat × List String)) (a b : String) : Bool :=
   countName b xs < countName a xs || (countName a xs == countName b xs && decide (a < b))
 
@@ -124,7 +108,6 @@ theorem verdict_spread_none (xs : List (Nat × List String)) (h0 : ¬ xs.length 
     (h2 : ¬ documentShare * hitN xs ≤ 100 * bareN xs) (ht : top xs = none) : verdict xs = .spread := by
   simp [verdict, h0, h1, h2, ht]
 
-/-- A carrier verdict carries the share it was given for. -/
 theorem carrier_share (xs : List (Nat × List String)) (n : String) (h : verdict xs = .carrier n) :
     carrierShare * hitN xs ≤ 100 * countName n xs := by
   unfold verdict at h
@@ -143,7 +126,6 @@ theorem carrier_share (xs : List (Nat × List String)) (n : String) (h : verdict
       exact h3
     · simp [h0, h1, h2, ht, h3] at h
 
-/-- A frame with recalcs and a name dirty is not a frame with recalcs and no name: the two shares compete. -/
 theorem count_add_bare_le (n : String) (xs : List (Nat × List String)) : countName n xs + bareN xs ≤ hitN xs := by
   induction xs with
   | nil => simp [countName, bareN, hitN]
@@ -153,14 +135,12 @@ theorem count_add_bare_le (n : String) (xs : List (Nat × List String)) : countN
     | nil => by_cases hr : 0 < r <;> simp [countName, bareN, hitN, hr] <;> omega
     | cons a b => by_cases hr : 0 < r <;> by_cases hc : (n = a ∨ n ∈ b) <;> simp [countName, bareN, hitN, hr, hc] <;> omega
 
-/-- The document-level and carrier conditions cannot both hold on a reading with recalc frames. -/
 theorem document_and_carrier_exclusive (xs : List (Nat × List String)) (n : String) (hh : 0 < hitN xs)
     (hd : documentShare * hitN xs ≤ 100 * bareN xs) (hc : carrierShare * hitN xs ≤ 100 * countName n xs) : False := by
   have := count_add_bare_le n xs
   simp [documentShare, carrierShare] at hd hc
   omega
 
-/-- What the hide arm says about a named carrier. -/
 inductive H where
   | unread | unmatched | noReference | confirmed | notConfirmed
   deriving DecidableEq, Repr
@@ -203,7 +183,6 @@ theorem hide_notConfirmed (c : String) (ref hide : Reading) (h1 : ¬ ref.frames 
     (h3 : ¬ ref.rate ≤ floorBand) (h : ¬ hide.rate ≤ floorBand) : hideVerdict c (some c) ref hide = .notConfirmed := by
   simp [hideVerdict, h1, h2, h3, h]
 
-/-- A confirmed hide lowered the rate from above the band to the band or below. -/
 theorem confirmed_lowers (c : String) (hd : Option String) (ref hide : Reading) (h : hideVerdict c hd ref hide = .confirmed) :
     hide.rate ≤ floorBand ∧ floorBand < ref.rate := by
   unfold hideVerdict at h
@@ -217,8 +196,6 @@ theorem confirmed_lowers (c : String) (hd : Option String) (ref hide : Reading) 
   · exact ⟨h3, by omega⟩
   · simp [h0, h1, h2, h3] at h
 
-/-- Where the document-level dirt sits, read from a forced style flush (`getComputedStyle`) in the frame loop. `auto` are
-the recalcs the rendering update made on its own, `flush` those the forced flush made. -/
 inductive F where
   | unread | none | held | arises | both
   deriving DecidableEq, Repr
@@ -232,8 +209,6 @@ structure Flushed where
   flush : Nat
   deriving DecidableEq, Repr
 
-/-- `held`: the flush finds the dirt pending and the next update has none of its own; `arises`: the flush finds nothing
-and the next update recalcs anyway. -/
 def flushVerdict (x : Flushed) : F :=
   if x.frames < minFrames then .unread
   else
@@ -260,33 +235,28 @@ theorem flush_both (x : Flushed) (h0 : ¬ x.frames < minFrames) (hf : floorBand 
     (ha : floorBand < x.auto * 100 / x.frames) : flushVerdict x = .both := by
   simp [flushVerdict, h0, hf, ha]
 
-/-- Verdict strings of the jobs; unread jobs are left out, fewer than two judged jobs is inconclusive. -/
 def overall (ds : List D) : String := overallNames ((ds.filter fun d => d != .unread).map D.name)
 
 theorem overall_inconclusive (ds : List D) (h : (ds.filter fun d => d != .unread).length < minValid) : overall ds = "inconclusive" := by
   simpa [overall] using overallNames_inconclusive _ (by simpa using h)
 
-/-- Hide verdicts of the jobs, unread left out; a carrier is confirmed overall only if every judged job confirmed it. -/
 def hideOverall (hs : List H) : String := overallNames ((hs.filter fun h => h != .unread).map H.name)
 
 theorem hideOverall_inconclusive (hs : List H) (h : (hs.filter fun h => h != .unread).length < minValid) :
     hideOverall hs = "inconclusive" := by
   simpa [hideOverall] using overallNames_inconclusive _ (by simpa using h)
 
-/-- Flush verdicts of the jobs, unread left out; fewer than two judged jobs is inconclusive. -/
 def flushOverall (fs : List F) : String := overallNames ((fs.filter fun f => f != .unread).map F.name)
 
 theorem flushOverall_inconclusive (fs : List F) (h : (fs.filter fun f => f != .unread).length < minValid) :
     flushOverall fs = "inconclusive" := by
   simpa [flushOverall] using overallNames_inconclusive _ (by simpa using h)
 
-/-- All reps of one arm side by side: each rep's frames are paired and cut on their own, so no name carries over a rep border. -/
 def armSets (reps : List (List Frame)) : List (Nat × List String) := reps.flatMap repSets
 
 theorem armSets_length (reps : List (List Frame)) : (armSets reps).length = (reps.map fun r => (repSets r).length).sum := by
   simp [armSets, List.length_flatMap]
 
-/-- Run-length input for the golden: `n` frames with `r` recalcs and the dirty names. -/
 private def expand (gs : List (Nat × Nat × List String)) : List (Nat × List String) :=
   gs.flatMap fun (n, r, s) => List.replicate n (r, s)
 
