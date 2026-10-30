@@ -5,3 +5,4 @@
 - Temporary workflow edits were reverted to main. mid-page.mjs keeps out.rs.parkDiag (harness diagnostic).
 - Open: jump-proof park trigger plus computed-end hold for the card translate (Lean rule first), gate of unthrottle-park alone on webkit, engine-check rows for an idle end-floor claim, iOS Safari with threaded scroll-driven animations ON.
 - Read first: research/notes/2026/10-30-scrolldriven-park.md, lean/Fw/Parts/ScrollPark.lean header.
+- Final: check.sh green, site/measure-wktr tests green, dry land without --allow refuses on lean/Fw/Parts/Bridge.lean (footprint change of engine.scroll needed new Bridge tables: codeAdj row 9, selfIndep list, 285 pairs, chain table); with --allow lean/Fw/Parts/Bridge.lean the dry prints VERDICT dry scrolldriven-park. The lead adds lean/Fw/Parts/Bridge.lean to the row's writes. Results moved to results/scrolldriven-park/. engine-check not delivered (counts lane measures a swipe).
