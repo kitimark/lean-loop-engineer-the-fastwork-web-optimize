@@ -16,7 +16,7 @@ what the page did, and a Lean rule sets it beside the rating.
 |---|---|---|
 | Frame times, long frames (> 17 ms, > 34 ms) | page `requestAnimationFrame` loop | hundredths of a ms |
 | Scroll trace | `scrollY` per frame; touch events (`s m e c`, x, y, finger count) | tenths of a px |
-| Style, layout, paint records per 500 px zone | Timeline on for the visit; `performance.mark('cap:<frame>')` joins records to frames; `reduceSteps` + `zones(500)` as the counts lane; the saved visit keeps the per-zone [style, layout, paint] in `feel.zones` | records |
+| Style, layout, paint records per 500 px zone | Timeline on for the visit; `performance.mark('cap:<frame>')` joins records to frames; `reduceSteps` + `zones(500)` as the counts lane; the saved visit keeps, per zone, the `zones()` counts in `feel.zones`: one count per `COUNT_TYPES` entry (`reduce.mjs`), in that order (style, layout, paint first) | records |
 | Pin fights | every page call of `window.scrollTo` (the nav tween pins with `scrollTo({top, behavior:'instant'})`), against the scroll move of the frame before it | tenths of a px |
 | Tween re-targets | `window.__fwTakeTrace` `push` events with the tween progress at the start (only the geom-timed variant emits them) | per mille |
 | Hero-card blinks | computed opacity of every `hero.orbit_card` per frame | per mille |
@@ -79,7 +79,7 @@ and on a signal.
 
 RUN 2026-10-30, iPhone 15 Pro Max on USB, unlocked, scripted swipe (no user input). Harness check, not a result.
 `node src/device-feel-dry.mjs --site ../../apps/site/dist/aot --dir .local/phone/2026-10-30-feel-capture --driver .local/phone/2026-10-28-flip-driver --seed 1`
-(about 5 min: pin Serious, 2 visits, 3 scripted swipes each, rate 3, stop). Raw files stay under `.local/`.
+(about 5 min: pin Serious, 2 visits, 3 scripted swipe requests each (`--swipes 3`), rate 3, stop). Raw files stay under `.local/`.
 
 First attempt ended at start with "found 0 of 0 tabs": Safari was not running (probe: launching it with `devicectl` made the proxy list one `about:blank`
 tab). That is our harness gap, fixed (table above); no user-side setting was involved. Second attempt completed; the pin cleared (end `heatRemains`: the
@@ -94,7 +94,7 @@ drop detector matched that line, so the flag was a false positive (no drop happe
 
 Counts from Lean's `captureOf` (TS twin, golden-checked) over the saved visits (frames, pins, starts, opacity; recomputed from the visit files: moving gaps, long frames, reversals, pins, fights and blinks match
 this table), with the final limits 17 and 34 ms. The zone column is not recomputable from this run's visit files: they predate the fix that keeps the per-zone
-[style, layout, paint] counts in `feel.zones`, so its figures come from this run's `feel.json` `captures[].zoneWork` (style + layout + paint summed per zone). Visits
+per-zone `COUNT_TYPES` counts in `feel.zones`, so its figures come from this run's `feel.json` `captures[].zoneWork` (style + layout + paint summed per zone). Visits
 saved from now on keep the per-zone counts per kind, and the zone column recomputes from them:
 
 | Visit | moving gaps | long > 17 ms | long > 34 ms | pins | fights | reversals | blinks | zones with work |

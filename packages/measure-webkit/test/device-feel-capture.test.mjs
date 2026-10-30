@@ -103,7 +103,7 @@ test('the saved raw record normalizes for the replay lanes', () => {
       assert.equal(rec.feel.active.length, 6);
       const marks = inputsOf(raw(), rows());
       assert.ok(marks.zones.length > 0);
-      assert.deepEqual(rec.feel.zones, marks.zones, 'the saved per-zone [style, layout, paint] counts equal the recorder marks');
+      assert.deepEqual(rec.feel.zones, marks.zones, 'the saved per-zone COUNT_TYPES counts equal the recorder marks');
       assert.deepEqual(r.capture.zoneWork, rec.feel.zones.map(workOf), 'the zone column recomputes from the saved visit');
       assert.deepEqual((await vc.finish()).error, 'no capture was running');
     });
