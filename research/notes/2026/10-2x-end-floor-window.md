@@ -12,13 +12,12 @@ topics: [webkit, wktr, end-of-page, floor, style-recalc, animation-tick, lean, n
 Task `end-floor-window`, branch `ci/end-floor-window` (worktree branch `worktree-wf_46680abc-c16-1`), follow-up of
 `10-2x-end-floor-writes.md`. Unit of decision: every arm reads the same number of frames (a frame-count-pinned window), each frame
 carries a tick probe, and Lean decides per arm whether the window holds a transient or a steady animation state. WKTR (Simulator
-`internals.styleRecalcCount`) stands in for iOS Safari; the numbers are class counts per 100 frames, never phone time. Every number
-below is a `verdict.txt` line value, a `rows.txt` cell, a count of jobs, rows or arms, or a run id.
+`internals.styleRecalcCount`) stands in for iOS Safari; the numbers are class counts per 100 frames, never phone time.
 
 ## Answer
 - Pinned windows work (MEASURED, wktr run 40989068304, push 1 at 72f68bb66, 3 of 3 jobs): all 30 rows of
   `results/end-floor-window/r1/rows.txt` read `frames 576` (12 reps of 48), `wins 48 to 48`, `pin pinned (12 reps)`. Frames per arm are
-  equal, so the frame-count confound of the previous run is gone (its j2 windows ran 245 to 531 frames).
+  equal (the previous run's j2 windows ran 245 to 531 frames).
 - Every arm reads the same rate (MEASURED): `rate 102 per 100 frames` in 30 of 30 rows, `r=0 0` and `r=1 564` in 30 of 30. `verdict.txt`:
   floor 102, arm 102, reference 102, cut 0 in 21 of 21 arm lines (3 jobs x 7 writer sets), each `verdict no writes`, finding
   `no writes` in j1, j2, j3 and overall. The earlier j2 spread (cuts 7 to 27 against floors 114 to 160) was a window effect, not a writer
@@ -44,7 +43,7 @@ below is a `verdict.txt` line value, a `rows.txt` cell, a count of jobs, rows or
 - `a` (accelerated tracks) counts created tracks whose property is in `internals.acceleratedAnimationsForElement` for the track's element
   (`Internals.cpp:1534-1546`, the timelines controller's accelerated list). Every sampled frame reads `[m,q,d,a] = [0,0,55,0]`
   (all 17280 frames of the 30 rows, read from the result files): 55 created tracks, all `d`. Because `d` is infinity, `a` of 0 says nothing about whether
-  a running track would be accelerated; it says those tracks were not running.
+  a running track would be accelerated; those tracks were not running.
 - `h` (phase per mille) is page-side, not WebKit: `rsWindow` (`mid-page.mjs:610-617`) returns 9 (`9000` per mille) when the reference
   track's `playState` is `idle`, otherwise the track's `currentTime` over the 680 ms duration. Reading 9000 in the first frame of all 360 reps
   means the reference track was idle (cancelled or ended) before the window's first frame.
@@ -73,5 +72,5 @@ below is a `verdict.txt` line value, a `rows.txt` cell, a count of jobs, rows or
   flip. Next candidate, a measurement and not a flag: read `tkRead` and each track's `playState` once right after the tracks exist, before
   the first window frame, and every few frames after, to see when the tracks leave the running state. Its Lean statement is the existing
   `repClass_transient` (a rep with ticking frames then only quiet frames and no later recalc), which this run never reaches. A lever would
-  exist only if that read shows running tracks whose recalcs outlast the flip; this run shows none.
+  exist only if that read shows running tracks whose recalcs outlast the flip.
 - `floor-fp-thr-off` is removed (its build config was never run); the SETS list is `v2p` only.

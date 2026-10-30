@@ -1,7 +1,5 @@
 import { rpf100, overallNames } from './end-wktr.mjs';
 
-// Port of Fw.Device.EndFloorWindow (lean/Fw/Device/EndFloorWindow.lean); the golden test packages/measure-wktr/test/end-floor-window.test.mjs replays
-// packages/contracts/golden/device/end-floor-window.jsonl. The page probe (mid-page.mjs rsWindow) holds the frame-count rule itself.
 export const PIN_N = 48;
 export const PIN_REPS = 12;
 export const MIN_REPS = 6;
@@ -58,7 +56,6 @@ export const classRate = (c, reps) => rpf100(reps.flat().filter((t) => clsOf(t) 
 
 export const overall = (vs) => overallNames(vs.filter((v) => v !== 'unread'));
 
-// Rows hold the frames of every rep back to back and the length of each rep in `wins`.
 export function repsOfRow(row) {
   const fs = row.rs?.frames ?? [];
   const wins = row.rs?.wins ?? [];

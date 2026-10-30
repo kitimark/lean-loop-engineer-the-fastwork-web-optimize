@@ -29,7 +29,6 @@ function sample(w: number): Layout {
 
 const ANIMATED = new Set(['opacity', 'filter', 'backdrop-filter', 'transform', 'translate', 'scale']);
 
-// The author !important declarations on an animatable property, as (data-mg element, property), read from geom.css.
 function importantDecls(): string[] {
   const out = new Set<string>();
   for (const m of css.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
