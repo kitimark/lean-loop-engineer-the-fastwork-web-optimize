@@ -1,0 +1,82 @@
+scroll-park wktr-j1 end-of-page idle v2p: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j1 end-of-page idle nohero: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j1 end-of-page idle nout: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j1 end-of-page idle base: frames 576 recalcs 0 rate 0 per 100 rAF callbacks
+scroll-park wktr-j1 end-of-page idle hp: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j1 end-of-page idle up: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j1 end-of-page idle both: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle v2p: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle nohero: frames 576 recalcs 595 rate 103 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle nout: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle base: frames 576 recalcs 154 rate 26 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle hp: frames 576 recalcs 595 rate 103 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle up: frames 576 recalcs 597 rate 103 per 100 rAF callbacks
+scroll-park wktr-j1 mid-page idle both: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park-split wktr-j1 end-of-page idle hero.exit:threaded: reference 100, without the flag 100, the flag alone 100, neither 0 per 100, verdict shared
+scroll-park-split wktr-j1 end-of-page idle engine.scroll:unthrottle: reference 100, without the flag 100, the flag alone 100, neither 0 per 100, verdict shared
+scroll-park-split wktr-j1 mid-page idle hero.exit:threaded: reference 103, without the flag 103, the flag alone 103, neither 26 per 100, verdict baseFloor
+scroll-park-split wktr-j1 mid-page idle engine.scroll:unthrottle: reference 103, without the flag 103, the flag alone 103, neither 26 per 100, verdict baseFloor
+scroll-park-effect wktr-j1 end-of-page idle hero.exit:threaded-park: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 576 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j1 end-of-page idle engine.scroll:unthrottle-park: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 576 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j1 end-of-page idle both parks: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 576 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j1 mid-page idle hero.exit:threaded-park: reference frames 576 recalcs 594 rate 103 per 100 rAF callbacks, park frames 576 recalcs 595 rate 103 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j1 mid-page idle engine.scroll:unthrottle-park: reference frames 576 recalcs 594 rate 103 per 100 rAF callbacks, park frames 576 recalcs 597 rate 103 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j1 mid-page idle both parks: reference frames 576 recalcs 594 rate 103 per 100 rAF callbacks, park frames 576 recalcs 594 rate 103 per 100 rAF callbacks, verdict none
+scroll-park wktr-j2 end-of-page idle v2p: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j2 end-of-page idle nohero: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j2 end-of-page idle nout: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j2 end-of-page idle base: frames 576 recalcs 0 rate 0 per 100 rAF callbacks
+scroll-park wktr-j2 end-of-page idle hp: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j2 end-of-page idle up: frames 576 recalcs 577 rate 100 per 100 rAF callbacks
+scroll-park wktr-j2 end-of-page idle both: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle v2p: frames 576 recalcs 603 rate 104 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle nohero: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle nout: frames 576 recalcs 593 rate 102 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle base: frames 576 recalcs 216 rate 37 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle hp: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle up: frames 576 recalcs 593 rate 102 per 100 rAF callbacks
+scroll-park wktr-j2 mid-page idle both: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park-split wktr-j2 end-of-page idle hero.exit:threaded: reference 100, without the flag 100, the flag alone 100, neither 0 per 100, verdict shared
+scroll-park-split wktr-j2 end-of-page idle engine.scroll:unthrottle: reference 100, without the flag 100, the flag alone 100, neither 0 per 100, verdict shared
+scroll-park-split wktr-j2 mid-page idle hero.exit:threaded: reference 104, without the flag 103, the flag alone 102, neither 37 per 100, verdict baseFloor
+scroll-park-split wktr-j2 mid-page idle engine.scroll:unthrottle: reference 104, without the flag 102, the flag alone 103, neither 37 per 100, verdict baseFloor
+scroll-park-effect wktr-j2 end-of-page idle hero.exit:threaded-park: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 576 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j2 end-of-page idle engine.scroll:unthrottle-park: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 577 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j2 end-of-page idle both parks: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 576 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j2 mid-page idle hero.exit:threaded-park: reference frames 576 recalcs 603 rate 104 per 100 rAF callbacks, park frames 576 recalcs 594 rate 103 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j2 mid-page idle engine.scroll:unthrottle-park: reference frames 576 recalcs 603 rate 104 per 100 rAF callbacks, park frames 576 recalcs 593 rate 102 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j2 mid-page idle both parks: reference frames 576 recalcs 603 rate 104 per 100 rAF callbacks, park frames 576 recalcs 594 rate 103 per 100 rAF callbacks, verdict none
+scroll-park wktr-j3 end-of-page idle v2p: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j3 end-of-page idle nohero: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+scroll-park wktr-j3 end-of-page idle nout: frames 576 recalcs 577 rate 100 per 100 rAF callbacks
+scroll-park wktr-j3 end-of-page idle base: frames 576 recalcs 0 rate 0 per 100 rAF callbacks
+scroll-park wktr-j3 end-of-page idle hp: frames 576 recalcs 577 rate 100 per 100 rAF callbacks
+scroll-park wktr-j3 end-of-page idle up: frames 576 recalcs 577 rate 100 per 100 rAF callbacks
+scroll-park wktr-j3 end-of-page idle both: frames 576 recalcs 1 rate 0 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle v2p: frames 576 recalcs 597 rate 103 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle nohero: frames 576 recalcs 594 rate 103 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle nout: frames 576 recalcs 596 rate 103 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle base: frames 576 recalcs 187 rate 32 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle hp: frames 576 recalcs 596 rate 103 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle up: frames 576 recalcs 595 rate 103 per 100 rAF callbacks
+scroll-park wktr-j3 mid-page idle both: frames 576 recalcs 147 rate 25 per 100 rAF callbacks
+scroll-park-split wktr-j3 end-of-page idle hero.exit:threaded: reference 100, without the flag 100, the flag alone 100, neither 0 per 100, verdict shared
+scroll-park-split wktr-j3 end-of-page idle engine.scroll:unthrottle: reference 100, without the flag 100, the flag alone 100, neither 0 per 100, verdict shared
+scroll-park-split wktr-j3 mid-page idle hero.exit:threaded: reference 103, without the flag 103, the flag alone 103, neither 32 per 100, verdict baseFloor
+scroll-park-split wktr-j3 mid-page idle engine.scroll:unthrottle: reference 103, without the flag 103, the flag alone 103, neither 32 per 100, verdict baseFloor
+scroll-park-effect wktr-j3 end-of-page idle hero.exit:threaded-park: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 577 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j3 end-of-page idle engine.scroll:unthrottle-park: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 577 rate 100 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j3 end-of-page idle both parks: reference frames 576 recalcs 576 rate 100 per 100 rAF callbacks, park frames 576 recalcs 1 rate 0 per 100 rAF callbacks, verdict cut
+scroll-park-effect wktr-j3 mid-page idle hero.exit:threaded-park: reference frames 576 recalcs 597 rate 103 per 100 rAF callbacks, park frames 576 recalcs 596 rate 103 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j3 mid-page idle engine.scroll:unthrottle-park: reference frames 576 recalcs 597 rate 103 per 100 rAF callbacks, park frames 576 recalcs 595 rate 103 per 100 rAF callbacks, verdict none
+scroll-park-effect wktr-j3 mid-page idle both parks: reference frames 576 recalcs 597 rate 103 per 100 rAF callbacks, park frames 576 recalcs 147 rate 25 per 100 rAF callbacks, verdict partial
+scroll-park-split overall end-of-page idle hero.exit:threaded: shared (jobs shared | shared | shared)
+scroll-park-split overall end-of-page idle engine.scroll:unthrottle: shared (jobs shared | shared | shared)
+scroll-park-split overall mid-page idle hero.exit:threaded: baseFloor (jobs baseFloor | baseFloor | baseFloor)
+scroll-park-split overall mid-page idle engine.scroll:unthrottle: baseFloor (jobs baseFloor | baseFloor | baseFloor)
+scroll-park-effect overall end-of-page idle hero.exit:threaded-park: none (jobs none | none | none)
+scroll-park-effect overall end-of-page idle engine.scroll:unthrottle-park: none (jobs none | none | none)
+scroll-park-effect overall end-of-page idle both parks: mixed (jobs none | none | cut)
+scroll-park-effect overall mid-page idle hero.exit:threaded-park: none (jobs none | none | none)
+scroll-park-effect overall mid-page idle engine.scroll:unthrottle-park: none (jobs none | none | none)
+scroll-park-effect overall mid-page idle both parks: mixed (jobs none | none | partial)
