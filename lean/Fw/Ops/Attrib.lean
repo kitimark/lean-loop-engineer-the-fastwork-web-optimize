@@ -2,7 +2,6 @@ import Lean
 namespace Fw.Ops.Attrib
 open Lean
 
-/-- A gate run: its commit, its flag set as `(part, variant)` pairs, and whether the gate passed. -/
 structure Run where
   commit : String
   flags : List (String × String)
@@ -12,7 +11,6 @@ deriving Repr, DecidableEq
 def get (fs : List (String × String)) (part : String) : Option String :=
   (fs.find? (·.1 == part)).map (·.2)
 
-/-- The parts whose setting differs between two flag sets (a part set in one and absent in the other differs). -/
 def delta (a b : List (String × String)) : List String :=
   ((a.map (·.1) ++ b.map (·.1)).eraseDups).filter (fun p => get a p != get b p)
 
@@ -27,7 +25,6 @@ def direction (a b : Run) (p : String) : Verdict :=
   else if a.pass then .causedBy p (get b.flags p) (get a.flags p)
   else .causedBy p (get a.flags p) (get b.flags p)
 
-/-- A cause is stated only between two runs on one commit whose flag sets differ in exactly one part. -/
 def verdict (a b : Run) : Verdict :=
   if a.commit != b.commit then .notAttributable
   else match delta a.flags b.flags with

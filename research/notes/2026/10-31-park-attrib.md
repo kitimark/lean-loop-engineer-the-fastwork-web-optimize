@@ -26,8 +26,7 @@ job "attrib golden check" in `lean/scripts/check.sh`).
   `hero.deck` same property 164 probes, `"0px"` against `"-0.00001px -0.000008px"`. Parts `hero.exit` and `engine.scroll` pass on both engines.
 - The readings-table sha256 is identical across runs: WebKit `e524c0eed3fc9707078ee224953866a1550bf6196febc695cf6d55dbd1ee3550` in 41054732597 and 41078004214
   (baseline: `44e52cf58d0f4b0bf9d2519cdf858c62e4306d79ddc0019cdfe4d1f6f352bb0c`); Chromium `bb9c3db13df7cbd72aa3f8aa42392095a3aef0d30892cb765aed070a08afbe8f` in all three.
-- Run 41078004214 is the first push of this task (build config `?fw=engine.scroll:unthrottle,hero.exit:threaded` as in commit 768aebfa2; workflow reverted
-  afterwards). One gate push used of two.
+- Run 41078004214 is the first push of this task (build config `?fw=engine.scroll:unthrottle,hero.exit:threaded` as in commit 768aebfa2). One gate push used of two.
 - The baseline run 41058963051 has run conclusion `cancelled` (job not read); its merge job succeeded and printed both verdicts above.
 
 ## 3. Verdicts (Lean `verdict`, goldens rows 13-18 of `attrib.jsonl`)
