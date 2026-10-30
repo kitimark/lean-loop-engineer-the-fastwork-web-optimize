@@ -9,12 +9,12 @@ export const SKIP_FRAMES = 8;
 export { MIN_FRAMES };
 
 export const ARMS_D = [
-  'rs-flip-pbpoff', 'rs-flip-pbdn', 'rs-flip-pbpd', 'rs-flip-pbpdt', 'rs-idle-pbpd', 'rs-flip-pbpft', 'rs-flip-pbpfh',
-  'rs-flip-pbphide', 'rs-flip-pbphidep', 'rs-flip-pbpd', 'rs-flip-pbpoff',
+  'rs-flip-pbpoff', 'rs-flip-pbdn', 'rs-flip-pbpd', 'rs-flip-pbpdt', 'rs-idle-pbpd', 'rs-flip-pbpft', 'rs-flip-pbpfh', 'rs-flip-pbpan',
+  'rs-flip-pbphide', 'rs-flip-pbphidep', 'rs-flip-pbphides', 'rs-flip-pbpd', 'rs-flip-pbpoff',
 ];
-export const HIDE_KEYS = ['flip-pbphide', 'flip-pbphidep'];
+export const HIDE_KEYS = ['flip-pbphide', 'flip-pbphidep', 'flip-pbphides'];
 export const FLUSH_KEYS = ['flip-pbpft', 'flip-pbpfh'];
-const KEY = /^rs-(flip|idle)-(pbpoff|pbdn|pbpdt|pbpd|pbpft|pbpfh|pbphidep|pbphide)$/;
+const KEY = /^rs-(flip|idle)-(pbpoff|pbdn|pbpdt|pbpd|pbpft|pbpfh|pbpan|pbphidep|pbphides|pbphide)$/;
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 const cp = (s) => Array.from(s).map((c) => c.codePointAt(0));
@@ -146,6 +146,26 @@ export function factsOf(row) {
   };
 }
 
+// Animation facts of the pbpan arm against the steady dirty names of its own frames: a name is steady if it is in CARRIER_SHARE percent of the recalc frames.
+export function animOf(an, xs) {
+  if (!an) return null;
+  const hit = hitN(xs);
+  const steady = names(xs).filter((n) => n.startsWith('e:') && hit > 0 && CARRIER_SHARE * hit <= 100 * countName(n, xs));
+  const targets = new Set((an.els ?? []).map((e) => e[0]));
+  const scroll = (an.els ?? []).filter((e) => e[1] !== 'DocumentTimeline');
+  const sTargets = new Set(scroll.map((e) => e[0]));
+  const subjects = new Set(scroll.map((e) => e[4]).filter((n) => n !== '-'));
+  return {
+    total: an.total,
+    kinds: Object.entries(an.kinds ?? {}).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)),
+    targets: targets.size,
+    progress: sTargets.size,
+    steady: steady.length,
+    steadyAnimated: steady.filter((n) => sTargets.has(n)).length,
+    steadySubject: steady.filter((n) => !sTargets.has(n) && subjects.has(n)).length,
+  };
+}
+
 export function decideDirtyJob(rep) {
   const rows = rowsByKey(rep);
   const arms = [];
@@ -153,7 +173,7 @@ export function decideDirtyJob(rep) {
     const xs = setsOf(row);
     const hit = hitN(xs);
     const t = top(xs);
-    arms.push({ key, row, sets: xs.length, rate: rate(xs), hit, bare: bareN(xs), top: t, topN: t === null ? 0 : countName(t, xs), v: verdict(xs), reading: readingOf(row), hid: row.rs.hid ?? null, facts: factsOf(row), flush: null });
+    arms.push({ key, row, sets: xs.length, rate: rate(xs), hit, bare: bareN(xs), top: t, topN: t === null ? 0 : countName(t, xs), v: verdict(xs), reading: readingOf(row), hid: row.rs.hid ?? null, facts: factsOf(row), flush: null, an: animOf(row.rs.an, xs) });
     const last = arms[arms.length - 1];
     last.flush = last.facts.flush === null ? null : flushVerdict(last.facts.flush);
   }
@@ -161,6 +181,7 @@ export function decideDirtyJob(rep) {
   const hides = ref === null ? [] : arms.filter((a) => HIDE_KEYS.includes(a.key)).map((a) => ({
     key: a.key,
     hid: a.hid,
+    n: a.hid === null ? 0 : (a.row.rs.hidSet ?? 1),
     ref: ref.reading,
     hide: a.reading,
     v: ref.v.kind === 'carrier' ? hideVerdict(ref.v.name, a.hid, ref.reading, a.reading) : null,
@@ -176,11 +197,12 @@ export function jobLinesD(label, rep) {
   for (const a of d.arms) {
     lines.push(`end-floor-dirty ${label} ${a.key}: ${rd(a.reading)}, read frames ${a.sets} rate ${a.rate}, recalc frames ${a.hit} of which no dirty name ${a.bare}, top ${a.top ?? '-'} in ${a.topN} recalc frames, verdict ${dName(a.v)}`);
     const f = a.facts;
+    if (a.an !== null) lines.push(`end-floor-dirty-anim ${label} ${a.key}: animations ${a.an.total} (${a.an.kinds.map(([k, v]) => `${k} ${v}`).join(', ') || '-'}), targets ${a.an.targets}, targets on a non-document timeline ${a.an.progress}, steady dirty elements ${a.an.steady} of which targets ${a.an.steadyAnimated} and timeline subjects ${a.an.steadySubject}`);
     if (f.flush !== null) lines.push(`end-floor-dirty-flush ${label} ${a.key}: frames ${f.flush.frames} update recalcs ${f.flush.auto} flush recalcs ${f.flush.flush}, verdict ${flushVerdict(f.flush)}`);
     lines.push(`end-floor-dirty-dirt ${label} ${a.key}: dirty nodes per sample at rAF start ${f.dirt.h / 100} (elements ${f.dirt.hEl / 100}, max ${f.dirt.maxH}), after the update ${f.dirt.e / 100} (elements ${f.dirt.eEl / 100}, max ${f.dirt.maxE}), cycling names per frame ${f.dirt.cyc / 100}${f.mut.length === 0 ? '' : `, mutations ${f.mut.map(([k, n]) => `${k} x${n}`).join('; ')}`}`);
     lines.push(`end-floor-dirty-facts ${label} ${a.key}: timeline invalidations per 100 frames ${f.timeline}, style invalidation traversals per 100 frames ${f.traversal}, largest last style update ${f.styleSize}, nodes walked ${f.nodes}, capped windows ${f.capped}, walk ms per frame ${f.walkMs}, recalcs before the rAF callback ${f.pre}${f.types.length === 0 ? '' : `, change types ${f.types.map(([k, n]) => `${k} x${n}`).join('; ')}`}`);
   }
-  for (const h of d.hides) lines.push(`end-floor-dirty-hide ${label} ${h.key}: hid ${h.hid ?? '-'}, reference ${rd(h.ref)}, hidden ${rd(h.hide)}, verdict ${h.v ?? 'noCarrier'}`);
+  for (const h of d.hides) lines.push(`end-floor-dirty-hide ${label} ${h.key}: hid ${h.hid ?? '-'} (elements hidden ${h.n}), reference ${rd(h.ref)}, hidden ${rd(h.hide)}, verdict ${h.v ?? 'noCarrier'}`);
   return { lines, d };
 }
 

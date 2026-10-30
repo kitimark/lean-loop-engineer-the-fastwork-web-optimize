@@ -739,8 +739,9 @@ function pageProbe(P) {
   // Internals::styleChangeType first runs styleScope().flushPendingUpdate() (Internals.cpp:961-966), so the typed arm reads types after the pure pass.
   const PD = {
     pbdn: { t: 0 }, pbpd: { t: 0 }, pbpdt: { t: 1 },
-    pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' },
+    pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' }, pbphides: { t: 0, hide: 'set' },
     pbpft: { t: 0, fl: 'T' }, pbpfh: { t: 0, fl: 'H' },
+    pbpan: { t: 0, an: 1 },
   };
   const DN = { names: new WeakMap(), nodes: new Map(), cnt: new Map(), ref: null };
   const DTY = ['NoStyleChange', 'AnimationInvalid', 'InlineStyleInvalid', 'InlineStyleChange', 'FullStyleChange'];
@@ -922,6 +923,28 @@ function pageProbe(P) {
     const nm = (x) => (x ? 'p:' + x.getAttribute('data-fw') : null);
     return { name: best ? best[0] : null, count: best ? best[1] : 0, el: el, part: partEl, ctrl: ctrl, names: { el: best && el ? nameOf(el)[0] : null, part: nm(partEl), ctrl: nm(ctrl) } };
   };
+  // Animation facts (task end-floor-dirty): every animation of the document with its timeline kind, its target and its play state.
+  // Reads only: Document.getAnimations() builds the list, it changes no style.
+  const animRead = () => {
+    const kinds = {};
+    const els = [];
+    let total = 0;
+    let list = [];
+    try { list = document.getAnimations(); } catch (x) { }
+    for (const a of list) {
+      total++;
+      let kind = 'none';
+      try { kind = a.timeline ? (a.timeline.constructor && a.timeline.constructor.name) || 'timeline' : 'none'; } catch (x) { }
+      kinds[kind] = (kinds[kind] || 0) + 1;
+      if (els.length >= 64) continue;
+      let t = null;
+      try { t = a.effect && a.effect.target; } catch (x) { }
+      let subj = null;
+      try { subj = a.timeline && (a.timeline.subject || a.timeline.source); } catch (x) { }
+      els.push([t ? nameOf(t)[0] : '-', kind, a.playState, a.animationName || a.id || '', subj && subj.nodeType === 1 ? nameOf(subj)[0] : '-']);
+    }
+    return { total: total, kinds: kinds, els: els };
+  };
   const creRun = () => new Promise((resolve) => {
     const samples = [];
     const t0 = performance.now();
@@ -985,14 +1008,27 @@ function pageProbe(P) {
     const K = { kt: kt, idx: new Map() };
     let hideEl = null;
     let hideWas = null;
+    const hideSet = [];
     if (pd) { out.rs.dn = []; DN.cnt = new Map(); }
+    if (pd && pd.an) out.rs.an = animRead();
     if (pd && pd.hide) {
       const tp = dirtTop();
-      const pick = pd.hide === 'el' ? tp.el : pd.hide === 'part' ? tp.part : tp.ctrl;
+      const pick = pd.hide === 'el' || pd.hide === 'set' ? tp.el : pd.hide === 'part' ? tp.part : tp.ctrl;
       const el = pick === document.documentElement || pick === document.body ? null : pick;
       out.rs.top = { name: tp.name, count: tp.count };
       if (pick && !el) out.rs.skipped = 'root';
-      out.rs.hid = el ? (pd.hide === 'el' ? tp.name : tp.names[pd.hide]) : null;
+      out.rs.hid = el ? (pd.hide === 'el' || pd.hide === 'set' ? tp.name : tp.names[pd.hide]) : null;
+      // 'set': also hide every element dirty in at least 90 percent as many frames as the top name (the tie of equal carriers), so one hidden element cannot leave the others dirty.
+      if (el && pd.hide === 'set') {
+        for (const [k, c] of (DN.ref || DN.cnt)) {
+          if (!k.startsWith('e:') || 100 * c < 90 * tp.count) continue;
+          const nd = DN.nodes.get(k);
+          const x = nd ? (nd.nodeType === 1 ? nd : nd.parentElement) : null;
+          if (x && x !== el && x !== document.documentElement && x !== document.body) hideSet.push([x, x.style.getPropertyValue('display'), x.style.getPropertyPriority('display')]);
+        }
+        for (const h of hideSet) h[0].style.setProperty('display', 'none', 'important');
+        out.rs.hidSet = hideSet.length + 1;
+      }
       if (el) {
         hideEl = el;
         hideWas = [el.style.getPropertyValue('display'), el.style.getPropertyPriority('display')];
@@ -1072,6 +1108,7 @@ function pageProbe(P) {
       S.fine = null;
     }
     if (vv === 'hide') document.body.style.display = '';
+    for (const h of hideSet) { h[0].style.removeProperty('display'); if (h[1]) h[0].style.setProperty('display', h[1], h[2]); }
     if (hideEl) { hideEl.style.removeProperty('display'); if (hideWas[0]) hideEl.style.setProperty('display', hideWas[0], hideWas[1]); }
     for (const g of smilSvgs) { try { g.unpauseAnimations(); } catch (x) { } }
     for (const a of toPause) { try { a.play(); } catch (x) { } }
