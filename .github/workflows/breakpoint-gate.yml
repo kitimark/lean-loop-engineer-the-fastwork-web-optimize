@@ -161,7 +161,7 @@ jobs:
           FREE: ${{ inputs.free || '8' }}
           TIMES: ${{ inputs.times || 'measured' }}
           PARTS: ${{ inputs.parts || '' }}
-          FW: ${{ inputs.fw || 'engine.scroll:unthrottle,hero.exit:threaded' }}
+          FW: ${{ inputs.fw || '' }}
           PRESET: ${{ inputs.preset || '' }}
         run: |
           set -euo pipefail
@@ -200,7 +200,7 @@ jobs:
         with:
           filter: '@fw/site...'
       - name: Build the rewrite (default prerendered config)
-        run: pnpm --filter @fw/site build --config "?fw=engine.scroll:unthrottle,hero.exit:threaded"
+        run: pnpm --filter @fw/site build
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist

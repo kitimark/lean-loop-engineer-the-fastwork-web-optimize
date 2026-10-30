@@ -31,7 +31,17 @@ def cases : List (String × Run × Run) :=
    ("two commits: not attributable although one part differs",
       run "c1" [("x", "y")] false, run "c2" [] true),
    ("a repeated part counts once",
-      run "c1" [("x", "y"), ("x", "y")] false, run "c1" [] true)]
+      run "c1" [("x", "y"), ("x", "y")] false, run "c1" [] true),
+   ("runs 41054732597 and 41078004214: park pair against the pair without park, two parts and two commits",
+      run "768aebf" park false, run "72d0bfd" pair false),
+   ("runs 41078004214 and 41058963051: the pair against the faithful build, two parts and two commits",
+      run "72d0bfd" pair false, run "8cb6814" [] true),
+   ("runs 41054732597 and 41058963051: the park pair against the faithful build, two parts and two commits",
+      run "768aebf" park false, run "8cb6814" [] true),
+   ("runs 39774976109 and 41058963051: threaded alone against the faithful build, one part but two commits",
+      run "ff8c8cd" [("hero.exit", "threaded")] false, run "8cb6814" [] true),
+   ("two runs on one commit, threaded alone against no flags: caused by hero.exit",
+      run "c1" [("hero.exit", "threaded")] false, run "c1" [] true)]
 
 def name : Verdict → String
   | .causedBy .. => "causedBy"
