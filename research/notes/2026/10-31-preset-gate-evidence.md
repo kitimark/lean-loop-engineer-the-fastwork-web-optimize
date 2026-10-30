@@ -33,13 +33,13 @@ so a later failing run of the same set withdraws the proof.
 
 | theorem | line | statement |
 |---|---|---|
-| `proved_evidence` | 244 | proved implies an admission row whose set holds the member, and on each engine a passing run of exactly that set that is the newest of that set |
-| `not_proved_of_no_admission` | 270 | no admission row, not proved |
-| `not_proved_of_no_run` | 286 | an admission set with no recorded run, not proved |
-| `problems_of_no_admission` | 307 | a member without an admission row fails the check, whatever the waivers |
-| `problems_of_no_pass` | 313 | an unwaived member without a passing pair fails the check |
-| `waivers_pinned` | 320 | the waivers are exactly the five pre-rule members below |
-| `status_of_*` | 211-236 | one theorem per branch of `status` |
+| `proved_evidence` | 240 | proved implies an admission row whose set holds the member, and on each engine a passing run of exactly that set that is the newest of that set |
+| `not_proved_of_no_admission` | 266 | no admission row, not proved |
+| `not_proved_of_no_run` | 282 | an admission set with no recorded run, not proved |
+| `problems_of_no_admission` | 303 | a member without an admission row fails the check, whatever the waivers |
+| `problems_of_no_pass` | 309 | an unwaived member without a passing pair fails the check |
+| `waivers_pinned` | 316 | the waivers are exactly the five pre-rule members below |
+| `status_of_*` | 207-232 | one theorem per branch of `status` |
 
 `Fw.Preset.Gen.gate_fails_of_new_v2` and `gate_fails_of_new_shipped` (`lean/Fw/Preset/Gen.lean:996`, `:1002`) apply this
 to the generated presets: a new member without an admission row makes the list `run` throws on non-empty.

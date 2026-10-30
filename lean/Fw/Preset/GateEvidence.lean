@@ -141,10 +141,6 @@ def waivers : List Waiver :=
    ⟨"shipped", threaded, threadedReason⟩,
    ⟨"shipped", fadedPause, fadedReason⟩]
 
-/-- Gate verdicts of `runs`, `admissions` and `waivers` for the members `ms`. -/
-def statuses (ms : List (String × Flag)) : List ((String × Flag) × Status) :=
-  ms.map fun (p, f) => ((p, f), status runs admissions waivers p f)
-
 def engineWord : Engine → String
   | .chromium => "chromium"
   | .webkit => "playwright-webkit"

@@ -6,7 +6,7 @@
   rule `status`; `Fw.Preset.Gen.run` throws on `problems`, prints one `gate evidence:` line per member and writes
   `packages/contracts/golden/preset/gate-evidence.jsonl`.
 - Verified: `lake build`, the module's `#guard`s, Gen.run regenerated with only the new golden changing, ci-paths test 56
-  pass, runner land-inputs 73 pass. check.sh and the dry land: see the report.
+  pass, runner land-inputs 73 pass, @fw/contracts test 11 pass, check.sh green (slot). Dry land: see the report.
 - Result: v2-proved `engine.scroll:unthrottle` proved by run 40101370753; the other five (preset, member) pairs are
   pending with reasons naming 41087718575, 41078004214 or 40287895072 and the user step threaded-look.
 - Open (follow-ups): feed `runs` from the gate merge output instead of Lean data; a run of the three-flag set would
