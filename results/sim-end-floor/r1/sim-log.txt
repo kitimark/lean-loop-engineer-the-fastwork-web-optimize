@@ -1,0 +1,16 @@
+serving the snapshot read-only at http://127.0.0.1:49665/
+proxy up: SIMULATOR on :9341, tabs on :9342
+  no tab after 6 s: sending openurl again (extra ask 1)
+end-floor round 1 base: end raf 360 seen 360 recalcs 723; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 v2p: end raf 360 seen 360 recalcs 721; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 minusT: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 minusU: end raf 360 seen 375 recalcs 735; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 2 v2p: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 2 minusT: end raf 360 seen 368 recalcs 728; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 2 minusU: end raf 360 seen 364 recalcs 732; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 2 base: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 3 minusT: end raf 360 seen 360 recalcs 710; back raf 360 seen 360 recalcs 728; paused raf 360 seen 360 recalcs 720
+end-floor round 3 minusU: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+  end-floor base round 3 attempt 1 failed (Runtime.evaluate timed out after 120000 ms); reconnecting and retrying from a fresh load
+end-floor round 3 base: end raf 360 seen 362 recalcs 721; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 3 v2p: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720

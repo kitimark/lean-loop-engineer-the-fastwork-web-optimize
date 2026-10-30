@@ -197,9 +197,9 @@ jobs:
           FWCORE: ${{ runner.temp }}/bin/fwcore
           VMS: ${{ inputs.vms || (contains(github.event.head_commit.message, '[swap-lane]') && '3') || '1' }}
           SESSIONS: ${{ inputs.sessions || '1' }}
-          TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[swap-lane]') && 'rewrite') || 'original' }}
+          TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[swap-lane]') && 'rewrite') || (contains(github.event.head_commit.message, '[end-floor]') && 'rewrite') || 'original' }}
           PRESET: ${{ inputs.preset || 'original' }}
-          FW: ${{ inputs.fw || (contains(github.event.head_commit.message, '[swap-lane]') && (contains(github.event.head_commit.message, '[swap-accent]') && 'hero.accent:draw-nolayout' || contains(github.event.head_commit.message, '[swap-fw:accent-nolayout-full]') && 'hero.accent:draw-nolayout-full' || contains(github.event.head_commit.message, '[swap-fw:accent-nolayout]') && 'hero.accent:draw-nolayout' || 'people.carousel:crop')) || '' }}
+          FW: ${{ inputs.fw || (contains(github.event.head_commit.message, '[swap-lane]') && (contains(github.event.head_commit.message, '[swap-accent]') && 'hero.accent:draw-nolayout' || contains(github.event.head_commit.message, '[swap-fw:accent-nolayout-full]') && 'hero.accent:draw-nolayout-full' || contains(github.event.head_commit.message, '[swap-fw:accent-nolayout]') && 'hero.accent:draw-nolayout' || 'people.carousel:crop')) || (contains(github.event.head_commit.message, '[end-floor]') && 'engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause') || '' }}
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
           SHA: ${{ github.sha }}
         run: |
@@ -250,9 +250,15 @@ jobs:
       - name: Build the rewrite (the default config and the query of the plan)
         env:
           SEARCH: ${{ needs.plan.outputs.search }}
+          # end-floor (task sim-end-floor): only the default config and the four arms' queries (packages/measure-webkit/src/sim-end-floor.mjs ARMS)
+          END_FLOOR: ${{ contains(github.event.head_commit.message, '[end-floor]') && 'yes' || 'no' }}
         run: |
           set -euo pipefail
-          if [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
+          if [ "$END_FLOOR" = yes ]; then
+            cfg=()
+            while IFS= read -r q; do cfg+=(--config "$q"); done < <(node packages/measure-webkit/src/sim-end-floor-cli.mjs searches)
+            pnpm --filter @fw/site build --configs none "${cfg[@]}"
+          elif [ -n "$SEARCH" ]; then pnpm --filter @fw/site build --config "$SEARCH"; else pnpm --filter @fw/site build; fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist
@@ -411,6 +417,8 @@ jobs:
           SEARCH: ${{ matrix.search }}
           SITE_DIR: ${{ runner.temp }}/site
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
+          # end-floor (task sim-end-floor): the head commit says [end-floor]; one Simulator session loads the four arms of the site build and records the end-of-page idle recalcs
+          END_FLOOR: ${{ contains(github.event.head_commit.message, '[end-floor]') && 'yes' || 'no' }}
           LAG: ${{ (inputs.lag || contains(github.event.head_commit.message, '[swap-lane]')) && 'yes' || 'no' }}
           # lag cost passes: the cost dispatch input (off|on|only); a push carries no inputs, so it is off, unless the head commit says [swap-lane]:
           # then a push runs the swap lane (rewrite, fw people.carousel:crop, 3 VMs, lag cost only; task carousel-swap-webkit-lane)
@@ -448,6 +456,11 @@ jobs:
           # rewrite arm: --site serves the prerendered build at the planned query (empty = default config) instead of the snapshot
           site=()
           if [ "$ARM" = rewrite ]; then site=(--site "$SITE_DIR" --search "$SEARCH"); fi
+          if [ "$END_FLOOR" = yes ]; then
+            node src/sim-end-floor-cli.mjs run --site "$SITE_DIR" --rounds 3 --out out --name "$VM-end-floor" 2> >(tee "out/$VM-end-floor.log" >&2)
+            ls -l out
+            exit 0
+          fi
           if [ "$EXPERIMENT" = quiet ]; then
             node src/cli.mjs quiet --arms "$ARMS" --reps "$REPS" --keep --out "out/$VM-quiet.json" 2> >(tee "out/$VM-quiet.log" >&2)
             ls -l out

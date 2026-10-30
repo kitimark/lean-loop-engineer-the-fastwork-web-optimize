@@ -173,6 +173,7 @@ import Fw.Device.EndFloorWindow
 import Fw.Device.EndFloorProbe
 import Fw.Device.EndFloorDirty
 import Fw.Device.ScrollParkVerdict
+import Fw.Device.SimEndFloor
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
