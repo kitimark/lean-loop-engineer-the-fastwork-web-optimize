@@ -1,11 +1,12 @@
 {"baseArm":0,"doText":"Scroll slowly to the end, push through the end, scroll back up once.","kind":"consts","margin":1,"nSame":3,"rateText":"Rate how smooth it felt, 1 (rough) to 5 (smooth).","repeats":2,"scoreMax":5,"scoreMin":1,"texts":{"better":"felt better","mixed":"mixed","same":"same","unrated":"not rated","worse":"felt worse"}}
+{"flags":["engine.scroll:unthrottle","hero.exit:threaded","platform:faded-pause"],"kind":"preset","source":"packages/contracts/golden/preset/v2-proved.json"}
 {"flags":[],"group":"same","id":"base","kind":"arm","text":""}
-{"flags":["engine.scroll:unthrottle","hero.exit:threaded"],"group":"same","id":"v2-proved","kind":"arm","text":""}
-{"flags":["engine.scroll:unthrottle","hero.exit:threaded","platform.glint:hold-freeze"],"group":"same","id":"v2-proved+glint-hold","kind":"arm","text":""}
+{"flags":["engine.scroll:unthrottle","hero.exit:threaded","platform:faded-pause"],"group":"same","id":"v2-proved","kind":"arm","text":""}
+{"flags":["engine.scroll:unthrottle","hero.exit:threaded"],"group":"same","id":"v2-proved-2flag","kind":"arm","text":""}
+{"flags":["nav:earn-logical"],"group":"look","id":"nav:earn-logical","kind":"arm","text":"the Join waitlist button in the nav animates when the nav changes, as it does on a desktop browser"}
+{"flags":["platform.glint:compositor"],"group":"look","id":"platform.glint:compositor","kind":"arm","text":"the shiny dash on the platform line glides; check it does not stutter or jump"}
 {"flags":["morph.end.nobounce:on"],"group":"look","id":"morph.end.nobounce","kind":"arm","text":"the page end does not bounce"}
-{"flags":["morph.stage:on"],"group":"look","id":"morph.stage","kind":"arm","text":"the nav morph at the page end follows your finger"}
-{"flags":["morph.geom:on","morph.tween:geom-timed"],"group":"look","id":"morph.geom+geom-timed","kind":"arm","text":"the nav morph runs clipped and timed"}
-{"flags":["platform.sweep:layer-sweep"],"group":"look","id":"platform.sweep:layer-sweep","kind":"arm","text":"the platform sweep runs on its own layer"}
+{"flags":["morph.stage:on"],"group":"look","id":"morph.stage","kind":"arm","text":"the nav morph at the page end follows your finger; the page is longer"}
 {"kind":"order","labels":[0,1,2,3,4,5],"letters":"ABCDEF","order":[0,1,2,1,2,0],"seed":0}
 {"kind":"order","labels":[0,1,2,3,4,5],"letters":"ABCDEF","order":[1,2,0,2,0,1],"seed":1}
 {"kind":"order","labels":[0,1,2,3,4,5],"letters":"ABCDEF","order":[2,0,1,0,1,2],"seed":2}
@@ -21,6 +22,14 @@
 {"kind":"session","look":[null,5,4,2],"lookVerdicts":["unrated","better","mixed","mixed"],"ratings":[4,4,2,2,5,5],"same":["same","mixed","mixed"],"seed":2}
 {"kind":"session","look":[null,null,null,null],"lookVerdicts":["unrated","unrated","unrated","unrated"],"ratings":[3,3,4,5,null,1],"same":["unrated","unrated","unrated"],"seed":4}
 {"kind":"session","look":[3,null,null,null],"lookVerdicts":["unrated","unrated","unrated","unrated"],"ratings":[null,null,null,null,null,null],"same":["unrated","unrated","unrated"],"seed":5}
+{"codes":["notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notListed","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notPaired","notConnected","notConnected","notConnected","notConnected","notConnected","notConnected","notUsb","notUsb","notUsb","locked","ready","lockUnknown"],"kind":"probe"}
+{"asks":{"lockUnknown":"The Mac could not read the iPhone lock state: unlock it, keep it awake and run the script again.","locked":"The iPhone is locked: unlock it and keep it awake.","notConnected":"The iPhone is listed but not connected: unlock it and replug the USB cable.","notListed":"The Mac does not list the iPhone: plug it into the Mac with the USB cable.","notPaired":"The iPhone is not paired with the Mac: unlock it and tap Trust on the phone.","notUsb":"The iPhone is not on USB: replug the USB cable."},"kind":"probeAsk"}
+{"ask":"The Mac sees no Safari tab: unlock the iPhone, and turn Web Inspector on in the Safari Advanced settings.","fail":"webInspector","kind":"fail","msg":"phone proxy listed no tabs in 20 s (is Web Inspector on, the phone unlocked, Safari open?)"}
+{"ask":"The Mac sees no Safari tab: unlock the iPhone, and turn Web Inspector on in the Safari Advanced settings.","fail":"webInspector","kind":"fail","msg":"found 0 of 0 tabs"}
+{"ask":"The iPhone is locked: unlock it and keep it awake.","fail":"locked","kind":"fail","msg":"the thermal pin did not hold: the phone is locked (devicectl lockState reports a passcode is required): unlock it and keep it awake"}
+{"ask":"The iPhone is not on USB: replug the USB cable.","fail":"notUsb","kind":"fail","msg":"the phone is not on USB"}
+{"ask":"The session did not start: read the last log lines below.","fail":"other","kind":"fail","msg":"another device-cli.mjs is running (pid 1); one phone run at a time"}
+{"fixedS":285,"kind":"estimate","minutes":21,"totalS":1235,"visitS":95,"visits":10}
 {"blinkDrop":150,"blinkWithin":8,"capMargin":2,"idleMs":1500,"kind":"capconsts","long17Cs":1700,"long33Cs":3400,"zonePx":500}
 {"cards":[[1000,1000,1000,1000,1000]],"kind":"capture","name":"still","pins":[],"result":{"blinks":0,"fights":0,"long17":0,"long33":0,"moving":0,"pins":0,"retargets":0,"reversals":0,"zoneWork":[3]},"starts":[],"ts":[0,1667,3333,5000,6667],"ys":[300,300,300,300,300],"zones":[[1,1,1,0]]}
 {"cards":[[1000,990,980,970,960]],"kind":"capture","name":"smooth","pins":[],"result":{"blinks":0,"fights":0,"long17":0,"long33":0,"moving":4,"pins":0,"retargets":0,"reversals":0,"zoneWork":[3,4]},"starts":[],"ts":[0,1667,3333,5000,6667],"ys":[0,80,160,240,320],"zones":[[1,1,1,0],[2,1,1,0]]}

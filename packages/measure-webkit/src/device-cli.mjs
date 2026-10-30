@@ -31,6 +31,8 @@ import { readThermal } from './device-thermal.mjs';
 import { listPhone, readout } from './device.mjs';
 import { feelStart, feelCommand, stopFallback, waitGone } from './device-feel-run.mjs';
 import { summaryText } from './device-feel.mjs';
+import { buildCommand, failAsk, missingArms, feelPlanText, probe } from './device-feel-plan.mjs';
+import { MEASUREMENT_DEVICE } from './device.mjs';
 import { jointText } from './device-feel-cap.mjs';
 
 const argv = process.argv.slice(2).filter((a) => a !== '--');
@@ -41,7 +43,7 @@ const { values: v, positionals } = parseArgs({
     target: { type: 'string', default: 'original' }, site: { type: 'string' }, search: { type: 'string', default: '' },
     passes: { type: 'string', default: '3' }, reps: { type: 'string', default: '5' }, speed: { type: 'string', default: '800' },
     step: { type: 'string', default: '50' }, frames: { type: 'string', default: '2' }, settle: { type: 'string', default: '6000' },
-    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, pin: { type: 'string' }, seed: { type: 'string' }, fresh: { type: 'boolean', default: false }, resume: { type: 'boolean', default: false }, reveal: { type: 'boolean', default: false }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
+    warmup: { type: 'string', default: '1' }, a: { type: 'string' }, in: { type: 'string' }, kind: { type: 'string' }, r: { type: 'string' }, sim: { type: 'string' }, seconds: { type: 'string', default: '100' }, timeline: { type: 'boolean', default: false }, 'wait-light': { type: 'string', default: '0' }, instruction: { type: 'string', default: 'Swipe with your finger from the TOP of the page to the BOTTOM at normal reading speed, then back to the top. Repeat.' }, out: { type: 'string' }, dir: { type: 'string' }, all: { type: 'boolean', default: false }, blocked: { type: 'string' }, 'hand-reset': { type: 'string' }, reason: { type: 'string' }, only: { type: 'string' }, file: { type: 'string' }, pin: { type: 'string' }, seed: { type: 'string' }, fresh: { type: 'boolean', default: false }, resume: { type: 'boolean', default: false }, reveal: { type: 'boolean', default: false }, hold: { type: 'string', default: '0' }, 'max-visits': { type: 'string' }, id: { type: 'string' }, date: { type: 'string' }, dpr: { type: 'string', default: '3' }, clock: { type: 'string', default: 'pinned' },
   },
 });
 const log = (s) => console.error(s);
@@ -116,6 +118,32 @@ async function main() {
     }
     case 'feel': {
       const [sub, ...fa] = positionals;
+      if (sub === 'probe') {
+        const r = probe(MEASUREMENT_DEVICE);
+        console.log(r.code === 'ready' ? 'probe: ready (listed, paired, connected, on USB, unlocked)' : `probe: ${r.code}\n${r.ask}`);
+        process.exit(r.code === 'ready' ? 0 : 3);
+      }
+      if (sub === 'ask') {
+        const text = readFileSync(resolve(v.file), 'utf8');
+        const err = text.split('\n').filter((l) => /error|fail|refus/i.test(l)).slice(-3).join(' ');
+        console.log(failAsk(err || text.slice(-2000)));
+        break;
+      }
+      if (sub === 'build-cmd') {
+        console.log(buildCommand());
+        break;
+      }
+      if (sub === 'plan') {
+        if (!v.dir || !v.site || v.seed === undefined || !Number.isInteger(Number(v.seed))) throw new Error('feel plan needs --dir, --site and --seed <whole number>');
+        console.log(feelPlanText({ seed: Number(v.seed), dir: v.dir, site: v.site }));
+        let missing;
+        try { missing = missingArms(JSON.parse(readFileSync(`${resolve(v.site)}/configs.json`, 'utf8'))); } catch { missing = null; }
+        if (missing === null || missing.length > 0) {
+          console.log(`arms not built in ${v.site}${missing ? `: ${missing.map((a) => a.id).join(', ')}` : ' (no configs.json)'}\nbuild once from apps/site (a local build, not a measurement):\n  ${buildCommand()}`);
+          process.exitCode = 4;
+        } else console.log('arms built: every arm resolves in configs.json');
+        break;
+      }
       if (!v.dir) throw new Error('feel needs --dir <raw dir>');
       const dir = resolve(v.dir);
       if (sub === 'start') {
@@ -250,7 +278,7 @@ async function main() {
       break;
     }
     default:
-      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | feel start|next|rate|status|stop | arms-run [--only <arm ids>] [--pin Fair|Serious] [--hand-reset <index> <reason>] | pin-probe --pin Serious --dir d [--hold s] | pin-stop --dir d | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
+      console.error('usage: ping | counts | frames | swipe | plan | record | reduce | profile | compare | package | arms-plan | thermal | feel start|next|rate|status|stop|plan|probe|ask|build-cmd | arms-run [--only <arm ids>] [--pin Fair|Serious] [--hand-reset <index> <reason>] | pin-probe --pin Serious --dir d [--hold s] | pin-stop --dir d | arms-reduce [--target original|rewrite] [--site dist/aot] [--search ?..] [--passes n] [--reps n] [--speed px/s] [--out file]');
       process.exitCode = 2;
   }
 }
