@@ -1,0 +1,7 @@
+- Branch worktree-wf_66d56fde-3dd-1 (CI branch ci/end-floor-probe); worktree .claude/worktrees/wf_66d56fde-3dd-1 (in the main checkout); last commit 2dc5ae31f plus this handoff commit.
+- CI runs: push 1 wktr 41002916093 success (3 jobs, probe-v2p-thr-off, 14 arms; results/end-floor-probe/r1); push 2 wktr 41007945679 success (pbon and pbnoraf only; results/end-floor-probe/r2). Pushes used 2 of 3. wktr.yml is back to main.
+- Verified: Lean module Fw.Device.EndFloorProbe (probeBand 10, minFrames 288) and golden; TS port replays it; check.sh green; measure-wktr tests 176 pass; ci-paths 56 pass; runner land-inputs test 73 pass; plan lint 0 errors.
+- Result: Q1 probeInnocent in 3 of 3 jobs for every arm; no-rAF arm reads 100 recalcs per 100 rendering updates. Q2: all 55 flip tracks idle within 1 to 6 samples; tick class elsewhere, never transient. Note research/notes/2026/10-30-end-floor-probe.md; ledger entry added.
+- Open: follow-up geom-recalc-source (what sets needsStyleRecalc at every rendering update). WKTR stands in for iOS Safari. No flag or preset changed.
+- Results: `node packages/measure-wktr/src/end-floor-probe-cli.mjs <wktr-jN dirs> --out verdict.txt`; `... --rows <run dir> --out rows.txt`.
+- Read first: lean/Fw/Device/EndFloorProbe.lean, packages/measure-wktr/src/end-floor-probe.mjs, the PB table in packages/measure-wktr/src/mid-page.mjs.

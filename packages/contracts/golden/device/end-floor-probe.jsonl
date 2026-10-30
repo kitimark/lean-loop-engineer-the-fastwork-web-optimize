@@ -1,0 +1,37 @@
+{"kind":"consts","minFrames":288,"probeBand":10}
+{"kind":"pair","name":"probe explains the floor","off":{"frames":576,"recalcs":4,"src":"raf"},"offRate":0,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probeCauses"}
+{"kind":"pair","name":"probe explains, off exactly at the band","off":{"frames":576,"recalcs":58,"src":"raf"},"offRate":10,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probeCauses"}
+{"kind":"pair","name":"off one above the band, large drop","off":{"frames":576,"recalcs":64,"src":"raf"},"offRate":11,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probePartial"}
+{"kind":"pair","name":"probe adds part","off":{"frames":576,"recalcs":300,"src":"raf"},"offRate":52,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probePartial"}
+{"kind":"pair","name":"drop exactly the band","off":{"frames":576,"recalcs":530,"src":"raf"},"offRate":92,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probeInnocent"}
+{"kind":"pair","name":"drop one over the band","off":{"frames":576,"recalcs":529,"src":"raf"},"offRate":91,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probePartial"}
+{"kind":"pair","name":"probe innocent","off":{"frames":576,"recalcs":588,"src":"raf"},"offRate":102,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probeInnocent"}
+{"kind":"pair","name":"off above on","off":{"frames":576,"recalcs":588,"src":"raf"},"offRate":102,"on":{"frames":576,"recalcs":300,"src":"raf"},"onRate":52,"verdict":"probeInnocent"}
+{"kind":"pair","name":"no floor with the probe on","off":{"frames":576,"recalcs":3,"src":"raf"},"offRate":0,"on":{"frames":576,"recalcs":20,"src":"raf"},"onRate":3,"verdict":"noFloor"}
+{"kind":"pair","name":"no floor, on exactly at the band","off":{"frames":576,"recalcs":0,"src":"raf"},"offRate":0,"on":{"frames":576,"recalcs":58,"src":"raf"},"onRate":10,"verdict":"noFloor"}
+{"kind":"pair","name":"on one above the band, off zero","off":{"frames":576,"recalcs":0,"src":"raf"},"offRate":0,"on":{"frames":576,"recalcs":64,"src":"raf"},"onRate":11,"verdict":"probeCauses"}
+{"kind":"pair","name":"unequal rAF windows","off":{"frames":528,"recalcs":0,"src":"raf"},"offRate":0,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"unread"}
+{"kind":"pair","name":"on short","off":{"frames":576,"recalcs":0,"src":"raf"},"offRate":0,"on":{"frames":287,"recalcs":300,"src":"raf"},"onRate":104,"verdict":"unread"}
+{"kind":"pair","name":"off short","off":{"frames":287,"recalcs":0,"src":"raf"},"offRate":0,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"unread"}
+{"kind":"pair","name":"no frames","off":{"frames":576,"recalcs":0,"src":"raf"},"offRate":0,"on":{"frames":0,"recalcs":0,"src":"raf"},"onRate":0,"verdict":"unread"}
+{"kind":"pair","name":"rendering-update source, any frame count","off":{"frames":900,"recalcs":9,"src":"update"},"offRate":1,"on":{"frames":576,"recalcs":588,"src":"raf"},"onRate":102,"verdict":"probeCauses"}
+{"kind":"pair","name":"both update-counted, unequal frames","off":{"frames":900,"recalcs":900,"src":"update"},"offRate":100,"on":{"frames":700,"recalcs":700,"src":"raf"},"onRate":100,"verdict":"probeInnocent"}
+{"kind":"overall","name":"three alike","overall":"probeCauses","verdicts":["probeCauses","probeCauses","probeCauses"]}
+{"kind":"overall","name":"one unread","overall":"probeCauses","verdicts":["probeCauses","unread","probeCauses"]}
+{"kind":"overall","name":"two unread","overall":"inconclusive","verdicts":["probeInnocent","unread","unread"]}
+{"kind":"overall","name":"one differs","overall":"mixed","verdicts":["probeInnocent","probePartial","probeInnocent"]}
+{"kind":"overall","name":"no floor","overall":"noFloor","verdicts":["noFloor","noFloor","noFloor"]}
+{"frame":null,"kind":"cancel","name":"none made","seen":[]}
+{"frame":0,"kind":"cancel","name":"cancelled at creation sample","seen":[[4,4]]}
+{"frame":null,"kind":"cancel","name":"never idle","seen":[[4,0],[4,2],[4,3]]}
+{"frame":3,"kind":"cancel","name":"idle after three","seen":[[4,0],[4,0],[4,2],[4,4],[4,4]]}
+{"frame":2,"kind":"cancel","name":"zero created is not idle","seen":[[0,0],[3,0],[3,3]]}
+{"frame":0,"kind":"cancel","name":"idle then more tracks","seen":[[2,2],[5,2],[5,5]]}
+{"frame":2,"kind":"cancel","name":"grows then idle","seen":[[1,0],[55,10],[55,55]]}
+{"cancels":[30,30,30,30,30,30,30,30,30,30,30,30],"kind":"cv","name":"all cancelled","span":[30,30],"verdict":"all cancelled"}
+{"cancels":[2,2,2,2,2,2],"kind":"cv","name":"minimum reps","span":[2,2],"verdict":"all cancelled"}
+{"cancels":[2,2,2,2,2],"kind":"cv","name":"one rep short","span":[2,2],"verdict":"unread"}
+{"cancels":[null,28,28,28,28,28,28,28,28,28,28,28],"kind":"cv","name":"one never","span":[28,28],"verdict":"some cancelled"}
+{"cancels":[null,null,null,null,null,null,null,null,null,null,null,null],"kind":"cv","name":"none cancel","span":null,"verdict":"none cancelled"}
+{"cancels":[],"kind":"cv","name":"no reps","span":null,"verdict":"unread"}
+{"cancels":[29,31,33,29,30,40,28,null],"kind":"cv","name":"spread","span":[28,40],"verdict":"some cancelled"}

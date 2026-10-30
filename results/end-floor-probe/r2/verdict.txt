@@ -1,0 +1,36 @@
+end-floor-probe results/end-floor-probe/r2/wktr-j1 primary: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pboff frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 repeat: on pbon#2 frames 0 recalcs 0 rate 0 per 100 rAF callbacks, off pboff#2 frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 group counter only: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pbconly frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 group tick probe: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pbnotk frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 group phase read: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pbnoph frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 group glint clock: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pbnogh frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 group message hop: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pbnomc frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j1 no harness rAF: on pbon frames 576 recalcs 589 rate 102 per 100 rAF callbacks, off pbnoraf frames 927 recalcs 927 rate 100 per 100 rendering updates, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r2/wktr-j1 paused page: on pbpon frames 0 recalcs 0 rate 0 per 100 rAF callbacks, off pbpoff frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 primary: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pboff frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 repeat: on pbon#2 frames 0 recalcs 0 rate 0 per 100 rAF callbacks, off pboff#2 frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 group counter only: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pbconly frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 group tick probe: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pbnotk frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 group phase read: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pbnoph frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 group glint clock: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pbnogh frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 group message hop: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pbnomc frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j2 no harness rAF: on pbon frames 576 recalcs 595 rate 103 per 100 rAF callbacks, off pbnoraf frames 922 recalcs 925 rate 100 per 100 rendering updates, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r2/wktr-j2 paused page: on pbpon frames 0 recalcs 0 rate 0 per 100 rAF callbacks, off pbpoff frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 primary: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pboff frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 repeat: on pbon#2 frames 0 recalcs 0 rate 0 per 100 rAF callbacks, off pboff#2 frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 group counter only: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbconly frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 group tick probe: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbnotk frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 group phase read: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbnoph frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 group glint clock: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbnogh frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 group message hop: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbnomc frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe results/end-floor-probe/r2/wktr-j3 no harness rAF: on pbon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbnoraf frames 930 recalcs 931 rate 100 per 100 rendering updates, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r2/wktr-j3 paused page: on pbpon frames 0 recalcs 0 rate 0 per 100 rAF callbacks, off pbpoff frames 0 recalcs 0 rate 0 per 100 rAF callbacks, verdict unread
+end-floor-probe overall primary: inconclusive (jobs unread unread unread)
+end-floor-probe overall repeat: inconclusive (jobs unread unread unread)
+end-floor-probe overall group counter only: inconclusive (jobs unread unread unread)
+end-floor-probe overall group tick probe: inconclusive (jobs unread unread unread)
+end-floor-probe overall group phase read: inconclusive (jobs unread unread unread)
+end-floor-probe overall group glint clock: inconclusive (jobs unread unread unread)
+end-floor-probe overall group message hop: inconclusive (jobs unread unread unread)
+end-floor-probe overall no harness rAF: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall paused page: inconclusive (jobs unread unread unread)

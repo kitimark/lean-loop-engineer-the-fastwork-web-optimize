@@ -1,0 +1,41 @@
+end-floor-probe results/end-floor-probe/r1/wktr-j1 primary: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pboff frames 576 recalcs 599 rate 103 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 repeat: on pbon#2 frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pboff#2 frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 group counter only: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbconly frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 group tick probe: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbnotk frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 group phase read: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbnoph frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 group glint clock: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbnogh frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 group message hop: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbnomc frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j1 no harness rAF: on pbon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbnoraf frames 0 recalcs 968 rate 0 per 100 rendering updates, verdict unread
+end-floor-probe results/end-floor-probe/r1/wktr-j1 paused page: on pbpon frames 576 recalcs 599 rate 103 per 100 rAF callbacks, off pbpoff frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-cre results/end-floor-probe/r1/wktr-j1: reps 12, tracks made at sample 0 55 to 55, running 55 to 55 pending 0 to 0 idle 0 to 0 at sample 0, cancel sample 2 to 6 (frames from creation), cancel ms 380 to 458, cancel all cancelled, samples per rep 5 to 9, recalcs until cancel per rep 2 to 6, recalcs per 100 frames after cancel 133 over 36 frames, tick class elsewhere, rep classes elsewhere
+end-floor-probe results/end-floor-probe/r1/wktr-j2 primary: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pboff frames 576 recalcs 588 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 repeat: on pbon#2 frames 576 recalcs 588 rate 102 per 100 rAF callbacks, off pboff#2 frames 576 recalcs 591 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 group counter only: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pbconly frames 576 recalcs 590 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 group tick probe: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pbnotk frames 576 recalcs 588 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 group phase read: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pbnoph frames 576 recalcs 589 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 group glint clock: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pbnogh frames 576 recalcs 589 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 group message hop: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pbnomc frames 576 recalcs 591 rate 102 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j2 no harness rAF: on pbon frames 576 recalcs 590 rate 102 per 100 rAF callbacks, off pbnoraf frames 0 recalcs 955 rate 0 per 100 rendering updates, verdict unread
+end-floor-probe results/end-floor-probe/r1/wktr-j2 paused page: on pbpon frames 576 recalcs 591 rate 102 per 100 rAF callbacks, off pbpoff frames 576 recalcs 594 rate 103 per 100 rAF callbacks, verdict probeInnocent
+end-floor-cre results/end-floor-probe/r1/wktr-j2: reps 12, tracks made at sample 0 55 to 55, running 55 to 55 pending 0 to 0 idle 0 to 0 at sample 0, cancel sample 1 to 2 (frames from creation), cancel ms 333 to 543, cancel all cancelled, samples per rep 4 to 5, recalcs until cancel per rep 0 to 2, recalcs per 100 frames after cancel 136 over 36 frames, tick class elsewhere, rep classes elsewhere
+end-floor-probe results/end-floor-probe/r1/wktr-j3 primary: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pboff frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 repeat: on pbon#2 frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pboff#2 frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 group counter only: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pbconly frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 group tick probe: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pbnotk frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 group phase read: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pbnoph frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 group glint clock: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pbnogh frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 group message hop: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pbnomc frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-probe results/end-floor-probe/r1/wktr-j3 no harness rAF: on pbon frames 576 recalcs 596 rate 103 per 100 rAF callbacks, off pbnoraf frames 0 recalcs 967 rate 0 per 100 rendering updates, verdict unread
+end-floor-probe results/end-floor-probe/r1/wktr-j3 paused page: on pbpon frames 576 recalcs 600 rate 104 per 100 rAF callbacks, off pbpoff frames 576 recalcs 600 rate 104 per 100 rAF callbacks, verdict probeInnocent
+end-floor-cre results/end-floor-probe/r1/wktr-j3: reps 12, tracks made at sample 0 55 to 55, running 55 to 55 pending 0 to 0 idle 0 to 0 at sample 0, cancel sample 2 to 5 (frames from creation), cancel ms 386 to 453, cancel all cancelled, samples per rep 5 to 8, recalcs until cancel per rep 2 to 5, recalcs per 100 frames after cancel 133 over 36 frames, tick class elsewhere, rep classes elsewhere
+end-floor-probe overall primary: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall repeat: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall group counter only: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall group tick probe: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall group phase read: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall group glint clock: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall group message hop: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-probe overall no harness rAF: inconclusive (jobs unread unread unread)
+end-floor-probe overall paused page: probeInnocent (jobs probeInnocent probeInnocent probeInnocent)
+end-floor-cre overall cancel: all cancelled (jobs all cancelled | all cancelled | all cancelled)
+end-floor-cre overall tick class: elsewhere (jobs elsewhere elsewhere elsewhere)

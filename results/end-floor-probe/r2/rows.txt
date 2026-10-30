@@ -1,0 +1,6 @@
+wktr-j1 accel-probe-v2p-thr-off-1.json rows[0] rs-flip-pbon: window frames 576 recalcs 589 rate 102 per 100 rAF callbacks, reps 12, window frames 48 to 48, rendering updates 588, window ms 914 to 1167, per-frame r sum 589 (r=0 0, r=1 564, r>=2 12)
+wktr-j1 accel-probe-v2p-thr-off-1.json rows[1] rs-flip-pbnoraf: window frames 927 recalcs 927 rate 100 per 100 rendering updates, reps 12, window frames 74 to 81, rendering updates 927, window ms 1500 to 1512
+wktr-j2 accel-probe-v2p-thr-off-1.json rows[0] rs-flip-pbon: window frames 576 recalcs 595 rate 103 per 100 rAF callbacks, reps 12, window frames 48 to 48, rendering updates 588, window ms 903 to 1188, per-frame r sum 595 (r=0 0, r=1 562, r>=2 14)
+wktr-j2 accel-probe-v2p-thr-off-1.json rows[1] rs-flip-pbnoraf: window frames 922 recalcs 925 rate 100 per 100 rendering updates, reps 12, window frames 73 to 81, rendering updates 922, window ms 1500 to 1502
+wktr-j3 accel-probe-v2p-thr-off-1.json rows[0] rs-flip-pbon: window frames 576 recalcs 591 rate 102 per 100 rAF callbacks, reps 12, window frames 48 to 48, rendering updates 589, window ms 933 to 1347, per-frame r sum 591 (r=0 0, r=1 563, r>=2 13)
+wktr-j3 accel-probe-v2p-thr-off-1.json rows[1] rs-flip-pbnoraf: window frames 930 recalcs 931 rate 100 per 100 rendering updates, reps 12, window frames 68 to 84, rendering updates 930, window ms 1501 to 1502
