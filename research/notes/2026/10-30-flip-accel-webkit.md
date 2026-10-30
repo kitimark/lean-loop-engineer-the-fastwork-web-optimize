@@ -63,8 +63,7 @@ The existing `MorphTrackAccel` module already proved the same per engine and mod
 `FlipAccel` adds the source list, the track-level static conditions and the variant.
 
 ## Same look: where it holds and where it could differ
-Holds for every frame (Lean `same_look`), because the variant equals the original. The only variants that would differ are the ones
-the task text named as alternatives (scale a box instead of animating its size, constant glass; graph rows `try-flip-st6`,
+Holds for every frame (Lean `same_look`). Only the alternatives the task text named would differ (scale a box instead of animating its size, constant glass; graph rows `try-flip-st6`,
 `try-constant-glass`): the flip no longer animates sizes, so there is nothing to convert, and those stay look-change candidates
 for the user's review, unchanged by this task. No Lean model of text or border-radius under scaling was written (not needed).
 
