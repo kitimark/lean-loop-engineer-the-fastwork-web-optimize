@@ -1,0 +1,8 @@
+- Branch worktree-wf_46680abc-c16-1 (CI branch ci/end-floor-window), worktree .claude/worktrees/wf_46680abc-c16-1, code commit 72f68bb66; results and note commit follow it (see `git log -1`).
+- CI runs: push 1 (72f68bb66) wktr 40989068304 success, 3 jobs, results/end-floor-window/r1 (rows.txt, verdict.txt made by end-floor-rows.mjs and end-floor-cli.mjs). Pushes used 1 of 3.
+- Result (MEASURED): pinned windows 576 frames per row in 30 of 30 rows; rate 102 per 100 frames in all 30; writer arms cut 0, `no writes` in 21 of 21 arm lines and 3 of 3 jobs; tick probe [m,q,d,a] = [0,0,55,0] and phase 9000 (idle) in all 17280 frames, so the Lean transient-vs-steady verdict is `empty` for every arm in every job (tracks idle before the first sampled frame). No lever; no flag change.
+- Verified locally: check.sh green through fw slot at e0c9ba887 (Lean EndFloorWindow, FlipAccelRun, goldens); measure-wktr tests, apps/site flip-accel-run golden test.
+- Done: note research/notes/2026/10-2x-end-floor-window.md (the graph writes list names this path), ledger note row on the faded-pause entry (task end-floor-window), .github/workflows/wktr.yml reverted to main.
+- Open: apps/site/src/parts/morph.geom/flip-accel-run.golden.test.ts is outside the graph writes (dry land refuses with VERDICT scope until the lead adds it); dry land `VERDICT dry end-floor-window`, `fw review ready`. Next candidate (measurement, not a flag): read tkRead and per-track playState right after the tracks exist and every few frames, to see when the flip tracks leave the running state.
+- raw-*.txt, stderr, run.log, tools.txt of the CI artifacts are not committed.
+- Read first: the note, then packages/measure-wktr/src/end-floor-window.mjs and lean/Fw/Device/EndFloorWindow.lean.

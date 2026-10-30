@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { framesOf, rate } from './end-floor.mjs';
+import { windowFacts, factsText } from './end-floor-window.mjs';
 
 export const rowLine = (job, file, i, row) => {
   const fs = framesOf(row);
@@ -13,6 +14,7 @@ export const rowLine = (job, file, i, row) => {
     if (muts.size === 0) noMut += 1;
     for (const k of muts) per.set(k, (per.get(k) ?? 0) + 1);
   }
+  const probed = fs.length > 0 && (row.rs.frames ?? []).some((f) => Array.isArray(f.u));
   const keys = [...per.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, n]) => `${k}=${n}`);
   return [
     `${job} ${file} rows[${i}] ${row.arm}:`,
@@ -22,7 +24,8 @@ export const rowLine = (job, file, i, row) => {
     `r=1 ${fs.filter((f) => f.r === 1).length},`,
     `wins ${wins.length === 0 ? '-' : `${Math.min(...wins)} to ${Math.max(...wins)}`},`,
     `frames without mut: key ${noMut},`,
-    `frames per mut: key ${keys.length === 0 ? '-' : keys.join(' ')}`,
+    `frames per mut: key ${keys.length === 0 ? '-' : keys.join(' ')}${probed ? ',' : ''}`,
+    ...(probed ? [factsText(windowFacts(row))] : []),
   ].join(' ');
 };
 

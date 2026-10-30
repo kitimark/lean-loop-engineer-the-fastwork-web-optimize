@@ -585,6 +585,23 @@ function pageProbe(P) {
   };
   const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|q[a-z]+))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
+  const tkRead = () => {
+    if (!I || typeof I.timeToNextAnimationTick !== 'function') return null;
+    const byEl = new Map();
+    let m = 0;
+    let q = 0;
+    let d = 0;
+    let a = 0;
+    for (const x of X.created) {
+      const t = I.timeToNextAnimationTick(x.a);
+      if (t === Infinity) d++; else if (t > 0) q++; else m++;
+      if (typeof I.acceleratedAnimationsForElement === 'function') {
+        if (!byEl.has(x.el)) byEl.set(x.el, I.acceleratedAnimationsForElement(x.el).map((y) => norm(y.property)));
+        if (byEl.get(x.el).includes(norm(x.tag.prop))) a++;
+      }
+    }
+    return [m, q, d, a];
+  };
   const rsWindow = async (idle, tw, v, kt, ms) => {
     const rec = v === 'obs' || v === 'obsf' || v === 'pallf' || isQ(v);
     const fl = v === 'obsf' || v === 'pallf';
@@ -633,12 +650,14 @@ function pageProbe(P) {
         const nl = layNow();
         const y = nl && prevL ? nl.map((x, i) => x - prevL[i]) : undefined;
         prevL = nl;
-        frames.push({ r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z, g: GH.read ? GH.read() : undefined, y: y });
+        const fr = { r: c === null || prev === null ? 0 : c - prev, p: pre, k: ks.map((k) => { let i = kt.indexOf(k); if (i < 0) { kt.push(k); i = kt.length - 1; } return i; }), z: z, g: GH.read ? GH.read() : undefined, y: y };
+        const ph = phase();
+        if (P.tk && !idle) { fr.u = tkRead(); fr.t = Math.round(now - t0); fr.h = Math.min(9999, Math.round(ph * 1000)); }
+        frames.push(fr);
         prev = c;
-        if (idle) { if (now - t0 >= (ms || P.rsIdleMs)) break; } else {
-          const ph = phase();
-          if ((ph >= 1 ? ++post > 2 : false) || now - t0 > P.capMs) break;
-        }
+        if (idle) { if (now - t0 >= (ms || P.rsIdleMs)) break; } else if (P.rsWin) {
+          if (frames.length >= P.rsWin || now - t0 > 4 * P.capMs) break;
+        } else if ((ph >= 1 ? ++post > 2 : false) || now - t0 > P.capMs) break;
       }
     } finally {
       if (mo) mo.disconnect();
@@ -1027,8 +1046,8 @@ function pageProbe(P) {
   };
 }
 
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false, lay = false, qsets = null } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsWin = 0, tk = false, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false, lay = false, qsets = null } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh, gk, lay, qsets })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsWin, tk, rsIdleMs, bsIdleMs, bsC, gh, gk, lay, qsets })});`;
 }

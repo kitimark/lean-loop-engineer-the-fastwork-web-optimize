@@ -24268,7 +24268,8 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "apps/runner/src/land.ts",
     "apps/site/src/parts/morph.geom/flip-accel-run.golden.test.ts"
-   ]
+   ],
+   "evidence": "7a025e4"
   },
   {
    "devices": [
