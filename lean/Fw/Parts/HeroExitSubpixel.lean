@@ -83,7 +83,7 @@ theorem orbit_scatter_le (l t : Rat) :
     -maxScatter ≤ HeroOrbit.scatterX l ∧ HeroOrbit.scatterX l ≤ maxScatter ∧
     -maxScatter ≤ HeroOrbit.scatterY l t ∧ HeroOrbit.scatterY l t ≤ maxScatter := by
   unfold HeroOrbit.scatterX HeroOrbit.scatterY maxScatter
-  refine ⟨?_, ?_, ?_, ?_⟩ <;> split <;> (try split) <;> (try split) <;> decide +kernel
+  refine ⟨?_, ?_, ?_, ?_⟩ <;> (repeat' split) <;> grind
 
 theorem deck_scatter_le :
     HeroDeck.slots.all (fun s => decide (-maxScatter ≤ s.sx ∧ s.sx ≤ maxScatter ∧ -maxScatter ≤ s.sy ∧ s.sy ≤ maxScatter)) := by
