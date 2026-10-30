@@ -11,19 +11,19 @@ topics: [hero.exit, threaded, webkit, scroll-driven-animations, float32, gate-br
 
 ## Answer
 
-- **It is a numeric artifact, not a real offset.** WebKit computes the view timeline's current time in `float`
+- It is a numeric artifact, not a real offset. WebKit computes the view timeline's current time in `float`
   and the `contain` range start in `double`. At scroll 0 both are the same 1/3 of the timeline. In float that 1/3
   lands about 2.5e-6 % past the double start, so the card animation is already active, at progress
   p ≈ 1/(100·2^17) ≈ 7.63e-8. The card translate is p × scatter: up to 2.2e-5 px at width 601 and 5.5e-5 px at
   width 1512. The exact value is 0 px, the `from` keyframe. (CONFIRMED, WebKit 862f17d `ScrollTimeline.cpp:383-397`,
   `ViewTimeline.cpp:503-517`; MEASURED, run 41087718575.)
-- **No rendered pixel moves.** A transform does not touch layout, so LayoutUnit (1/64 px) never sees it. The
+- No rendered pixel moves. A transform does not touch layout, so LayoutUnit (1/64 px) never sees it. The
   residue the bound covers (scatter within ±48vw on a side up to 2560 px) lies strictly between -1e-4 and 1e-4 CSS px
   (Lean `residue_lt_gateTol`), so its size is below 3e-4 device px at dpr 3. On a card that is already rotated and
   resampled, that shifts edge coverage by less than 0.1 of one 8-bit level in either direction (Lean
   `residue_level_change_lt`). A 1-level flip needs a pixel that already sits within that margin of a rounding
   boundary. (INFERRED.)
-- **Chromium reads 0 px**, because Blink snaps a local time that lies within 1 µs of the phase boundary onto it, so
+- Chromium reads 0 px, because Blink snaps a local time that lies within 1 µs of the phase boundary onto it, so
   progress is exactly 0. (CONFIRMED for the snap, Chromium f842f52 `timing_calculations.cc:95-101`; INFERRED that it
   is the step taken here.)
 
@@ -133,5 +133,5 @@ Blending and printing (all CONFIRMED):
   separate gate task decided by the lead. This task changes no flag, preset or gate. Card rects differ by up to
   2^-13 px, likely the float ulp of rect coordinates in [1024, 2048) (INFERRED), so a rect tolerance must not reuse
   `residue_lt_gateTol`.
-- **New follow-up (gate):** find why the gate passes the same 1e-6 residue on the hero copy and cue `transform` and
+- Follow-up (gate): find why the gate passes the same 1e-6 residue on the hero copy and cue `transform` and
   `filter` but fails it on the card `translate`, so the two paths share one rule.

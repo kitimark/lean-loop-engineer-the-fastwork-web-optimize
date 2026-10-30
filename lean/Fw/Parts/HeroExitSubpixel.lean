@@ -29,10 +29,10 @@ theorem ratio_third (v : Rat) (hv : 0 < v) : ratio v = 1 / 3 := by
   have : v ≠ 0 := by grind
   grind
 
--- ScrollTimeline.h:102-105 and ScrollTimeline.cpp:395-396@862f17d: float quotient, float times 100.
+-- ScrollTimeline.h:102-105 and ScrollTimeline.cpp:395-396@862f17d
 def timeline32 : Rat := roundBits 18 (roundBits 25 (1 / 3) * 100)
 
--- ViewTimeline.cpp:584-592,626-642@862f17d: double offset over the timeline range, times 100.
+-- ViewTimeline.cpp:584-592,626-642@862f17d
 -- WebAnimation.cpp:1531-1545@862f17d
 def start64 : Rat := roundBits 47 (roundBits 54 (1 / 3) * 100)
 
@@ -67,7 +67,7 @@ theorem ieee_steps :
 theorem subtractions_exact : roundBits 71 local64 = local64 ∧ roundBits 47 duration64 = duration64 := by
   decide +kernel
 
--- WebAnimationTime.cpp:165-171@862f17d: percentages compare exactly, so the effect is in its active phase.
+-- WebAnimationTime.cpp:165-171@862f17d
 theorem after_start : start64 < timeline32 := by decide +kernel
 
 theorem progress_pos : 0 < progress64 := by decide +kernel
