@@ -24418,7 +24418,9 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "lean/Fw/Device/ScrollPark*.lean",
+    "packages/contracts/golden/device/scroll-park*.jsonl"
    ]
   }
  ],
