@@ -116,13 +116,10 @@ export interface HandoffDeps {
   startDriver: () => () => void;
   /** Places the sentinel for the current geometry. */
   placeSentinel: () => void;
-  /** Watches the sentinel; returns its stop. */
   watchSentinel: (pointerNone: (none: boolean) => void) => () => void;
-  /** Variant `threaded-park`: starts the park of the finished animations while the stage is live. */
   startPark?: () => { stop(): void; resize(): void };
 }
 
-/** Switches between the original's callback and the CSS animations by Lean `live`; `sync` runs on each input change. */
 export function createHandoff(deps: HandoffDeps) {
   let stopDriver: (() => void) | null = deps.startDriver();
   let stopSentinel: (() => void) | null = null;

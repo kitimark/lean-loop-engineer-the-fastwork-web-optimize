@@ -32,7 +32,6 @@ export function HeroExit({ variant, children }: HeroExitProps) {
     const reduce = matchList('mq.rm-reduce');
     const readers = scoped ? liveReaders(hero) : null;
     const driver = createExitDriver({ track, hero, reduced: () => reduce?.matches ?? false, readers: readers?.get });
-    // faithful engine: own rAF per frame, run once on mount; batched engine: read in the callback, write in its writer
     const start = () => mountExit({ driver, engine: getScrollEngine(), clock: getClock(), readVh: () => window.innerHeight });
     const sentinel = sentinelRef.current;
     const parkSentinel = parkSentinelRef.current;

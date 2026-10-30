@@ -1,23 +1,17 @@
 import { UNTHROTTLE_ATTR, installUnthrottle } from './unthrottle';
 
-/** Variant `unthrottle-park` (Lean `Fw.Parts.ScrollPark`, golden `scroll-park.jsonl`): `unthrottle` that cancels its flag animation while the page is still. */
 export const UNTHROTTLE_PARK = 'unthrottle-park';
-/** Set on the flag while its animation is cancelled. */
 export const UT_PARKED_ATTR = 'data-fw-unthrottle-parked';
 
-/** Lean `utStillFrames`: frames without scroll before the flag is parked (the follow lane's `stillMax`). */
 export const STILL_FRAMES = 8;
-/** Lean `utStillMs`: the timer at the nominal 60 Hz, `ceil(frames * 1000 / 60)`. */
 export const STILL_MS = Math.ceil((STILL_FRAMES * 1000) / 60);
 
 export type UtEvent = 'scroll' | 'touch' | 'still';
 
-/** Lean `utStep`: parked after an event. */
 export function utStep(_parked: boolean, ev: UtEvent): boolean {
   return ev === 'still';
 }
 
-/** The park stylesheet: under the flag's own conditions a parked flag has no animation (unlayered; it holds no value, nothing reads `--fw-ut`). */
 export function unthrottleParkCss(): string {
   return [
     '@supports (animation-timeline: scroll()) {',
@@ -30,16 +24,11 @@ export function unthrottleParkCss(): string {
 
 export interface ParkEnv {
   setParked(on: boolean): void;
-  /** A passive listener for scroll and touch start; returns the removal. */
   listen(cb: (ev: Exclude<UtEvent, 'still'>) => void): () => void;
   setTimer(cb: () => void, ms: number): number;
   clearTimer(id: number): void;
 }
 
-/**
- * Parks the flag animation after STILL_MS without scroll and restores it at the next touch start or scroll event (Lean
- * `ut_touch_unparks`, `ut_scroll_unparks`). Idle cost: one timer at most, no frame work.
- */
 export function createUtPark(env: ParkEnv) {
   let parked = false;
   let timer: number | null = null;

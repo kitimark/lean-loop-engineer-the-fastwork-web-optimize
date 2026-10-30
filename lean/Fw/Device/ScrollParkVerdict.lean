@@ -1,26 +1,17 @@
 import Lean.Data.Json
 import Fw.Device.EndFloorDirty
 
-/-!
-# scrolldriven-park verdicts: the end-of-page floor split per scroll-driven flag, and the park variants' effect
-
-Readings are recalcs per 100 rAF callbacks of one arm (`EndFloorDirty.Reading`). The band is the floor band of the
-end-floor lane (`EndFloorDirty.floorBand`), a named constant shared with that lane.
--/
+/-! # scrolldriven-park verdicts: end-of-page floor split per flag and park effect -/
 namespace Fw.Device.ScrollParkVerdict
 
 open Lean Fw.Device.EndWktr Fw.Device.EndFloorDirty
 
-/-- A rate at or below this is no floor. -/
 def band : Nat := floorBand
 
-/-- Fewest frames of a readable arm. -/
 def minRead : Nat := minFrames
 
 theorem band_eq : band = 10 := rfl
 
-/-- The split verdict of one flag F, from four arms: `full` (both flags), `minusF` (the other flag only), `onlyF`
-(F only) and `base` (neither). -/
 inductive S where
   | unread
   | noFloor
@@ -34,7 +25,6 @@ def S.name : S → String
   | .unread => "unread" | .noFloor => "noFloor" | .baseFloor => "baseFloor"
   | .innocent => "innocent" | .sole => "sole" | .shared => "shared"
 
-/-- Four readings of the split. -/
 structure Split where
   full : Reading
   minusF : Reading
@@ -45,7 +35,6 @@ deriving DecidableEq, Repr
 def Split.short (x : Split) : Bool :=
   x.full.frames < minRead || x.minusF.frames < minRead || x.onlyF.frames < minRead || x.base.frames < minRead
 
-/-- Which of the flag's two readings holds the floor. -/
 def split (x : Split) : S :=
   if x.short then .unread
   else if x.full.rate ≤ band then .noFloor
@@ -70,7 +59,6 @@ theorem split_sole (x : Split) (h0 : x.short = false) (h1 : ¬ x.full.rate ≤ b
 theorem split_shared (x : Split) (h0 : x.short = false) (h1 : ¬ x.full.rate ≤ band) (h2 : ¬ band < x.base.rate)
     (h3 : ¬ x.onlyF.rate ≤ band) (h : ¬ x.minusF.rate ≤ band) : split x = .shared := by simp [split, h0, h1, h2, h3, h]
 
-/-- A flag that is `sole` or `shared` holds the floor alone. -/
 theorem carries_alone (x : Split) (h : split x = .sole ∨ split x = .shared) : band < x.onlyF.rate := by
   unfold split at h
   split at h <;> try (simp at h; done)
@@ -80,7 +68,6 @@ theorem carries_alone (x : Split) (h : split x = .sole ∨ split x = .shared) : 
   · simp at h
   · omega
 
-/-- The park verdict of one arm against the reference arm. -/
 inductive P where
   | unread
   | noFloor
@@ -115,7 +102,6 @@ theorem park_partial (on off : Reading) (h0 : readable on off = true) (h1 : ¬ o
 theorem park_none (on off : Reading) (h0 : readable on off = true) (h1 : ¬ on.rate ≤ band) (h2 : ¬ off.rate ≤ band)
     (h : ¬ off.rate + band < on.rate) : park on off = .noEffect := by simp [park, h0, h1, h2, h]
 
-/-- A cut leaves the arm in the band. -/
 theorem cut_in_band (on off : Reading) (h : park on off = .cut) : off.rate ≤ band := by
   unfold park at h
   split at h <;> try (simp at h; done)
@@ -124,7 +110,6 @@ theorem cut_in_band (on off : Reading) (h : park on off = .cut) : off.rate ≤ b
   · assumption
   · split at h <;> simp at h
 
-/-- Verdicts across jobs: the shared rule of the lane. -/
 def overallS (ss : List S) : String := overallNames ((ss.filter fun s => s != .unread).map S.name)
 
 def overallP (ps : List P) : String := overallNames ((ps.filter fun p => p != .unread).map P.name)

@@ -537,9 +537,6 @@ theorem selfIndep_not_readsOnly (ps : List PartSpec) (j : Nat) (P : PartSpec) (h
     · simp [hij]
   simp at this
 
-/-- Five code rows are `Independent` of themselves.
-
-So `Indep` must exclude `i = j`. -/
 theorem selfIndep_code :
     (codeParts.filter fun P => independent P P).map (·.id) =
       ["hero.cue", "hero.deck", "people", "platform.marquee", "platform.stageBg"] := by

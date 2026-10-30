@@ -64,7 +64,6 @@ const pb = (n, r) => ({ n, r, u: n, ms: n * 16, src: 'raf', w: n });
 const row = (arm, perFrame, frames = 576) => ({ arm, rs: { kt: [], reps: 12, pb: Array.from({ length: 12 }, () => pb(frames / 12, (perFrame * frames) / 12 / 100)), dn: [] } });
 const report = (endRate, midRate, frames) => ({ rows: [row('rs-idle-pbpd', endRate, frames), row('rs-idle-pbpm', midRate, frames)] });
 
-// rates per 100 frames of the seven builds, end and mid: the floor needs both carriers alive
 const reports = (rates, frames = 576) =>
   Object.fromEntries(PARK_KEYS.map((k) => [k, report(rates[k][0], rates[k][1], frames)]));
 const SHARED = { v2p: [102, 102], nohero: [102, 102], nout: [102, 102], base: [4, 4], hp: [102, 102], up: [102, 102], both: [4, 4] };

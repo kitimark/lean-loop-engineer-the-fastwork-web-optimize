@@ -1,11 +1,9 @@
 import { overallNames } from './end-wktr.mjs';
 import { FLOOR_BAND, MIN_FRAMES, readingOf, readingRate, rowsByKey } from './end-floor-dirty.mjs';
 
-/** Lean `ScrollParkVerdict.band` and `minRead`: the floor band and the fewest frames of a readable arm. */
 export const BAND = FLOOR_BAND;
 export const MIN_READ = MIN_FRAMES;
 
-/** The site build of each mode of the lane: v2-proved's four relevant flags plus the engine-check stand-ins of `end-floor-dirty`. */
 const BASE_FW = 'morph.geom:on,morph.tween:geom-timed,platform:faded-pause';
 export const PARK_FW = {
   v2p: `${BASE_FW},engine.scroll:unthrottle,hero.exit:threaded`,
@@ -20,7 +18,6 @@ export const PARK_KEYS = Object.keys(PARK_FW);
 export const parkMode = (key) => `park-${key}-thr-off`;
 export const isParkMode = (mode) => /^park-(v2p|nohero|nout|base|hp|up|both)-thr-off$/.test(mode);
 export const PARK_ARMS = ['rs-idle-pbpd', 'rs-idle-pbpm'];
-/** The arms read: the end-of-page idle arm and the mid-page idle arm (50 percent of the scroll range). */
 export const READ_ARMS = ['idle-pbpd', 'idle-pbpm'];
 export const armLabel = (a) => (a === 'idle-pbpd' ? 'end-of-page idle' : 'mid-page idle');
 export const FILE_OF = (key) => `accel-${parkMode(key)}-1.json`;
@@ -28,7 +25,6 @@ export const FILE_OF = (key) => `accel-${parkMode(key)}-1.json`;
 const rd = (x) => `frames ${x.frames} recalcs ${x.recalcs} rate ${readingRate(x)} per 100 rAF callbacks`;
 const short = (x) => x.frames < MIN_READ;
 
-/** Lean `split`: which of a flag's two readings holds the floor. */
 export function split({ full, minusF, onlyF, base }) {
   if ([full, minusF, onlyF, base].some(short)) return 'unread';
   if (readingRate(full) <= BAND) return 'noFloor';
@@ -38,7 +34,6 @@ export function split({ full, minusF, onlyF, base }) {
   return 'shared';
 }
 
-/** Lean `park`: the park arm against the reference arm. */
 export function park(on, off) {
   if (!(MIN_READ <= on.frames && MIN_READ <= off.frames && on.frames === off.frames)) return 'unread';
   if (readingRate(on) <= BAND) return 'noFloor';
@@ -52,7 +47,6 @@ export const overallP = (ps) => overallNames(ps.filter((p) => p !== 'unread'));
 
 const NO_READING = { frames: 0, recalcs: 0 };
 
-/** The readings of one job: reports by key -> arm -> reading. */
 export function readingsOf(reports) {
   const out = {};
   for (const key of PARK_KEYS) {

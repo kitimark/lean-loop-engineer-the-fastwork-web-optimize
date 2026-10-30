@@ -3,7 +3,6 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FILE_OF, PARK_KEYS, jobLinesS, overallLinesS, rowLineS } from './scroll-park.mjs';
 
-/** The reports of one job directory, by key; a key without a file is absent (its arms read as unread). */
 export function reportsOf(dir) {
   const reports = {};
   for (const key of PARK_KEYS) {

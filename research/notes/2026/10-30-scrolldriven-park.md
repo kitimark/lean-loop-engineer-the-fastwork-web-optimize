@@ -35,7 +35,7 @@ band `band = 10` per 100, theorem `band_eq`).
 | 41050949125 | j1 | 0 | 1 | 0 |
 | 41050949125 | j2, j3 | 100 | 0 | 13 |
 
-Sources: `results/scrolldriven-park/r1/verdict.txt` (`results/scrolldriven-park/r1/verdict.txt:79`: `both parks: mixed (jobs none | none | cut)`), `results/scrolldriven-park/r2/rates.txt`,
+Sources: `results/scrolldriven-park/r1/verdict.txt:79` (`both parks: mixed (jobs none | none | cut)`), `results/scrolldriven-park/r2/rates.txt`,
 `results/scrolldriven-park/r2/parkdiag.txt`. One park alone never cuts (`none`, 3 of 3 jobs, both arms), as the `shared` split predicts. Both parks cut the
 end-of-page floor from 100 to 0-1 per 100 in 1 of 3 jobs per run; in the other jobs the hero animations stay scroll-driven (13 of 14; the fw-ut
 animation is the one parked) so the floor stays. Mid-page: no cut (`partial` in j3 of run 1, base floor remains).
@@ -55,8 +55,8 @@ reports on `scrollY` crossing the boundary regardless of jumps.
   from the park pair (MEASURED).
 - Reading (INFERRED): the park holds the card `translate` formula `CARD_CALC` (Lean `cardCalcCss`), whose value at the end is the sub-pixel
   residual of the scatter variables; the finished animation computes to `0px`. `held_eq_shown` proves held = formula, not held = the computed
-  string of the unparked page. The proof is true and the gate still refuses, so the premise "held text = shown text" needs the computed end
-  value; recorded as a negative finding.
+  string of the unparked page. The proof holds and the gate still refuses, so the premise "held text = shown text" needs the computed end
+  value.
 - Class: `hero.exit:threaded-park` goes to class L (look-change, for the user's visual review; the difference is about 2e-5 px) and does not
   cut the floor reliably, so it is not shipped. `engine.scroll:unthrottle-park` stays class E on its proofs, gate chromium pass (in the pair),
   gate webkit unread alone.
