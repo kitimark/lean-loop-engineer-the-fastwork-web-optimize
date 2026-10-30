@@ -22,9 +22,9 @@
   holds them verbatim), labelled variants, corpus rows. Caught: end-floor-writes r2 "70 to 83" (`rangeEnds`),
   watch-memory r2 MEASURED with no source (`measuredNoSource`). Unchecked, no artifact key: nav-cta r2 "within 10 px
   ... at 1280", watch-memory r2 "1.7 x" and "150 to 860 MB", end-floor-writes r2 frame counts and Lesson.
-- plan-lint node tests 49/49 (3 new for `landLint`); apps/runner tests 3749/3749; ci-paths 56/56; check.sh green.
-- Dry land prints `claims lint: 1 warnings in 1 of 2 files` at dbbb22043 (a quoted tag in this task's note, since
-  fixed), then `VERDICT dry claim-lint`.
+- At bf70eaebc (main 102a18ea5 merged): plan-lint node tests 49/49 (3 new for `landLint`), apps/runner tests
+  3749/3749, ci-paths 56/56, check.sh green; dry land prints `claims lint: 0 warnings in 0 of 2 files`, then
+  `VERDICT dry claim-lint`.
 
 ## Open
 - `fw claims lint` dispatch (apps/runner/src/fw-main.ts) and a fwcore op (lean/Fw/Wire/Plan.lean): outside writes.
