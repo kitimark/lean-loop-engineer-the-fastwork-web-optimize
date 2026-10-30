@@ -34,7 +34,7 @@ Recalcs per 100 frames (`results/sim-end-floor/r1/verdict.txt:3-5, 10-12, 17-19`
   floor that the base already pays.
 - Verdict per flag (Lean `flagV`, `baseFloor`): `hero.exit:threaded` baseFloor and `engine.scroll:unthrottle` baseFloor, in 3 of 3 rounds and
   overall (`results/sim-end-floor/r1/verdict.txt:6-8`). Pair verdict `baseFloor`. Neither flag is shown to carry the floor on the Simulator, and neither
-  is cleared: the unit the verdict reads is the cut against the base, and the base has none to give.
+  is cleared.
 - Frame counts: `seen` (FireAnimationFrame records) equals 360 in 32 of 36 windows; the other 4 read 362 to 375 (`results/sim-end-floor/r1/rows.txt`),
   all at least the minimum of 288, so no window is unreadable and no Timeline record loss shows. `RenderingFrame` records read 0 in every window
   (rows.txt, `renderingFrame 0`), so the frame count is the animation-frame record, not the rendering frame.
@@ -87,4 +87,4 @@ MEASURED, run 41135293682, in `results/sim-end-floor/r1/rows.txt` (rows `round 1
   (`packages/measure-webkit/src/sim-end-floor.mjs`) equal the golden in `test/sim-end-floor.test.mjs`. Listed TS stand-ins with no Lean proof: `windowOf`
   (counts Timeline rows between two page marks), the page script `endFloorJs` and the run loop (`sim-end-floor-run.mjs`), which are recording glue.
 - Harness limits: one local debug run (not a result, not reported) found the arm search must be in the reload and that `RenderingFrame` reads 0 on this
-  runtime; the CI run above is the only reported run. The census and the paused stage were added after that run to explain the base floor.
+  runtime; the CI run above is the only reported run.

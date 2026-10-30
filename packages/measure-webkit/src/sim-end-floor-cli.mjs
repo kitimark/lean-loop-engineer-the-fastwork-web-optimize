@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// node src/sim-end-floor-cli.mjs run --site <dist/aot> [--rounds 3] [--settle 2500] [--out out] [--name sim-end-floor]
-// node src/sim-end-floor-cli.mjs searches                                 the --config queries the site build needs, one per line
-// node src/sim-end-floor-cli.mjs report <sim-end-floor.json> [--out <dir>]   writes rows.txt and verdict.txt (the numbers of the note)
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { writePassFile } from './session.mjs';
@@ -18,7 +15,6 @@ if (cmd === 'run') {
   mkdirSync(out, { recursive: true });
   const write = (r) => writeFileSync(file, `${JSON.stringify(r)}\n`);
   const { runEndFloor } = await import('./sim-end-floor-run.mjs');
-  // one pass file per finished round (tick uploads): a job lost mid-run leaves every round that ended
   const onRound = (n, of, snap) => writePassFile(file, n, of, snap);
   const res = await runEndFloor({ siteDir: resolve(site), rounds: Number(flag('--rounds') ?? 3), settleMs: Number(flag('--settle') ?? 2500), onProgress: write, onRound });
   write(res);

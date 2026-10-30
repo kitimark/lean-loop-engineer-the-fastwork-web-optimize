@@ -1,35 +1,23 @@
 import Lean.Data.Json
 import Fw.Device.EndFloorDirty
 
-/-! # sim-end-floor: the end-of-page idle style-recalc floor on the iOS Simulator, per arm and per flag
-
-Four arms are read in one round on the Simulator: `base` (no flags), `v2p` (v2-proved), `minusT` (v2p without `hero.exit:threaded`) and
-`minusU` (v2p without `engine.scroll:unthrottle`). One window of an arm is the same count of `requestAnimationFrame` callbacks (`winRaf`)
-at the end of the page; its recalcs are the `RecalculateStyles` records the Web Inspector Timeline holds between two page marks, and its
-seen callbacks are the `FireAnimationFrame` records between the same marks (the page's own callbacks: a window whose Timeline lost records is
-not read; `RenderingFrame` reads 0 on iOS 27.0 24A434, docs/report/v2-report.md, so it cannot be the frame count). The rate is recalcs per 100 rAF
-callbacks. -/
+/-! # sim-end-floor: end-of-page style-recalc floor on the iOS Simulator, per arm and per flag -/
 namespace Fw.Device.SimEndFloor
 
 open Lean Fw.Device.EndWktr Fw.Device.EndFloorDirty
 
-/-- The floor band, recalcs per 100 frames: the WKTR band, fixed before any Simulator data. -/
 def band : Nat := 10
 
 theorem band_eq : band = floorBand := rfl
 
-/-- rAF callbacks in every window: equal for all arms by construction. -/
 def winRaf : Nat := 360
 
-/-- rAF callbacks the Timeline must show in a window for it to count as read (the Timeline did not drop its records). -/
 def minSeen : Nat := EndFloorDirty.minFrames
 
 theorem minSeen_le_winRaf : minSeen ≤ winRaf := by decide
 
-/-- Rounds a verdict needs (`EndWktr.minValid`). -/
 def minRounds : Nat := minValid
 
-/-- One window of one arm: rAF callbacks the page counted, `FireAnimationFrame` records the Timeline shows, and its `RecalculateStyles` records. -/
 structure Win where
   raf : Nat
   seen : Nat
@@ -50,7 +38,6 @@ theorem readable_seen (w : Win) (h : w.readable = true) : minSeen ≤ w.seen := 
 
 theorem rate_zero_recalcs (w : Win) (h : w.recalcs = 0) : w.rate = 0 := by simp [Win.rate, h]
 
-/-- A window with a recalc in every frame reads 100. -/
 theorem rate_every_frame (w : Win) (h0 : w.raf ≠ 0) (h : w.recalcs = w.raf) : w.rate = 100 := by
   simp only [Win.rate, h0, h, ite_false]
   have : 0 < w.raf := Nat.pos_of_ne_zero h0
@@ -70,7 +57,6 @@ def FlagV.name : FlagV → String
   | .unreadable => "unreadable" | .noFloor => "noFloor" | .baseFloor => "baseFloor" | .carries => "carries"
   | .partialCut => "partial" | .none => "none"
 
-/-- The verdict for one flag F: `full` is v2p, `minusF` is v2p without F, `base` has no flags. -/
 def flagV (full minusF base : Win) : FlagV :=
   if !(full.readable && minusF.readable && base.readable) then .unreadable
   else if full.rate ≤ band then .noFloor
@@ -100,7 +86,6 @@ theorem flagV_none (full minusF base : Win) (h0 : (full.readable && minusF.reada
     (h1 : ¬ full.rate ≤ band) (h2 : ¬ band < base.rate) (h3 : ¬ minusF.rate ≤ band) (h : ¬ minusF.rate + band < full.rate) :
     flagV full minusF base = .none := by simp [flagV, h0, h1, h2, h3, h]
 
-/-- `carries` means the floor is there with the flag and within the band without it, on a base with no floor. -/
 theorem carries_cuts (full minusF base : Win) (h : flagV full minusF base = .carries) :
     band < full.rate ∧ minusF.rate ≤ band ∧ base.rate ≤ band := by
   unfold flagV at h
@@ -111,7 +96,6 @@ theorem carries_cuts (full minusF base : Win) (h : flagV full minusF base = .car
   · refine ⟨by omega, by assumption, by omega⟩
   · split at h <;> simp at h
 
-/-- `none` means removing the flag leaves the rate within one band of the full rate, above the band. -/
 theorem none_keeps (full minusF base : Win) (h : flagV full minusF base = .none) :
     band < minusF.rate ∧ full.rate ≤ minusF.rate + band := by
   unfold flagV at h
@@ -124,7 +108,6 @@ theorem none_keeps (full minusF base : Win) (h : flagV full minusF base = .none)
     · simp at h
     · refine ⟨by omega, by omega⟩
 
-/-- One round: the four arms. -/
 structure Round where
   base : Win
   v2p : Win
@@ -132,7 +115,6 @@ structure Round where
   minusU : Win
   deriving DecidableEq, Repr
 
-/-- The verdicts of the two flags of one round: `hero.exit:threaded` and `engine.scroll:unthrottle`. -/
 def Round.flags (r : Round) : FlagV × FlagV := (flagV r.v2p r.minusT r.base, flagV r.v2p r.minusU r.base)
 
 inductive Pair where
@@ -150,8 +132,6 @@ def Pair.name : Pair → String
   | .unreadable => "unreadable" | .noFloor => "noFloor" | .baseFloor => "baseFloor" | .threaded => "threaded"
   | .unthrottle => "unthrottle" | .both => "both" | .sharedOrOther => "sharedOrOther" | .mixed => "mixed"
 
-/-- What the two flag verdicts say together. `sharedOrOther`: the floor is there and removing either flag leaves it; one flag alone (each holds the
-whole floor) and a carrier outside the two flags cannot be told apart by these arms. -/
 def pair (vt vu : FlagV) : Pair :=
   match vt, vu with
   | .unreadable, _ => .unreadable
@@ -196,7 +176,6 @@ theorem pair_mixed_partial_right (vt : FlagV) (h : vt = .carries ∨ vt = .none 
 
 def Round.pair (r : Round) : Pair := Fw.Device.SimEndFloor.pair r.flags.1 r.flags.2
 
-/-- The result of the WKTR run (threaded-animations pref off, run 41045232315): the floor with v2p, and neither flag's removal cut it. -/
 def wktrPair : Pair := .sharedOrOther
 
 inductive Cmp where

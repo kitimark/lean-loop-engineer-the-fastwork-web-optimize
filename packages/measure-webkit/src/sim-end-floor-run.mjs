@@ -1,6 +1,3 @@
-// sim-end-floor run: the Simulator session loop. Per round and arm (the arm order rotated by the round): a fresh load of that arm's
-// prerendered tree, a Timeline recording over the page script (scroll to the end, settle, N rAF frames; up one viewport and back, settle,
-// N rAF frames), then the window tally per stage. Recording only; the verdicts are sim-end-floor.mjs (Lean Fw.Device.SimEndFloor).
 import { withSession } from './session.mjs';
 import { loadFresh, pageInfo } from './page.mjs';
 import { findDevice } from './sim.mjs';
@@ -11,7 +8,6 @@ import { ARMS, STAGES, WIN_RAF, endFloorJs, windowOf } from './sim-end-floor.mjs
 
 export const SCHEMA = 'fw.webkit.endfloor/1';
 
-/** Arm order of round r: the list rotated by r (round 0 = as given). */
 export const rotate = (xs, r) => xs.map((_, i) => xs[(i + r) % xs.length]);
 
 export const armTrees = (siteDir) => Object.fromEntries(ARMS.map((a) => [a.id, { dir: siteDir, search: a.search }]));
@@ -26,7 +22,6 @@ export async function runEndFloor({ siteDir, rounds = 3, settleMs = 2500, onProg
 
   const oneArm = async (ctx, id) => {
     ctx.setArm(id);
-    // the page resolves its config from location.search at run time, so the reload must carry the arm's query; the server answers "/" with the arm's HTML
     const search = ARMS.find((a) => a.id === id).search;
     await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify('/' + search)}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
