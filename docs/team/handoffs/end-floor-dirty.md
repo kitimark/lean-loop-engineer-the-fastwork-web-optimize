@@ -1,0 +1,8 @@
+- Branch worktree-wf_d2113447-d6b-1 (CI branch ci/end-floor-dirty); worktree .claude/worktrees/wf_d2113447-d6b-1 (in the main checkout); last commit 63095d120 (temporary wktr.yml edit, revert before the land).
+- CI runs: push 1 wktr 41016169778 in_progress (3 jobs, probe-v2p-thr-off, 10 arms: pbpoff, pbdn, pbpd, pbpdt, idle pbpd, pbphide, pbphidep, pbphidec, pbpd, pbpoff). Pushes used 1 of 3.
+- Verified: Lean module Fw.Device.EndFloorDirty (carrier / documentLevel / spread, hide verdict, hide overall, armSets) and golden (40 lines); TS port replays it (test/end-floor-dirty.test.mjs, 14 tests); measure-wktr tests 190 pass; ci-paths 56 pass. check.sh not yet run on the final commit.
+- Verified by source (WebKit 862f17d): nodeNeedsStyleRecalc is a pure read (Internals.cpp:938-941); styleChangeType first flushes styleScope pending updates (Internals.cpp:961-966), so the typed arm reads types only after the pure pass. Internals exposes no document-level dirt flag, so documentLevel is INFERRED (recalc frames with no dirty name).
+- Open: results of push 1 (reduce with end-floor-dirty-cli.mjs), the WebKit path that marks the carrier, note research/notes/2026/10-30-end-floor-dirty.md, ledger entry, revert wktr.yml, check.sh, dry land, review ready.
+- Conventions: arm keys flip-pbpd / idle-pbpd / flip-pbphide* in rows; carrier names e:<data-fw part>|<path> or p:<part>; page walk caps 64 dirty nodes per sample.
+- Results: `node packages/measure-wktr/src/end-floor-dirty-cli.mjs <wktr-jN dirs> --out verdict.txt`; `... --rows <run dir> --out rows.txt`.
+- Read first: lean/Fw/Device/EndFloorDirty.lean, packages/measure-wktr/src/end-floor-dirty.mjs, the PD/dirtRead/dirtWindow block in packages/measure-wktr/src/mid-page.mjs.
