@@ -141,4 +141,17 @@ theorem residue_level_change_lt (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a �
     Rat.mul_le_mul_of_nonneg_left hm.2 hc
   grind
 
+theorem residue_pair_level_lt (ax vx ay vy : Rat) (hxlo : -maxScatter ≤ ax) (hx : ax ≤ maxScatter)
+    (hvx0 : 0 ≤ vx) (hvx : vx ≤ widest) (hylo : -maxScatter ≤ ay) (hy : ay ≤ maxScatter)
+    (hvy0 : 0 ≤ vy) (hvy : vy ≤ widest) :
+    dprMax * 255 * residue ax vx + dprMax * 255 * residue ay vy < 1 / 5 ∧
+    dprMax * 255 * residue ax vx - dprMax * 255 * residue ay vy < 1 / 5 ∧
+    -(dprMax * 255 * residue ax vx) + dprMax * 255 * residue ay vy < 1 / 5 ∧
+    -(dprMax * 255 * residue ax vx) - dprMax * 255 * residue ay vy < 1 / 5 := by
+  have hX := residue_level_change_lt ax vx hxlo hx hvx0 hvx
+  have hY := residue_level_change_lt ay vy hylo hy hvy0 hvy
+  generalize dprMax * 255 * residue ax vx = lx at *
+  generalize dprMax * 255 * residue ay vy = ly at *
+  grind
+
 end Fw.Parts.HeroExitSubpixel

@@ -17,12 +17,14 @@ topics: [hero.exit, threaded, webkit, scroll-driven-animations, float32, gate-br
   p ≈ 1/(100·2^17) ≈ 7.63e-8. The card translate is p × scatter: up to 2.2e-5 px at width 601 and 5.5e-5 px at
   width 1512. The exact value is 0 px, the `from` keyframe. (CONFIRMED, WebKit 862f17d `ScrollTimeline.cpp:383-397`,
   `ViewTimeline.cpp:503-517`; MEASURED, run 41087718575.)
-- No rendered pixel moves. A transform does not touch layout, so LayoutUnit (1/64 px) never sees it. The
-  residue the bound covers (scatter within ±48vw on a side up to 2560 px) lies strictly between -1e-4 and 1e-4 CSS px
-  (Lean `residue_lt_gateTol`), so its size is below 3e-4 device px at dpr 3. On a card that is already rotated and
-  resampled, that shifts edge coverage by less than 0.1 of one 8-bit level in either direction (Lean
-  `residue_level_change_lt`). A 1-level flip needs a pixel that already sits within that margin of a rounding
-  boundary. (INFERRED.)
+- **No layout pixel moves; on the hero cards a painted pixel changes by at most one 8-bit level.** A transform
+  skips layout, so LayoutUnit (1/64 px) never sees it. -1e-4 < residue < 1e-4 CSS px per component
+  (`residue_lt_gateTol`, scatter within ±48 vw/vh, viewport sides ≤ 2560 px). At dpr ≤ 3, each component stays
+  inside ±0.1 of a level (`residue_level_change_lt`) and |x| + |y| < 0.2 of a level (`residue_pair_level_lt`). The
+  card opacity residue (0.35 × p ≈ 2.7e-8) is about 7e-6 of a level (INFERRED arithmetic). Under a coverage model,
+  where a shift (dx, dy) in device px changes a pixel's coverage or bilinear sample by at most 255 × (|dx| + |dy|)
+  levels, a flip needs a pixel already within 0.2 of a level of a rounding boundary, and then it flips by at most one
+  level (INFERRED; no pixel diff taken).
 - Chromium reads 0 px, because Blink snaps a local time that lies within 1 µs of the phase boundary onto it, so
   progress is exactly 0. (CONFIRMED for the snap, Chromium f842f52 `timing_calculations.cc:95-101`; INFERRED that it
   is the step taken here.)
@@ -115,20 +117,30 @@ Blending and printing (all CONFIRMED):
 | `timeline32_ratio`, `start64_ratio` | the float time and the double start both round `ratio v`, for every viewport height |
 | `residue_le_max` | the residue lies between its values at scatter -48 and +48 on a 2560 px side |
 | `residue_lt_gateTol` | -1e-4 px < residue < 1e-4 px for scatter in [-48, 48] and viewport side ≤ 2560 px |
-| `residue_level_change_lt` | at dpr ≤ 3: -0.1 < 3 × 255 × residue < 0.1 of an 8-bit level |
+| `residue_level_change_lt` | per translate component at dpr ≤ 3: -0.1 < 3 × 255 × residue < 0.1 of an 8-bit level |
+| `residue_pair_level_lt` | both components at dpr ≤ 3, every sign: ±3·255·residue_x ± 3·255·residue_y < 0.2 of a level |
 
 ## Limits
 
 - This is source reading plus the existing CI artifact; no new CI run.
 - Playwright WebKit stands in for iOS Safari. The compositor path uses the same float formula, so the phone should
   show the same residue. (INFERRED)
-- The pixel answer is INFERRED from the transform/layout split and the bound in `residue_level_change_lt`. No pixel
-  diff was taken.
+- The pixel answer (no layout pixel moves; on the hero cards a painted pixel changes by at most one 8-bit level)
+  rests on the transform/layout split, `residue_pair_level_lt` and an INFERRED coverage model. No pixel diff was
+  taken. It covers the hero cards only: the `translate`, plus the opacity by arithmetic.
+- `timeline32_ratio` and `start64_ratio` model the exact 1/3. That holds when v and 3v are exact floats (integer
+  viewport heights below 2^22); beyond that the ratio is off by at most one float ulp, which is not modelled.
+- The bounds assume dpr ≤ 3 and a viewport width and height ≤ 2560 px.
+- The hero copy `transform` (-0.000001) and `filter: blur(0.000001px)` and the cue `transform`/`filter` residues
+  under threaded are not bounded and have no pixel answer. A non-zero blur radius may take a different paint path
+  (INFERRED risk, not read).
+- The card rect residue (up to 2^-13 px) is not bounded.
 
 ## What this changes in the plan
 
 - **hero.exit:threaded gate failure (r603 threaded-subpixel-why):** classify the WebKit card `translate` difference
-  at scroll 0 as a float32/double timeline artifact with no pixel effect. The flag is not wrong. A fix belongs in
+  at scroll 0 as a float32/double timeline artifact: no layout pixel moves; on the hero cards a painted pixel changes
+  by at most one 8-bit level (INFERRED coverage model, `residue_pair_level_lt`). The flag is not wrong. A fix belongs in
   the gate comparison, for example an absolute tolerance on length components backed by `residue_lt_gateTol`, as a
   separate gate task decided by the lead. This task changes no flag, preset or gate. Card rects differ by up to
   2^-13 px, likely the float ulp of rect coordinates in [1024, 2048) (INFERRED), so a rect tolerance must not reuse
