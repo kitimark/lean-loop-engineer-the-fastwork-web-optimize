@@ -739,12 +739,14 @@ function pageProbe(P) {
   // Internals::styleChangeType first runs styleScope().flushPendingUpdate() (Internals.cpp:961-966), so the typed arm reads types after the pure pass.
   const PD = {
     pbdn: { t: 0 }, pbpd: { t: 0 }, pbpdt: { t: 1 },
-    pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' }, pbphidec: { t: 0, hide: 'ctrl' },
+    pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' },
+    pbpft: { t: 0, fl: 'T' }, pbpfh: { t: 0, fl: 'H' },
   };
   const DN = { names: new WeakMap(), nodes: new Map(), cnt: new Map(), ref: null };
   const DTY = ['NoStyleChange', 'AnimationInvalid', 'InlineStyleInvalid', 'InlineStyleChange', 'FullStyleChange'];
-  const DCAP = 64;
-  const partName = (el) => { let c = el; while (c) { const p = c.closest ? c.closest('[data-fw]') : null; if (p) return p.getAttribute('data-fw'); const r = c.getRootNode ? c.getRootNode() : null; c = r && r.host ? r.host : null; } return '-'; };
+  const DCAP = 600;
+  // <html> carries data-fw, so it is no part: a name under it without a closer part gets '-'.
+  const partName = (el) => { let c = el; while (c) { const p = c.closest ? c.closest('[data-fw]') : null; if (p && p !== document.documentElement) return p.getAttribute('data-fw'); if (p) return '-'; const r = c.getRootNode ? c.getRootNode() : null; c = r && r.host ? r.host : null; } return '-'; };
   const nameOf = (n) => {
     let v = DN.names.get(n);
     if (v) return v;
@@ -762,7 +764,7 @@ function pageProbe(P) {
         const par = c.parentNode;
         const cls = (c.getAttribute('class') || '').split(/\s+/)[0];
         seg.push(c.localName + (c.id ? '#' + c.id : '') + (cls ? '.' + cls : '') + '[' + (par && par.children ? Array.prototype.indexOf.call(par.children, c) : 0) + ']');
-        if (c.hasAttribute('data-fw') || c === document.documentElement) break;
+        if ((c.hasAttribute('data-fw') && c !== document.documentElement) || c === document.documentElement) break;
         if (par && par.nodeType === 11 && par.host) { seg.push('shadow'); c = par.host; } else c = par;
       }
       const part = partName(n);
@@ -801,7 +803,6 @@ function pageProbe(P) {
       if (i === undefined) { i = K.kt.length; K.kt.push(s); K.idx.set(s, i); }
       ids.push(i);
       types.push(t);
-      DN.cnt.set(s, (DN.cnt.get(s) || 0) + 1);
     };
     for (const n of use) {
       let t = -1;
@@ -810,7 +811,35 @@ function pageProbe(P) {
       put(v[0], t);
       if (v[1] !== '-') put('p:' + v[1], t);
     }
-    return { ids: ids, types: types, total: total, ms: performance.now() - w0, capped: capped, dirty: dirty.length };
+    let elN = 0;
+    for (const n of dirty) if (n.nodeType === 1) elN++;
+    return { ids: ids, types: types, total: total, ms: performance.now() - w0, capped: capped, dirty: dirty.length, elN: elN };
+  };
+  // Mutation evidence for the window: DOM records through a MutationObserver, CSSOM writes through counting wrappers.
+  const mutStart = () => {
+    const mu = new Map();
+    const bump = (k) => mu.set(k, (mu.get(k) || 0) + 1);
+    const mo = new MutationObserver(() => { });
+    mo.observe(document, { attributes: true, characterData: true, childList: true, subtree: true });
+    const take = () => {
+      for (const r of mo.takeRecords()) {
+        const n = r.target;
+        const nm = n.nodeType === 9 ? 'document' : nameOf(n)[0];
+        bump(r.type + (r.attributeName ? ':' + r.attributeName : '') + ' ' + nm);
+      }
+    };
+    const undo = [];
+    const wrap = (proto, name) => {
+      const orig = proto && proto[name];
+      if (typeof orig !== 'function') return;
+      proto[name] = function () { bump('api:' + name); return orig.apply(this, arguments); };
+      undo.push(() => { proto[name] = orig; });
+    };
+    if (typeof CSSStyleSheet !== 'undefined') for (const m of ['insertRule', 'deleteRule', 'replace', 'replaceSync']) wrap(CSSStyleSheet.prototype, m);
+    if (typeof Element !== 'undefined') for (const m of ['animate', 'setAttribute', 'removeAttribute', 'setAttributeNS']) wrap(Element.prototype, m);
+    if (typeof CSSStyleDeclaration !== 'undefined') for (const m of ['setProperty', 'removeProperty']) wrap(CSSStyleDeclaration.prototype, m);
+    const stop = () => { take(); mo.disconnect(); for (const u of undo) u(); return mu; };
+    return { take: take, stop: stop };
   };
   const dirtWindow = async (cfg, K) => {
     const reps = [];
@@ -823,14 +852,20 @@ function pageProbe(P) {
     let wms = 0;
     let total = 0;
     let caps = 0;
+    const ag = { h: 0, e: 0, hEl: 0, eEl: 0, cyc: 0, maxH: 0, maxE: 0, fl: 0 };
+    let prevE = null;
+    const mut = mutStart();
+    const flush = () => { const a = recalc(); try { getComputedStyle(document.documentElement).getPropertyValue('display'); } catch (x) { } const b = recalc(); return a !== null && b !== null ? b - a : 0; };
     const t0 = performance.now();
     while (n < P.rsWin && performance.now() - t0 <= 4 * P.capMs) {
       let pre = 0;
       let h = null;
+      let flH = 0;
       await new Promise((res) => origRaf(() => {
         const a0 = recalc();
         pre = a0 !== null && prev !== null ? a0 - prev : 0;
         h = dirtRead(cfg.t, K);
+        if (cfg.fl === 'H') flH = flush();
         const ch = new MessageChannel();
         ch.port1.onmessage = () => { ch.port1.close(); res(); };
         ch.port2.postMessage(0);
@@ -841,23 +876,37 @@ function pageProbe(P) {
       const inv1 = I.styleInvalidationTraversalCount;
       const sz = I.lastStyleUpdateSize;
       const e = dirtRead(cfg.t, K);
-      const fr = [c === null || prev === null ? 0 : c - prev, pre, h.ids, e.ids, tl1 - tl, inv1 - inv, sz];
+      let flT = 0;
+      if (cfg.fl === 'T') flT = flush();
+      const fl = flH + flT;
+      const fr = [c === null || prev === null ? 0 : c - prev - flH, pre, h.ids, e.ids, tl1 - tl, inv1 - inv, sz];
       if (cfg.t) fr.push(h.types, e.types);
+      else if (cfg.fl) fr.push(fl);
       reps.push(fr);
-      prev = c;
+      if (prevE) {
+        const hs = new Set(h.ids);
+        for (const i of prevE) if (!hs.has(i)) { const k = K.kt[i]; DN.cnt.set(k, (DN.cnt.get(k) || 0) + 1); ag.cyc++; }
+      }
+      prevE = e.ids;
+      ag.h += h.dirty; ag.e += e.dirty; ag.hEl += h.elN; ag.eEl += e.elN; ag.fl += fl;
+      if (h.dirty > ag.maxH) ag.maxH = h.dirty;
+      if (e.dirty > ag.maxE) ag.maxE = e.dirty;
+      mut.take();
+      prev = recalc();
       tl = tl1;
       inv = inv1;
       wms += h.ms + e.ms;
       total = e.total;
       if (h.capped || e.capped) caps++;
     }
+    const mu = [...mut.stop().entries()].sort((a, b) => b[1] - a[1]).slice(0, 24);
     const c1 = recalc();
     const u1 = ruNow();
-    return { reps: reps, nodes: total, caps: caps, tot: { n: n, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'raf', w: Math.round(wms) } };
+    return { reps: reps, nodes: total, caps: caps, ag: ag, mu: mu, tot: { n: n, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'raf', w: Math.round(wms) } };
   };
   const dirtTop = () => {
     let best = null;
-    for (const [k, c] of (DN.ref || DN.cnt)) if (k.startsWith('e:') && (best === null || c > best[1])) best = [k, c];
+    for (const [k, c] of (DN.ref || DN.cnt)) if ((k.startsWith('e:') || k.startsWith('t:')) && (best === null || c > best[1] || (c === best[1] && k < best[0]))) best = [k, c];
     const node = best ? DN.nodes.get(best[0]) : null;
     const el = node ? (node.nodeType === 1 ? node : node.nodeType === 11 ? node.host : node.parentElement) : null;
     const partEl = el && el.closest ? el.closest('[data-fw]') : null;
@@ -941,7 +990,7 @@ function pageProbe(P) {
       const el = pick === document.documentElement || pick === document.body ? null : pick;
       out.rs.top = { name: tp.name, count: tp.count };
       if (pick && !el) out.rs.skipped = 'root';
-      out.rs.hid = el ? tp.names[pd.hide] : null;
+      out.rs.hid = el ? (pd.hide === 'el' ? tp.name : tp.names[pd.hide]) : null;
       if (el) {
         hideEl = el;
         hideWas = [el.style.getPropertyValue('display'), el.style.getPropertyPriority('display')];
@@ -957,7 +1006,7 @@ function pageProbe(P) {
       out.engaged = out.rs.internals;
       for (let rep = 0; rep < P.rsReps; rep++) {
         const o = await dirtWindow(pd, K);
-        out.rs.dn.push({ f: o.reps, nodes: o.nodes, caps: o.caps });
+        out.rs.dn.push({ f: o.reps, nodes: o.nodes, caps: o.caps, ag: o.ag, mu: o.mu });
         (out.rs.pb || (out.rs.pb = [])).push(o.tot);
         out.rs.wins.push(o.tot.n);
         out.rs.reps++;
@@ -1004,7 +1053,7 @@ function pageProbe(P) {
         let fr;
         let tot = null;
         try {
-          if (vv === 'pbcre') { fr = []; (out.rs.cre || (out.rs.cre = [])).push(await X.creP); } else if (vv === 'pbnoraf') { const o = await pbNoRaf(); fr = o.frames; tot = o.tot; } else if (pd) { const o = await dirtWindow(pd, K); fr = []; tot = o.tot; out.rs.dn.push({ f: o.reps, nodes: o.nodes, caps: o.caps }); } else if (PB[vv]) { const o = await pbWindow(PB[vv]); fr = o.frames; tot = o.tot; } else fr = await rsWindow(false, tw, vv, kt);
+          if (vv === 'pbcre') { fr = []; (out.rs.cre || (out.rs.cre = [])).push(await X.creP); } else if (vv === 'pbnoraf') { const o = await pbNoRaf(); fr = o.frames; tot = o.tot; } else if (pd) { const o = await dirtWindow(pd, K); fr = []; tot = o.tot; out.rs.dn.push({ f: o.reps, nodes: o.nodes, caps: o.caps, ag: o.ag, mu: o.mu }); } else if (PB[vv]) { const o = await pbWindow(PB[vv]); fr = o.frames; tot = o.tot; } else fr = await rsWindow(false, tw, vv, kt);
         } finally { if (isQ(vv)) muteOff(); }
         if (!warm) { for (const f of fr) out.rs.frames.push(f); out.rs.wins.push(tot ? tot.n : fr.length); if (tot) (out.rs.pb || (out.rs.pb = [])).push(tot); }
         await sleep(900);

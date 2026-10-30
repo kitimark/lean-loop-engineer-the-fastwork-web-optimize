@@ -9,11 +9,12 @@ export const SKIP_FRAMES = 8;
 export { MIN_FRAMES };
 
 export const ARMS_D = [
-  'rs-flip-pbpoff', 'rs-flip-pbdn', 'rs-flip-pbpd', 'rs-flip-pbpdt', 'rs-idle-pbpd',
-  'rs-flip-pbphide', 'rs-flip-pbphidep', 'rs-flip-pbphidec', 'rs-flip-pbpd', 'rs-flip-pbpoff',
+  'rs-flip-pbpoff', 'rs-flip-pbdn', 'rs-flip-pbpd', 'rs-flip-pbpdt', 'rs-idle-pbpd', 'rs-flip-pbpft', 'rs-flip-pbpfh',
+  'rs-flip-pbphide', 'rs-flip-pbphidep', 'rs-flip-pbpd', 'rs-flip-pbpoff',
 ];
-export const HIDE_KEYS = ['flip-pbphide', 'flip-pbphidep', 'flip-pbphidec'];
-const KEY = /^rs-(flip|idle)-(pbpoff|pbdn|pbpdt|pbpd|pbphidep|pbphidec|pbphide)$/;
+export const HIDE_KEYS = ['flip-pbphide', 'flip-pbphidep'];
+export const FLUSH_KEYS = ['flip-pbpft', 'flip-pbpfh'];
+const KEY = /^rs-(flip|idle)-(pbpoff|pbdn|pbpdt|pbpd|pbpft|pbpfh|pbphidep|pbphide)$/;
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 const cp = (s) => Array.from(s).map((c) => c.codePointAt(0));
@@ -29,7 +30,7 @@ export function pair(prev, frames) {
   const out = [];
   let p = prev;
   for (const f of frames) {
-    out.push([f.r, dedup([...p, ...f.h])]);
+    out.push([f.r, dedup(p.filter((n) => !f.h.includes(n)))]);
     p = f.e;
   }
   return out;
@@ -70,6 +71,15 @@ export function hideVerdict(carrier, hidden, ref, hide) {
   if (readingRate(ref) <= FLOOR_BAND) return 'noReference';
   return readingRate(hide) <= FLOOR_BAND ? 'confirmed' : 'notConfirmed';
 }
+
+// flushVerdict: `auto` are the recalcs of the rendering updates, `flush` those of the forced getComputedStyle flush.
+export function flushVerdict(x) {
+  if (x.frames < MIN_FRAMES) return 'unread';
+  const a = FLOOR_BAND < Math.floor((x.auto * 100) / x.frames);
+  const f = FLOOR_BAND < Math.floor((x.flush * 100) / x.frames);
+  return a && f ? 'both' : f ? 'held' : a ? 'arises' : 'none';
+}
+export const flushOverall = (fs) => overallNames(fs.filter((f) => f !== 'unread'));
 export const hideOverall = (hs) => overallNames(hs.filter((h) => h !== 'unread'));
 
 // Page rows. A rep is [r, pre, hIds, eIds, timelineInvalidations, traversals, lastStyleUpdateSize, (hTypes, eTypes)]; ids index row.rs.kt.
@@ -96,6 +106,8 @@ export function readingOf(row) {
   return { frames: sum(pb.map((t) => t.n)), recalcs: sum(pb.map((t) => t.r)), ru: sum(pb.map((t) => t.u ?? 0)), ms: sum(pb.map((t) => t.w ?? 0)) };
 }
 
+// Frames after the skipped leading ones of each rep: the frames the verdicts read.
+const skipped = (dn) => dn.flatMap((w) => w.f.slice(SKIP_FRAMES));
 const per100 = (x, n) => (n === 0 ? 0 : Math.round((x * 100) / n));
 
 export function factsOf(row) {
@@ -103,7 +115,7 @@ export function factsOf(row) {
   const fs = dn.flatMap((w) => w.f);
   const tally = new Map();
   for (const f of fs) {
-    const ty = f.slice(7);
+    const ty = Array.isArray(f[7]) ? f.slice(7) : [];
     if (ty.length === 0) continue;
     for (let k = 0; k < 2; k++) f[2 + k].forEach((id, j) => {
       const nm = (row.rs.kt ?? [])[id];
@@ -113,7 +125,15 @@ export function factsOf(row) {
       tally.set(key, (tally.get(key) ?? 0) + 1);
     });
   }
+  const ag = dn.map((w) => w.ag).filter(Boolean);
+  const agSum = (k) => sum(ag.map((a) => a[k] ?? 0));
+  const mu = new Map();
+  for (const w of dn) for (const [k, c] of w.mu ?? []) mu.set(k, (mu.get(k) ?? 0) + c);
+  const flushed = fs.filter((f) => typeof f[7] === 'number');
   return {
+    flush: flushed.length === 0 ? null : { frames: skipped(dn).length, auto: sum(skipped(dn).map((f) => f[0])), flush: sum(skipped(dn).map((f) => f[7])) },
+    dirt: { h: per100(agSum('h'), fs.length), e: per100(agSum('e'), fs.length), hEl: per100(agSum('hEl'), fs.length), eEl: per100(agSum('eEl'), fs.length), cyc: per100(agSum('cyc'), fs.length), maxH: ag.length === 0 ? 0 : Math.max(...ag.map((a) => a.maxH ?? 0)), maxE: ag.length === 0 ? 0 : Math.max(...ag.map((a) => a.maxE ?? 0)) },
+    mut: [...mu.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, 8),
     frames: fs.length,
     timeline: per100(sum(fs.map((f) => f[4])), fs.length),
     traversal: per100(sum(fs.map((f) => f[5])), fs.length),
@@ -133,7 +153,9 @@ export function decideDirtyJob(rep) {
     const xs = setsOf(row);
     const hit = hitN(xs);
     const t = top(xs);
-    arms.push({ key, row, sets: xs.length, rate: rate(xs), hit, bare: bareN(xs), top: t, topN: t === null ? 0 : countName(t, xs), v: verdict(xs), reading: readingOf(row), hid: row.rs.hid ?? null, facts: factsOf(row) });
+    arms.push({ key, row, sets: xs.length, rate: rate(xs), hit, bare: bareN(xs), top: t, topN: t === null ? 0 : countName(t, xs), v: verdict(xs), reading: readingOf(row), hid: row.rs.hid ?? null, facts: factsOf(row), flush: null });
+    const last = arms[arms.length - 1];
+    last.flush = last.facts.flush === null ? null : flushVerdict(last.facts.flush);
   }
   const ref = arms.find((a) => a.key === 'flip-pbpd') ?? null;
   const hides = ref === null ? [] : arms.filter((a) => HIDE_KEYS.includes(a.key)).map((a) => ({
@@ -154,6 +176,8 @@ export function jobLinesD(label, rep) {
   for (const a of d.arms) {
     lines.push(`end-floor-dirty ${label} ${a.key}: ${rd(a.reading)}, read frames ${a.sets} rate ${a.rate}, recalc frames ${a.hit} of which no dirty name ${a.bare}, top ${a.top ?? '-'} in ${a.topN} recalc frames, verdict ${dName(a.v)}`);
     const f = a.facts;
+    if (f.flush !== null) lines.push(`end-floor-dirty-flush ${label} ${a.key}: frames ${f.flush.frames} update recalcs ${f.flush.auto} flush recalcs ${f.flush.flush}, verdict ${flushVerdict(f.flush)}`);
+    lines.push(`end-floor-dirty-dirt ${label} ${a.key}: dirty nodes per sample at rAF start ${f.dirt.h / 100} (elements ${f.dirt.hEl / 100}, max ${f.dirt.maxH}), after the update ${f.dirt.e / 100} (elements ${f.dirt.eEl / 100}, max ${f.dirt.maxE}), cycling names per frame ${f.dirt.cyc / 100}${f.mut.length === 0 ? '' : `, mutations ${f.mut.map(([k, n]) => `${k} x${n}`).join('; ')}`}`);
     lines.push(`end-floor-dirty-facts ${label} ${a.key}: timeline invalidations per 100 frames ${f.timeline}, style invalidation traversals per 100 frames ${f.traversal}, largest last style update ${f.styleSize}, nodes walked ${f.nodes}, capped windows ${f.capped}, walk ms per frame ${f.walkMs}, recalcs before the rAF callback ${f.pre}${f.types.length === 0 ? '' : `, change types ${f.types.map(([k, n]) => `${k} x${n}`).join('; ')}`}`);
   }
   for (const h of d.hides) lines.push(`end-floor-dirty-hide ${label} ${h.key}: hid ${h.hid ?? '-'}, reference ${rd(h.ref)}, hidden ${rd(h.hide)}, verdict ${h.v ?? 'noCarrier'}`);
@@ -166,6 +190,11 @@ export function overallLinesD(ds) {
   for (const k of keys) {
     const vs = ds.map((d) => d.arms.find((a) => a.key === k)?.v ?? { kind: 'unread', name: null });
     lines.push(`end-floor-dirty overall ${k}: ${overall(vs)} (jobs ${vs.map(dName).join(' | ')})`);
+  }
+  for (const k of FLUSH_KEYS) {
+    const fs = ds.map((d) => d.arms.find((a) => a.key === k)?.flush ?? 'unread');
+    if (fs.every((f) => f === 'unread')) continue;
+    lines.push(`end-floor-dirty-flush overall ${k}: ${flushOverall(fs)} (jobs ${fs.join(' ')})`);
   }
   for (const k of HIDE_KEYS) {
     const hs = ds.map((d) => d.hides.find((h) => h.key === k)?.v ?? 'unread');

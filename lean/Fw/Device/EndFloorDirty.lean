@@ -26,11 +26,12 @@ structure Frame where
   e : List String
   deriving DecidableEq, Repr
 
-/-- A frame's recalcs against the names that can explain them: those left dirty by the previous frame, and those seen at
-its own rAF start. -/
+/-- A frame's recalcs against the names that cycle: dirty in the first task after the previous frame's rendering update
+(`e`) and clean again at the next rAF start (`h`), so the update's style pass cleaned them. A name dirty in both samples
+is inert: the resolver leaves it alone and it cannot explain a recalc. -/
 def pair : List String → List Frame → List (Nat × List String)
   | _, [] => []
-  | prev, f :: fs => (f.r, (prev ++ f.h).eraseDups) :: pair f.e fs
+  | prev, f :: fs => (f.r, (prev.filter fun n => !f.h.contains n).eraseDups) :: pair f.e fs
 
 /-- The read frames of one rep. -/
 def repSets (fs : List Frame) : List (Nat × List String) := (pair [] fs).drop skipFrames
@@ -202,6 +203,49 @@ theorem confirmed_lowers (c : String) (hd : Option String) (ref hide : Reading) 
   · exact ⟨h3, by omega⟩
   · simp [h0, h1, h2, h3] at h
 
+/-- Where the document-level dirt sits, read from a forced style flush (`getComputedStyle`) in the frame loop. `auto` are
+the recalcs the rendering update made on its own, `flush` those the forced flush made. -/
+inductive F where
+  | unread | none | held | arises | both
+  deriving DecidableEq, Repr
+
+def F.name : F → String
+  | .unread => "unread" | .none => "none" | .held => "held" | .arises => "arises" | .both => "both"
+
+structure Flushed where
+  frames : Nat
+  auto : Nat
+  flush : Nat
+  deriving DecidableEq, Repr
+
+/-- `held`: the flush finds the dirt pending and the next update has none of its own; `arises`: the flush finds nothing
+and the next update recalcs anyway. -/
+def flushVerdict (x : Flushed) : F :=
+  if x.frames < minFrames then .unread
+  else
+    let a := floorBand < x.auto * 100 / x.frames
+    let f := floorBand < x.flush * 100 / x.frames
+    if a && f then .both else if f then .held else if a then .arises else .none
+
+theorem flush_unread (x : Flushed) (h : x.frames < minFrames) : flushVerdict x = .unread := by
+  simp [flushVerdict, h]
+
+theorem flush_held (x : Flushed) (h0 : ¬ x.frames < minFrames) (hf : floorBand < x.flush * 100 / x.frames)
+    (ha : ¬ floorBand < x.auto * 100 / x.frames) : flushVerdict x = .held := by
+  simp [flushVerdict, h0, hf, ha]
+
+theorem flush_arises (x : Flushed) (h0 : ¬ x.frames < minFrames) (hf : ¬ floorBand < x.flush * 100 / x.frames)
+    (ha : floorBand < x.auto * 100 / x.frames) : flushVerdict x = .arises := by
+  simp [flushVerdict, h0, hf, ha]
+
+theorem flush_none (x : Flushed) (h0 : ¬ x.frames < minFrames) (hf : ¬ floorBand < x.flush * 100 / x.frames)
+    (ha : ¬ floorBand < x.auto * 100 / x.frames) : flushVerdict x = .none := by
+  simp [flushVerdict, h0, hf, ha]
+
+theorem flush_both (x : Flushed) (h0 : ¬ x.frames < minFrames) (hf : floorBand < x.flush * 100 / x.frames)
+    (ha : floorBand < x.auto * 100 / x.frames) : flushVerdict x = .both := by
+  simp [flushVerdict, h0, hf, ha]
+
 /-- Verdict strings of the jobs; unread jobs are left out, fewer than two judged jobs is inconclusive. -/
 def overall (ds : List D) : String := overallNames ((ds.filter fun d => d != .unread).map D.name)
 
@@ -214,6 +258,13 @@ def hideOverall (hs : List H) : String := overallNames ((hs.filter fun h => h !=
 theorem hideOverall_inconclusive (hs : List H) (h : (hs.filter fun h => h != .unread).length < minValid) :
     hideOverall hs = "inconclusive" := by
   simpa [hideOverall] using overallNames_inconclusive _ (by simpa using h)
+
+/-- Flush verdicts of the jobs, unread left out; fewer than two judged jobs is inconclusive. -/
+def flushOverall (fs : List F) : String := overallNames ((fs.filter fun f => f != .unread).map F.name)
+
+theorem flushOverall_inconclusive (fs : List F) (h : (fs.filter fun f => f != .unread).length < minValid) :
+    flushOverall fs = "inconclusive" := by
+  simpa [flushOverall] using overallNames_inconclusive _ (by simpa using h)
 
 /-- All reps of one arm side by side: each rep's frames are paired and cut on their own, so no name carries over a rep border. -/
 def armSets (reps : List (List Frame)) : List (Nat × List String) := reps.flatMap repSets
@@ -244,9 +295,11 @@ private def verdictCases : List (String × List (Nat × Nat × List String)) :=
    ("two recalcs in a frame count once as a frame", [(400, 2, ["e:a|div[0]"])])]
 
 private def frameCases : List (String × List Frame) :=
-  [("carry from the previous frame", (List.range 12).map fun i => ⟨1, if i = 9 then ["x"] else [], if i = 9 then ["y"] else []⟩),
-   ("shorter than the skip", (List.range 5).map fun _ => ⟨1, ["x"], ["x"]⟩),
-   ("duplicate name is kept once", (List.range 10).map fun _ => ⟨1, ["x", "y"], ["x"]⟩)]
+  [("cycling name carried from the previous frame", (List.range 12).map fun i => ⟨1, [], if i = 9 then ["y"] else []⟩),
+   ("name dirty in both samples is inert", (List.range 12).map fun _ => ⟨1, ["x"], ["x"]⟩),
+   ("name cleaned by the next rAF start cycles", (List.range 12).map fun i => ⟨1, if i = 9 then ["z"] else [], ["x", "z"]⟩),
+   ("shorter than the skip", (List.range 5).map fun _ => ⟨1, [], ["x"]⟩),
+   ("duplicate name is kept once", (List.range 10).map fun _ => ⟨1, ["y"], ["x", "x", "y"]⟩)]
 
 private def hideCases : List (String × String × Option String × Reading × Reading) :=
   [("confirmed", "e:a", some "e:a", ⟨576, 588⟩, ⟨576, 3⟩), ("exactly at the band", "e:a", some "e:a", ⟨576, 588⟩, ⟨576, 63⟩),
@@ -267,9 +320,18 @@ private def hsCases : List (String × List H) :=
    ("one unread", [.confirmed, .unread, .confirmed]), ("two unread", [.confirmed, .unread, .unread]),
    ("unmatched everywhere", [.unmatched, .unmatched, .unmatched])]
 
+private def flushCases : List (String × Flushed) :=
+  [("short", ⟨287, 0, 287⟩), ("held", ⟨576, 3, 576⟩), ("arises", ⟨576, 576, 0⟩), ("both", ⟨576, 576, 576⟩), ("none", ⟨576, 3, 3⟩),
+   ("flush exactly at the band", ⟨576, 3, 57⟩), ("flush one above the band", ⟨576, 3, 58⟩),
+   ("auto exactly at the band", ⟨576, 57, 576⟩), ("auto one above the band", ⟨576, 58, 576⟩)]
+
+private def fsCases : List (String × List F) :=
+  [("all held", [.held, .held, .held]), ("one arises", [.held, .arises, .held]), ("one unread", [.held, .unread, .held]),
+   ("two unread", [.held, .unread, .unread])]
+
 private def repCases : List (String × List (List Frame)) :=
-  [("two reps do not share names", [(List.range 9).map fun i => ⟨1, if i = 8 then ["x"] else [], if i = 8 then ["y"] else []⟩,
-      (List.range 9).map fun _ => ⟨1, ["z"], []⟩])]
+  [("two reps do not share names", [(List.range 10).map fun i => ⟨1, [], if i = 8 then ["y"] else []⟩,
+      (List.range 9).map fun _ => ⟨1, [], ["z"]⟩])]
 
 private def namesJ (s : List String) : Json := Json.arr (s.map Json.str).toArray
 
@@ -297,6 +359,12 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "arm"), ("name", n),
       ("reps", Json.arr (rs.map fun fs => Json.arr (fs.map fun f => Json.arr #[toJson f.r, namesJ f.h, namesJ f.e]).toArray).toArray),
       ("sets", Json.arr ((armSets rs).map fun (r, s) => Json.arr #[toJson r, namesJ s]).toArray)]).compress) ++
+  (flushCases.map fun (n, x) =>
+    (Json.mkObj [("kind", "flush"), ("name", n), ("frames", x.frames), ("auto", x.auto), ("flush", x.flush),
+      ("verdict", Json.str (flushVerdict x).name)]).compress) ++
+  (fsCases.map fun (n, fs) =>
+    (Json.mkObj [("kind", "flushOverall"), ("name", n), ("verdicts", Json.arr (fs.map fun f => Json.str f.name).toArray),
+      ("overall", Json.str (flushOverall fs))]).compress) ++
   (hsCases.map fun (n, hs) =>
     (Json.mkObj [("kind", "hideOverall"), ("name", n), ("verdicts", Json.arr (hs.map fun h => Json.str h.name).toArray),
       ("overall", Json.str (hideOverall hs))]).compress) ++

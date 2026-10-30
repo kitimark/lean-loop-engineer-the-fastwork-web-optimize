@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ARMS_D, CARRIER_SHARE, DOCUMENT_SHARE, FLOOR_BAND, HIDE_KEYS, MIN_FRAMES, SKIP_FRAMES, armSets, bareN, decideDirtyJob, dName, hideOverall, hideVerdict, hitN,
+  ARMS_D, CARRIER_SHARE, DOCUMENT_SHARE, FLOOR_BAND, FLUSH_KEYS, HIDE_KEYS, MIN_FRAMES, SKIP_FRAMES, armSets, bareN, decideDirtyJob, dName, flushOverall, flushVerdict, hideOverall, hideVerdict, hitN,
   jobLinesD, overall, overallLinesD, rate, repSets, rowLineD, rowsByKey, top, countName, verdict,
 } from '../src/end-floor-dirty.mjs';
 import { probeSource } from '../src/mid-page.mjs';
@@ -53,6 +53,16 @@ test('hide lines', () => {
   for (const l of of('hide')) assert.equal(hideVerdict(l.carrier, l.hidden, l.ref, l.hide), l.verdict, l.name);
 });
 
+test('flush lines', () => {
+  assert.ok(of('flush').length >= 9);
+  for (const l of of('flush')) assert.equal(flushVerdict({ frames: l.frames, auto: l.auto, flush: l.flush }), l.verdict, l.name);
+});
+
+test('flush overall lines', () => {
+  assert.ok(of('flushOverall').length >= 4);
+  for (const l of of('flushOverall')) assert.equal(flushOverall(l.verdicts), l.overall, l.name);
+});
+
 test('hide overall lines', () => {
   assert.ok(of('hideOverall').length >= 5);
   for (const l of of('hideOverall')) assert.equal(hideOverall(l.verdicts), l.overall, l.name);
@@ -68,7 +78,7 @@ const fr = (r, h, e) => [r, 0, h, e, 2, 3, 4];
 const pb = (n, r) => ({ n, r, u: n, ms: n * 16, src: 'raf', w: n });
 const row = (arm, reps, perFrame, extra = {}) => ({
   arm,
-  rs: { kt, reps, hid: null, pb: Array.from({ length: reps }, () => pb(48, perFrame)), dn: Array.from({ length: reps }, () => ({ f: Array.from({ length: 48 }, () => fr(1, [0, 1], [0, 1])), nodes: 900, caps: 0 })), ...extra },
+  rs: { kt, reps, hid: null, pb: Array.from({ length: reps }, () => pb(48, perFrame)), dn: Array.from({ length: reps }, () => ({ f: Array.from({ length: 48 }, () => fr(1, [], [0, 1])), nodes: 900, caps: 0, ag: { h: 96, e: 96, hEl: 48, eEl: 48, cyc: 96, maxH: 2, maxE: 2, fl: 0 }, mu: [['attributes:style e:a|div[0]', 48]] })), ...extra },
 });
 
 test('rowsByKey tells a repeated arm apart by occurrence', () => {
@@ -80,16 +90,17 @@ test('a job report: a carrier, its hide confirmed, a hide of another element unm
   const rep = { rows: [
     row('rs-flip-pbpd', 12, 48),
     row('rs-flip-pbphide', 12, 0, { hid: 'e:a|div[0]' }),
-    { ...row('rs-flip-pbphidec', 12, 48), rs: { ...row('rs-flip-pbphidec', 12, 48).rs, hid: 'p:z' } },
+    { ...row('rs-flip-pbphidep', 12, 48), rs: { ...row('rs-flip-pbphidep', 12, 48).rs, hid: 'p:z' } },
   ] };
   rep.rows[1].rs.dn = rep.rows[1].rs.dn.map((w) => ({ ...w, f: w.f.map(() => fr(0, [], [])) }));
   const d = decideDirtyJob(rep);
   assert.deepEqual(d.ref.v, { kind: 'carrier', name: 'e:a|div[0]' });
   assert.equal(d.hides.find((h) => h.key === 'flip-pbphide').v, 'confirmed');
-  assert.equal(d.hides.find((h) => h.key === 'flip-pbphidec').v, 'unmatched');
+  assert.equal(d.hides.find((h) => h.key === 'flip-pbphidep').v, 'unmatched');
   const { lines: ls } = jobLinesD('j1', rep);
   assert.match(ls[0], /^end-floor-dirty j1 flip-pbpd: frames 576 recalcs 576 rate 100 per 100 rAF callbacks, read frames 480 rate 100, recalc frames 480 of which no dirty name 0, top e:a\|div\[0\] in 480 recalc frames, verdict carrier e:a\|div\[0\]$/);
-  assert.match(ls[1], /^end-floor-dirty-facts j1 flip-pbpd: timeline invalidations per 100 frames 200, style invalidation traversals per 100 frames 300, largest last style update 4, nodes walked 900, capped windows 0,/);
+  assert.match(ls[1], /^end-floor-dirty-dirt j1 flip-pbpd: dirty nodes per sample at rAF start 2 \(elements 1, max 2\), after the update 2 \(elements 1, max 2\), cycling names per frame 2, mutations attributes:style e:a\|div\[0\] x\d+$/);
+  assert.match(ls[2], /^end-floor-dirty-facts j1 flip-pbpd: timeline invalidations per 100 frames 200, style invalidation traversals per 100 frames 300, largest last style update 4, nodes walked 900, capped windows 0,/);
   assert.ok(ls.some((l) => /^end-floor-dirty-hide j1 flip-pbphide: hid e:a\|div\[0\], .*verdict confirmed$/.test(l)));
   const o = overallLinesD([d, d, d]);
   assert.match(o[0], /^end-floor-dirty overall flip-pbpd: carrier e:a\|div\[0\] \(jobs carrier e:a\|div\[0\] \| carrier e:a\|div\[0\] \| carrier e:a\|div\[0\]\)$/);
@@ -108,8 +119,19 @@ test('a document-level floor and a floor-free reference', () => {
 test('a typed arm tallies the change types of the dirty names', () => {
   const r = row('rs-flip-pbpdt', 12, 48);
   r.rs.dn = r.rs.dn.map((w) => ({ ...w, f: w.f.map(() => [...fr(1, [0, 1], [0, 1]), [3, 3], [4, 4]]) }));
-  const ls = jobLinesD('j', { rows: [r] }).lines[1];
+  const ls = jobLinesD('j', { rows: [r] }).lines[2];
   assert.match(ls, /change types e:a\|div\[0\] 3 x\d+; e:a\|div\[0\] 4 x\d+; p:a 3 x\d+; p:a 4 x\d+$/);
+});
+
+test('a flush arm reports where the dirt sits and a pair of jobs agree', () => {
+  const t = row('rs-flip-pbpft', 12, 0);
+  t.rs.dn = t.rs.dn.map((w) => ({ ...w, f: w.f.map(() => [...fr(0, [], []), 1]) }));
+  const d = decideDirtyJob({ rows: [t] });
+  assert.equal(d.arms[0].flush, 'held');
+  const ls = jobLinesD('j', { rows: [t] }).lines;
+  assert.ok(ls.some((l) => /^end-floor-dirty-flush j flip-pbpft: frames 480 update recalcs 0 flush recalcs 480, verdict held$/.test(l)));
+  assert.ok(overallLinesD([d, d, d]).some((l) => /^end-floor-dirty-flush overall flip-pbpft: held \(jobs held held held\)$/.test(l)));
+  assert.deepEqual(FLUSH_KEYS, ['flip-pbpft', 'flip-pbpfh']);
 });
 
 test('rowLineD and a missing result file', () => {
@@ -126,10 +148,10 @@ test('the page source reads the dirty set without styleChangeType before the pur
   assert.match(src, /dirtWindow/);
   assert.match(src, /nodeNeedsStyleRecalc/);
   assert.ok(src.indexOf('nodeNeedsStyleRecalc(n)') < src.indexOf('I.styleChangeType(n)'));
-  for (const a of ['pbdn', 'pbpd', 'pbpdt', 'pbphide', 'pbphidep', 'pbphidec']) assert.match(src, new RegExp(a));
+  for (const a of ['pbdn', 'pbpd', 'pbpdt', 'pbphide', 'pbphidep', 'pbpft', 'pbpfh', 'MutationObserver', 'getComputedStyle']) assert.match(src, new RegExp(a));
   assert.equal(ARMS_D.filter((a) => a === 'rs-flip-pbpd').length, 2);
   assert.ok(ARMS_D.includes('rs-idle-pbpd'));
-  assert.deepEqual(HIDE_KEYS, ['flip-pbphide', 'flip-pbphidep', 'flip-pbphidec']);
+  assert.deepEqual(HIDE_KEYS, ['flip-pbphide', 'flip-pbphidep']);
   const cli = readFileSync(join(here, '../src/accel-cli.mjs'), 'utf8');
   assert.match(cli, /jobLinesD/);
 });
