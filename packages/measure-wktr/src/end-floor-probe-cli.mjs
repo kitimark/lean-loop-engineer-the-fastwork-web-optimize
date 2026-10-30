@@ -37,8 +37,6 @@ export function rowsOfRunP(dir) {
   return lines;
 }
 
-// verdict:  end-floor-probe-cli.mjs <job dir>... [--out verdict.txt]
-// rows:     end-floor-probe-cli.mjs --rows <run dir holding wktr-j<n>> [--out rows.txt]
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const take = (flag) => { const i = args.indexOf(flag); return i >= 0 ? args.splice(i, 2)[1] : null; };

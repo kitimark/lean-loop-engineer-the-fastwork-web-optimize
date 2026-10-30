@@ -1,16 +1,12 @@
 import Lean.Data.Json
 import Fw.Device.EndFloorWindow
-/-! End-floor probe: does the harness's own per-frame reads force the style recalc of the end of the page, and when do the flip tracks leave the running state. -/
 namespace Fw.Device.EndFloorProbe
 open Lean Fw.Device.EndWktr Fw.Device.EndFloorWindow
 
-/-- Recalcs per 100 frames: a probe-off rate at or below this is "at or near zero", and two rates within it are "alike". Fixed before any data. -/
 def probeBand : Nat := 10
 
-/-- Frames an arm needs before a rate is read: the pinned window length times the least reps. -/
 def minFrames : Nat := pinN * minReps
 
-/-- Where an arm's frames were counted: `raf` is page rAF callbacks, `update` is the engine's rendering-update counter. -/
 inductive Src where
   | raf | update
   deriving DecidableEq, Repr
@@ -18,7 +14,6 @@ inductive Src where
 def Src.name : Src → String
   | .raf => "rAF callbacks" | .update => "rendering updates"
 
-/-- One arm of one job: frames summed over its reps, the recalcs between the counter reads at each window's start and end. -/
 structure Reading where
   frames : Nat
   recalcs : Nat
@@ -35,7 +30,6 @@ def V.name : V → String
   | .probeCauses => "probeCauses" | .probePartial => "probePartial" | .probeInnocent => "probeInnocent"
   | .noFloor => "noFloor" | .unread => "unread"
 
-/-- Two rAF-counted arms compare only when their frame sums are equal; both arms need `minFrames`. -/
 def readable (on off : Reading) : Bool :=
   minFrames ≤ on.frames && minFrames ≤ off.frames && !(on.src == .raf && off.src == .raf && on.frames != off.frames)
 
@@ -80,7 +74,6 @@ theorem verdict_innocent (on off : Reading) (hr : readable on off = true) (h1 : 
   have c : ¬ off.rate + probeBand < on.rate := by omega
   simp [verdict, hr, a, b, c]
 
-/-- Switching the probe off must lower the rate to be blamed at all. -/
 theorem causes_lowers (on off : Reading) (h : verdict on off = .probeCauses) : off.rate < on.rate := by
   unfold verdict at h
   by_cases h0 : (!readable on off) = true
@@ -92,7 +85,6 @@ theorem causes_lowers (on off : Reading) (h : verdict on off = .probeCauses) : o
   · simp [h0, h1, h2] at h
     by_cases h3 : off.rate + probeBand < on.rate <;> simp [h3] at h
 
-/-- An arm compared with itself blames nothing: it reads no floor or an innocent probe. -/
 theorem self_never_blames (x : Reading) : verdict x x = .unread ∨ verdict x x = .noFloor ∨ verdict x x = .probeInnocent := by
   by_cases hr : readable x x = true
   · by_cases h1 : x.rate ≤ probeBand
@@ -106,7 +98,6 @@ def overall (vs : List V) : String := overallNames ((vs.filter fun v => v != .un
 theorem overall_inconclusive (vs : List V) (h : (vs.filter fun v => v != .unread).length < minValid) : overall vs = "inconclusive" := by
   simpa [overall] using overallNames_inconclusive _ (by simpa using h)
 
-/-- One sample taken from the frame the flip tracks are created: how many exist and how many read `idle`. -/
 structure Seen where
   made : Nat
   idle : Nat
@@ -118,7 +109,6 @@ def cancelFrom : Nat → List Seen → Option Nat
   | _, [] => none
   | i, s :: ss => if s.allIdle then some i else cancelFrom (i + 1) ss
 
-/-- The sample index (0 is the creation microtask) of the first sample at which every created track reads `idle`. -/
 def cancelFrame (ss : List Seen) : Option Nat := cancelFrom 0 ss
 
 theorem cancelFrame_nil : cancelFrame [] = none := rfl
@@ -169,7 +159,6 @@ inductive Cv where
 def Cv.name : Cv → String
   | .allCancelled => "all cancelled" | .someCancelled => "some cancelled" | .noneCancelled => "none cancelled" | .unread => "unread"
 
-/-- Per rep the sample index at which every track was idle, or none; fewer than `minReps` reps are unread. -/
 def cancelVerdict (cs : List (Option Nat)) : Cv :=
   if cs.length < minReps then .unread
   else if cs.all Option.isSome then .allCancelled
@@ -191,7 +180,6 @@ theorem cancelVerdict_none (cs : List (Option Nat)) (h0 : ¬ cs.length < minReps
     (h2 : cs.any Option.isSome = false) : cancelVerdict cs = .noneCancelled := by
   simp [cancelVerdict, h0, h, h2]
 
-/-- The least and the greatest sample index over the reps that cancelled. -/
 def cancelSpan (cs : List (Option Nat)) : Option (Nat × Nat) :=
   match cs.filterMap id with
   | [] => none

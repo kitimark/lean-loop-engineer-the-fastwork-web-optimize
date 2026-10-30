@@ -45,7 +45,6 @@ test('cv lines: verdict and span', () => {
   }
 });
 
-// A pb reading row: reps windows of n frames with r recalcs each.
 const pbRow = (arm, reps, n, r, src = 'raf') => ({ arm, rs: { pb: Array.from({ length: reps }, () => ({ n, r, u: n, ms: n * 16, src })), frames: [] } });
 const sample = (t, made, running, idle) => [t, made, running, 0, 0, idle, made - idle - running, 0, 0, 0, 0, 1];
 

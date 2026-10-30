@@ -10,7 +10,7 @@ topics: [webkit, wktr, end-of-page, floor, style-recalc, harness-artifact, lean,
 # end-floor-probe
 
 Task `end-floor-probe`, branch `ci/end-floor-probe` (worktree branch `worktree-wf_66d56fde-3dd-1`), follow-up of
-`10-2x-end-floor-window.md`. Two questions. Q1: does the harness's own per-frame probe force the one style recalc per frame that WKTR
+`10-2x-end-floor-window.md`. Q1: does the harness's own per-frame probe force the one style recalc per frame that WKTR
 reads at the end of the page? Q2: when do the flip tracks leave the running state, sampled from the frame they are created? WKTR
 (Simulator `internals.styleRecalcCount`) stands in for iOS Safari; every number is a class count, never phone time.
 
@@ -42,7 +42,7 @@ reads at the end of the page? Q2: when do the flip tracks leave the running stat
   What sets `needsStyleRecalc` at every rendering update stays open (follow-up, `geom-recalc-source`). No flag was changed.
 
 ## WebKit source for each probe call (862f17d)
-None of the probe calls resolves style, so none can raise the counter. This holds because the probe reads only Element.animate results (mid-page.mjs:89): on CSS animations, StyleOriginatedAnimation overrides bindingsPlayState, bindingsCurrentTime and bindingsPending to flush pending style changes (StyleOriginatedAnimation.cpp:134-144@862f17d).
+None of the probe calls resolves style, so none can raise the counter. The probe reads only Element.animate results (mid-page.mjs:89); on CSS animations, StyleOriginatedAnimation overrides bindingsPlayState, bindingsCurrentTime and bindingsPending to flush pending style changes (StyleOriginatedAnimation.cpp:134-144@862f17d).
 - The counter is `Document::resolveStyle`'s `++m_styleRecalcCount` (`Document.cpp:2936`), reached from `updateStyleIfNeeded` only when
   `needsStyleRecalc()` holds (`Document.cpp:3025-3050`). Group `c`: `Internals::styleRecalcCount` returns the field (`Internals.cpp:4441-4448`,
   `Document.h:1557`); `lastStyleUpdateSize` returns `m_lastStyleUpdateSizeForTesting` (`Internals.cpp:4450-4456`). Reads only.
@@ -60,7 +60,7 @@ None of the probe calls resolves style, so none can raise the counter. This hold
   after `startTrackingRenderingUpdates` (`Page.cpp:2198-2199`). Run 41002916093 read 0 here (`rendering updates 0` in
   `results/end-floor-probe/r1/rows.txt`) because the page never turned the counter on; the page now does (`mid-page.mjs:680-688`) and run
   41007945679 reads it.
-- Source predicts innocence (CONFIRMED from `Document.cpp:3025-3050`, `WebAnimation.cpp:791-820`, `Internals.cpp:1534-1560`) and the measurement above agrees (MEASURED).
+- Source predicts innocence (CONFIRMED from `Document.cpp:3025-3050`, `WebAnimation.cpp:791-820`, `Internals.cpp:1534-1560`); the measurement agrees (MEASURED).
 
 ## The Lean parts
 - Module `Fw.Device.EndFloorProbe` (`lean/Fw/Device/EndFloorProbe.lean`). Constants `probeBand = 10` (:8) and `minFrames = 288` (:11), fixed

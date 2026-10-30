@@ -668,16 +668,12 @@ function pageProbe(P) {
     }
     return frames;
   };
-  // End-floor probe (task end-floor-probe). Probe call groups of one rsWindow frame: c = the style-recalc counter read around the frame
-  // (`styleRecalcCount` twice, `lastStyleUpdateSize`), g = the glint SVG clock (`getCurrentTime`), p = the reference track's `playState` and
-  // `currentTime`, t = the tick probe (`timeToNextAnimationTick`, `acceleratedAnimationsForElement`), m = the MessageChannel hop that ends the frame.
-  // `pboff` reads the counter at the window's start and, after one MessageChannel hop, at its end only; frames are counted by rAF callbacks.
   const PB = {
     pbon: { c: 1, g: 1, p: 1, t: 1, m: 1 }, pboff: { c: 0, g: 0, p: 0, t: 0, m: 0 }, pbconly: { c: 1, g: 0, p: 0, t: 0, m: 0 },
     pbnotk: { c: 1, g: 1, p: 1, t: 0, m: 1 }, pbnoph: { c: 1, g: 1, p: 0, t: 1, m: 1 }, pbnogh: { c: 1, g: 0, p: 1, t: 1, m: 1 },
     pbnomc: { c: 1, g: 1, p: 1, t: 1, m: 0 }, pbpon: { c: 1, g: 1, p: 1, t: 1, m: 1 }, pbpoff: { c: 0, g: 0, p: 0, t: 0, m: 0 },
   };
-  // Page::updateRendering counts only after startTrackingRenderingUpdates (Page.cpp:2396), so the first read turns the counter on; windows read deltas.
+  // Page::updateRendering counts only after startTrackingRenderingUpdates (Page.cpp:2396@862f17d), so the first read turns the counter on; windows read deltas.
   const RU = { on: false };
   const ruNow = () => {
     try {
@@ -730,7 +726,6 @@ function pageProbe(P) {
     const u1 = ruNow();
     return { frames: frames, tot: { n: n, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'raf' } };
   };
-  // No harness rAF at all: the counter and the engine's rendering-update count at the start and the end of a timer window; frames are rendering updates.
   const pbNoRaf = async () => {
     const c0 = recalc();
     const u0 = ruNow();
@@ -740,9 +735,6 @@ function pageProbe(P) {
     const u1 = ruNow();
     return { frames: [], tot: { n: u0 !== null && u1 !== null ? u1 - u0 : 0, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'update' } };
   };
-  // Flip-track states from the frame they are created (the first Element.animate of the rep): sample 0 is a microtask after the creating
-  // call stack, then one sample at the start of every rAF callback until every track reads idle in 3 samples in a row (or 300 samples, 12 s).
-  // Sample = [ms since creation, tracks made, running, paused, finished, idle, pending, m, q, d, a, recalcs since the previous sample].
   const creRun = () => new Promise((resolve) => {
     const samples = [];
     const t0 = performance.now();

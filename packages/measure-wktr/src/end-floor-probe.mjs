@@ -1,8 +1,6 @@
 import { overallNames, rpf100 } from './end-wktr.mjs';
 import { PIN_N, MIN_REPS, tickOf, armVerdict, repClass, overall as overallClass } from './end-floor-window.mjs';
 
-// TS port of Fw.Device.EndFloorProbe (lean/Fw/Device/EndFloorProbe.lean), replayed against
-// packages/contracts/golden/device/end-floor-probe.jsonl by test/end-floor-probe.test.mjs. The row and line formatting below is an unproved stand-in.
 export const PROBE_BAND = 10;
 export const MIN_FRAMES = PIN_N * MIN_REPS;
 
@@ -43,7 +41,6 @@ export function cancelSpan(cs) {
   return vs.length === 0 ? null : [Math.min(...vs), Math.max(...vs)];
 }
 
-// The arms the probe mode runs, in order, and the pairs the Lean verdict reads. A name repeated in ARMS is told apart by its occurrence: `pbon`, `pbon#2`.
 export const ARMS = [
   'rs-flip-nat', 'rs-flip-pbon', 'rs-flip-pboff', 'rs-flip-pbconly', 'rs-flip-pbnotk', 'rs-flip-pbnoph', 'rs-flip-pbnogh', 'rs-flip-pbnomc',
   'rs-flip-pbnoraf', 'rs-flip-pbpon', 'rs-flip-pbpoff', 'rs-flip-pbcre', 'rs-flip-pbon', 'rs-flip-pboff',
