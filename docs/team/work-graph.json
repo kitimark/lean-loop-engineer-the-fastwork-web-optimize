@@ -24253,7 +24253,18 @@
     "results/end-floor-window/**",
     "research/notes/2026/10-2x-end-floor-window.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/end-floor-window.md"
+    "docs/team/handoffs/end-floor-window.md",
+    "lean/Fw/Device/EndFloor*.lean",
+    "lean/Fw/Parts/FlipAccel*.lean",
+    "lean/scripts/EndFloor*Golden.lean",
+    "lean/scripts/FlipAccel*Golden.lean",
+    "packages/contracts/golden/device/end-floor*.jsonl",
+    "packages/contracts/golden/parts/flip-accel*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -24285,7 +24296,8 @@
     "research/findings/ledger.json",
     "apps/runner/src/land.ts",
     "docs/team/handoffs/flip-accel-webkit.md"
-   ]
+   ],
+   "evidence": "707dbae"
   },
   {
    "devices": [
