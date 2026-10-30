@@ -677,7 +677,15 @@ function pageProbe(P) {
     pbnotk: { c: 1, g: 1, p: 1, t: 0, m: 1 }, pbnoph: { c: 1, g: 1, p: 0, t: 1, m: 1 }, pbnogh: { c: 1, g: 0, p: 1, t: 1, m: 1 },
     pbnomc: { c: 1, g: 1, p: 1, t: 1, m: 0 }, pbpon: { c: 1, g: 1, p: 1, t: 1, m: 1 }, pbpoff: { c: 0, g: 0, p: 0, t: 0, m: 0 },
   };
-  const ruNow = () => { try { return I && typeof I.renderingUpdateCount === 'function' ? I.renderingUpdateCount() : null; } catch (x) { return null; } };
+  // Page::updateRendering counts only after startTrackingRenderingUpdates (Page.cpp:2396), so the first read turns the counter on; windows read deltas.
+  const RU = { on: false };
+  const ruNow = () => {
+    try {
+      if (!I || typeof I.renderingUpdateCount !== 'function') return null;
+      if (!RU.on && typeof I.startTrackingRenderingUpdates === 'function') { I.startTrackingRenderingUpdates(); RU.on = true; }
+      return I.renderingUpdateCount();
+    } catch (x) { return null; }
+  };
   const hop = () => new Promise((res) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); res(); }; ch.port2.postMessage(0); });
   const pbWindow = async (cfg) => {
     const dur = P.durationMs;
