@@ -16,7 +16,7 @@ if (cmd === 'run') {
   const write = (r) => writeFileSync(file, `${JSON.stringify(r)}\n`);
   const { runEndFloor } = await import('./sim-end-floor-run.mjs');
   const onRound = (n, of, snap) => writePassFile(file, n, of, snap);
-  const res = await runEndFloor({ siteDir: resolve(site), rounds: Number(flag('--rounds') ?? 3), settleMs: Number(flag('--settle') ?? 2500), onProgress: write, onRound });
+  const res = await runEndFloor({ siteDir: resolve(site), rounds: Number(flag('--rounds') ?? 3), rotateBy: Number(flag('--rotate') ?? 0), settleMs: Number(flag('--settle') ?? 2500), onProgress: write, onRound });
   write(res);
   console.log(`sim-end-floor: ${res.rounds.length} rounds, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.meta.runtime}`);
   process.exit(res.rounds.length && !res.incomplete ? 0 : 1);
@@ -36,7 +36,22 @@ if (cmd === 'run') {
     writeFileSync(join(resolve(dir), 'verdict.txt'), `${verdict.join('\n')}\n`);
   }
   console.log([...verdict, '', ...rows].join('\n'));
+} else if (cmd === 'attrib') {
+  const files = args.slice(1).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--out');
+  if (!files.length) { console.error('attrib needs one or more sim-end-floor.json files (one per CI job)'); process.exit(2); }
+  const { rowLines } = await import('./sim-end-floor.mjs');
+  const { mergeRaws, tableLines, verdictLines } = await import('./sim-floor-attrib.mjs');
+  const merged = mergeRaws(files.map((f) => JSON.parse(readFileSync(f, 'utf8'))));
+  const rows = rowLines(merged), table = tableLines(merged), verdict = verdictLines(merged);
+  const dir = flag('--out');
+  if (dir) {
+    mkdirSync(resolve(dir), { recursive: true });
+    writeFileSync(join(resolve(dir), 'rows.txt'), `${rows.join('\n')}\n`);
+    writeFileSync(join(resolve(dir), 'table.txt'), `${table.join('\n')}\n`);
+    writeFileSync(join(resolve(dir), 'attrib.txt'), `${verdict.join('\n')}\n`);
+  }
+  console.log([...verdict, '', ...table].join('\n'));
 } else {
-  console.error('usage: sim-end-floor-cli.mjs run|searches|report');
+  console.error('usage: sim-end-floor-cli.mjs run|searches|report|attrib');
   process.exit(2);
 }

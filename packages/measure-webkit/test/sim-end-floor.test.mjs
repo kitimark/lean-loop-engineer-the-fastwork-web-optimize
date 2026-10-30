@@ -42,7 +42,7 @@ test('overall lines equal the Lean overall', () => {
 });
 
 test('arms: the base, the v2-proved preset and one removal each, canonical searches', () => {
-  assert.deepEqual(ARMS.map((a) => a.id), ['base', 'v2p', 'minusT', 'minusU']);
+  assert.deepEqual(ARMS.map((a) => a.id), ['base', 'v2p', 'minusT', 'minusU', 'blank', 'minusBoth', 'v2pCancelScroll']);
   const preset = JSON.parse(readFileSync(join(here, '../../contracts/golden/preset/v2-proved.json'), 'utf8')).fw;
   const parts = (fw) => new Set(fw === '' ? [] : fw.split(','));
   const v2p = parts(ARMS[1].fw);
@@ -51,13 +51,17 @@ test('arms: the base, the v2-proved preset and one removal each, canonical searc
   assert.deepEqual([...parts(ARMS[3].fw)], [...v2p].filter((p) => p !== 'engine.scroll:unthrottle'));
   for (const a of ARMS) assert.equal(canonSearch(a.search), a.search, a.id);
   assert.equal(ARMS[0].search, '');
-  assert.deepEqual(BUILD_SEARCHES, ARMS.slice(1).map((a) => a.search));
+  assert.deepEqual(BUILD_SEARCHES, [ARMS[1], ARMS[2], ARMS[3], ARMS[5]].map((a) => a.search));
   assert.deepEqual(Object.keys(armTrees('x')), ARMS.map((a) => a.id));
+  assert.deepEqual(armTrees('x').blank, { blank: true });
+  assert.equal(ARMS[6].search, ARMS[1].search);
+  assert.equal(ARMS[6].act, 'cancelScroll');
 });
 
-test('rotate: every arm is first once over four rounds', () => {
-  const firsts = [0, 1, 2, 3].map((r) => rotate(ARMS, r)[0].id);
-  assert.deepEqual([...firsts].sort(), ['base', 'minusT', 'minusU', 'v2p']);
+test('rotate: every arm is first once over seven rounds; the three jobs (rotate 0, 2, 4) start with three different arms', () => {
+  const firsts = [0, 1, 2, 3, 4, 5, 6].map((r) => rotate(ARMS, r)[0].id);
+  assert.deepEqual([...firsts].sort(), ARMS.map((a) => a.id).sort());
+  assert.equal(new Set([0, 2, 4].map((r) => rotate(ARMS, r)[0].id)).size, 3);
 });
 
 test('windowOf counts only rows between the two marks of the stage', () => {
@@ -87,6 +91,9 @@ test('endFloorJs is a well-formed async expression that reads all stages', () =>
   assert.doesNotThrow(() => new Function(`return ${src};`));
   for (const s of STAGES) assert.match(src, new RegExp(`win\\('${s}'\\)`));
   assert.match(src, new RegExp(`n < ${WIN_RAF}`));
+  assert.match(src, /const cancelScroll = false;/);
+  assert.match(endFloorJs({ act: 'cancelScroll' }), /const cancelScroll = true;/);
+  assert.match(endFloorJs({ act: 'cancelScroll' }), /a\.cancel\(\)/);
 });
 
 test('report lines: rows and verdicts are derived from the raw windows only', () => {
@@ -97,7 +104,7 @@ test('report lines: rows and verdicts are derived from the raw windows only', ()
   assert.ok(verdict.some((l) => l === 'end overall pair: sharedOrOther'));
   assert.ok(verdict.some((l) => l === 'end overall vs WKTR: same'));
   assert.ok(verdict.some((l) => l === 'back overall hero.exit:threaded: none'));
-  assert.equal(rowLines(raw).length, 2 * STAGES.length * ARMS.length * 2);
+  assert.equal(rowLines(raw).length, 2 * (STAGES.length * ARMS.length + STAGES.length * 4));
   assert.ok(rowLines(raw).some((l) => l.includes('census: 1 animations')));
   const cut = { rounds: [{ round: 1, arms: arms(0, 360, 0, 360) }, { round: 2, arms: arms(0, 360, 0, 360) }] };
   const v2 = verdictLines(cut);
