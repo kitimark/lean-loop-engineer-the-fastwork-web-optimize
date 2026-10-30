@@ -2410,6 +2410,11 @@
      "kind": "file",
      "ref": "research/notes/2026/10-19-c3-decision.md",
      "note": "the corrected count"
+    },
+    {
+     "kind": "file",
+     "ref": "packages/contracts/golden/plan/claims.jsonl",
+     "note": "recurred in nav-cta-webkit-match r2 (a table cell from the wrong row), watch-memory r2 (1.7 x for 512/289, a range not over the values) and r3 (a MEASURED peak from a scratch sampler), end-floor-writes r1 and r2 (wktr-j1 numbers quoted as wktr-j2, a range below every value); hardening claim-lint (lean/Fw/Plan/Claims.lean, these fragments as golden rows)"
     }
    ],
    "repro": "Restate a count from a note written from memory: the review compares it with the merge log's gate verdict line and refuses.",
