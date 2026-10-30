@@ -24418,7 +24418,12 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "lean/Fw/Device/ScrollPark*.lean",
+    "packages/contracts/golden/device/scroll-park*.jsonl",
+    "lean/Fw/Parts/Footprint*.lean",
+    "packages/contracts/golden/parts/footprint*.gen.json",
+    "packages/contracts/golden/parts/contracts.gen.json"
    ]
   }
  ],
