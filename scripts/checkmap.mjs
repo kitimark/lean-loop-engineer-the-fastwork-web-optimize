@@ -111,7 +111,7 @@ function source(top, f) {
 }
 
 /** The preset generator's inputs among the tracked files (the same places as `presetInput` in lean/Fw/Ops/CheckMap.lean). */
-const PRESET_INPUTS = ["research/findings/ledger.json", "packages/contracts/golden/preset", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/parts"];
+const PRESET_INPUTS = ["research/findings/ledger.json", "packages/contracts/golden/preset", "apps/site/src/registry/presets/v2-proved.json", "apps/site/src/registry/presets/shipped.json", "apps/site/src/parts"];
 
 /** `Fw.Preset.Gen.run --check` over the working tree, or with FW_CHECKMAP_STAGED over the index: the generator's inputs
  * are exported from the index into a temp tree whose `lean/` links to this checkout's built `lean/` (the generator reads

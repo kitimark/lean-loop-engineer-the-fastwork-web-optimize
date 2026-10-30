@@ -30,6 +30,7 @@ import Fw.Parts.NavHitTestOpt
 import Fw.Parts.NavHitTestElements
 import Fw.Parts.NavEarnOpt
 import Fw.Parts.NavEarnWebkit
+import Fw.Parts.NavEarnFrames
 import Fw.Parts.NavEarnCurve
 import Fw.Parts.HeroCountdown
 import Fw.Parts.HeroCountdownOpt
@@ -161,6 +162,8 @@ import Fw.Device.RecalcSource
 import Fw.Device.RecalcBisect
 import Fw.Device.GlintHold
 import Fw.Device.GlintHoldCompositor
+import Fw.Device.EndWktr
+import Fw.Device.EndFloor
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
@@ -350,6 +353,7 @@ import Fw.Spec.Reach
 import Fw.Spec.MathFacts
 import Fw.Spec.MathFactsGuards
 import Fw.Preset.Gen
+import Fw.Preset.Shipped
 import Fw.Faithful.Band
 import Fw.Faithful.Comparable
 import Fw.Faithful.Zone

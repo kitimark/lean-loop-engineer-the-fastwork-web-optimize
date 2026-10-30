@@ -4419,28 +4419,40 @@
    "flag": "platform:faded-pause",
    "visClass": "E",
    "candidate": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
-   "status": "partly-proved",
+   "status": "proved",
    "chromium": "MEASURED swipe-touch-v1, 3 runs per arm, one commit 5a82a54 (base 40287924353, flag 40287928566, Lean window reader): gain in end 20-59 (Paint 252 to 197, PaintImage 454 to 294), end 60-119 (Paint 120 to 0) and end 120+ (Paint 94 to 0); end 0-19 and finish noGain because RecalcStyleCount and LayoutCount read one more (finish 320 to 321 and 52 to 53); approach noGain",
-   "webkit": "not run: the WebKit lane only scrolls (scrollrun.mjs:35,69 scrollTo steps), so the open morph is never reached, the fade never gets to 0 and the flag is a no-op there; runs 40288001111 and 40288005328 were cancelled; the toolbar/push lanes are a follow-up",
+   "webkit": "MEASURED WKTR flip arm at the page end (run 40869911524, results/end-wktr-flip/r1/verdict.txt 'fp/recalc' lines): recalcs per 100 frames base 244/242/237, faded-pause 87/89/91, all-paused floor 83/70/81, Lean EndWktr.judge cuts in 3 of 3 jobs (cuts_spec); layout ('fp/layout' lines) 186/176/104 to 22/75/64, cuts in 3 of 3. The Simulator lane still only scrolls and never opens the morph",
    "visual": "E (Lean PlatformFadedPause.faded_same_pixels: at fade 0 the page pixel is the backdrop for every subtree colour, assuming no descendant escapes the opacity group, census-tested; visible_phase, glint_phase: every visible frame reads the uninterrupted phase)",
    "mechanism": "CONFIRMED by source: Chromium records an effectively invisible layer (paint_layer_painter.cc:168-191,424@f842f52, ScopedEffectivelyInvisible); WebKit clears the repaint rects of an opacity-0 subtree (RenderLayer.cpp:1522,6147-6150@862f17d) but the main-thread background-position animation still resolves style each frame. INFERRED: pausing removes the per-frame invalidation and decode work.",
    "leanFor": [
     "Fw.Parts.PlatformFadedPause.faded_same_pixels",
+    "Fw.Parts.PlatformFadedPause.invisible_iff",
     "Fw.Parts.PlatformFadedPause.frame_same",
     "Fw.Parts.PlatformFadedPause.visible_phase",
     "Fw.Parts.PlatformFadedPause.faded_no_tick",
     "Fw.Parts.PlatformFadedPause.glint_phase",
+    "Fw.Parts.PlatformFadedPause.resume_phase",
+    "Fw.Parts.PlatformFadedPause.settled_skipped",
+    "Fw.Parts.PlatformFadedPause.restore_skips",
     "Fw.Parts.PlatformFadedPause.scene_offscreen",
     "Fw.Parts.PlatformFadedPause.scene_faded",
-    "Fw.Parts.PlatformFadedPause.scene_neither"
+    "Fw.Parts.PlatformFadedPause.scene_neither",
+    "Fw.Parts.PlatformFadedPause.writer_or",
+    "Fw.Parts.PlatformFadedPause.writer_order_free",
+    "Fw.Parts.PlatformFadedPause.setFaded_idem",
+    "Fw.Parts.PlatformFadedPause.setActive_idem",
+    "Fw.Parts.PlatformFadedPause.setFaded_writes",
+    "Fw.Device.EndWktr.cuts_spec"
    ],
    "leanAgainst": [],
    "missingWhy": [
-    "WebKit count (no lane reaches the open morph); the +1 RecalcStyle/Layout at the edge is INFERRED"
+    "the one extra RecalcStyle and Layout at the Chromium resume edge (finish 320 to 321, 52 to 53) is attributed to the edge's scene write and getAnimations flush: INFERRED; Lean setFaded_writes gives exactly one scene write per fade edge, but which engine pass the counter adds is not isolated by a run",
+    "iOS Safari not measured: WKTR stands in for WebKit; the phone check comes with the user's capture session"
    ],
    "premises": [
     "setting startTime on a CSSAnimation after the style flush keeps the CSS play state: INFERRED",
-    "no descendant escapes the section's opacity group: census test over the platform sources"
+    "no descendant escapes the section's opacity group: census test over the platform sources",
+    "the observer reports the section active through every faded interval (Lean resume_phase hypothesis Allowed): INFERRED from the tween taking every push while it is active (MorphTween, snapshot 13065-13072); a scroll that bypasses the push handler and leaves the section off screen while the fade is 0 resumes its CSS animations ahead of the original by the time spent off screen (the third #guard after setFaded_writes in PlatformFadedPause)"
    ],
    "v1Evidence": "",
    "lesson": "Pausing an invisible section removes its paint and raster work once the fade is 0, but the resume edge costs one style recalc and one layout, so the gain shows only in windows long enough to repay it.",
@@ -5579,6 +5591,42 @@
    "task": "glint-hold-close",
    "field": "missingWhy",
    "text": "glint-hold-close (note research/notes/2026/10-2x-glint-hold-close.md). Lean: Fw.Parts.PlatformGlintPause.resume_seek_forward proves that along a run with nondecreasing observation times every resume seek of the pause machine targets an elapsed time at or after the one the clock froze at, so the flag path never issues the backward setCurrentTime that Chromium gets wrong (diff 235); that missingWhy item is closed. The Simulator per-zone item stays open: the WKTR idle recalc verdict answers a different question (style recalcs per 100 frames in WKTR cells, not per-zone counters on the swipe path). Gen.entry for this flag: not yet, blocker proofs only (look is met by class E, Fw.Preset.Gen.lookMet_of_exact)."
+  },
+  {
+   "entry": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "task": "end-wktr-flip",
+   "field": "webkit",
+   "text": "end-wktr-flip (MEASURED, WKTR pref OFF, flip arm at the page end, run 40869911524, 3 jobs, recalcs per 100 frames): base 244/242/237, all-paused floor 83/70/81, platform:faded-pause 87/89/91; the Lean rule (EndWktr.judge, decided before the data) says cuts in 3 of 3 jobs, at the floor + band in 1 of 3 (4-19 above the floor in the others). Compositing cuts the same; layout cuts; layerFlush is no-contrast (133 per 100 frames in every arm). This is the arm that matters at the page end on WebKit; look stays class E. WKTR is not iOS Safari: phone check pending. research/notes/2026/10-2x-end-wktr-flip.md"
+  },
+  {
+   "entry": "platform.glint:compositor: each glint dash is a fixed clip of the dash shape holding one fixed 120 px gradient layer that a linear 5 s transform animation (keyframes from the Lean golden) moves, so no SMIL timeline and no per-frame attribute or style write runs",
+   "task": "end-wktr-flip",
+   "field": "webkit",
+   "text": "end-wktr-flip (MEASURED, same run 40869911524): on the natural page the compositor alone cuts the flip recalcs to 146/142/219 per 100 frames against base 244/242/237 and floor 83/70/81 (cuts in 3 of 3, at the floor in 0 of 3); with faded-pause on it adds nothing the rule can see (both 87/92/70 against faded-pause 87/89/91; INFERRED, no Lean rule compares both with faded-pause). The glint-compositor r4 residual (80-88 against 68-75) split by cause (EndWktr.causeOf, in-process all-paused floor): no residual in j1 (89 against 83) and j2 (70 against 70), the all-paused floor itself moves by process (j2 70 in the base process, 88 for the compositor page); j3's compositor page is high with everything paused (175) and live (166), against floor 81 and band 6; the rule names it markup; its flip runs longer windows (74 frames against 48 for the floor and for both) and writes the morph panel in every rep (16 frames with a recalc against 4 in j1 and 3 in j2), so in this process the flip reached a different page state: a workload difference, cause not isolated (INFERRED). Mechanism by category (overall mixed): written frames (DOM mutations) carry most recalcs live and paused; the live glint arm is above its paused read by more than the band in j1 (written 68 vs 61, band 6) and j3 (169 vs 149, band 6), not in j2 (63 vs 53, band 11); keys mut:nav#style and mut:nav#data-fw-morph 11/11, 13/10, 38/36 (live/paused frames with a recalc, j1..j3) and the entry bundle timer:interval; animated and empty add nothing. Next candidate: the nav style/data-fw-morph writes at the page end (the floor), not the glint. research/notes/2026/10-2x-end-wktr-flip.md"
+  },
+  {
+   "entry": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
+   "task": "nav-cta-webkit-match",
+   "field": "webkit",
+   "text": "Note research/notes/2026/10-2x-nav-cta-webkit-match.md. User report 2026-10-29: the Join waitlist animation differs on WebKit, Chromium is correct. INFERRED from a local debug run, not a result (Playwright WebKit 27.2, Chrome 155, real page and the unmodified snapshot): the snapshot and our faithful port show padding-left 24 px in the flip frame on WebKit against an eased 0, 0.2, 0.47 px on Chromium, so this is the original's WebKit difference and nav:earn-logical (not in a preset) is its fix; with the flag WebKit runs padding-left and padding-right transitions. MEASURED frame by frame (run 40858439757, Linux Chrome Headless Shell against Playwright WebKit, 17 times, exit and entry, Lean bound 2 per mille of the 100 px band at channel difference 40): at 1280 the logical arm is within the bound on every frame (worst 163 of 256) and the faithful arm is over it on 3 frames per scenario (worst 314 exit, 2516 entry); at 390 both arms exceed 78 px on every frame because the settled frame already differs by 121 to 124 px between the two Linux engines (logical worst 148, faithful entry 1338); Chromium faithful against logical is 0 changed pixels on all frames. The iPhone is not measured."
+  },
+  {
+   "entry": "nav:earn-logical: the earn button's transition lists padding-inline-start and padding-inline-end in place of the padding-inline shorthand, so WebKit starts a side-padding transition at every hero-pill flip",
+   "task": "earn-logical-preset",
+   "field": "webkit",
+   "text": "Note research/notes/2026/10-2x-earn-logical-preset.md. MEASURED on macOS (run 40876250109, Playwright WebKit against Playwright Chromium, 17 frames, exit and entry, Lean frameBound allowed 78 at 390 and 256 at 1280): the 390 cell passes, logical worst 60 on exit and 60 on entry, 0 frames over; the faithful arm is over (worst 245 exit, 1332 entry). Recorded in packages/contracts/golden/parts/nav.earn.frames.jsonl through Fw.Parts.NavEarnFrames. Gen.run for nav:earn-logical (walk run 40872462216): not yet, blocker gate webkit (the macOS WebKit morph cell fails); chromium hero and morph, linux-webkit hero and macOS WebKit hero pass. Membership is also closed structurally (kind proposal, class L; Fw.Preset.V2Proved.look_not_mem). macOS WebKit stands in for iOS Safari; the iPhone is not measured."
+  },
+  {
+   "entry": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "task": "faded-pause-entry",
+   "field": "missingWhy",
+   "text": "Closed by linked Lean (PlatformFadedPause): resume restores the uninterrupted phase (resume_phase over step_inv/run_inv), settled entries are skipped (settled_skipped, restore_skips), the one data-fw-scene writer ORs observer and fade in any order (writer_or, writer_order_free, setFaded_idem, setActive_idem), and the escape premise is an iff (invisible_iff); WebKit cut judged by EndWktr.cuts_spec (run 40869911524). Gate: trajectory run 40900090514 at 80d9c0b recorded by Gen.record, chromium hero/morph, linux-webkit hero, mac-webkit hero/morph all pass (v2-proved.trajectory.jsonl); Gen.run enters the flag (v2-proved.decisions.jsonl). Left open: the +1 RecalcStyle/Layout attribution at the resume edge (INFERRED, not isolated by a run) and iOS Safari (WKTR stands in). New premise: faded implies active (Allowed), INFERRED. research/notes/2026/10-2x-faded-pause-entry.md"
+  },
+  {
+   "entry": "platform:faded-pause: when the platform section's morph fade reaches 0 (m >= 0.55) the section is paused (data-fw-scene=paused through one writer that ORs the observer, SMIL pauseAnimations on the dash svgs) and the CSS animations and SMIL clocks are seeked back to the uninterrupted phase when the fade rises",
+   "task": "end-floor-writes",
+   "field": "webkit",
+   "text": "Floor attribution (task end-floor-writes, WKTR, wktr run 40960310474, 3 jobs, MEASURED): no writer is dominant in 3 of 3 jobs (verdict.txt finding lines: j1 no writes, j2 spread over writers, j3 no writes; overall class mixed), so no same-look cut was built. Silencing the six listed writer sets at once (rs-flip-qwrite: nav inline style, data-fw-morph, their pair, class/tabindex/aria, morph panel, platform style) reads per 100 frames: j1 floor 138 arm 133 (no writes), j3 floor 135 arm 135 (no writes), j2 floor 154 arm 114 cut 40 (carries; cuts publish 27, data 21, panel 20, style 7; class no effect, platform raises). The j2 windows are long and unequal (rows.txt frames column) and the j2 per-writer cuts are not comparable across arms (cause INFERRED). Every row of the r3 run has no frame without a style recalc (rows.txt r=0 column is 0 in all 30 rows); in rs-flip-qwrite (the arm that records mutations) the frames without a mut: key equal the frames in j1 and j3 and are 432 of 448 in j2, where the rest carry mut:platform#data-fw-scene (in no silenced set). The natural and all-paused arms do not record mutations (mid-page.mjs:589). Sources: results/end-floor-writes/r3/verdict.txt and rows.txt (regenerate: node packages/measure-wktr/src/end-floor-rows.mjs results/end-floor-writes/r3 --out results/end-floor-writes/r3/rows.txt; end-floor-rows.mjs is an unproved TS stand-in). CONFIRMED from source: a ticking animation invalidates its target (WebKit@862f17d WebAnimation.cpp:1553-1580, KeyframeEffect.cpp:2129 and 1731, Element.cpp:2763); INFERRED: the recalcs in frames without a recorded mutation come from the running flip tracks. Lean: EndFloor.rate_one_per_frame (every frame at least one recalc reads at least 100 per 100 frames), noWrites_gap, dominant_half. research/notes/2026/10-2x-end-floor-writes.md Lesson: no single page writer is dominant for the WebKit end-of-page floor in 3 of 3 jobs; in j1 and j3 silencing the six listed sets leaves the floor, in j2 (long unequal windows, cause INFERRED) it cuts a part spread over writers; every frame of every r3 window holds at least one recalc. A writer arm must keep the frame window comparable (equal frame counts) before its rate is read: muting data-fw-morph (qdata, qpub, qwrite) or the nav class (qclass, qwrite) before the wheel removes the flip (results/end-floor-writes/r1/rows.txt frames 0 in rows[3], rows[4], rows[5], rows[8]), since the nav class is-on-dark gates the geom tracks (morph.geom/index.tsx:53)."
   }
  ]
 }

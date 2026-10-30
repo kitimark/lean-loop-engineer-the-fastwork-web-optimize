@@ -1,0 +1,7 @@
+{"name":"a log that only grew resumes at the cursor and advances past the last newline","request":{"cursor":100,"nl":41,"op":"ops.watchCursor","same":true,"size":150},"response":{"from":100,"next":142}}
+{"name":"a half-written last line keeps the cursor where it was","request":{"cursor":100,"op":"ops.watchCursor","same":true,"size":120},"response":{"from":100,"next":100}}
+{"name":"nothing appended reads nothing","request":{"cursor":150,"op":"ops.watchCursor","same":true,"size":150},"response":{"from":150,"next":150}}
+{"name":"a truncated log is read from the start","request":{"cursor":100,"nl":9,"op":"ops.watchCursor","same":true,"size":40},"response":{"from":0,"next":10}}
+{"name":"another file under the same name is read from the start","request":{"cursor":100,"nl":499,"op":"ops.watchCursor","same":false,"size":500},"response":{"from":0,"next":500}}
+{"name":"the first read starts at 0","request":{"cursor":0,"nl":79,"op":"ops.watchCursor","same":true,"size":80},"response":{"from":0,"next":80}}
+{"name":"a line longer than one chunk keeps the cursor at its start","request":{"cursor":100,"op":"ops.watchCursor","same":true,"size":3000100},"response":{"from":100,"next":100}}

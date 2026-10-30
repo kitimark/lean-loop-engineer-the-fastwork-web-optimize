@@ -9,6 +9,7 @@ import { reapTick } from "./reap.ts";
 import { reapHeldAlerts } from "./watch-reap.ts";
 import { heldPass, type ReapPass } from "./reap.ts";
 import { startPush } from "./watch-push.ts";
+import { ownMemoryKb } from "./watch-mem.ts";
 import { CLASSES, diskGcTick } from "./disk-gc.ts";
 import { fwcoreCall } from "./run.ts";
 import { passParts } from "./run-phases.ts";
@@ -17,7 +18,7 @@ import {
   type Prev, type Snapshot, type StartRow,
 } from "./watch-collect.ts";
 
-export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)\n       fw watch [--interval <s>] --stream   (one OPEN/CLOSE line per alert change, never exits on an alert)\n       fw watch --keep <pid> [--note <text>] | --unkeep <pid>   (declare an intended long-runner: no proc.long)";
+export const WATCH_USAGE = "usage: fw watch [--json] [--interval <s>] [--until-alert]   (exit 3 when a new alert appears)\n       fw watch [--interval <s>] --stream [--tick]   (one OPEN/CLOSE line per alert change, never exits on an alert; --tick adds a TICK line with the watcher's own memory)\n       fw watch --keep <pid> [--note <text>] | --unkeep <pid>   (declare an intended long-runner: no proc.long)";
 
 export interface Alert { code: string; subject: string; detail: string; critical?: boolean }
 export interface Health {
@@ -81,6 +82,15 @@ export async function slowWith(paths: Paths, core: CoreCall): Promise<{ slow: st
     const slow = strs(r.slow), details = strs(r.details);
     return { slow, details: details.length === slow.length ? details : [] };
   } catch { return { slow: [], details: [] }; }
+}
+
+export interface MemCheck { line: string; alerts: Alert[]; mem: { rssKb: number; heapKb: number } }
+export async function memCheck(core: CoreCall, mem = ownMemoryKb()): Promise<MemCheck | null> {
+  try {
+    const r = await core({ op: "ops.watchRss", ...mem });
+    if (typeof r.line !== "string" || typeof r.over !== "boolean" || typeof r.detail !== "string") return null;
+    return { line: r.line, mem, alerts: r.over ? [{ code: "watch.rss", subject: "fw-watch", detail: r.detail }] : [] };
+  } catch { return null; }
 }
 
 export async function slowFor(paths: Paths, core: CoreCall): Promise<string[]> { return (await slowWith(paths, core)).slow; }
@@ -167,9 +177,9 @@ export function streamLines(d: Diff): string[] {
 }
 export const syncLine = (t: string) => { try { writeSync(1, t + "\n"); } catch { process.exit(141); } };
 
-export function appendLog(p: Paths, snap: Snapshot, h: Health): void {
+export function appendLog(p: Paths, snap: Snapshot, h: Health, mem?: { rssKb: number; heapKb: number }): void {
   mkdirSync(p.consoleDir, { recursive: true });
-  appendFileSync(join(p.consoleDir, "health.jsonl"), JSON.stringify({ at: snap.now, input: snap, output: h }) + "\n");
+  appendFileSync(join(p.consoleDir, "health.jsonl"), JSON.stringify({ at: snap.now, input: snap, output: h, ...(mem ? { mem } : {}) }) + "\n");
 }
 
 export interface LogLine { at: number; input: Snapshot; output: Health }
@@ -199,10 +209,10 @@ export function readLastLog(p: Paths): LogLine | null {
 
 export interface WatchOpts {
   json: boolean; intervalS: number | null; untilAlert: boolean; stream: boolean;
-  keep: number | null; unkeep: number | null; note: string | null;
+  keep: number | null; unkeep: number | null; note: string | null; tick: boolean;
 }
 export function parseWatchArgs(args: string[]): WatchOpts {
-  const o: WatchOpts = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null };
+  const o: WatchOpts = { json: false, intervalS: null, untilAlert: false, stream: false, keep: null, unkeep: null, note: null, tick: false };
   const pid = (s: string | undefined) => {
     const n = Number(s);
     if (!Number.isInteger(n) || n < 1) throw new UsageError(WATCH_USAGE);
@@ -213,6 +223,7 @@ export function parseWatchArgs(args: string[]): WatchOpts {
     if (a === "--json") o.json = true;
     else if (a === "--until-alert") o.untilAlert = true;
     else if (a === "--stream") o.stream = true;
+    else if (a === "--tick") o.tick = true;
     else if (a === "--interval") {
       const n = Number(args[++i]);
       if (!Number.isFinite(n) || n < 1) throw new UsageError(WATCH_USAGE);
@@ -228,6 +239,7 @@ export function parseWatchArgs(args: string[]): WatchOpts {
   if ((o.keep !== null || o.unkeep !== null) && (o.intervalS !== null || o.untilAlert || o.stream || o.json || (o.keep !== null && o.unkeep !== null)))
     throw new UsageError(WATCH_USAGE);
   if (o.stream && (o.untilAlert || o.json)) throw new UsageError(WATCH_USAGE);
+  if (o.tick && !o.stream) throw new UsageError(WATCH_USAGE);
   if (o.note !== null && o.keep === null) throw new UsageError(WATCH_USAGE);
   if ((o.untilAlert || o.stream) && o.intervalS === null) o.intervalS = 300;
   return o;
@@ -294,9 +306,9 @@ export async function watchMain(args: string[], cwd: string, print?: (s: string)
   let prev: AlertKey[] | null = last ? last.output.alerts.map((a) => ({ code: a.code, subject: a.subject })) : null;
   let prevSnap: Prev | null = last?.input?.system ? { at: last.at, system: last.input.system, critical: last.input.critical, ghDegraded: ghFlagged(last.output), contended: contendedFlagged(last.output) } : null;
   for (;;) {
-    const { snap, h, nx, slow } = await pass(paths, main, prevSnap, call, decide);
+    const { snap, h, nx, slow, tick } = await pass(paths, main, prevSnap, call, decide);
     const fresh = o.untilAlert ? await newAlerts(call, prev, h) : [];
-    say(o.json ? JSON.stringify({ input: snap, output: h, next: nx, slow }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : []), ...slowNextLines(slow)].join("\n"));
+    say(o.json ? JSON.stringify({ input: snap, output: h, next: nx, slow }) : [renderTable(snap, h), ...(nx ? formatNext(nx) : []), ...slowNextLines(slow), ...(tick ? [tick] : [])].join("\n"));
     if (o.untilAlert && fresh.length) {
       if (!o.json) say(`NEW ALERT: ${fresh.map((a) => `${a.code} ${a.subject}`).join("; ")}`);
       return 3;
@@ -325,10 +337,12 @@ async function pass(paths: Paths, main: string, prevSnap: Prev | null, call: Cor
   h.alerts.push(...reapHeldAlerts(rp));
   const { slow, details } = await slowWith(paths, call);
   h.alerts.push(...slowAlerts(slow, details));
-  appendLog(paths, snap, h);
+  const mc = await memCheck(call);
+  if (mc) h.alerts.push(...mc.alerts);
+  appendLog(paths, snap, h, mc?.mem);
   endPass(0);
   for (const p of passParts(watchGh, performance.now() - t0)) record({ tool: "fw", step: p.step, startMs, durMs: p.durMs, exit: 0 }, main);
-  return { snap, h, nx, slow };
+  return { snap, h, nx, slow, tick: mc?.line ?? null };
 }
 
 async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCall, decide: KeepDecide, say: (s: string) => void): Promise<number> {
@@ -342,9 +356,10 @@ async function streamMain(o: WatchOpts, paths: Paths, main: string, call: CoreCa
   let open: AlertKey[] = [];
   try {
     for (;;) {
-      const { snap, h } = await pass(paths, main, prevSnap, call, decide);
+      const { snap, h, tick } = await pass(paths, main, prevSnap, call, decide);
       const d = await diffAlerts(call, open, h.alerts);
       for (const line of streamLines(d)) say(line);
+      if (o.tick && tick) say(tick);
       open = d.next;
       for (const l of reapTick(main)) say(l);
       if (d.opened.some((a) => a.code === DISK_LOW)) for (const l of diskGcTick(main, [...CLASSES], fwcoreCall(main), process.env, { pressure: true })) say(l);

@@ -18,6 +18,7 @@ const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix 
 const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefix + step, fn, exitOf);
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
+import { fileIntents } from "./land-intent.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { noteShapeProblems } from "./land-notes.ts";
@@ -148,9 +149,9 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "scripts/ci-telemetry/**",
     "lean/lakefile.toml", "lean/scripts/**", "apps/site/scripts/**", "lean/Fw/Ops/LakeJobsGen.lean"],
   "apps/site": ["packages/contracts/src/flag-key.mjs", "packages/contracts/golden/preset/probes.jsonl", "packages/contracts/golden/wire/flag-key.jsonl", "lean/Fw/Console/BuildsOpen.lean", "packages/contracts/golden/console/layer-opts.jsonl", "packages/contracts/golden/console/layers-search.jsonl", "lean/Fw/Parts/HiddenPause.lean", "lean/Fw/Parts/HeroCountdownHidden.lean", "lean/Fw/Parts/HeroAccentOpt.lean", "packages/gate-breakpoints/src/serve.mjs", "packages/gate-breakpoints/src/anchors.json", "packages/contracts/golden/parts/**", "packages/contracts/golden/measure/wkcost.jsonl",
-    "packages/contracts/golden/preset/look-change.candidates.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/morph-geom-timed.jsonl",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl", "packages/contracts/golden/preset/shipped.json", "packages/contracts/golden/preset/shipped.decisions.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/morph-geom-timed.jsonl",
     "packages/contracts/golden/port/**", "scripts/port/**", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/fonts.mjs", "snapshot/site/index.html", "snapshot/site/_app/**", ...siteAssetReads()],
-  "packages/measure-wktr": ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/track-accel-page.mjs", "packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs", "packages/measure-webkit/src/paintclip.mjs", "packages/contracts/golden/device/sweep-pause.jsonl", "packages/contracts/golden/device/recalc-source.jsonl", "packages/contracts/golden/device/recalc-bisect.jsonl", "packages/contracts/golden/device/glint-hold.jsonl", "packages/contracts/golden/device/glint-compositor.jsonl", "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl", "apps/site/src/parts/morph.mount/**", "apps/site/src/parts/engine.scroll/unthrottle.ts"],
+  "packages/measure-wktr": ["packages/contracts/src/flag-key.mjs", "packages/gate-breakpoints/src/track-accel-page.mjs", "packages/measure-chromium/src/fwcore.mjs", "packages/measure-webkit/src/page.mjs", "packages/measure-webkit/src/serve.mjs", "packages/measure-webkit/src/paintclip.mjs", "packages/contracts/golden/device/sweep-pause.jsonl", "packages/contracts/golden/device/recalc-source.jsonl", "packages/contracts/golden/device/recalc-bisect.jsonl", "packages/contracts/golden/device/glint-hold.jsonl", "packages/contracts/golden/device/glint-compositor.jsonl", "packages/contracts/golden/device/end-wktr.jsonl", "packages/contracts/golden/device/end-floor.jsonl", "packages/contracts/golden/parts/morph-mount-toolbar.gate.jsonl", "apps/site/src/parts/morph.mount/**", "apps/site/src/parts/engine.scroll/unthrottle.ts"],
   "packages/measure-chromium": ["packages/contracts/src/**", "lean/Fw/Store/Layout.lean", "lean/Fw/Faithful/Measured.lean", "packages/contracts/golden/measure/**", "packages/contracts/golden/faithful/**", "packages/contracts/golden/parts/stage-mode.jsonl", ".github/workflows/chromium-counts.yml", "results/baselines/chromium/**",
     "packages/contracts/golden/device/**", "packages/measure-webkit/src/pathpix*.mjs", "scripts/port/fonts.mjs", "packages/measure-webkit/src/session.mjs", "packages/measure-webkit/src/page.mjs"],
   "packages/gate-breakpoints": ["packages/contracts/src/flag-key.mjs", "lean/**", "packages/measure-webkit/src/device.mjs", "scripts/sim-lock.sh", "apps/site/src/breakpoints.gen.json", "apps/site/src/parts/**",
@@ -158,7 +159,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
     "packages/contracts/golden/preset/reader-files.json",
     "packages/measure-webkit/src/images/arm.mjs", "apps/site/src/flags/images/drawn.json",
     "packages/measure-webkit/src/profile/recorder.mjs", "packages/measure-webkit/src/profile/reduce.mjs", "packages/measure-webkit/src/profile/raw.mjs", "packages/measure-webkit/src/device-arms.mjs"],
-  "packages/premise-tests": ["packages/contracts/golden/parts/platform-glint-compositor.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/gate-breakpoints/src/align-equiv.mjs", "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/diff.mjs", "packages/visual-diff/src/run.mjs"],
+  "packages/premise-tests": ["packages/contracts/golden/parts/platform-glint-compositor.jsonl", "packages/contracts/golden/morph-geom.jsonl", "packages/contracts/golden/parts/nav.earn.webkit.jsonl", "apps/site/src/parts/nav/nav.module.css", "snapshot/site/_app/immutable/assets/**", "packages/gate-breakpoints/src/align-equiv.mjs", "packages/gate-breakpoints/src/page.mjs", "packages/gate-breakpoints/src/serve.mjs", "packages/visual-diff/src/engines.mjs", "packages/visual-diff/src/diff.mjs", "packages/visual-diff/src/run.mjs"],
   "packages/e2e-preview": ["apps/console-api/src/**", "apps/console-api/package.json", "packages/contracts/src/**", "packages/contracts/package.json", "packages/contracts/golden/console/**", "snapshot/site/**"],
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
@@ -763,7 +764,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
     let overflow: OverflowPlan | undefined;
     if (!adapters) {
       const gh = chargedGh(realEnv(mainDir));
-      const push = makePusher({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m) });
+      const push = makePusher({ git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), intent: fileIntents(() => git(mainDir, ["rev-parse", "--path-format=absolute", "--git-common-dir"])) });
       adapters = { github: githubAdapter({ call, git: (a) => git(mainDir, a), scan: (m) => scanRange(dir, mainDir, m), wait: spawnWait(mainDir), gh, cache: (h, id) => cachedLaneView(realEnv(mainDir).dir, h, id) }, push) };
       try {
         const cc = await realCircle(mainDir, join(mainDir, ".fw-console", "circleci"), logLine);

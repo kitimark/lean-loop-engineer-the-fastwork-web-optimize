@@ -603,19 +603,6 @@ def refuseNoLane (S : String → List String) (msgs : List String) (diff : List 
 
 def hookCovers (ref : String) : Bool := isCi "push" ref
 
-def pushRefused (ref : String) (S : String → List String) (msgs : List String) (diff : List String)
-    (differs : String → Bool) (landed : Bool) : Bool := hookCovers ref && refuseNoLane S msgs diff differs landed
-
-theorem pushRefused_only_ci (ref : String) (S : String → List String) (msgs : List String) (diff : List String)
-    (differs : String → Bool) (landed : Bool) (h : hookCovers ref = false) :
-    pushRefused ref S msgs diff differs landed = false := by
-  simp [pushRefused, h]
-
-theorem main_never_refused (S : String → List String) (msgs : List String) (diff : List String)
-    (differs : String → Bool) (landed : Bool) :
-    pushRefused "refs/heads/main" S msgs diff differs landed = false :=
-  pushRefused_only_ci _ S msgs diff differs landed (by decide +kernel)
-
 theorem refuse_iff (S : String → List String) (msgs : List String) (diff : List String) (differs : String → Bool)
     (landed : Bool) :
     refuseNoLane S msgs diff differs landed = true ↔
@@ -710,6 +697,173 @@ theorem same_tree_no_measuring (S : String → List String) (msg : String) (diff
     simp only [sameTree, List.isEmpty_iff] at h
     rw [h] at hx'
     exact absurd hx' (by simp)
+
+def branchChar (c : Char) : Char := if c.isAlphanum || c == '.' || c == '_' || c == '-' then c else '_'
+
+def sha7 (sha : String) : String := String.ofList (sha.toList.take 7)
+
+def landBranch (task merge : String) (again : Bool) : String :=
+  "ci/land-" ++ String.ofList (task.toList.map branchChar) ++ "-" ++ sha7 merge ++ (if again then "-again" else "")
+
+structure Legs where
+  gh : List String
+  all : List String
+
+def markerMessage (task merge : String) (legs : Option Legs) : String :=
+  let base := "land " ++ task ++ " " ++ sha7 merge
+  match legs with
+  | none => "[ci:land] " ++ base
+  | some l =>
+    if l.gh.isEmpty then base
+    else if l.gh.length == l.all.length then "[ci:land] " ++ base
+    else "[ci:land] " ++ base ++ " [legs:" ++ ",".intercalate l.gh ++ "]"
+
+#guard landBranch "phone-feel-kit" "ff48bd93a0" false == "ci/land-phone-feel-kit-ff48bd9"
+#guard landBranch "a/b é" "12" true == "ci/land-a_b__-12-again"
+#guard markerMessage "t" "abcdef0123" (some ⟨[], ["x"]⟩) == "land t abcdef0"
+#guard markerMessage "t" "abcdef0123" (some ⟨["x"], ["x", "y"]⟩) == "[ci:land] land t abcdef0 [legs:x]"
+
+structure LandIntent where
+  task : String
+  merge : String
+  again : Bool
+  marker : String
+  pid : Nat
+  legs : Option Legs
+
+structure PushFacts where
+  sha : String
+  parents : List String
+  tree : String
+  mergeTree : String
+  msg : String
+  ancestors : List Nat
+
+inductive LandCheck where
+  | ok
+  | branch
+  | marker
+  | parent
+  | tree
+  | message
+  | lanes
+  | process
+  deriving DecidableEq, Repr
+
+def LandCheck.tag : LandCheck → String
+  | .ok => "ok"
+  | .branch => "branch"
+  | .marker => "marker"
+  | .parent => "parent"
+  | .tree => "tree"
+  | .message => "message"
+  | .lanes => "lanes"
+  | .process => "process"
+
+def onlyLand (msg : String) : Bool := lanes.all fun l => !requested l.name msg || l.name == "land"
+
+def landCheck (i : LandIntent) (ref : String) (f : PushFacts) : LandCheck :=
+  if ref != "refs/heads/" ++ landBranch i.task i.merge i.again then .branch
+  else if f.sha != i.marker then .marker
+  else if f.parents != [i.merge] then .parent
+  else if f.tree != f.mergeTree then .tree
+  else if f.msg != markerMessage i.task i.merge i.legs then .message
+  else if !onlyLand f.msg then .lanes
+  else if !f.ancestors.contains i.pid then .process
+  else .ok
+
+def landAdmits (ref : String) (li : Option LandIntent) (f : PushFacts) : Bool :=
+  match li with
+  | some i => landCheck i ref f == .ok
+  | none => false
+
+def pushRefused (ref : String) (li : Option LandIntent) (f : PushFacts) (S : String → List String)
+    (msgs : List String) (diff : List String) (differs : String → Bool) (landed : Bool) : Bool :=
+  hookCovers ref && !landAdmits ref li f && refuseNoLane S msgs diff differs landed
+
+theorem pushRefused_only_ci (ref : String) (li : Option LandIntent) (f : PushFacts) (S : String → List String)
+    (msgs : List String) (diff : List String) (differs : String → Bool) (landed : Bool) (h : hookCovers ref = false) :
+    pushRefused ref li f S msgs diff differs landed = false := by
+  simp [pushRefused, h]
+
+theorem main_never_refused (li : Option LandIntent) (f : PushFacts) (S : String → List String) (msgs : List String)
+    (diff : List String) (differs : String → Bool) (landed : Bool) :
+    pushRefused "refs/heads/main" li f S msgs diff differs landed = false :=
+  pushRefused_only_ci _ li f S msgs diff differs landed (by decide +kernel)
+
+theorem no_intent_unchanged (ref : String) (f : PushFacts) (S : String → List String) (msgs : List String)
+    (diff : List String) (differs : String → Bool) (landed : Bool) :
+    pushRefused ref none f S msgs diff differs landed = (hookCovers ref && refuseNoLane S msgs diff differs landed) := by
+  simp [pushRefused, landAdmits]
+
+theorem plain_no_measuring_refused (ref : String) (f : PushFacts) (S : String → List String) (msgs : List String)
+    (diff : List String) (differs : String → Bool) (landed : Bool) (hc : hookCovers ref = true)
+    (hm : measuringNames S (tipOf msgs) diff differs landed = []) :
+    pushRefused ref none f S msgs diff differs landed = true := by
+  rw [no_intent_unchanged, hc, refuse_no_measuring S msgs diff differs landed hm]; rfl
+
+theorem landCheck_ok_iff (i : LandIntent) (ref : String) (f : PushFacts) :
+    landCheck i ref f = .ok ↔ ref = "refs/heads/" ++ landBranch i.task i.merge i.again ∧ f.sha = i.marker ∧
+      f.parents = [i.merge] ∧ f.tree = f.mergeTree ∧ f.msg = markerMessage i.task i.merge i.legs ∧
+      onlyLand f.msg = true ∧ i.pid ∈ f.ancestors := by
+  unfold landCheck
+  by_cases a : ref = "refs/heads/" ++ landBranch i.task i.merge i.again <;>
+  by_cases b : f.sha = i.marker <;> by_cases c : f.parents = [i.merge] <;> by_cases d : f.tree = f.mergeTree <;>
+  by_cases e : f.msg = markerMessage i.task i.merge i.legs <;> cases onlyLand f.msg <;>
+  by_cases h : i.pid ∈ f.ancestors <;> simp [a, b, c, d, e, h]
+
+theorem admitted_iff (ref : String) (li : Option LandIntent) (f : PushFacts) (S : String → List String)
+    (msgs : List String) (diff : List String) (differs : String → Bool) (landed : Bool) (hc : hookCovers ref = true)
+    (hr : refuseNoLane S msgs diff differs landed = true) :
+    pushRefused ref li f S msgs diff differs landed = false ↔ ∃ i, li = some i ∧ landCheck i ref f = .ok := by
+  cases li with
+  | none => simp [pushRefused, landAdmits, hc, hr]
+  | some i => cases h : landCheck i ref f <;> simp [pushRefused, landAdmits, hc, hr, h]
+
+theorem land_admitted (ref : String) (i : LandIntent) (f : PushFacts) (S : String → List String) (msgs : List String)
+    (diff : List String) (differs : String → Bool) (landed : Bool) (h : landCheck i ref f = .ok) :
+    pushRefused ref (some i) f S msgs diff differs landed = false := by
+  simp [pushRefused, landAdmits, h]
+
+theorem other_branch_refused (i : LandIntent) (ref : String) (f : PushFacts)
+    (h : ref ≠ "refs/heads/" ++ landBranch i.task i.merge i.again) : landCheck i ref f ≠ .ok :=
+  fun k => h ((landCheck_ok_iff i ref f).mp k).1
+
+theorem other_commit_refused (i : LandIntent) (ref : String) (f : PushFacts) (h : f.sha ≠ i.marker) :
+    landCheck i ref f ≠ .ok :=
+  fun k => h ((landCheck_ok_iff i ref f).mp k).2.1
+
+theorem other_parent_refused (i : LandIntent) (ref : String) (f : PushFacts) (h : f.parents ≠ [i.merge]) :
+    landCheck i ref f ≠ .ok :=
+  fun k => h ((landCheck_ok_iff i ref f).mp k).2.2.1
+
+theorem other_tree_refused (i : LandIntent) (ref : String) (f : PushFacts) (h : f.tree ≠ f.mergeTree) :
+    landCheck i ref f ≠ .ok :=
+  fun k => h ((landCheck_ok_iff i ref f).mp k).2.2.2.1
+
+theorem other_message_refused (i : LandIntent) (ref : String) (f : PushFacts)
+    (h : f.msg ≠ markerMessage i.task i.merge i.legs) : landCheck i ref f ≠ .ok :=
+  fun k => h ((landCheck_ok_iff i ref f).mp k).2.2.2.2.1
+
+theorem other_lane_refused (i : LandIntent) (ref : String) (f : PushFacts) (h : onlyLand f.msg = false) :
+    landCheck i ref f ≠ .ok :=
+  fun k => by simp [((landCheck_ok_iff i ref f).mp k).2.2.2.2.2.1] at h
+
+theorem foreign_process_refused (i : LandIntent) (ref : String) (f : PushFacts) (h : i.pid ∉ f.ancestors) :
+    landCheck i ref f ≠ .ok :=
+  fun k => h ((landCheck_ok_iff i ref f).mp k).2.2.2.2.2.2
+
+theorem land_runs_only_land (i : LandIntent) (ref : String) (f : PushFacts) (h : landCheck i ref f = .ok)
+    (S : String → List String) (diff : List String) (differs : String → Bool) (landed : Bool) (n : String)
+    (hn : n ∈ startedNames S f.msg diff differs landed) : n = "land" ∨ n = "lean" := by
+  have ho := ((landCheck_ok_iff i ref f).mp h).2.2.2.2.2.1
+  obtain ⟨l, hm, rfl⟩ := List.mem_map.mp hn
+  rcases started_requested S f.msg diff differs landed l.name hn with hr | hl
+  · left
+    have hl := (List.mem_filter.mp hm).1
+    have := List.all_eq_true.mp ho l hl
+    simpa [hr] using this
+  · exact Or.inr hl
 
 /-! ## Replay cases and golden (`packages/contracts/golden/ci/intent.jsonl`) -/
 
@@ -889,9 +1043,75 @@ def pushLaneLine (k : String × List String × List String × List String × Boo
     ("missing", strs (missingLanes (startedNames S (tipOf msgs) diff differs landed) (requiredLanes msgs))),
     ("reason", .str (reason S msgs diff differs landed).tag), ("refuse", .bool (refuseNoLane S msgs diff differs landed))]
 
+def landMerge : String := "ff48bd93a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5"
+def landMarker : String := "75592390a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6"
+
+def landIntentOf (task : String) (again : Bool) (legs : Option Legs) : LandIntent :=
+  ⟨task, landMerge, again, landMarker, 4242, legs⟩
+
+def factsOf (i : LandIntent) : PushFacts :=
+  ⟨i.marker, [i.merge], "t0", "t0", markerMessage i.task i.merge i.legs, [4300, 4242, 1]⟩
+
+def refOf (i : LandIntent) : String := "refs/heads/" ++ landBranch i.task i.merge i.again
+
+def landCases : List (String × Option LandIntent × String × PushFacts) :=
+  let cc := landIntentOf "phone-feel-kit" false (some ⟨[], ["check-sh", "suites-a"]⟩)
+  let ag := landIntentOf "phone-feel-kit" true (some ⟨["check-sh", "suites-a"], ["check-sh", "suites-a"]⟩)
+  let inj := landIntentOf "x [ci:wktr]" false (some ⟨[], ["check-sh"]⟩)
+  let f := factsOf cc
+  [("the land's all-CircleCI push", some cc, refOf cc, f),
+   ("the land's GitHub fallback push", some ag, refOf ag, factsOf ag),
+   ("a hand-made ci/land push without an intent", none, refOf cc, f),
+   ("another branch", some cc, "refs/heads/ci/land-x", f),
+   ("the intent of the fallback on the first branch", some ag, refOf cc, factsOf ag),
+   ("another commit", some cc, refOf cc, { f with sha := landMerge }),
+   ("a second parent", some cc, refOf cc, { f with parents := [landMerge, landMarker] }),
+   ("another tree", some cc, refOf cc, { f with tree := "t1" }),
+   ("a message with a lane token", some cc, refOf cc, { f with msg := f.msg ++ " [ci:wktr]" }),
+   ("a task name with a lane token", some inj, refOf inj, factsOf inj),
+   ("a push from another process", some cc, refOf cc, { f with ancestors := [4300, 1] })]
+
+def legsJson : Option Legs → Json
+  | none => .null
+  | some l => Json.mkObj [("gh", strs l.gh), ("all", strs l.all)]
+
+def landCaseLine (k : String × Option LandIntent × String × PushFacts) : Json :=
+  let (n, li, ref, f) := k
+  let intent := match li with
+    | none => Json.null
+    | some i => Json.mkObj [("task", .str i.task), ("merge", .str i.merge), ("again", .bool i.again),
+        ("marker", .str i.marker), ("pid", toJson i.pid), ("legs", legsJson i.legs)]
+  Json.mkObj [("kind", "landCheck"), ("name", .str n), ("intent", intent), ("ref", .str ref),
+    ("facts", Json.mkObj [("sha", .str f.sha), ("parents", strs f.parents), ("tree", .str f.tree),
+      ("mergeTree", .str f.mergeTree), ("msg", .str f.msg), ("ancestors", toJson f.ancestors)]),
+    ("branch", match li with | some i => .str (landBranch i.task i.merge i.again) | none => .null),
+    ("marker", match li with | some i => .str (markerMessage i.task i.merge i.legs) | none => .null),
+    ("check", match li with | some i => .str (landCheck i ref f).tag | none => .null),
+    ("admit", .bool (landAdmits ref li f))]
+
+#guard (landCases.map fun (_, li, ref, f) => (li.map fun i => (landCheck i ref f).tag).getD "none") ==
+  ["ok", "ok", "none", "branch", "branch", "marker", "parent", "tree", "message", "lanes", "process"]
+#guard landCases.map (fun (_, li, ref, f) => landAdmits ref li f) ==
+  [true, true, false, false, false, false, false, false, false, false, false]
+#guard onlyLand "[ci:land] land t abcdef0" && onlyLand "land t abcdef0" && !onlyLand "land t [ci:wktr]"
+
+def landBranchCases : List (String × String × Bool) :=
+  [("phone-feel-kit", landMerge, false), ("a/b é", "12", true), ("", landMerge, false), ("v1.2_x", landMerge, true)]
+
+def markerCases : List (String × String × Option Legs) :=
+  [("t", landMerge, none), ("t", landMerge, some ⟨[], ["a", "b"]⟩), ("t", landMerge, some ⟨["a", "b"], ["a", "b"]⟩),
+   ("t", landMerge, some ⟨["a"], ["a", "b"]⟩), ("t", "12", some ⟨["a", "b"], ["a", "b", "c"]⟩)]
+
+def landVectorLines (_ : Unit := ()) : List Json :=
+  landBranchCases.map (fun (t, m, a) => Json.mkObj [("kind", "landBranch"), ("task", .str t), ("merge", .str m),
+    ("again", .bool a), ("branch", .str (landBranch t m a))]) ++
+  markerCases.map (fun (t, m, l) => Json.mkObj [("kind", "marker"), ("task", .str t), ("merge", .str m),
+    ("legs", legsJson l), ("msg", .str (markerMessage t m l))]) ++
+  landCases.map landCaseLine
+
 def pushLaneText (_ : Unit := ()) : String :=
-  String.join ((Json.mkObj [("kind", "head"), ("seeders", strs seederFiles)] :: pushLaneCases.map pushLaneLine).map
-    fun j => j.compress ++ "\n")
+  String.join ((Json.mkObj [("kind", "head"), ("seeders", strs seederFiles)] :: pushLaneCases.map pushLaneLine ++
+    landVectorLines).map fun j => j.compress ++ "\n")
 
 #guard (pushLaneCases.map fun (_, m, d, e, l) =>
   (reason (setMap sampleCone) m d (fun x => !e.contains x) l).tag) ==

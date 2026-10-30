@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { paths, readJson, readStatus, type RunFacts } from "@fw/gh-budget";
 import type { FwCall, Gh } from "./run.ts";
+import type { IntentStore } from "./land-intent.ts";
 
 export type Provider = "github" | "circleci";
 export type RunState = "queued" | "running" | "pass" | "fail" | "cancelled" | "timeout" | "unavailable";
@@ -129,7 +130,7 @@ export function markerMessage(c: StartCtx): string {
 }
 
 export type Pusher = (c: StartCtx) => Promise<{ branch: string; marker: string }>;
-export function makePusher(d: Pick<GithubDeps, "git" | "scan">): Pusher {
+export function makePusher(d: Pick<GithubDeps, "git" | "scan"> & { intent?: IntentStore }): Pusher {
   const memo = new Map<string, Promise<{ branch: string; marker: string }>>();
   return (c) => {
     const msg = markerMessage(c);
@@ -143,7 +144,8 @@ export function makePusher(d: Pick<GithubDeps, "git" | "scan">): Pusher {
         const marker = d.git(["commit-tree", tree, "-p", c.mergeSha, "-m", msg]);
         const branch = landBranch(c.task, c.mergeSha, c.again);
         d.git(["branch", "-f", branch, marker]);
-        d.git(["push", "origin", branch]);
+        const drop = d.intent?.write({ task: c.task, merge: c.mergeSha, again: !!c.again, marker, pid: process.pid, legs: c.legs ? { gh: c.legs.gh, all: c.legs.all } : null });
+        try { d.git(["push", "origin", branch]); } finally { drop?.(); }
         return { branch, marker };
       })();
       memo.set(key, p);

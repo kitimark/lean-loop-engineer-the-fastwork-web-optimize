@@ -1,0 +1,30 @@
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[0] rs-flip-nat: frames 48, rate 133 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 48, frames per mut: key -
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[1] rs-flip-pall: frames 48, rate 139 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 48, frames per mut: key -
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[2] rs-flip-qstyle: frames 107, rate 129 per 100 frames, r=0 0, r=1 78, wins 3 to 13, frames without mut: key 91, frames per mut: key mut:morph-panel#data-expanded=1 mut:nav#class=1 mut:nav#data-fw-morph=16 mut:nav-earn#aria-hidden=1 mut:nav-earn#tabindex=1
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[3] rs-flip-qdata: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[4] rs-flip-qpub: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[5] rs-flip-qclass: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[6] rs-flip-qpanel: frames 48, rate 137 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 46, frames per mut: key mut:nav#data-fw-morph=2 mut:nav#style=2
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[7] rs-flip-qplat: frames 50, rate 158 per 100 frames, r=0 0, r=1 33, wins 3 to 5, frames without mut: key 37, frames per mut: key mut:nav#data-fw-morph=13 mut:nav#style=13
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[8] rs-flip-qwrite: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j1 accel-floor-v2p-thr-off-1.json rows[9] rs-flip-pall: frames 48, rate 137 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 48, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[0] rs-flip-nat: frames 59, rate 150 per 100 frames, r=0 0, r=1 38, wins 3 to 6, frames without mut: key 59, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[1] rs-flip-pall: frames 61, rate 149 per 100 frames, r=0 0, r=1 39, wins 3 to 7, frames without mut: key 61, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[2] rs-flip-qstyle: frames 255, rate 118 per 100 frames, r=0 0, r=1 218, wins 12 to 18, frames without mut: key 223, frames per mut: key mut:morph-panel#data-expanded=15 mut:nav#class=15 mut:nav#data-fw-morph=32 mut:nav-earn#aria-hidden=15 mut:nav-earn#tabindex=15
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[3] rs-flip-qdata: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[4] rs-flip-qpub: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[5] rs-flip-qclass: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[6] rs-flip-qpanel: frames 83, rate 137 per 100 frames, r=0 0, r=1 53, wins 3 to 8, frames without mut: key 68, frames per mut: key mut:nav#data-fw-morph=15 mut:nav#style=15
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[7] rs-flip-qplat: frames 163, rate 119 per 100 frames, r=0 0, r=1 131, wins 8 to 11, frames without mut: key 147, frames per mut: key mut:nav#data-fw-morph=16 mut:nav#style=16
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[8] rs-flip-qwrite: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j2 accel-floor-v2p-thr-off-1.json rows[9] rs-flip-pall: frames 87, rate 136 per 100 frames, r=0 0, r=1 58, wins 3 to 8, frames without mut: key 87, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[0] rs-flip-nat: frames 48, rate 137 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 48, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[1] rs-flip-pall: frames 48, rate 133 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 48, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[2] rs-flip-qstyle: frames 101, rate 129 per 100 frames, r=0 0, r=1 74, wins 3 to 11, frames without mut: key 88, frames per mut: key mut:morph-panel#data-expanded=1 mut:nav#class=1 mut:nav#data-fw-morph=13 mut:nav-earn#aria-hidden=1 mut:nav-earn#tabindex=1
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[3] rs-flip-qdata: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[4] rs-flip-qpub: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[5] rs-flip-qclass: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[6] rs-flip-qpanel: frames 48, rate 135 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 47, frames per mut: key mut:nav#data-fw-morph=1 mut:nav#style=1
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[7] rs-flip-qplat: frames 48, rate 156 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 37, frames per mut: key mut:nav#data-fw-morph=11 mut:nav#style=11
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[8] rs-flip-qwrite: frames 0, rate - per 100 frames, r=0 0, r=1 0, wins -, frames without mut: key 0, frames per mut: key -
+wktr-j3 accel-floor-v2p-thr-off-1.json rows[9] rs-flip-pall: frames 48, rate 154 per 100 frames, r=0 0, r=1 32, wins 3 to 3, frames without mut: key 48, frames per mut: key -

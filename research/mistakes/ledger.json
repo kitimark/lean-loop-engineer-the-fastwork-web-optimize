@@ -4330,6 +4330,25 @@
         "docs/team/incidents/ledger.json inc-ledger-note-late"
       ],
       "evidenceStatus": "CONFIRMED"
+    },
+    {
+      "id": "m221",
+      "classId": "c-spec-gap",
+      "title": "ci-push-lane-check's pre-push hook refused fw land's own CircleCI overflow push, so every land lost its CircleCI legs",
+      "when": "2026-10-29 (land of phone-feel-kit)",
+      "who": "builder",
+      "symptom": "fw land pushed its marker commit to ci/land-phone-feel-kit-ff48bd9 with the message 'land phone-feel-kit ff48bd9' (all legs to CircleCI, no [ci:land] token); the hook refused it ('the tip message names no lane whose inputs changed'), CircleCI counted as unavailable and the land fell back to GitHub (ci/land-...-again).",
+      "rootCause": "The hook's spec (Lean Fw.Ci.Intent reason, refuse_no_measuring) modelled hand pushes only; fw land, the other caller that pushes ci/* refs, was not in it, and no test ran the land's pusher (makePusher) through the hook.",
+      "detectedBy": "the land of phone-feel-kit (its CircleCI start failed with the hook's REFUSED text)",
+      "cost": "the CircleCI legs of every land since ci-push-lane-check; each land waited on GitHub alone",
+      "leanVerdict": "provable",
+      "leanReason": "Admission of a land push is a Lean decision over the land's recorded intent and the pushed commit's facts (Fw.Ci.Intent landCheck, admitted_iff, land_admitted); a plain ci/* push without a measuring lane stays refused (plain_no_measuring_refused).",
+      "empiricalCheck": "apps/runner test/ci-push-lane-check.test.ts pushes through the hook with makePusher and a land intent (passes) and the same commit by hand (refused)",
+      "evidence": [
+        "research/notes/2026/10-2x-land-push-lane.md",
+        "docs/team/incidents/ledger.json inc-land-push-lane"
+      ],
+      "evidenceStatus": "CONFIRMED"
     }
   ],
   "dropped": [

@@ -147,6 +147,8 @@ run_group() {
   job "device-recalc-bisect golden check" sh -c "printf 'import Fw.Device.RecalcBisect\\n#eval Fw.Device.RecalcBisect.checkRepo\\n' | lake env lean --stdin"
   job "device-glint-hold golden check" sh -c "printf 'import Fw.Device.GlintHold\\n#eval Fw.Device.GlintHold.checkRepo\\n' | lake env lean --stdin"
   job "device-glint-compositor golden check" sh -c "printf 'import Fw.Device.GlintHoldCompositor\\n#eval Fw.Device.GlintHoldCompositor.checkRepo\\n' | lake env lean --stdin"
+  job "device-end-wktr golden check" sh -c "printf 'import Fw.Device.EndWktr\\n#eval Fw.Device.EndWktr.checkRepo\\n' | lake env lean --stdin"
+  job "device-end-floor golden check" sh -c "printf 'import Fw.Device.EndFloor\\n#eval Fw.Device.EndFloor.checkRepo\\n' | lake env lean --stdin"
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"
@@ -213,6 +215,7 @@ run_group() {
   job "nav-earn golden check" lake env lean --run scripts/NavEarnGolden.lean --check ../packages/contracts/golden/parts/nav-earn.jsonl
   job "nav-earn-webkit golden check" lake env lean --run scripts/NavEarnWebkitGolden.lean --check ../packages/contracts/golden/parts/nav.earn.webkit.jsonl
   job "nav-earn-curve golden check" lake env lean --run scripts/NavEarnCurveGolden.lean --check ../packages/contracts/golden/parts/nav.earn.curve.jsonl
+  job "nav-earn-frames golden check" lake env lean --run scripts/NavEarnFramesGolden.lean --check ../packages/contracts/golden/parts/nav.earn.frames.jsonl
   job "accent draw-one golden check" lake env lean --run scripts/AccentDrawOneGolden.lean --check ../packages/contracts/golden/parts/hero.accent.drawone.jsonl
   job "accent nolayout golden check" lake env lean --run scripts/AccentNoLayoutGolden.lean --check ../packages/contracts/golden/parts/hero.accent.nolayout.jsonl
   job "classpos golden check" lake env lean --run scripts/ClassPosGolden.lean --check ../packages/contracts/golden/parts/footprint.classpos.jsonl

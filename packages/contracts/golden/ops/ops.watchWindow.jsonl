@@ -1,0 +1,7 @@
+{"name":"rows under the cap all stay, in order","request":{"cap":5,"ms":[1,2,3],"op":"ops.watchWindow"},"response":{"keep":[0,1,2]}}
+{"name":"past the cap the oldest start times go","request":{"cap":3,"ms":[1,2,3,4,5],"op":"ops.watchWindow"},"response":{"keep":[2,3,4]}}
+{"name":"rows written out of order are kept by start time","request":{"cap":3,"ms":[5,1,5,3,9],"op":"ops.watchWindow"},"response":{"keep":[0,2,4]}}
+{"name":"equal start times keep file order, the later rows stay","request":{"cap":2,"ms":[5,5,5],"op":"ops.watchWindow"},"response":{"keep":[1,2]}}
+{"name":"a late row older than the whole window is dropped","request":{"cap":2,"ms":[10,20,30,5],"op":"ops.watchWindow"},"response":{"keep":[1,2]}}
+{"name":"cap 0 keeps nothing","request":{"cap":0,"ms":[5],"op":"ops.watchWindow"},"response":{"keep":[]}}
+{"name":"an empty log keeps nothing","request":{"cap":3,"ms":[],"op":"ops.watchWindow"},"response":{"keep":[]}}

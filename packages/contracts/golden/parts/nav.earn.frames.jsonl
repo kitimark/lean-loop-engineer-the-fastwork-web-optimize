@@ -1,0 +1,16 @@
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-390_641","run":40876250109,"scenario":"entry","width":1280},"out":{"allowed":256,"frames":17,"ok":false,"settled":45,"worst":2493}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-390_641","run":40876250109,"scenario":"entry","width":1280},"out":{"allowed":256,"frames":17,"ok":true,"settled":45,"worst":60}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-390_641","run":40876250109,"scenario":"exit","width":1280},"out":{"allowed":256,"frames":17,"ok":false,"settled":53,"worst":300}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-390_641","run":40876250109,"scenario":"exit","width":1280},"out":{"allowed":256,"frames":17,"ok":true,"settled":53,"worst":53}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-390_641","run":40876250109,"scenario":"entry","width":390},"out":{"allowed":78,"frames":17,"ok":false,"settled":10,"worst":1332}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-390_641","run":40876250109,"scenario":"entry","width":390},"out":{"allowed":78,"frames":17,"ok":true,"settled":10,"worst":60}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-390_641","run":40876250109,"scenario":"exit","width":390},"out":{"allowed":78,"frames":17,"ok":false,"settled":3,"worst":245}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-390_641","run":40876250109,"scenario":"exit","width":390},"out":{"allowed":78,"frames":17,"ok":true,"settled":3,"worst":60}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-640_1280","run":40876250109,"scenario":"entry","width":1280},"out":{"allowed":256,"frames":17,"ok":false,"settled":45,"worst":2493}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-640_1280","run":40876250109,"scenario":"entry","width":1280},"out":{"allowed":256,"frames":17,"ok":true,"settled":45,"worst":60}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-640_1280","run":40876250109,"scenario":"exit","width":1280},"out":{"allowed":256,"frames":17,"ok":false,"settled":53,"worst":300}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-640_1280","run":40876250109,"scenario":"exit","width":1280},"out":{"allowed":256,"frames":17,"ok":true,"settled":53,"worst":53}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-640_1280","run":40876250109,"scenario":"entry","width":390},"out":{"allowed":78,"frames":17,"ok":false,"settled":10,"worst":1332}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-640_1280","run":40876250109,"scenario":"entry","width":390},"out":{"allowed":78,"frames":17,"ok":true,"settled":10,"worst":60}}
+{"fn":"frameCell","in":{"arm":"faithful","leg":"apple-640_1280","run":40876250109,"scenario":"exit","width":390},"out":{"allowed":78,"frames":17,"ok":false,"settled":3,"worst":245}}
+{"fn":"frameCell","in":{"arm":"logical","leg":"apple-640_1280","run":40876250109,"scenario":"exit","width":390},"out":{"allowed":78,"frames":17,"ok":true,"settled":3,"worst":60}}

@@ -1,0 +1,283 @@
+{
+ "bound": {
+  "allowed1280": 256,
+  "allowed390": 78,
+  "bandHeight": 100,
+  "golden": "packages/contracts/golden/parts/nav.earn.webkit.jsonl row frameBound",
+  "permille": 2,
+  "threshold": 40
+ },
+ "cell390": {
+  "allowed": 78,
+  "faithfulWorst": {
+   "entry": 1332,
+   "exit": 245
+  },
+  "golden": "packages/contracts/golden/parts/nav.earn.frames.jsonl",
+  "legs": [
+   "apple-390_641",
+   "apple-640_1280"
+  ],
+  "logicalWorst": {
+   "entry": 60,
+   "exit": 60
+  },
+  "verdict": "pass"
+ },
+ "chromiumFaithfulVsLogical": {
+  "1280/entry/faithful-vs-logical": {
+   "allowed": 256,
+   "failing": 0,
+   "frames": 17,
+   "maxChanged": 0,
+   "maxChannel": 28,
+   "maxRectDelta": 0,
+   "maxWithText": 0,
+   "settledChanged": 0,
+   "worstT": null
+  },
+  "1280/exit/faithful-vs-logical": {
+   "allowed": 256,
+   "failing": 0,
+   "frames": 17,
+   "maxChanged": 0,
+   "maxChannel": 0,
+   "maxRectDelta": 0,
+   "maxWithText": 0,
+   "settledChanged": 0,
+   "worstT": null
+  },
+  "390/entry/faithful-vs-logical": {
+   "allowed": 78,
+   "failing": 0,
+   "frames": 17,
+   "maxChanged": 0,
+   "maxChannel": 0,
+   "maxRectDelta": 0,
+   "maxWithText": 0,
+   "settledChanged": 0,
+   "worstT": null
+  },
+  "390/exit/faithful-vs-logical": {
+   "allowed": 78,
+   "failing": 0,
+   "frames": 17,
+   "maxChanged": 0,
+   "maxChannel": 0,
+   "maxRectDelta": 0,
+   "maxWithText": 0,
+   "settledChanged": 0,
+   "worstT": null
+  }
+ },
+ "chromiumVsWebkit": {
+  "apple-390_641": {
+   "1280/entry/faithful": {
+    "allowed": 256,
+    "failing": 3,
+    "frames": 17,
+    "maxChanged": 2493,
+    "maxChannel": 236,
+    "maxRectDelta": 48,
+    "maxWithText": 3044,
+    "settledChanged": 45,
+    "worstT": 0
+   },
+   "1280/entry/logical": {
+    "allowed": 256,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 60,
+    "maxChannel": 83,
+    "maxRectDelta": 4,
+    "maxWithText": 226,
+    "settledChanged": 45,
+    "worstT": 600
+   },
+   "1280/exit/faithful": {
+    "allowed": 256,
+    "failing": 3,
+    "frames": 17,
+    "maxChanged": 300,
+    "maxChannel": 224,
+    "maxRectDelta": 48,
+    "maxWithText": 300,
+    "settledChanged": 53,
+    "worstT": 0
+   },
+   "1280/exit/logical": {
+    "allowed": 256,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 53,
+    "maxChannel": 72,
+    "maxRectDelta": 4,
+    "maxWithText": 230,
+    "settledChanged": 53,
+    "worstT": 1100
+   },
+   "390/entry/faithful": {
+    "allowed": 78,
+    "failing": 4,
+    "frames": 17,
+    "maxChanged": 1332,
+    "maxChannel": 236,
+    "maxRectDelta": 32,
+    "maxWithText": 1777,
+    "settledChanged": 10,
+    "worstT": 0
+   },
+   "390/entry/logical": {
+    "allowed": 78,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 60,
+    "maxChannel": 100,
+    "maxRectDelta": 2,
+    "maxWithText": 104,
+    "settledChanged": 10,
+    "worstT": 120
+   },
+   "390/exit/faithful": {
+    "allowed": 78,
+    "failing": 6,
+    "frames": 17,
+    "maxChanged": 245,
+    "maxChannel": 224,
+    "maxRectDelta": 32,
+    "maxWithText": 245,
+    "settledChanged": 3,
+    "worstT": 60
+   },
+   "390/exit/logical": {
+    "allowed": 78,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 60,
+    "maxChannel": 100,
+    "maxRectDelta": 2,
+    "maxWithText": 107,
+    "settledChanged": 3,
+    "worstT": 300
+   }
+  },
+  "apple-640_1280": {
+   "1280/entry/faithful": {
+    "allowed": 256,
+    "failing": 3,
+    "frames": 17,
+    "maxChanged": 2493,
+    "maxChannel": 236,
+    "maxRectDelta": 48,
+    "maxWithText": 3044,
+    "settledChanged": 45,
+    "worstT": 0
+   },
+   "1280/entry/logical": {
+    "allowed": 256,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 60,
+    "maxChannel": 83,
+    "maxRectDelta": 4,
+    "maxWithText": 226,
+    "settledChanged": 45,
+    "worstT": 600
+   },
+   "1280/exit/faithful": {
+    "allowed": 256,
+    "failing": 3,
+    "frames": 17,
+    "maxChanged": 300,
+    "maxChannel": 224,
+    "maxRectDelta": 48,
+    "maxWithText": 300,
+    "settledChanged": 53,
+    "worstT": 0
+   },
+   "1280/exit/logical": {
+    "allowed": 256,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 53,
+    "maxChannel": 72,
+    "maxRectDelta": 4,
+    "maxWithText": 230,
+    "settledChanged": 53,
+    "worstT": 1100
+   },
+   "390/entry/faithful": {
+    "allowed": 78,
+    "failing": 4,
+    "frames": 17,
+    "maxChanged": 1332,
+    "maxChannel": 236,
+    "maxRectDelta": 32,
+    "maxWithText": 1777,
+    "settledChanged": 10,
+    "worstT": 0
+   },
+   "390/entry/logical": {
+    "allowed": 78,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 60,
+    "maxChannel": 100,
+    "maxRectDelta": 2,
+    "maxWithText": 104,
+    "settledChanged": 10,
+    "worstT": 120
+   },
+   "390/exit/faithful": {
+    "allowed": 78,
+    "failing": 6,
+    "frames": 17,
+    "maxChanged": 245,
+    "maxChannel": 224,
+    "maxRectDelta": 32,
+    "maxWithText": 245,
+    "settledChanged": 3,
+    "worstT": 60
+   },
+   "390/exit/logical": {
+    "allowed": 78,
+    "failing": 0,
+    "frames": 17,
+    "maxChanged": 60,
+    "maxChannel": 100,
+    "maxRectDelta": 2,
+    "maxWithText": 107,
+    "settledChanged": 3,
+    "worstT": 300
+   }
+  }
+ },
+ "decision": {
+  "blockers": [
+   "gate webkit (mac-webkit morph fail)"
+  ],
+  "genEntry": "not yet",
+  "member": false,
+  "structural": "kind proposal, visClass L: Fw.Preset.V2Proved.ok needs kind optimized and not isLook (look_not_mem)"
+ },
+ "flag": "nav:earn-logical",
+ "rule": "390 cell passes when the logical arm, exit and entry, has every one of 17 frames within allowed390 (maxChanged, label hidden), macOS Playwright WebKit against macOS Playwright Chromium",
+ "runs": {
+  "frames": "40876250109",
+  "walk": "40872462216"
+ },
+ "task": "earn-logical-preset",
+ "walk": {
+  "chromium": {
+   "hero": "pass",
+   "morph": "pass"
+  },
+  "linux-webkit": {
+   "hero": "pass"
+  },
+  "mac-webkit": {
+   "hero": "pass",
+   "morph": "fail"
+  }
+ }
+}
