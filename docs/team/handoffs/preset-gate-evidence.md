@@ -1,10 +1,12 @@
 # preset-gate-evidence handoff
 
-- Branch `worktree-wf_da121197-358-1`, worktree `.claude/worktrees/wf_da121197-358-1`. Last commit: see `git log -1` on the
-  branch. No CI push; no CI runs started.
+- Branch `worktree-wf_da121197-358-1`, worktree `.claude/worktrees/wf_da121197-358-1`. Last commit: e4cbae40f
+  (round 2: admission sets tied to the preset flag sets). No CI push; no CI runs started.
 - State: `lean/Fw/Preset/GateEvidence.lean` holds the gate-run table (`runs`), admissions, pinned waivers and the member
   rule `status`; `Fw.Preset.Gen.run` throws on `problems`, prints one `gate evidence:` line per member and writes
-  `packages/contracts/golden/preset/gate-evidence.jsonl`.
+  `packages/contracts/golden/preset/gate-evidence.jsonl`. Before that it throws on `tieProblems` (`setProblems`): every
+  admission set of a preset is a subset of its generated flag set, one equals it, and every two are nested
+  (`forged_single_fails`, `Gen.tie_fails_of_forged_v2`).
 - Verified: `lake build`, the module's `#guard`s, Gen.run regenerated with only the new golden changing, ci-paths test 56
   pass, runner land-inputs 73 pass, @fw/contracts test 11 pass, check.sh green (slot). Dry land: see the report.
 - Result: v2-proved `engine.scroll:unthrottle` proved by run 40101370753; the other five (preset, member) pairs are
