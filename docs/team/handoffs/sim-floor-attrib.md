@@ -2,7 +2,7 @@
 
 - Branch: worktree-wf_1f5ece3e-bb2-1; worktree: .claude/worktrees/wf_1f5ece3e-bb2-1; CI branch: ci/sim-floor-attrib
 - Last commit: see `git log -1` (updated at each checkpoint)
-- CI runs: none yet (first push pending)
+- CI runs: webkit-sim 41145066709 (in_progress, pushed at ce0104b-equivalent tip, 3 jobs); lean 41145066687 (in_progress)
 - Verified: Lean module `lean/Fw/Device/SimFloorAttrib.lean` builds, golden `packages/contracts/golden/device/sim-floor-attrib.jsonl`
   generated from it, TS stand-in `packages/measure-webkit/src/sim-floor-attrib.mjs` equals the golden (test/sim-floor-attrib.test.mjs),
   measure-webkit tests (1067), ci-paths test and runner land-inputs test pass locally.
