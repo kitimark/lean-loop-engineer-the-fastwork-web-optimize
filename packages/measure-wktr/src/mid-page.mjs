@@ -543,10 +543,50 @@ function pageProbe(P) {
       if (typeof f === 'function') C.prototype[m] = function () { S.add('call:' + m); return f.apply(this, arguments); };
     }
   }
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf))?$/;
+  const QSETS = P.qsets || {};
+  const isQ = (v) => Object.prototype.hasOwnProperty.call(QSETS, v);
+  const MU = X.mute = { set: null, undo: [] };
+  const muted = (el, what) => !!(MU.set && el && el.nodeType === 1 && MU.set.has(S.partOf(el) + '#' + what));
+  const muteOn = (list) => {
+    MU.set = new Set(list);
+    const patch = (start, name, make) => {
+      let o = start;
+      let d = null;
+      while (o && !(d = Object.getOwnPropertyDescriptor(o, name))) o = Object.getPrototypeOf(o);
+      if (!d) return;
+      Object.defineProperty(o, name, make(d));
+      MU.undo.push(() => Object.defineProperty(o, name, d));
+    };
+    const keep = (t, k) => { const v = t[k]; return typeof v === 'function' ? v.bind(t) : v; };
+    const attrOf = (k) => 'data-' + String(k).replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
+    patch(Element.prototype, 'setAttribute', (d) => ({ ...d, value: function (n) { return muted(this, String(n).toLowerCase()) ? undefined : d.value.apply(this, arguments); } }));
+    patch(Element.prototype, 'removeAttribute', (d) => ({ ...d, value: function (n) { return muted(this, String(n).toLowerCase()) ? undefined : d.value.apply(this, arguments); } }));
+    patch(Element.prototype, 'className', (d) => ({ ...d, set(v) { if (!muted(this, 'class')) d.set.call(this, v); } }));
+    patch(HTMLElement.prototype, 'tabIndex', (d) => ({ ...d, set(v) { if (!muted(this, 'tabindex')) d.set.call(this, v); } }));
+    patch(Element.prototype, 'classList', (d) => ({ ...d, get() {
+      const real = d.get.call(this);
+      if (!muted(this, 'class')) return real;
+      return new Proxy(real, { get(t, k) { return k === 'add' || k === 'remove' || k === 'replace' ? function () { } : k === 'toggle' ? function (x) { return t.contains(x); } : keep(t, k); }, set() { return true; } });
+    } }));
+    patch(HTMLElement.prototype, 'style', (d) => ({ ...d, get() {
+      const real = d.get.call(this);
+      if (!muted(this, 'style')) return real;
+      return new Proxy(real, { get(t, k) { return k === 'setProperty' || k === 'removeProperty' ? function () { return ''; } : keep(t, k); }, set() { return true; } });
+    } }));
+    patch(HTMLElement.prototype, 'dataset', (d) => ({ ...d, get() {
+      const real = d.get.call(this);
+      const el = this;
+      return new Proxy(real, { get(t, k) { return keep(t, k); }, set(t, k, v) { if (muted(el, attrOf(k))) return true; t[k] = v; return true; }, deleteProperty(t, k) { if (muted(el, attrOf(k))) return true; delete t[k]; return true; } });
+    } }));
+  };
+  const muteOff = () => {
+    MU.set = null;
+    while (MU.undo.length) MU.undo.pop()();
+  };
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|q[a-z]+))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const rsWindow = async (idle, tw, v, kt, ms) => {
-    const rec = v === 'obs' || v === 'obsf' || v === 'pallf';
+    const rec = v === 'obs' || v === 'obsf' || v === 'pallf' || isQ(v);
     const fl = v === 'obsf' || v === 'pallf';
     const dur = P.durationMs;
     const ref = X.created.find((c) => !c.tag.held);
@@ -614,6 +654,7 @@ function pageProbe(P) {
     X.created.length = 0;
     const warm = kind === 'warm';
     const vv = warm ? 'floor' : v || 'floor';
+    if (/^q/.test(vv) && !isQ(vv)) throw new Error('unknown writer set ' + vv);
     const kt = [];
     const out = { arm: arm, mode: 'timed', stages: [], engaged: false, rs: { kind: kind, v: vv, frames: [], kt: kt, reps: 0, wins: [], internals: !!(I && typeof I.styleRecalcCount === 'function') } };
     out.scrollY = await toBottom();
@@ -627,7 +668,7 @@ function pageProbe(P) {
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
     } else if (!warm) {
       const glintEl = (a) => !!(a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('[data-fw-dash]'));
-      const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf';
+      const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf' && !isQ(vv);
       toPause = vv === 'nat' ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();
@@ -635,7 +676,7 @@ function pageProbe(P) {
       out.rs.stillRunning = document.getAnimations().filter((a) => a.playState === 'running').length;
       out.rs.glintLive = document.getAnimations().filter((a) => a.playState === 'running' && glintEl(a)).length;
     }
-    const smilSvgs = vv === 'smil' || vv === 'pall' || vv === 'pallf' ? Array.from(document.querySelectorAll('svg')) : [];
+    const smilSvgs = vv === 'smil' || vv === 'pall' || vv === 'pallf' || isQ(vv) ? Array.from(document.querySelectorAll('svg')) : [];
     for (const g of smilSvgs) { try { g.pauseAnimations(); } catch (x) { } }
     if (smilSvgs.length) { out.rs.smilN = smilSvgs.length; await raf(); await raf(); await sleep(250); }
     if (GH.read) {
@@ -646,6 +687,7 @@ function pageProbe(P) {
     if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
     if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
     S.fine = vv === 'obs' ? {} : null;
+    if (isQ(vv)) out.rs.muted = QSETS[vv];
     if (kind === 'idle') {
       out.engaged = out.rs.internals;
       out.rs.frames = await rsWindow(true, 0, vv, kt);
@@ -680,7 +722,9 @@ function pageProbe(P) {
         out.tracks = X.created.length;
         out.engaged = out.rs.internals;
         await raf();
-        const fr = await rsWindow(false, tw, vv, kt);
+        if (isQ(vv)) muteOn(QSETS[vv]);
+        let fr;
+        try { fr = await rsWindow(false, tw, vv, kt); } finally { if (isQ(vv)) muteOff(); }
         if (!warm) { for (const f of fr) out.rs.frames.push(f); out.rs.wins.push(fr.length); }
         await sleep(900);
         X.arm = arm + '~back';
@@ -689,6 +733,7 @@ function pageProbe(P) {
         X.arm = arm;
       }
     }
+    muteOff();
     if (S.fine) {
       out.rs.fine = Object.entries(S.fine).sort((a, b) => b[1] - a[1]).slice(0, 15);
       S.fine = null;
@@ -967,7 +1012,7 @@ function pageProbe(P) {
         const bsm = BS_RE.exec(arm);
         let r;
         if (P.gh && rsm) {
-          try { r = await rsArm(arm, rsm[1], rsm[2] || ''); } catch (e) { X.errors.push(arm + ': ' + String((e && e.message) || e)); continue; }
+          try { r = await rsArm(arm, rsm[1], rsm[2] || ''); } catch (e) { muteOff(); X.errors.push(arm + ': ' + String((e && e.message) || e)); continue; }
         } else r = bsm ? await bsArm(arm, bsm[1]) : rsm ? await rsArm(arm, rsm[1], rsm[2] || '') : swm ? await sweepArm(arm, swm[1], swm[2] || '', !!swm[3]) : P.mode === 'scrubbed' ? await scrubbedArm(arm) : await timedArm(arm);
         X.rows.push(r);
       }
@@ -982,8 +1027,8 @@ function pageProbe(P) {
   };
 }
 
-export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false, lay = false } = {}) {
+export function probeSource({ mode, arms = ARMS, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid = null, durationMs = 680, capMs = 3000, listAnims = true, idleMs = 1000, rsReps = 4, rsIdleMs = 2500, bsIdleMs = 2000, bsC = BS_C, gh = false, gk = false, lay = false, qsets = null } = {}) {
   if (mode !== 'scrubbed' && mode !== 'timed') throw new Error(`mode ${mode}`);
   if (mid && mode !== 'timed') throw new Error('mid readouts are for the timed mode');
-  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh, gk, lay })});`;
+  return `(${pageProbe.toString()})(${JSON.stringify({ mode, arms, sweepFrames, windowMs, settleMs, props: PROPS, mid, durationMs, capMs, listAnims, idleMs, rs: arms.some((a) => /^(rs|bs)-/.test(String(a))), rsReps, rsIdleMs, bsIdleMs, bsC, gh, gk, lay, qsets })});`;
 }

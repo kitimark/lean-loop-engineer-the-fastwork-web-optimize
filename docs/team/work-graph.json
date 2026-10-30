@@ -24215,7 +24215,8 @@
     "apps/site/src/parts/platform/**",
     "research/findings/ledger.json",
     "docs/team/handoffs/end-floor-writes.md"
-   ]
+   ],
+   "evidence": "d539d0e"
   }
  ],
  "deadline": {
