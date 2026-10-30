@@ -1,10 +1,13 @@
 branch: worktree-wf_8092b7fe-92d-1
 worktree: .claude/worktrees/wf_8092b7fe-92d-1 (under the main checkout)
-last commit: e9fa80213 (work), handoff committed after it
+last commit: 166d5943d (merge of main over e9fa80213 work + land.ts reads), this handoff after it
 CI runs: none (the task needs no CI; nothing touches the phone)
 verified locally: lake build, `FeelGolden --check`, measure-webkit feel tests (32) + device-feel-plan tests (13), 7 arms built
   from the generated build command and every `?fw=` resolved in dist/aot/configs.json.
-open: check.sh via slot, ci-paths/land-inputs tests, merge main, `fw plan lint`, dry land, `fw review ready`.
+also verified: check.sh green via slot, measure-webkit tests 1050 pass, ci-paths 56 pass, runner land-inputs 73 pass, plan lint 0 errors.
+open: the task's writes lack `apps/runner/src/land.ts` (two reads added to the measure-webkit row) and
+  `lean/Fw/Device/FeelGolden.lean` (the glob names lean/scripts/Feel*Golden.lean); the dry land without --allow ends
+  `VERDICT scope`, with both allowed it ends `VERDICT dry feel-session-2-prep`. The lead adds both paths to the writes.
 
 State
 - Arm flags: `Fw.Device.Feel.sameArmsOf` reads the generated preset golden `packages/contracts/golden/preset/v2-proved.json`
