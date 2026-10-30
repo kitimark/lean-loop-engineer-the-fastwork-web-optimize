@@ -24531,6 +24531,35 @@
     "docs/team/handoffs/sim-end-floor.md"
    ],
    "evidence": "11a519c"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-floor-attrib",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "sim-end-floor"
+   ],
+   "title": "iOS Simulator end-of-page: which source schedules the second style recalc per frame (paused base 100 vs every paused flag arm 200, schedule 0 vs 360)? Arms: blank-body control, v2-proved with scroll/view-timeline animations cancelled vs paused, v2-proved with only document animations paused; pref read at run time; Lean verdict per arm; WebKit source path of the scheduling",
+   "writes": [
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Device/SimEndFloor*.lean",
+    "lean/Fw/Device/SimFloorAttrib*.lean",
+    "lean/scripts/SimFloorAttrib*Golden.lean",
+    "packages/contracts/golden/device/sim-floor-attrib*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "results/sim-floor-attrib/**",
+    "research/notes/2026/10-31-sim-floor-attrib.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/sim-floor-attrib.md"
+   ]
   }
  ],
  "deadline": {
