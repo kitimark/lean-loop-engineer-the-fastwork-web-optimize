@@ -319,6 +319,12 @@ function pageProbe(P) {
     for (let i = 0; i < 20 && Math.abs(window.scrollY - max()) > 2; i++) { window.scrollTo(0, max()); await sleep(150); }
     return Math.round(window.scrollY);
   };
+  const toAt = async (f) => {
+    const max = () => document.documentElement.scrollHeight - window.innerHeight;
+    const y = Math.round(max() * f);
+    for (let i = 0; i < 20 && Math.abs(window.scrollY - y) > 2; i++) { window.scrollTo(0, y); await sleep(150); }
+    return Math.round(window.scrollY);
+  };
   const wheel = (dy) => window.dispatchEvent(new WheelEvent('wheel', { deltaY: dy, bubbles: true, cancelable: true }));
 
   // The timed tween starts on a downward wheel while the platform fills the viewport bottom (morph.tween/driver.ts armed + move); the
@@ -738,6 +744,7 @@ function pageProbe(P) {
   // Internals::styleChangeType first runs styleScope().flushPendingUpdate() (Internals.cpp:961-966@862f17d).
   const PD = {
     pbdn: { t: 0 }, pbpd: { t: 0 }, pbpdt: { t: 1 },
+    pbpm: { t: 0, at: 0.5 },
     pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' }, pbphides: { t: 0, hide: 'set' },
     pbpft: { t: 0, fl: 'T' }, pbpfh: { t: 0, fl: 'H' },
     pbpan: { t: 0, an: 1 },
@@ -972,7 +979,7 @@ function pageProbe(P) {
     if (/^q/.test(vv) && !isQ(vv)) throw new Error('unknown writer set ' + vv);
     const kt = [];
     const out = { arm: arm, mode: 'timed', stages: [], engaged: false, rs: { kind: kind, v: vv, frames: [], kt: kt, reps: 0, wins: [], internals: !!(I && typeof I.styleRecalcCount === 'function') } };
-    out.scrollY = await toBottom();
+    out.scrollY = PD[vv] && PD[vv].at ? await toAt(PD[vv].at) : await toBottom();
     await sleep(300);
     let toPause = [];
     if (vv === 'cancel') {
@@ -984,7 +991,7 @@ function pageProbe(P) {
     } else if (!warm) {
       const glintEl = (a) => !!(a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('[data-fw-dash]'));
       const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf' && !isQ(vv) && !/^pbp/.test(vv);
-      toPause = vv === 'nat' ? [] : /^pb/.test(vv) && !/^pbp/.test(vv) ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
+      toPause = vv === 'nat' ? [] : /^pb/.test(vv) && !/^pbp/.test(vv) ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)) && !(PD[vv] && PD[vv].at && !(a.timeline instanceof DocumentTimeline)));
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();
       await raf(); await raf(); await sleep(250);

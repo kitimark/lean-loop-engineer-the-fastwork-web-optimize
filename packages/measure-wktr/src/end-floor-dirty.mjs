@@ -13,7 +13,7 @@ export const ARMS_D = [
 ];
 export const HIDE_KEYS = ['flip-pbphide', 'flip-pbphidep', 'flip-pbphides'];
 export const FLUSH_KEYS = ['flip-pbpft', 'flip-pbpfh'];
-const KEY = /^rs-(flip|idle)-(pbpoff|pbdn|pbpdt|pbpd|pbpft|pbpfh|pbpan|pbphidep|pbphides|pbphide)$/;
+const KEY = /^rs-(flip|idle)-(pbpoff|pbdn|pbpdt|pbpd|pbpft|pbpfh|pbpan|pbpm|pbphidep|pbphides|pbphide)$/;
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 const cp = (s) => Array.from(s).map((c) => c.codePointAt(0));

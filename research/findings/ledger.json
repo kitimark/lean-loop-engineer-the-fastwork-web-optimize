@@ -4707,6 +4707,81 @@
    "lesson": "At n = 4 a wide reference spread (Paint 9600 to 13104) hides any effect of hiding the pictures; decide with a larger n or a lower base spread, and separate decode from paint with a second probe.",
    "next": "A larger n or a lower base spread to decide the base contrast; a decode-versus-paint probe.",
    "evidence": "research/notes/2026/10-2x-phone-cols-probe.md (task phone-cols-probe)"
+  },
+  {
+   "n": 96,
+   "id": "hero.exit.threaded-park",
+   "part": "hero.exit",
+   "candidate": "hero.exit:threaded-park: threaded plus a park. While the end of the exit range is more than one viewport above the viewport top, the finished scroll-driven animations of the hero copy, cue and cards are cancelled (animation-name: none) and each target holds its keyframe end value as static style; the park is restored by an IntersectionObserver step or a scroll event.",
+   "status": "partly-proved",
+   "flag": "hero.exit:threaded-park",
+   "flags": [
+    "hero.exit:threaded-park"
+   ],
+   "visClass": "E",
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "same look, class E: Fw.Parts.ScrollPark.held_eq_shown (held text = the value the finished animation shows, per target and property, from the Lean consumers), props_distinct, rows_names_eq_exitNames; restore io_no_stale (jump of at most one viewport per frame) and scroll_no_stale (any jump).",
+   "mechanism": "INFERRED from WebKit 862f17d: a finished animation on a non-monotonic timeline stays relevant and is ticked every frame (WebAnimation.cpp:1729, AnimationTimelinesController.cpp:128-181); an idle (cancelled) one leaves the set. Measurement pending.",
+   "leanFor": [
+    "Fw.Parts.ScrollPark.held_eq_shown",
+    "Fw.Parts.ScrollPark.finished_shows_to",
+    "Fw.Parts.ScrollPark.props_distinct",
+    "Fw.Parts.ScrollPark.rows_names_eq_exitNames",
+    "Fw.Parts.ScrollPark.io_no_stale",
+    "Fw.Parts.ScrollPark.io_restores",
+    "Fw.Parts.ScrollPark.scroll_no_stale",
+    "Fw.Parts.ScrollPark.scroll_restores"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "The measured effect on the floor (pending the WKTR runs)",
+    "iOS Safari with threaded scroll-driven animations ON"
+   ],
+   "premises": [
+    "The observer fires one rendering update after the frame that moved the sentinel (io_no_stale assumes a per-frame jump of at most one viewport): INFERRED",
+    "A scroll event of a frame is dispatched before the animations update (scroll_no_stale): INFERRED, not read from the pinned source in this row"
+   ],
+   "v1Evidence": "",
+   "lesson": "pending",
+   "next": "WKTR split and park arms (task scrolldriven-park), then the breakpoint gate and engine-check.",
+   "evidence": "task scrolldriven-park; research/notes/2026/10-30-scrolldriven-park.md"
+  },
+  {
+   "n": 97,
+   "id": "engine.scroll.unthrottle-park",
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle-park: unthrottle that cancels its flag animation (fw-ut) after 8 still frames (134 ms) and restores it at the next touch start or scroll event.",
+   "status": "partly-proved",
+   "flag": "engine.scroll:unthrottle-park",
+   "flags": [
+    "engine.scroll:unthrottle-park"
+   ],
+   "visClass": "E",
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "same look, class E: Fw.Parts.ScrollPark.ut_look_identity (the flag animates a custom property no style reads; the visible scene is that of the page without the flag, parked or not).",
+   "mechanism": "INFERRED from WebKit 862f17d, as for hero.exit:threaded-park; the throttle decision is WKWebViewIOS.mm:3256-3268. While parked the page is throttled on iOS again (parked_throttles); restored it lifts the throttle (restored_unthrottles). Measurement pending.",
+   "leanFor": [
+    "Fw.Parts.ScrollPark.ut_look_identity",
+    "Fw.Parts.ScrollPark.ut_scroll_unparks",
+    "Fw.Parts.ScrollPark.ut_touch_unparks",
+    "Fw.Parts.ScrollPark.ut_park_only_still",
+    "Fw.Parts.ScrollPark.parked_throttles",
+    "Fw.Parts.ScrollPark.restored_unthrottles"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "The measured effect on the floor (pending the WKTR runs)",
+    "Whether the restore at touch start precedes the first scroll update on the phone (live_at_scroll_iff is a conditional)"
+   ],
+   "premises": [
+    "touchstart is delivered at least one frame before the first scroll update of a touch scroll: INFERRED, open on the device"
+   ],
+   "v1Evidence": "",
+   "lesson": "pending",
+   "next": "WKTR split and park arms (task scrolldriven-park); a phone session for the first-update throttle.",
+   "evidence": "task scrolldriven-park; research/notes/2026/10-30-scrolldriven-park.md"
   }
  ],
  "notes": [

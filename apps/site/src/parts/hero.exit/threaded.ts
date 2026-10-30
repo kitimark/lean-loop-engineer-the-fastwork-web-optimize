@@ -118,6 +118,8 @@ export interface HandoffDeps {
   placeSentinel: () => void;
   /** Watches the sentinel; returns its stop. */
   watchSentinel: (pointerNone: (none: boolean) => void) => () => void;
+  /** Variant `threaded-park`: starts the park of the finished animations while the stage is live. */
+  startPark?: () => { stop(): void; resize(): void };
 }
 
 /** Switches between the original's callback and the CSS animations by Lean `live`; `sync` runs on each input change. */
@@ -125,12 +127,15 @@ export function createHandoff(deps: HandoffDeps) {
   let stopDriver: (() => void) | null = deps.startDriver();
   let stopSentinel: (() => void) | null = null;
   let live = false;
+  let park: { stop(): void; resize(): void } | null = null;
   const splash = (): Splash => {
     const s = deps.stage.getAttribute('data-splash');
     return s === 'done' || s === 'run' ? s : 'prep';
   };
   const handBack = () => {
     live = false;
+    park?.stop();
+    park = null;
     deps.track.removeAttribute(LIVE_ATTR);
     stopSentinel?.();
     stopSentinel = null;
@@ -147,6 +152,7 @@ export function createHandoff(deps: HandoffDeps) {
       deps.stage.style.pointerEvents = none ? 'none' : '';
     });
     deps.track.setAttribute(LIVE_ATTR, '');
+    park = deps.startPark?.() ?? null;
   };
   const sync = (left = false) => {
     if (left && live) handBack();
@@ -160,7 +166,10 @@ export function createHandoff(deps: HandoffDeps) {
     sync: () => sync(),
     onMutations: (records: readonly { oldValue: string | null }[]) => sync(splashLeftDone(records)),
     resize() {
-      if (live) deps.placeSentinel();
+      if (live) {
+        deps.placeSentinel();
+        park?.resize();
+      }
     },
     isLive: () => live,
     stop() {
@@ -168,6 +177,8 @@ export function createHandoff(deps: HandoffDeps) {
       stopDriver = null;
       stopSentinel?.();
       stopSentinel = null;
+      park?.stop();
+      park = null;
       if (live) deps.track.removeAttribute(LIVE_ATTR);
       live = false;
     },

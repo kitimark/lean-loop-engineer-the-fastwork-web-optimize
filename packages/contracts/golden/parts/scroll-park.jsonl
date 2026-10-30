@@ -1,0 +1,43 @@
+{"fn":"consts","out":{"marginViewports":1,"restoreLatency":1,"utStillFrames":8,"utStillMs":134}}
+{"fn":"row","in":{"band":"wide","name":"exitFade","target":"copy"},"out":{"from":"1","prop":"opacity","to":"0"}}
+{"fn":"row","in":{"band":"wide","name":"exitCopyUp","target":"copy"},"out":{"from":"translateY(0px)","prop":"transform","to":"translateY(-10px)"}}
+{"fn":"row","in":{"band":"wide","name":"exitBlur","target":"copy"},"out":{"from":"blur(0px)","prop":"filter","to":"blur(18px)"}}
+{"fn":"row","in":{"band":"narrow","name":"exitFade","target":"copy"},"out":{"from":"1","prop":"opacity","to":"0"}}
+{"fn":"row","in":{"band":"narrow","name":"exitCopyUpNarrow","target":"copy"},"out":{"from":"translate(-50%, 0px)","prop":"transform","to":"translate(-50%, -8px)"}}
+{"fn":"row","in":{"band":"wide","name":"exitFade","target":"cue"},"out":{"from":"1","prop":"opacity","to":"0"}}
+{"fn":"row","in":{"band":"wide","name":"exitBlur","target":"cue"},"out":{"from":"blur(0px)","prop":"filter","to":"blur(18px)"}}
+{"fn":"row","in":{"band":"narrow","name":"exitFade","target":"cue"},"out":{"from":"1","prop":"opacity","to":"0"}}
+{"fn":"row","in":{"band":"narrow","name":"exitCueUpNarrow","target":"cue"},"out":{"from":"translate(-50%, 0px)","prop":"transform","to":"translate(-50%, -10px)"}}
+{"fn":"row","in":{"band":"narrow","name":"exitBlur","target":"cue"},"out":{"from":"blur(0px)","prop":"filter","to":"blur(18px)"}}
+{"fn":"row","in":{"band":"wide","name":"exitCardFade","target":"card"},"out":{"from":"1","prop":"opacity","to":"0.65"}}
+{"fn":"row","in":{"band":"wide","name":"exitCardMove","target":"card"},"out":{"from":"calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))","prop":"translate","to":"calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))"}}
+{"fn":"row","in":{"band":"narrow","name":"exitCardFade","target":"card"},"out":{"from":"1","prop":"opacity","to":"0.65"}}
+{"fn":"row","in":{"band":"narrow","name":"exitCardMove","target":"card"},"out":{"from":"calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))","prop":"translate","to":"calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))"}}
+{"fn":"held","in":{"band":"wide","target":"copy"},"out":[["opacity","0"],["transform","translateY(-10px)"],["filter","blur(18px)"]]}
+{"fn":"held","in":{"band":"narrow","target":"copy"},"out":[["opacity","0"],["transform","translate(-50%, -8px)"]]}
+{"fn":"held","in":{"band":"wide","target":"cue"},"out":[["opacity","0"],["filter","blur(18px)"]]}
+{"fn":"held","in":{"band":"narrow","target":"cue"},"out":[["opacity","0"],["transform","translate(-50%, -10px)"],["filter","blur(18px)"]]}
+{"fn":"held","in":{"band":"wide","target":"card"},"out":[["opacity","0.65"],["translate","calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))"]]}
+{"fn":"held","in":{"band":"narrow","target":"card"},"out":[["opacity","0.65"],["translate","calc((1 - var(--entered)) * var(--orbit-enter-x) + var(--scatter-x)) calc((1 - var(--entered)) * var(--orbit-enter-y) + var(--scatter-y))"]]}
+{"fn":"ioParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1600}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"y":{"den":1,"num":801}},"out":{"fromLive":false,"fromParked":true}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1600}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"y":{"den":1,"num":799}},"out":{"fromLive":false,"fromParked":false}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1600}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"y":{"den":1,"num":5000}},"out":{"fromLive":false,"fromParked":true}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":300},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1600}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":300},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"y":{"den":1,"num":1099}},"out":{"fromLive":false,"fromParked":false}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":300},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1600}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":300},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"y":{"den":1,"num":1100}},"out":{"fromLive":false,"fromParked":true}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":300},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1600}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":300},"h":{"den":1,"num":1600},"v":{"den":1,"num":800},"y":{"den":1,"num":1101}},"out":{"fromLive":false,"fromParked":true}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1688},"v":{"den":1,"num":844},"yPrev":{"den":1,"num":844}},"out":{"parked":false,"sentinelTop":{"den":1,"num":1688}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":1688},"v":{"den":1,"num":844},"y":{"den":1,"num":845}},"out":{"fromLive":false,"fromParked":true}}
+{"fn":"ioParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":100},"v":{"den":1,"num":800},"yPrev":{"den":1,"num":800}},"out":{"parked":false,"sentinelTop":{"den":1,"num":801}}}
+{"fn":"scrollParked","in":{"T":{"den":1,"num":0},"h":{"den":1,"num":100},"v":{"den":1,"num":800},"y":{"den":1,"num":5}},"out":{"fromLive":false,"fromParked":true}}
+{"fn":"utStep","in":{"event":"scroll","parked":false},"out":false}
+{"fn":"utStep","in":{"event":"scroll","parked":true},"out":false}
+{"fn":"utStep","in":{"event":"touch","parked":false},"out":false}
+{"fn":"utStep","in":{"event":"touch","parked":true},"out":false}
+{"fn":"utStep","in":{"event":"still","parked":false},"out":true}
+{"fn":"utStep","in":{"event":"still","parked":true},"out":true}

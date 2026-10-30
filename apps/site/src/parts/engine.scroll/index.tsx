@@ -4,6 +4,7 @@ import type { ScrollVariant } from './logic';
 import { installFollow, windowFollowEnv } from './follow';
 import { installThrottleLift } from './throttle';
 import { installUnthrottle } from './unthrottle';
+import { installUnthrottlePark, UNTHROTTLE_PARK } from './unthrottle-park';
 
 /**
  * Mounts the scroll engine's variant. Renders nothing (no DOM, no MUI), so `impl: plain` is the same code path: the
@@ -19,6 +20,7 @@ export function EngineScroll({ variant }: { variant: string; impl?: 'mui' | 'pla
     () => (variant === 'unthrottle' || variant === 'unthrottle-follow' ? installUnthrottle(document) : undefined),
     [variant],
   );
+  useEffect(() => (variant === UNTHROTTLE_PARK ? installUnthrottlePark(document, window) : undefined), [variant]);
   useEffect(
     () => (variant === 'unthrottle-follow' ? installFollow(getScrollEngine(), windowFollowEnv) : undefined),
     [variant],
