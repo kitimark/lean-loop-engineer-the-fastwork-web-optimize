@@ -51,8 +51,10 @@ MEASURED, run 41135293682, in `results/sim-end-floor/r1/rows.txt` (rows `round 1
   paint 1445, composite 360, schedule 360 over 360 frames). With all animations paused the base drops to 1 recalc per frame and 0 scheduled
   recalcs (row `round 1 paused base`: recalcs 360, schedule 0), and the v2p, minus-threaded and minus-unthrottle arms keep 2 recalcs and 360 scheduled
   per 360 frames when paused (rows `round 1 paused v2p`, `minusT`, `minusU`). All 3 rounds agree (rates in section 2).
-- The census lines say what was running: base 8 running document animations at the end (3 accent idle, 1 cue float, 4 platform sweep), v2p 5 (accent idle
-  is paused by `platform:faded-pause`), plus 13 finished view-timeline animations (`hero.exit:threaded`) and 1 finished scroll-timeline animation
+- The census lines say what was running: base 8 running document animations at the end (3 accent idle, 1 cue float, 4 platform sweep), v2p 5 (the 3 accent idle
+  animations no longer run: document finished 23 against 21 and document total 35 against 36, rows.txt:13,16); minusT and minusU run the same 8
+  as the base, accent idle included (rows.txt:19,22), so on this run platform:faded-pause stops accent idle only in the v2p arm (cause not
+  read, INFERRED); plus 13 finished view-timeline animations (`hero.exit:threaded`) and 1 finished scroll-timeline animation
   (`engine.scroll:unthrottle`) in the arms that carry the flags; paused, no animation is running (`running []`).
 - INFERRED: the floor of 1 recalc per frame that survives in the base with everything paused is not a flag effect and not an animation effect. Whether
   it comes from the page's own per-frame work or from the Timeline recording itself is not separated by this run. The scheduled-recalc column (0 in
