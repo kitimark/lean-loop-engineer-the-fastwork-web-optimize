@@ -16,7 +16,7 @@ what the page did, and a Lean rule sets it beside the rating.
 |---|---|---|
 | Frame times, long frames (> 17 ms, > 34 ms) | page `requestAnimationFrame` loop | hundredths of a ms |
 | Scroll trace | `scrollY` per frame; touch events (`s m e c`, x, y, finger count) | tenths of a px |
-| Style, layout, paint records per 500 px zone | Timeline on for the visit; `performance.mark('cap:<frame>')` joins records to frames; `reduceSteps` + `zones(500)` as the counts lane | records |
+| Style, layout, paint records per 500 px zone | Timeline on for the visit; `performance.mark('cap:<frame>')` joins records to frames; `reduceSteps` + `zones(500)` as the counts lane; the saved visit keeps the per-zone [style, layout, paint] in `feel.zones` | records |
 | Pin fights | every page call of `window.scrollTo` (the nav tween pins with `scrollTo({top, behavior:'instant'})`), against the scroll move of the frame before it | tenths of a px |
 | Tween re-targets | `window.__fwTakeTrace` `push` events with the tween progress at the start (only the geom-timed variant emits them) | per mille |
 | Hero-card blinks | computed opacity of every `hero.orbit_card` per frame | per mille |
@@ -62,6 +62,7 @@ and on a signal.
 | `--seed` defaulted to 0 | `feel start` refuses without `--seed` | CLI check |
 | Dry run 2026-10-30: 57% of steady 60 Hz moving frames counted as "long > 16.7 ms" (long17 475 of 739 moving gaps): Safari stamps frames to whole milliseconds, so a 16.7 ms frame reads 16 or 17 | limits 1670/3300 become 1700/3400 (`long17Cs`, `long33Cs`); the same visit files recount to 51 and 46 | golden `capconsts`, `longCount_stall`, `longCount_two_limits` |
 | Dry run 2026-10-30: `feel start` found "0 of 0 tabs" when Safari was not running | `tabsOfLaunching`: with no tab listed, launch Safari with `devicectl device process launch` once and list again; the tab choice stays `tabPlan` | MEASURED on the phone (Safari terminated, then launched by the helper, one `about:blank` tab); glue, no unit test |
+| Dry run 2026-10-30: `state.json` pin read `usbDropped` true after a normal clear | `dropWindow`: only log text before the owner's `fw-pin cleared pid=<pid>` line (or before our SIGTERM) can show a drop; the rule that uses the flag (`droppedClear`, `endVerdictDrop`) is unchanged | unit cases: normal clear then tunnel-closed line gives false; a mid-run drop gives true. TS stand-in for the log-window slice |
 
 ## Probe effect and limits (stated)
 
@@ -82,14 +83,19 @@ RUN 2026-10-30, iPhone 15 Pro Max on USB, unlocked, scripted swipe (no user inpu
 
 First attempt ended at start with "found 0 of 0 tabs": Safari was not running (probe: launching it with `devicectl` made the proxy list one `about:blank`
 tab). That is our harness gap, fixed (table above); no user-side setting was involved. Second attempt completed; the pin cleared (end `heatRemains`: the
-phone was still warm after the clear, as for any run; the condition owner exited and its clear was confirmed).
+phone was still warm after the clear, as for any run; the condition owner exited and its clear was confirmed); `state.json` pin records `acked` true and `usbDropped` true: the owner prints
+"userspace tunnel transport closed (device disconnected?); tearing down" on every normal exit, after its `fw-pin cleared` line, and the
+drop detector matched that line, so the flag was a false positive (no drop happened; `acked` true keeps the end verdict). Fixed after the run (table above).
 
 | Visit (arm) | frames | touch events | active frames | Timeline rows | card series | pins | re-targets |
 |---|---|---|---|---|---|---|---|
 | 1 (v2-proved) | 1542 | 319 | 1487 | 36894 | 10 cards x 1542 | 0 | 0 |
 | 2 (v2-proved+glint-hold) | 1528 | 313 | 1483 | 36556 | 10 cards x 1528 | 0 | 0 |
 
-Counts from Lean's `captureOf` (TS twin, golden-checked) over the saved visits, with the final limits 17 and 34 ms:
+Counts from Lean's `captureOf` (TS twin, golden-checked) over the saved visits (frames, pins, starts, opacity; recomputed from the visit files: moving gaps, long frames, reversals, pins, fights and blinks match
+this table), with the final limits 17 and 34 ms. The zone column is not recomputable from this run's visit files: they predate the fix that keeps the per-zone
+[style, layout, paint] counts in `feel.zones`, so its figures come from this run's `feel.json` `captures[].zoneWork` (style + layout + paint summed per zone). Visits
+saved from now on keep the per-zone counts per kind, and the zone column recomputes from them:
 
 | Visit | moving gaps | long > 17 ms | long > 34 ms | pins | fights | reversals | blinks | zones with work |
 |---|---|---|---|---|---|---|---|---|
@@ -102,7 +108,7 @@ Well-formedness (all hold): schema `fw.phone.record/1`; frames `t`, `y`, `vh`, `
 rise; the finger trace starts with `s` and ends with `e`, 6 start and 6 end events per visit; card opacity is 0 to 1000 for every frame and every card; Timeline rows are
 present and joined to frames by `cap:<frame>` marks (`zoneNote` null); the joint table printed, next to the ratings, per arm. Fields that
 stayed 0 and why: pins and fights (no nav tween in these arms), re-targets (only the geom-timed variant traces), blinks (opacity stayed 1000
-on every card), long > 34 ms (no two-frame stall). Only zone 0 has work: the scripted swipes moved the page at most 473 px, with 5 reversals.
+on every card), long > 34 ms (no two-frame stall). Only zone 0 has work: the scripted swipes moved the page at most 473 px (visit 1) and 483 px (visit 2) by `frames.y`, with 5 reversals in each.
 Printed joint lines: v2-proved "long>16.7ms 475, long>33ms 0, pin fights 0, blinks 0, most work in zone 0 (1 visit)" under the old limits.
 
 Not covered: a real finger path to the end of the page (pin fights, end-zone work), the blink detector on a real dip (unit tests and goldens

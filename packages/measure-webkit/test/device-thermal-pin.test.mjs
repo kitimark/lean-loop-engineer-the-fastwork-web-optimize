@@ -4,7 +4,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   ConditionOwner, DROP, OWNER_PY, PIN, blockValid, clearWait, closeAct, conditionSet, endVerdict, laneGates, lanesRun, mayKill, pinGate, pinTarget, pinWhy,
-  profileListed, profileOf, psInfo, recoverAct, stopAct, visitOk, whyPin, conditionSetDrop, droppedClear, endVerdictDrop, fallbackAct, recoverActD, termGate,
+  profileListed, profileOf, psInfo, recoverAct, stopAct, visitOk, whyPin, conditionSetDrop, droppedClear, dropInLog, dropWindow, endVerdictDrop, fallbackAct, recoverActD, termGate,
 } from '../src/device-thermal-pin.mjs';
 import { fakeWorld, mkOwner } from './pin-world.mjs';
 
@@ -318,5 +318,48 @@ test('a drop line from an earlier owner in the same log does not count for a new
     assert.equal(owner.usbDropped(), false);
     w.log += 'ConnectionTerminatedError: The DTX service channel is closed.\n';
     assert.equal(owner.usbDropped(), true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+const TEARDOWN = 'userspace tunnel transport closed (device disconnected?); tearing down\n';
+
+test('drop window: a tunnel-closed line counts only before the clear line, and before our SIGTERM when no clear line came', () => {
+  const clear = 'fw-pin held pid=7\nfw-pin cleared pid=7\n';
+  assert.equal(dropInLog(clear + TEARDOWN, 0, 7), false, 'normal clear then teardown');
+  assert.equal(dropInLog('fw-pin held pid=7\n' + TEARDOWN, 0, 7), true, 'mid-run drop, no clear line');
+  assert.equal(dropInLog('fw-pin held pid=7\n' + TEARDOWN + 'fw-pin cleared pid=7\n', 0, 7), true, 'drop before the clear line');
+  assert.equal(dropInLog('fw-pin held pid=7\n' + TEARDOWN, 0, 7, 'fw-pin held pid=7\n'.length), false, 'teardown after our SIGTERM, no clear line');
+  assert.equal(dropInLog(TEARDOWN + clear, TEARDOWN.length, 7), false, 'a line of an earlier owner does not count');
+  assert.equal(dropWindow(clear + TEARDOWN, 0, 7), 'fw-pin held pid=7\n');
+  assert.equal(dropWindow('fw-pin cleared pid=8\n' + TEARDOWN, 0, 7), 'fw-pin cleared pid=8\n' + TEARDOWN, 'another pid clear line is not ours');
+});
+
+test('a normal stop whose owner prints the tunnel-closed line after its clear gives usbDropped false', async () => {
+  const w = fakeWorld({ teardownLine: true });
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    const r = await owner.stop();
+    assert.equal(r.acked, true);
+    assert.ok(w.log.includes('tunnel transport closed'), 'the teardown line is in the log');
+    assert.equal(r.usbDropped, false);
+    assert.equal(owner.usbDropped(), false);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'pin-owner.json'), 'utf8')).usbDropped, false);
+    const next = new ConditionOwner({ dir, ...w.opts });
+    assert.equal(await next.recover({ read: () => 'Nominal' }), false);
+    assert.equal(w.spawned.length, 1);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a real drop mid-run gives usbDropped true, also after the owner has been stopped', async () => {
+  const w = fakeWorld({ teardownLine: true, ackOnTerm: false });
+  const { dir, owner } = mkOwner(w);
+  try {
+    await owner.start({ profile: 'ThermalSerious', target: 'Serious', before: 'Nominal' });
+    w.procs.clear();
+    w.log += TEARDOWN;
+    assert.equal(owner.usbDropped(), true);
+    const r = await owner.stop();
+    assert.equal(r.usbDropped, true);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

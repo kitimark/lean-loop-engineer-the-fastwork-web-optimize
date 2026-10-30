@@ -111,6 +111,17 @@ export function profileListed(listJson, profile) {
 
 const OWNER_FILE = 'pin-owner.json';
 const USB_DROP = /userspace tunnel transport closed|ConnectionTerminatedError|DTX service channel is closed/;
+
+/** The log text that can show a USB drop: from the owner's start to its clear line, or to our SIGTERM when the clear line
+ *  never came. The owner prints the tunnel-closed line on every normal exit, after the clear. */
+export function dropWindow(log, from, pid, termAt) {
+  const tail = log.slice(from ?? 0);
+  const clear = pid === undefined ? -1 : tail.indexOf(`fw-pin cleared pid=${pid}`);
+  const term = typeof termAt === 'number' ? Math.max(0, termAt - (from ?? 0)) : tail.length;
+  return tail.slice(0, clear >= 0 ? Math.min(clear, term) : term);
+}
+export const dropInLog = (log, from, pid, termAt) => USB_DROP.test(dropWindow(log, from, pid, termAt));
+
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** The owner process: set the condition, hold the connection, and on SIGTERM clear it on that same connection, wait for a
@@ -178,12 +189,13 @@ export class ConditionOwner {
 
   setAcked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin held pid=${pid}`); }
 
-  usbDropped() { return USB_DROP.test(this.readLog().slice(this.rec?.logFrom ?? 0)); }
+  usbDropped() { return dropInLog(this.readLog(), this.rec?.logFrom, this.rec?.pid, this.rec?.termAt); }
 
   acked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin cleared pid=${pid}`); }
 
   signal(sig) {
     if (!this.alive()) return false;
+    if (sig === 'SIGTERM' && this.rec.termAt === undefined) this.save({ termAt: this.readLog().length });
     try { this.kill(this.rec.pid, sig); return true; } catch { return false; }
   }
 

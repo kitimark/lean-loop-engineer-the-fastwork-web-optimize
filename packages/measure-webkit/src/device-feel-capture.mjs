@@ -129,7 +129,7 @@ export function rawRecord({ arm, pass, raw, rows, marks }) {
     schema: 'fw.phone.record/1', arm, pass, zoom: raw.zoom, maxY: raw.maxY, viewport: raw.viewport,
     frames: { t: raw.frames.t, y: raw.frames.y, vh: raw.frames.vh, vt: raw.frames.vt, p: raw.frames.p },
     touches: raw.touches,
-    feel: { active: raw.frames.a, opacity: inputs.cards, pins: raw.pins, starts: raw.starts, cardCount: raw.cards, zoneNote, timelineRows: rows?.length ?? 0 },
+    feel: { active: raw.frames.a, opacity: inputs.cards, pins: raw.pins, starts: raw.starts, cardCount: raw.cards, zones: inputs.zones, zoneNote, timelineRows: rows?.length ?? 0 },
   };
 }
 

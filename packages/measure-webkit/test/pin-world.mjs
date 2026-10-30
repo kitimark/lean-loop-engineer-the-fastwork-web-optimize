@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { ConditionOwner } from '../src/device-thermal-pin.mjs';
 
 export const T0 = 1_800_000_000_000;
-export const fakeWorld = ({ dieOn = ['SIGTERM'], listOk = true, spawnLives = true, ackOnTerm = true, heldAfterS = 0 } = {}) => {
+export const fakeWorld = ({ dieOn = ['SIGTERM'], listOk = true, spawnLives = true, ackOnTerm = true, heldAfterS = 0, teardownLine = false } = {}) => {
   const w = { t: T0, procs: new Map(), signals: [], spawned: [], runs: [], nextPid: 4000, log: '', heldAt: new Map() };
   const ps = (pid) => (w.procs.has(pid) ? { stat: 'S', start: w.procs.get(pid) } : null);
   w.opts = {
@@ -17,6 +17,7 @@ export const fakeWorld = ({ dieOn = ['SIGTERM'], listOk = true, spawnLives = tru
       if (!w.procs.has(pid)) { const e = new Error('ESRCH'); e.code = 'ESRCH'; throw e; }
       w.signals.push(sig);
       if (sig === 'SIGTERM' && ackOnTerm && dieOn.includes(sig)) w.log += `fw-pin cleared pid=${pid}\n`;
+      if (sig === 'SIGTERM' && teardownLine && dieOn.includes(sig)) w.log += 'userspace tunnel transport closed (device disconnected?); tearing down\n';
       if (dieOn.includes(sig)) w.procs.delete(pid);
     },
     run: (cmd, args) => { w.runs.push(args); return listOk ? { status: 0, stdout: JSON.stringify([{ identifier: 'ThermalCondition', profiles: [{ identifier: 'ThermalSerious' }, { identifier: 'ThermalFair' }] }]), stderr: '' } : { status: 1, stdout: '', stderr: 'x' }; },
