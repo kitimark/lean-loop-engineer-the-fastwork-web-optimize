@@ -5,14 +5,25 @@
 - `node packages/plan-lint/src/cli.ts [<note.md>...]` prints one `WARN path:line code detail` line per finding and a
   summary line, and always exits 0. With no files it reads every tracked `research/notes/**/*.md` and
   `docs/team/handoffs/*.md`.
+- `fw land`, dry and real, runs it over the notes and handoffs changed in main...branch (`landLint` in
+  `packages/plan-lint/src/land-lint.ts`, called from `apps/runner/src/land.ts`) and prints its lines. The land verdict and
+  exit code do not change; a lint that cannot run prints `claims lint: not run (...)`.
 - Every rule is Lean (`lean/Fw/Plan/Claims.lean`). The TypeScript in `packages/plan-lint/src/claims-lint.ts` reads the
   note, the artifacts it names and `git ls-files`, and asks `lean/scripts/ClaimsGolden.lean --serve` for the findings.
 - At aed97053b the lint finds 1432 warnings in 354 of 1177 files (table below). No existing note fails: the lint is a
   warning.
-- The refused rounds this lint catches: watch-memory r2 (`1.7 x` for 512 / 289, KiB divided by 1000), r3 (a measured
-  peak taken from a scratch sampler), end-floor-writes r2 (a range whose low end is below every listed value, wktr-j1
-  numbers quoted as wktr-j2), and nav-cta-webkit-match r2 (a table cell copied from the wrong row). Golden rows:
-  `packages/contracts/golden/plan/claims.jsonl`.
+- Refused fragments in the golden (`packages/contracts/golden/plan/claims.jsonl`, each row names the commit that holds
+  the fragment verbatim). The lint catches 2 of the 7:
+  - caught: end-floor-writes r2 "70 to 83" over the listed 83, 71, 81 (`rangeEnds`, 42c52ed52); watch-memory r2 "All
+    numbers below are MEASURED local harness numbers", with no run id and no committed path (`measuredNoSource`,
+    e64ac7211).
+  - unchecked, no artifact key: nav-cta-webkit-match r2 "within 10 px of its settled floor at 1280", true for exit only
+    (d547444e1); watch-memory r2 "1.7 x the after-arm peak", 512 / 289 with no operands written, and "sawtooth 150 to
+    860 MB", KiB divided by 1000 (e64ac7211); end-floor-writes r2 "32 frames with one recalc, 16 with two, 0 with none"
+    stated for the wrong rows, and the Lesson that generalized past j2 (42c52ed52, the Lesson in
+    `research/findings/ledger.json`).
+  - Rows named `variant` are built for the rule, not quoted: a wrong-row table cell, `512 / 289 = 1.7`, `152032/1000 =
+    148`, a scratch sampler path, misquoted `verdict.txt` lines. The lint catches each of them.
 
 ## Rules
 
@@ -79,12 +90,12 @@ section with no run id. The notes with the most warnings are `10-17-token-usage-
 
 ## Accepted limits
 
-- Warning only: the CLI exits 0, and no land or CI step runs it yet.
+- Warning only: the CLI exits 0 and `fw land` prints its lines without changing the verdict; no CI step runs it.
 - A number that names no key is unchecked, such as "within 10 px of its settled floor at 1280" (nav-cta-webkit-match
   r2) or "sawtooth 150 to 860 MB" without a key reference (watch-memory r2).
 - Formats beyond JSON keys and `.txt` lines are follow-ups (CSV, markdown tables in results, YAML).
-- Prose claims without numbers are unchecked, such as the end-floor-writes r2 Lesson that generalized from two jobs to
-  three.
+- Prose claims without numbers are unchecked, such as the end-floor-writes r2 Lesson "silence the six listed writer sets
+  and the floor stays", which the j2 qwrite `verdict.txt` line (cut 40 of 154) contradicts.
 - A chained sum such as `1250 + 900 + 900 = 3050` and any arithmetic inside a code span are unchecked.
 - The bound rule reads the words bound, bounds and bounded, so a timeout or a gate threshold called a bound also asks for
   a theorem name (most of the 67 `boundNoTheorem`).
@@ -99,5 +110,5 @@ section with no run id. The notes with the most warnings are `10-17-token-usage-
 
 ## Speed
 
-One local run over the 1177 default files took 34 s on this Mac, through the Lean interpreter. The 44 node tests take
+One local run over the 1177 default files took 34 s on this Mac, through the Lean interpreter. The 49 node tests take
 under 1 s.

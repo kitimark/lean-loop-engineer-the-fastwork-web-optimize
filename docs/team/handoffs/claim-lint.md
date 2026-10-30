@@ -1,7 +1,7 @@
 # Claim lint
 
-- Branch `worktree-wf_fa4e4bfe-ec3-1`, round 1. Rules, golden and plan-lint I/O in aed97053b; note, ledger row and
-  handoff in 29f57888f, init-cost fix a1941aa94. No CI runs.
+- Branch `worktree-wf_fa4e4bfe-ec3-1`, worktree `.claude/worktrees/wf_fa4e4bfe-ec3-1`, round 2 (round 1 refused: no
+  wiring, doctored golden rows named as refusals, note and ledger overstated). No CI runs.
 
 ## Rule (lean/Fw/Plan/Claims.lean)
 - Status tags: `claimOk` with `claim_ok_iff`, `confirmed_ok_iff`, `measured_ok_iff`, `measured_scratch_refused`,
@@ -12,15 +12,21 @@
 - `handle` serves `claims.reads` and `claims.lint`; `lean/scripts/ClaimsGolden.lean` prints, checks (`--check`) or
   serves (`--serve`) it.
 
+## Wiring
+- `landLint` (packages/plan-lint/src/land-lint.ts) runs `node packages/plan-lint/src/cli.ts <changed notes/handoffs>`;
+  the CLI builds `+Fw.Plan.Claims` first. `apps/runner/src/land.ts` calls it once per land (dry after the merge check,
+  real in the pre-lock slot, the locked merge or the card path) and pushes its lines; verdict and exit code unchanged.
+
 ## Verified
-- Golden `packages/contracts/golden/plan/claims.jsonl`, 40 rows from the refused fragments (nav-cta-webkit-match r2,
-  watch-memory r2/r3, end-floor-writes r1/r2); check.sh job "claims golden check"; lean.yml trigger row lists it.
-- check.sh green (a1941aa94); plan-lint node tests 44/44, tsc clean; ci-paths 56/56; land-inputs 73/73.
-- Corpus: 1432 warnings in 354 of 1177 files, listed in research/notes/2026/10-30-claim-lint.md. CLI exits 0.
-- `#print axioms`: `claim_ok_iff` none, the rest propext/Classical.choice/Quot.sound.
+- Golden `packages/contracts/golden/plan/claims.jsonl`, 42 rows: 7 real refused fragments (names carry the commit that
+  holds them verbatim), labelled variants, corpus rows. Caught: end-floor-writes r2 "70 to 83" (`rangeEnds`),
+  watch-memory r2 MEASURED with no source (`measuredNoSource`). Unchecked, no artifact key: nav-cta r2 "within 10 px
+  ... at 1280", watch-memory r2 "1.7 x" and "150 to 860 MB", end-floor-writes r2 frame counts and Lesson.
+- plan-lint node tests 49/49 (3 new for `landLint`).
 
 ## Open
-- `fw claims lint` dispatch in apps/runner/src/fw-main.ts and a fwcore op in lean/Fw/Wire/Plan.lean (outside writes).
-- plan-lint has no package.json, so land checks do not run its test; tsc borrows gh-budget's typeRoots.
-- The bound word fires on timeouts and thresholds (67 warnings); CSV/YAML formats are unchecked.
-- Read first: the `lintCases` table near the end of Claims.lean, then `lintNote` in packages/plan-lint/src/claims-lint.ts.
+- `fw claims lint` dispatch (apps/runner/src/fw-main.ts) and a fwcore op (lean/Fw/Wire/Plan.lean): outside writes.
+- plan-lint has no package.json, so land checks run apps/runner tests (they read packages/plan-lint/**), not its node
+  tests. A land-dry fixture test belongs in apps/runner/test (outside writes).
+- The bound word fires on timeouts and thresholds; CSV/YAML formats are unchecked.
+- Read first: `lintCases` near the end of Claims.lean, then `landLint` and `lintNote`.

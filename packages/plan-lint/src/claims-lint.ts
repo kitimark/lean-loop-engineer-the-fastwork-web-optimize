@@ -53,8 +53,9 @@ export function readArtifact(root: string, path: string): Artifact | null {
 export const trackedFiles = (root: string): Set<string> =>
   new Set(execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 }).split("\0").filter(Boolean));
 
-export const defaultTargets = (tracked: Set<string>): string[] =>
-  [...tracked].filter((p) => /^research\/notes\/.*\.md$/.test(p) || /^docs\/team\/handoffs\/[^/]+\.md$/.test(p)).sort();
+export const NOTE_RE = /^research\/notes\/.*\.md$|^docs\/team\/handoffs\/[^/]+\.md$/;
+
+export const defaultTargets = (tracked: Set<string>): string[] => [...tracked].filter((p) => NOTE_RE.test(p)).sort();
 
 export async function lintNote(server: ClaimsServer, root: string, path: string, text: string, tracked: Set<string>): Promise<Finding[]> {
   const r = (await server.ask({ op: "claims.reads", text })) as { reads: string[]; paths: string[] };
@@ -66,6 +67,8 @@ export async function lintNote(server: ClaimsServer, root: string, path: string,
 }
 
 export async function lintPaths(root: string, paths: string[], tracked = trackedFiles(root)): Promise<NoteFindings[]> {
+  if (!paths.length) return [];
+  execFileSync("lake", ["build", "+Fw.Plan.Claims"], { cwd: join(root, "lean"), stdio: ["ignore", 2, 2] });
   const server = new ClaimsServer(root);
   try {
     const out: NoteFindings[] = [];

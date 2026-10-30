@@ -769,7 +769,9 @@ def verdictLines : List String := [
   "end-floor wktr-j2 v2p qwrite: floor 154 arm 114 reference 114 per 100 frames, cut 40, band 2 spread 1, frames floor 531 reference 448 arm 448, leaks 0/0, verdict carries"]
 
 def flipRange (lo : Nat) : String :=
-  s!"({lo} to 83; `results/end-wktr-flip/r1/wktr-jN/accel-end-base-thr-off-1.json` `rows[rs-flip-pall]`: 83, 71, 81 per 100 frames)"
+  s!"- The floor here (133 to 154) is higher than the all-paused floor of the end-wktr-flip lane ({lo} to 83; " ++
+  "`results/end-wktr-flip/r1/wktr-jN/accel-end-base-thr-off-1.json`\n  `rows[rs-flip-pall]`: 83, 71, 81 per 100 frames). " ++
+  "What differs, from the mode strings (`packages/measure-wktr/src/accel-cli.mjs:31-39`):"
 
 structure Case where
   name : String
@@ -785,17 +787,20 @@ def verdictFile : String × Content := (verdictPath, .lines verdictLines)
 def navFile : String × Content := (navSummaryPath, .json navSummary)
 
 def lintCases : List Case := [
-  { name := "end-floor-writes r2: range low end below the least listed value", text := flipRange 70 },
-  { name := "end-floor-writes r2 fixed: range ends are the least and greatest", text := flipRange 71 },
-  { name := "watch-memory r2: a range over no key reference is unchecked",
+  { name := "end-floor-writes r2: range low end below the least listed value (42c52ed52)", text := flipRange 70 },
+  { name := "end-floor-writes r2 variant: range ends are the least and greatest", text := flipRange 71 },
+  { name := "watch-memory r2: a KiB/1000 range (e64ac7211), unchecked: no artifact key",
     text := "| before (whole-file reads) | 842 MB | 585 MB | -5 MB/min (sawtooth 150 to 860 MB, no trend) |" },
-  { name := "watch-memory r2 fixed: KiB over 1024", text := "Before-arm low sample: 152032/1024 = 148 MB." },
+  { name := "watch-memory r2 variant: KiB over 1024 written as MB", text := "Before-arm low sample: 152032/1024 = 148 MB." },
   { name := "watch-memory r2 variant: KiB over 1000 written as MB", text := "Before-arm low sample: 152032/1000 = 148 MB." },
-  { name := "watch-memory r2: 1.7 x written for 512 / 289",
+  { name := "watch-memory r2: 1.7 x with no written operands (e64ac7211), unchecked: no artifact key",
+    text := "The tick line's own reading (taken inside the tick, at its peak) was at most 289 MB. " ++
+      "`Fw.Ops.WatchMem.rssBoundKb` is 512 MB:\n1.7 x the after-arm peak, below the before-arm mean." },
+  { name := "watch-memory r2 variant: 1.7 x written with the operands 512 / 289",
     text := "`Fw.Ops.WatchMem.rssBoundKb` is 512 MB: 512 / 289 = 1.7 x the after-arm peak." },
-  { name := "watch-memory r2 fixed: 1.8 x",
+  { name := "watch-memory r2 variant: 1.8 x written with the operands 512 / 289",
     text := "`Fw.Ops.WatchMem.rssBoundKb` is 512 MB: 512 / 289 = 1.8 x the after-arm peak." },
-  { name := "nav-cta-webkit-match: captioned table equals summary.json", text := navNote 145,
+  { name := "nav-cta-webkit-match variant: captioned table equals summary.json", text := navNote 145,
     committed := [navSummaryPath], files := [navFile] },
   { name := "nav-cta-webkit-match variant: entry logical Settled copied from the exit row", text := navNote 153,
     committed := [navSummaryPath], files := [navFile] },
@@ -808,27 +813,31 @@ def lintCases : List Case := [
   { name := "nav-cta-webkit-match variant: key not in the file",
     text := s!"`{navSummaryPath}` `chromiumVsWebkit['1280/entry/smooth'].settledChanged` 145 px.",
     files := [navFile] },
-  { name := "nav-cta-webkit-match r2: a number that names no key is unchecked",
-    text := "The logical arm stays within 10 px of its settled floor at 1280." },
-  { name := "end-floor-writes r2: verdict.txt quote with elided parts",
+  { name := "nav-cta-webkit-match r2: a 1280 claim true for exit only (d547444e1), unchecked: no artifact key",
+    text := "- **Other animated parts do not differ** (INFERRED from a local debug run, not a result; the CI frames of run " ++
+      "40858439757 show the logical arm within 10 px of its settled floor at 1280): the unmask `mask-position` animation " ++
+      "and the `::after` sheen" },
+  { name := "end-floor-writes variant: verdict.txt quote with elided parts",
     text := s!"Source `{verdictPath}`: verdict.txt 'wktr-j2 v2p qwrite: floor 154 arm 114 ... cut 40 ... verdict carries'.",
     files := [verdictFile] },
-  { name := "end-floor-writes r2 variant: wktr-j1 numbers quoted under wktr-j2",
+  { name := "end-floor-writes variant: wktr-j1 numbers quoted under wktr-j2",
     text := s!"Source `{verdictPath}`: verdict.txt 'wktr-j2 v2p qwrite: floor 138 arm 133 ... cut 5'.",
     files := [verdictFile] },
-  { name := "end-floor-writes r2 variant: cut 4 is not cut 40",
+  { name := "end-floor-writes variant: cut 4 is not cut 40",
     text := s!"Source `{verdictPath}`: verdict.txt 'wktr-j2 v2p qwrite: floor 154 ... cut 4'.",
     files := [verdictFile] },
-  { name := "nav-cta-webkit-match fable: CONFIRMED with summary.json",
+  { name := "nav-cta-webkit-match variant: CONFIRMED with summary.json",
     text := "CONFIRMED summary.json `chromiumVsWebkit`: 1280/exit/logical maxChanged 163, settledChanged 153 (10)." },
-  { name := "end-floor-writes: CONFIRMED with a WebKit sha", text := "## Why (CONFIRMED, WebKit 862f17d, file:line)" },
-  { name := "mistake-retro: CONFIRMED from local journals only",
+  { name := "end-floor-writes (8fd84b2ba): CONFIRMED with a WebKit sha", text := "## Why (CONFIRMED, WebKit 862f17d, file:line)" },
+  { name := "mistake-retro (f35b1de4e): CONFIRMED from local journals only",
     text := "- **Review-loop counts are CONFIRMED** from the workflow run journals (local-only, `ready_to_land: false`):" },
-  { name := "nav-cta-webkit-match: MEASURED with a run id",
+  { name := "nav-cta-webkit-match (12fe2a483): MEASURED with a run id",
     text := "## Results (MEASURED, run 40858439757, head 07a9b1285; Linux Chrome Headless Shell and Playwright WebKit)" },
-  { name := "watch-memory r2: MEASURED with no run id and no committed path",
-    text := "All numbers below are MEASURED local harness numbers of our own tool (not a site result), copies of `.fw-console/` read through `FW_CONSOLE_DIR`." },
-  { name := "watch-memory r3: MEASURED locally from a scratch sampler",
+  { name := "watch-memory r2: MEASURED with no run id and no committed path (e64ac7211)",
+    text := "All numbers below are MEASURED local harness numbers of our own tool\n(not a site result), copies of " ++
+      "`.fw-console/` read through `FW_CONSOLE_DIR`, `FW_WATCH_REAP=0`, `--interval 60`\n" ++
+      "(stricter than the 300 s of the Monitor: more ticks per hour)." },
+  { name := "watch-memory variant: MEASURED locally from a scratch sampler",
     text := "MEASURED locally: at most 289 MB (sampler `scratchpad/wm/sample.mjs`)." },
   { name := "watch-memory variant: MEASURED with a committed artifact",
     text := "MEASURED locally: at most 289 MB (`results/watch-memory/samples.json`).",
@@ -839,24 +848,30 @@ def lintCases : List Case := [
     text := "INFERRED: a window whose frames each hold a recalc reads at least 100 per 100 frames, a lower bound (`rate_one_per_frame`)." },
   { name := "end-floor-writes variant: INFERRED bound without a theorem",
     text := "INFERRED: a window whose frames each hold a recalc reads at least 100 per 100 frames, a lower bound." },
-  { name := "end-floor-writes r2: a prose generalization without numbers is unchecked",
-    text := "Lesson: every writer job carries the cut, so the floor is set by the writers." },
+  { name := "end-floor-writes r2: a Lesson generalized past j2 (42c52ed52 ledger), unchecked: no artifact key",
+    text := "Lesson: The WebKit end-of-page floor is the flip's own running tracks (one recalc per frame), not a DOM write: " ++
+      "silence the six listed writer sets and the floor stays, so a writer-level cut cannot lower it; cutting it means " ++
+      "fewer or cheaper concurrent flip tracks, a look-change question." },
+  { name := "end-floor-writes r2: frame counts for the wrong rows (42c52ed52), unchecked: no artifact key",
+    text := "- j1 and j3: each rep window is 3 frames and holds 4 recalcs (frame counts 1, 1, 2: 32 frames with one recalc, 16 with\n" ++
+      "  two, 0 with none, in `rs-flip-pall` and `rs-flip-qwrite` alike). The extra recalc per rep is also there with all\n" ++
+      "  writers silenced (qwrite 133 and 135)." },
   { name := "fenced code is skipped", text := "```\nMEASURED 70 to 83: 83, 71, 81\n```\n" },
   { name := "geom-track-style: a claims legend carries all three tags",
     text := "Claims: CONFIRMED (source or Lean), MEASURED (CI run), INFERRED." },
   { name := "a tag inside a code span is a mention", text := "A `MEASURED` tag needs a run id." },
-  { name := "circleci-series: a heading tag draws on its section",
+  { name := "circleci-series variant: a heading tag draws on its section",
     text := "## Result (MEASURED)\n\n- First land: run 40858439757 read Actions `operational`.\n" },
   { name := "circleci-series variant: a heading tag over a section with no run id",
     text := "## Result (MEASURED)\n\n- First land: the decision read Actions `operational`.\n" },
-  { name := "pain-dark-scroll: a table row tag with no caption source",
+  { name := "pain-dark-scroll variant: a table row tag with no caption source",
     text := "| layer | base | arm | status |\n|---|---|---|---|\n| pseudo-element layers | none | 2, reason `animation`, backing 0 | MEASURED |\n" },
   { name := "pain-dark-scroll variant: a table row tag drawn from its caption",
     text := "Run 40858439757, layer tree dumps.\n\n| layer | base | arm | status |\n|---|---|---|---|\n| pseudo-element layers | none | 2, reason `animation`, backing 0 | MEASURED |\n" },
-  { name := "init-cost-depth: arithmetic inside a code span is unchecked", text := "Each definition holds more than 256 elements (`5 * 256 + 1 = 1281` lets)." },
-  { name := "carousel-swap-webkit: a chained sum is unchecked", text := "One cycle = 1250 + 900 + 900 = 3050 ms." },
-  { name := "jev-replay: a percent result", text := "Owner share 65/116 = 56.0 % of the replayed steps." },
-  { name := "jev-decision-model: a percent result without a space", text := "185/280 = 66% (modal owner per stream)." }]
+  { name := "init-cost-depth variant: arithmetic inside a code span is unchecked", text := "Each definition holds more than 256 elements (`5 * 256 + 1 = 1281` lets)." },
+  { name := "carousel-swap-webkit variant: a chained sum is unchecked", text := "One cycle = 1250 + 900 + 900 = 3050 ms." },
+  { name := "jev-replay variant: a percent result", text := "Owner share 65/116 = 56.0 % of the replayed steps." },
+  { name := "jev-decision-model variant: a percent result without a space", text := "185/280 = 66% (modal owner per stream)." }]
 
 def readCases : List Case := [
   { name := "reads: caption table file", text := navNote 145 },
