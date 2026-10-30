@@ -992,7 +992,6 @@ def goldenGateEvidence : System.FilePath :=
 def presetMembers (p sp : List Flag) : List (String × Flag) :=
   p.map ("v2-proved", ·) ++ sp.map ("shipped", ·)
 
-/-- **A new member without an admission row fails the preset check**: `run` throws on the non-empty list. -/
 theorem gate_fails_of_new_v2 {reg : List Reg} {ledger : List Row} {st : List Stored} {sp : List Flag} {f : Flag}
     (hf : f ∈ preset reg links ledger st) (h : GateEvidence.admissionOf GateEvidence.admissions "v2-proved" f = none) :
     GateEvidence.problems GateEvidence.runs GateEvidence.admissions GateEvidence.waivers

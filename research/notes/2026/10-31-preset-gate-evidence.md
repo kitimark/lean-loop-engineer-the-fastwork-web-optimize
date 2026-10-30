@@ -22,8 +22,8 @@ admission of a non-member, or a waiver of a proved member makes `problems` non-e
 
 ### Which flag set counts
 
-The admission set: the preset's exact flag set at the member's entry commit. The single flag is not enough. The gate
-compares readings of the whole page, and flags of different parts run on one page, so one flag can move the layout or
+The single flag is not enough. The gate
+compares readings of the whole page, and one flag can move the layout or
 timing another part's readings depend on. A pass of each flag alone then says nothing about the
 pair (INFERRED; no recorded run shows such an interaction yet). A pass of a superset does not cover the set either. The
 admission set is the set that shipped at that commit, so its pass is the claim the preset makes. The newest run decides,
@@ -74,7 +74,7 @@ output as quoted in the cited notes):
   0bd2a50c6:apps/site/src/registry/presets/v2-proved.json`).
 - The shipped preset was created with threaded already in it, so its unthrottle admission set holds threaded. That is why
   unthrottle is proved in v2-proved and pending in shipped.
-- The verdict of 39774976109 comes from its task's handoff, not a re-read merge log (as stated in the park-attrib note).
+- The verdict of 39774976109 comes from its task's handoff, not a re-read merge log.
 
 ## Output
 

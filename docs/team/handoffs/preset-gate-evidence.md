@@ -1,7 +1,7 @@
 # preset-gate-evidence handoff
 
 - Branch `worktree-wf_da121197-358-1`, worktree `.claude/worktrees/wf_da121197-358-1`. Last commit: see `git log -1` on the
-  branch (this file is committed with the work). No CI push; no CI runs started.
+  branch. No CI push; no CI runs started.
 - State: `lean/Fw/Preset/GateEvidence.lean` holds the gate-run table (`runs`), admissions, pinned waivers and the member
   rule `status`; `Fw.Preset.Gen.run` throws on `problems`, prints one `gate evidence:` line per member and writes
   `packages/contracts/golden/preset/gate-evidence.jsonl`.
