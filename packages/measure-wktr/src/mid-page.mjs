@@ -1001,6 +1001,7 @@ function pageProbe(P) {
     const smilSvgs = vv === 'smil' || vv === 'pall' || vv === 'pallf' || /^pbp/.test(vv) || isQ(vv) ? Array.from(document.querySelectorAll('svg')) : [];
     for (const g of smilSvgs) { try { g.pauseAnimations(); } catch (x) { } }
     if (smilSvgs.length) { out.rs.smilN = smilSvgs.length; await raf(); await raf(); await sleep(250); }
+    out.rs.parkDiag = { parked: document.querySelectorAll('[data-exit-parked]').length, live: document.querySelectorAll('[data-exit-live]').length, sd: document.getAnimations().filter((x) => x.timeline && x.timeline.constructor && x.timeline.constructor.name !== 'DocumentTimeline').length, all: document.getAnimations().length, sy: Math.round(scrollY), sh: document.scrollingElement.scrollHeight, vh: innerHeight, io: typeof IntersectionObserver };
     if (GH.read) {
       const t0 = performance.now();
       while (performance.now() - t0 < 4000) { const g = GH.read(); if (g[0] !== null && g[1] !== null) break; await sleep(100); }

@@ -139,7 +139,7 @@ jobs:
           RUNS: ${{ inputs.runs || '3' }}
           TARGET: ${{ inputs.target || 'both' }}
           PRESET: ${{ inputs.preset || 'original' }}
-          FW: ${{ inputs.fw || '' }}
+          FW: ${{ inputs.fw || 'morph.geom:on,morph.tween:geom-timed,platform:faded-pause,engine.scroll:unthrottle-park,hero.exit:threaded-park' }}
           ONLY: ${{ inputs.only || '' }}
           ARMS: ''
           EVENT: ${{ github.event_name }}
