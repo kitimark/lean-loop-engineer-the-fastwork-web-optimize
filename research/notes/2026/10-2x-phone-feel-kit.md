@@ -16,7 +16,7 @@ takes small local commands. The person on the phone never sees a flag name.
 | I/O glue (control server, pin gate, arm switch, start/stop) | `packages/measure-webkit/src/device-feel-run.mjs` | glue, no decision logic except `makeGate`, which calls `pinGate` |
 | CLI | `device-cli.mjs feel start | next | rate | status | stop` | |
 
-Order (CONFIRMED in Lean): the three same-look arms (session 1: `base`, `v2-proved` with 2 flags, `v2-proved+glint-hold`; session 2: `base`, `v2-proved`, `v2-proved-2flag`) are shown twice each,
+Order (CONFIRMED, `lean/Fw/Device/Feel.lean` `order_noRepeat`): the three same-look arms (session 1: `base`, `v2-proved` with 2 flags, `v2-proved+glint-hold`; session 2: `base`, `v2-proved`, `v2-proved-2flag`) are shown twice each,
 as `order = rot 3 r ++ rot 3 (r+1)` with `r = seed % 3`. Never the same arm twice in a row; each round shows every arm
 once; labels go by first appearance, so the letters are always `A B C B C A`. Four labelled look-change arms follow
 (`L1`..`L4`; session 1: `morph.end.nobounce`, `morph.stage`, `morph.geom`+`morph.tween:geom-timed`, `platform.sweep:layer-sweep`;

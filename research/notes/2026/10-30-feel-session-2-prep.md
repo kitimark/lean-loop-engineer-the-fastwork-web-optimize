@@ -24,8 +24,8 @@ would be one).
 
 ## Arms
 
-Same-look, blind, each shown twice, never twice in a row, letters per visit (A..F), order from `seed mod 3` (CONFIRMED,
-unchanged Lean rule: `order_noRepeat`, `order_count`, `labels_fresh`):
+Same-look, blind, each shown twice, never twice in a row, letters per visit (A..F), order from `seed mod 3` (CONFIRMED in `lean/Fw/Device/Feel.lean`,
+unchanged rule: `order_noRepeat`, `order_count`, `labels_fresh`):
 
 | Arm | Flags | Why |
 |---|---|---|
@@ -43,18 +43,18 @@ Labelled look arms, one visit each (L1 to L4), the person is told what to look a
 | L4 | `morph.stage:on` | the nav morph at the page end follows your finger; the page is longer |
 
 Why: L1 is the engine-parity look change (WebKit eases the earn button's padding as Chromium does; macOS WebKit 390 px
-cell passes, `10-2x-earn-logical-preset.md`); L2 is the compositor glint, a look change for the user's visual review
+cell passes, `research/notes/2026/10-2x-earn-logical-preset.md`); L2 is the compositor glint, a look change for the user's visual review
 (`platform.glint` part.json `compositor`); L3 and L4 are the two session-1 look arms the kit keeps (`morph.end.nobounce`, `morph.stage`), now as plain `:on` flags.
 `morph.stage:on` adds about 739 px to the page height (MEASURED in the 2026-10-29 dry run), hence the added words.
 
-## Arms built and resolving (MEASURED, local build, not a measurement)
+## Arms built and resolving (local build in this branch, `apps/site/dist/aot/configs.json`, not a measurement)
 
 The build command is generated from the arm list (`feel build-cmd`) and the six configs built in 1 s with all gates passing.
 `feel plan` read `dist/aot/configs.json` and found every arm's `?fw=` (the same `armHashes` rule `feel start` uses):
 base `""`, v2-proved `?fw=engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause`, v2-proved-2flag
 `?fw=engine.scroll:unthrottle,hero.exit:threaded`, and the four look flags.
 
-Conflicts with v2-proved (CONFIRMED from the part registry, then MEASURED by building): none of the four look flags is
+Conflicts with v2-proved (read from `apps/site/src/parts/*/part.json`, then confirmed by building each pair into `dist/aot`): none of the four look flags is
 listed in a `conflicts` entry against any of the three preset flags, and `v2-proved` plus each look flag built and resolved.
 The registry does list real conflicts: `platform/part.json` (line 48) declares `platform:faded-pause` against
 `morph.tween:waapi`, `morph.tween:waapi-scoped`, `platform.sweep:offscreen-pause` and `platform.glint:offscreen-pause`; none is a
@@ -66,8 +66,8 @@ alone against base"; it does not say how the flag behaves on the preset (follow-
 
 10 visits: 6 blind (3 arms x 2) and 4 labelled. Estimate 1235 s, about 21 min (`estimateS visits = 285 + visits x 95`, Lean
 `fixedS`, `visitS`, `estimateS_mono`, `estimateMin_ge`, golden row `estimate`). Sources: 285 s fixed and 20 s per visit for
-open, settle, scripted swipes and rating are the 2026-10-29 dry run (8 min from pin start to cleared pin, 196 s of it the
-drive over 10 visits, MEASURED); 60 s for a person scrolling slowly to the end and back and 15 s to relay `next` and `rate` are INFERRED.
+open, settle, scripted swipes and rating are the 2026-10-29 dry run in `research/notes/2026/10-2x-phone-feel-kit.md` (8 min from pin start to cleared pin, 196 s of it the
+drive over 10 visits); 60 s for a person scrolling slowly to the end and back and 15 s to relay `next` and `rate` are INFERRED.
 It is an estimate; add up to 3 min if the pin takes longer to reach Serious (gate bound 180 s).
 
 ## The script
