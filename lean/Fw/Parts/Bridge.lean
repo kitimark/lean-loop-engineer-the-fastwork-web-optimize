@@ -437,7 +437,7 @@ def codeAdj : List (List Nat) :=
    [12],
    [9],
    [],
-   [3, 4, 7, 8, 10],
+   [3, 4, 7, 8, 10, 16, 17, 24],
    [4, 7, 8, 9],
    [0, 1, 2, 4, 6, 7, 8, 9, 10, 14, 16, 18, 20, 21, 22, 24, 26, 27, 28],
    [6],
@@ -537,12 +537,12 @@ theorem selfIndep_not_readsOnly (ps : List PartSpec) (j : Nat) (P : PartSpec) (h
     · simp [hij]
   simp at this
 
-/-- Six code rows are `Independent` of themselves.
+/-- Five code rows are `Independent` of themselves.
 
 So `Indep` must exclude `i = j`. -/
 theorem selfIndep_code :
     (codeParts.filter fun P => independent P P).map (·.id) =
-      ["engine.scroll", "hero.cue", "hero.deck", "people", "platform.marquee", "platform.stageBg"] := by
+      ["hero.cue", "hero.deck", "people", "platform.marquee", "platform.stageBg"] := by
   decide
 
 /-- **Chains break the literal `Indep`.** If `p` reaches `q ≠ p` and the parts at `p` and `q` are `Independent`, the
@@ -589,7 +589,7 @@ theorem chainPairs_code_iff (p q : Nat) :
     have hp : p < 34 := hlen ▸ (List.getElem?_eq_some_iff.mp hP).1
     exact ⟨p, hp, q, ⟨(reach_code_iff hp q).mp hr, fun h => hne h.symm, (indepAt_iff _ _ _).mpr hind⟩, rfl, rfl⟩
 
-theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 289 := by decide +kernel
+theorem chainPairs_code_length : (chainPairs codeParts codeAdj 6).length = 285 := by decide +kernel
 
 
 theorem chainTargets_code :
@@ -598,27 +598,27 @@ theorem chainTargets_code :
         [],
         [3, 12, 17, 25],
         [1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 14, 18, 20, 21, 25, 29, 30, 33, 31, 32],
-        [0, 1, 3, 6, 7, 8, 12, 14, 18, 20, 21, 22, 24, 27, 17, 25, 29, 30, 31, 32],
+        [0, 1, 3, 6, 7, 8, 12, 14, 17, 18, 20, 21, 22, 24, 27, 25, 29, 30, 31, 32],
         [3, 17, 25, 29, 30, 31, 32, 33],
         [],
-        [3, 4, 8, 0, 17, 22, 24, 27, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 31, 32],
+        [3, 4, 8, 17, 24, 0, 12, 14, 18, 21, 22, 27, 1, 6, 20, 25, 29, 30, 31, 32],
         [],
-        [0, 17, 22, 24, 27, 1, 6, 12, 14, 18, 20, 21, 25, 29, 30, 31, 32],
-        [3, 0, 1, 6, 12, 14, 17, 18, 20, 21, 22, 24, 27, 25, 29, 30, 31, 32],
+        [0, 12, 14, 18, 21, 22, 27, 1, 6, 20, 25, 29, 30, 31, 32],
+        [3, 17, 24, 0, 1, 6, 12, 14, 18, 20, 21, 22, 27, 25, 29, 30, 31, 32],
         [3, 12, 17, 25, 29, 30, 31, 32],
         [],
         [8, 14, 18, 31, 32],
         [0, 1, 3, 4, 6, 7, 8, 9, 10, 12, 13, 17, 18, 20, 21, 22, 24, 25, 26, 27, 29, 30, 31, 32],
         [31, 32],
         [1, 6, 20, 25, 27, 29, 30, 31, 32],
-        [1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 14, 20, 21, 22, 25, 27, 29, 30, 33, 31, 32],
+        [1, 2, 4, 5, 6, 7, 8, 10, 11, 12, 14, 20, 21, 22, 25, 27, 29, 30, 33, 31, 32],
         [],
         [],
         [],
         [0, 3, 17, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 27, 29, 30, 31, 32],
         [1, 9, 17, 27, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
         [],
-        [0, 1, 4, 6, 7, 8, 9, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
+        [0, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
         [],
         [8, 14, 18, 31, 32],
         [0, 9, 16, 17, 21, 22, 1, 4, 6, 7, 8, 10, 12, 14, 18, 20, 25, 29, 30, 31, 32],
