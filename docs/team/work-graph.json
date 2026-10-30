@@ -24428,7 +24428,8 @@
     "packages/contracts/golden/preset/shipped.decisions.jsonl",
     "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
     "packages/contracts/golden/preset/look-change.candidates.jsonl"
-   ]
+   ],
+   "evidence": "d8e88ec"
   }
  ],
  "deadline": {

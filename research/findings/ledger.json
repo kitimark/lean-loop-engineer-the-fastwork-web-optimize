@@ -4707,6 +4707,80 @@
    "lesson": "At n = 4 a wide reference spread (Paint 9600 to 13104) hides any effect of hiding the pictures; decide with a larger n or a lower base spread, and separate decode from paint with a second probe.",
    "next": "A larger n or a lower base spread to decide the base contrast; a decode-versus-paint probe.",
    "evidence": "research/notes/2026/10-2x-phone-cols-probe.md (task phone-cols-probe)"
+  },
+  {
+   "n": 96,
+   "id": "hero.exit.threaded-park",
+   "part": "hero.exit",
+   "candidate": "hero.exit:threaded-park: threaded plus a park. While the end of the exit range is more than one viewport above the viewport top, the finished scroll-driven animations of the hero copy, cue and cards are cancelled (animation-name: none) and each target holds its keyframe end value as static style; the park is restored by an IntersectionObserver step or a scroll event.",
+   "status": "not-proved",
+   "flag": "hero.exit:threaded-park",
+   "flags": [
+    "hero.exit:threaded-park"
+   ],
+   "visClass": "L",
+   "chromium": "pass",
+   "webkit": "fail",
+   "visual": "INFERRED: look-change class L: the park holds the card translate formula and Playwright WebKit reads -0.000022px -0.000015px (hero.orbit, 1060 probes) against the original 0px, and hero.deck -0.00001px -0.000008px (164 probes), gate run 41054732597 (the pair with engine.scroll:unthrottle-park); chromium passes. The baseline gate run 41058963051 had no flags (no hero.exit:threaded), so whether the failure comes from the park or from threaded is INFERRED, untested. The Lean identity held_eq_shown holds for the formula, not for the computed 0px of the unparked page, so the gate refuses same-look.",
+   "mechanism": "INFERRED from WebKit 862f17d: a finished animation on a non-monotonic timeline stays relevant and is ticked every frame (WebAnimation.cpp:1729, AnimationTimelinesController.cpp:128-181); an idle (cancelled) one leaves the set. Measurement pending.",
+   "leanFor": [
+    "Fw.Parts.ScrollPark.held_eq_shown",
+    "Fw.Parts.ScrollPark.finished_shows_to",
+    "Fw.Parts.ScrollPark.props_distinct",
+    "Fw.Parts.ScrollPark.rows_names_eq_exitNames",
+    "Fw.Parts.ScrollPark.io_no_stale",
+    "Fw.Parts.ScrollPark.io_restores",
+    "Fw.Parts.ScrollPark.scroll_no_stale",
+    "Fw.Parts.ScrollPark.scroll_restores"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "iOS Safari with threaded scroll-driven animations ON",
+    "Why the computed translate of the finished animation is 0px while the formula gives a residual"
+   ],
+   "premises": [
+    "The observer fires one rendering update after the frame that moved the sentinel (io_no_stale assumes a per-frame jump of at most one viewport): INFERRED",
+    "A scroll event of a frame is dispatched before the animations update (scroll_no_stale): INFERRED, not read from the pinned source in this row"
+   ],
+   "v1Evidence": "",
+   "lesson": "INFERRED: A park that holds a calc() value must be gated on the computed string: the formula's residual (about 2e-5 px) differs from the 0px the finished animation shows. INFERRED, not tested: an IntersectionObserver on a thin sentinel reports only state changes, so a jump over it may never park; the floor was cut in 1 of 3 WKTR jobs per run (runs 41045232315, 41050949125).",
+   "next": "Gate ?fw=engine.scroll:unthrottle,hero.exit:threaded on the same commit to locate the translate difference; then hold the card translate as the computed end value, add a jump-proof park trigger with a Lean delivery rule, then re-run the WKTR park arms and the gate.",
+   "evidence": "run:41045232315 run:41050949125 run:41054732597 research/notes/2026/10-30-scrolldriven-park.md"
+  },
+  {
+   "n": 97,
+   "id": "engine.scroll.unthrottle-park",
+   "part": "engine.scroll",
+   "candidate": "engine.scroll:unthrottle-park: unthrottle that cancels its flag animation (fw-ut) after 8 still frames (134 ms) and restores it at the next touch start or scroll event.",
+   "status": "partly-proved",
+   "flag": "engine.scroll:unthrottle-park",
+   "flags": [
+    "engine.scroll:unthrottle-park"
+   ],
+   "visClass": "E",
+   "chromium": "pass",
+   "webkit": "unknown",
+   "visual": "same look, class E: Fw.Parts.ScrollPark.ut_look_identity (the flag animates a custom property no style reads; the visible scene is that of the page without the flag, parked or not).",
+   "mechanism": "INFERRED from WebKit 862f17d, as for hero.exit:threaded-park; the throttle decision is WKWebViewIOS.mm:3256-3268. While parked the page is throttled on iOS again (parked_throttles); restored it lifts the throttle (restored_unthrottles). Measurement pending.",
+   "leanFor": [
+    "Fw.Parts.ScrollPark.ut_look_identity",
+    "Fw.Parts.ScrollPark.ut_scroll_unparks",
+    "Fw.Parts.ScrollPark.ut_touch_unparks",
+    "Fw.Parts.ScrollPark.ut_park_only_still",
+    "Fw.Parts.ScrollPark.parked_throttles",
+    "Fw.Parts.ScrollPark.restored_unthrottles"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Whether the restore at touch start precedes the first scroll update on the phone (live_at_scroll_iff is a conditional)"
+   ],
+   "premises": [
+    "touchstart is delivered at least one frame before the first scroll update of a touch scroll: INFERRED, open on the device"
+   ],
+   "v1Evidence": "",
+   "lesson": "Alone, engine.scroll:unthrottle holds the whole end-of-page floor (576 of 576 frames, base 0; run 41045232315); a park of it alone cannot cut the floor while hero.exit:threaded still carries it (split verdict shared). Its WebKit gate cell is unread alone: the pair run 41054732597 failed only in hero.orbit and hero.deck.",
+   "next": "Gate this flag alone on playwright-webkit, then pair it with a reliable hero park.",
+   "evidence": "run:41045232315 run:41054732597 research/notes/2026/10-30-scrolldriven-park.md"
   }
  ],
  "notes": [

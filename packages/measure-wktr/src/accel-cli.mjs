@@ -15,7 +15,8 @@ import { glintCompositorLines } from './glint-compositor.mjs';
 import { jobLinesE } from './end-wktr.mjs';
 import { FLOOR_ARMS, FLOOR_OPTS, QSETS, jobLinesF } from './end-floor.mjs';
 import { ARMS as PROBE_ARMS, jobLinesP } from './end-floor-probe.mjs';
-import { jobLinesD } from './end-floor-dirty.mjs';
+import { jobLinesD, rowLineD } from './end-floor-dirty.mjs';
+import { PARK_ARMS, PARK_FW, PARK_KEYS, isParkMode, parkMode } from './scroll-park.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ARCHIVE = JSON.parse(readFileSync(join(HERE, 'archive.json'), 'utf8'));
@@ -36,6 +37,7 @@ export const MODES = {
   'end-both-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform:faded-pause,platform.glint:compositor',
   'floor-v2p-thr-off': 'morph.geom:on,morph.tween:geom-timed,engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause',
   'probe-v2p-thr-off': 'morph.geom:on,morph.tween:geom-timed,engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause',
+  ...Object.fromEntries(PARK_KEYS.map((k) => [parkMode(k), PARK_FW[k]])),
 };
 export const MID_AT = [0.3, 0.5, 0.8];
 export const MID_ARMS = ['all', 'idle', 'no-translate', 'no-transform', 'none', 'all-again'];
@@ -59,7 +61,7 @@ export const END_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true, gk: true, lay: t
 export const GLINT_BASE_ARMS = ['rs-idle', 'rs-idle-smil', 'rs-idle', 'rs-flip', 'rs-flip-smil', 'rs-flip'];
 export const GLINT_HOLD_ARMS = ['rs-idle', 'rs-flip'];
 export const GLINT_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true, gk: true };
-export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) || isEnd(mode) || isFloor(mode) || isProbe(mode) ? `${base} ${THREADED_OFF}` : base);
+export const headerOf = (mode, base) => (mode === 'mid-thr-off' || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) || isEnd(mode) || isFloor(mode) || isProbe(mode) || isParkMode(mode) ? `${base} ${THREADED_OFF}` : base);
 
 async function main() {
   const { values: v, positionals } = parseArgs({
@@ -94,14 +96,14 @@ async function main() {
   try {
     for (const mode of modes) {
       const search = `?fw=${MODES[mode]}`;
-      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) || isEnd(mode) || isFloor(mode) || isProbe(mode) ? 'timed' : mode, arms: arms ?? (isProbe(mode) ? PROBE_ARMS : isFloor(mode) ? FLOOR_ARMS : isEnd(mode) ? END_ARMS[END_KEY(mode)] : isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : isRecalc(mode) ? RS_ARMS : isBisect(mode) ? BS_ARMS : isGlint(mode) ? (mode === 'glint-base-thr-off' ? GLINT_BASE_ARMS : GLINT_HOLD_ARMS) : undefined), mid: isMid(mode) ? MID_AT : undefined, ...(isGlint(mode) ? GLINT_OPTS : isEnd(mode) ? END_OPTS : isProbe(mode) ? FLOOR_OPTS : isFloor(mode) ? { ...FLOOR_OPTS, qsets: QSETS } : {}) }));
+      const srv = await serveBuilt(dist, search, accelHarnessSource({ mode: isMid(mode) || isSweep(mode) || isRecalc(mode) || isBisect(mode) || isGlint(mode) || isEnd(mode) || isFloor(mode) || isProbe(mode) || isParkMode(mode) ? 'timed' : mode, arms: arms ?? (isParkMode(mode) ? PARK_ARMS : isProbe(mode) ? PROBE_ARMS : isFloor(mode) ? FLOOR_ARMS : isEnd(mode) ? END_ARMS[END_KEY(mode)] : isMid(mode) ? MID_ARMS : isSweep(mode) ? SWEEP_ARMS : isRecalc(mode) ? RS_ARMS : isBisect(mode) ? BS_ARMS : isGlint(mode) ? (mode === 'glint-base-thr-off' ? GLINT_BASE_ARMS : GLINT_HOLD_ARMS) : undefined), mid: isMid(mode) ? MID_AT : undefined, ...(isGlint(mode) ? GLINT_OPTS : isEnd(mode) ? END_OPTS : isProbe(mode) || isParkMode(mode) ? FLOOR_OPTS : isFloor(mode) ? { ...FLOOR_OPTS, qsets: QSETS } : {}) }));
       console.log(`mode ${mode}: serving ${srv.url}${search}`);
       try {
         for (let p = 1; p <= passes; p++) {
           let r, attempts = 0;
           for (;;) {
             attempts++;
-            try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: `${srv.url}${search}`, header: headerOf(mode, v.header), timeoutMs: isProbe(mode) ? Math.max(Number(v.timeout), 2400000) : isEnd(mode) || isFloor(mode) ? Math.max(Number(v.timeout), 1500000) : isBisect(mode) || isGlint(mode) ? Math.max(Number(v.timeout), 840000) : Number(v.timeout) }); break; }
+            try { r = await runOnce({ udid: dev.udid, root, bundleId: ARCHIVE.bundleId, url: `${srv.url}${search}`, header: headerOf(mode, v.header), timeoutMs: isProbe(mode) || isParkMode(mode) ? Math.max(Number(v.timeout), 2400000) : isEnd(mode) || isFloor(mode) ? Math.max(Number(v.timeout), 1500000) : isBisect(mode) || isGlint(mode) ? Math.max(Number(v.timeout), 840000) : Number(v.timeout) }); break; }
             catch (e) {
               console.log(`mode ${mode} pass ${p} attempt ${attempts} failed: ${String(e.message).split('\n')[0].slice(0, 300)}`);
               if (attempts > 2 || !/closed before the end marker|did not connect/.test(e.message)) { r = null; failures.push(`${mode}-${p}: ${String(e.message).split('\n')[0].slice(0, 200)}`); break; }
@@ -143,6 +145,9 @@ async function main() {
           if (isProbe(mode)) {
             try { for (const l of jobLinesP(`${v.label} ${mode} pass ${p}`, got.report).lines) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: probe summary failed ${String(e.message).slice(0, 120)}`); }
             try { for (const l of jobLinesD(`${v.label} ${mode} pass ${p}`, got.report).lines) console.log(l); } catch (e) { console.log(`${mode} pass ${p}: dirty summary failed ${String(e.message).slice(0, 120)}`); }
+          }
+          if (isParkMode(mode)) {
+            try { got.report.rows.forEach((row, i) => { if (row.rs?.dn) console.log(rowLineD(`${v.label} ${mode}`, `accel-${mode}-${p}.json`, i, row, 1)); }); } catch (e) { console.log(`${mode} pass ${p}: park summary failed ${String(e.message).slice(0, 120)}`); }
           }
           if (isEnd(mode)) {
             endReports.set(`${END_KEY(mode)}:${p}`, got.report);

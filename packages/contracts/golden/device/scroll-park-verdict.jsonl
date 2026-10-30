@@ -1,0 +1,30 @@
+{"band":10,"kind":"consts","minRead":288}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":100,"recalcs":100},"kind":"split","minusF":{"frames":576,"recalcs":590},"name":"short","onlyF":{"frames":576,"recalcs":590},"verdict":"unread"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":25},"kind":"split","minusF":{"frames":576,"recalcs":25},"name":"no floor","onlyF":{"frames":576,"recalcs":25},"verdict":"noFloor"}
+{"base":{"frames":576,"recalcs":590},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":590},"name":"base keeps a floor","onlyF":{"frames":576,"recalcs":590},"verdict":"baseFloor"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":590},"name":"the flag alone holds nothing","onlyF":{"frames":576,"recalcs":25},"verdict":"innocent"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":25},"name":"sole carrier","onlyF":{"frames":576,"recalcs":590},"verdict":"sole"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":590},"name":"shared carrier","onlyF":{"frames":576,"recalcs":590},"verdict":"shared"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":590},"name":"onlyF at the band","onlyF":{"frames":576,"recalcs":57},"verdict":"innocent"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":590},"name":"onlyF one above the band","onlyF":{"frames":576,"recalcs":58},"verdict":"innocent"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":57},"name":"minusF at the band","onlyF":{"frames":576,"recalcs":590},"verdict":"sole"}
+{"base":{"frames":576,"recalcs":25},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":58},"name":"minusF one above the band","onlyF":{"frames":576,"recalcs":590},"verdict":"sole"}
+{"base":{"frames":576,"recalcs":57},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":57},"name":"base at the band","onlyF":{"frames":576,"recalcs":590},"verdict":"sole"}
+{"base":{"frames":576,"recalcs":58},"full":{"frames":576,"recalcs":590},"kind":"split","minusF":{"frames":576,"recalcs":57},"name":"base one above the band","onlyF":{"frames":576,"recalcs":590},"verdict":"sole"}
+{"kind":"park","name":"short","off":{"frames":100,"recalcs":5},"on":{"frames":100,"recalcs":100},"verdict":"unread"}
+{"kind":"park","name":"frames differ","off":{"frames":575,"recalcs":5},"on":{"frames":576,"recalcs":590},"verdict":"unread"}
+{"kind":"park","name":"no floor","off":{"frames":576,"recalcs":5},"on":{"frames":576,"recalcs":25},"verdict":"noFloor"}
+{"kind":"park","name":"cut","off":{"frames":576,"recalcs":25},"on":{"frames":576,"recalcs":590},"verdict":"cut"}
+{"kind":"park","name":"cut at the band","off":{"frames":576,"recalcs":57},"on":{"frames":576,"recalcs":590},"verdict":"cut"}
+{"kind":"park","name":"partial","off":{"frames":576,"recalcs":300},"on":{"frames":576,"recalcs":590},"verdict":"partial"}
+{"kind":"park","name":"partial one over the band","off":{"frames":576,"recalcs":58},"on":{"frames":576,"recalcs":590},"verdict":"cut"}
+{"kind":"park","name":"none","off":{"frames":576,"recalcs":585},"on":{"frames":576,"recalcs":590},"verdict":"none"}
+{"kind":"park","name":"none at the margin","off":{"frames":576,"recalcs":530},"on":{"frames":576,"recalcs":590},"verdict":"none"}
+{"kind":"overallS","name":"all shared","overall":"shared","verdicts":["shared","shared","shared"]}
+{"kind":"overallS","name":"one sole","overall":"mixed","verdicts":["shared","sole","shared"]}
+{"kind":"overallS","name":"one unread","overall":"shared","verdicts":["shared","unread","shared"]}
+{"kind":"overallS","name":"two unread","overall":"inconclusive","verdicts":["shared","unread","unread"]}
+{"kind":"overallP","name":"all cut","overall":"cut","verdicts":["cut","cut","cut"]}
+{"kind":"overallP","name":"one partial","overall":"mixed","verdicts":["cut","partial","cut"]}
+{"kind":"overallP","name":"one unread","overall":"cut","verdicts":["cut","unread","cut"]}
+{"kind":"overallP","name":"two unread","overall":"inconclusive","verdicts":["cut","unread","unread"]}

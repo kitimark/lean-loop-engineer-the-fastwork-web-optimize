@@ -1,0 +1,6 @@
+j1 park-both-thr-off accel-park-both-thr-off-1.json rows[0] rs-idle-pbpd: frames 576 recalcs 1 rate 0 per 100 rAF callbacks
+j1 park-v2p-thr-off accel-park-v2p-thr-off-1.json rows[0] rs-idle-pbpd: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+j2 park-both-thr-off accel-park-both-thr-off-1.json rows[0] rs-idle-pbpd: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+j2 park-v2p-thr-off accel-park-v2p-thr-off-1.json rows[0] rs-idle-pbpd: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+j3 park-both-thr-off accel-park-both-thr-off-1.json rows[0] rs-idle-pbpd: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
+j3 park-v2p-thr-off accel-park-v2p-thr-off-1.json rows[0] rs-idle-pbpd: frames 576 recalcs 576 rate 100 per 100 rAF callbacks
