@@ -77,7 +77,7 @@ Blending and printing (all CONFIRMED):
 - `scroll_timeline.cc:166-172` keeps offsets in double and times in µs (`scroll_timeline.h:51`). (CONFIRMED)
 - `timing_calculations.cc:27-29` sets a 1 µs `TimeTolerance`. `:35-42` and `:95-101` snap a local time within that
   tolerance onto the before/active boundary, so progress is exactly 0. (CONFIRMED)
-- The view-timeline range math in Blink was not read, so it is INFERRED that this snap is what yields 0 px here.
+- Blink's view-timeline range math was not read, so the snap as the cause of 0 px is INFERRED.
 
 ## Measurement (run 41087718575, artifact `gate-merged-playwright-webkit`)
 
@@ -96,7 +96,6 @@ Blending and printing (all CONFIRMED):
 
 ## Lean (`lean/Fw/Parts/HeroExitSubpixel.lean`, imported in `lean/Fw.lean`)
 
-All numbers in the file are derived; none are copied in by hand.
 - The scatter bounds come from `HeroOrbit.scatterX/scatterY` and `HeroDeck.slots`.
 - The track height comes from `HeroExit.trackHeightPx` (`trackPx_eq`).
 - `roundBits` models IEEE round-to-nearest; `ieee_steps` checks the binade and the no-tie case for each of the seven
