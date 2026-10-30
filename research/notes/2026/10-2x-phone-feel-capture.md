@@ -93,9 +93,8 @@ drop detector matched that line, so the flag was a false positive (no drop happe
 | 2 (v2-proved+glint-hold) | 1528 | 313 | 1483 | 36556 | 10 cards x 1528 | 0 | 0 |
 
 Counts from Lean's `captureOf` (TS twin, golden-checked) over the saved visits (frames, pins, starts, opacity; recomputed from the visit files: moving gaps, long frames, reversals, pins, fights and blinks match
-this table), with the final limits 17 and 34 ms. The zone column is not recomputable from this run's visit files: they predate the fix that keeps the per-zone
-per-zone `COUNT_TYPES` counts in `feel.zones`, so its figures come from this run's `feel.json` `captures[].zoneWork` (style + layout + paint summed per zone). Visits
-saved from now on keep the per-zone counts per kind, and the zone column recomputes from them:
+this table), with the final limits 17 and 34 ms. The zone column is not recomputable from this run's visit files: they predate the fix that keeps the per-zone `COUNT_TYPES` counts in `feel.zones`, so its figures come from this run's `feel.json` `captures[].zoneWork` (style + layout + paint summed per zone). Visits
+saved from now on recompute the zone column from `feel.zones`:
 
 | Visit | moving gaps | long > 17 ms | long > 34 ms | pins | fights | reversals | blinks | zones with work |
 |---|---|---|---|---|---|---|---|---|
