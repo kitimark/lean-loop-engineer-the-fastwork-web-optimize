@@ -24253,7 +24253,18 @@
     "results/end-floor-window/**",
     "research/notes/2026/10-2x-end-floor-window.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/end-floor-window.md"
+    "docs/team/handoffs/end-floor-window.md",
+    "lean/Fw/Device/EndFloor*.lean",
+    "lean/Fw/Parts/FlipAccel*.lean",
+    "lean/scripts/EndFloor*Golden.lean",
+    "lean/scripts/FlipAccel*Golden.lean",
+    "packages/contracts/golden/device/end-floor*.jsonl",
+    "packages/contracts/golden/parts/flip-accel*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts"
    ]
   },
   {
@@ -24285,6 +24296,31 @@
     "research/findings/ledger.json",
     "apps/runner/src/land.ts",
     "docs/team/handoffs/flip-accel-webkit.md"
+   ],
+   "evidence": "707dbae"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "feel-session-2-prep",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "phone-feel-capture"
+   ],
+   "title": "Prepare the next captured phone feel session: arms from the generated presets (v2-proved now with faded-pause, the previous 2-flag v2-proved, base) plus labelled look arms (nav:earn-logical, platform.glint:compositor, morph.end.nobounce, morph.stage), arms built, one ready script; nothing touches the phone.",
+   "writes": [
+    "lean/Fw/Device/Feel.lean",
+    "packages/contracts/golden/device/feel.jsonl",
+    "lean/scripts/Feel*Golden.lean",
+    "packages/measure-webkit/src/device-feel*.mjs",
+    "packages/measure-webkit/src/device-cli.mjs",
+    "packages/measure-webkit/test/device-feel*.test.mjs",
+    "scripts/feel-session.sh",
+    "research/notes/2026/10-2x-phone-feel-kit.md",
+    "research/notes/2026/10-30-feel-session-2-prep.md",
+    "docs/team/handoffs/feel-session-2-prep.md"
    ]
   }
  ],
