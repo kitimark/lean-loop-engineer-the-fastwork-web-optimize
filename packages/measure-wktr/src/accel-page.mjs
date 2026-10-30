@@ -12,13 +12,15 @@ const RUN_SRC = `(() => {
   });
 })();`;
 
-export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid, rsIdleMs, rsReps, gh, gk, lay, qsets } = {}) {
+export function accelHarnessSource({ mode, arms, sweepFrames = 60, windowMs = 560, settleMs = 2500, mid, rsIdleMs, rsReps, rsWin, tk, gh, gk, lay, qsets } = {}) {
   const pre = 'window.__fwN = { st: window.setTimeout.bind(window) };\n';
   const opts = { mode, sweepFrames, windowMs, settleMs };
   if (arms) opts.arms = arms;
   if (mid) opts.mid = mid;
   if (rsIdleMs) opts.rsIdleMs = rsIdleMs;
   if (rsReps) opts.rsReps = rsReps;
+  if (rsWin) opts.rsWin = rsWin;
+  if (tk) opts.tk = true;
   if (gh) opts.gh = true;
   if (gk) opts.gk = true;
   if (lay) opts.lay = true;

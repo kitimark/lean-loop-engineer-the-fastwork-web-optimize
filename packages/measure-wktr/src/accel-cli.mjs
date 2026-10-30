@@ -33,7 +33,6 @@ export const MODES = {
   'end-comp-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform.glint:compositor',
   'end-both-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform:faded-pause,platform.glint:compositor',
   'floor-v2p-thr-off': 'morph.geom:on,morph.tween:geom-timed,engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause',
-  'floor-fp-thr-off': 'morph.geom:on,morph.tween:geom-timed,platform:faded-pause',
 };
 export const MID_AT = [0.3, 0.5, 0.8];
 export const MID_ARMS = ['all', 'idle', 'no-translate', 'no-transform', 'none', 'all-again'];
@@ -44,7 +43,7 @@ export const isRecalc = (mode) => mode === 'recalc-thr-off';
 export const isBisect = (mode) => mode === 'bisect-thr-off';
 export const isGlint = (mode) => mode === 'glint-base-thr-off' || mode === 'glint-hold-thr-off' || mode === 'glint-comp-thr-off';
 export const isEnd = (mode) => /^end-(base|fp|comp|both)-thr-off$/.test(mode);
-export const isFloor = (mode) => /^floor-(v2p|fp)-thr-off$/.test(mode);
+export const isFloor = (mode) => /^floor-v2p-thr-off$/.test(mode);
 export const END_KEY = (mode) => mode.replace(/^end-/, '').replace(/-thr-off$/, '');
 export const END_ARMS = {
   base: ['rs-flip-nat', 'rs-flip', 'rs-flip-pall', 'rs-flip', 'rs-flip-nat'],

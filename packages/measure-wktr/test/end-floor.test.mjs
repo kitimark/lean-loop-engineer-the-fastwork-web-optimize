@@ -112,21 +112,25 @@ test('decideDirsF reports a missing result file and decides the others', () => {
   writeFileSync(f, JSON.stringify(rep([])));
   const r2 = decideDirsF([dir]);
   assert.ok(r2.lines.some((l) => l.includes('overall v2p finding')));
-  assert.ok(r2.lines.some((l) => l.includes('fp: result file missing')));
+  assert.equal(r2.lines.some((l) => l.includes('result file missing')), false);
 });
 
 test('the floor arms are one process: natural, floor, every writer set, reference, floor again', () => {
   assert.deepEqual(FLOOR_ARMS, ['rs-flip-nat', 'rs-flip-pall', ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', 'rs-flip-pall']);
-  assert.equal(FLOOR_OPTS.rsReps, 16);
+  assert.equal(FLOOR_OPTS.rsReps, 12);
+  assert.equal(FLOOR_OPTS.rsWin, 48);
+  assert.equal(FLOOR_OPTS.tk, true);
 });
 
 test('floor modes exist, are threaded off, and carry the arms and the key sets to the page', () => {
-  for (const m of ['floor-v2p-thr-off', 'floor-fp-thr-off']) {
+  for (const m of ['floor-v2p-thr-off']) {
     assert.ok(MODES[m], m);
     assert.equal(isFloor(m), true);
     assert.ok(headerOf(m, 'x').includes(THREADED_OFF), m);
   }
   assert.equal(isFloor('end-v2p-thr-off'), false);
+  assert.equal(isFloor('floor-fp-thr-off'), false);
+  assert.equal(MODES['floor-fp-thr-off'], undefined);
   const src = accelHarnessSource({ mode: 'timed', arms: FLOOR_ARMS, ...FLOOR_OPTS, qsets: QSETS });
   assert.ok(src.includes('rs-flip-qwrite'));
   assert.ok(src.includes('"qstyle"') && src.includes('nav#data-fw-morph'));

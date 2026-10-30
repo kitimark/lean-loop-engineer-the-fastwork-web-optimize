@@ -1,4 +1,5 @@
 import { EW, rpf100, spreadOf, overallNames } from './end-wktr.mjs';
+import { PIN_REPS, PIN_N, windowFacts, factsText } from './end-floor-window.mjs';
 
 export const WRITERS = ['style', 'data', 'pub', 'cls', 'panel', 'plat'];
 export const ARM_OF = { style: 'qstyle', data: 'qdata', pub: 'qpub', cls: 'qclass', panel: 'qpanel', plat: 'qplat', write: 'qwrite' };
@@ -8,7 +9,7 @@ export const KEYS = {
   pub: ['nav#style', 'nav#data-fw-morph'],
   cls: ['nav#class', 'nav-earn#aria-hidden', 'nav-earn#tabindex'],
   panel: ['morph-panel#aria-hidden', 'morph-panel#data-expanded', 'morph-panel#data-start-selling-scene', 'morph-panel#tabindex'],
-  plat: ['platform#style'],
+  plat: ['platform#style', 'platform#data-fw-scene'],
 };
 KEYS.write = [...KEYS.pub, ...KEYS.cls, ...KEYS.panel, ...KEYS.plat];
 
@@ -17,13 +18,14 @@ export const QSETS = Object.fromEntries(Object.entries(ARM_OF).map(([w, arm]) =>
 export const FLOOR_ARMS = [
   'rs-flip-nat', 'rs-flip-pall', ...WRITERS.map((w) => `rs-flip-${ARM_OF[w]}`), 'rs-flip-qwrite', 'rs-flip-pall',
 ];
-export const FLOOR_OPTS = { rsIdleMs: 5000, rsReps: 16, gh: true, gk: true, lay: false };
+export const WINDOW_ARMS = ['nat', 'pall', ...WRITERS.map((w) => ARM_OF[w]), 'qwrite'];
+export const FLOOR_OPTS = { rsIdleMs: 5000, rsReps: PIN_REPS, rsWin: PIN_N, tk: true, gh: true, gk: true, lay: false };
 
 export const W = { unread: 'unread', leaked: 'leaked', noWrites: 'no writes', carries: 'carries', raises: 'raises', noEffect: 'no effect' };
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
 export const rate = (fs) => rpf100(fs.map((f) => f.r));
-export const leaks = (muted, fs) => fs.filter((f) => f.keys.some((k) => muted.includes(k))).length;
+export const leaks = (muted, fs) => fs.filter((f) => f.keys.some((k) => muted.includes(k.replace(/^mut:/, '')))).length;
 
 export const cellNums = (c) => ({
   np: sum(c.pall.map((a) => a.length)),
@@ -83,7 +85,8 @@ export function decideJobF(rep) {
   const es = WRITERS.map((w) => ({ w, v: cells[w].verdict, p: cells[w].nums.p, cut: cells[w].cut }));
   const f = finding(cells.write.verdict, es);
   const natRate = rate(nat);
-  return { cells, entries: es, finding: f, nat: { n: nat.length, rate: natRate } };
+  const win = WINDOW_ARMS.flatMap((arm) => rowsOf(rep, `rs-flip-${arm}`).map((row, k) => ({ arm, k, facts: windowFacts(row) })));
+  return { cells, entries: es, finding: f, nat: { n: nat.length, rate: natRate }, win };
 }
 
 export function cellLineF(label, w, d) {
@@ -95,6 +98,7 @@ export function jobLinesF(label, rep) {
   const d = decideJobF(rep);
   const lines = Object.entries(d.cells).map(([w, c]) => cellLineF(label, w, c));
   lines.push(`end-floor ${label} natural page ${d.nat.rate} per 100 frames over ${d.nat.n} frames`);
+  for (const w of d.win) lines.push(`end-floor-window ${label} ${w.arm}[${w.k}]: ${factsText(w.facts)}`);
   lines.push(`end-floor ${label} finding: ${d.finding}`);
   return { lines, d };
 }

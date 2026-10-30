@@ -4,8 +4,8 @@
 {"keys":["nav#style","nav#data-fw-morph"],"kind":"writer","writer":"qpub"}
 {"keys":["nav#class","nav-earn#aria-hidden","nav-earn#tabindex"],"kind":"writer","writer":"qclass"}
 {"keys":["morph-panel#aria-hidden","morph-panel#data-expanded","morph-panel#data-start-selling-scene","morph-panel#tabindex"],"kind":"writer","writer":"qpanel"}
-{"keys":["platform#style"],"kind":"writer","writer":"qplat"}
-{"keys":["nav#style","nav#data-fw-morph","nav#class","nav-earn#aria-hidden","nav-earn#tabindex","morph-panel#aria-hidden","morph-panel#data-expanded","morph-panel#data-start-selling-scene","morph-panel#tabindex","platform#style"],"kind":"writer","writer":"qwrite"}
+{"keys":["platform#style","platform#data-fw-scene"],"kind":"writer","writer":"qplat"}
+{"keys":["nav#style","nav#data-fw-morph","nav#class","nav-earn#aria-hidden","nav-earn#tabindex","morph-panel#aria-hidden","morph-panel#data-expanded","morph-panel#data-start-selling-scene","morph-panel#tabindex","platform#style","platform#data-fw-scene"],"kind":"writer","writer":"qwrite"}
 {"band":6,"cut":7,"gap":100,"kind":"judge","name":"edge carries","nums":{"a":0,"leakA":0,"leakV":0,"na":100,"np":100,"nv":100,"p":100,"s":93,"spread":0},"verdict":"carries"}
 {"band":6,"cut":6,"gap":100,"kind":"judge","name":"edge no effect below","nums":{"a":0,"leakA":0,"leakV":0,"na":100,"np":100,"nv":100,"p":100,"s":94,"spread":0},"verdict":"no effect"}
 {"band":6,"cut":0,"gap":100,"kind":"judge","name":"edge no effect above","nums":{"a":0,"leakA":0,"leakV":0,"na":100,"np":100,"nv":100,"p":100,"s":106,"spread":0},"verdict":"no effect"}

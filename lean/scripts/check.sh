@@ -149,6 +149,7 @@ run_group() {
   job "device-glint-compositor golden check" sh -c "printf 'import Fw.Device.GlintHoldCompositor\\n#eval Fw.Device.GlintHoldCompositor.checkRepo\\n' | lake env lean --stdin"
   job "device-end-wktr golden check" sh -c "printf 'import Fw.Device.EndWktr\\n#eval Fw.Device.EndWktr.checkRepo\\n' | lake env lean --stdin"
   job "device-end-floor golden check" sh -c "printf 'import Fw.Device.EndFloor\\n#eval Fw.Device.EndFloor.checkRepo\\n' | lake env lean --stdin"
+  job "device-end-floor-window golden check" sh -c "printf 'import Fw.Device.EndFloorWindow\\n#eval Fw.Device.EndFloorWindow.checkRepo\\n' | lake env lean --stdin"
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"
   job "unthrottle-follow golden check" sh -c "printf 'import Fw.Parts.EngineScrollFollowGolden\\n#eval Fw.Parts.EngineScrollFollowGolden.run [\"--check\"]\\n' | lake env lean --stdin"
@@ -228,6 +229,7 @@ run_group() {
   job "morph-geom-timed golden check" lake env lean --run scripts/MorphGeomTimedGolden.lean --check ../packages/contracts/golden/morph-geom-timed.jsonl
   job "morph-track-accel golden check" lake env lean --run scripts/MorphTrackAccelGolden.lean --check ../packages/contracts/golden/parts/morph-track-accel.jsonl
   job "flip-accel golden check" lake env lean --run scripts/FlipAccelGolden.lean --check ../packages/contracts/golden/parts/flip-accel.jsonl
+  job "flip-accel-run golden check" lake env lean --run scripts/FlipAccelRunGolden.lean --check ../packages/contracts/golden/parts/flip-accel-run.jsonl
   job "morph-end golden check" lake env lean --run scripts/MorphEndGolden.lean --check ../packages/contracts/golden/parts/morph.end.jsonl
   job "morph-end-nobounce golden check" lake env lean --run scripts/MorphEndNobounceGolden.lean --check ../packages/contracts/golden/parts/morph-end-nobounce.jsonl
   job "morph-stage golden check" lake env lean --run scripts/MorphStageGolden.lean --check ../packages/contracts/golden/parts/morph-stage.jsonl
