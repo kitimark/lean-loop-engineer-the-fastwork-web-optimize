@@ -24266,7 +24266,8 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "apps/site/src/parts/morph.geom/flip-accel-run.golden.test.ts"
    ]
   },
   {
@@ -24322,7 +24323,9 @@
     "scripts/feel-session.sh",
     "research/notes/2026/10-2x-phone-feel-kit.md",
     "research/notes/2026/10-30-feel-session-2-prep.md",
-    "docs/team/handoffs/feel-session-2-prep.md"
+    "docs/team/handoffs/feel-session-2-prep.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Device/FeelGolden.lean"
    ]
   }
  ],
