@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 const GOLDEN = readFileSync(new URL('../../contracts/golden/device/thermal.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 export const PIN = Object.freeze(GOLDEN.find((l) => l.kind === 'pinconsts'));
+export const DROP = Object.freeze(GOLDEN.find((l) => l.kind === 'dropconsts'));
 
 export const RANK = Object.freeze({ Nominal: 0, Fair: 1, Serious: 2, Critical: 3 });
 export const pinTarget = (t) => t === 'Fair' || t === 'Serious';
@@ -51,6 +52,28 @@ export const recoverAct = (hasRecord, alive, acked) => (!hasRecord ? 'nothing' :
 export const clearWait = (target, back, waitedS) => waitedS < PIN.clearWaitMaxS && !(back !== null && back !== undefined && RANK[back] < RANK[target]);
 export const mayKill = (recPid, curPid, recStart, curStart) => recPid === curPid && recStart !== '' && recStart === curStart;
 
+
+export function termGate(alive, setAcked, waitedS) {
+  if (!alive) return 'gone';
+  if (setAcked) return 'go';
+  return waitedS < DROP.setWaitMaxS ? 'wait' : 'late';
+}
+export function droppedClear(target, before, back) {
+  if (before === null || before === undefined || back === null || back === undefined) return false;
+  return back === before && RANK[back] < RANK[target];
+}
+const dropCleared = (target, usbDropped, ownerGone, acked, before, back) => usbDropped && ownerGone && !acked && droppedClear(target, before, back);
+export const endVerdictDrop = (target, usbDropped, ownerGone, acked, before, back) =>
+  (dropCleared(target, usbDropped, ownerGone, acked, before, back) ? 'clearedDrop' : endVerdict(target, ownerGone, acked, back));
+export const conditionSetDrop = (target, usbDropped, ownerGone, acked, before, back) =>
+  conditionSet(ownerGone, acked) && !dropCleared(target, usbDropped, ownerGone, acked, before, back);
+export const recoverActD = (hasRecord, alive, acked, d) => (hasRecord && !alive && !acked && d ? 'nothing' : recoverAct(hasRecord, alive, acked));
+export function fallbackAct(sessionAlive, sent, sinceS) {
+  if (!sessionAlive) return 'recover';
+  if (!sent) return 'term';
+  return sinceS < DROP.sessionWaitS ? 'wait' : 'recover';
+}
+
 export const WHY_TEXT = Object.freeze({
   badTarget: 'the target thermal state cannot be induced (Fair or Serious only)',
   locked: 'the phone is locked: unlock it and keep it awake',
@@ -87,6 +110,18 @@ export function profileListed(listJson, profile) {
 }
 
 const OWNER_FILE = 'pin-owner.json';
+const USB_DROP = /userspace tunnel transport closed|ConnectionTerminatedError|DTX service channel is closed/;
+
+/** The log text that can show a USB drop: from the owner's start to its clear line, or to our SIGTERM when the clear line
+ *  never came. The owner prints the tunnel-closed line on every normal exit, after the clear. */
+export function dropWindow(log, from, pid, termAt) {
+  const tail = log.slice(from ?? 0);
+  const clear = pid === undefined ? -1 : tail.indexOf(`fw-pin cleared pid=${pid}`);
+  const term = typeof termAt === 'number' ? Math.max(0, termAt - (from ?? 0)) : tail.length;
+  return tail.slice(0, clear >= 0 ? Math.min(clear, term) : term);
+}
+export const dropInLog = (log, from, pid, termAt) => USB_DROP.test(dropWindow(log, from, pid, termAt));
+
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** The owner process: set the condition, hold the connection, and on SIGTERM clear it on that same connection, wait for a
@@ -152,20 +187,25 @@ export class ConditionOwner {
     return p !== null && !p.stat.startsWith('Z') && mayKill(this.rec.pid, this.rec.pid, this.rec.start, p.start);
   }
 
-  /** The owner printed its clear acknowledgement (after a reply from the phone). */
+  setAcked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin held pid=${pid}`); }
+
+  usbDropped() { return dropInLog(this.readLog(), this.rec?.logFrom, this.rec?.pid, this.rec?.termAt); }
+
   acked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin cleared pid=${pid}`); }
 
   signal(sig) {
     if (!this.alive()) return false;
+    if (sig === 'SIGTERM' && this.rec.termAt === undefined) this.save({ termAt: this.readLog().length });
     try { this.kill(this.rec.pid, sig); return true; } catch { return false; }
   }
 
-  async start({ profile, target }) {
+  async start({ profile, target, before = null }) {
     if (!profile) throw new Error(`no profile for ${target}`);
     this.phase = 'starting';
     if (!profileListed(this.list(), profile)) throw new Error(`condition list has no ${profile} in ThermalCondition`);
     mkdirSync(this.dir, { recursive: true });
     const py = this.python ?? pipxPython(this.run);
+    const logFrom = this.readLog().length;
     const out = openSync(join(this.dir, 'pin-owner.log'), 'a');
     let child;
     try {
@@ -176,21 +216,22 @@ export class ConditionOwner {
     const p = this.ps(child.pid);
     if (!p) { try { child.kill?.('SIGTERM'); } catch { /* the handle is ours */ } throw new Error('the condition owner process is not running right after the spawn'); }
     this.rec = null;
-    this.save({ pid: child.pid, start: p.start, profile, target, spawnedAt: new Date(this.now()).toISOString(), stoppedAt: null, acked: false });
+    this.save({ pid: child.pid, start: p.start, profile, target, before, logFrom, spawnedAt: new Date(this.now()).toISOString(), stoppedAt: null, acked: false, usbDropped: false });
     this.log(`condition owner started: pid ${child.pid}, ${profile}`);
     return this.rec;
   }
 
-  /** From the record an earlier run left (Lean recoverAct): stop a live owner, or run one set-and-clear cycle for an owner
-   *  that ended without acknowledging its clear. */
-  async recover() {
+  async recover({ read = () => null } = {}) {
     if (!existsSync(this.recFile)) return false;
     const rec = JSON.parse(readFileSync(this.recFile, 'utf8'));
     this.rec = rec;
     const alive = this.alive();
     const acked = rec.acked === true || this.acked(rec.pid);
-    const act = recoverAct(true, alive, acked);
-    if (act === 'nothing') { if (!rec.stoppedAt) this.save({ stoppedAt: new Date(this.now()).toISOString(), stoppedBy: 'recover-gone', acked }); return false; }
+    const dropped = rec.usbDropped === true || this.usbDropped();
+    let d = false;
+    if (!alive && !acked && dropped) { try { d = droppedClear(rec.target, rec.before ?? null, read() ?? null); } catch { d = false; } }
+    const act = recoverActD(true, alive, acked, d);
+    if (act === 'nothing') { if (!rec.stoppedAt) this.save({ stoppedAt: new Date(this.now()).toISOString(), stoppedBy: acked ? 'recover-gone' : 'recover-dropped', acked, usbDropped: dropped }); return false; }
     let done = false;
     if (act === 'stopOwner') {
       this.log(`an owner from an earlier run is alive (pid ${rec.pid}); stopping it`);
@@ -200,7 +241,7 @@ export class ConditionOwner {
     }
     if (!done) {
       this.log(`the owner from an earlier run ended without confirming its clear; one set-and-clear cycle (${rec.profile})`);
-      await this.start({ profile: rec.profile, target: rec.target });
+      await this.start({ profile: rec.profile, target: rec.target, before: rec.before ?? null });
       const r = await this.stop();
       if (!r.gone || !r.acked) throw new Error('the clear cycle for the earlier run did not confirm; stop and check the phone by hand');
     }
@@ -212,10 +253,16 @@ export class ConditionOwner {
     this.phase = 'stopping';
     let sent = 'none', sentAt = null;
     const signals = [];
+    const w0 = this.now();
     for (;;) {
       const sinceS = sentAt === null ? 0 : (this.now() - sentAt) / 1000;
       const act = stopAct(this.alive(), sent, sinceS);
       if (act === 'done') break;
+      if (act === 'term') {
+        const g = termGate(true, this.setAcked(), Math.floor((this.now() - w0) / 1000));
+        if (g === 'wait') { await this.sleep(250); continue; }
+        if (g === 'late') this.log(`condition owner pid ${this.rec.pid} did not acknowledge its set in ${DROP.setWaitMaxS} s; signalling it anyway, the clear stays unconfirmed`);
+      }
       if (act === 'stuck') { this.log(`condition owner pid ${this.rec.pid} did not exit after SIGKILL`); return { gone: false, acked: false, signals }; }
       if (act === 'term' || act === 'kill') {
         const sig = act === 'term' ? 'SIGTERM' : 'SIGKILL';
@@ -227,10 +274,10 @@ export class ConditionOwner {
     }
     this.phase = 'stopped';
     const acked = this.rec === null || this.acked();
-    if (this.rec) this.save({ stoppedAt: new Date(this.now()).toISOString(), signals, acked });
-    return { gone: true, acked, signals };
+    const usbDropped = this.rec !== null && this.usbDropped();
+    if (this.rec) this.save({ stoppedAt: new Date(this.now()).toISOString(), signals, acked, usbDropped });
+    return { gone: true, acked, signals, usbDropped };
   }
 
-  /** Last resort when the process exits: one identity-checked SIGTERM, no waiting. */
   termSync() { if (MAY_BE_ALIVE[this.phase]) this.signal('SIGTERM'); }
 }

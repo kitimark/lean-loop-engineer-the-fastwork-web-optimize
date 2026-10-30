@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { callControl, makeGate, startControl, waitGone } from '../src/device-feel-run.mjs';
+import { callControl, makeGate, startControl, stopFallback, waitGone } from '../src/device-feel-run.mjs';
 import { cmdNext, cmdRate, cmdStatus, freshState, loadFeel, saveFeel } from '../src/device-feel.mjs';
 
 const pinOf = (held = true) => ({ held: () => held, onHeld: () => {} });
@@ -87,4 +87,67 @@ test('a stop that closes the control server still gets its reply', async () => {
   const r = await fetch(`http://127.0.0.1:${control.port}/stop`, { method: 'POST', headers: { 'x-feel-token': 't0k' }, body: '{}' });
   assert.equal((await r.json()).text, 'stopping');
   await closed;
+});
+
+const fbState = (dir, start) => {
+  const st = freshState({ seed: 0, pin: 'Serious', site: 'x' });
+  st.pid = 4242;
+  st.pidStart = start;
+  saveFeel(dir, st);
+};
+
+test('feel stop without a control server SIGTERMs the recorded session once, waits, then recovers the owner', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'feel-fb-'));
+  try {
+    fbState(dir, 'Thu Oct 29 10:00:00 2026');
+    let t = 0;
+    let liveUntil = Infinity;
+    const sent = [];
+    const events = [];
+    const owner = { recover: async ({ read }) => { events.push(`recover ${read()}`); return true; } };
+    const out = await stopFallback(dir, {
+      owner, read: () => 'Nominal', log: () => {}, now: () => t,
+      isAlive: () => t < liveUntil,
+      ps: () => ({ start: 'Thu Oct 29 10:00:00 2026', stat: 'S' }),
+      kill: (pid, sig) => { sent.push([pid, sig]); liveUntil = t + 4000; },
+      sleep: async () => { t += 1000; },
+    });
+    assert.deepEqual(sent, [[4242, 'SIGTERM']]);
+    assert.equal(out.signalled, true);
+    assert.equal(out.sessionGone, true);
+    assert.deepEqual(events, ['recover Nominal']);
+    assert.ok(t >= 4000);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('feel stop never signals a pid whose start time differs from the recorded one', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'feel-fb-'));
+  try {
+    fbState(dir, 'Thu Oct 29 10:00:00 2026');
+    const sent = [];
+    const out = await stopFallback(dir, {
+      owner: { recover: async () => false }, isAlive: () => true, ps: () => ({ start: 'Fri Oct 30 09:00:00 2026', stat: 'S' }),
+      kill: (...a) => sent.push(a), sleep: async () => {}, now: () => 0,
+    });
+    assert.deepEqual(sent, []);
+    assert.equal(out.signalled, false);
+    assert.equal(out.ownerStopped, false);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('feel stop gives up on a session that ignores SIGTERM after the Lean wait and then recovers', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'feel-fb-'));
+  try {
+    fbState(dir, 's');
+    let t = 0;
+    const sent = [];
+    const out = await stopFallback(dir, {
+      owner: { recover: async () => true }, isAlive: () => true, ps: () => ({ start: 's', stat: 'S' }),
+      kill: (...a) => sent.push(a), sleep: async () => { t += 1000; }, now: () => t,
+    });
+    assert.equal(sent.length, 1);
+    assert.equal(out.sessionGone, false);
+    assert.ok(t >= 330000);
+    assert.equal(out.ownerStopped, true);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
