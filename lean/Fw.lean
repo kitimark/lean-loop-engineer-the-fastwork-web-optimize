@@ -73,6 +73,7 @@ import Fw.Parts.HeroExitOpt
 import Fw.Parts.HeroExitWork
 import Fw.Parts.HeroExitScrollOffset
 import Fw.Parts.HeroExitCloseStart
+import Fw.Parts.HeroExitSubpixel
 import Fw.Parts.PainNotes
 import Fw.Parts.PainNotesGolden
 import Fw.Parts.PeopleDeck
