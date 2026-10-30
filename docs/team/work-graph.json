@@ -24266,7 +24266,8 @@
     "lean/scripts/check.sh",
     "lean/Fw/Ci/Trigger.lean",
     "packages/contracts/golden/ci/triggers.jsonl",
-    "apps/runner/src/land.ts"
+    "apps/runner/src/land.ts",
+    "apps/site/src/parts/morph.geom/flip-accel-run.golden.test.ts"
    ]
   },
   {
