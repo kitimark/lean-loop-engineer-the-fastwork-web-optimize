@@ -139,7 +139,7 @@ export function jointText(seed, ratings, caps) {
   const j = jointSession(seed, ratings, caps);
   const row = (a) => {
     const s = a.summary;
-    const cap = s ? `long>16.7ms ${s.long17}, long>33ms ${s.long33}, pin fights ${s.fights}, blinks ${s.blinks}, most work in zone ${s.topZone ?? '-'} (${s.visits} visit${s.visits === 1 ? '' : 's'})` : 'no capture';
+    const cap = s ? `long>17ms ${s.long17}, long>34ms ${s.long33}, pin fights ${s.fights}, blinks ${s.blinks}, most work in zone ${s.topZone ?? '-'} (${s.visits} visit${s.visits === 1 ? '' : 's'})` : 'no capture';
     return `${a.id}: ${FEEL.texts[a.verdict]}; ${cap}${a.flag === 'none' ? '' : `  [DISAGREE: ${a.flag}]`}`;
   };
   return ['joint, rating next to capture (medians per visit):', ...j.same.map(row), ...j.look.map(row)].join('\n');

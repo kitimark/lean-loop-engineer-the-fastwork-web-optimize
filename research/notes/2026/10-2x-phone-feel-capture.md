@@ -14,7 +14,7 @@ what the page did, and a Lean rule puts the two side by side.
 
 | Field | Source | Unit in Lean |
 |---|---|---|
-| Frame times, long frames (> 16.7 ms, > 33 ms) | page `requestAnimationFrame` loop | hundredths of a ms |
+| Frame times, long frames (> 17 ms, > 34 ms) | page `requestAnimationFrame` loop | hundredths of a ms |
 | Scroll trace | `scrollY` per frame; touch events (`s m e c`, x, y, finger count) | tenths of a px |
 | Style, layout, paint records per 500 px zone | Timeline on for the visit; `performance.mark('cap:<frame>')` joins records to frames; `reduceSteps` + `zones(500)` as the counts lane | records |
 | Pin fights | every page call of `window.scrollTo` (the nav tween pins with `scrollTo({top, behavior:'instant'})`), against the scroll move of the frame before it | tenths of a px |
@@ -28,7 +28,7 @@ replay the finger path (`normalize` accepts it; unit test "the saved raw record 
 Definitions, all in `lean/Fw/Device/FeelCapture.lean` and golden-checked by `device-feel-cap.mjs`:
 
 - A gap is moving when the scroll moved across it or across the gap before it; `long17` and `long33` count moving gaps over
-  1670 and 3300 hundredths of a ms. Still frames never count (`longCount_still`), `long33 <= long17 <= moving`
+  1700 and 3400 hundredths of a ms (see the 2026-10-30 defects: Safari stamps whole milliseconds). Still frames never count (`longCount_still`), `long33 <= long17 <= moving`
   (`long33_le_long17`, `longCount_le_moving`).
 - A pin fights when it goes against the scroll move at the pin (`fightAt`; `fightAt_noop`, `fightAt_still`,
   `fightAt_same_way`), so a pin with the finger is never a fight.
@@ -60,6 +60,8 @@ and on a signal.
 | Ctrl-C ended without a table | the CLI prints `summaryText` and the joint table on every end, also after an error | |
 | Repeat rounds showed the same letters | a visit's label is its position, so no letter repeats (A to F) | `labels_fresh`, `test/device-feel.test.mjs` |
 | `--seed` defaulted to 0 | `feel start` refuses without `--seed` | CLI check |
+| Dry run 2026-10-30: 57% of steady 60 Hz moving frames counted as "long > 16.7 ms" (long17 475 of 739 moving gaps): Safari stamps frames to whole milliseconds, so a 16.7 ms frame reads 16 or 17 | limits 1670/3300 become 1700/3400 (`long17Cs`, `long33Cs`); the same visit files recount to 51 and 46 | golden `capconsts`, `longCount_stall`, `longCount_two_limits` |
+| Dry run 2026-10-30: `feel start` found "0 of 0 tabs" when Safari was not running | `tabsOfLaunching`: with no tab listed, launch Safari with `devicectl device process launch` once and list again; the tab choice stays `tabPlan` | MEASURED on the phone (Safari terminated, then launched by the helper, one `about:blank` tab); glue, no unit test |
 
 ## Probe effect and limits (stated)
 
@@ -74,24 +76,37 @@ and on a signal.
 
 ## Dry run
 
-NOT RUN. The probe at the start and again at the end of the task found the phone paired and reachable over the network but
-not on USB (`device-cli.mjs ping`: "the iPhone ... is paired but not on USB"; `idevice_id -l`, `system_profiler SPUSBDataType`
-and `ioreg -p IOUSB` list no iPhone). The Web Inspector proxy and the thermal condition need the cable, so no session could
-start. No session, owner or proxy of mine was started; nothing is left on the phone.
+RUN 2026-10-30, iPhone 15 Pro Max on USB, unlocked, scripted swipe (no user input). Harness check, not a result.
+`node src/device-feel-dry.mjs --site ../../apps/site/dist/aot --dir .local/phone/2026-10-30-feel-capture --driver .local/phone/2026-10-28-flip-driver --seed 1`
+(about 5 min: pin Serious, 2 visits, 3 scripted swipes each, rate 3, stop). Raw files stay under `.local/`.
 
-What was checked without the phone (harness checks, not results):
+First attempt ended at start with "found 0 of 0 tabs": Safari was not running (probe: launching it with `devicectl` made the proxy list one `about:blank`
+tab). That is our harness gap, fixed (table above); no user-side setting was involved. Second attempt completed; the pin cleared (end `heatRemains`: the
+phone was still warm after the clear, as for any run; the condition owner exited and its clear was confirmed).
 
-- The page recorder `CAP_START_JS` ran in desktop Chrome against the built site: it found 10 `hero.orbit_card` elements, recorded
-  frames, opacity, active flags and every `window.scrollTo` pin, and `inputsOf` + `captureOf` turned them into a capture
-  (Timeline rows absent there, so zones empty: stated by `zoneNote`). Not a phone time and not a count.
-- Unit tests: `test/device-feel-capture.test.mjs` (unit conversion, idle steps out of the zones, overscroll offset, a raw
-  record that `normalize` accepts, a failing start leaves the session alive), `test/device-feel-cap.test.mjs`.
+| Visit (arm) | frames | touch events | active frames | Timeline rows | card series | pins | re-targets |
+|---|---|---|---|---|---|---|---|
+| 1 (v2-proved) | 1542 | 319 | 1487 | 36894 | 10 cards x 1542 | 0 | 0 |
+| 2 (v2-proved+glint-hold) | 1528 | 313 | 1483 | 36556 | 10 cards x 1528 | 0 | 0 |
 
-To deliver the dry run: plug the phone in and unlock it, then
-`node src/device-feel-dry.mjs --site ../../apps/site/dist/aot --dir .local/phone/<date>-feel-capture --driver .local/phone/2026-10-28-flip-driver --seed 1`
-(about 8 min: pin to Serious, 2 arms, 3 scripted swipes each, rate 3, stop). It prints one line per saved visit file and which
-capture fields hold a value. Fields that can stay 0 on a scripted swipe: pins and fights (no nav tween in the first arms),
-re-targets (only the geom-timed variant traces), blinks (only if a card dips).
+Counts from Lean's `captureOf` (TS twin, golden-checked) over the saved visits, with the final limits 17 and 34 ms:
+
+| Visit | moving gaps | long > 17 ms | long > 34 ms | pins | fights | reversals | blinks | zones with work |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 739 | 51 | 0 | 0 | 0 | 5 | 0 | 1 (zone 0, 6285 records) |
+| 2 | 742 | 46 | 0 | 0 | 0 | 5 | 0 | 1 (zone 0, 6328 records) |
+
+(With the first limits, 16.7 and 33 ms, the same visits read long17 475 and 472: the quantization defect above. The run printed those.)
+
+Well-formedness (all hold): schema `fw.phone.record/1`; frames `t`, `y`, `vh`, `vt` and the three part series have equal length; times
+rise; the finger trace starts with `s` and ends with `e`, 6 start and 6 end events per visit; card opacity is 0 to 1000 for every frame and every card; Timeline rows are
+present and joined to frames by `cap:<frame>` marks (`zoneNote` null); the joint table printed, next to the ratings, per arm. Fields that
+stayed 0 and why: pins and fights (no nav tween in these arms), re-targets (only the geom-timed variant traces), blinks (opacity stayed 1000
+on every card), long > 34 ms (no two-frame stall). Only zone 0 has work: the scripted swipes moved the page at most 473 px, with 5 reversals.
+Printed joint lines: v2-proved "long>16.7ms 475, long>33ms 0, pin fights 0, blinks 0, most work in zone 0 (1 visit)" under the old limits.
+
+Not covered: a real finger path to the end of the page (pin fights, end-zone work), the blink detector on a real dip (unit tests and goldens
+only), a USB drop.
 
 ## Commands
 

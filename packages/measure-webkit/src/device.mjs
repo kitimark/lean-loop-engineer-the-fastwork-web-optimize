@@ -114,6 +114,16 @@ export async function startPhoneProxy(udid, { log = () => {}, timeoutMs = 20000,
 
 const tabsOf = async (p) => (await fetch(`http://127.0.0.1:${p.tabs}/json`, { signal: AbortSignal.timeout(4000) })).json();
 
+/** Safari not running lists no tab at all; launch it once and list again (glue: the tab choice stays `tabPlan`). */
+export async function tabsOfLaunching(udid, ports, say) {
+  let tabs = await tabsOf(ports);
+  if (tabs.length > 0) return tabs;
+  say('Safari lists no tab; launching it on the phone');
+  run('xcrun', ['devicectl', 'device', 'process', 'launch', '--device', udid, 'com.apple.mobilesafari'], 30000);
+  for (let i = 0; i < 20 && tabs.length === 0; i++) { await sleep(500); tabs = await tabsOf(ports); }
+  return tabs;
+}
+
 /**
  * Serve `site` (a prerendered dist/aot) or the read-only snapshot on the LAN, drive the phone's single about:blank Safari tab
  * to it through the inspector, call fn(ctx), and put the tab back to about:blank. ctx matches withSession's:
@@ -159,7 +169,7 @@ export async function withPhone(fn, { site = null, mounts = {}, log = (s) => con
   try {
     proxy = await startPhoneProxy(phone.udid, { log: say });
     const ownHost = `${new URL(server.url).protocol}//${new URL(server.url).hostname}`;
-    let tabs = await tabsOf(proxy.ports);
+    let tabs = await tabsOfLaunching(phone.udid, proxy.ports, say);
     let plan = tabPlan(ownHost, tabs.map((t) => t.url));
     if (plan.plan === 'reset') {
       say('a tab of ours was left on the harness page; returning it to about:blank');

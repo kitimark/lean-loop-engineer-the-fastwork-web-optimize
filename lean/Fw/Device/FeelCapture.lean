@@ -8,11 +8,12 @@ card; every page call of `scrollTo`; and every start of the nav tween. This modu
 -/
 namespace Fw.Device.Feel
 
-/-- A frame longer than this many hundredths of a millisecond is long (16.7 ms). -/
-def long17Cs : Nat := 1670
+/-- A frame longer than this many hundredths of a millisecond is long (17 ms). Safari stamps frames to whole milliseconds, so a
+steady 60 Hz frame (16.7 ms) reads 16 or 17; only a gap over 17 ms is a late frame. -/
+def long17Cs : Nat := 1700
 
-/-- The second limit (33 ms). -/
-def long33Cs : Nat := 3300
+/-- The second limit (34 ms): two frames read 33 or 34 ms, so a gap counts only when it is over 34 ms. -/
+def long33Cs : Nat := 3400
 
 /-- A hero card dips when its opacity falls this far (per mille) below a frame before and a frame after. -/
 def blinkDrop : Nat := 150

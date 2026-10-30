@@ -21,7 +21,7 @@
 {"kind":"session","look":[null,5,4,2],"lookVerdicts":["unrated","better","mixed","mixed"],"ratings":[4,4,2,2,5,5],"same":["same","mixed","mixed"],"seed":2}
 {"kind":"session","look":[null,null,null,null],"lookVerdicts":["unrated","unrated","unrated","unrated"],"ratings":[3,3,4,5,null,1],"same":["unrated","unrated","unrated"],"seed":4}
 {"kind":"session","look":[3,null,null,null],"lookVerdicts":["unrated","unrated","unrated","unrated"],"ratings":[null,null,null,null,null,null],"same":["unrated","unrated","unrated"],"seed":5}
-{"blinkDrop":150,"blinkWithin":8,"capMargin":2,"idleMs":1500,"kind":"capconsts","long17Cs":1670,"long33Cs":3300,"zonePx":500}
+{"blinkDrop":150,"blinkWithin":8,"capMargin":2,"idleMs":1500,"kind":"capconsts","long17Cs":1700,"long33Cs":3400,"zonePx":500}
 {"cards":[[1000,1000,1000,1000,1000]],"kind":"capture","name":"still","pins":[],"result":{"blinks":0,"fights":0,"long17":0,"long33":0,"moving":0,"pins":0,"retargets":0,"reversals":0,"zoneWork":[3]},"starts":[],"ts":[0,1667,3333,5000,6667],"ys":[300,300,300,300,300],"zones":[[1,1,1,0]]}
 {"cards":[[1000,990,980,970,960]],"kind":"capture","name":"smooth","pins":[],"result":{"blinks":0,"fights":0,"long17":0,"long33":0,"moving":4,"pins":0,"retargets":0,"reversals":0,"zoneWork":[3,4]},"starts":[],"ts":[0,1667,3333,5000,6667],"ys":[0,80,160,240,320],"zones":[[1,1,1,0],[2,1,1,0]]}
 {"cards":[[1000,1000,1000,1000,1000,1000,1000]],"kind":"capture","name":"stalls","pins":[],"result":{"blinks":0,"fights":0,"long17":2,"long33":2,"moving":6,"pins":0,"retargets":1,"reversals":0,"zoneWork":[3]},"starts":[[500,1000]],"ts":[0,1667,3333,8333,10000,13500,15167],"ys":[0,80,160,240,320,400,480],"zones":[[1,1,1,0]]}

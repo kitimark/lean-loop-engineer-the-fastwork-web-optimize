@@ -225,7 +225,7 @@ A visit's capture is what the page and the Inspector saw while the person scroll
 joint reducer sets each arm's rating verdict next to the captures of its visits and flags a disagreement for the lead. -/
 
 /-- What one visit's scroll showed. `moving` counts frames in which the scroll moved; `long17` and `long33` count those that took
-more than 16.7 ms and more than 33 ms; `fights` counts page pins that went against the finger; `blinks` counts hero-card
+more than 17 ms and more than 34 ms; `fights` counts page pins that went against the finger; `blinks` counts hero-card
 dips; `zoneWork` is style, layout and paint records per 500 px zone. -/
 structure Capture where
   moving : Nat
