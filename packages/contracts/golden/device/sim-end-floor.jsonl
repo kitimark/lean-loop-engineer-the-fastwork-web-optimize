@@ -1,0 +1,46 @@
+{"band":10,"kind":"consts","minRendered":288,"minRounds":2,"winRaf":360}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":100,"recalcs":100,"rendered":100},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"raf differs","rate":100,"verdict":"unreadable"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":100},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"too few rendered","rate":100,"verdict":"unreadable"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":36,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"no floor","rate":10,"verdict":"noFloor"}
+{"base":{"raf":360,"recalcs":360,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":36,"rendered":360},"name":"base keeps a floor","rate":100,"verdict":"baseFloor"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":3,"rendered":360},"name":"carries","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":39,"rendered":360},"name":"carries at the band","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":40,"rendered":360},"name":"one above the band","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":180,"rendered":360},"name":"partial","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":321,"rendered":360},"name":"partial one over the band","rate":100,"verdict":"partial"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":360,"rendered":360},"name":"none","rate":100,"verdict":"none"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":324,"rendered":360},"name":"none at the margin","rate":100,"verdict":"none"}
+{"base":{"raf":360,"recalcs":3,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":327,"rendered":360},"name":"none below the margin","rate":100,"verdict":"none"}
+{"base":{"raf":360,"recalcs":0,"rendered":360},"full":{"raf":360,"recalcs":39,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"full at the band","rate":10,"verdict":"noFloor"}
+{"base":{"raf":360,"recalcs":0,"rendered":360},"full":{"raf":360,"recalcs":40,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"full one above the band","rate":11,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":39,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"base at the band","rate":100,"verdict":"carries"}
+{"base":{"raf":360,"recalcs":40,"rendered":360},"full":{"raf":360,"recalcs":360,"rendered":360},"kind":"flag","minusF":{"raf":360,"recalcs":0,"rendered":360},"name":"base one above the band","rate":100,"verdict":"baseFloor"}
+{"kind":"pair","name":"unreadable first","threaded":"unreadable","unthrottle":"none","verdict":"unreadable"}
+{"kind":"pair","name":"unreadable second","threaded":"none","unthrottle":"unreadable","verdict":"unreadable"}
+{"kind":"pair","name":"no floor","threaded":"noFloor","unthrottle":"noFloor","verdict":"noFloor"}
+{"kind":"pair","name":"no floor first","threaded":"noFloor","unthrottle":"none","verdict":"noFloor"}
+{"kind":"pair","name":"base floor","threaded":"baseFloor","unthrottle":"baseFloor","verdict":"baseFloor"}
+{"kind":"pair","name":"base floor second","threaded":"carries","unthrottle":"baseFloor","verdict":"baseFloor"}
+{"kind":"pair","name":"both","threaded":"carries","unthrottle":"carries","verdict":"both"}
+{"kind":"pair","name":"threaded","threaded":"carries","unthrottle":"none","verdict":"threaded"}
+{"kind":"pair","name":"unthrottle","threaded":"none","unthrottle":"carries","verdict":"unthrottle"}
+{"kind":"pair","name":"shared","threaded":"none","unthrottle":"none","verdict":"sharedOrOther"}
+{"kind":"pair","name":"partial first","threaded":"partial","unthrottle":"none","verdict":"mixed"}
+{"kind":"pair","name":"partial second","threaded":"carries","unthrottle":"partial","verdict":"mixed"}
+{"kind":"pair","name":"partial both","threaded":"partial","unthrottle":"partial","verdict":"mixed"}
+{"kind":"cmp","pair":"unreadable","verdict":"unread"}
+{"kind":"cmp","pair":"noFloor","verdict":"different"}
+{"kind":"cmp","pair":"baseFloor","verdict":"different"}
+{"kind":"cmp","pair":"threaded","verdict":"different"}
+{"kind":"cmp","pair":"unthrottle","verdict":"different"}
+{"kind":"cmp","pair":"both","verdict":"different"}
+{"kind":"cmp","pair":"sharedOrOther","verdict":"same"}
+{"kind":"cmp","pair":"mixed","verdict":"different"}
+{"kind":"overallFlag","name":"all none","overall":"none","verdicts":["none","none","none"]}
+{"kind":"overallFlag","name":"one carries","overall":"mixed","verdicts":["none","carries","none"]}
+{"kind":"overallFlag","name":"one unreadable","overall":"none","verdicts":["none","unreadable","none"]}
+{"kind":"overallFlag","name":"two unreadable","overall":"inconclusive","verdicts":["none","unreadable","unreadable"]}
+{"kind":"overallPair","name":"all shared","overall":"sharedOrOther","verdicts":["sharedOrOther","sharedOrOther","sharedOrOther"]}
+{"kind":"overallPair","name":"one threaded","overall":"mixed","verdicts":["sharedOrOther","threaded","sharedOrOther"]}
+{"kind":"overallPair","name":"one unreadable","overall":"threaded","verdicts":["threaded","unreadable","threaded"]}
+{"kind":"overallPair","name":"two unreadable","overall":"inconclusive","verdicts":["threaded","unreadable","unreadable"]}
