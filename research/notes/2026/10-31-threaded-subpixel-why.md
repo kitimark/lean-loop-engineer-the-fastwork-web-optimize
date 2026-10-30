@@ -15,14 +15,17 @@ topics: [hero.exit, threaded, webkit, scroll-driven-animations, float32, gate-br
   and the `contain` range start in `double`. At scroll 0 both are the same 1/3 of the timeline. In float that 1/3
   lands about 2.5e-6 % past the double start, so the card animation is already active, at progress
   p ≈ 1/(100·2^17) ≈ 7.63e-8. The card translate is p × scatter: up to 2.2e-5 px at width 601 and 5.5e-5 px at
-  width 1512. The exact value is 0 px, the `from` keyframe. (CONFIRMED, source cites below; MEASURED fit below.)
+  width 1512. The exact value is 0 px, the `from` keyframe. (CONFIRMED, WebKit 862f17d `ScrollTimeline.cpp:383-397`,
+  `ViewTimeline.cpp:503-517`; MEASURED, run 41087718575.)
 - **No rendered pixel moves.** A transform does not touch layout, so LayoutUnit (1/64 px) never sees it. The
-  largest residue the bound covers (48vw on a 2560 px side) is below 1e-4 CSS px and below 3e-4 device px at dpr 3.
-  On a card that is already rotated and resampled, that shifts edge coverage by less than 0.1 of one 8-bit level
-  (Lean `residue_level_change_lt`). A 1-level flip needs a pixel that already sits within that margin of a rounding
+  residue the bound covers (scatter within ±48vw on a side up to 2560 px) lies strictly between -1e-4 and 1e-4 CSS px
+  (Lean `residue_lt_gateTol`), so its size is below 3e-4 device px at dpr 3. On a card that is already rotated and
+  resampled, that shifts edge coverage by less than 0.1 of one 8-bit level in either direction (Lean
+  `residue_level_change_lt`). A 1-level flip needs a pixel that already sits within that margin of a rounding
   boundary. (INFERRED.)
 - **Chromium reads 0 px**, because Blink snaps a local time that lies within 1 µs of the phase boundary onto it, so
-  progress is exactly 0. (CONFIRMED for the snap; INFERRED that it is the step taken here.)
+  progress is exactly 0. (CONFIRMED for the snap, Chromium f842f52 `timing_calculations.cc:95-101`; INFERRED that it
+  is the step taken here.)
 
 ## Where the numbers come from (WebKit 862f17dcae0aace47ea0ec16e209d960abfd553c)
 
@@ -57,6 +60,7 @@ The range start is computed in double (all CONFIRMED):
 
 Phase and progress (all CONFIRMED):
 - `WebAnimation.cpp:518`: current time = timeline time − start time ≈ +2.54e-6 %.
+- `WebAnimation.cpp:520-528` with `ViewTimeline.cpp:433-441`: for a view timeline WebKit snaps a current time in [-ε, 0) % up to 0 % (ε = 0.1 pt / subjectSize × 100), but leaves a positive one as is, so the float excess is not snapped. (CONFIRMED)
 - `AnimationEffectTiming.cpp:182-190`: the before-phase test. For percentages, `WebAnimationTime.cpp:165-171`
   compares exactly (`m_value < other.m_value`). The 0.000001 epsilon at `:150-155` only serves `matchingEpsilon`.
   A positive local time is therefore active, not before, and `fill-mode` does not apply.
@@ -81,9 +85,9 @@ Blending and printing (all CONFIRMED):
 
 ## Measurement (run 41087718575, artifact `gate-merged-playwright-webkit`)
 
-- MEASURED: all 704 differing card readings (620 orbit, 84 deck) are at scrollY 0.
+- MEASURED: all 704 differing card readings in probes[] (620 orbit, 84 deck) are at scrollY 0; the 634 more in sweeps[] are too and fit the same way.
 - MEASURED: all 1408 components fit residue = scatterPx × p0, with p0 = 1/13107200 = 7.62939453125e-8, inside the
-  6-decimal print interval. The signs match the scatter, and the fitted p lies in [7.6264e-8, 7.6294e-8]. p0 equals
+  6-decimal print interval. The signs match the scatter. p0 equals
   the Lean `ideal_progress` value 1/(100·2^17).
 - MEASURED: card rects differ by at most 1.22e-4 px, in 631 of 1736 card rects.
 - MEASURED: the orbit shows the residue only above 600 px and the deck only at ≤ 600 px. This matches their
@@ -108,21 +112,26 @@ Blending and printing (all CONFIRMED):
 | `ideal_progress` | the float excess over 100/3, relative, is exactly 1/(100·2^17) |
 | `progress_near_ideal` | the double progress is within 1e-6 relative of that |
 | `orbit_scatter_le`, `deck_scatter_le` | every card scatter is within ±48 vw/vh |
-| `residue_lt_gateTol` | residue < 1e-4 px for scatter ≤ 48 and viewport side ≤ 2560 px |
-| `residue_level_change_lt` | at dpr ≤ 3: 3 × 255 × residue < 0.1 of an 8-bit level |
+| `timeline32_ratio`, `start64_ratio` | the float time and the double start both round `ratio v`, for every viewport height |
+| `residue_le_max` | the residue lies between its values at scatter -48 and +48 on a 2560 px side |
+| `residue_lt_gateTol` | -1e-4 px < residue < 1e-4 px for scatter in [-48, 48] and viewport side ≤ 2560 px |
+| `residue_level_change_lt` | at dpr ≤ 3: -0.1 < 3 × 255 × residue < 0.1 of an 8-bit level |
 
 ## Limits
 
 - This is source reading plus the existing CI artifact; no new CI run.
 - Playwright WebKit stands in for iOS Safari. The compositor path uses the same float formula, so the phone should
   show the same residue. (INFERRED)
-- The pixel answer is INFERRED from the transform/layout split and the bound. No pixel diff was taken.
+- The pixel answer is INFERRED from the transform/layout split and the bound in `residue_level_change_lt`. No pixel
+  diff was taken.
 
 ## What this changes in the plan
 
 - **hero.exit:threaded gate failure (r603 threaded-subpixel-why):** classify the WebKit card `translate` difference
   at scroll 0 as a float32/double timeline artifact with no pixel effect. The flag is not wrong. A fix belongs in
   the gate comparison, for example an absolute tolerance on length components backed by `residue_lt_gateTol`, as a
-  separate gate task decided by the lead. This task changes no flag, preset or gate.
+  separate gate task decided by the lead. This task changes no flag, preset or gate. Card rects differ by up to
+  2^-13 px, likely the float ulp of rect coordinates in [1024, 2048) (INFERRED), so a rect tolerance must not reuse
+  `residue_lt_gateTol`.
 - **New follow-up (gate):** find why the gate passes the same 1e-6 residue on the hero copy and cue `transform` and
   `filter` but fails it on the card `translate`, so the two paths share one rule.

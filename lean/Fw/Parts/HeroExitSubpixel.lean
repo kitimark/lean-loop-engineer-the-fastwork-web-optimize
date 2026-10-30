@@ -47,6 +47,16 @@ def duration64 : Rat := end64 - start64
 -- AnimationEffectTiming.cpp:279@862f17d
 def progress64 : Rat := roundBits 76 (local64 / duration64)
 
+theorem timeline32_ratio (v : Rat) (hv : 0 < v) :
+    timeline32 = roundBits 18 (roundBits 25 (ratio v) * 100) := by
+  rw [ratio_third v hv]
+  rfl
+
+theorem start64_ratio (v : Rat) (hv : 0 < v) :
+    start64 = roundBits 47 (roundBits 54 (ratio v) * 100) := by
+  rw [ratio_third v hv]
+  rfl
+
 theorem ieee_steps :
     ieeeStep single 25 (1 / 3) ∧ ieeeStep single 18 (roundBits 25 (1 / 3) * 100) ∧
     ieeeStep double 54 (1 / 3) ∧ ieeeStep double 47 (roundBits 54 (1 / 3) * 100) ∧
@@ -87,7 +97,11 @@ def widest : Rat := 2560
 
 def gateTol : Rat := 1 / 10 ^ 4
 
-theorem residue_le_max (a v : Rat) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v) (hv : v ≤ widest) :
+theorem residue_neg (a v : Rat) : residue (-a) v = -residue a v := by
+  unfold residue
+  grind
+
+theorem residue_upper (a v : Rat) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v) (hv : v ≤ widest) :
     residue a v ≤ residue maxScatter widest := by
   have hp : 0 ≤ progress64 := by decide +kernel
   have h1 : a / 100 * v ≤ maxScatter / 100 * v :=
@@ -96,20 +110,35 @@ theorem residue_le_max (a v : Rat) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v) (hv :
     Rat.mul_le_mul_of_nonneg_left hv (by decide +kernel)
   exact Rat.mul_le_mul_of_nonneg_right (Rat.le_trans h1 h2) hp
 
-theorem residue_lt_gateTol (a v : Rat) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v) (hv : v ≤ widest) :
-    residue a v < gateTol := by
-  have hm := residue_le_max a v ha hv0 hv
-  have hb : residue maxScatter widest < gateTol := by decide +kernel
+theorem residue_le_max (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v)
+    (hv : v ≤ widest) :
+    residue (-maxScatter) widest ≤ residue a v ∧ residue a v ≤ residue maxScatter widest := by
+  have hn := residue_upper (-a) v (by grind) hv0 hv
+  rw [residue_neg] at hn
+  rw [residue_neg]
+  exact ⟨by grind, residue_upper a v ha hv0 hv⟩
+
+theorem residue_lt_gateTol (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v)
+    (hv : v ≤ widest) :
+    -gateTol < residue a v ∧ residue a v < gateTol := by
+  have hm := residue_le_max a v hlo ha hv0 hv
+  have hlb : -gateTol < residue (-maxScatter) widest := by decide +kernel
+  have hub : residue maxScatter widest < gateTol := by decide +kernel
   grind
 
 def dprMax : Rat := 3
 
-theorem residue_level_change_lt (a v : Rat) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v) (hv : v ≤ widest) :
-    dprMax * 255 * residue a v < 1 / 10 := by
-  have hm := residue_le_max a v ha hv0 hv
-  have hb : dprMax * 255 * residue maxScatter widest < 1 / 10 := by decide +kernel
-  have hk : dprMax * 255 * residue a v ≤ dprMax * 255 * residue maxScatter widest :=
-    Rat.mul_le_mul_of_nonneg_left hm (by decide +kernel)
+theorem residue_level_change_lt (a v : Rat) (hlo : -maxScatter ≤ a) (ha : a ≤ maxScatter) (hv0 : 0 ≤ v)
+    (hv : v ≤ widest) :
+    -(1 / 10) < dprMax * 255 * residue a v ∧ dprMax * 255 * residue a v < 1 / 10 := by
+  have hm := residue_le_max a v hlo ha hv0 hv
+  have hc : (0 : Rat) ≤ dprMax * 255 := by decide +kernel
+  have hlb : -(1 / 10) < dprMax * 255 * residue (-maxScatter) widest := by decide +kernel
+  have hub : dprMax * 255 * residue maxScatter widest < 1 / 10 := by decide +kernel
+  have hl : dprMax * 255 * residue (-maxScatter) widest ≤ dprMax * 255 * residue a v :=
+    Rat.mul_le_mul_of_nonneg_left hm.1 hc
+  have hu : dprMax * 255 * residue a v ≤ dprMax * 255 * residue maxScatter widest :=
+    Rat.mul_le_mul_of_nonneg_left hm.2 hc
   grind
 
 end Fw.Parts.HeroExitSubpixel

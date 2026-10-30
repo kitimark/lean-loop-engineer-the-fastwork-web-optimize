@@ -6,6 +6,8 @@
   and the `contain` start in double. At scroll 0 the card is active at p = 1/(100·2^17), so translate = p × scatter
   (≤ 1e-4 px). This is a numeric artifact and no pixel moves.
 - Lean: `lean/Fw/Parts/HeroExitSubpixel.lean`, imported in `lean/Fw.lean`. `check.sh` is green through the slot.
+- Finisher round: `residue_le_max`, `residue_lt_gateTol` and `residue_level_change_lt` take `-48 ≤ a ≤ 48` and are
+  two-sided; `timeline32_ratio`/`start64_ratio` tie the 1/3 literal to `ratio v`. Claims lint: 0 warnings.
 
 ## Verified
 - WebKit 862f17d cites are in the note: ScrollTimeline.cpp:383-397, ViewTimeline.cpp:503-646,
