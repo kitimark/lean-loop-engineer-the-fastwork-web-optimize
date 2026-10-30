@@ -7,8 +7,8 @@ test), MEASURED (a device run) or INFERRED.
 
 The 2026-10-29 ratings-only session stopped after 6 of 10 visits: base 1,1 (hero cards lag and blink, end of page laggy);
 v2-proved 3,3; v2-proved+glint-hold 3,3. The end of the page was laggy on every arm and A and B felt the same. A rating
-alone cannot say whether the page got lighter and did not feel it, or felt lighter and was not. So each visit now records
-what the page did, and a Lean rule puts the two side by side.
+alone cannot say whether the page got lighter and did not feel it, or felt lighter and was not. Each visit now records
+what the page did, and a Lean rule sets it beside the rating.
 
 ## What a visit records
 
@@ -40,7 +40,7 @@ Definitions, all in `lean/Fw/Device/FeelCapture.lean` and golden-checked by `dev
 
 ## Joint reducer (Feel.lean)
 
-Per arm: the rating verdict (as before), the capture summary over the arm's visits (median long33, long17, pin fights,
+Per arm: the rating verdict, the capture summary over the arm's visits (median long33, long17, pin fights,
 blinks; top zone = the first zone with the most work, none when no zone has any) and a flag. The summary score is
 `long33 + fights + blinks`; an arm is measured heavier or lighter than base when its score differs by at least 2
 (`capMargin`; `measured_swap`, `measured_self`). Flags (`flagOf`): "felt worse, measured lighter" and "felt better,
@@ -96,7 +96,7 @@ Counts from Lean's `captureOf` (TS twin, golden-checked) over the saved visits, 
 | 1 | 739 | 51 | 0 | 0 | 0 | 5 | 0 | 1 (zone 0, 6285 records) |
 | 2 | 742 | 46 | 0 | 0 | 0 | 5 | 0 | 1 (zone 0, 6328 records) |
 
-(With the first limits, 16.7 and 33 ms, the same visits read long17 475 and 472: the quantization defect above. The run printed those.)
+(With the first limits, 16.7 and 33 ms, the same visits read long17 475 and 472.)
 
 Well-formedness (all hold): schema `fw.phone.record/1`; frames `t`, `y`, `vh`, `vt` and the three part series have equal length; times
 rise; the finger trace starts with `s` and ends with `e`, 6 start and 6 end events per visit; card opacity is 0 to 1000 for every frame and every card; Timeline rows are

@@ -2,7 +2,6 @@ import Lean.Data.Json
 import Fw.Device.Feel
 import Fw.Device.FeelCapture
 /-!
-# Golden cases of the phone feel session
 Writes `packages/contracts/golden/device/feel.jsonl`.
 -/
 namespace Fw.Device.Feel
@@ -55,7 +54,6 @@ private def jointJ (j : Joint) : Json :=
 
 private def pinJ (p : Pin) : Json := Json.arr #[toJson p.t, toJson p.from_, toJson p.to_]
 
-/-- name, frame times, scroll positions, pins, tween starts, card opacity series, record counts per zone -/
 private def captureCases : List (String × List Nat × List Nat × List Pin × List (Nat × Nat) × List (List Nat) × List (List Nat)) :=
   [("still", [0, 1667, 3333, 5000, 6667], [300, 300, 300, 300, 300], [], [], [[1000, 1000, 1000, 1000, 1000]], [[1, 1, 1, 0]]),
    ("smooth", [0, 1667, 3333, 5000, 6667], [0, 80, 160, 240, 320], [], [], [[1000, 990, 980, 970, 960]], [[1, 1, 1, 0], [2, 1, 1, 0]]),
@@ -76,7 +74,6 @@ private def blinkCases : List (List Nat) :=
 
 private def mkCap (l33 f b : Nat) (z : List Nat) : Capture := ⟨100, l33, l33, f, f, 0, 0, b, z⟩
 
-/-- seed, ratings, look ratings, captures per visit, look captures -/
 private def jointCases : List (Nat × List (Option Nat) × List (Option Nat) × List (Option Capture) × List (Option Capture)) :=
   let base := some (mkCap 10 0 0 [0, 12]); let light := some (mkCap 1 0 0 [4, 0]); let heavy := some (mkCap 9 0 3 [0, 0, 7])
   [(0, [some 5, some 2, some 5, some 2, some 5, some 5], [none, none, none, none], [base, light, base, light, base, base], [none, none, none, none]),

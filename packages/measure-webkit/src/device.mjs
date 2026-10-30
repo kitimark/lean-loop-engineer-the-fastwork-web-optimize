@@ -114,7 +114,6 @@ export async function startPhoneProxy(udid, { log = () => {}, timeoutMs = 20000,
 
 const tabsOf = async (p) => (await fetch(`http://127.0.0.1:${p.tabs}/json`, { signal: AbortSignal.timeout(4000) })).json();
 
-/** Safari not running lists no tab at all; launch it once and list again (glue: the tab choice stays `tabPlan`). */
 export async function tabsOfLaunching(udid, ports, say) {
   let tabs = await tabsOf(ports);
   if (tabs.length > 0) return tabs;

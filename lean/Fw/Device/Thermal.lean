@@ -557,13 +557,6 @@ theorem mayKill_start {p : Nat} {a b : String} (h : a ≠ b) (q : Nat) : mayKill
 theorem mayKill_blank (p q : Nat) (b : String) : mayKill p q "" b = false := by
   simp [mayKill]
 
-/-! ## After a USB drop, and the owner's set
-
-The owner clears the condition only after it set it: a SIGTERM before the owner acknowledges the set kills it with the
-condition on the phone (the owner installs its handler after `set`). `termGate` holds the signal until then. When the USB cable
-dropped, the owner's connection is gone and nothing acknowledges a clear; the phone is taken as cleared only by `droppedClear`. -/
-
-/-- How long a stop waits for the owner to acknowledge its set before it signals anyway. -/
 def setWaitMaxS : Nat := 60
 
 inductive Term where
@@ -573,8 +566,6 @@ inductive Term where
 def Term.name : Term → String
   | .gone => "gone" | .go => "go" | .wait => "wait" | .late => "late"
 
-/-- Whether the stop may send the first SIGTERM. `late`: the owner never acknowledged its set in the bound, so it is signalled
-anyway and the clear is left unconfirmed (a clear cycle follows). -/
 def termGate (alive setAcked : Bool) (waitedS : Nat) : Term :=
   if ¬ alive then .gone else if setAcked then .go else if waitedS < setWaitMaxS then .wait else .late
 
@@ -589,14 +580,11 @@ theorem termGate_late {w : Nat} (h : setWaitMaxS ≤ w) : termGate true false w 
   have : ¬ w < setWaitMaxS := by omega
   simp [termGate, this]
 
-/-- The phone reads the state it had before the pin and that state is below the target. -/
 def droppedClear (target : Thermal) (before back : Option Thermal) : Bool :=
   match before, back with
   | some p, some b => decide (b = p) && decide (b.rank < target.rank)
   | _, _ => false
 
-/-- The end of a pin after a USB drop: an owner gone without an acknowledgement counts as cleared only when the USB cable
-dropped and `droppedClear` holds. -/
 def endVerdictDrop (target : Thermal) (usbDropped ownerGone acked : Bool) (before back : Option Thermal) : End :=
   if usbDropped && ownerGone && !acked && droppedClear target before back then .clearedDrop else endVerdict target ownerGone acked back
 
@@ -651,8 +639,6 @@ theorem conditionSetDrop_cleared {t : Thermal} {p b : Option Thermal} (h : dropp
 theorem conditionSetDrop_noUsb (t : Thermal) (g a : Bool) (p b : Option Thermal) : conditionSetDrop t false g a p b = conditionSet g a := by
   simp [conditionSetDrop]
 
-/-- What a recovery does when the record says the owner ended without an acknowledgement and the USB cable dropped: if the phone
-already reads its pre-pin state (`d`), nothing is left to clear. -/
 def recoverActD (hasRecord alive acked d : Bool) : Recover :=
   if hasRecord && !alive && !acked && d then .nothing else recoverAct hasRecord alive acked
 
@@ -662,7 +648,6 @@ theorem recoverActD_not_dropped (r l a : Bool) : recoverActD r l a false = recov
 
 theorem recoverActD_alive (r a d : Bool) (h : r = true) : recoverActD r true a d = .stopOwner := by simp [recoverActD, recoverAct, h]
 
-/-- How long the stop command waits for a session it signalled to finish its own clean-up. -/
 def sessionWaitS : Nat := 330
 
 inductive Fallback where
@@ -672,8 +657,6 @@ inductive Fallback where
 def Fallback.name : Fallback → String
   | .term => "term" | .wait => "wait" | .recover => "recover"
 
-/-- The stop command found no control server: SIGTERM the recorded session (when its identity still matches), wait for its
-clean-up, then recover. `sent` is whether the signal went out. -/
 def fallbackAct (sessionAlive sent : Bool) (sinceS : Nat) : Fallback :=
   if ¬ sessionAlive then .recover
   else if ¬ sent then .term

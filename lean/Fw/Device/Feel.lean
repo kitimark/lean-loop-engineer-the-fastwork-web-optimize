@@ -64,7 +64,6 @@ structure Visit where
   label : Nat
   deriving DecidableEq
 
-/-- A visit's label is its position, so no letter repeats: the person cannot tell which visit shows an arm twice. -/
 def visitsOf (seed : Nat) : List Visit :=
   (order seed).mapIdx fun i a => ⟨a, i / nSame, i⟩
 
@@ -219,14 +218,6 @@ theorem scores_complete (seed : Nat) (s0 s1 s2 s3 s4 s5 : Nat) :
   intro a ha
   exact this _ (Nat.mod_lt _ (by decide)) a ha
 
-/-! ## The capture of a visit and the joint reducer
-
-A visit's capture is what the page and the Inspector saw while the person scrolled (reduced by `Fw.Device.FeelCapture`). The
-joint reducer sets each arm's rating verdict next to the captures of its visits and flags a disagreement for the lead. -/
-
-/-- What one visit's scroll showed. `moving` counts frames in which the scroll moved; `long17` and `long33` count those that took
-more than 17 ms and more than 34 ms; `fights` counts page pins that went against the finger; `blinks` counts hero-card
-dips; `zoneWork` is style, layout and paint records per 500 px zone. -/
 structure Capture where
   moving : Nat
   long17 : Nat
@@ -239,24 +230,19 @@ structure Capture where
   zoneWork : List Nat
   deriving DecidableEq
 
-/-- Counts that could be felt, per visit: long frames, pin fights and blinks. -/
 def Capture.score (c : Capture) : Nat := c.long33 + c.fights + c.blinks
 
-/-- Median of a list of counts; for an even length the upper middle. -/
 def medianOf (l : List Nat) : Nat := (l.mergeSort (· ≤ ·)).getD (l.length / 2) 0
 
-/-- Sum of work lists position by position; the shorter list counts as zero beyond its end. -/
 def addZones : List Nat → List Nat → List Nat
   | [], b => b
   | a, [] => a
   | x :: a, y :: b => (x + y) :: addZones a b
 
-/-- The first zone with the most work; none when no zone has any. -/
 def topZone (w : List Nat) : Option Nat :=
   let m := w.foldl max 0
   if m = 0 then none else w.findIdx? (· == m)
 
-/-- One arm's captures side by side: medians over its visits, the zone with the most work over all of them. -/
 structure Summary where
   visits : Nat
   long17 : Nat
@@ -273,7 +259,6 @@ def summaryOf (cs : List Capture) : Option Summary :=
   else some ⟨cs.length, medianOf (cs.map (·.long17)), medianOf (cs.map (·.long33)), medianOf (cs.map (·.fights)),
     medianOf (cs.map (·.blinks)), topZone (cs.foldl (fun acc c => addZones acc c.zoneWork) [])⟩
 
-/-- Events by which two arms count as measured differently. -/
 def capMargin : Nat := 2
 
 inductive Dir where
@@ -286,7 +271,6 @@ def Dir.flip : Dir → Dir
 def Dir.code : Dir → String
   | .lighter => "lighter" | .same => "same" | .heavier => "heavier"
 
-/-- An arm measured against base: heavier when its score is at least `capMargin` above base, lighter when that far below. -/
 def measured (a b : Summary) : Dir :=
   if b.score + capMargin ≤ a.score then .heavier else if a.score + capMargin ≤ b.score then .lighter else .same
 
@@ -311,7 +295,6 @@ theorem measured_swap (a b : Summary) : measured b a = (measured a b).flip := by
 theorem measured_self (a : Summary) : measured a a = .same := by
   apply measured_same <;> (unfold capMargin; omega)
 
-/-- What the lead is told: the rating and the capture disagree. Nothing is flagged for a mixed, same or missing verdict. -/
 inductive Flag where
   | none | feltWorseMeasuredLighter | feltBetterMeasuredHeavier
   deriving DecidableEq
@@ -346,14 +329,12 @@ theorem flagOf_quiet {v : Verdict} (h : v = .same ∨ v = .mixed ∨ v = .unrate
 theorem flagOf_flip (v : Verdict) (d : Dir) : flagOf v.flip (some d.flip) = (flagOf v (some d)).flip := by
   cases v <;> cases d <;> rfl
 
-/-- An arm's joint line: the rating verdict, the capture summary and the disagreement flag. -/
 structure Joint where
   verdict : Verdict
   summary : Option Summary
   flag : Flag
   deriving DecidableEq
 
-/-- Captures of the visits that showed arm `a`, in visit order (`caps` is indexed like the ratings). -/
 def capturesOf (seed : Nat) (caps : List (Option Capture)) (a : Nat) : List Capture :=
   ((order seed).zip caps).filterMap fun p => if p.1 = a then p.2 else none
 

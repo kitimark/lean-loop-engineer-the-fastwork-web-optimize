@@ -46,7 +46,6 @@ export function targetStep(state, m) {
 }
 
 let defaultProbe = () => null;
-/** The USB probe every later `connect` runs when the proxy closes the connection (a phone run sets it; null means unreadable). */
 export function setUsbProbe(fn) { defaultProbe = fn ?? (() => null); }
 
 export async function connect(wsUrl, { timeoutMs = T(15000), usbProbe = (...a) => defaultProbe(...a) } = {}) {

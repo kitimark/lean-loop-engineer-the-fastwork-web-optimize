@@ -8,7 +8,6 @@ import { captureOf } from '../src/device-feel-cap.mjs';
 import { normalize } from '../src/device-session.mjs';
 
 const mk = (n, f) => Array.from({ length: n }, (_, i) => f(i));
-// 6 frames at 16.7 ms; the page scrolls 100 px per frame; frame 5 is idle (last scroll move 1.5 s ago).
 const raw = () => ({
   zoom: { frames: 0, min: 1, max: 1 }, maxY: 5000, viewport: { w: 390, h: 844, dpr: 3 }, cardCount: 2,
   frames: {
@@ -36,7 +35,6 @@ test('inputsOf converts page units to Lean units and joins Timeline rows to zone
   assert.equal(x.cards.length, 2);
   assert.deepEqual(x.cards[1], [1000, 1000, 400, 1000, 1000, 1000]);
   assert.equal(x.zoneNote, null);
-  // zone 0: style (frame 0), layout (frame 1), paint (frame 2); zone 1: the style in frame 3; the idle step takes the rest
   assert.deepEqual(x.zones.map((c) => c[0] + c[1] + c[2]), [3, 1]);
   const cap = captureOf(x);
   assert.equal(cap.pins, 1);
@@ -60,7 +58,6 @@ test('inputsOf offsets overscroll, drops idle steps from the zones and survives 
 
 test('the idle frame work is not counted in a zone', () => {
   const x = inputsOf(raw(), rows());
-  // the final Paint at 1.19 belongs to the idle step 5 (mark at 1.0835 .. end 1.2): not in any zone
   const total = x.zones.flat().reduce((a, b) => a + b, 0);
   const all = rows().filter((q) => ['RecalculateStyles', 'Layout', 'Paint'].includes(q[0])).length;
   assert.ok(total < all);
@@ -107,7 +104,6 @@ test('the saved raw record normalizes for the replay lanes', () => {
       assert.deepEqual((await vc.finish()).error, 'no capture was running');
     });
   } finally {
-    // removed after the promise settles in the next test turn
     setTimeout(() => rmSync(dir, { recursive: true, force: true }), 500);
   }
 });

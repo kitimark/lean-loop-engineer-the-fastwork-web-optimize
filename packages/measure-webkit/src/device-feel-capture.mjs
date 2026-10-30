@@ -1,17 +1,3 @@
-// Per-visit capture of the phone feel session (task phone-feel-capture). I/O glue plus one pure conversion; no decision is made here:
-// the counts are Lean's (lean/Fw/Device/FeelCapture.lean via device-feel-cap.mjs).
-//
-// While the person scrolls an open arm, the page records, for every native requestAnimationFrame: its time, scrollY, the three
-// parts the lag recorder samples, the opacity of every hero card, and whether the visit is active (a finger or a scroll move in the last
-// idleMs). It also records every touch event, every page call of window.scrollTo (a pin: the nav tween pins with
-// scrollTo({top, behavior:'instant'})) and every start of the nav tween (window.__fwTakeTrace 'push' events; only the geom-timed
-// variant emits them). The Timeline runs for the visit; a performance.mark('cap:<frame>') on every active frame, and on the
-// first idle frame after one, joins style, layout and paint records to frames (zones as the counts lane defines them: 500 px).
-//
-// Probe effect (limits, stated): the Timeline instrument is on during the visit (it costs time on the page, as in the counts lane),
-// getComputedStyle(card).opacity once per card per frame flushes style, performance.mark is one call per active frame. A tween
-// re-target is observable only when the page runs the variant that traces. Blink detection reads the computed opacity, so a card
-// that blinks through a compositor-only change of `visibility` or a layer swap is not seen.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { startTimeline } from './timeline.mjs';
@@ -23,7 +9,6 @@ export const CARD_SELECTOR = '[data-fw-layer="hero.orbit_card"]';
 export const MAX_CARDS = 12;
 const CHUNK = 3000;
 
-/** Installs the page recorder as `window.__fwCap` and starts it. Returns 'on'. */
 export const CAP_START_JS = `(() => {
   if (window.__fwCap && window.__fwCap.stop) window.__fwCap.stop();
   const PROPS = ${JSON.stringify(PART_PROPS)};
@@ -107,7 +92,6 @@ export const CAP_START_JS = `(() => {
 
 export const CAP_STOP_JS = `(() => { if (!window.__fwCap) return 'none'; window.__fwCap.stop(); return window.__fwCap.meta(); })()`;
 
-/** Turns the page's record and the Timeline rows into the inputs of Lean's `captureOf`. Pure. */
 export function inputsOf(raw, rows) {
   const { t, y, o, a } = raw.frames;
   const n = t.length;
@@ -139,7 +123,6 @@ export function inputsOf(raw, rows) {
   };
 }
 
-/** The saved raw record: `fw.phone.record/1` (replayable by the device and CI replay lanes) plus the capture extras. */
 export function rawRecord({ arm, pass, raw, rows, marks }) {
   const { zoneNote, ...inputs } = marks;
   return {
@@ -161,10 +144,6 @@ async function pull(c, meta) {
   return { ...meta, frames };
 }
 
-/**
- * One visit's capture. `start()` installs the recorder and the Timeline after the arm is open; `finish()` stops both and returns
- * {capture, file}. A failure never ends the session: it returns {error} and the visit stays unmeasured.
- */
 export function visitCapture({ ctx, visit, dir, log, startTl = startTimeline }) {
   let tl = null;
   let open = false;

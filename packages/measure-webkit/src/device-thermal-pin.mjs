@@ -53,27 +53,21 @@ export const clearWait = (target, back, waitedS) => waitedS < PIN.clearWaitMaxS 
 export const mayKill = (recPid, curPid, recStart, curStart) => recPid === curPid && recStart !== '' && recStart === curStart;
 
 
-/** Lean `termGate`: whether the stop may send its first SIGTERM (the owner has acknowledged its set). */
 export function termGate(alive, setAcked, waitedS) {
   if (!alive) return 'gone';
   if (setAcked) return 'go';
   return waitedS < DROP.setWaitMaxS ? 'wait' : 'late';
 }
-/** Lean `droppedClear`: the phone reads the state it had before the pin, and that state is below the target. */
 export function droppedClear(target, before, back) {
   if (before === null || before === undefined || back === null || back === undefined) return false;
   return back === before && RANK[back] < RANK[target];
 }
 const dropCleared = (target, usbDropped, ownerGone, acked, before, back) => usbDropped && ownerGone && !acked && droppedClear(target, before, back);
-/** Lean `endVerdictDrop`. */
 export const endVerdictDrop = (target, usbDropped, ownerGone, acked, before, back) =>
   (dropCleared(target, usbDropped, ownerGone, acked, before, back) ? 'clearedDrop' : endVerdict(target, ownerGone, acked, back));
-/** Lean `conditionSetDrop`. */
 export const conditionSetDrop = (target, usbDropped, ownerGone, acked, before, back) =>
   conditionSet(ownerGone, acked) && !dropCleared(target, usbDropped, ownerGone, acked, before, back);
-/** Lean `recoverActD`: `d` is a USB drop with the phone already reading its pre-pin state. */
 export const recoverActD = (hasRecord, alive, acked, d) => (hasRecord && !alive && !acked && d ? 'nothing' : recoverAct(hasRecord, alive, acked));
-/** Lean `fallbackAct`: the stop command found no control server. */
 export function fallbackAct(sessionAlive, sent, sinceS) {
   if (!sessionAlive) return 'recover';
   if (!sent) return 'term';
@@ -182,14 +176,10 @@ export class ConditionOwner {
     return p !== null && !p.stat.startsWith('Z') && mayKill(this.rec.pid, this.rec.pid, this.rec.start, p.start);
   }
 
-  /** The owner printed that it set the condition (the moment its clear handler exists). */
   setAcked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin held pid=${pid}`); }
 
-  /** The owner's log says its connection to the phone closed (USB unplugged, phone asleep). Log text is I/O; the rule
-   *  that uses it is `endVerdictDrop`. */
   usbDropped() { return USB_DROP.test(this.readLog().slice(this.rec?.logFrom ?? 0)); }
 
-  /** The owner printed its clear acknowledgement (after a reply from the phone). */
   acked(pid = this.rec?.pid) { return pid !== undefined && this.readLog().includes(`fw-pin cleared pid=${pid}`); }
 
   signal(sig) {
@@ -219,8 +209,6 @@ export class ConditionOwner {
     return this.rec;
   }
 
-  /** From the record an earlier run left (Lean recoverAct): stop a live owner, or run one set-and-clear cycle for an owner
-   *  that ended without acknowledging its clear. */
   async recover({ read = () => null } = {}) {
     if (!existsSync(this.recFile)) return false;
     const rec = JSON.parse(readFileSync(this.recFile, 'utf8'));
@@ -279,6 +267,5 @@ export class ConditionOwner {
     return { gone: true, acked, signals, usbDropped };
   }
 
-  /** Last resort when the process exits: one identity-checked SIGTERM, no waiting. */
   termSync() { if (MAY_BE_ALIVE[this.phase]) this.signal('SIGTERM'); }
 }

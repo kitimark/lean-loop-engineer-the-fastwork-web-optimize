@@ -195,10 +195,6 @@ export async function waitGone(dir, { maxS = 400, sleep = sleepMs } = {}) {
   return { gone: !(end.pid && alive(end.pid)), status: end.status, pinEnd: end.pinEnd ?? null };
 }
 
-/**
- * `feel stop` with no control server (Lean `fallbackAct`): SIGTERM the recorded session when its identity (pid and start time) still
- * matches, wait for its own clean-up, then recover the owner. Only a process this session started is signalled.
- */
 export async function stopFallback(dir, { owner, read = () => null, log = () => {}, ps = psInfo, isAlive = alive, kill = (pid, sig) => process.kill(pid, sig), sleep = sleepMs, now = Date.now }) {
   const st = loadFeel(dir);
   const mine = () => st.pid && isAlive(st.pid) && mayKill(st.pid, st.pid, st.pidStart ?? '', ps(st.pid)?.start ?? '');
