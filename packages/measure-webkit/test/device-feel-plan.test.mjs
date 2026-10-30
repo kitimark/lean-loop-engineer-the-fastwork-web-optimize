@@ -70,7 +70,6 @@ test('the plan text names arm count, visit count, estimate and the commands, and
   assert.ok(t.split('\n').length < 60);
 });
 
-// readFacts with a fake `run`: a pure read of three commands, never a write.
 function fakeRun(devices, { usb = true, lock = { passcodeRequired: false } } = {}) {
   const calls = [];
   const run = (cmd, args) => {
@@ -105,7 +104,6 @@ test('readFacts: each missing fact gives its own probe code', () => {
   assert.equal(probeOf(read([sim]).facts), 'notListed');
 });
 
-// The script, against a stub CLI: what it asks, what it starts, and that it never opens an arm.
 const SCRIPT = new URL('../../../scripts/feel-session.sh', import.meta.url).pathname;
 const STUB = `import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 const [, , , sub] = process.argv;

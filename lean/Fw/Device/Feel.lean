@@ -9,12 +9,8 @@ structure Arm where
   flags : List String
   text : String
 
-/-- The flags of `list` that do not belong to the part `part` (a flag `part:variant` belongs to `part`). -/
 def dropPart (part : String) (list : List String) : List String := list.filter fun f => !f.startsWith (part ++ ":")
 
-/-- The three same-look arms for the generated preset `preset` (the sorted `part:variant` keys of
-`packages/contracts/golden/preset/v2-proved.json`, read by the golden generator): `base`, the preset itself, and the
-preset without its `platform` flag, which is the preset of the 2026-10-29 session, so the pair isolates `platform`. -/
 def sameArmsOf (preset : List String) : List Arm :=
   [⟨"base", [], ""⟩, ⟨"v2-proved", preset, ""⟩, ⟨"v2-proved-2flag", dropPart "platform" preset, ""⟩]
 
@@ -26,7 +22,6 @@ def lookArms : List Arm :=
 
 theorem lookArms_length : lookArms.length = 4 := rfl
 
-/-- Every arm id of the session is its own: no two arms, same-look or look-change, share a name, whatever the preset. -/
 theorem arm_ids_nodup (preset : List String) :
     ((sameArmsOf preset).map (·.id) ++ lookArms.map (·.id)).Nodup := by
   simp only [sameArmsOf, lookArms, List.map_cons, List.map_nil, List.cons_append, List.nil_append]
@@ -44,29 +39,24 @@ def margin : Nat := 1
 
 theorem sameArmsOf_length (preset : List String) : (sameArmsOf preset).length = nSame := rfl
 
-/-- The arm `v2-proved` carries exactly the preset flags: the preset file is its only source. -/
 theorem sameArmsOf_proved (preset : List String) : ((sameArmsOf preset)[1]?).map (·.flags) = some preset := rfl
 
 theorem sameArmsOf_base (preset : List String) : ((sameArmsOf preset)[baseArm]?).map (·.flags) = some [] := rfl
 
-/-- Every flag of the 2-flag arm is a preset flag. -/
 theorem dropPart_sublist (part : String) (list : List String) : (dropPart part list).Sublist list :=
   List.filter_sublist
 
-/-- A flag the 2-flag arm lacks against the preset belongs to the dropped part, so the pair differs in that part only. -/
 theorem dropPart_isolates {part : String} {list : List String} {f : String} (h : f ∈ list)
     (hn : f ∉ dropPart part list) : f.startsWith (part ++ ":") = true := by
   cases hb : f.startsWith (part ++ ":")
   · exact absurd (List.mem_filter.mpr ⟨h, by simp [hb]⟩) hn
   · rfl
 
-/-- No flag of the dropped part is left. -/
 theorem dropPart_none {part : String} {list : List String} {f : String} (h : f ∈ dropPart part list) :
     f.startsWith (part ++ ":") = false := by
   have := (List.mem_filter.mp h).2
   simpa using this
 
-/-- A preset with no flag of the part gives the same arm twice, which the session must refuse. -/
 theorem dropPart_noop {part : String} {list : List String} (h : ∀ f ∈ list, f.startsWith (part ++ ":") = false) :
     dropPart part list = list :=
   List.filter_eq_self.mpr fun f hf => by simp [h f hf]
@@ -411,15 +401,10 @@ theorem jointSame_verdict (seed : Nat) (rs : List (Option Nat)) (caps : List (Op
 theorem jointSame_base_quiet (seed : Nat) (rs : List (Option Nat)) (caps : List (Option Capture)) :
     (jointSame seed rs caps baseArm).flag = .none := jointWith_base_quiet _ _
 
-/-! ## Session start: the read-only phone probe, start failures, and the length estimate -/
-
-/-- What `xcrun devicectl device info lockState` says: `passcodeRequired` true, false, or not readable. -/
 inductive LockState where
   | locked | unlocked | unknown
   deriving DecidableEq
 
-/-- What the probe reads from the Mac without changing anything on the phone: listed by `devicectl list devices` as the
-one physical measurement phone, paired, connected, on USB (`idevice_id -l`), and the lock state. -/
 structure Facts where
   listed : Bool
   paired : Bool
@@ -431,7 +416,6 @@ inductive Probe where
   | ready | notListed | notPaired | notConnected | notUsb | locked | lockUnknown
   deriving DecidableEq
 
-/-- The first fact that fails, in the order a person fixes them (cable, pairing, connection, USB, lock). -/
 def probeOf (f : Facts) : Probe :=
   if !f.listed then .notListed
   else if !f.paired then .notPaired
@@ -446,7 +430,6 @@ def Probe.code : Probe → String
   | .ready => "ready" | .notListed => "notListed" | .notPaired => "notPaired" | .notConnected => "notConnected"
   | .notUsb => "notUsb" | .locked => "locked" | .lockUnknown => "lockUnknown"
 
-/-- The one sentence for the user when the probe fails; the script prints it and changes no setting. -/
 def Probe.ask : Probe → String
   | .ready => ""
   | .notListed => "The Mac does not list the iPhone: plug it into the Mac with the USB cable."
@@ -474,7 +457,6 @@ theorem probe_lockUnknown {f : Facts} (h1 : f.listed = true) (h2 : f.paired = tr
     (h4 : f.usb = true) (h : f.lock = .unknown) : probeOf f = .lockUnknown := by
   simp [probeOf, h1, h2, h3, h4, h]
 
-/-- The probe says ready exactly when every fact holds and the phone is unlocked. -/
 theorem probe_ready_iff (f : Facts) :
     probeOf f = .ready ↔ f.listed = true ∧ f.paired = true ∧ f.connected = true ∧ f.usb = true ∧ f.lock = .unlocked := by
   unfold probeOf
@@ -483,19 +465,15 @@ theorem probe_ready_iff (f : Facts) :
 
 theorem ask_ready : Probe.ready.ask = "" := rfl
 
-/-- Every failed probe tells the user something. -/
 theorem ask_nonempty (p : Probe) (h : p ≠ .ready) : p.ask ≠ "" := by
   cases p <;> first | exact absurd rfl h | decide
 
-/-- The part of a start failure the user can fix. -/
 inductive Fail where
   | webInspector | locked | notUsb | other
   deriving DecidableEq
 
 def hasSub (s p : String) : Bool := (s.splitOn p).length > 1
 
-/-- Names the user-side cause from the text of a `feel start` error: the proxy listed no tab (Web Inspector off or Safari
-closed with the phone locked), the pin gate or the page saw a locked phone, or the phone left USB. -/
 def failOf (msg : String) : Fail :=
   if hasSub msg "phone is locked" then .locked
   else if hasSub msg "not on USB" then .notUsb
@@ -514,12 +492,8 @@ def Fail.ask : Fail → String
 theorem failOf_locked (msg : String) (h : hasSub msg "phone is locked" = true) : failOf msg = .locked := by
   simp [failOf, h]
 
-/-- Seconds the session takes besides the visits: pin start and clear, tab list, stop. Measured: the 2026-10-29 dry run
-took 8 min from the pin start to the cleared pin, of which 196 s was the 10-visit drive script. -/
 def fixedS : Nat := 285
 
-/-- Seconds per visit: 20 s to open, settle, swipe and rate (the dry run's 196 s over 10 visits, rounded up), plus 60 s for a
-person scrolling slowly to the end and back (INFERRED) and 15 s to relay `next` and `rate`. -/
 def visitS : Nat := 95
 
 def visitCount : Nat := repeats * nSame + lookArms.length
@@ -536,7 +510,6 @@ theorem estimateS_succ (v : Nat) : estimateS (v + 1) = estimateS v + visitS := b
 theorem estimateS_mono {a b : Nat} (h : a ≤ b) : estimateS a ≤ estimateS b := by
   unfold estimateS; exact Nat.add_le_add_left (Nat.mul_le_mul_right _ h) _
 
-/-- The estimate in whole minutes never undercuts the seconds. -/
 theorem estimateMin_ge (v : Nat) : estimateS v ≤ estimateMin v * 60 := by
   unfold estimateMin; omega
 

@@ -7,8 +7,6 @@ const GOLDEN = readFileSync(new URL('../../contracts/golden/device/feel.jsonl', 
 export const FEEL_ROWS = (kind) => GOLDEN.filter((l) => l.kind === kind);
 export const FEEL = Object.freeze(GOLDEN.find((l) => l.kind === 'consts'));
 
-// The arm flags have one source: the generated preset golden. feel.jsonl is generated from it by Lean
-// (Fw.Device.Feel.sameArmsOf), so a stale feel.jsonl refuses here instead of opening arms the preset no longer names.
 export const presetFlagsOf = (preset) => Object.entries(preset.fw).map(([part, variant]) => `${part}:${variant}`).sort();
 export const PRESET_FLAGS = Object.freeze(presetFlagsOf(JSON.parse(readFileSync(new URL('../../contracts/golden/preset/v2-proved.json', import.meta.url), 'utf8'))));
 const PRESET_ROW = GOLDEN.find((l) => l.kind === 'preset');

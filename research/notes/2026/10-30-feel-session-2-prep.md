@@ -45,7 +45,7 @@ Labelled look arms, one visit each (L1 to L4), the person is told what to look a
 Why: L1 is the engine-parity look change (WebKit eases the earn button's padding as Chromium does; macOS WebKit 390 px
 cell passes, `research/notes/2026/10-2x-earn-logical-preset.md`); L2 is the compositor glint, a look change for the user's visual review
 (`platform.glint` part.json `compositor`); L3 and L4 are the two session-1 look arms the kit keeps (`morph.end.nobounce`, `morph.stage`), now as plain `:on` flags.
-`morph.stage:on` adds about 739 px to the page height (MEASURED in the 2026-10-29 dry run), hence the added words.
+`morph.stage:on` adds about 739 px to the page height (MEASURED in the 2026-10-29 dry run).
 
 ## Arms built and resolving (local build in this branch, `apps/site/dist/aot/configs.json`, not a measurement)
 
@@ -68,7 +68,7 @@ alone against base"; it does not say how the flag behaves on the preset (follow-
 `fixedS`, `visitS`, `estimateS_mono`, `estimateMin_ge`, golden row `estimate`). Sources: 285 s fixed and 20 s per visit for
 open, settle, scripted swipes and rating are the 2026-10-29 dry run in `research/notes/2026/10-2x-phone-feel-kit.md` (8 min from pin start to cleared pin, 196 s of it the
 drive over 10 visits); 60 s for a person scrolling slowly to the end and back and 15 s to relay `next` and `rate` are INFERRED.
-It is an estimate; add up to 3 min if the pin takes longer to reach Serious (gate bound 180 s).
+Add up to 3 min if the pin takes longer to reach Serious (gate bound 180 s).
 
 ## The script
 
@@ -102,7 +102,7 @@ node src/device-cli.mjs feel next --dir .local/phone/<date>-feel2        # from 
 
 - No device run: the probe's devicectl field names (`pairingState`, `transportType`) come from a saved device list (INFERRED to hold on the
   live read); `tunnelState` is not used because the saved list shows `disconnected` for a paired idle phone. `connected` means a reachable transport.
-- The duration is an estimate; look arms are labelled, not blind; n = 2 per same-look arm.
+- Look arms are labelled, not blind; n = 2 per same-look arm.
 - Look arms are tested alone against base, not on top of v2-proved.
 - Serious is induced; capture costs page time (see `10-2x-phone-feel-capture.md`).
 - TS stand-ins (golden-checked, no decision logic of their own): `probeOf`, `failOf`, `estimateS` in `device-feel-plan.mjs`; I/O glue: `readFacts`, the script.

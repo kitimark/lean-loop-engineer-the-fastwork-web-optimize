@@ -1,5 +1,5 @@
 branch: worktree-wf_8092b7fe-92d-1
-worktree: .claude/worktrees/wf_8092b7fe-92d-1 (under the main checkout)
+worktree: .claude/worktrees/wf_8092b7fe-92d-1
 last commit: 166d5943d (merge of main over e9fa80213 work + land.ts reads), this handoff after it
 CI runs: none (the task needs no CI; nothing touches the phone)
 verified locally: lake build, `FeelGolden --check`, measure-webkit feel tests (32) + device-feel-plan tests (13), 7 arms built
@@ -21,7 +21,7 @@ State
   `apps/site/src/parts/platform/part.json:48`. The kit composes each look arm alone against base, not on v2-proved.
 
 Conventions
-- Regenerate the golden from Lean (`FeelGolden`), never hand-edit `feel.jsonl`. `FeelGolden.lean` is outside the task's writes glob.
+- Regenerate the golden from Lean (`FeelGolden`), never hand-edit `feel.jsonl`.
 - Web Inspector cannot be probed read-only before the proxy runs; the script classifies a failed start (`failOf`) and prints the ask.
 
 Read first: research/notes/2026/10-30-feel-session-2-prep.md, then lean/Fw/Device/Feel.lean (session-start section).

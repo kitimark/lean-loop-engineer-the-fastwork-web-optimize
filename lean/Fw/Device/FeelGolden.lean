@@ -106,14 +106,11 @@ private def captureLines (_ : Unit) : List String :=
       ("usb", match c.2.2 with | none => Json.null | some b => Json.bool b), ("cause", (closeCause c.2.1 c.2.2).code)]).compress) ++
   (jointCases.map fun c => (jointLineJ c).compress)
 
-/-- The repo path of the preset the arm flags come from, as the golden records it. -/
 def presetSource : String := "packages/contracts/golden/preset/v2-proved.json"
 
 private def lockCode : LockState → String
   | .locked => "locked" | .unlocked => "unlocked" | .unknown => "unknown"
 
-/-- Every combination of the five probe facts, in the order listed, paired, connected, usb, lock (false before true;
-locked, unlocked, unknown). -/
 private def probeCases : List Facts :=
   [false, true].flatMap fun a => [false, true].flatMap fun b => [false, true].flatMap fun c => [false, true].flatMap fun d =>
     [LockState.locked, .unlocked, .unknown].map fun l => ⟨a, b, c, d, l⟩
@@ -152,8 +149,6 @@ def goldenLines (preset : List String) : List String :=
 
 def goldenText (preset : List String) : String := String.intercalate "\n" (goldenLines preset) ++ "\n"
 
-/-- The flag keys of the preset file at `path`, sorted (`Fw.Preset.Gen.presetKeys`), refused when the file does not parse
-or has no `platform` flag (the 2-flag arm would equal `v2-proved`). -/
 def presetOfFile (path : String) : IO (List String) := do
   let txt ← IO.FS.readFile path
   match Json.parse txt >>= Fw.Preset.Gen.presetKeys with
@@ -163,7 +158,6 @@ def presetOfFile (path : String) : IO (List String) := do
       throw (IO.userError s!"device-feel golden: preset {path} has no platform flag; v2-proved and v2-proved-2flag would be one arm")
     pure ks
 
-/-- Where the preset sits relative to `lean/`, the directory `check.sh` runs in. -/
 def presetPath : String := "../" ++ presetSource
 
 def run (args : List String) : IO UInt32 := do

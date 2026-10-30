@@ -1,7 +1,3 @@
-// What the lead needs to start a captured feel session: the plan text, the build command, the read-only phone probe, the
-// ask for a failed start, the length estimate. The rules are the Lean ones in lean/Fw/Device/Feel.lean (probeOf, failOf,
-// estimateS, Probe.ask, Fail.ask); this file follows the golden packages/contracts/golden/device/feel.jsonl (TS stand-in of
-// those rules, golden-checked in test/device-feel-plan.test.mjs). The probe only reads: it changes no setting on the phone.
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,7 +24,6 @@ export function probeOf(f) {
 }
 export const askOf = (code) => (code === 'ready' ? '' : ASKS[code]);
 
-/** The user-side cause named in the text of a `feel start` error (Lean `failOf`), and what to ask. */
 export function failOf(msg) {
   if (msg.includes('phone is locked')) return 'locked';
   if (msg.includes('not on USB')) return 'notUsb';
@@ -37,10 +32,8 @@ export function failOf(msg) {
 }
 export const failAsk = (msg) => FAIL_ASKS[failOf(msg)];
 
-/** The arms' `?fw=` configs for `apps/site/scripts/build.mjs`, generated from the arm list (no second copy). */
 export const buildCommand = () => `node scripts/build.mjs --engine aot --configs none ${ARMS.filter((a) => a.flags.length > 0).map((a) => `--config '${searchOf(a.flags)}'`).join(' ')}`;
 
-/** Arms the built site lacks: the same rule as `armHashes`, on a parsed configs.json. */
 export const missingArms = (configs) => ARMS.filter((a) => {
   const h = configs.bySearch[canonSearch(searchOf(a.flags))];
   return !(h && configs.byHash[h]);
@@ -51,12 +44,6 @@ const sh = (cmd, args, timeoutMs) => {
   return { status: r.status, stdout: r.stdout || '', stderr: r.stderr || '', error: r.error };
 };
 
-/**
- * Facts for `probeOf`, read-only: `devicectl list devices` (the one physical measurement phone, its pairing and transport),
- * `idevice_id -l` (on USB) and `devicectl device info lockState`. `connected` is a reachable transport (wired or network);
- * `tunnelState` is not used because the list shows `disconnected` for a paired phone that is simply idle (INFERRED from a
- * saved list). `run` and `lock` are injected for tests.
- */
 export function readFacts({ model, os, run = sh, lock = null } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'fw-feel-probe-'));
   try {
@@ -95,7 +82,6 @@ export function probe(opts) {
 
 const cmdLine = (dir, tail) => `node src/device-cli.mjs feel ${tail} --dir ${dir}`;
 
-/** The plan for the lead: arms, visits, estimate, commands. Names appear here for the lead; the person never sees them. */
 export function feelPlanText({ seed, dir, site }) {
   const plan = planOf(seed);
   const same = plan.filter((v) => v.group === 'same');

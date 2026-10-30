@@ -23,7 +23,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 case "$date" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) echo "feel-session: --date must be YYYY-MM-DD" >&2; exit 2 ;; esac
-# Without --seed the seed is the day number: a new blind order each day, never the one default of an earlier session.
 [ -n "$seed" ] || seed=$(( $(date +%s) / 86400 ))
 case "$seed" in ''|*[!0-9]*) echo "feel-session: --seed must be a whole number" >&2; exit 2 ;; esac
 
@@ -32,7 +31,6 @@ main=${FEEL_MAIN:-$(cd "$top/packages/measure-webkit" && node -e "import('./src/
 dir=".local/phone/$date-feel2"
 site="../../apps/site/dist/aot"
 log="$main/.local/phone/$date-feel2-start.log"
-# FEEL_CLI, FEEL_MAIN, FEEL_WAIT_S and FEEL_POLL_S exist for test/feel-session.test.mjs (a stub CLI); the defaults are the real ones.
 cli=${FEEL_CLI:-"node src/device-cli.mjs"}
 wait_s=${FEEL_WAIT_S:-300}
 poll_s=${FEEL_POLL_S:-5}
