@@ -24430,6 +24430,33 @@
     "packages/contracts/golden/preset/look-change.candidates.jsonl"
    ],
    "evidence": "d8e88ec"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "park-attrib",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "scrolldriven-park"
+   ],
+   "title": "Attribution follow-up of scrolldriven-park: run the breakpoint gate on both engines with ?fw=engine.scroll:unthrottle,hero.exit:threaded (v2-proved's scroll-driven pair, no park) at main HEAD, so the playwright-webkit hero.orbit/hero.deck card translate failure (about 2e-5 px, run 41054732597) is attributed to the park or to threaded; one flag set differs per comparison (Lean check: flag-set diff of size 1 before a cause is stated).",
+   "writes": [
+    "results/park-attrib/**",
+    "research/notes/2026/10-31-park-attrib.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/park-attrib.md",
+    ".github/workflows/breakpoint-gate.yml",
+    "lean/Fw/Ops/Attrib*.lean",
+    "lean/scripts/Attrib*Golden.lean",
+    "packages/contracts/golden/ops/attrib*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts"
+   ]
   }
  ],
  "deadline": {
