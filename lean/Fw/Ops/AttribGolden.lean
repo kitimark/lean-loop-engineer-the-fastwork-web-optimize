@@ -41,7 +41,9 @@ def cases : List (String × Run × Run) :=
    ("runs 39774976109 and 41058963051: threaded alone against the faithful build, one part but two commits",
       run "ff8c8cd" [("hero.exit", "threaded")] false, run "8cb6814" [] true),
    ("two runs on one commit, threaded alone against no flags: caused by hero.exit",
-      run "c1" [("hero.exit", "threaded")] false, run "c1" [] true)]
+      run "c1" [("hero.exit", "threaded")] false, run "c1" [] true),
+   ("runs 41087718575 and 41086902481 on one commit, threaded alone against no flags, WebKit: caused by hero.exit",
+      run "31fdd85" [("hero.exit", "threaded")] false, run "31fdd85" [] true)]
 
 def name : Verdict → String
   | .causedBy .. => "causedBy"
