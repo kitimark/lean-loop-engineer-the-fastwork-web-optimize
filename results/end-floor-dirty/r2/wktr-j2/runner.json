@@ -1,0 +1,17 @@
+{
+ "schema": "fw.ci-runner/1",
+ "workflow": "wktr",
+ "job": "wktr",
+ "runId": "41022222810",
+ "runAttempt": "1",
+ "sha": "db70a4ecc5bebd88a45221f99744828b988c2b38",
+ "ref": "refs/heads/ci/end-floor-dirty",
+ "runnerOS": "macOS",
+ "runnerArch": "ARM64",
+ "imageOS": "macos26",
+ "imageVersion": "20261013.0424.1",
+ "kernel": "25.6.0",
+ "cpus": 3,
+ "dockerNcpu": null,
+ "node": "v24.22.0"
+}

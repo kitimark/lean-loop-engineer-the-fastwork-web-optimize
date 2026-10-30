@@ -735,6 +735,211 @@ function pageProbe(P) {
     const u1 = ruNow();
     return { frames: [], tot: { n: u0 !== null && u1 !== null ? u1 - u0 : 0, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'update' } };
   };
+  // Internals::styleChangeType first runs styleScope().flushPendingUpdate() (Internals.cpp:961-966@862f17d).
+  const PD = {
+    pbdn: { t: 0 }, pbpd: { t: 0 }, pbpdt: { t: 1 },
+    pbphide: { t: 0, hide: 'el' }, pbphidep: { t: 0, hide: 'part' }, pbphides: { t: 0, hide: 'set' },
+    pbpft: { t: 0, fl: 'T' }, pbpfh: { t: 0, fl: 'H' },
+    pbpan: { t: 0, an: 1 },
+  };
+  const DN = { names: new WeakMap(), nodes: new Map(), cnt: new Map(), ref: null };
+  const DTY = ['NoStyleChange', 'AnimationInvalid', 'InlineStyleInvalid', 'InlineStyleChange', 'FullStyleChange'];
+  const DCAP = 600;
+  const partName = (el) => { let c = el; while (c) { const p = c.closest ? c.closest('[data-fw]') : null; if (p && p !== document.documentElement) return p.getAttribute('data-fw'); if (p) return '-'; const r = c.getRootNode ? c.getRootNode() : null; c = r && r.host ? r.host : null; } return '-'; };
+  const nameOf = (n) => {
+    let v = DN.names.get(n);
+    if (v) return v;
+    const ty = n.nodeType;
+    if (ty === 9) v = ['d:document', '-'];
+    else if (ty === 11) { const h = n.host ? nameOf(n.host) : ['e:?', '-']; v = [h[0] + '::shadow', h[1]]; }
+    else if (ty === 3) {
+      const p = n.parentNode;
+      const pn = p ? nameOf(p) : ['e:?', '-'];
+      v = ['t:' + pn[0].slice(2) + '/#text[' + (p ? Array.prototype.indexOf.call(p.childNodes, n) : 0) + ']', pn[1]];
+    } else {
+      const seg = [];
+      let c = n;
+      while (c && c.nodeType === 1) {
+        const par = c.parentNode;
+        const cls = (c.getAttribute('class') || '').split(/\s+/)[0];
+        seg.push(c.localName + (c.id ? '#' + c.id : '') + (cls ? '.' + cls : '') + '[' + (par && par.children ? Array.prototype.indexOf.call(par.children, c) : 0) + ']');
+        if ((c.hasAttribute('data-fw') && c !== document.documentElement) || c === document.documentElement) break;
+        if (par && par.nodeType === 11 && par.host) { seg.push('shadow'); c = par.host; } else c = par;
+      }
+      const part = partName(n);
+      v = ['e:' + part + '|' + seg.reverse().join('>'), part];
+    }
+    DN.names.set(n, v);
+    if (!DN.nodes.has(v[0])) DN.nodes.set(v[0], n);
+    return v;
+  };
+  const dirtRead = (typed, K) => {
+    const w0 = performance.now();
+    const dirty = [];
+    let total = 0;
+    const visit = (root) => {
+      const tw = document.createTreeWalker(root, 5);
+      let n = tw.nextNode();
+      while (n) {
+        total++;
+        if (I.nodeNeedsStyleRecalc(n)) dirty.push(n);
+        if (n.nodeType === 1 && n.shadowRoot) { total++; if (I.nodeNeedsStyleRecalc(n.shadowRoot)) dirty.push(n.shadowRoot); visit(n.shadowRoot); }
+        n = tw.nextNode();
+      }
+    };
+    total++;
+    if (I.nodeNeedsStyleRecalc(document)) dirty.push(document);
+    visit(document);
+    const capped = dirty.length > DCAP;
+    const use = capped ? dirty.slice(0, DCAP) : dirty;
+    const ids = [];
+    const types = [];
+    const seen = new Set();
+    const put = (s, t) => {
+      if (seen.has(s)) return;
+      seen.add(s);
+      let i = K.idx.get(s);
+      if (i === undefined) { i = K.kt.length; K.kt.push(s); K.idx.set(s, i); }
+      ids.push(i);
+      types.push(t);
+    };
+    for (const n of use) {
+      let t = -1;
+      if (typed) { try { t = DTY.indexOf(I.styleChangeType(n)); } catch (x) { } }
+      const v = nameOf(n);
+      put(v[0], t);
+      if (v[1] !== '-') put('p:' + v[1], t);
+    }
+    let elN = 0;
+    for (const n of dirty) if (n.nodeType === 1) elN++;
+    return { ids: ids, types: types, total: total, ms: performance.now() - w0, capped: capped, dirty: dirty.length, elN: elN };
+  };
+  const mutStart = () => {
+    const mu = new Map();
+    const bump = (k) => mu.set(k, (mu.get(k) || 0) + 1);
+    const mo = new MutationObserver(() => { });
+    mo.observe(document, { attributes: true, characterData: true, childList: true, subtree: true });
+    const take = () => {
+      for (const r of mo.takeRecords()) {
+        const n = r.target;
+        const nm = n.nodeType === 9 ? 'document' : nameOf(n)[0];
+        bump(r.type + (r.attributeName ? ':' + r.attributeName : '') + ' ' + nm);
+      }
+    };
+    const undo = [];
+    const wrap = (proto, name) => {
+      const orig = proto && proto[name];
+      if (typeof orig !== 'function') return;
+      proto[name] = function () { bump('api:' + name); return orig.apply(this, arguments); };
+      undo.push(() => { proto[name] = orig; });
+    };
+    if (typeof CSSStyleSheet !== 'undefined') for (const m of ['insertRule', 'deleteRule', 'replace', 'replaceSync']) wrap(CSSStyleSheet.prototype, m);
+    if (typeof Element !== 'undefined') for (const m of ['animate', 'setAttribute', 'removeAttribute', 'setAttributeNS']) wrap(Element.prototype, m);
+    if (typeof CSSStyleDeclaration !== 'undefined') for (const m of ['setProperty', 'removeProperty']) wrap(CSSStyleDeclaration.prototype, m);
+    const stop = () => { take(); mo.disconnect(); for (const u of undo) u(); return mu; };
+    return { take: take, stop: stop };
+  };
+  const dirtWindow = async (cfg, K) => {
+    const reps = [];
+    let n = 0;
+    let prev = recalc();
+    const c0 = prev;
+    const u0 = ruNow();
+    let tl = I.numberOfAnimationTimelineInvalidations();
+    let inv = I.styleInvalidationTraversalCount;
+    let wms = 0;
+    let total = 0;
+    let caps = 0;
+    const ag = { h: 0, e: 0, hEl: 0, eEl: 0, cyc: 0, maxH: 0, maxE: 0, fl: 0 };
+    let prevE = null;
+    const mut = mutStart();
+    const flush = () => { const a = recalc(); try { getComputedStyle(document.documentElement).getPropertyValue('display'); } catch (x) { } const b = recalc(); return a !== null && b !== null ? b - a : 0; };
+    const t0 = performance.now();
+    while (n < P.rsWin && performance.now() - t0 <= 4 * P.capMs) {
+      let pre = 0;
+      let h = null;
+      let flH = 0;
+      await new Promise((res) => origRaf(() => {
+        const a0 = recalc();
+        pre = a0 !== null && prev !== null ? a0 - prev : 0;
+        h = dirtRead(cfg.t, K);
+        if (cfg.fl === 'H') flH = flush();
+        const ch = new MessageChannel();
+        ch.port1.onmessage = () => { ch.port1.close(); res(); };
+        ch.port2.postMessage(0);
+      }));
+      n++;
+      const c = recalc();
+      const tl1 = I.numberOfAnimationTimelineInvalidations();
+      const inv1 = I.styleInvalidationTraversalCount;
+      const sz = I.lastStyleUpdateSize;
+      const e = dirtRead(cfg.t, K);
+      let flT = 0;
+      if (cfg.fl === 'T') flT = flush();
+      const fl = flH + flT;
+      const fr = [c === null || prev === null ? 0 : c - prev - flH, pre, h.ids, e.ids, tl1 - tl, inv1 - inv, sz];
+      if (cfg.t) fr.push(h.types, e.types);
+      else if (cfg.fl) fr.push(fl);
+      reps.push(fr);
+      if (prevE) {
+        const ps = new Set(prevE);
+        const hs = new Set(h.ids);
+        const es = new Set(e.ids);
+        for (const i of new Set([...prevE, ...h.ids, ...e.ids])) if (!(ps.has(i) && hs.has(i) && es.has(i))) { const k = K.kt[i]; DN.cnt.set(k, (DN.cnt.get(k) || 0) + 1); ag.cyc++; }
+      }
+      prevE = e.ids;
+      ag.h += h.dirty; ag.e += e.dirty; ag.hEl += h.elN; ag.eEl += e.elN; ag.fl += fl;
+      if (h.dirty > ag.maxH) ag.maxH = h.dirty;
+      if (e.dirty > ag.maxE) ag.maxE = e.dirty;
+      mut.take();
+      prev = recalc();
+      tl = tl1;
+      inv = inv1;
+      wms += h.ms + e.ms;
+      total = e.total;
+      if (h.capped || e.capped) caps++;
+    }
+    const mu = [...mut.stop().entries()].sort((a, b) => b[1] - a[1]).slice(0, 24);
+    const c1 = recalc();
+    const u1 = ruNow();
+    return { reps: reps, nodes: total, caps: caps, ag: ag, mu: mu, tot: { n: n, r: c0 !== null && c1 !== null ? c1 - c0 : 0, u: u0 !== null && u1 !== null ? u1 - u0 : null, ms: Math.round(performance.now() - t0), src: 'raf', w: Math.round(wms) } };
+  };
+  const dirtTop = () => {
+    let best = null;
+    for (const [k, c] of (DN.ref || DN.cnt)) if ((k.startsWith('e:') || k.startsWith('t:')) && (best === null || c > best[1] || (c === best[1] && k < best[0]))) best = [k, c];
+    const node = best ? DN.nodes.get(best[0]) : null;
+    const el = node ? (node.nodeType === 1 ? node : node.nodeType === 11 ? node.host : node.parentElement) : null;
+    const partEl = el && el.closest ? el.closest('[data-fw]') : null;
+    let ctrl = null;
+    let size = -1;
+    for (const p of document.querySelectorAll('[data-fw]')) {
+      if (partEl && (p === partEl || p.contains(partEl) || partEl.contains(p))) continue;
+      const k = p.querySelectorAll('*').length;
+      if (k > size) { size = k; ctrl = p; }
+    }
+    const nm = (x) => (x ? 'p:' + x.getAttribute('data-fw') : null);
+    return { name: best ? best[0] : null, count: best ? best[1] : 0, el: el, part: partEl, ctrl: ctrl, names: { el: best && el ? nameOf(el)[0] : null, part: nm(partEl), ctrl: nm(ctrl) } };
+  };
+  const animRead = () => {
+    const kinds = {};
+    const els = [];
+    let total = 0;
+    let list = [];
+    try { list = document.getAnimations(); } catch (x) { }
+    for (const a of list) {
+      total++;
+      let kind = 'none';
+      try { kind = a.timeline ? (a.timeline.constructor && a.timeline.constructor.name) || 'timeline' : 'none'; } catch (x) { }
+      kinds[kind] = (kinds[kind] || 0) + 1;
+      if (els.length >= 64) continue;
+      let t = null;
+      try { t = a.effect && a.effect.target; } catch (x) { }
+      let subj = null;
+      try { subj = a.timeline && (a.timeline.subject || a.timeline.source); } catch (x) { }
+      els.push([t ? nameOf(t)[0] : '-', kind, a.playState, a.animationName || a.id || '', subj && subj.nodeType === 1 ? nameOf(subj)[0] : '-']);
+    }
+    return { total: total, kinds: kinds, els: els };
+  };
   const creRun = () => new Promise((resolve) => {
     const samples = [];
     const t0 = performance.now();
@@ -794,11 +999,52 @@ function pageProbe(P) {
       while (performance.now() - t0 < 4000) { const g = GH.read(); if (g[0] !== null && g[1] !== null) break; await sleep(100); }
       out.rs.begun = GH.read();
     }
+    const pd = PD[vv] || null;
+    const K = { kt: kt, idx: new Map() };
+    let hideEl = null;
+    let hideWas = null;
+    const hideSet = [];
+    if (pd) { out.rs.dn = []; DN.cnt = new Map(); }
+    if (pd && pd.an) out.rs.an = animRead();
+    if (pd && pd.hide) {
+      const tp = dirtTop();
+      const pick = pd.hide === 'el' || pd.hide === 'set' ? tp.el : pd.hide === 'part' ? tp.part : tp.ctrl;
+      const el = pick === document.documentElement || pick === document.body ? null : pick;
+      out.rs.top = { name: tp.name, count: tp.count };
+      if (pick && !el) out.rs.skipped = 'root';
+      out.rs.hid = el ? (pd.hide === 'el' || pd.hide === 'set' ? tp.name : tp.names[pd.hide]) : null;
+      if (el && pd.hide === 'set') {
+        for (const [k, c] of (DN.ref || DN.cnt)) {
+          if (!k.startsWith('e:') || 100 * c < 90 * tp.count) continue;
+          const nd = DN.nodes.get(k);
+          const x = nd ? (nd.nodeType === 1 ? nd : nd.parentElement) : null;
+          if (x && x !== el && x !== document.documentElement && x !== document.body) hideSet.push([x, x.style.getPropertyValue('display'), x.style.getPropertyPriority('display')]);
+        }
+        for (const h of hideSet) h[0].style.setProperty('display', 'none', 'important');
+        out.rs.hidSet = hideSet.length + 1;
+      }
+      if (el) {
+        hideEl = el;
+        hideWas = [el.style.getPropertyValue('display'), el.style.getPropertyPriority('display')];
+        el.style.setProperty('display', 'none', 'important');
+        await raf(); await raf(); await sleep(250);
+      }
+    }
     if (vv === 'hide') { document.body.style.display = 'none'; await raf(); await raf(); await sleep(250); }
     if (vv === 'empty') { document.body.replaceChildren(); await raf(); await raf(); await sleep(250); }
     S.fine = vv === 'obs' ? {} : null;
     if (isQ(vv)) out.rs.muted = QSETS[vv];
-    if (kind === 'idle') {
+    if (kind === 'idle' && pd) {
+      out.engaged = out.rs.internals;
+      for (let rep = 0; rep < P.rsReps; rep++) {
+        const o = await dirtWindow(pd, K);
+        out.rs.dn.push({ f: o.reps, nodes: o.nodes, caps: o.caps, ag: o.ag, mu: o.mu });
+        (out.rs.pb || (out.rs.pb = [])).push(o.tot);
+        out.rs.wins.push(o.tot.n);
+        out.rs.reps++;
+        await sleep(900);
+      }
+    } else if (kind === 'idle') {
       out.engaged = out.rs.internals;
       out.rs.frames = await rsWindow(true, 0, vv, kt);
       out.rs.wins.push(out.rs.frames.length);
@@ -839,7 +1085,7 @@ function pageProbe(P) {
         let fr;
         let tot = null;
         try {
-          if (vv === 'pbcre') { fr = []; (out.rs.cre || (out.rs.cre = [])).push(await X.creP); } else if (vv === 'pbnoraf') { const o = await pbNoRaf(); fr = o.frames; tot = o.tot; } else if (PB[vv]) { const o = await pbWindow(PB[vv]); fr = o.frames; tot = o.tot; } else fr = await rsWindow(false, tw, vv, kt);
+          if (vv === 'pbcre') { fr = []; (out.rs.cre || (out.rs.cre = [])).push(await X.creP); } else if (vv === 'pbnoraf') { const o = await pbNoRaf(); fr = o.frames; tot = o.tot; } else if (pd) { const o = await dirtWindow(pd, K); fr = []; tot = o.tot; out.rs.dn.push({ f: o.reps, nodes: o.nodes, caps: o.caps, ag: o.ag, mu: o.mu }); } else if (PB[vv]) { const o = await pbWindow(PB[vv]); fr = o.frames; tot = o.tot; } else fr = await rsWindow(false, tw, vv, kt);
         } finally { if (isQ(vv)) muteOff(); }
         if (!warm) { for (const f of fr) out.rs.frames.push(f); out.rs.wins.push(tot ? tot.n : fr.length); if (tot) (out.rs.pb || (out.rs.pb = [])).push(tot); }
         await sleep(900);
@@ -849,12 +1095,15 @@ function pageProbe(P) {
         X.arm = arm;
       }
     }
+    if (pd && vv === 'pbpd' && kind === 'flip' && !DN.ref) DN.ref = DN.cnt;
     muteOff();
     if (S.fine) {
       out.rs.fine = Object.entries(S.fine).sort((a, b) => b[1] - a[1]).slice(0, 15);
       S.fine = null;
     }
     if (vv === 'hide') document.body.style.display = '';
+    for (const h of hideSet) { h[0].style.removeProperty('display'); if (h[1]) h[0].style.setProperty('display', h[1], h[2]); }
+    if (hideEl) { hideEl.style.removeProperty('display'); if (hideWas[0]) hideEl.style.setProperty('display', hideWas[0], hideWas[1]); }
     for (const g of smilSvgs) { try { g.unpauseAnimations(); } catch (x) { } }
     for (const a of toPause) { try { a.play(); } catch (x) { } }
     await sleep(900);

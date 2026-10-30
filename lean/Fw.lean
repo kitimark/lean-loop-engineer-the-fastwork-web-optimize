@@ -169,6 +169,7 @@ import Fw.Device.EndWktr
 import Fw.Device.EndFloor
 import Fw.Device.EndFloorWindow
 import Fw.Device.EndFloorProbe
+import Fw.Device.EndFloorDirty
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles
