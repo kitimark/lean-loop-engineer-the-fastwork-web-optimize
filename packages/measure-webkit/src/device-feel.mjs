@@ -4,7 +4,17 @@ import { canonSearch } from '../../contracts/src/flag-key.mjs';
 
 const GOLDEN = readFileSync(new URL('../../contracts/golden/device/feel.jsonl', import.meta.url), 'utf8')
   .split('\n').filter(Boolean).map((l) => JSON.parse(l));
+export const FEEL_ROWS = (kind) => GOLDEN.filter((l) => l.kind === kind);
 export const FEEL = Object.freeze(GOLDEN.find((l) => l.kind === 'consts'));
+
+// The arm flags have one source: the generated preset golden. feel.jsonl is generated from it by Lean
+// (Fw.Device.Feel.sameArmsOf), so a stale feel.jsonl refuses here instead of opening arms the preset no longer names.
+export const presetFlagsOf = (preset) => Object.entries(preset.fw).map(([part, variant]) => `${part}:${variant}`).sort();
+export const PRESET_FLAGS = Object.freeze(presetFlagsOf(JSON.parse(readFileSync(new URL('../../contracts/golden/preset/v2-proved.json', import.meta.url), 'utf8'))));
+const PRESET_ROW = GOLDEN.find((l) => l.kind === 'preset');
+if (!PRESET_ROW || JSON.stringify(PRESET_ROW.flags) !== JSON.stringify(PRESET_FLAGS)) {
+  throw new Error('packages/contracts/golden/device/feel.jsonl is stale against golden/preset/v2-proved.json; regenerate: cd lean && lake env lean --run scripts/FeelGolden.lean > ../packages/contracts/golden/device/feel.jsonl');
+}
 export const SAME_ARMS = Object.freeze(GOLDEN.filter((l) => l.kind === 'arm' && l.group === 'same'));
 export const LOOK_ARMS = Object.freeze(GOLDEN.filter((l) => l.kind === 'arm' && l.group === 'look'));
 export const ARMS = Object.freeze([...SAME_ARMS, ...LOOK_ARMS]);

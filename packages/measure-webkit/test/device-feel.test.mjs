@@ -1,18 +1,31 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { FEEL, ARMS, SAME_ARMS, LOOK_ARMS, armHashes, cellOf, cmdNext, cmdRate, cmdStatus, freshState, orderOf, planOf, reduceArm, reduceLook, summaryText, validScore, verdicts, visitText } from '../src/device-feel.mjs';
+import { FEEL, PRESET_FLAGS, presetFlagsOf, ARMS, SAME_ARMS, LOOK_ARMS, armHashes, cellOf, cmdNext, cmdRate, cmdStatus, freshState, orderOf, planOf, reduceArm, reduceLook, summaryText, validScore, verdicts, visitText } from '../src/device-feel.mjs';
 
 const GOLDEN = readFileSync(new URL('../../contracts/golden/device/feel.jsonl', import.meta.url), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 const of = (k) => GOLDEN.filter((l) => l.kind === k);
 const scores = [1, 2, 3, 4, 5];
 
 test('the golden holds the arms the task names', () => {
-  assert.deepEqual(SAME_ARMS.map((a) => a.id), ['base', 'v2-proved', 'v2-proved+glint-hold']);
-  assert.deepEqual(LOOK_ARMS.map((a) => a.flags.join('+')), ['morph.end.nobounce:on', 'morph.stage:on', 'morph.geom:on+morph.tween:geom-timed', 'platform.sweep:layer-sweep']);
+  assert.deepEqual(SAME_ARMS.map((a) => a.id), ['base', 'v2-proved', 'v2-proved-2flag']);
+  assert.deepEqual(LOOK_ARMS.map((a) => a.id), ['nav:earn-logical', 'platform.glint:compositor', 'morph.end.nobounce', 'morph.stage']);
+  assert.deepEqual(LOOK_ARMS.map((a) => a.flags.join('+')), ['nav:earn-logical', 'platform.glint:compositor', 'morph.end.nobounce:on', 'morph.stage:on']);
+  assert.ok(LOOK_ARMS.every((a) => a.text.length > 0 && a.text.length < 120 && !a.text.includes('\n')));
   assert.deepEqual(SAME_ARMS[0].flags, []);
-  assert.ok(SAME_ARMS[2].flags.includes('platform.glint:hold-freeze'));
   assert.equal(FEEL.nSame, SAME_ARMS.length);
+});
+
+test('the v2-proved arm is the generated preset, the 2flag arm is the preset without platform (the 2026-10-29 arm A)', () => {
+  const preset = presetFlagsOf(JSON.parse(readFileSync(new URL('../../contracts/golden/preset/v2-proved.json', import.meta.url), 'utf8')));
+  assert.deepEqual(PRESET_FLAGS, preset);
+  assert.deepEqual(SAME_ARMS[1].flags, preset);
+  assert.deepEqual(SAME_ARMS[2].flags, preset.filter((f) => !f.startsWith('platform:')));
+  assert.deepEqual(SAME_ARMS[2].flags, ['engine.scroll:unthrottle', 'hero.exit:threaded']);
+  assert.deepEqual(preset.filter((f) => !SAME_ARMS[2].flags.includes(f)), ['platform:faded-pause']);
+  assert.equal(of('preset')[0].source, 'packages/contracts/golden/preset/v2-proved.json');
+  assert.deepEqual(of('preset')[0].flags, preset);
+  assert.equal(new Set(ARMS.map((a) => a.id)).size, ARMS.length);
 });
 
 test('order, labels and letters follow the Lean golden for every seed', () => {
@@ -128,5 +141,6 @@ test('armHashes names an arm the build lacks', () => {
 test('visitText of a look change names the change, not the flags', () => {
   const st = freshState({ seed: 0, pin: 'Serious', site: 'x' });
   const v = planOf(0).find((x) => x.label === 'L2');
-  assert.match(visitText(st, v), /^L2 \(visit 8 of 10\), a look change: the nav morph at the page end follows your finger/);
+  assert.ok(visitText(st, v).startsWith(`L2 (visit 8 of 10), a look change: ${LOOK_ARMS[1].text}`));
+  assert.ok(!visitText(st, v).includes('platform.glint'));
 });

@@ -16,10 +16,11 @@ takes small local commands. The person on the phone never sees a flag name.
 | I/O glue (control server, pin gate, arm switch, start/stop) | `packages/measure-webkit/src/device-feel-run.mjs` | glue, no decision logic except `makeGate`, which calls `pinGate` |
 | CLI | `device-cli.mjs feel start | next | rate | status | stop` | |
 
-Order (CONFIRMED in Lean): the three same-look arms (`base`, `v2-proved`, `v2-proved+glint-hold`) are shown twice each,
+Order (CONFIRMED in Lean): the three same-look arms (session 1: `base`, `v2-proved` with 2 flags, `v2-proved+glint-hold`; session 2: `base`, `v2-proved`, `v2-proved-2flag`) are shown twice each,
 as `order = rot 3 r ++ rot 3 (r+1)` with `r = seed % 3`. Never the same arm twice in a row; each round shows every arm
 once; labels go by first appearance, so the letters are always `A B C B C A`. Four labelled look-change arms follow
-(`L1`..`L4`: `morph.end.nobounce`, `morph.stage`, `morph.geom`+`morph.tween:geom-timed`, `platform.sweep:layer-sweep`).
+(`L1`..`L4`; session 1: `morph.end.nobounce`, `morph.stage`, `morph.geom`+`morph.tween:geom-timed`, `platform.sweep:layer-sweep`;
+session 2: `nav:earn-logical`, `platform.glint:compositor`, `morph.end.nobounce:on`, `morph.stage:on`).
 
 Rating: a whole number 1 (rough) to 5 (smooth) per visit. A cell compares an arm's visit to `base`'s visit of the same
 round: better if at least 1 above, worse if at least 1 below, else same. The arm verdict is felt better / same / worse
@@ -59,28 +60,32 @@ reply"). The dry run's stop used the old code; the fix is covered by the unit te
 
 ## Commands for the lead
 
-Build the arms once from `apps/site` (a local build, not a measurement):
+Since task `feel-session-2-prep` the arm flags come from the generated preset golden and one script starts the session
+(arms, order, estimate: `research/notes/2026/10-30-feel-session-2-prep.md`). After the user says yes, from the repo root:
 
 ```
-node scripts/build.mjs --engine aot --configs none \
-  --config '?fw=engine.scroll:unthrottle,hero.exit:threaded' \
-  --config '?fw=engine.scroll:unthrottle,hero.exit:threaded,platform.glint:hold-freeze' \
-  --config '?fw=morph.end.nobounce:on' --config '?fw=morph.stage:on' \
-  --config '?fw=morph.geom:on,morph.tween:geom-timed' --config '?fw=platform.sweep:layer-sweep'
+sh scripts/feel-session.sh [--seed <n>] [--date YYYY-MM-DD] [--build]   # plan, read-only probe, background start; never runs next
 ```
 
-Session, from `packages/measure-webkit`, phone connected and unlocked, no other `device-cli.mjs` running:
+The build command is generated from the arm list (`node src/device-cli.mjs feel build-cmd`, run in `apps/site`; a local
+build, not a measurement); `--build` runs it. Session commands, from `packages/measure-webkit`, with the dir the script
+prints (`.local/phone/<date>-feel2`), no other `device-cli.mjs` running:
 
 ```
-node src/device-cli.mjs feel start --site ../../apps/site/dist/aot --dir .local/phone/<date>-feel --pin Serious --seed <n> --fresh   # run_in_background
-node src/device-cli.mjs feel next   --dir .local/phone/<date>-feel     # opens the next arm, prints label and what to do
-node src/device-cli.mjs feel rate <label> <1-5> --dir .local/phone/<date>-feel
-node src/device-cli.mjs feel status [--reveal] --dir .local/phone/<date>-feel
-node src/device-cli.mjs feel stop   --dir .local/phone/<date>-feel     # prints the table, clears the pin, waits for the exit
+node src/device-cli.mjs feel plan   --seed <n> --dir <dir> --site ../../apps/site/dist/aot   # plan text; exit 4 when arms are not built
+node src/device-cli.mjs feel probe                                                          # read-only phone probe; exit 3 when not ready
+node src/device-cli.mjs feel next   --dir <dir>     # opens the next arm, prints label and what to do
+node src/device-cli.mjs feel rate <label> <1-5> --dir <dir>
+node src/device-cli.mjs feel status [--reveal] --dir <dir>
+node src/device-cli.mjs feel stop   --dir <dir>     # prints the table, clears the pin, waits for the exit
 ```
 
+`feel start` (run by the script) takes `--site <dist/aot> --dir <dir> --pin Serious --seed <n> --fresh`; capture is always on.
 `--resume` continues a stopped or crashed session's state; `--fresh` starts over. Recovery if the session process was
-killed: `node src/device-cli.mjs pin-stop --dir .local/phone/<date>-feel`.
+killed: `node src/device-cli.mjs pin-stop --dir <dir>`.
+
+The 2026-10-29 arms (`v2-proved+glint-hold`; look arms `morph.geom+geom-timed`, `platform.sweep:layer-sweep`) left the golden;
+the arm list is now `Fw.Device.Feel.sameArmsOf` and `lookArms`.
 
 ## Limits
 
