@@ -6,7 +6,7 @@
 - Premise refuted: the floor is not a property class. Runtime state decides ticking (ticksContinuouslyWhileActive, KeyframeEffect.cpp:2724-2746); earlier runs
   (geom-pref-off-ticking) read steady state 47 accelerated / 0 ticking, plus a start-up transient S1 of 21 tracks. INFERRED: the 3-frame end-floor reps sit in that transient.
 - Files: lean/Fw/Parts/FlipAccel.lean, FlipAccelGen.lean, lean/scripts/FlipAccelGolden.lean, check.sh job, Trigger.lean rows + triggers.jsonl, golden
-  packages/contracts/golden/parts/flip-accel.jsonl, apps/site/src/parts/morph.geom/flip-accel.golden.test.ts, research/notes/2026/10-30-flip-accel-webkit.md, ledger (2 entries).
+  packages/contracts/golden/parts/flip-accel.jsonl, apps/site/src/parts/morph.geom/flip-accel.golden.test.ts, research/notes/2026/10-30-flip-accel-webkit.md, ledger (1 entry).
 - Verified: lake build FlipAccelGen; golden regenerated and check job added; vitest flip-accel.golden.test.ts 3 pass; @fw/site test via fw slot green.
 - Open: the pinned-unit WKTR measurement is not delivered (reason above). Next test: frame-pinned window (end-floor-window) + per-frame ticking probe; any start-up
   change (promote layers before push, create tracks before commit) needs its own same-look proof and is class L until proved (geom-prewarm was parked for moving layout).
