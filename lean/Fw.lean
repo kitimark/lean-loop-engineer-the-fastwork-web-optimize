@@ -99,6 +99,7 @@ import Fw.Parts.MorphTrackAccel
 import Fw.Parts.MorphTrackAccelGen
 import Fw.Parts.FlipAccel
 import Fw.Parts.FlipAccelGen
+import Fw.Parts.FlipAccelRun
 import Fw.Parts.PlatformShrinkOpt
 import Fw.Parts.CommissionOpt
 import Fw.Parts.PlatformFade
@@ -166,6 +167,7 @@ import Fw.Device.GlintHold
 import Fw.Device.GlintHoldCompositor
 import Fw.Device.EndWktr
 import Fw.Device.EndFloor
+import Fw.Device.EndFloorWindow
 import Fw.Measure.WebKitProfile
 import Fw.Device.Replay
 import Fw.Device.ReplayProfiles

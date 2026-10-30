@@ -19,9 +19,9 @@ def Writer.keys : Writer → List String
   | .pub => ["nav#style", "nav#data-fw-morph"]
   | .cls => ["nav#class", "nav-earn#aria-hidden", "nav-earn#tabindex"]
   | .panel => ["morph-panel#aria-hidden", "morph-panel#data-expanded", "morph-panel#data-start-selling-scene", "morph-panel#tabindex"]
-  | .plat => ["platform#style"]
+  | .plat => ["platform#style", "platform#data-fw-scene"]
   | .write => ["nav#style", "nav#data-fw-morph", "nav#class", "nav-earn#aria-hidden", "nav-earn#tabindex", "morph-panel#aria-hidden",
-      "morph-panel#data-expanded", "morph-panel#data-start-selling-scene", "morph-panel#tabindex", "platform#style"]
+      "morph-panel#data-expanded", "morph-panel#data-start-selling-scene", "morph-panel#tabindex", "platform#style", "platform#data-fw-scene"]
 
 theorem keys_in_write (w : Writer) : ∀ k ∈ w.keys, k ∈ Writer.write.keys := by
   cases w <;> decide
