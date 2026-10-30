@@ -26,12 +26,26 @@ structure Frame where
   e : List String
   deriving DecidableEq, Repr
 
-/-- A frame's recalcs against the names that cycle: dirty in the first task after the previous frame's rendering update
-(`e`) and clean again at the next rAF start (`h`), so the update's style pass cleaned them. A name dirty in both samples
-is inert: the resolver leaves it alone and it cannot explain a recalc. -/
+/-- A frame's recalcs against the names that vary around it: dirty in some of the three samples that bracket the frame
+(`prev`, the previous frame's first task after its update; `h`, the rAF start; `e`, the first task after the frame's own
+update) and clean in another, so something cleaned or made them dirty. A name dirty in all three is inert: the resolver
+leaves it alone (or it is made dirty again before every sample) and the samples cannot tell it from a carrier. -/
+def varies (prev : List String) (f : Frame) : List String :=
+  ((prev ++ f.h ++ f.e).eraseDups).filter fun n => !(prev.contains n && f.h.contains n && f.e.contains n)
+
 def pair : List String → List Frame → List (Nat × List String)
   | _, [] => []
-  | prev, f :: fs => (f.r, (prev.filter fun n => !f.h.contains n).eraseDups) :: pair f.e fs
+  | prev, f :: fs => (f.r, varies prev f) :: pair f.e fs
+
+/-- A name dirty in all three samples of a frame is not offered as a cause. -/
+theorem varies_inert (prev : List String) (f : Frame) (n : String) (hp : n ∈ prev) (hh : n ∈ f.h) (he : n ∈ f.e) :
+    n ∉ varies prev f := by
+  simp [varies, hp, hh, he]
+
+/-- A name dirty in the sample after the update and clean at the rAF start of the same frame is offered. -/
+theorem varies_cleaned (prev : List String) (f : Frame) (n : String) (he : n ∈ f.e) (hh : n ∉ f.h) :
+    n ∈ varies prev f := by
+  simp [varies, he, hh]
 
 /-- The read frames of one rep. -/
 def repSets (fs : List Frame) : List (Nat × List String) := (pair [] fs).drop skipFrames
@@ -295,9 +309,10 @@ private def verdictCases : List (String × List (Nat × Nat × List String)) :=
    ("two recalcs in a frame count once as a frame", [(400, 2, ["e:a|div[0]"])])]
 
 private def frameCases : List (String × List Frame) :=
-  [("cycling name carried from the previous frame", (List.range 12).map fun i => ⟨1, [], if i = 9 then ["y"] else []⟩),
-   ("name dirty in both samples is inert", (List.range 12).map fun _ => ⟨1, ["x"], ["x"]⟩),
-   ("name cleaned by the next rAF start cycles", (List.range 12).map fun i => ⟨1, if i = 9 then ["z"] else [], ["x", "z"]⟩),
+  [("dirty only after the update, kept for the next frame", (List.range 12).map fun i => ⟨1, [], if i = 9 then ["y"] else []⟩),
+   ("name dirty in every sample is inert", (List.range 12).map fun _ => ⟨1, ["x"], ["x"]⟩),
+   ("name cleaned by the update varies", (List.range 12).map fun i => ⟨1, if i = 9 then ["z"] else [], []⟩),
+   ("name dirty before the update and after it is inert", (List.range 12).map fun _ => ⟨1, ["x", "w"], ["x"]⟩),
    ("shorter than the skip", (List.range 5).map fun _ => ⟨1, [], ["x"]⟩),
    ("duplicate name is kept once", (List.range 10).map fun _ => ⟨1, ["y"], ["x", "x", "y"]⟩)]
 

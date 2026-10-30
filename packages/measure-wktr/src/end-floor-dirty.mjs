@@ -30,7 +30,7 @@ export function pair(prev, frames) {
   const out = [];
   let p = prev;
   for (const f of frames) {
-    out.push([f.r, dedup(p.filter((n) => !f.h.includes(n)))]);
+    out.push([f.r, dedup([...p, ...f.h, ...f.e]).filter((n) => !(p.includes(n) && f.h.includes(n) && f.e.includes(n)))]);
     p = f.e;
   }
   return out;

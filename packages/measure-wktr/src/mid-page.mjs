@@ -884,8 +884,10 @@ function pageProbe(P) {
       else if (cfg.fl) fr.push(fl);
       reps.push(fr);
       if (prevE) {
+        const ps = new Set(prevE);
         const hs = new Set(h.ids);
-        for (const i of prevE) if (!hs.has(i)) { const k = K.kt[i]; DN.cnt.set(k, (DN.cnt.get(k) || 0) + 1); ag.cyc++; }
+        const es = new Set(e.ids);
+        for (const i of new Set([...prevE, ...h.ids, ...e.ids])) if (!(ps.has(i) && hs.has(i) && es.has(i))) { const k = K.kt[i]; DN.cnt.set(k, (DN.cnt.get(k) || 0) + 1); ag.cyc++; }
       }
       prevE = e.ids;
       ag.h += h.dirty; ag.e += e.dirty; ag.hEl += h.elN; ag.eEl += e.elN; ag.fl += fl;
