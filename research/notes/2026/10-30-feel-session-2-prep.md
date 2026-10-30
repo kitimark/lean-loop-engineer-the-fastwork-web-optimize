@@ -54,8 +54,8 @@ The build command is generated from the arm list (`feel build-cmd`) and the six 
 base `""`, v2-proved `?fw=engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause`, v2-proved-2flag
 `?fw=engine.scroll:unthrottle,hero.exit:threaded`, and the four look flags.
 
-Conflicts with v2-proved (read from `apps/site/src/parts/*/part.json`, then confirmed by building each pair into `dist/aot`): none of the four look flags is
-listed in a `conflicts` entry against any of the three preset flags, and `v2-proved` plus each look flag built and resolved.
+Conflicts with v2-proved (read from `apps/site/src/parts/*/part.json`): none of the four look flags is
+listed in a `conflicts` entry against any of the three preset flags (INFERRED from the registry; the kit builds each look arm alone, not on top of v2-proved).
 The registry does list real conflicts: `platform/part.json` (line 48) declares `platform:faded-pause` against
 `morph.tween:waapi`, `morph.tween:waapi-scoped`, `platform.sweep:offscreen-pause` and `platform.glint:offscreen-pause`; none is a
 look arm here. (The refusal at build time was not exercised in this task.) The kit does not compose look arms on top of
@@ -91,7 +91,7 @@ Add up to 3 min if the pin takes longer to reach Serious (gate bound 180 s).
 The script never runs `feel next`; its test (`test/device-feel-plan.test.mjs`, against a stub CLI) asserts no `next` or
 `rate` call, one `start`, probe before start, exit 3 for a locked phone, exit 1 for a failed start, exit 4 for missing arms.
 
-The command for the lead, after the user says yes (about 5 min of the 21 is the start wait only if the pin is slow):
+The command for the lead, after the user says yes (add up to 3 min to the 21 if the pin is slow to reach Serious):
 
 ```
 sh scripts/feel-session.sh --seed <n>        # run_in_background; exit 0 means the session is running and no arm is open
