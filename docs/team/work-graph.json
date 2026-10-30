@@ -24358,6 +24358,34 @@
     "apps/runner/src/land.ts"
    ],
    "evidence": "04ea6a9"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-floor-dirty",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-floor-probe"
+   ],
+   "title": "End-of-page floor (100 recalcs per 100 rendering updates on WKTR with no harness rAF and every CSS/SMIL animation paused; end-floor-probe): name the element(s) WebKit marks style-dirty each frame via internals.nodeNeedsStyleRecalc/styleChangeType walked just before the rendering update (reads do not flush; cite), then the WebKit path that marks them; a same-look fix task only if it names a page element or style feature.",
+   "writes": [
+    "packages/measure-wktr/**",
+    ".github/workflows/wktr.yml",
+    "results/end-floor-dirty/**",
+    "research/notes/2026/10-30-end-floor-dirty.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-floor-dirty.md",
+    "lean/Fw/Device/EndFloor*.lean",
+    "lean/scripts/EndFloor*Golden.lean",
+    "packages/contracts/golden/device/end-floor*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts"
+   ]
   }
  ],
  "deadline": {
