@@ -584,7 +584,7 @@ function pageProbe(P) {
     MU.set = null;
     while (MU.undo.length) MU.undo.pop()();
   };
-  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|pb[a-z]+|q[a-z]+))?$/;
+  const RS_ARM = /^rs-(warm|idle|flip)(?:-(floor|obs|obsf|blockraf|blocktimer|cancel|hide|empty|smil|nat|pall|pallf|q[a-z]+|pb[a-z]+))?$/;
   const lastSize = () => { try { return I && 'lastStyleUpdateSize' in I ? I.lastStyleUpdateSize : null; } catch (x) { return null; } };
   const tkRead = () => {
     if (!I || typeof I.timeToNextAnimationTick !== 'function') return null;
@@ -779,7 +779,7 @@ function pageProbe(P) {
     } else if (!warm) {
       const glintEl = (a) => !!(a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('[data-fw-dash]'));
       const keepGlint = P.gk && vv !== 'pall' && vv !== 'pallf' && !isQ(vv) && !/^pbp/.test(vv);
-      toPause = vv === 'nat' || (/^pb/.test(vv) && !/^pbp/.test(vv)) ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
+      toPause = vv === 'nat' ? [] : /^pb/.test(vv) && !/^pbp/.test(vv) ? [] : document.getAnimations().filter((a) => a.playState === 'running' && !(keepGlint && glintEl(a)));
       out.rs.pausedN = toPause.length;
       for (const a of toPause) a.pause();
       await raf(); await raf(); await sleep(250);
