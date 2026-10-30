@@ -85,7 +85,7 @@ Pushes r1, r2 and r3, kept under `results/end-floor-writes/r1`, `r2`, `r3` (each
 1. Run 40949084846 (r1, muting from before the wheel): in rows[3], rows[4], rows[5] and rows[8] (qdata, qpub, qclass, qwrite) the
    `frames` cell is 0 in all 3 jobs, so those arms made no flip track; the other rows hold frames.
    Cause (CONFIRMED in source): morph.geom timed tracks need `is-on-dark` (`apps/site/src/parts/morph.geom/index.tsx:53`),
-   which nav.hitTest writes from a `data-fw-morph` observer; muting the attribute removes the flip itself.
+   which nav.hitTest writes from a `data-fw-morph` observer; muting the attribute (qdata, qpub, qwrite) or the nav class (qclass, qwrite) removes the flip itself.
 2. Run 40957179099 (r2, pin `is-on-dark` in every arm): the pin moved the window to the flip start and the arms were not comparable
    (`results/end-floor-writes/r2/rows.txt`: j1 `frames` from rows[0] 48 to rows[9] 416; qpin rows[2] rate 248, rows[10] rate 200, pall rows[1]
    rate 152). Cancelled after j1 (kept as `results/end-floor-writes/r2/wktr-j1`, not used).
