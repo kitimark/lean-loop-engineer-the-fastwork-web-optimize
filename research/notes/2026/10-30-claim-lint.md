@@ -14,9 +14,8 @@
   warning.
 - Refused fragments in the golden (`packages/contracts/golden/plan/claims.jsonl`, each row names the commit that holds
   the fragment verbatim). The lint catches 2 of the 7:
-  - caught: end-floor-writes r2 "70 to 83" over the listed 83, 71, 81 (`rangeEnds`, 42c52ed52); watch-memory r2 "All
-    numbers below are MEASURED local harness numbers", with no run id and no committed path (`measuredNoSource`,
-    e64ac7211).
+  - caught: end-floor-writes r2 "70 to 83" over the listed 83, 71, 81 (`rangeEnds`, 42c52ed52); watch-memory r2, a `MEASURED`
+    tag over local harness numbers with no run id and no committed path (`measuredNoSource`, e64ac7211).
   - unchecked, no artifact key: nav-cta-webkit-match r2 "within 10 px of its settled floor at 1280", true for exit only
     (d547444e1); watch-memory r2 "1.7 x the after-arm peak", 512 / 289 with no operands written, and "sawtooth 150 to
     860 MB", KiB divided by 1000 (e64ac7211); end-floor-writes r2 "32 frames with one recalc, 16 with two, 0 with none"
