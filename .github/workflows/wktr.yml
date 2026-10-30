@@ -157,7 +157,7 @@ jobs:
         run: pnpm --filter @fw/site build --config "?preset=v2-proved"
       - name: Build the rewrite (default prerender, every single-variant page and the geom pair, for the accel lane)
         if: ${{ inputs.accel || contains(github.event.head_commit.message, '[accel]') }}
-        run: pnpm --filter @fw/site build
+        run: pnpm --filter @fw/site build --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause,engine.scroll:unthrottle,hero.exit:threaded" --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause,engine.scroll:unthrottle" --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause,hero.exit:threaded" --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause" --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause,engine.scroll:unthrottle,hero.exit:threaded-park" --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause,engine.scroll:unthrottle-park,hero.exit:threaded" --config "?fw=morph.geom:on,morph.tween:geom-timed,platform:faded-pause,engine.scroll:unthrottle-park,hero.exit:threaded-park"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-dist
@@ -179,7 +179,7 @@ jobs:
     concurrency:
       group: ci-lane:wktr:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:wktr:${{ strategy.job-index }}
     runs-on: macos-26
-    timeout-minutes: 16
+    timeout-minutes: 55
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -271,7 +271,7 @@ jobs:
           set -euo pipefail
           node packages/measure-wktr/src/accel-cli.mjs run --keep \
             --root "$RUNNER_TEMP/wktr-root" --dist "$RUNNER_TEMP/site" --out "$RUNNER_TEMP/result" \
-            --passes 1 --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
+            --passes 1 --modes park-v2p-thr-off,park-nohero-thr-off,park-nout-thr-off,park-base-thr-off,park-hp-thr-off,park-up-thr-off,park-both-thr-off --arms rs-idle-pbpd,rs-idle-pbpm --label "$JOB" 2>&1 | tee "$RUNNER_TEMP/result/run.log"
           ls -l "$RUNNER_TEMP/result"
 
       # Toolbar gate (task toolbar-wktr-gate). Hook presence first: the symbols the gate calls exist in the pinned binary (hooks.json),
