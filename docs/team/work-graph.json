@@ -24500,7 +24500,8 @@
     "apps/runner/src/land.ts",
     "research/notes/2026/10-31-preset-gate-evidence.md",
     "docs/team/handoffs/preset-gate-evidence.md"
-   ]
+   ],
+   "evidence": "72a1399"
   }
  ],
  "deadline": {
