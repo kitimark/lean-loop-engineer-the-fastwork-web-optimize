@@ -55,6 +55,7 @@ describe("fw land --dry", () => {
     const steps = readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => (JSON.parse(l) as { tool: string; step: string }));
     expect(steps.filter((x) => x.tool === "fw land").map((x) => x.step)).toContain("dry total");
     expect(steps.filter((x) => x.tool === "fw land" && !x.step.startsWith("dry "))).toEqual([]);
+    expect(parseSamples(readFileSync(file, "utf8")).find((s) => s.step === "dry total")?.work).toEqual({ checks: "reads-scan" });
   });
   it("a selected local test that fails refuses with its name; one that passes or is not selected does not (task land-tier-compose-test)", async () => {
     const { fx, wt, opts } = await setup();
@@ -269,10 +270,10 @@ describe("fw land --dry", () => {
       const text0 = readFileSync(file, "utf8");
       const spans = text0.split("\n").filter(Boolean).map((l) => JSON.parse(l) as { tool: string; step: string; lake?: { built: number } });
       expect(spans.find((s) => s.tool === "fw" && s.step === "land dry lake")?.lake).toEqual({ built: 2 });
-      expect(parseSamples(text0).find((s) => s.step === "land dry lake")?.work).toEqual({ mods: "1" });
+      expect(parseSamples(text0).find((s) => s.step === "land dry lake")?.work).toEqual({ checks: "lint:axioms+reads-scan", mods: "1" });
       expect(spans.find((s) => s.tool === "fw land" && s.step === "dry total lake")?.lake).toEqual({ built: 2 });
-      expect(parseSamples(text0).find((s) => s.step === "dry total lake")?.work).toEqual({ mods: "1" });
-      expect(readLakeHandoff(handoff)).toEqual({ lake: { built: 2 } });
+      expect(parseSamples(text0).find((s) => s.step === "dry total lake")?.work).toEqual({ checks: "lint:axioms+reads-scan", mods: "1" });
+      expect(readLakeHandoff(handoff)).toEqual({ lake: { built: 2 }, set: ["reads-scan", "lint:axioms"] });
     } finally {
       delete process.env.FW_TIMINGS_FILE;
       delete process.env.FW_SLOT_LAKE_FILE;

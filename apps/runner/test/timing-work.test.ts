@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, describe, expect, it } from "vitest";
-import { builtModules, checksWork, HEAVY_CHECKS, lakeMember, lakeWork, modsLow, outerBuilt, readLakeHandoff, slotWork, spanWork } from "../src/timing.ts";
+import { builtModules, checkSetId, checksWork, setWork, writeHandoff, HEAVY_CHECKS, lakeMember, lakeWork, modsLow, outerBuilt, readLakeHandoff, slotWork, spanWork } from "../src/timing.ts";
 import { parseSamples } from "../src/watch-collect.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
@@ -14,6 +14,8 @@ const lakeGolden = readFileSync(join(root, "packages/contracts/golden/obs/timing
   .map((l) => JSON.parse(l) as { name: string; out: string; built: number; member: number | null });
 const outerGolden = readFileSync(join(root, "packages/contracts/golden/obs/timing-outer.jsonl"), "utf8").trim().split("\n")
   .map((l) => JSON.parse(l) as { name: string; builds: number[]; built: number; work: Record<string, string> });
+const setGolden = readFileSync(join(root, "packages/contracts/golden/obs/timing-set.jsonl"), "utf8").trim().split("\n")
+  .map((l) => JSON.parse(l) as { name: string; ids: string[]; id: string; span: Record<string, unknown>; work: Record<string, string> });
 const dir = mkdtempSync(join(tmpdir(), "fw-timing-work-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -173,5 +175,32 @@ describe("outer dry-land span: the sum of the checks' built modules against Fw.O
     const read = (t: string | null): unknown => { if (t !== null) writeFileSync(f, t); return readLakeHandoff(t === null ? join(dir, "none.json") : f); };
     expect([read('{"built":41}'), read('{"built":0}'), read('{"built":-1}'), read('{"built":"3"}'), read("not json"), read(null)])
       .toEqual([{ lake: { built: 41 } }, { lake: { built: 0 } }, {}, {}, {}, {}]);
+  });
+});
+
+describe("dry-land check set -> checks work dimension against Fw.Obs.Timing.checkSetId (golden/obs/timing-set.jsonl)", () => {
+  it("has the golden rows: one set in two orders, one with the lake lint skipped, one empty", () => {
+    expect(setGolden[0]!.id).toBe(setGolden[1]!.id);
+    expect(setGolden[0]!.ids).not.toEqual(setGolden[1]!.ids);
+    expect(new Set(setGolden.map((g) => g.id)).size).toBe(setGolden.length - 1);
+    expect(setGolden.some((g) => g.ids.length === 0)).toBe(true);
+  });
+  for (const g of setGolden) {
+    it(`checkSetId and parseSamples: ${g.name}`, () => {
+      expect(checkSetId(g.ids)).toBe(g.id);
+      expect(parseSamples(JSON.stringify(g.span))[0]!.work).toEqual(g.work);
+    });
+  }
+  it("a set member that is not an array of strings gives no checks dimension", () => {
+    expect([setWork(undefined), setWork("reads-scan"), setWork([1]), setWork(null)]).toEqual([{}, {}, {}, {}]);
+  });
+  it("the handoff file carries the set, and keeps it when the lake member is missing", () => {
+    const f = join(dir, "handoff-set.json");
+    writeHandoff({ set: ["reads-scan"] }, { FW_SLOT_LAKE_FILE: f });
+    expect(readLakeHandoff(f)).toEqual({ set: ["reads-scan"] });
+    writeHandoff({ lake: { built: 3 }, set: ["b", "a"] }, { FW_SLOT_LAKE_FILE: f });
+    expect(readLakeHandoff(f)).toEqual({ lake: { built: 3 }, set: ["b", "a"] });
+    writeFileSync(f, '{"set":["a",1]}');
+    expect(readLakeHandoff(f)).toEqual({});
   });
 });
