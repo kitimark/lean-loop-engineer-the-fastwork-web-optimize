@@ -36,6 +36,33 @@ time plus paused; created after mount; empty first report; cancelled while pause
 After the first `pause()` the CSS play state is overridden on that animation (WebKit CSSAnimation.cpp:166, 285), so the scene rule no longer
 pauses a loop we resumed; the hidden report pauses it again, and a loop on screen is near, so the scene is active.
 
+## Census of the fix (MEASURED)
+
+CI iOS Simulator run 41189420040 at c74f1111e, arm set `sweep`, 3 of 3 jobs (`results/sweep-pause-all/r2/sweep-loops.txt`):
+
+| arm | stage | running (all 4) | hidden running |
+|---|---|---|---|
+| base | end, back | 4 | 2 of 2 |
+| sweepPause | end, back | 2 (the in-view Secure, Organized) | 0 of 2 |
+
+The target is "hidden loops running 0 at the end": met in 3 of 3 jobs. The Simulator is not the phone; the full-stack rate is sim-end-cut-2's.
+The merge commit changed `pause.ts` only by the `holdNew` helper (same branch condition), so the code the run measured and the shipped code agree.
+
+## Lean for the fix (class E, same look)
+
+`Fw.Parts.PlatformSweepPause` now states both decisions. Pending (no start time) loop: hold saves `Held cur t0`; premise `Scene` says the unpaused loop
+runs on from its hold time (`Unpaused h t = cur + (t - t0)`); `resume_pending_same` and `resume_pending_phase` show `resumeTime` shows that phase,
+`resume_pending_span` that the resume keeps it through any paused span. Scene re-hold: `holdNew held running` has three branches
+(`hold_already_held`, `hold_running_new`, `hold_not_running`) and the table `hold` never moves an earlier entry (`rehold_keeps`, `rehold_idem`).
+`OffscreenPause.look_same_pending` lifts it to any looking function. The engine fact (the CSS start leaves a pending play that is paused before the frame
+is drawn, and the hold time is the CSS hold time) is the named premise `Scene`, INFERRED. Golden `platform-sweep-pause.jsonl` (14 lines) adds `resumeTime`
+and `holdNew` rows; `pause.test.ts` replays them.
+
+## Why the pending-play guard is reversed
+
+`sweep-pending-play` paused only a loop with a start time, so a pending play was left running. Here a pending play is the scene rule's own start of a
+hidden loop, which that guard left running; pausing it and resuming at `cur + paused` shows the unpaused phase (`resume_pending_span`).
+
 ## Census (own function, same harness)
 
 `SWEEP_LOOPS_JS` in `packages/measure-webkit/src/sim-end-floor.mjs` for every arm at the end and back stages, and the arm set `sweep`

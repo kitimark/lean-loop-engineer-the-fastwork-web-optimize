@@ -1,0 +1,13 @@
+run 41189420040 (c74f1111e, arm set sweep, CI iOS Simulator): hidden = target out of the viewport; columns of the raw rows: target, playState, pending, startTime null, in viewport
+sim-tick-r1-2 base sweepEnd running 4 of 4 hidden running 2 of 2
+sim-tick-r1-2 base sweepBack running 4 of 4 hidden running 2 of 2
+sim-tick-r1-2 sweepPause sweepEnd running 2 of 4 hidden running 0 of 2
+sim-tick-r1-2 sweepPause sweepBack running 2 of 4 hidden running 0 of 2
+sim-tick-r2-1 sweepPause sweepEnd running 2 of 4 hidden running 0 of 2
+sim-tick-r2-1 sweepPause sweepBack running 2 of 4 hidden running 0 of 2
+sim-tick-r2-1 base sweepEnd running 4 of 4 hidden running 2 of 2
+sim-tick-r2-1 base sweepBack running 4 of 4 hidden running 2 of 2
+sim-tick-r3-2 base sweepEnd running 4 of 4 hidden running 2 of 2
+sim-tick-r3-2 base sweepBack running 4 of 4 hidden running 2 of 2
+sim-tick-r3-2 sweepPause sweepEnd running 2 of 4 hidden running 0 of 2
+sim-tick-r3-2 sweepPause sweepBack running 2 of 4 hidden running 0 of 2
