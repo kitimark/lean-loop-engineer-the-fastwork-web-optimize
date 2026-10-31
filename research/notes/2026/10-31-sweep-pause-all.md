@@ -39,15 +39,16 @@ now reads the scene attribute and closes a span for every held entry (`setScene`
 
 ## Census of the fix (MEASURED)
 
-CI iOS Simulator run 41189420040 at c74f1111e, arm set `sweep`, 3 of 3 jobs (`results/sweep-pause-all/r2/sweep-loops.txt`):
+CI iOS Simulator run 41196494063 at ce9eb255b (round 2 code, scene-frozen spans), arm set `sweep`, 3 of 3 jobs (`results/sweep-pause-all/r3/sweep-loops.txt`);
+run 41189420040 at c74f1111e (round 1 code) gave the same counts (`r2/sweep-loops.txt`).
 
 | arm | stage | running (all 4) | hidden running |
 |---|---|---|---|
 | base | end, back | 4 | 2 of 2 |
 | sweepPause | end, back | 2 (the in-view Secure, Organized) | 0 of 2 |
 
-The target is "hidden loops running 0 at the end": met in 3 of 3 jobs. The Simulator is not the phone; the full-stack rate is sim-end-cut-2's.
-The merge commit changed `pause.ts` only by the `holdNew` helper (same branch condition), so the code the run measured and the shipped code agree.
+The target is "hidden loops running 0 at the end": met in 3 of 3 jobs. The census counts play states, not phases; the phase identity is the Lean fold plus the
+golden and unit tests. The Simulator is not the phone; the full-stack rate is sim-end-cut-2's.
 
 ## Lean for the fix (class E, same look)
 

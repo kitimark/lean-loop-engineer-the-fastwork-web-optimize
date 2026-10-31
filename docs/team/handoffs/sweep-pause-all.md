@@ -1,9 +1,9 @@
 branch: worktree-wf_5d322fb6-6d3-1 (CI branch ci/sweep-pause-all)
 worktree: .claude/worktrees/wf_5d322fb6-6d3-1
 round 2 (refused r1: Scene premise false after a script pause). Fix: scene-frozen spans tracked while held (pause.ts setScene/close/resumeTime/startShift; MutationObserver reads data-fw-scene). Lean: PlatformSweepPause "Held loops" (fold_core, events_core, resume_same, start_same by induction; Override = CSSAnimation.cpp:278-287@862f17d). Golden platform-sweep-pause.jsonl 17 lines. Footprint: platform.sweep now reads platform's scene attribute -> Bridge codeAdj row 28 gains 33.
-CI runs: census run id: pending (round 2 push at the tagged commit); gate: run id added by the lead
+CI runs: webkit-sim 41196494063 at ce9eb255b: pass, hidden sweep loops running 0 of 2 at end and back in 3 of 3 jobs (results/sweep-pause-all/r3/sweep-loops.txt); breakpoint gate: run id added by the lead (single-flag gate is a lead dispatch)
 Verified locally: check.sh green, vitest platform.sweep, @fw/site typecheck, part-footprint --check, ContractsGolden --check.
-Open: census on fixed code; lead dispatches the single-flag gate; platform:faded-pause composition (finding only); hero.accent/hero.cue watchers may have the same scene shape.
+Open: lead dispatches the single-flag gate; platform:faded-pause composition (finding only); hero.accent/hero.cue watchers may have the same scene shape.
 
 --- round 1 handoff below (older) ---
 branch: worktree-wf_5d322fb6-6d3-1 (CI branch ci/sweep-pause-all)
