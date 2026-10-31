@@ -4,6 +4,7 @@ import { findDevice, simctlAsync, SAFARI } from './sim.mjs';
 import { reconnect } from './wip.mjs';
 import { attempts, T } from './timeouts.mjs';
 import { startTimeline } from './timeline.mjs';
+import { layerProbe } from './sim-layer-probe.mjs';
 import { ARMS, STAGES, WIN_RAF, armsOf, endFloorJs, windowOf } from './sim-end-floor.mjs';
 
 export const SCHEMA = 'fw.webkit.endfloor/1';
@@ -42,12 +43,14 @@ export async function runEndFloor({ siteDir, armSet = 'attrib', rounds = 3, rota
     meta.ua = info.ua;
     const want = ctx.armHash(id);
     if ((info.fw?.configHash ?? null) !== want) throw new Error(`arm ${id}: page config ${info.fw?.configHash} is not the wanted ${want}`);
+    const probe = spec.layer ? await layerProbe(ctx.c) : undefined;
     const tl = await startTimeline(ctx.c);
     let page;
-    try { page = await ctx.c.runAsync(endFloorJs({ settleMs, act: spec.act ?? null }), { pollMs: 1000, timeoutMs: T(180000) }); } catch (e) { await tl.stop().catch(() => {}); throw e; }
+    try { page = await ctx.c.runAsync(endFloorJs({ settleMs, act: spec.act ?? null, layer: !!spec.layer }), { pollMs: 1000, timeoutMs: T(180000) }); } catch (e) { await tl.stop().catch(() => {}); throw e; }
     const rows = await tl.stop();
-    const arm = { config: info.fw?.configHash ?? null, mode: info.fw?.mode ?? null, hydrated: info.fw?.hydrated ?? null, maxY: page.maxY, anims: page.anims, animsBack: page.animsBack, animsPaused: page.animsPaused, animsActed: page.animsActed, sweepEnd: page.sweepEnd, sweepBack: page.sweepBack, cancelled: page.cancelled };
-    for (const stage of STAGES) arm[stage] = { ...windowOf(rows, stage, page[stage].raf), cls: page[stage].cls, y: page[stage].y, pageMs: page[stage].pageMs };
+    const arm = { config: info.fw?.configHash ?? null, mode: info.fw?.mode ?? null, hydrated: info.fw?.hydrated ?? null, maxY: page.maxY, anims: page.anims, animsBack: page.animsBack, animsPaused: page.animsPaused, animsActed: page.animsActed, sweepEnd: page.sweepEnd, sweepBack: page.sweepBack, cancelled: page.cancelled, pinEnd: page.pinEnd, pinBack: page.pinBack };
+    if (spec.layer) Object.assign(arm, { layerEnd: page.layerEnd, layerBack: page.layerBack, layerProbe: probe });
+    for (const stage of STAGES) arm[stage] = { ...windowOf(rows, stage, page[stage].raf), cls: page[stage].cls, y: page[stage].y, maxY: page[stage].maxY, pageMs: page[stage].pageMs };
     return arm;
   };
 

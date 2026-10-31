@@ -1,0 +1,22 @@
+serving the snapshot read-only at http://127.0.0.1:49348/
+proxy up: SIMULATOR on :9341, tabs on :9342
+  no tab after 7 s: sending openurl again (extra ask 1)
+  no tab after 15 s: sending openurl again (extra ask 2)
+  no tab after 21 s: sending openurl again (extra ask 3)
+  no tab after 28 s: sending openurl again (extra ask 4)
+  no tab after 34 s: sending openurl again (extra ask 5)
+  no tab after 40 s: sending openurl again (extra ask 6)
+  no tab after 47 s: sending openurl again (extra ask 7)
+  no tab after 53 s: sending openurl again (extra ask 8)
+  no tab after 59 s: sending openurl again (extra ask 9)
+  no tab after 65 s: sending openurl again (extra ask 10)
+  no tab after 75 s: sending openurl again (extra ask 11)
+  no tab after 81 s: sending openurl again (extra ask 12)
+  no tab after 88 s: sending openurl again (extra ask 13)
+  no tab after 94 s: sending openurl again (extra ask 14)
+  no tab after 102 s: sending openurl again (extra ask 15)
+  no tab after 108 s: sending openurl again (extra ask 16)
+  no tab after 114 s: sending openurl again (extra ask 17)
+end-floor: preference overrides {"safari":["read failed: Error: Domain 'com.apple.mobilesafari' not found."],"global":[]}
+end-floor round 1 bothL: end raf 360 seen 363 recalcs 374; back raf 360 seen 360 recalcs 365; paused raf 360 seen 360 recalcs 361
+end-floor round 1 both: end raf 360 seen 373 recalcs 733; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360

@@ -37,9 +37,12 @@ export const CUT_ARMS = Object.freeze([
   { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
 ]);
 
+const BOTH_L = 'engine.scroll:unthrottle-park,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded-park,platform.sweep:layer-sweep';
+export const LAYER_ARMS = Object.freeze([CUT_ARMS.find((a) => a.id === 'both'), { id: 'bothL', fw: BOTH_L, search: `?fw=${BOTH_L}`, layer: true }]);
+
 export const SWEEP_ARMS = Object.freeze([ARMS[0], { id: 'sweepPause', fw: SWEEP_PAUSE, search: `?fw=${SWEEP_PAUSE}` }]);
 
-export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), sweep: SWEEP_ARMS, park: PARK_ARMS });
+export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), sweep: SWEEP_ARMS, park: PARK_ARMS, layer: LAYER_ARMS });
 export function armsOf(set = 'attrib') {
   const arms = ARM_SETS[set];
   if (!arms) throw new Error(`unknown arm set ${set}`);
@@ -119,7 +122,26 @@ export const SWEEP_LOOPS_JS = `const sweepLoops = () => document.getAnimations()
     return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight];
   });`;
 
-export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act = null } = {}) => `(async () => {
+export const LAYER_LOOPS_JS = `const layerLoops = () => document.getAnimations().filter((a) => /sweepLayerX/.test(a.animationName || '')).map((a) => {
+    const t = a.effect && a.effect.target;
+    const r = t ? t.getBoundingClientRect() : null;
+    let props = [];
+    try { props = Array.from(new Set(a.effect.getKeyframes().flatMap((k) => Object.keys(k)).filter((k) => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).map((k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())))); } catch (e) { }
+    return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight, props];
+  });`;
+
+export const PIN_JS = `const pin = async () => {
+    for (let i = 0; i < 4; i++) {
+      const max = root.scrollHeight - innerHeight;
+      if (Math.abs(scrollY - max) < 1) return i;
+      scrollTo({ top: max, behavior: 'instant' });
+      await frame(); await frame();
+      await sleep(1000);
+    }
+    return -1;
+  };`;
+
+export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act = null, layer = false } = {}) => `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const frame = () => new Promise((r) => requestAnimationFrame(r));
   const mark = (n) => { performance.clearMarks(n); performance.mark(n); return performance.getEntriesByName(n).pop().startTime; };
@@ -130,7 +152,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
     let n = 0;
     for (; n < ${raf}; n++) await frame();
     const b = mark('ef:b-' + stage);
-    return { raf: n, pageMs: Math.round(b - a), cls: root.className, y: Math.round(scrollY) };
+    return { raf: n, pageMs: Math.round(b - a), cls: root.className, y: Math.round(scrollY), maxY: Math.round(root.scrollHeight - innerHeight) };
   };
   const out = {};
   const kind = (t) => (!t ? 'none' : window.ViewTimeline && t instanceof ViewTimeline ? 'view' : window.ScrollTimeline && t instanceof ScrollTimeline ? 'scroll' : 'document');
@@ -153,11 +175,15 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
     return { total: an.length, by, running, paused, park: parkProbe(), parked: document.querySelectorAll('[data-exit-parked]').length, ut: document.querySelectorAll('[data-fw-unthrottle]').length, utParked: document.querySelectorAll('[data-fw-unthrottle-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
   ${SWEEP_LOOPS_JS}
+  ${layer ? LAYER_LOOPS_JS : ''}
+  ${PIN_JS}
   ${firstScrollJs(act)}
   await frame(); await frame();
   await sleep(${settleMs});
+  out.pinEnd = await pin();
   out.anims = census();
   out.sweepEnd = sweepLoops();
+  ${layer ? 'out.layerEnd = layerLoops();' : ''}
   out.end = await win('end');
   scrollTo({ top: Math.max(0, root.scrollHeight - 2 * innerHeight), behavior: 'instant' });
   await frame(); await frame();
@@ -165,9 +191,11 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
   scrollTo({ top: root.scrollHeight - innerHeight, behavior: 'instant' });
   await frame(); await frame();
   await sleep(${settleMs});
+  out.pinBack = await pin();
   out.back = await win('back');
   out.animsBack = census();
   out.sweepBack = sweepLoops();
+  ${layer ? 'out.layerBack = layerLoops();' : ''}
   const cancelScroll = ${act === 'cancelScroll'};
   let cancelled = 0;
   for (const a of document.getAnimations()) {
@@ -189,22 +217,28 @@ const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} ru
 
 const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport ${JSON.stringify(l)}` : 'no read');
 
+export const roundName = (r) => r.label ?? `round ${r.round}`;
+
+const layerText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport, properties ${JSON.stringify([...new Set(l.flatMap((x) => x[5] ?? []))])} ${JSON.stringify(l)}` : 'no read');
+
 export function rowLines(raw, arms = armsOf(raw.meta?.armSet)) {
   const out = [];
   for (const r of raw.rounds) {
     for (const stage of STAGES) {
       for (const a of arms) {
         const w = r.arms[a.id]?.[stage];
-        if (!w) { out.push(`round ${r.round} ${stage} ${a.id}: unread`); continue; }
+        if (!w) { out.push(`${roundName(r)} ${stage} ${a.id}: unread`); continue; }
         const t = w.tally;
-        out.push(`round ${r.round} ${stage} ${a.id}: raf ${w.raf} seen ${w.seen} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} renderingFrame ${t.RenderingFrame}) span ${w.spanMs ?? '-'} ms html "${w.cls ?? ''}" y ${w.y ?? '-'}`);
+        out.push(`${roundName(r)} ${stage} ${a.id}: raf ${w.raf} seen ${w.seen} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} renderingFrame ${t.RenderingFrame}) span ${w.spanMs ?? '-'} ms html "${w.cls ?? ''}" y ${w.y ?? '-'} of ${w.maxY ?? '-'}`);
       }
     }
     for (const a of arms) {
       const arm = r.arms[a.id];
-      if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
-      if (arm?.sweepEnd) out.push(`round ${r.round} sweep loops ${a.id}: end ${sweepText(arm.sweepEnd)}; back ${sweepText(arm.sweepBack)}`);
-      if (arm && a.act) out.push(`round ${r.round} paused ${a.id} act ${a.act}: cancelled ${arm.cancelled ?? '-'}; after the act, before the window: ${censusText(arm.animsActed)}`);
+      if (arm) for (const stage of STAGES) out.push(`${roundName(r)} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
+      if (arm?.sweepEnd) out.push(`${roundName(r)} sweep loops ${a.id}: end ${sweepText(arm.sweepEnd)}; back ${sweepText(arm.sweepBack)}`);
+      if (arm?.layerEnd) out.push(`${roundName(r)} layer loops ${a.id}: end ${layerText(arm.layerEnd)}; back ${layerText(arm.layerBack)}; inspector ${JSON.stringify(arm.layerProbe ?? null)}`);
+      if (arm && arm.pinEnd !== undefined) out.push(`${roundName(r)} pin ${a.id}: end ${arm.pinEnd}, back ${arm.pinBack ?? '-'} (the number of jumps it took; -1 never reached the end)`);
+      if (arm && a.act) out.push(`${roundName(r)} paused ${a.id} act ${a.act}: cancelled ${arm.cancelled ?? '-'}; after the act, before the window: ${censusText(arm.animsActed)}`);
     }
   }
   return out;
@@ -222,7 +256,7 @@ export function verdictLines(raw) {
       const arm = (id) => r.arms[id]?.[stage] ?? { raf: 0, seen: 0, recalcs: 0 };
       const v = roundVerdict({ base: arm('base'), v2p: arm('v2p'), minusT: arm('minusT'), minusU: arm('minusU') });
       per.push(v);
-      out.push(`${stage} round ${r.round}: rates base ${rate(arm('base'))} v2p ${rate(arm('v2p'))} minusT ${rate(arm('minusT'))} minusU ${rate(arm('minusU'))}; hero.exit:threaded ${v.threaded}; engine.scroll:unthrottle ${v.unthrottle}; pair ${v.pair}; vs WKTR ${v.cmp}`);
+      out.push(`${stage} ${roundName(r)}: rates base ${rate(arm('base'))} v2p ${rate(arm('v2p'))} minusT ${rate(arm('minusT'))} minusU ${rate(arm('minusU'))}; hero.exit:threaded ${v.threaded}; engine.scroll:unthrottle ${v.unthrottle}; pair ${v.pair}; vs WKTR ${v.cmp}`);
     }
     out.push(`${stage} overall hero.exit:threaded: ${overallFlag(per.map((x) => x.threaded))}`);
     out.push(`${stage} overall engine.scroll:unthrottle: ${overallFlag(per.map((x) => x.unthrottle))}`);

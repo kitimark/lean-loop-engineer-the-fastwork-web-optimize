@@ -1,4 +1,4 @@
-import { BAND, MIN_ROUNDS, STAGES, rate, readable, overallNames } from './sim-end-floor.mjs';
+import { BAND, MIN_ROUNDS, STAGES, rate, readable, overallNames, roundName } from './sim-end-floor.mjs';
 
 const V2P_FLAGS = [['engine.scroll', 'unthrottle'], ['hero.exit', 'threaded'], ['platform', 'faded-pause']];
 export const ARM_FLAGS = Object.freeze({
@@ -58,7 +58,11 @@ export function mergeRaws(raws) {
   const builds = new Set();
   raws.forEach((raw, i) => {
     if (raw.meta?.build) builds.add(raw.meta.build);
-    for (const r of raw.rounds) rounds.push({ ...r, round: rounds.length + 1, file: i + 1 });
+    for (const r of raw.rounds) {
+      const merged = { ...r, round: rounds.length + 1, file: i + 1, roundInFile: r.round };
+      if (raws.length > 1) merged.label = raw.rounds.length > 1 ? `job ${i + 1} round ${r.round}` : `job ${i + 1}`;
+      rounds.push(merged);
+    }
   });
   return { meta: { ...(raws[0]?.meta ?? {}), builds: [...builds] }, rounds };
 }
@@ -94,7 +98,7 @@ export function verdictLines(merged) {
       for (const r of merged.rounds) {
         const v = edgeOf(m.builds?.[0] ?? 'local', e, win(r, e.arm, stage), win(r, e.cmp, stage));
         vs.push(v);
-        out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} round ${r.round}: ${rate(win(r, e.arm, stage))} against ${rate(win(r, e.cmp, stage))} per 100 -> ${v}`);
+        out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} ${roundName(r)}: ${rate(win(r, e.arm, stage))} against ${rate(win(r, e.cmp, stage))} per 100 -> ${v}`);
       }
       out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} overall: ${overallEdge(vs)}`);
     }
