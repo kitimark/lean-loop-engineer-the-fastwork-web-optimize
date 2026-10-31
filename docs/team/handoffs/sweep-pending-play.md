@@ -1,5 +1,5 @@
 branch: worktree-wf_94a270c7-5e9-1 (CI branch ci/sweep-pending-play)
-worktree: .claude/worktrees/wf_94a270c7-5e9-1 (under the main checkout)
+worktree: .claude/worktrees/wf_94a270c7-5e9-1
 last commit: see `git log -1` on the branch (tip message carries [ci:breakpoint-gate])
 CI runs: breakpoint gate both engines, flag alone: pass, run 41174543214 at 7dda334 (single flag platform.sweep:offscreen-pause)
 

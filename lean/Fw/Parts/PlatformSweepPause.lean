@@ -1,10 +1,6 @@
 import Fw.Parts.PlatformSweep
 /-!
 # `platform.sweep:offscreen-pause`: the sweep stops ticking while its element is offscreen, and shows the same phase
-
-Named premise `Running` (TS guard, not proved about the engine): `seek` pauses only an animation that is running with a start
-time. A play still pending (`playState` running, `startTime` null) has no saved start time to restore, so the watcher leaves it running;
-`shown_same` and `Ok` are stated for the animations the watcher does pause.
 -/
 namespace Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweep (phase pos)

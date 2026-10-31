@@ -15,8 +15,8 @@ Pause only an animation that is running with a start time; resume only one still
 Same guard as `hero.accent/pause.ts`. Unit tests in `platform.sweep/pause.test.ts`: a pending-play animation stays running with no
 pause/play calls; a running one pauses and resumes with the saved start time.
 
-Reuse was tried and refused. `part-footprint.mjs` reads `pause()`/`play()`/`startTime` at the call site as a style write, so one
-shared watcher moves the write rows from one part set to the other (the hero rows vanished in the trial). Each part keeps its call site;
+Reuse is refused. `part-footprint.mjs` reads `pause()`/`play()`/`startTime` at the call site as a style write, so one
+shared watcher moves the write rows from one part set to the other. Each part keeps its call site;
 the pure model (`init`, `seek`, `tick`, `reportAction`) is shared as before.
 
 ## Lean
