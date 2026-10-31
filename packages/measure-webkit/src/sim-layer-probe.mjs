@@ -15,15 +15,22 @@ export async function layerProbe(c) {
     let layers = 0;
     let animation = 0;
     let willChange = 0;
+    let noRenderer = 0;
+    let noReasons = 0;
     for (const nodeId of nodes) {
-      for (const l of (await c.send('LayerTree.layersForNode', { nodeId })).layers ?? []) {
+      // a node without a renderer (display none at this width) has no layer: the call errors, the node is counted aside
+      const own = await c.send('LayerTree.layersForNode', { nodeId }).catch(() => null);
+      if (own === null) { noRenderer++; continue; }
+      for (const l of own.layers ?? []) {
+        const got = await c.send('LayerTree.reasonsForCompositingLayer', { layerId: l.layerId }).catch(() => null);
+        if (got === null) { noReasons++; continue; }
         layers++;
-        const r = (await c.send('LayerTree.reasonsForCompositingLayer', { layerId: l.layerId }).catch(() => ({}))).compositingReasons ?? {};
+        const r = got.compositingReasons ?? {};
         if (r.animation) animation++;
         if (r.willChange) willChange++;
       }
     }
-    return { nodes: nodes.length, layers, animation, willChange };
+    return { nodes: nodes.length, noRenderer, noReasons, layers, animation, willChange };
   } catch (e) {
     return { error: String(e.message ?? e).slice(0, 160) };
   } finally {
