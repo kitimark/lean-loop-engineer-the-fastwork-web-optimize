@@ -1,7 +1,3 @@
-// sim-floor-attrib: per-arm verdicts of the Simulator end-of-page recalc rate against one named comparator (task sim-floor-attrib).
-//
-// TS STAND-IN of lean/Fw/Device/SimFloorAttrib.lean: tier, the arm flags, delta, edge, overallEdge and overallTier are checked against
-// packages/contracts/golden/device/sim-floor-attrib.jsonl (test/sim-floor-attrib.test.mjs). The report lines only format.
 import { BAND, MIN_ROUNDS, STAGES, rate, readable, overallNames } from './sim-end-floor.mjs';
 
 const V2P_FLAGS = [['engine.scroll', 'unthrottle'], ['hero.exit', 'threaded'], ['platform', 'faded-pause']];
@@ -16,7 +12,6 @@ export const ARM_FLAGS = Object.freeze({
 });
 
 const ALL = ['end', 'back', 'paused'];
-/** The named comparisons, in the Lean `edges` order: each arm against the one comparator it is judged by. */
 export const EDGES = Object.freeze([
   { arm: 'blank', cmp: 'base', stages: ALL },
   { arm: 'minusBoth', cmp: 'base', stages: ALL },
@@ -27,7 +22,6 @@ export const EDGES = Object.freeze([
 ]);
 
 const get = (fs, p) => fs.find((x) => x[0] === p)?.[1];
-/** Lean `Attrib.delta`: the parts whose values differ, in first-seen order. */
 export function delta(a, b) {
   const parts = [...new Set([...a.map((x) => x[0]), ...b.map((x) => x[0])])];
   return parts.filter((p) => get(a, p) !== get(b, p));
@@ -44,7 +38,6 @@ export function tier(w) {
   return 'off';
 }
 
-/** Lean `edge` for one pair of windows; the builds are the commits of the two runs. */
 export function edge(buildArm, buildCmp, arm, cmp, wa, wc) {
   const ta = tier(wa), tc = tier(wc);
   if (ta === 'unreadable' || tc === 'unreadable') return 'unreadable';
@@ -60,7 +53,6 @@ export const edgeOf = (build, e, wa, wc) => edge(build, build, e.arm, e.cmp, wa,
 export const overallEdge = (vs) => overallNames(vs.filter((v) => v !== 'unreadable' && v !== 'offGrid'));
 export const overallTier = (ts) => overallNames(ts.filter((t) => t !== 'unreadable' && t !== 'off'));
 
-/** Rounds of several raw files, numbered 1..N in file order (one CI job each); `runs` keeps the file of each round. */
 export function mergeRaws(raws) {
   const rounds = [];
   const builds = new Set();
@@ -75,7 +67,6 @@ const EMPTY = { raf: 0, seen: 0, recalcs: 0, tally: {} };
 const win = (r, id, stage) => r.arms[id]?.[stage] ?? EMPTY;
 const per = (n, raf) => (raf === 0 ? '-' : (n / raf).toFixed(2));
 
-/** The table: per stage and arm, the rate, recalcs, scheduled recalcs, layouts, paints per frame and the tier, by round and overall. */
 export function tableLines(merged) {
   const out = [];
   const ids = Object.keys(ARM_FLAGS);
@@ -91,7 +82,6 @@ export function tableLines(merged) {
   return out;
 }
 
-/** The verdict file: every named edge, per stage and round, then overall; the build of each round is the Attrib commit. */
 export function verdictLines(merged) {
   const out = [];
   const m = merged.meta ?? {};

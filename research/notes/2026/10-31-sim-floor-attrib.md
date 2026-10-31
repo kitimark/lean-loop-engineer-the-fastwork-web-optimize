@@ -50,7 +50,7 @@ End stage (idle at the end of the page, animations running; `v2pCancelScroll` is
 | minusBoth | 200, 203, 202 | 6, 49, 92 | 6 |
 | v2pCancelScroll | 202, 205, 202 | 7, 50, 93 | 7 |
 
-The back stage reads 200 for every arm except blank (0), `table.txt:8-14`. The layout and paint columns are in `table.txt`.
+The back stage reads 200 for every arm except blank (0), `table.txt:8-14`.
 
 - The recording's own floor is 0 recalcs per 100 frames: the blank page reads 0 recalcs, 0 layouts and 0 paints in all 9 windows, and 360 or 361 composites per
   360 frames (`rows.txt:19`, `:62`, `:105`). So the recording (`RecalculateStyles` records of the Timeline) adds no style recalc; the recalcs of the other
@@ -75,8 +75,6 @@ separate jobs at one commit; `cut:p` = the arm reads in a lower tier than its co
 | minusBoth | minusU | hero.exit | paused | cut:hero.exit | 62 |
 | v2pCancelScroll | v2p | scrollAnimations | paused | cut:scrollAnimations (3 of 3 rounds) | 66 |
 
-What each line says:
-
 - The scheduled second recalc per frame at the paused stage is carried by scroll-driven animations on a ScrollTimeline or ViewTimeline, and by nothing else in
   the page. Cancelling all 14 (v2pCancelScroll against v2p, one variable) cuts 200 to 100 and the scheduled records from 360 to 0 per window in 3 of 3 rounds.
   Removing them by flag (minusBoth) reads the same 100, 0.
@@ -92,7 +90,7 @@ What each line says:
 
 ## 4. Source path (WebKit@862f17d)
 
-One animation on a scroll or view timeline costs one scheduled style recalc per frame, paused or finished or not. Each step is one frame's chain of causation.
+One animation on a scroll or view timeline costs one scheduled style recalc per frame, paused or finished or not.
 
 | # | step | file:line@862f17d | status |
 |---|---|---|---|

@@ -1,6 +1,3 @@
-// One measurement session: serve the original read-only snapshot on 127.0.0.1, boot the Simulator headless, open the
-// page in Mobile Safari, start the Inspector proxy, connect, run `fn`, and shut everything down in `finally`
-// (also on SIGINT/SIGTERM). The snapshot is read from disk per request and never copied.
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, dirname, join, sep } from 'node:path';
@@ -82,9 +79,6 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     startPath = '/' + (site.search ?? '');
     site.configHash = hash;
   } else root = snapshotRoot();
-  // arms: { name: { dir, search } } serves one tree per arm on ONE origin (dir null = the snapshot); `ctx.setArm(name)` picks the tree
-  // the next request is answered from. The tab keeps its origin, so the inspector guard and the tab lookup stay valid.
-  // `blank: true` serves an empty-body page of its own (no config, hash null): the control that holds the recording and nothing else.
   let select = null, armTable = null, armNow = null;
   const blankDirs = [];
   if (arms) {

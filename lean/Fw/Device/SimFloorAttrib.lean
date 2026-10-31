@@ -2,7 +2,6 @@ import Lean.Data.Json
 import Fw.Ops.Attrib
 import Fw.Device.SimEndFloor
 
-/-! # sim-floor-attrib: per-arm verdict of the Simulator end-of-page recalc rate against one named comparator -/
 namespace Fw.Device.SimFloorAttrib
 
 open Lean Fw.Device.SimEndFloor Fw.Device.EndWktr

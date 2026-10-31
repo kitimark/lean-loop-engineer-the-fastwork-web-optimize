@@ -14,7 +14,6 @@ export const armTrees = (siteDir) => Object.fromEntries(ARMS.map((a) => [a.id, a
 
 const PREF_KEYS = /Threaded|ScrollDriven/i;
 
-/** What the Simulator holds as an override of the threaded scroll-driven preferences: matching lines of the Safari and global defaults (empty = no override). */
 export async function prefProbe(udid) {
   const out = {};
   for (const [name, domain] of [['safari', SAFARI], ['global', '-g']]) {

@@ -1,7 +1,7 @@
 # Handoff sim-floor-attrib
 
 - Branch: worktree-wf_1f5ece3e-bb2-1; worktree: .claude/worktrees/wf_1f5ece3e-bb2-1; CI branch: ci/sim-floor-attrib
-- Last commit: see `git log -1` (updated at each checkpoint)
+- Last commit: see `git log -1`
 - CI runs (commit 1815c42): webkit-sim 41145066709 success (3 jobs, 1 round each); lean 41145066687 success.
 - Results: `results/sim-floor-attrib/r1/` (job1..3.json, job1..3-log.txt, rows.txt, table.txt, attrib.txt). Note: research/notes/2026/10-31-sim-floor-attrib.md.
   Ledger row added (notes list, task sim-floor-attrib).
