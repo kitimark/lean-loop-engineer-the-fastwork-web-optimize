@@ -162,16 +162,17 @@ def iterRate (loops windowMs iterMs frames : Nat) : Nat := loops * iterTicks win
 
 def sweepIterMs : Nat := 4000
 
-def sweepLoopCount : Nat := 4
+/-- The five sweep words of the platform section. -/
+def sweepLoopCount : Nat := 5
 
 /-- 360 frames take at most 8000 ms at the slowest frame rate the Simulator holds (45 Hz). -/
 def windowMsMax : Nat := 8000
 
-theorem iterRate_le (w : Nat) (h : w ≤ windowMsMax) : iterRate sweepLoopCount w sweepIterMs winRaf ≤ 3 := by
+theorem iterRate_le (w : Nat) (h : w ≤ windowMsMax) : iterRate sweepLoopCount w sweepIterMs winRaf ≤ 4 := by
   simp only [iterRate, iterTicks, sweepLoopCount, sweepIterMs, winRaf, windowMsMax] at *
   omega
 
-/-- The per-iteration ticks of the four layer loops add at most 3 per 100 frames, inside the tier band of 10 around one. -/
+/-- The per-iteration ticks of the five layer loops add at most 4 per 100 frames, inside the tier band of 10 around one. -/
 theorem iterRate_in_band (w : Nat) (h : w ≤ windowMsMax) : 100 + iterRate sweepLoopCount w sweepIterMs winRaf ≤ 100 + band := by
   have := iterRate_le w h
   simp only [band] at *
@@ -258,6 +259,20 @@ theorem predTierL_rep_irrelevant (r : LayerRead) (c : Census) (hp : r.props = sw
     have := sweepLayer_rep_no_tick
     simpa [LayerRead.effect, hp, hb] using this
   simp [predTierL, h1, h2]
+
+/-- The inspector read of the layers of the layer-sweep nodes: how many layers it reports and how many carry the `animation` compositing reason.
+All carry it: composited for an animation (`some true`, necessary for running accelerated, not sufficient: RenderLayerCompositor.cpp:3842-3860 also
+answers true for an effect stack that merely affects transform); none carries it: contradicted (`some false`); a mix or no layer: no verdict. -/
+def reasonOf (layers anim : Nat) : Option Bool :=
+  if layers == 0 then none else if anim == layers then some true else if anim == 0 then some false else none
+
+theorem reasonOf_no_layer (a : Nat) : reasonOf 0 a = none := by simp [reasonOf]
+
+theorem reasonOf_all (n : Nat) (h : n ≠ 0) : reasonOf n n = some true := by simp [reasonOf, h]
+
+theorem reasonOf_none (n : Nat) (h : n ≠ 0) : reasonOf n 0 = some false := by simp [reasonOf, h, Ne.symm h]
+
+theorem reasonOf_mixed (n a : Nat) (h0 : a ≠ 0) (h1 : a ≠ n) (h2 : n ≠ 0) : reasonOf n a = none := by simp [reasonOf, h0, h1, h2]
 
 /-- An inspector that reports no composited animation on the layer contradicts the accelerated state: the loop ticks, the prediction is two. -/
 theorem predTierL_contradicted (r : LayerRead) (rep : Option Bool) (c : Census) (h : c.layerOnly = true) (hn : 0 < c.layerRunning)
@@ -425,9 +440,9 @@ private def verdictCases : List (String × Win × Win) :=
    ("bothL unreadable", ⟨360, 100, 360⟩, w 360 720), ("both off the grid", w 360 360, w 360 540),
    ("bothL at the band edge", w 360 396, w 360 720), ("bothL one above the band", w 360 400, w 360 720)]
 
-private def layerLoops : List String := List.replicate 4 "sweep-module_sweepLayerX_Hq9d2v"
+private def layerLoops : List String := List.replicate 5 "sweep-module_sweepLayerX_Hq9d2v"
 private def inViewLayer : List String := List.replicate 2 "sweep-module_sweepLayerX_Hq9d2v"
-private def sweepDocs : List String := List.replicate 4 "sweep-module_sweepDoc_zGc1tE"
+private def sweepDocs : List String := List.replicate 5 "sweep-module_sweepDoc_zGc1tE"
 private def idles : List String := ["accent-module_idle0_t7SI92", "accent-module_idle1_a3NQoa", "accent-module_idle2_Q1MyP3"]
 private def cue : String := "cue-module_scrollFloat_6RFPnC"
 private def fin : List (String × Nat) := [("document:finished", 20), ("document:paused", 7)]
@@ -435,8 +450,8 @@ private def fin : List (String × Nat) := [("document:finished", 20), ("document
 private def cen (b : List (String × Nat)) (run pau : List String) (parked ut utP : Nat) (sw : Option Nat) : Census :=
   ⟨b, run, pau, parked, ut, utP, sw⟩
 
-/-- A job's `bothL` census at the end: the layer loops run (all four, none paused hidden), accent and cue finished or paused. -/
-private def bothLC : Census := cen (fin ++ [("document:running", 4)]) layerLoops (idles ++ [cue]) 1 1 1 (some 0)
+/-- A job's `bothL` census at the end: the layer loops run (all five), accent and cue finished or paused. -/
+private def bothLC : Census := cen (fin ++ [("document:running", 5)]) layerLoops (idles ++ [cue]) 1 1 1 (some 0)
 private def bothLInViewC : Census := cen (fin ++ [("document:running", 2)]) inViewLayer (layerLoops ++ idles ++ [cue]) 1 1 1 (some 0)
 private def bothLNoLayerC : Census := cen fin [] (idles ++ [cue] ++ layerLoops) 1 1 1 (some 0)
 private def bothLDocC : Census := cen fin (sweepDocs ++ layerLoops) (idles ++ [cue]) 1 1 1 (some 2)
@@ -459,6 +474,9 @@ private def readDoc : LayerRead := ⟨4, ["background-position"], none⟩
 private def readMixed : LayerRead := ⟨4, ["transform", "background-position"], none⟩
 private def readNone : LayerRead := ⟨0, [], none⟩
 private def readOpacity : LayerRead := ⟨2, ["transform", "opacity"], none⟩
+
+private def reasonCases : List (String × Nat × Nat) :=
+  [("no layer", 0, 0), ("five of five", 5, 5), ("none of five", 5, 0), ("two of five", 5, 2), ("one of one", 1, 1)]
 
 private def readCases : List (String × LayerRead) :=
   [("transform, inspector says composited", readFull), ("transform, inspector not read", readInferred),
@@ -559,6 +577,8 @@ def goldenLines (_ : Unit) : List String :=
   (readCases.map fun (n, r) =>
     (Lean.Json.mkObj [("kind", "read"), ("name", n), ("read", readJ r), ("evidence", Lean.Json.str r.evidence),
       ("ticksCore", (r.effect none).ticks), ("ticksRep", (r.effect (some false)).ticks)]).compress) ++
+  (reasonCases.map fun (n, l, a) =>
+    (Lean.Json.mkObj [("kind", "reason"), ("name", n), ("layers", l), ("animation", a), ("reason", optBoolJ (reasonOf l a))]).compress) ++
   (censusCases.map fun (n, c) =>
     (Lean.Json.mkObj [("kind", "census"), ("name", n), ("census", censusJ c), ("complete", Lean.Json.bool c.complete),
       ("layerRunning", c.layerRunning), ("foreignRunning", c.foreignRunning), ("sweepDocLoops", c.sweepDocLoops),

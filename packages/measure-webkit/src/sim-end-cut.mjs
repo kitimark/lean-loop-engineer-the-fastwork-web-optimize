@@ -1,6 +1,6 @@
 import { BAND, MIN_ROUNDS, STAGES, rate } from './sim-end-floor.mjs';
 import { TIER_RANK, delta, overallEdge, overallTier, tier } from './sim-floor-attrib.mjs';
-import { overallNames } from './sim-end-floor.mjs';
+import { overallNames, roundName } from './sim-end-floor.mjs';
 
 export const CENSUS_CAP = 24;
 export const ARM_IDS = Object.freeze(['v2p', 'parks', 'pauses', 'both']);
@@ -151,7 +151,7 @@ export function verdictLines(merged) {
       for (const r of merged.rounds) {
         const v = edgeOf(build, e, win(r, e.arm, stage), win(r, e.cmp, stage));
         vs.push(v);
-        out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} round ${r.round}: ${rate(win(r, e.arm, stage))} against ${rate(win(r, e.cmp, stage))} per 100 -> ${v}`);
+        out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} ${roundName(r)}: ${rate(win(r, e.arm, stage))} against ${rate(win(r, e.cmp, stage))} per 100 -> ${v}`);
       }
       const ov = overallEdge(vs);
       out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} overall: ${gate(ov, took)} (rate reading ${ov}); predicted ${pred}; ${heldGated(ov, pred, took)}`);
@@ -174,11 +174,11 @@ export function verdictLines(merged) {
       const ns = [];
       for (const r of merged.rounds) {
         const c = censusOf(r, id, stage);
-        if (!c) { out.push(`effect ${id} ${stage} round ${r.round}: no census`); continue; }
+        if (!c) { out.push(`effect ${id} ${stage} ${roundName(r)}: no census`); continue; }
         const n = effectName(id, c);
         ns.push(n);
         const st = stillTicks(c).map(([k, x]) => `${k} ${x}`).join(', ') || 'nothing';
-        out.push(`effect ${id} ${stage} round ${r.round}: ${n}; still ticks: ${st}; complete ${complete(c)}`);
+        out.push(`effect ${id} ${stage} ${roundName(r)}: ${n}; still ticks: ${st}; complete ${complete(c)}`);
       }
       out.push(`effect ${id} ${stage} overall: ${overallEffect(ns)}`);
     }
@@ -192,7 +192,7 @@ export function verdictLines(merged) {
         if (!c) continue;
         const cand = candidateOf(c);
         const st = stillTicks(c).map(([k, x]) => `${k} ${x}`).join(', ') || 'nothing';
-        out.push(`sources ${id} ${stage} round ${r.round}: ${st}; sweep loops running ${runningOf(c, 'platform sweep')}, hidden ${c.sweepHidden ?? '-'}; owners ${ownersText(r.arms[id]?.[CENSUS_OF[stage]])}${cand ? `; candidate ${cand} (spec only, class L)` : ''}`);
+        out.push(`sources ${id} ${stage} ${roundName(r)}: ${st}; sweep loops running ${runningOf(c, 'platform sweep')}, hidden ${c.sweepHidden ?? '-'}; owners ${ownersText(r.arms[id]?.[CENSUS_OF[stage]])}${cand ? `; candidate ${cand} (spec only, class L)` : ''}`);
       }
       const ov = overallTier(ts);
       out.push(`answer ${id} ${stage}: tiers [${ts.join(', ')}] overall ${ov}; reaches 100 per 100: ${ov === 'one' ? 'yes' : ov === 'two' ? 'no' : 'undecided'}`);

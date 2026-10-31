@@ -78,7 +78,23 @@ if (cmd === 'run') {
     writeFileSync(join(resolve(dir), 'cut.txt'), `${verdict.join('\n')}\n`);
   }
   console.log([...verdict, '', ...table].join('\n'));
+} else if (cmd === 'layer') {
+  const files = args.slice(1).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--out');
+  if (!files.length) { console.error('layer needs one or more sim-end-floor.json files (one per CI job)'); process.exit(2); }
+  const { rowLines, armsOf } = await import('./sim-end-floor.mjs');
+  const { mergeRaws } = await import('./sim-floor-attrib.mjs');
+  const { tableLines, verdictLines } = await import('./sim-layer-sweep.mjs');
+  const merged = mergeRaws(files.map((f) => JSON.parse(readFileSync(f, 'utf8'))));
+  const rows = rowLines(merged, armsOf('layer')), table = tableLines(merged), verdict = verdictLines(merged);
+  const dir = flag('--out');
+  if (dir) {
+    mkdirSync(resolve(dir), { recursive: true });
+    writeFileSync(join(resolve(dir), 'rows.txt'), `${rows.join('\n')}\n`);
+    writeFileSync(join(resolve(dir), 'table.txt'), `${table.join('\n')}\n`);
+    writeFileSync(join(resolve(dir), 'layer.txt'), `${verdict.join('\n')}\n`);
+  }
+  console.log([...verdict, '', ...table].join('\n'));
 } else {
-  console.error('usage: sim-end-floor-cli.mjs run|searches|report|attrib|cut');
+  console.error('usage: sim-end-floor-cli.mjs run|searches|report|attrib|cut|layer');
   process.exit(2);
 }
