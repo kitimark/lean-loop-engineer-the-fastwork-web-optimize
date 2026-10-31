@@ -168,7 +168,7 @@ const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
 const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}` : 'no census');
 
 const armsOf = (r) => RUN_ARMS.filter((a) => ARMS.includes(a) || r.arms[a.id]);
-const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length} ${JSON.stringify(l)}` : 'no read');
+const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport ${JSON.stringify(l)}` : 'no read');
 
 /** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
 export function rowLines(raw) {

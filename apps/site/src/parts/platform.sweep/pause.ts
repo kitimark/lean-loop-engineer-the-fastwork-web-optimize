@@ -30,38 +30,37 @@ export { PERIOD_MS, phase };
 
 export const reportAction = (paused: boolean, rep: boolean): 'pause' | 'resume' | 'none' => (rep ? (paused ? 'none' : 'pause') : paused ? 'resume' : 'none');
 
-interface ElState {
-  paused: boolean;
-  readonly starts: Map<Animation, CSSNumberish | null>;
+interface Held {
+  readonly start: CSSNumberish | null;
+  readonly cur: number;
+  readonly at: number;
 }
 
-export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver = IntersectionObserver): () => void {
+interface ElState {
+  paused: boolean;
+  readonly held: Map<Animation, Held>;
+}
+
+export const resumeTime = (h: Held, now: number): number => h.cur + (now - h.at);
+
+export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver = IntersectionObserver, now: () => number = () => performance.now()): () => void {
   const state = new Map<Element, ElState>();
-  for (const el of els) state.set(el, { paused: false, starts: new Map() });
-  const holdOne = (st: ElState, a: Animation) => {
-    if (st.starts.has(a) || a.playState !== 'running' || a.startTime == null) return;
-    st.starts.set(a, a.startTime);
-    a.pause();
-  };
+  for (const el of els) state.set(el, { paused: false, held: new Map() });
   const hold = (el: Element, st: ElState) => {
     for (const a of el.getAnimations()) {
-      if (a.playState === 'running' && a.startTime == null) {
-        void a.ready.then(
-          () => {
-            if (st.paused) holdOne(st, a);
-          },
-          () => undefined,
-        );
-      } else holdOne(st, a);
+      if (st.held.has(a) || a.playState !== 'running') continue;
+      st.held.set(a, { start: a.startTime, cur: Number(a.currentTime ?? 0), at: now() });
+      a.pause();
     }
   };
   const resume = (st: ElState) => {
-    for (const [a, s] of st.starts) {
+    for (const [a, h] of st.held) {
       if (a.playState !== 'paused') continue;
+      if (h.start == null) a.currentTime = resumeTime(h, now());
       a.play();
-      if (s != null) a.startTime = s;
+      if (h.start != null) a.startTime = h.start;
     }
-    st.starts.clear();
+    st.held.clear();
   };
   const stop = watchHidden(
     els,

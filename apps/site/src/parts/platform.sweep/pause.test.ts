@@ -36,56 +36,35 @@ describe('platform.sweep offscreen-pause', () => {
   });
 });
 
-class Pend extends FakeAnim {
-  private done: (() => void) | null = null;
-  readonly ready: Promise<unknown>;
-  constructor(st: number | null) {
+class Timed extends FakeAnim {
+  currentTime: number | null = 0;
+  constructor(st: number | null, cur: number | null = 0) {
     super(st);
-    this.ready = new Promise<void>((r) => {
-      this.done = r;
-    });
-  }
-  settle(t: number) {
-    this.startTime = t;
-    this.done?.();
+    this.currentTime = cur;
   }
 }
 
-const mkEl = (list: () => FakeAnim[]) => {
-  const el = { getAnimations: list } as unknown as Element;
-  return { el };
-};
+const mkEl = (list: () => FakeAnim[]) => ({ el: { getAnimations: list } as unknown as Element });
 
 describe('platform.sweep watchSweepPause', () => {
-  it('a pending play stays running until its start time exists, then pauses and resumes at the saved time', async () => {
-    const loop = new Pend(null);
+  it('a play with no start time yet is paused too and resumes at its time plus the time spent paused', () => {
+    const loop = new Timed(null, 0);
     const { el } = mkEl(() => [loop]);
     const { IO, report } = fakeIO();
-    P.watchSweepPause([el], IO);
+    let t = 1000;
+    P.watchSweepPause([el], IO, () => t);
     report(el, true);
-    expect(loop.log).toEqual([]);
-    loop.settle(50);
-    await Promise.resolve();
-    await Promise.resolve();
     expect(loop.log).toEqual(['pause']);
+    t = 3500;
     report(el, false);
     expect(loop.log).toEqual(['pause', 'play']);
-    expect(loop.startTime).toBe(50);
+    expect(loop.currentTime).toBe(2500);
   });
-  it('a pending play that becomes ready after the element is visible again stays running', async () => {
-    const loop = new Pend(null);
-    const { el } = mkEl(() => [loop]);
-    const { IO, report } = fakeIO();
-    P.watchSweepPause([el], IO);
-    report(el, true);
-    report(el, false);
-    loop.settle(50);
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(loop.log).toEqual([]);
+  it('resumeTime adds the paused time to the saved time', () => {
+    expect(P.resumeTime({ start: null, cur: 40, at: 10 }, 110)).toBe(140);
   });
   it('an animation created after mount and before the report is paused (the old mount-time list missed it)', () => {
-    const late = new FakeAnim(77);
+    const late = new Timed(77);
     let made = false;
     const { el } = mkEl(() => (made ? [late] : []));
     const { IO, report } = fakeIO();
@@ -98,7 +77,7 @@ describe('platform.sweep watchSweepPause', () => {
     expect(late.startTime).toBe(77);
   });
   it('a hidden report with nothing to pause does not stop a later report from pausing', () => {
-    const late = new FakeAnim(5);
+    const late = new Timed(5);
     let made = false;
     const { el } = mkEl(() => (made ? [late] : []));
     const { IO, report } = fakeIO();
@@ -110,7 +89,7 @@ describe('platform.sweep watchSweepPause', () => {
     expect(late.log).toEqual(['pause']);
   });
   it('pauses a running animation and resumes it with the saved start time', () => {
-    const loop = new FakeAnim(123);
+    const loop = new Timed(123);
     const { el } = mkEl(() => [loop]);
     const { IO, report } = fakeIO();
     P.watchSweepPause([el], IO);
@@ -118,5 +97,15 @@ describe('platform.sweep watchSweepPause', () => {
     report(el, false);
     expect(loop.log).toEqual(['pause', 'play']);
     expect(loop.startTime).toBe(123);
+  });
+  it('leaves an animation the page cancelled while paused alone', () => {
+    const loop = new Timed(123);
+    const { el } = mkEl(() => [loop]);
+    const { IO, report } = fakeIO();
+    P.watchSweepPause([el], IO);
+    report(el, true);
+    loop.playState = 'idle';
+    report(el, false);
+    expect(loop.log).toEqual(['pause']);
   });
 });
