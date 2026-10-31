@@ -29,9 +29,10 @@ end of the exit range (`scrollEvent_engages`). The scroll listener is now always
 - `io_engages`: the observer path.
 - `scrollEvent_no_stale` (held value = animated value, so the look is the same as before), `scrollEvent_restores` (inside the range the hero is live).
 TS `park.ts` `scrollEvent` and `createPark` are checked against `packages/contracts/golden/parts/scroll-park.jsonl` (9 `scrollEvent` lines); the
-controller also checks the position once at start (a page loaded past the margin). Glue (not proved, no decision): the boundary is read (a layout read)
-only when `y` passes the last read threshold plus margin, so a scroll event normally costs one compare. A stale threshold above the true one delays the
-park until the observer reports (accepted limit).
+controller also checks the position once at start (a page loaded past the margin). Glue (not proved): the boundary is read (a layout read) only when y passes the last read threshold (boundary plus margin), so a scroll event normally
+costs one compare; this gate skips scrollEvent and is not in Lean. A threshold above the true one (the boundary shrank after the last read without a resize)
+delays the park until a scroll event passes it, or on a walk until the observer reports far; after an instant jump with no later scroll the park can stay
+off (accepted limit, INFERRED, not measured).
 
 ## 3. Result (MEASURED, run 41181664848 on 0039fbb95, fixed park, 3 rounds)
 
