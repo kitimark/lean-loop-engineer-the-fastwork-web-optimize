@@ -1,0 +1,10 @@
+end v2p: rate per 100 [205, 200, 200]; recalcs/frame [2.06, 2.00, 2.00]; schedule/frame [1.03, 1.00, 1.00]; layout/frame [1.07, 1.14, 1.19]; paint/frame [4.11, 4.00, 4.01]; tier [two, two, two] overall two
+end parks: rate per 100 [203, 201, 200]; recalcs/frame [2.03, 2.02, 2.00]; schedule/frame [1.02, 1.00, 1.00]; layout/frame [1.04, 1.18, 1.00]; paint/frame [4.07, 4.07, 4.00]; tier [two, two, two] overall two
+end pauses: rate per 100 [205, 200, 200]; recalcs/frame [2.06, 2.00, 2.00]; schedule/frame [1.05, 1.00, 1.00]; layout/frame [1.06, 1.01, 1.00]; paint/frame [4.11, 4.05, 4.00]; tier [two, two, two] overall two
+end both: rate per 100 [202, 197, 203]; recalcs/frame [2.03, 1.97, 2.03]; schedule/frame [1.03, 1.00, 1.03]; layout/frame [1.03, 0.98, 1.03]; paint/frame [4.06, 3.96, 4.07]; tier [two, two, two] overall two
+back v2p: rate per 100 [200, 200, 200]; recalcs/frame [2.00, 2.00, 2.00]; schedule/frame [1.00, 1.00, 1.00]; layout/frame [1.00, 1.17, 1.16]; paint/frame [4.00, 4.00, 4.00]; tier [two, two, two] overall two
+back parks: rate per 100 [200, 200, 200]; recalcs/frame [2.00, 2.00, 2.00]; schedule/frame [1.00, 1.00, 1.00]; layout/frame [1.00, 1.18, 1.00]; paint/frame [4.00, 4.00, 4.00]; tier [two, two, two] overall two
+back pauses: rate per 100 [200, 200, 200]; recalcs/frame [2.00, 2.00, 2.00]; schedule/frame [1.00, 1.00, 1.00]; layout/frame [1.00, 1.00, 1.00]; paint/frame [4.00, 4.00, 4.00]; tier [two, two, two] overall two
+back both: rate per 100 [200, 200, 200]; recalcs/frame [2.00, 2.01, 2.00]; schedule/frame [1.00, 1.00, 1.00]; layout/frame [1.00, 1.01, 1.00]; paint/frame [4.00, 4.01, 4.00]; tier [two, two, two] overall two
+paused v2p: rate per 100 [200, 200, 200]; recalcs/frame [2.00, 2.00, 2.00]; schedule/frame [1.00, 1.00, 1.00]; layout/frame [1.00, 1.00, 1.00]; paint/frame [2.00, 2.00, 2.00]; tier [two, two, two] overall two
+paused both: rate per 100 [100, 100, 100]; recalcs/frame [1.00, 1.00, 1.00]; schedule/frame [0.00, 0.00, 0.00]; layout/frame [1.00, 1.00, 1.00]; paint/frame [2.00, 2.00, 2.00]; tier [one, one, one] overall one

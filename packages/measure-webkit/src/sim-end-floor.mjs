@@ -150,7 +150,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
       try { inf = a.effect.getComputedTiming().iterations === Infinity; } catch (e) { /* no timing */ }
       if (a.playState === 'paused' && inf && paused.length < 24) paused.push([kind(a.timeline), name(a), desc(a.effect && a.effect.target)]);
     }
-    return { total: an.length, by, running, paused, park: parkProbe(), parked: document.querySelectorAll('[data-exit-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
+    return { total: an.length, by, running, paused, park: parkProbe(), parked: document.querySelectorAll('[data-exit-parked]').length, ut: document.querySelectorAll('[data-fw-unthrottle]').length, utParked: document.querySelectorAll('[data-fw-unthrottle-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
   ${SWEEP_LOOPS_JS}
   ${firstScrollJs(act)}
@@ -185,7 +185,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
 })()`;
 
 const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
-const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}${c.paused ? ` pausedLoops ${JSON.stringify(c.paused)} parked ${c.parked ?? '-'}` : ''}` : 'no census');
+const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}${c.paused ? ` pausedLoops ${JSON.stringify(c.paused)} parked ${c.parked ?? '-'} unthrottle ${c.ut ?? '-'} unthrottle parked ${c.utParked ?? '-'}` : ''}` : 'no census');
 
 const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport ${JSON.stringify(l)}` : 'no read');
 

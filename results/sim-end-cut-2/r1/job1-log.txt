@@ -1,0 +1,32 @@
+serving the snapshot read-only at http://127.0.0.1:50129/
+proxy up: SIMULATOR on :9341, tabs on :9342
+  no tab after 7 s: sending openurl again (extra ask 1)
+  no tab after 16 s: sending openurl again (extra ask 2)
+  no tab after 22 s: sending openurl again (extra ask 3)
+  no tab after 29 s: sending openurl again (extra ask 4)
+  no tab after 38 s: sending openurl again (extra ask 5)
+  no tab after 44 s: sending openurl again (extra ask 6)
+  no tab after 52 s: sending openurl again (extra ask 7)
+  no tab after 61 s: sending openurl again (extra ask 8)
+  no tab after 68 s: sending openurl again (extra ask 9)
+  no tab after 75 s: sending openurl again (extra ask 10)
+  no tab after 81 s: sending openurl again (extra ask 11)
+  no tab after 87 s: sending openurl again (extra ask 12)
+  no tab after 96 s: sending openurl again (extra ask 13)
+  no tab after 102 s: sending openurl again (extra ask 14)
+  no tab after 109 s: sending openurl again (extra ask 15)
+  no tab after 116 s: sending openurl again (extra ask 16)
+  no tab after 128 s: sending openurl again (extra ask 17)
+  no tab after 134 s: sending openurl again (extra ask 18)
+  no tab after 140 s: sending openurl again (extra ask 19)
+  no tab after 159 s: sending openurl again (extra ask 20)
+  no tab after 180 s: sending openurl again (extra ask 21)
+  no tab after 187 s: sending openurl again (extra ask 22)
+no Safari tab listed in 240 s (no tab listed; 22 extra openurl); opening the URL again (ask 2)
+simctl openurl failed (ETIMEDOUT); transient, attempt 1 of 4, retry in 2 s
+end-floor: preference overrides {"safari":["read failed: Error: Domain 'com.apple.mobilesafari' not found."],"global":[]}
+end-floor round 1 v2p: end raf 360 seen 372 recalcs 741; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 parks: end raf 360 seen 369 recalcs 731; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 pauses: end raf 360 seen 378 recalcs 740; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+  end-floor both round 1 attempt 1 failed (Runtime.evaluate timed out after 120000 ms); reconnecting and retrying from a fresh load
+end-floor round 1 both: end raf 360 seen 370 recalcs 730; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
