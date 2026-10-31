@@ -28,4 +28,4 @@ animation with a start time; `shown_same` and `Ok` concern the animations the wa
 ## Goldens, class, limits
 
 Footprint regenerated with `part-footprint.mjs --write`, `--check` green (sweep rows only, line 45 to 50). Same look (class E), no preset
-change, no device or Simulator claim. gate: run id added by the lead.
+change, no device or Simulator claim. Gate: breakpoint gate both engines, flag alone: pass, run 41174543214 at 7dda334.
