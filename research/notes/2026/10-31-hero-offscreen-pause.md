@@ -30,7 +30,8 @@ ease-in-out infinite` on `span.float`, `apps/site/src/parts/hero.cue/cue.module.
   check.sh jobs, trigger rows); replayed by `pause.test.ts` in both parts.
 
 Named premises (not proved about the engine): `Lag` (the observer reports an element after the frame it leaves, so that frame still ticks),
-`Ok` (an element reported offscreen is offscreen), and that setting `startTime` on a paused CSS animation after `play()` keeps the CSS play state
+`Ok` (an element reported offscreen is offscreen; it fails on the first visible frame after re-entry, because the observer callback is a
+posted task, so that frame paints the paused phase: INFERRED), and that setting `startTime` on a paused CSS animation after `play()` keeps the CSS play state
 (INFERRED, both engines, as in `platform:faded-pause`). Not covered: a loop created while the element is offscreen is not tracked.
 
 ## Class and limits

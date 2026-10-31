@@ -4810,7 +4810,7 @@
    ],
    "premises": [
     "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
-    "An element reported offscreen is offscreen (Ok): INFERRED",
+    "Ok fails on the first visible frame after re-entry (the observer callback is a posted task, so that frame paints the paused phase): INFERRED",
     "Setting startTime on a paused CSS animation after play() restores the uninterrupted phase (same premise as platform.sweep:offscreen-pause): INFERRED, both engines"
    ],
    "v1Evidence": "",
@@ -4846,7 +4846,7 @@
    ],
    "premises": [
     "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
-    "An element reported offscreen is offscreen (Ok): INFERRED",
+    "Ok fails on the first visible frame after re-entry (the observer callback is a posted task, so that frame paints the paused phase): INFERRED",
     "Setting startTime on a paused CSS animation after play() restores the uninterrupted phase (same premise as platform.sweep:offscreen-pause): INFERRED, both engines"
    ],
    "v1Evidence": "",
