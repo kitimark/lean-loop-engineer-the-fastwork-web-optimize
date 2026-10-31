@@ -1,7 +1,7 @@
 branch: worktree-wf_5d322fb6-6d3-1 (CI branch ci/sweep-pause-all)
 worktree: .claude/worktrees/wf_5d322fb6-6d3-1
-last commit: 271136c77 (pushed to ci/sweep-pause-all; the handoff update is a later commit)
-CI runs: webkit-sim end-floor on ci/sweep-pause-all at 271136c77: run id pending (read with fw ci wait); gate: run id added by the lead
+last commit: cb16967d6 (pushed to ci/sweep-pause-all; later commits are handoff only)
+CI runs: webkit-sim end-floor 41182219539 (queued/running at cb16967d6); breakpoint-gate on push 41182219607 (running, tip tag); dispatch gate 41181634194 is at the older 271136c77 (animationstart version, stale); gate: run id added by the lead
 
 Verified locally: vitest platform.sweep (3 files), @fw/site typecheck, part-footprint --check after --write.
 Open: CI Simulator census (platform sweep running 0 at end for the sweepPause arm, 3 of 3 rounds); gate: run id added by the lead; merge main, regenerate footprint, dry land.
