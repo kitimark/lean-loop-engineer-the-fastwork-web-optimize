@@ -53,13 +53,13 @@ End stage (idle at the end of the page, animations running; `v2pCancelScroll` is
 The back stage reads 200 for every arm except blank (0), `table.txt:8-14`.
 
 - The recording's own floor is 0 recalcs per 100 frames: the blank page reads 0 recalcs, 0 layouts and 0 paints in all 9 windows, and 360 or 361 composites per
-  360 frames (`rows.txt:19`, `:62`, `:105`). So the recording (`RecalculateStyles` records of the Timeline) adds no style recalc; the recalcs of the other
-  arms belong to the page.
-- The census says what is left (round 1, `rows.txt:24-43`): paused, minusBoth holds 36 document animations and none on a scroll or view timeline
+  360 frames (`rows.txt:19`, `:62`, `:105`). So the recording adds no style recalc on an empty page (MEASURED); that it adds none on the full page, so that the
+  recalcs of the other arms belong to the page, is INFERRED (blank differs from base in every part, Lean part `content`).
+- The census says what is left (round 1, `rows.txt:22-43`): paused, minusBoth holds 36 document animations and none on a scroll or view timeline
   (`rows.txt:39`); v2pCancelScroll cancelled 14 and holds 35 document animations, none re-created on either timeline (`rows.txt:42-43`); v2p holds 13 view and 1
   scroll animation, minusT 1 scroll, minusU 13 view, all paused (`rows.txt:27, 30, 33`).
 
-## 3. Lean verdicts per arm against its comparator (MEASURED, decided in Lean)
+## 3. Lean verdicts per arm against its comparator (MEASURED; verdicts by the TS stand-in `sim-floor-attrib.mjs`, equal to the Lean golden of `Fw.Device.SimFloorAttrib`)
 
 Source: `results/sim-floor-attrib/r1/attrib.txt` (`Fw.Device.SimFloorAttrib.edge`, one rule `Fw.Ops.Attrib.verdict` per pair; the three rounds are three
 separate jobs at one commit; `cut:p` = the arm reads in a lower tier than its comparator and exactly the part `p` differs).
@@ -85,18 +85,18 @@ separate jobs at one commit; `cut:p` = the arm reads in a lower tier than its co
   document animations: the cue float and 4 platform sweeps). With document animations running, the second recalc is present with or without the scroll-driven
   animations, so removing only those cannot lower the live end-of-page rate (INFERRED from minusBoth at the end stage; the arm that parks only scroll and view
   animations while document animations run was not measured).
-- The remaining first recalc, 1.00 per frame with 0 scheduled, with layout 360 and paint 720 per 360 frames (`rows.txt:20-21`), is not the recording (blank
-  reads 0) and not any scroll-driven or flag part tested here. What produces it is OPEN.
+- The remaining first recalc, 1.00 per frame with 0 scheduled, with layout 360 and paint 720 per 360 frames (`rows.txt:20-21`), is not added by the recording on an empty page (blank
+  reads 0; INFERRED for the full page) and not any scroll-driven or flag part tested here. What produces it is OPEN.
 
 ## 4. Source path (WebKit@862f17d)
 
-One animation on a scroll or view timeline costs one scheduled style recalc per frame, paused or finished or not.
+One animation on a scroll or view timeline costs one scheduled style recalc per frame, paused or finished or not, unless it is a skipped-content animation or the frame-rate aligner skips its frame (`AnimationTimelinesController.cpp:150`, `:171`).
 
 | # | step | file:line@862f17d | status |
 |---|---|---|---|
 | 1 | The Animations step of every rendering update calls `Document::updateAnimationsAndSendEvents` | `Source/WebCore/page/Page.cpp:2307-2309` | CONFIRMED (read) |
 | 2 | The timelines controller visits every timeline whose `documentWillUpdateAnimationsAndSendEvents()` is Yes: a ScrollTimeline when its source element is connected, a ViewTimeline when its subject is | `Source/WebCore/animation/AnimationTimelinesController.cpp:104-257`; `ScrollTimeline.cpp:291-298`; `ViewTimeline.cpp:444-450` | CONFIRMED |
-| 3 | It ticks every `relevantAnimations()` entry of such a timeline: no play-state filter and no accelerated-state filter, so paused and finished animations tick | `AnimationTimelinesController.cpp:149-177`; `AnimationTimeline.h:59` | CONFIRMED |
+| 3 | It ticks every `relevantAnimations()` entry of such a timeline: no play-state filter and no accelerated-state filter (its only skips are skipped content, `:150`, and the frame-rate aligner, `:171`), so paused and finished animations tick | `AnimationTimelinesController.cpp:149-177`; `AnimationTimeline.h:59` | CONFIRMED |
 | 4 | `WebAnimation::tick` calls `m_effect->animationDidTick()` unless effect invalidation is suspended; the progress-based auto-align returns early for a paused animation with a hold time | `WebAnimation.cpp:1558-1582`, `:1502-1527` | CONFIRMED |
 | 5 | `KeyframeEffect::animationDidTick` calls `invalidate()` unconditionally; `invalidateElement` calls `Element::invalidateStyleForAnimation` unless a style recalc is running | `KeyframeEffect.cpp:2129-2131`, `:1731-1735`, `:127-135` | CONFIRMED |
 | 6 | `invalidateStyleForAnimation` calls `Node::invalidateStyle(AnimationInvalid)`, which marks the ancestors only when the node was valid, then `Document::scheduleStyleRecalc` | `Element.cpp:2763-2767`; `Node.cpp:1006-1024`, `:972-985` | CONFIRMED |

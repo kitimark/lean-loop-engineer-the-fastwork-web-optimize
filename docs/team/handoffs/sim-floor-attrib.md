@@ -10,7 +10,7 @@
   measure-webkit tests, ci-paths test and runner land-inputs test pass locally.
 - Findings: recording floor 0 (blank); second scheduled recalc in paused arms = scroll/view-timeline animations (cancel 200->100,
   minusBoth 100); end/back stages stay 200 in every non-blank arm; first recalc of paused base unattributed (OPEN, INFERRED).
-- Open: merge main, final tests, check.sh at final commit, dry land, review gate.
+- Open: the run-time preference read, the candidate spec (list the accent idle animations or predict against minusBoth), the unscheduled first recalc of the paused base, per-round build in mergeRaws.
 
 ## State
 - Arms (sim-end-floor.mjs ARMS): base, v2p, minusT, minusU, blank (empty body page), minusBoth, v2pCancelScroll (cancels every
