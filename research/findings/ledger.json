@@ -5816,6 +5816,12 @@
    "task": "sweep-pending-play",
    "field": "mechanism",
    "text": "sweep-pending-play (CONFIRMED in code, no measurement): the sweep watcher saved a.startTime and paused with no check, so a play still pending (playState running, startTime null) saved null; resume then only called play() and the loop continued from its hold time, lagging the unpaused phase by the off-screen time, which breaks the seek-to-orig identity the Lean model states. Fix: pause only an animation that is running with a start time, resume only one still paused (the guard hero.accent/pause.ts got in hero-offscreen-pause). Lean premise Running named in the Fw.Parts.PlatformSweepPause module docstring. Reuse of the hero watcher was tried and refused: the footprint extractor reads pause()/play()/startTime at the call site, so a shared function moves the style-write rows from one part set to the other. Unit test with a pending-play animation. Footprint regenerated (line numbers only). IntersectionObserver lag stays a named premise. Gate: breakpoint gate both engines, flag alone: pass, run 41174543214 at 7dda334. research/notes/2026/10-31-sweep-pending-play.md"
+  },
+  {
+     "entry": "hero.exit:threaded-park: threaded plus a park. While the end of the exit range is more than one viewport above the viewport top, the finished scroll-driven animations of the hero copy, cue and cards are cancelled (animation-name: none) and each target holds its keyframe end value as static style; the park is restored by an IntersectionObserver step or a scroll event.",
+     "task": "park-engage",
+     "field": "mechanism",
+     "text": "park-engage (MEASURED, CI iOS Simulator): startParkOn ran (live and styled true) and still the park stayed off after an instant jump to the end (view-driven 13, 3 of 3 rounds, run 41179356320 on the unfixed park); a stepped scroll parked it (view-driven 0, 3 of 3). Cause (a), not (b). Fix: the scroll listener is always on and parks at a far position (Lean ScrollPark scrollEvent; jump_engages, walk_engages, io_engages, scrollEvent_no_stale, scrollEvent_restores; TS checked against scroll-park.jsonl). Run 41181664848 on the fix: both arms parked, view-driven 0, 3 of 3 rounds. Class L unchanged. Recalc-rate effect left to sim-end-cut-2. research/notes/2026/10-31-park-engage.md"
   }
  ]
 }
