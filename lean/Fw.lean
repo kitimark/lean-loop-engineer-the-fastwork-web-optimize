@@ -129,6 +129,10 @@ import Fw.Parts.PlatformGlintCompositor
 import Fw.Parts.PlatformGlintCompositorGolden
 import Fw.Parts.PlatformSweepPause
 import Fw.Parts.PlatformSweepPauseGolden
+import Fw.Parts.OffscreenPause
+import Fw.Parts.HeroAccentPause
+import Fw.Parts.HeroCuePause
+import Fw.Parts.OffscreenPauseGolden
 import Fw.Parts.PlatformFadedPause
 import Fw.Parts.PlatformFadedPauseGolden
 import Fw.Parts.PlatformSweepLayer

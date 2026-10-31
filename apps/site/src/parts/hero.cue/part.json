@@ -9,7 +9,16 @@
     { "id": "hero.cue_cue", "label": "scroll cue", "text": true }
   ],
   "variants": {
-    "faithful": { "kind": "faithful", "files": ["cue.module.css", "index.tsx", "media.ts"], "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:4130-4133; assets/2.gBuqKVzi.css:1905-1990,2056-2060,2128-2160" } }
+    "faithful": { "kind": "faithful", "files": ["cue.module.css", "index.tsx", "media.ts"], "tier": "T1", "provenance": { "original": "_app/immutable/nodes/2.DyWL8TcE.js:4130-4133; assets/2.gBuqKVzi.css:1905-1990,2056-2060,2128-2160" } },
+    "offscreen-pause": {
+      "kind": "optimized",
+      "files": ["cue.module.css", "index.tsx", "media.ts", "pause.ts"],
+      "tier": "T0",
+      "provenance": {
+        "lean": "Fw.Parts.HeroCuePause cue_visible_same, cue_reported_no_tick, cue_offscreen_ticks_le_one; Fw.Parts.OffscreenPause look_same; Fw.Parts.PlatformSweepPause shown_same",
+        "limit": "IntersectionObserver reports an element after the frame it leaves (named premise Lag, not proved about the engine): the leaving frame still ticks; a loop created while the cue is off screen is not tracked (the float starts after the splash, so the loop is read when the cue is reported, not at mount); one the page cancels while paused is not resumed"
+      }
+    }
   },
   "requires": {},
   "conflicts": {}

@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import { GenSvg, art } from '../../GenSvg';
+import { VARIANT as PAUSE_VARIANT, watchLoopPause } from './pause';
 import css from './cue.module.css';
 
 export interface HeroCueProps {
@@ -11,9 +13,15 @@ function scrollNext() {
 }
 
 export function HeroCue({ variant }: HeroCueProps) {
+  const floatRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = floatRef.current;
+    if (variant !== PAUSE_VARIANT || !el) return;
+    return watchLoopPause([el]);
+  }, [variant]);
   return (
     <button type="button" className={css.cue} data-fw="hero-cue" data-fw-layer="hero.cue_cue" data-fw-variant={variant} onClick={scrollNext}>
-      <span className={css.float}>
+      <span ref={floatRef} className={css.float}>
         <span className={css.label}>Scroll down</span>{' '}
         <GenSvg art={art('hero.cue')} />
       </span>

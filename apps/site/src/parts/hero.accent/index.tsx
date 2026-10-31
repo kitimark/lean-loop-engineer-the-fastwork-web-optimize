@@ -7,6 +7,7 @@ import { artOf, BASE_ART, strokePath } from './data';
 import { BASE_WIDTH, widthOf, type AccentState } from './logic';
 import { accentHookSet, chainStarts } from './hook';
 import { matchList } from './media';
+import { VARIANT as PAUSE_VARIANT, watchLoopPause } from './pause';
 import css from './accent.module.css';
 
 export interface HeroAccentProps {
@@ -92,6 +93,12 @@ export function HeroAccent({ variant }: HeroAccentProps) {
       chain.stop();
       io.disconnect();
     };
+  }, [variant]);
+
+  useEffect(() => {
+    const em = emRef.current;
+    if (variant !== PAUSE_VARIANT || !em) return;
+    return watchLoopPause([em]);
   }, [variant]);
 
   const [vw, vh] = BASE_ART.viewBox;
