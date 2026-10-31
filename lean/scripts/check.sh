@@ -243,6 +243,8 @@ run_group() {
   job "morph-stage golden check" lake env lean --run scripts/MorphStageGolden.lean --check ../packages/contracts/golden/parts/morph-stage.jsonl
   job "combo-scroll golden check" lake env lean --run scripts/ComboScrollGolden.lean --check ../packages/contracts/golden/parts/combo-scroll.jsonl
   job "platform-sweep-pause golden check" lake env lean --run scripts/PlatformSweepPauseGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-pause.jsonl
+  job "hero-accent-pause golden check" lake env lean --run scripts/HeroPauseGolden.lean accent --check ../packages/contracts/golden/parts/hero-accent-pause.jsonl
+  job "hero-cue-pause golden check" lake env lean --run scripts/HeroPauseGolden.lean cue --check ../packages/contracts/golden/parts/hero-cue-pause.jsonl
   job "platform-sweep-layer golden check" lake env lean --run scripts/PlatformSweepLayerGolden.lean --check ../packages/contracts/golden/parts/platform-sweep-layer.jsonl
   job "platform-entries-fill golden check" lake env lean --run scripts/PlatformEntriesFillGolden.lean --check ../packages/contracts/golden/parts/platform-entries-fill.jsonl
   job "platform-glint-pause golden check" lake env lean --run scripts/PlatformGlintPauseGolden.lean --check ../packages/contracts/golden/parts/platform-glint-pause.jsonl

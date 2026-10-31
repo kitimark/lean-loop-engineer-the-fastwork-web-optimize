@@ -4781,6 +4781,79 @@
    "lesson": "Alone, engine.scroll:unthrottle holds the whole end-of-page floor (576 of 576 frames, base 0; run 41045232315); a park of it alone cannot cut the floor while hero.exit:threaded still carries it (split verdict shared). Its WebKit gate cell is unread alone: the pair run 41054732597 failed only in hero.orbit and hero.deck.",
    "next": "Gate this flag alone on playwright-webkit, then pair it with a reliable hero park.",
    "evidence": "run:41045232315 run:41054732597 research/notes/2026/10-30-scrolldriven-park.md"
+  },
+  {
+   "id": "hero.accent.offscreen-pause",
+   "n": 98,
+   "part": "hero.accent",
+   "candidate": "hero.accent:offscreen-pause: pause the three accent idle boil loops (idle0..2, 0.6 s step-end infinite) while its element is off screen, resume with its saved start time (same look); the end-of-page document animations that keep the iOS Simulator at 2 style recalcs per frame (research/notes/2026/10-31-sim-floor-attrib.md)",
+   "status": "partly-proved",
+   "flags": [
+    "hero.accent:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Lean HeroAccentPause, accent_visible_same_all: on every visible frame the paused animation shows the unpaused value, for every easing and for all boxes together). Breakpoint gate: dispatched by the lead (pending, not a result).",
+   "mechanism": "INFERRED: the three idle loops are main-thread CSS animations that run while the accent is offscreen (sim-floor-attrib). PROVED in Lean: a frame reported offscreen leaves the local time unchanged and counts no tick; under the named premise Lag an offscreen stretch ticks at most once (Fw.Parts.PlatformSweepPause offscreen_ticks_le_one, reused). Not measured: no lane counts rendering updates of the rewrite while the element is offscreen (sim-end-cut measures the stack).",
+   "leanFor": [
+    "Fw.Parts.HeroAccentPause.accent_visible_same",
+    "Fw.Parts.HeroAccentPause.accent_visible_same_all",
+    "Fw.Parts.HeroAccentPause.accent_reported_no_tick",
+    "Fw.Parts.HeroAccentPause.accent_offscreen_ticks_le_one",
+    "Fw.Parts.OffscreenPause.look_same"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and recalcs while the element is offscreen, per engine, faithful against the flag: no lane yet (task sim-end-cut)",
+    "The IntersectionObserver lag (Lag) is a premise, not proved about either engine",
+    "A loop the page cancels while paused (the accent class change to a draw state) is not resumed, and an idle loop created while offscreen is not tracked; the variant is exclusive with steps and draw-one (one variant per part)"
+   ],
+   "premises": [
+    "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
+    "An element reported offscreen is offscreen (Ok): INFERRED",
+    "Setting startTime on a paused CSS animation after play() restores the uninterrupted phase (same premise as platform.sweep:offscreen-pause): INFERRED, both engines"
+   ],
+   "v1Evidence": "",
+   "lesson": "A looping animation shows a function of its local time, so one look-identity theorem (OffscreenPause.look_same) covers every loop; the part-specific work is only the function and which animations count as loops.",
+   "evidence": "branch ci/hero-offscreen-pause; gate run dispatched by the lead (pnpm -s fw run --gate --engines both --preset v2-proved --fw hero.accent:offscreen-pause,hero.cue:offscreen-pause,platform.sweep:offscreen-pause --ref ci/hero-offscreen-pause)",
+   "next": "Gate both engines on the pushed branch; then sim-end-cut measures the stack on the iOS Simulator.",
+   "flag": "hero.accent:offscreen-pause"
+  },
+  {
+   "id": "hero.cue.offscreen-pause",
+   "n": 99,
+   "part": "hero.cue",
+   "candidate": "hero.cue:offscreen-pause: pause the cue float loop (2.2 s ease-in-out infinite scrollFloat) while its element is off screen, resume with its saved start time (same look); the end-of-page document animations that keep the iOS Simulator at 2 style recalcs per frame (research/notes/2026/10-31-sim-floor-attrib.md)",
+   "status": "partly-proved",
+   "flags": [
+    "hero.cue:offscreen-pause"
+   ],
+   "chromium": "unknown",
+   "webkit": "unknown",
+   "visual": "E (Lean HeroCuePause, cue_visible_same: on every visible frame the paused animation shows the unpaused value, for every easing and for all boxes together). Breakpoint gate: dispatched by the lead (pending, not a result).",
+   "mechanism": "INFERRED: the cue float is a main-thread transform animation in the hero and keeps running when the hero is scrolled away (sim-floor-attrib). PROVED in Lean: a frame reported offscreen leaves the local time unchanged and counts no tick; under the named premise Lag an offscreen stretch ticks at most once (Fw.Parts.PlatformSweepPause offscreen_ticks_le_one, reused). Not measured: no lane counts rendering updates of the rewrite while the element is offscreen (sim-end-cut measures the stack).",
+   "leanFor": [
+    "Fw.Parts.HeroCuePause.cue_visible_same",
+    "Fw.Parts.HeroCuePause.cue_reported_no_tick",
+    "Fw.Parts.HeroCuePause.cue_offscreen_ticks_le_one",
+    "Fw.Parts.OffscreenPause.look_same"
+   ],
+   "leanAgainst": [],
+   "missingWhy": [
+    "Rendering updates and recalcs while the element is offscreen, per engine, faithful against the flag: no lane yet (task sim-end-cut)",
+    "The IntersectionObserver lag (Lag) is a premise, not proved about either engine",
+    "A float loop created while the cue is offscreen is not tracked (it is read when the cue is reported, so the post-splash loop is covered)"
+   ],
+   "premises": [
+    "Lag: the observer reports an element after the frame it leaves: INFERRED (IntersectionObserver notifications are posted tasks)",
+    "An element reported offscreen is offscreen (Ok): INFERRED",
+    "Setting startTime on a paused CSS animation after play() restores the uninterrupted phase (same premise as platform.sweep:offscreen-pause): INFERRED, both engines"
+   ],
+   "v1Evidence": "",
+   "lesson": "A looping animation shows a function of its local time, so one look-identity theorem (OffscreenPause.look_same) covers every loop; the part-specific work is only the function and which animations count as loops.",
+   "evidence": "branch ci/hero-offscreen-pause; gate run dispatched by the lead (pnpm -s fw run --gate --engines both --preset v2-proved --fw hero.accent:offscreen-pause,hero.cue:offscreen-pause,platform.sweep:offscreen-pause --ref ci/hero-offscreen-pause)",
+   "next": "Gate both engines on the pushed branch; then sim-end-cut measures the stack on the iOS Simulator.",
+   "flag": "hero.cue:offscreen-pause"
   }
  ],
  "notes": [
