@@ -1,7 +1,7 @@
 branch: worktree-wf_5d322fb6-6d3-1 (CI branch ci/sweep-pause-all)
 worktree: .claude/worktrees/wf_5d322fb6-6d3-1
-last commit: f195bd44b (pushed to ci/sweep-pause-all; later commits are handoff only)
-CI runs: webkit-sim end-floor (arm set sweep) 41186783133 at f195bd44b running; breakpoint-gate on push 41186783098 running (tip tag; old push gate 41182219607 at cb16967d6 passed, dispatch gate 41181634194 stale); older webkit-sim 41182219539 complete (premise finding); gate: run id added by the lead
+last commit: c74f1111e (pushed to ci/sweep-pause-all; later commits are handoff only)
+CI runs: webkit-sim end-floor (arm set sweep, the fix) 41189420040 at c74f1111e running; breakpoint-gate on push 41189420xxx at c74f1111e (tip tag; read id with gh run list); earlier runs 41182219539 and 41186783133 are pre-fix evidence; gate: run id added by the lead
 
 Verified locally: vitest platform.sweep (3 files), @fw/site typecheck, part-footprint --check after --write.
 Open: CI Simulator census of the fix (arm set sweep, tag [end-sweep]): hidden loops running 0 at end in 3 of 3 jobs; merge main, regenerate footprint, dry land; gate: run id added by the lead.
