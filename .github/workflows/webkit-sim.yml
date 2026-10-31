@@ -195,7 +195,7 @@ jobs:
       - id: m
         env:
           FWCORE: ${{ runner.temp }}/bin/fwcore
-          VMS: ${{ inputs.vms || (contains(github.event.head_commit.message, '[swap-lane]') && '3') || '1' }}
+          VMS: ${{ inputs.vms || (contains(github.event.head_commit.message, '[swap-lane]') && '3') || (contains(github.event.head_commit.message, '[end-floor-vms:3]') && '3') || '1' }}
           SESSIONS: ${{ inputs.sessions || '1' }}
           TARGET: ${{ inputs.target || (contains(github.event.head_commit.message, '[swap-lane]') && 'rewrite') || (contains(github.event.head_commit.message, '[end-floor]') && 'rewrite') || 'original' }}
           PRESET: ${{ inputs.preset || 'original' }}
@@ -250,7 +250,7 @@ jobs:
       - name: Build the rewrite (the default config and the query of the plan)
         env:
           SEARCH: ${{ needs.plan.outputs.search }}
-          # end-floor (task sim-end-floor): only the default config and the four arms' queries (packages/measure-webkit/src/sim-end-floor.mjs ARMS)
+          # end-floor (task sim-end-floor): only the default config and the arms' queries (packages/measure-webkit/src/sim-end-floor.mjs ARMS)
           END_FLOOR: ${{ contains(github.event.head_commit.message, '[end-floor]') && 'yes' || 'no' }}
         run: |
           set -euo pipefail
@@ -419,6 +419,8 @@ jobs:
           EXPERIMENT: ${{ inputs.experiment || 'determinism' }}
           # end-floor (task sim-end-floor): the head commit says [end-floor]; one Simulator session loads the four arms of the site build and records the end-of-page idle recalcs
           END_FLOOR: ${{ contains(github.event.head_commit.message, '[end-floor]') && 'yes' || 'no' }}
+          # [end-floor-vms:3] (task sim-floor-attrib): seven arms do not fit three rounds in one step, so each of 3 jobs runs one round, arm order rotated by 2 per job
+          EF_ROUNDS: ${{ contains(github.event.head_commit.message, '[end-floor-vms:3]') && '1' || '3' }}
           LAG: ${{ (inputs.lag || contains(github.event.head_commit.message, '[swap-lane]')) && 'yes' || 'no' }}
           # lag cost passes: the cost dispatch input (off|on|only); a push carries no inputs, so it is off, unless the head commit says [swap-lane]:
           # then a push runs the swap lane (rewrite, fw people.carousel:crop, 3 VMs, lag cost only; task carousel-swap-webkit-lane)
@@ -457,7 +459,8 @@ jobs:
           site=()
           if [ "$ARM" = rewrite ]; then site=(--site "$SITE_DIR" --search "$SEARCH"); fi
           if [ "$END_FLOOR" = yes ]; then
-            node src/sim-end-floor-cli.mjs run --site "$SITE_DIR" --rounds 3 --out out --name "$VM-end-floor" 2> >(tee "out/$VM-end-floor.log" >&2)
+            n="${VM//[!0-9]/}"; n="${n:-1}"
+            node src/sim-end-floor-cli.mjs run --site "$SITE_DIR" --rounds "$EF_ROUNDS" --rotate "$(( (n - 1) * 2 ))" --out out --name "$VM-end-floor" 2> >(tee "out/$VM-end-floor.log" >&2)
             ls -l out
             exit 0
           fi

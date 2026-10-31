@@ -11,12 +11,18 @@ export const MIN_SEEN = 288;
 export const MIN_ROUNDS = 2;
 
 const V2P = 'engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause';
-/** The four arms, in the Lean `Round` order. `search` is the query the prerendered build is asked for ('' = the default config). */
+/**
+ * The arms: the four of sim-end-floor in the Lean `Round` order, then the three controls of sim-floor-attrib. `search` is the query the
+ * prerendered build is asked for ('' = the default config); `blank` serves an empty-body page; `act` is what the page script does at the paused stage.
+ */
 export const ARMS = Object.freeze([
   { id: 'base', fw: '', search: '' },
   { id: 'v2p', fw: V2P, search: `?fw=${V2P}` },
   { id: 'minusT', fw: 'engine.scroll:unthrottle,platform:faded-pause', search: '?fw=engine.scroll:unthrottle,platform:faded-pause' },
   { id: 'minusU', fw: 'hero.exit:threaded,platform:faded-pause', search: '?fw=hero.exit:threaded,platform:faded-pause' },
+  { id: 'blank', fw: '', search: '', blank: true },
+  { id: 'minusBoth', fw: 'platform:faded-pause', search: '?fw=platform:faded-pause' },
+  { id: 'v2pCancelScroll', fw: V2P, search: `?fw=${V2P}`, act: 'cancelScroll' },
 ]);
 /**
  * The reads of one load: at the end of the page after the jump there settled (`end`, the pinned unit), after a scroll up by one viewport and back to the
@@ -24,7 +30,7 @@ export const ARMS = Object.freeze([
  */
 export const STAGES = Object.freeze(['end', 'back', 'paused']);
 /** The `--config` queries the site build needs (the default config is always built). */
-export const BUILD_SEARCHES = Object.freeze(ARMS.filter((a) => a.search !== '').map((a) => a.search));
+export const BUILD_SEARCHES = Object.freeze([...new Set(ARMS.filter((a) => !a.blank && a.search !== '').map((a) => a.search))]);
 
 export const rate = (w) => (w.raf === 0 ? 0 : Math.floor((w.recalcs * 100) / w.raf));
 export const readable = (w) => w.raf === WIN_RAF && MIN_SEEN <= w.seen;
@@ -85,7 +91,7 @@ export function windowOf(rows, stage, raf) {
 }
 
 /** The in-page script of one load: scroll to the end, settle, read the `end` window, go up one viewport and back, settle, read the `back` window, then list the animations. */
-export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500 } = {}) => `(async () => {
+export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act = null } = {}) => `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const frame = () => new Promise((r) => requestAnimationFrame(r));
   const mark = (n) => { performance.clearMarks(n); performance.mark(n); return performance.getEntriesByName(n).pop().startTime; };
@@ -125,9 +131,16 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500 } = {
   await sleep(${settleMs});
   out.back = await win('back');
   out.animsBack = census();
-  for (const a of document.getAnimations()) { try { a.pause(); } catch (e) { /* not pausable */ } }
+  const cancelScroll = ${act === 'cancelScroll'};
+  let cancelled = 0;
+  for (const a of document.getAnimations()) {
+    const k = kind(a.timeline);
+    try { if (cancelScroll && (k === 'view' || k === 'scroll')) { a.cancel(); cancelled++; } else a.pause(); } catch (e) { /* not pausable */ }
+  }
+  out.cancelled = cancelled;
   await frame(); await frame();
   await sleep(${backMs});
+  out.animsActed = census();
   out.paused = await win('paused');
   out.animsPaused = census();
   out.maxY = Math.round(root.scrollHeight - innerHeight);
@@ -152,6 +165,7 @@ export function rowLines(raw) {
     for (const a of ARMS) {
       const arm = r.arms[a.id];
       if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
+      if (arm && a.act) out.push(`round ${r.round} paused ${a.id} act ${a.act}: cancelled ${arm.cancelled ?? '-'}; after the act, before the window: ${censusText(arm.animsActed)}`);
     }
   }
   return out;

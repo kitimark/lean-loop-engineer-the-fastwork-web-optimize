@@ -1,0 +1,66 @@
+sim-floor-attrib band 10 per 100, min rounds 2, rounds 3, builds 1815c4260cd3270239370a2372fa17199fb5be33
+runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0 ua Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1
+blank against base [content] end round 1: 0 against 201 per 100 -> cut:content
+blank against base [content] end round 2: 0 against 200 per 100 -> cut:content
+blank against base [content] end round 3: 0 against 200 per 100 -> cut:content
+blank against base [content] end overall: cut:content
+blank against base [content] back round 1: 0 against 200 per 100 -> cut:content
+blank against base [content] back round 2: 0 against 200 per 100 -> cut:content
+blank against base [content] back round 3: 0 against 200 per 100 -> cut:content
+blank against base [content] back overall: cut:content
+blank against base [content] paused round 1: 0 against 100 per 100 -> cut:content
+blank against base [content] paused round 2: 0 against 100 per 100 -> cut:content
+blank against base [content] paused round 3: 0 against 100 per 100 -> cut:content
+blank against base [content] paused overall: cut:content
+minusBoth against base [platform] end round 1: 200 against 201 per 100 -> noEffect:platform
+minusBoth against base [platform] end round 2: 203 against 200 per 100 -> noEffect:platform
+minusBoth against base [platform] end round 3: 202 against 200 per 100 -> noEffect:platform
+minusBoth against base [platform] end overall: noEffect:platform
+minusBoth against base [platform] back round 1: 200 against 200 per 100 -> noEffect:platform
+minusBoth against base [platform] back round 2: 200 against 200 per 100 -> noEffect:platform
+minusBoth against base [platform] back round 3: 200 against 200 per 100 -> noEffect:platform
+minusBoth against base [platform] back overall: noEffect:platform
+minusBoth against base [platform] paused round 1: 100 against 100 per 100 -> noEffect:platform
+minusBoth against base [platform] paused round 2: 100 against 100 per 100 -> noEffect:platform
+minusBoth against base [platform] paused round 3: 100 against 100 per 100 -> noEffect:platform
+minusBoth against base [platform] paused overall: noEffect:platform
+minusBoth against v2p [engine.scroll+hero.exit] end round 1: 200 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] end round 2: 203 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] end round 3: 202 against 202 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] end overall: notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] back round 1: 200 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] back round 2: 200 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] back round 3: 200 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] back overall: notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] paused round 1: 100 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] paused round 2: 100 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] paused round 3: 100 against 200 per 100 -> notAttributable
+minusBoth against v2p [engine.scroll+hero.exit] paused overall: notAttributable
+minusBoth against minusT [engine.scroll] end round 1: 200 against 200 per 100 -> noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] end round 2: 203 against 206 per 100 -> noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] end round 3: 202 against 200 per 100 -> noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] end overall: noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] back round 1: 200 against 200 per 100 -> noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] back round 2: 200 against 200 per 100 -> noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] back round 3: 200 against 200 per 100 -> noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] back overall: noEffect:engine.scroll
+minusBoth against minusT [engine.scroll] paused round 1: 100 against 200 per 100 -> cut:engine.scroll
+minusBoth against minusT [engine.scroll] paused round 2: 100 against 200 per 100 -> cut:engine.scroll
+minusBoth against minusT [engine.scroll] paused round 3: 100 against 200 per 100 -> cut:engine.scroll
+minusBoth against minusT [engine.scroll] paused overall: cut:engine.scroll
+minusBoth against minusU [hero.exit] end round 1: 200 against 200 per 100 -> noEffect:hero.exit
+minusBoth against minusU [hero.exit] end round 2: 203 against 200 per 100 -> noEffect:hero.exit
+minusBoth against minusU [hero.exit] end round 3: 202 against 200 per 100 -> noEffect:hero.exit
+minusBoth against minusU [hero.exit] end overall: noEffect:hero.exit
+minusBoth against minusU [hero.exit] back round 1: 200 against 200 per 100 -> noEffect:hero.exit
+minusBoth against minusU [hero.exit] back round 2: 200 against 200 per 100 -> noEffect:hero.exit
+minusBoth against minusU [hero.exit] back round 3: 200 against 200 per 100 -> noEffect:hero.exit
+minusBoth against minusU [hero.exit] back overall: noEffect:hero.exit
+minusBoth against minusU [hero.exit] paused round 1: 100 against 200 per 100 -> cut:hero.exit
+minusBoth against minusU [hero.exit] paused round 2: 100 against 200 per 100 -> cut:hero.exit
+minusBoth against minusU [hero.exit] paused round 3: 100 against 200 per 100 -> cut:hero.exit
+minusBoth against minusU [hero.exit] paused overall: cut:hero.exit
+v2pCancelScroll against v2p [scrollAnimations] paused round 1: 100 against 200 per 100 -> cut:scrollAnimations
+v2pCancelScroll against v2p [scrollAnimations] paused round 2: 100 against 200 per 100 -> cut:scrollAnimations
+v2pCancelScroll against v2p [scrollAnimations] paused round 3: 100 against 200 per 100 -> cut:scrollAnimations
+v2pCancelScroll against v2p [scrollAnimations] paused overall: cut:scrollAnimations

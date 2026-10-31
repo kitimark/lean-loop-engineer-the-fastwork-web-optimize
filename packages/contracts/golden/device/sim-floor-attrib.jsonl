@@ -1,0 +1,57 @@
+{"band":10,"kind":"consts","minRounds":2,"minSeen":288,"winRaf":360}
+{"arm":"base","flags":[],"kind":"arm"}
+{"arm":"v2p","flags":[["engine.scroll","unthrottle"],["hero.exit","threaded"],["platform","faded-pause"]],"kind":"arm"}
+{"arm":"minusT","flags":[["engine.scroll","unthrottle"],["platform","faded-pause"]],"kind":"arm"}
+{"arm":"minusU","flags":[["hero.exit","threaded"],["platform","faded-pause"]],"kind":"arm"}
+{"arm":"blank","flags":[["content","blank"]],"kind":"arm"}
+{"arm":"minusBoth","flags":[["platform","faded-pause"]],"kind":"arm"}
+{"arm":"v2pCancelScroll","flags":[["engine.scroll","unthrottle"],["hero.exit","threaded"],["platform","faded-pause"],["scrollAnimations","cancelled"]],"kind":"arm"}
+{"kind":"tier","name":"raf differs","rate":100,"verdict":"unreadable","win":{"raf":100,"recalcs":100,"seen":100}}
+{"kind":"tier","name":"too few seen","rate":100,"verdict":"unreadable","win":{"raf":360,"recalcs":360,"seen":100}}
+{"kind":"tier","name":"zero","rate":0,"verdict":"zero","win":{"raf":360,"recalcs":0,"seen":360}}
+{"kind":"tier","name":"at the band","rate":10,"verdict":"zero","win":{"raf":360,"recalcs":36,"seen":360}}
+{"kind":"tier","name":"one above the band","rate":11,"verdict":"off","win":{"raf":360,"recalcs":40,"seen":360}}
+{"kind":"tier","name":"below one","rate":88,"verdict":"off","win":{"raf":360,"recalcs":320,"seen":360}}
+{"kind":"tier","name":"one low edge","rate":90,"verdict":"one","win":{"raf":360,"recalcs":324,"seen":360}}
+{"kind":"tier","name":"one","rate":100,"verdict":"one","win":{"raf":360,"recalcs":360,"seen":360}}
+{"kind":"tier","name":"one high edge","rate":110,"verdict":"one","win":{"raf":360,"recalcs":396,"seen":360}}
+{"kind":"tier","name":"above one","rate":111,"verdict":"off","win":{"raf":360,"recalcs":400,"seen":360}}
+{"kind":"tier","name":"below two","rate":188,"verdict":"off","win":{"raf":360,"recalcs":680,"seen":360}}
+{"kind":"tier","name":"two low edge","rate":190,"verdict":"two","win":{"raf":360,"recalcs":684,"seen":360}}
+{"kind":"tier","name":"two","rate":200,"verdict":"two","win":{"raf":360,"recalcs":720,"seen":360}}
+{"kind":"tier","name":"two high edge","rate":210,"verdict":"two","win":{"raf":360,"recalcs":756,"seen":360}}
+{"kind":"tier","name":"above two","rate":211,"verdict":"off","win":{"raf":360,"recalcs":760,"seen":360}}
+{"arm":"blank","cmp":"base","kind":"edge","parts":["content"],"stages":["end","back","paused"]}
+{"arm":"minusBoth","cmp":"base","kind":"edge","parts":["platform"],"stages":["end","back","paused"]}
+{"arm":"minusBoth","cmp":"v2p","kind":"edge","parts":["engine.scroll","hero.exit"],"stages":["end","back","paused"]}
+{"arm":"minusBoth","cmp":"minusT","kind":"edge","parts":["engine.scroll"],"stages":["end","back","paused"]}
+{"arm":"minusBoth","cmp":"minusU","kind":"edge","parts":["hero.exit"],"stages":["end","back","paused"]}
+{"arm":"v2pCancelScroll","cmp":"v2p","kind":"edge","parts":["scrollAnimations"],"stages":["paused"]}
+{"arm":"blank","armWin":{"raf":360,"recalcs":0,"seen":360},"cmp":"base","cmpWin":{"raf":360,"recalcs":360,"seen":360},"kind":"verdict","name":"blank reads zero against one","stages":["paused"],"verdict":"cut:content"}
+{"arm":"blank","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"base","cmpWin":{"raf":360,"recalcs":360,"seen":360},"kind":"verdict","name":"blank reads one against one","stages":["paused"],"verdict":"noEffect:content"}
+{"arm":"blank","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"base","cmpWin":{"raf":360,"recalcs":360,"seen":360},"kind":"verdict","name":"blank reads two against one","stages":["paused"],"verdict":"raised:content"}
+{"arm":"minusBoth","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"base","cmpWin":{"raf":360,"recalcs":360,"seen":360},"kind":"verdict","name":"minusBoth one against one","stages":["paused"],"verdict":"noEffect:platform"}
+{"arm":"minusBoth","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"base","cmpWin":{"raf":360,"recalcs":360,"seen":360},"kind":"verdict","name":"minusBoth two against one","stages":["paused"],"verdict":"raised:platform"}
+{"arm":"minusBoth","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"minusBoth against v2p, two parts","stages":["paused"],"verdict":"notAttributable"}
+{"arm":"minusBoth","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"minusBoth against v2p, same tier, two parts","stages":["paused"],"verdict":"notAttributable"}
+{"arm":"minusBoth","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"minusT","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"minusBoth against minusT cut","stages":["paused"],"verdict":"cut:engine.scroll"}
+{"arm":"minusBoth","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"minusU","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"minusBoth against minusU same","stages":["paused"],"verdict":"noEffect:hero.exit"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"cancel against v2p cut","stages":["paused"],"verdict":"cut:scrollAnimations"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"cancel against v2p same","stages":["paused"],"verdict":"noEffect:scrollAnimations"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":360,"seen":360},"kind":"verdict","name":"cancel against v2p raised","stages":["paused"],"verdict":"raised:scrollAnimations"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":360,"seen":100},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"unreadable arm window","stages":["paused"],"verdict":"unreadable"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":100},"kind":"verdict","name":"unreadable comparator window","stages":["paused"],"verdict":"unreadable"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":540,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"arm off the grid","stages":["paused"],"verdict":"offGrid"}
+{"arm":"v2pCancelScroll","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":540,"seen":360},"kind":"verdict","name":"comparator off the grid","stages":["paused"],"verdict":"offGrid"}
+{"arm":"v2p","armWin":{"raf":360,"recalcs":720,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"same arm twice, zero parts","stages":["paused"],"verdict":"notAttributable"}
+{"arm":"base","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"v2p","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"base against v2p, three parts","stages":["paused"],"verdict":"notAttributable"}
+{"arm":"v2pCancelScroll","armBuild":"b1","armWin":{"raf":360,"recalcs":360,"seen":360},"cmp":"v2p","cmpBuild":"b2","cmpWin":{"raf":360,"recalcs":720,"seen":360},"kind":"verdict","name":"other build","stages":["paused"],"verdict":"notAttributable"}
+{"kind":"overallEdge","name":"all cut","overall":"cut:scrollAnimations","verdicts":["cut:scrollAnimations","cut:scrollAnimations","cut:scrollAnimations"]}
+{"kind":"overallEdge","name":"one noEffect","overall":"mixed","verdicts":["cut:scrollAnimations","noEffect:scrollAnimations","cut:scrollAnimations"]}
+{"kind":"overallEdge","name":"one unreadable","overall":"cut:scrollAnimations","verdicts":["cut:scrollAnimations","unreadable","cut:scrollAnimations"]}
+{"kind":"overallEdge","name":"two off the grid","overall":"inconclusive","verdicts":["cut:scrollAnimations","offGrid","offGrid"]}
+{"kind":"overallEdge","name":"all notAttributable","overall":"notAttributable","verdicts":["notAttributable","notAttributable","notAttributable"]}
+{"kind":"overallTier","name":"all one","overall":"one","tiers":["one","one","one"]}
+{"kind":"overallTier","name":"one two","overall":"mixed","tiers":["one","two","one"]}
+{"kind":"overallTier","name":"one unreadable","overall":"zero","tiers":["zero","unreadable","zero"]}
+{"kind":"overallTier","name":"two off","overall":"inconclusive","tiers":["zero","off","off"]}

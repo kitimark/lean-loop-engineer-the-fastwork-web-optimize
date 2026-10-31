@@ -1,0 +1,25 @@
+serving the snapshot read-only at http://127.0.0.1:50550/
+proxy up: SIMULATOR on :9341, tabs on :9342
+  no tab after 7 s: sending openurl again (extra ask 1)
+  no tab after 15 s: sending openurl again (extra ask 2)
+  no tab after 21 s: sending openurl again (extra ask 3)
+  no tab after 28 s: sending openurl again (extra ask 4)
+  no tab after 35 s: sending openurl again (extra ask 5)
+  no tab after 41 s: sending openurl again (extra ask 6)
+  no tab after 49 s: sending openurl again (extra ask 7)
+  no tab after 55 s: sending openurl again (extra ask 8)
+  no tab after 62 s: sending openurl again (extra ask 9)
+  no tab after 68 s: sending openurl again (extra ask 10)
+  no tab after 74 s: sending openurl again (extra ask 11)
+  no tab after 82 s: sending openurl again (extra ask 12)
+  no tab after 88 s: sending openurl again (extra ask 13)
+  no tab after 94 s: sending openurl again (extra ask 14)
+  no tab after 101 s: sending openurl again (extra ask 15)
+end-floor: preference overrides {"safari":["read failed: "],"global":["read failed: "]}
+end-floor round 1 blank: end raf 360 seen 360 recalcs 0; back raf 360 seen 360 recalcs 0; paused raf 360 seen 360 recalcs 0
+end-floor round 1 minusBoth: end raf 360 seen 363 recalcs 728; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 v2pCancelScroll: end raf 360 seen 360 recalcs 730; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 base: end raf 360 seen 360 recalcs 722; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 v2p: end raf 360 seen 370 recalcs 730; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 minusT: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 minusU: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720

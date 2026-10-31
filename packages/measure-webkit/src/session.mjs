@@ -1,7 +1,5 @@
-// One measurement session: serve the original read-only snapshot on 127.0.0.1, boot the Simulator headless, open the
-// page in Mobile Safari, start the Inspector proxy, connect, run `fn`, and shut everything down in `finally`
-// (also on SIGINT/SIGTERM). The snapshot is read from disk per request and never copied.
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve, dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serveTree } from './serve.mjs';
@@ -81,11 +79,16 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     startPath = '/' + (site.search ?? '');
     site.configHash = hash;
   } else root = snapshotRoot();
-  // arms: { name: { dir, search } } serves one tree per arm on ONE origin (dir null = the snapshot); `ctx.setArm(name)` picks the tree
-  // the next request is answered from. The tab keeps its origin, so the inspector guard and the tab lookup stay valid.
   let select = null, armTable = null, armNow = null;
+  const blankDirs = [];
   if (arms) {
     armTable = Object.fromEntries(Object.entries(arms).map(([name, a]) => {
+      if (a.blank) {
+        const d = mkdtempSync(join(tmpdir(), 'fw-blank-'));
+        blankDirs.push(d);
+        writeFileSync(join(d, 'index.html'), '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>blank</title></head><body></body></html>\n');
+        return [name, { root: d, rewrite: null, hash: null }];
+      }
       if (!a.dir) return [name, { root: snapshotRoot(), rewrite: null, hash: null }];
       const r = resolve(a.dir);
       const cfg = JSON.parse(readFileSync(join(r, 'configs.json'), 'utf8'));
@@ -109,6 +112,7 @@ export async function withSession(fn, { keep = false, vendors = 'off', site = nu
     try { await proxy?.stop(); } catch (e) { log(`proxy stop: ${e.message}`); }
     if (device && !keep) { try { await shutdownDeviceAsync(device.udid, { log }); } catch (e) { log(`shutdown: ${e.message}`); } }
     await server.close();
+    for (const d of blankDirs) rmSync(d, { recursive: true, force: true });
   };
   const onSignal = (sig) => { log(`${sig}: cleaning up`); cleanup().finally(() => process.exit(130)); };
   process.once('SIGINT', () => onSignal('SIGINT'));
