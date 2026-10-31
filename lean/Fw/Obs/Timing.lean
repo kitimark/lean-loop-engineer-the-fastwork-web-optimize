@@ -584,15 +584,10 @@ def modsWork (n : Nat) : List (String × String) := [(modsDim, toString (modsLow
 
 def idLe (a b : String) : Bool := decide (a ≤ b)
 
-/-- The identity of a selected check set: its ids in string order, joined by `+`. The ids are a closed vocabulary of
-names without `+` (the land's checks); the order the land selected them in does not matter. -/
 def checkSetId (ids : List String) : String := "+".intercalate (ids.mergeSort idLe)
 
-/-- The work dimension of a dry land that ran the checks `ids`: `checks` is their identity. -/
 def setWork (ids : List String) : List (String × String) := [(checksDim, checkSetId ids)]
 
-/-- The work dimensions of a dry-land span: the check set, then the module class of its lake build if it has one,
-then the slot width. -/
 def landWork (width jobs : Option Nat) (ids : List String) (built : Option Nat := none) : List (String × String) :=
   setWork ids ++ (built.map modsWork).getD [] ++ slotWork width jobs
 
@@ -1482,7 +1477,6 @@ theorem judgeQ0_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : 
     rw [hx, hs]
     exact spanWork_built_ne_unbuilt w j c a
 
-/-- The identity of a check set does not depend on the order the checks were selected in. -/
 theorem checkSetId_perm (a b : List String) (h : a.Perm b) : checkSetId a = checkSetId b := by
   have hle : ∀ x y : String, (idLe x y || idLe y x) = true := fun x y => by
     simp only [idLe, Bool.or_eq_true, decide_eq_true_eq]; exact String.le_total x y
@@ -1497,15 +1491,12 @@ theorem checkSetId_perm (a b : List String) (h : a.Perm b) : checkSetId a = chec
       (hp a) (hp b) (((List.mergeSort_perm a idLe).trans h).trans (List.mergeSort_perm b idLe).symm)
   simp only [checkSetId, e]
 
-/-- Two dry-land spans with different check-set identities have different work, whatever their modules and width. -/
 theorem landWork_set_ne (w j w' j' : Option Nat) (a b : List String) (c c' : Option Nat)
     (h : checkSetId a ≠ checkSetId b) : landWork w j a c ≠ landWork w' j' b c' := by
   intro e
   simp only [landWork, setWork, List.singleton_append] at e
   exact h (by simpa using (List.cons.inj e).1)
 
-/-- Samples of other check sets do not change the verdict of a dry-land sample: the check set is part of the key, so
-its window never holds them. -/
 theorem judgeQ0_other_set (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
     (a : List String) (c : Option Nat) (hs : s.work = landWork w j a c)
     (h : ∀ x ∈ others, ∃ w' j' b c', x.work = landWork w' j' b c' ∧ checkSetId b ≠ checkSetId a) :
@@ -1515,9 +1506,6 @@ theorem judgeQ0_other_set (p : Params) (hist others : List Sample) (i : Nat) (s 
     rw [hx, hs]
     exact landWork_set_ne w' j' w j b a c' c hne
 
-/-- A dry-land sample whose history holds only other check sets has no window, and no ceiling: `noBaseline`, not
-`slow`. This is the first run of a new check set, whatever the runs of the others took.
--/
 theorem judge_new_set_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
     (a : List String) (c : Option Nat) (hs : s.work = landWork w j a c) (hp : 0 < p.nMin)
     (h : ∀ x ∈ hist, ∃ w' j' b c', x.work = landWork w' j' b c' ∧ checkSetId b ≠ checkSetId a)
@@ -3096,8 +3084,6 @@ def incidentSlotRun (keyed : Bool) : List Sample :=
 #guard ((sampleVerdicts {} (incidentOuterRun false)).getLast?.map (·.code)) == some .slow
 #guard ((sampleVerdicts {} (incidentSlotRun true)).getLast?.map (·.code)) == some .noBaseline
 
-/-- Runs of a dry land that skipped the lake lint (about 22 s), then one that ran it (33.3 s): the incident of
-`dry-land-slow`. With the check set in the key the 33.3 s run has no baseline; without it (`sameSet`) it is `slow`. -/
 def setRun (sameSet : Bool) : List Sample :=
   ([21700, 22100, 21400, 22800, 21900, 22300].map fun d =>
     ({ tool := "fw land", step := "dry total lake", durMs := d, host := .«local», load := 4, exit := some 0,
@@ -3477,8 +3463,6 @@ def outerGoldenText (_ : Unit := ()) : String :=
 
 def outerGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-outer.jsonl"
 
-/-- The check sets of the dry-land golden: a name, the ids as selected, the lake build count of the span and the slot
-width. The first two rows are one set in two orders. -/
 def setCases : List (String × List String × Option Nat × Option Nat) :=
   [("lake lint, reads test and local gates", ["reads-scan", "lint:ciPaths", "lint:axioms", "runner:overflow-widths", "workflow-lint"], some 0, none),
    ("the same set selected in another order", ["workflow-lint", "lint:axioms", "runner:overflow-widths", "reads-scan", "lint:ciPaths"], some 0, none),

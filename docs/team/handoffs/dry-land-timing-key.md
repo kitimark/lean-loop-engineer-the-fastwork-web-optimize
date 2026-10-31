@@ -1,6 +1,6 @@
 branch: worktree-wf_57d9899b-52a-1
 worktree: .claude/worktrees/wf_57d9899b-52a-1 (under the repo root)
-last commit: see `git log -1` (final commit after the research note and this handoff)
+last commit: see `git log -1`
 CI runs: none pushed (the unit needs no CI measurement; Lean check.sh, runner tests and typecheck ran locally in slots)
 
 State: done, ready for dry land and review.
@@ -10,7 +10,7 @@ State: done, ready for dry land and review.
   member, `checkSetId`, `setWork`, `spanWork`, handoff read/write). slot.ts unchanged: it spreads `readLakeHandoff`.
 - Tests: apps/runner/test/timing-work.test.ts (golden), land-dry.test.ts (dim on the real dry spans).
 - Replay and findings: research/notes/2026/11-01-dry-land-timing-key.md (slow 291 to 200; the three alert samples to
-  noBaseline live-like). Replay script was in scratchpad/dltk-wf/ (not committed; method in the note).
+  noBaseline live-like). Replay script: scratchpad/dltk-wf/ (not committed).
 
 Verified: sh lean/scripts/check.sh green; `pnpm --filter ./apps/runner test` 3758 passed; typecheck; ci-paths test.
 Open: TS `checkSetId` is a stand-in checked against the golden (sort by code unit equals Lean string order for ASCII ids).
