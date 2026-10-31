@@ -126,8 +126,8 @@ const censusLayer = { ...base, running: layerN(5), paused: accent };
 const docRows = [['p', 'running', false, false, true], ['p', 'running', false, false, true], ['h', 'paused', false, false, false]];
 const layerRows = [...Array.from({ length: 5 }, () => ['d', 'running', false, false, true, ['transform']])];
 const probe = { nodes: 5, layers: 5, animation: 5, willChange: 5 };
-const armBoth = (n) => ({ end: w(n), back: w(n), paused: w(360), anims: censusBoth, animsBack: censusBoth, animsPaused: censusBoth, sweepEnd: docRows, sweepBack: docRows, pinEnd: 0, pinBack: 0 });
-const armLayer = (n, extra = {}) => ({ end: w(n), back: w(n), paused: w(360), anims: censusLayer, animsBack: censusLayer, animsPaused: censusLayer, sweepEnd: [], sweepBack: [], layerEnd: layerRows, layerBack: layerRows, layerProbe: probe, pinEnd: 0, pinBack: 0, ...extra });
+const armBoth = (n) => ({ end: w(n), back: w(n), paused: w(360), anims: censusBoth, animsBack: censusBoth, animsPaused: censusBoth, sweepEnd: docRows, sweepBack: docRows, pinEnd: 0, pinBack: 0, maxY: 5267 });
+const armLayer = (n, extra = {}) => ({ end: w(n), back: w(n), paused: w(360), anims: censusLayer, animsBack: censusLayer, animsPaused: censusLayer, sweepEnd: [], sweepBack: [], layerEnd: layerRows, layerBack: layerRows, layerProbe: probe, pinEnd: 0, pinBack: 0, maxY: 5267, ...extra });
 const rawOf = (nL, nB, extra) => ({ meta: { build: 'abc', runtime: 'rt', ua: 'ua', armSet: 'layer' }, rounds: [{ round: 1, arms: { both: armBoth(nB), bothL: armLayer(nL, extra) } }] });
 const three = (nL, nB, extra) => mergeRaws([rawOf(nL, nB, extra), rawOf(nL, nB, extra), rawOf(nL, nB, extra)]);
 
@@ -149,7 +149,7 @@ test('report: bothL at tier one against both at tier two is a cut of platform.sw
   has('effect both back overall: took');
   has('answer bothL end: tiers [one, one, one] overall one; reaches 100 per 100: yes');
   has('answer both end: tiers [two, two, two] overall two; reaches 100 per 100: no');
-  has('pinned windows: 6 of 6 end windows read at the end of the page (y equals maxY)');
+  has('pinned windows: 6 of 6 end windows read at the end of the page as it was (y equals the window\'s maxY); 6 of 6 at the final page end (maxY read at the end of the load; the page height can differ between the end and back stages)');
   assert.ok(v.some((l) => l.startsWith('bothL against both [platform.sweep] end job 1:')));
   assert.ok(v.some((l) => l.startsWith('layer census end job 1: 5 loops, 5 running, 5 in view, properties ["transform"]') && l.includes('evidence inspector') && l.includes('window y 5267 of 5267')));
   assert.ok(v.some((l) => l.startsWith('effect bothL end job 1: took; layer loops running 5, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true')));
@@ -179,7 +179,7 @@ test('report: a window that stopped short of the end is counted as not pinned', 
   const r = rawOf(360, 720);
   r.rounds[0].arms.both.end = w(720, 5231);
   const v = verdictLines(mergeRaws([r, rawOf(360, 720), rawOf(360, 720)]));
-  assert.ok(v.includes('pinned windows: 5 of 6 end windows read at the end of the page (y equals maxY)'));
+  assert.ok(v.includes('pinned windows: 5 of 6 end windows read at the end of the page as it was (y equals the window\'s maxY); 5 of 6 at the final page end (maxY read at the end of the load; the page height can differ between the end and back stages)'));
 });
 
 test('report: the table and the rows', () => {

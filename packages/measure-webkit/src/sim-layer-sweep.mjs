@@ -188,8 +188,15 @@ export function verdictLines(merged) {
     }
   }
   const pins = [];
-  for (const r of merged.rounds) for (const id of LARM_IDS) { const w = win(r, id, 'end'); pins.push(w.y !== undefined && w.y === w.maxY); }
-  out.push(`pinned windows: ${pins.filter(Boolean).length} of ${pins.length} end windows read at the end of the page (y equals maxY)`);
+  const finals = [];
+  for (const r of merged.rounds) {
+    for (const id of LARM_IDS) {
+      const w = win(r, id, 'end');
+      pins.push(w.y !== undefined && w.y === w.maxY);
+      finals.push(w.y !== undefined && w.y === r.arms[id]?.maxY);
+    }
+  }
+  out.push(`pinned windows: ${pins.filter(Boolean).length} of ${pins.length} end windows read at the end of the page as it was (y equals the window's maxY); ${finals.filter(Boolean).length} of ${finals.length} at the final page end (maxY read at the end of the load; the page height can differ between the end and back stages)`);
   for (const stage of LIVE_STAGES) {
     for (const id of LARM_IDS) {
       const ts = merged.rounds.map((r) => tier(win(r, id, stage)));

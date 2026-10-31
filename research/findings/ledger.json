@@ -5834,6 +5834,12 @@
    "task": "park-engage",
    "field": "mechanism",
    "text": "park-engage (MEASURED, CI iOS Simulator): startParkOn ran (live and styled true) and still the park stayed off after an instant jump to the end (view-driven 13, 3 of 3 rounds, run 41179356320 on the unfixed park); a stepped scroll parked it (view-driven 0, 3 of 3). Cause (a), not (b) (the observer spec reading is INFERRED). Fix: the scroll listener is always on and parks at a far position (Lean ScrollPark scrollEvent; jump_engages, walk_engages, io_engages, scrollEvent_no_stale, scrollEvent_restores; TS checked against scroll-park.jsonl). Run 41181664848 on the fix: both arms parked, view-driven 0, 3 of 3 rounds; run 41185704042 (merged harness) gives the same result. Class L unchanged. Recalc-rate effect left to sim-end-cut-2. research/notes/2026/10-31-park-engage.md"
+  },
+  {
+   "entry": "platform.sweep:layer-sweep: the gradient of the 4 s sweep is a child layer 3w wide moved by a compositor translateX under a static mask-clip:text mask, instead of animating background-position under background-clip:text",
+   "task": "sim-layer-sweep",
+   "field": "webkit",
+   "text": "sim-layer-sweep (MEASURED, CI iOS Simulator iOS 27.0, runs 41212638765, 41215962130, 41219277317, 3 separate jobs x 1 round each, 9 jobs): end of page bothL 99..110 recalcs per 100 frames (tier one), both 199..204 (tier two); back bothL 100..102, both 200; paused 100 in both arms. Lean verdict cut:platform.sweep, predicted equal to observed in every run. Every flag took; bothL has 4 transform-only layer loops (2 in view), 0 sweepDoc loops; the inspector shows the animation compositing reason on all 4 layers (necessary, not sufficient, so the accelerated state is INFERRED). Mechanism (CONFIRMED source, WebKit KeyframeEffect.cpp:2724-2745 @862f17d, Lean SimLayerSweep ticks_core, accelerated_loop_adds_no_frame_tick): a fully accelerated running effect adds no frame tick; the background-position sweepDoc loops do. Residual 0..10 over 100 is the per-iteration listener tick (INFERRED, KeyframeEffect.cpp:2747-2763) plus window noise. Premise refuted: 360-callback windows span 7..28 s on the Simulator, not 6-8 s. Simulator only, no look verdict, class L unchanged. research/notes/2026/10-31-sim-layer-sweep.md"
   }
  ]
 }

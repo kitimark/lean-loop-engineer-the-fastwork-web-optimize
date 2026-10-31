@@ -49,7 +49,7 @@ sources bothL back job 2: owners sweep-module_sweepLayerX_RPijif on i.sweep-modu
 layer census back job 3: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"'DOM.enable' was not found"}; window y 5267 of 5267
 iteration ticks bothL back job 3: window span 17098 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 5 per 100 frames; rate over 100: 1
 sources bothL back job 3: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
-pinned windows: 6 of 6 end windows read at the end of the page (y equals maxY)
+pinned windows: 6 of 6 end windows read at the end of the page as it was (y equals the window's maxY); 2 of 6 at the final page end (maxY read at the end of the load; the page height can differ between the end and back stages)
 answer both end: tiers [two, two, two] overall two; reaches 100 per 100: no
 answer bothL end: tiers [one, one, one] overall one; reaches 100 per 100: yes
 answer both back: tiers [two, two, two] overall two; reaches 100 per 100: no
