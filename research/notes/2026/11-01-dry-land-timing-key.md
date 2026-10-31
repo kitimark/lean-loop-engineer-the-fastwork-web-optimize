@@ -29,7 +29,7 @@ load-aware baseline, no speed change, no land-semantics change.
 
 ## Replay of .fw-console/timings.jsonl through fwcore (obs.timing)
 
-MEASURED (local file, not committed; script at scratchpad/dltk-wf/replay.mjs of the build worktree). Old rows carry no
+MEASURED (local .fw-console/timings.jsonl, not committed; script research/notes/2026/dry-land-timing-key/replay.mjs, run as `node research/notes/2026/dry-land-timing-key/replay.mjs lean/.lake/build/bin/fwcore .fw-console/timings.jsonl`). Old rows carry no
 `set`, so "after" derives it from the per-check child spans (`fw land / dry <argv>`) inside each dry total's window, with
 the same ids the new emitter writes. Unknown child steps: none. Rows of the three alerted step families, host local.
 
