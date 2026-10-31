@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ARMS, BUILD_SEARCHES, PARK_ARMS, endFloorJs } from '../src/sim-end-floor.mjs';
-import { firstScrollJs, parkLines, parkState, took, viewDriven } from '../src/sim-park-engage.mjs';
+import { ARMS, BUILD_SEARCHES, armsOf, buildSearches, endFloorJs } from '../src/sim-end-floor.mjs';
+import { PARK_ARMS, firstScrollJs, parkLines, parkState, took, viewDriven } from '../src/sim-park-engage.mjs';
 import { armTrees } from '../src/sim-end-floor-run.mjs';
 
 const probe = (o = {}) => ({ variant: 'threaded-park', live: true, styled: true, parked: false, y: 5000, ...o });
@@ -27,6 +27,8 @@ test('the park arms stay out of the default arm set and its build searches', () 
   assert.ok(PARK_ARMS.every((a) => !BUILD_SEARCHES.includes(a.search)));
   assert.deepEqual(PARK_ARMS.map((a) => a.act ?? null), [null, 'walk']);
   assert.deepEqual(Object.keys(armTrees('/s', PARK_ARMS)), ['park', 'parkWalk']);
+  assert.equal(armsOf('park'), PARK_ARMS);
+  assert.deepEqual(buildSearches('park'), [PARK_ARMS[0].search]);
 });
 
 test('the page script jumps for the default act and walks in steps for walk; both read the park probe', () => {

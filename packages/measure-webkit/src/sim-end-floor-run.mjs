@@ -4,7 +4,7 @@ import { findDevice, simctlAsync, SAFARI } from './sim.mjs';
 import { reconnect } from './wip.mjs';
 import { attempts, T } from './timeouts.mjs';
 import { startTimeline } from './timeline.mjs';
-import { ARMS, STAGES, WIN_RAF, endFloorJs, windowOf } from './sim-end-floor.mjs';
+import { ARMS, STAGES, WIN_RAF, armsOf, endFloorJs, windowOf } from './sim-end-floor.mjs';
 
 export const SCHEMA = 'fw.webkit.endfloor/1';
 
@@ -23,11 +23,12 @@ export async function prefProbe(udid) {
   return out;
 }
 
-export async function runEndFloor({ siteDir, arms = ARMS, rounds = 3, rotateBy = 0, settleMs = 2500, onProgress = null, onRound = null, log = (s) => console.error(s) }) {
+export async function runEndFloor({ siteDir, armSet = 'attrib', rounds = 3, rotateBy = 0, settleMs = 2500, onProgress = null, onRound = null, log = (s) => console.error(s) }) {
+  const arms = armsOf(armSet);
   const device = findDevice();
   const started = Date.now();
   const out = [];
-  const meta = { runtime: device.runtime, device: device.name, ua: '', winRaf: WIN_RAF, settleMs, build: process.env.GITHUB_SHA ?? 'local', rotateBy, prefOverrides: null };
+  const meta = { runtime: device.runtime, device: device.name, ua: '', winRaf: WIN_RAF, settleMs, build: process.env.GITHUB_SHA ?? 'local', rotateBy, armSet, prefOverrides: null };
   let error = null;
   const snapshot = () => ({ schema: SCHEMA, meta, incomplete: error, wallSeconds: Math.round((Date.now() - started) / 1000), rounds: out });
 
