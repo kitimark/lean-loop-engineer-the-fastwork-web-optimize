@@ -30,7 +30,7 @@ it at the resume, moved later by the time the scene was paused while held (`star
 at that time plus the time the scene was active while held (`resumeTime`), which is the phase the flag-off page shows: there the CSS rule freezes
 the loop while the scene is paused. Local repro with the fix: end stage Document and Earn paused, Secure and Organized running. Unit tests in
 `platform.sweep/pause.test.ts` (scene attribute change holds a reported element; leaves an on-screen one; no start time pauses and resumes at
-time plus paused; created after mount; empty first report; cancelled while paused left alone). No `animationstart` listener (the
+time plus the scene-active time while held; created after mount; empty first report; cancelled while paused left alone). No `animationstart` listener (the
 `engine.events:quiet` premise allows none). `shown_same`, `visible_phase` unchanged.
 After the first `pause()` the CSS play state is overridden on that animation (WebKit CSSAnimation.cpp:278-287@862f17d), so the scene rule no longer
 pauses a loop we hold or resumed. Round 1 missed what follows: hidden at the end of the page, scroll to the top (scene paused), scroll back showed

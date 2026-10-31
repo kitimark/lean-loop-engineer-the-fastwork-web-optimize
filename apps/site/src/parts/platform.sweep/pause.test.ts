@@ -80,7 +80,7 @@ describe('platform.sweep watchSweepPause', () => {
     expect(loop.log).toEqual(['pause', 'play']);
     expect(loop.currentTime).toBe(2500);
   });
-  it('resumeTime adds the paused time to the saved time', () => {
+  it('resumeTime adds the scene-active time to the saved time', () => {
     expect(P.resumeTime({ start: null, cur: 40, fz: 0, since: 10, frozen: false }, 110)).toBe(140);
   });
   it('an animation created after mount and before the report is paused (the old mount-time list missed it)', () => {
