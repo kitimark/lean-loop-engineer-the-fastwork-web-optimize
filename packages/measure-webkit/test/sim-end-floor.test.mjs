@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ARMS, BAND, BUILD_SEARCHES, MIN_SEEN, MIN_ROUNDS, STAGES, WIN_RAF, cmp, endFloorJs, flagV, overallFlag, overallPair, pair, rate, rowLines, verdictLines, windowOf,
+  ARMS, SWEEP_ARMS, ARM_SETS, buildSearches, BAND, BUILD_SEARCHES, MIN_SEEN, MIN_ROUNDS, STAGES, WIN_RAF, cmp, endFloorJs, flagV, overallFlag, overallPair, pair, rate, rowLines, verdictLines, windowOf,
 } from '../src/sim-end-floor.mjs';
 import { armTrees, rotate } from '../src/sim-end-floor-run.mjs';
 import { canonSearch } from '../../contracts/src/flag-key.mjs';
@@ -53,6 +53,9 @@ test('arms: the base, the v2-proved preset and one removal each, canonical searc
   assert.equal(ARMS[0].search, '');
   assert.deepEqual(BUILD_SEARCHES, [ARMS[1], ARMS[2], ARMS[3], ARMS[5]].map((a) => a.search));
   assert.deepEqual(Object.keys(armTrees('x')), ARMS.map((a) => a.id));
+  assert.deepEqual(SWEEP_ARMS.map((a) => [a.id, a.search]), [['base', ''], ['sweepPause', '?fw=platform.sweep:offscreen-pause']]);
+  assert.equal(ARM_SETS.sweep, SWEEP_ARMS);
+  assert.deepEqual(buildSearches('sweep'), ['?fw=platform.sweep:offscreen-pause']);
   assert.deepEqual(armTrees('x').blank, { blank: true });
   assert.equal(ARMS[6].search, ARMS[1].search);
   assert.equal(ARMS[6].act, 'cancelScroll');

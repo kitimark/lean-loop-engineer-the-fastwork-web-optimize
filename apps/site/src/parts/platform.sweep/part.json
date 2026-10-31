@@ -15,8 +15,8 @@
       "kind": "optimized",
       "tier": "T1",
       "provenance": {
-        "lean": "Fw.Parts.PlatformSweepPause shown_same, visible_phase, reported_no_tick, offscreen_ticks_le_one",
-        "limit": "IntersectionObserver reports an element after the frame it leaves (named premise Lag, not proved about the engine): the leaving frame still ticks; an animation created while offscreen is not tracked"
+        "lean": "Fw.Parts.PlatformSweepPause shown_same, visible_phase, reported_no_tick, offscreen_ticks_le_one, resume_same, start_same, events_core, fold_core, untracked_differs, resume_pending_phase",
+        "limit": "IntersectionObserver reports an element after the frame it leaves (named premise Lag, not proved about the engine): the leaving frame still ticks; the animations are read at each report; a loop with no start time yet resumes at its time plus the scene-active time while held; a loop with a start time moves its start later by the scene-frozen time (premise Override, CSSAnimation.cpp:278-287@862f17d; Chromium INFERRED); a resume while the scene is paused is not modelled; the platform scene rule that plays the loops again when the section comes near is answered by holding the reported elements on the scene attribute change"
       }
     },
     "layer-sweep": {

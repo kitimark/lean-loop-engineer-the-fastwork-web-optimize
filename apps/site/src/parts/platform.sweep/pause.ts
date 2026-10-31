@@ -1,4 +1,5 @@
 import { watchHidden } from '../engine.scene/observe';
+import { SCENE_ATTR } from '../platform/scene';
 import { PERIOD_MS, phase } from './logic';
 
 export const VARIANT = 'offscreen-pause';
@@ -30,22 +31,57 @@ export { PERIOD_MS, phase };
 
 export const reportAction = (paused: boolean, rep: boolean): 'pause' | 'resume' | 'none' => (rep ? (paused ? 'none' : 'pause') : paused ? 'resume' : 'none');
 
-interface ElState {
-  paused: boolean;
-  readonly anims: readonly Animation[];
-  readonly starts: Map<Animation, CSSNumberish | null>;
+// A script pause overrides the CSS play state for good (WebKit CSSAnimation.cpp:278-287@862f17d).
+export interface Held {
+  readonly start: CSSNumberish | null;
+  readonly cur: number;
+  readonly fz: number;
+  readonly since: number;
+  readonly frozen: boolean;
 }
 
-export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver = IntersectionObserver): () => void {
+interface ElState {
+  paused: boolean;
+  readonly held: Map<Animation, Held>;
+}
+
+export const holdNew = (held: boolean, running: boolean): boolean => !held && running;
+
+export const close = (h: Held, now: number): Held =>
+  h.frozen ? { ...h, fz: h.fz + (now - h.since), since: now } : { ...h, cur: h.cur + (now - h.since), since: now };
+
+export const setScene = (h: Held, now: number, active: boolean): Held => ({ ...close(h, now), frozen: !active });
+
+export const resumeTime = (h: Held, now: number): number => close(h, now).cur;
+
+export const startShift = (h: Held, now: number): number => close(h, now).fz;
+
+export function watchSweepPause(
+  els: Element[],
+  IO: typeof IntersectionObserver = IntersectionObserver,
+  now: () => number = () => performance.now(),
+  host: Element | null = null,
+  MO: typeof MutationObserver | null = typeof MutationObserver === 'undefined' ? null : MutationObserver,
+): () => void {
   const state = new Map<Element, ElState>();
-  for (const el of els) state.set(el, { paused: false, anims: el.getAnimations(), starts: new Map() });
-  const resume = (st: ElState) => {
-    for (const [a, s] of st.starts) {
-      if (a.playState !== 'paused') continue;
-      a.play();
-      if (s != null) a.startTime = s;
+  for (const el of els) state.set(el, { paused: false, held: new Map() });
+  const sceneFrozen = () => host?.getAttribute(SCENE_ATTR) === 'paused';
+  const hold = (el: Element, st: ElState) => {
+    for (const a of el.getAnimations()) {
+      if (!holdNew(st.held.has(a), a.playState === 'running')) continue;
+      st.held.set(a, { start: a.startTime, cur: Number(a.currentTime ?? 0), fz: 0, since: now(), frozen: sceneFrozen() });
+      a.pause();
     }
-    st.starts.clear();
+  };
+  const resume = (st: ElState) => {
+    for (const [a, h] of st.held) {
+      if (a.playState !== 'paused') continue;
+      const t = now();
+      if (h.start == null) a.currentTime = resumeTime(h, t);
+      a.play();
+      if (h.start != null) a.startTime = Number(h.start) + startShift(h, t);
+    }
+    st.held.clear();
   };
   const stop = watchHidden(
     els,
@@ -55,12 +91,8 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
       if (!st) return;
       const act = reportAction(st.paused, hidden);
       if (act === 'pause') {
-        for (const a of st.anims) {
-          if (a.playState !== 'running' || a.startTime == null) continue;
-          st.starts.set(a, a.startTime);
-          a.pause();
-        }
         st.paused = true;
+        hold(el, st);
       } else if (act === 'resume') {
         resume(st);
         st.paused = false;
@@ -68,8 +100,18 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
     },
     IO,
   );
+  const mo = host && MO ? new MO(() => {
+    const t = now();
+    const active = !sceneFrozen();
+    for (const [el, st] of state) {
+      for (const [a, h] of st.held) st.held.set(a, setScene(h, t, active));
+      if (st.paused) hold(el, st);
+    }
+  }) : null;
+  mo?.observe(host!, { attributes: true, attributeFilter: [SCENE_ATTR] });
   return () => {
     stop();
+    mo?.disconnect();
     for (const st of state.values()) if (st.paused) resume(st);
   };
 }
