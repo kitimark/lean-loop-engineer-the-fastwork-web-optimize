@@ -1,4 +1,4 @@
-{"band":10,"iterRateMax":4,"kind":"consts","layerPrefix":"sweep-module_sweepLayerX","sweepIterMs":4000,"sweepLoopCount":5,"winRaf":360,"windowMsMax":8000}
+{"band":10,"iterRateMax":9,"kind":"consts","layerPrefix":"sweep-module_sweepLayerX","sweepIterMs":4000,"sweepLoopCount":5,"winRaf":360,"windowMsMax":24000}
 {"active":["hero.exit:threaded-park","engine.scroll:unthrottle-park","hero.accent:offscreen-pause","hero.cue:offscreen-pause","platform.sweep:offscreen-pause"],"arm":"both","flags":[["engine.scroll","unthrottle-park"],["hero.exit","threaded-park"],["hero.accent","offscreen-pause"],["hero.cue","offscreen-pause"],["platform.sweep","offscreen-pause"]],"kind":"arm"}
 {"active":["hero.exit:threaded-park","engine.scroll:unthrottle-park","hero.accent:offscreen-pause","hero.cue:offscreen-pause","platform.sweep:layer-sweep"],"arm":"bothL","flags":[["engine.scroll","unthrottle-park"],["hero.exit","threaded-park"],["hero.accent","offscreen-pause"],["hero.cue","offscreen-pause"],["platform.sweep","layer-sweep"]],"kind":"arm"}
 {"kind":"delta","parts":["platform.sweep"]}

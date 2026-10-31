@@ -11,7 +11,7 @@ import { ARM_FLAGS as CUT_FLAGS, FLAGS, LIVE_STAGES, active as cutActive, comple
 export const LAYER_PREFIX = 'sweep-module_sweepLayerX';
 export const SWEEP_ITER_MS = 4000;
 export const SWEEP_LOOP_COUNT = 5;
-export const WINDOW_MS_MAX = 8000;
+export const WINDOW_MS_MAX = 24000;
 export const LARM_IDS = Object.freeze(['both', 'bothL']);
 export const LAYER_SWEEP = ['platform.sweep', 'layer-sweep'];
 
@@ -180,6 +180,9 @@ export function verdictLines(merged) {
       const p = arm?.layerProbe;
       const w = win(r, 'bothL', stage);
       out.push(`layer census ${stage} ${roundName(r)}: ${layerRowText(stage === 'end' ? arm?.layerEnd : arm?.layerBack)}; evidence ${rd ? layerEvidence(rd) : 'not read'}${rd ? ` (${rd.reason === null ? 'inspector not read or mixed; accelerated state INFERRED from the property list' : `inspector ${rd.reason}`})` : ''}; layer tree ${p ? JSON.stringify(p) : 'not read'}; window y ${w.y ?? '-'} of ${w.maxY ?? '-'}`);
+      const loops = rd ? rd.loops : 0;
+      const span = w.spanMs ?? null;
+      out.push(`iteration ticks bothL ${stage} ${roundName(r)}: window span ${span ?? '-'} ms (${span !== null && span > WINDOW_MS_MAX ? 'outside' : 'inside'} the ${WINDOW_MS_MAX} ms the Lean bound covers); ${loops} loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most ${span === null ? '-' : iterRate(loops, span, SWEEP_ITER_MS, w.raf)} per 100 frames; rate over 100: ${rate(w) - 100}`);
       const sources = `owners ${ownersText(arm?.[CENSUS_OF[stage]])}`;
       out.push(`sources bothL ${stage} ${roundName(r)}: ${sources}`);
     }

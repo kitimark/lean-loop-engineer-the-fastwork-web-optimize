@@ -116,7 +116,7 @@ test('merged separate jobs are named job N, a single raw keeps round N', () => {
   assert.equal(roundName({ round: 2 }), 'round 2');
 });
 
-const w = (n, y = 5267) => ({ raf: 360, seen: 360, recalcs: n, tally: { ScheduleStyleRecalculation: n, Layout: 0, Paint: 0 }, y, maxY: 5267 });
+const w = (n, y = 5267) => ({ raf: 360, seen: 360, recalcs: n, spanMs: 30000, tally: { ScheduleStyleRecalculation: n, Layout: 0, Paint: 0 }, y, maxY: 5267 });
 const accent = [['document', 'accent-module_idle0_x', 'svg'], ['document', 'cue-module_scrollFloat_x', 'span']];
 const layerN = (k) => Array.from({ length: k }, () => ['document', `${LAYER_PREFIX}_h`, 'i']);
 const docN = (k) => Array.from({ length: k }, () => ['document', 'sweep-module_sweepDoc_x', 'span']);
@@ -153,6 +153,7 @@ test('report: bothL at tier one against both at tier two is a cut of platform.sw
   assert.ok(v.some((l) => l.startsWith('bothL against both [platform.sweep] end job 1:')));
   assert.ok(v.some((l) => l.startsWith('layer census end job 1: 5 loops, 5 running, 5 in view, properties ["transform"]') && l.includes('evidence inspector') && l.includes('window y 5267 of 5267')));
   assert.ok(v.some((l) => l.startsWith('effect bothL end job 1: took; layer loops running 5, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true')));
+  assert.ok(v.some((l) => l.startsWith('iteration ticks bothL end job 1: window span 30000 ms (outside the 24000 ms the Lean bound covers); 5 loops') && l.includes('at most 11 per 100 frames; rate over 100: 0')));
   assert.ok(v.every((l) => !l.includes('round 1')));
 });
 

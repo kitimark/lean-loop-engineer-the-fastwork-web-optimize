@@ -165,14 +165,15 @@ def sweepIterMs : Nat := 4000
 /-- The five sweep words of the platform section. -/
 def sweepLoopCount : Nat := 5
 
-/-- 360 frames take at most 8000 ms at the slowest frame rate the Simulator holds (45 Hz). -/
-def windowMsMax : Nat := 8000
+/-- 360 frames took up to 23675 ms in the 18 end windows of the CI Simulator (MEASURED, three runs of task sim-layer-sweep, about 15 frames per second at the
+slowest), so the window the bound covers is 24000 ms. An earlier premise of 8000 ms (45 Hz) was refuted by those spans. -/
+def windowMsMax : Nat := 24000
 
-theorem iterRate_le (w : Nat) (h : w ≤ windowMsMax) : iterRate sweepLoopCount w sweepIterMs winRaf ≤ 4 := by
+theorem iterRate_le (w : Nat) (h : w ≤ windowMsMax) : iterRate sweepLoopCount w sweepIterMs winRaf ≤ 9 := by
   simp only [iterRate, iterTicks, sweepLoopCount, sweepIterMs, winRaf, windowMsMax] at *
   omega
 
-/-- The per-iteration ticks of the five layer loops add at most 4 per 100 frames, inside the tier band of 10 around one. -/
+/-- The per-iteration ticks of the five layer loops add at most 9 per 100 frames over a 24000 ms window, inside the tier band of 10 around one. -/
 theorem iterRate_in_band (w : Nat) (h : w ≤ windowMsMax) : 100 + iterRate sweepLoopCount w sweepIterMs winRaf ≤ 100 + band := by
   have := iterRate_le w h
   simp only [band] at *

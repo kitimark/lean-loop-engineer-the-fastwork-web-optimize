@@ -1,0 +1,56 @@
+sim-layer-sweep jobs 3, builds 9110f3bbda5a57aba23cb1b02afc62a652fbf69f
+runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0 ua Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1
+prediction (recorded before the run): bothL reads tier one at end and back if only layer loops run and they are completely accelerated; both stays tier two while its 2 in-view sweepDoc loops run (INFERRED from WebKit KeyframeEffect.cpp:2724-2745 @862f17d)
+bothL against both [platform.sweep] end job 1: 103 against 200 per 100 -> cut:platform.sweep
+bothL against both [platform.sweep] end job 2: 104 against 199 per 100 -> cut:platform.sweep
+bothL against both [platform.sweep] end job 3: 110 against 203 per 100 -> cut:platform.sweep
+bothL against both [platform.sweep] end overall: cut:platform.sweep (rate reading cut:platform.sweep); predicted cut:platform.sweep; held
+bothL against both [platform.sweep] back job 1: 101 against 200 per 100 -> cut:platform.sweep
+bothL against both [platform.sweep] back job 2: 101 against 200 per 100 -> cut:platform.sweep
+bothL against both [platform.sweep] back job 3: 102 against 200 per 100 -> cut:platform.sweep
+bothL against both [platform.sweep] back overall: cut:platform.sweep (rate reading cut:platform.sweep); predicted cut:platform.sweep; held
+tier both end: [two, two, two] overall two; predicted two; held
+tier bothL end: [one, one, one] overall one; predicted one; held
+tier both back: [two, two, two] overall two; predicted two; held
+tier bothL back: [one, one, one] overall one; predicted one; held
+tier both paused: [one, one, one] overall one (reference)
+tier bothL paused: [one, one, one] overall one (reference)
+effect both end job 1: took; layer loops running 0, sweepDoc loops 4, non-layer running 2; still ticks: platform sweep running 2; complete true
+effect both end job 2: took; layer loops running 0, sweepDoc loops 4, non-layer running 2; still ticks: platform sweep running 2; complete true
+effect both end job 3: took; layer loops running 0, sweepDoc loops 4, non-layer running 2; still ticks: platform sweep running 2; complete true
+effect both end overall: took
+effect bothL end job 1: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
+effect bothL end job 2: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
+effect bothL end job 3: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
+effect bothL end overall: took
+effect both back job 1: took; layer loops running 0, sweepDoc loops 4, non-layer running 2; still ticks: platform sweep running 2; complete true
+effect both back job 2: took; layer loops running 0, sweepDoc loops 4, non-layer running 2; still ticks: platform sweep running 2; complete true
+effect both back job 3: took; layer loops running 0, sweepDoc loops 4, non-layer running 2; still ticks: platform sweep running 2; complete true
+effect both back overall: took
+effect bothL back job 1: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
+effect bothL back job 2: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
+effect bothL back job 3: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
+effect bothL back overall: took
+layer census end job 1: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inspector (inspector true); layer tree {"nodes":5,"noRenderer":1,"noReasons":0,"layers":4,"animation":4,"willChange":0}; window y 5231 of 5231
+iteration ticks bothL end job 1: window span 15080 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 4 per 100 frames; rate over 100: 3
+sources bothL end job 1: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
+layer census end job 2: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inspector (inspector true); layer tree {"nodes":5,"noRenderer":1,"noReasons":0,"layers":4,"animation":4,"willChange":0}; window y 5267 of 5267
+iteration ticks bothL end job 2: window span 17059 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 5 per 100 frames; rate over 100: 4
+sources bothL end job 2: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
+layer census end job 3: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inspector (inspector true); layer tree {"nodes":5,"noRenderer":1,"noReasons":0,"layers":4,"animation":4,"willChange":0}; window y 5267 of 5267
+iteration ticks bothL end job 3: window span 23663 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 6 per 100 frames; rate over 100: 10
+sources bothL end job 3: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
+layer census back job 1: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inspector (inspector true); layer tree {"nodes":5,"noRenderer":1,"noReasons":0,"layers":4,"animation":4,"willChange":0}; window y 5267 of 5267
+iteration ticks bothL back job 1: window span 13890 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 4 per 100 frames; rate over 100: 1
+sources bothL back job 1: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
+layer census back job 2: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inspector (inspector true); layer tree {"nodes":5,"noRenderer":1,"noReasons":0,"layers":4,"animation":4,"willChange":0}; window y 5267 of 5267
+iteration ticks bothL back job 2: window span 16312 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 5 per 100 frames; rate over 100: 1
+sources bothL back job 2: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
+layer census back job 3: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inspector (inspector true); layer tree {"nodes":5,"noRenderer":1,"noReasons":0,"layers":4,"animation":4,"willChange":0}; window y 5267 of 5267
+iteration ticks bothL back job 3: window span 24407 ms (outside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 7 per 100 frames; rate over 100: 2
+sources bothL back job 3: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
+pinned windows: 6 of 6 end windows read at the end of the page (y equals maxY)
+answer both end: tiers [two, two, two] overall two; reaches 100 per 100: no
+answer bothL end: tiers [one, one, one] overall one; reaches 100 per 100: yes
+answer both back: tiers [two, two, two] overall two; reaches 100 per 100: no
+answer bothL back: tiers [one, one, one] overall one; reaches 100 per 100: yes

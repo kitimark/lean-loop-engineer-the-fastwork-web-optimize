@@ -32,16 +32,22 @@ effect bothL back job 2: took; layer loops running 4, sweepDoc loops 0, non-laye
 effect bothL back job 3: took; layer loops running 4, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true
 effect bothL back overall: took
 layer census end job 1: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"Missing renderer of node for given nodeId"}; window y 5231 of 5231
+iteration ticks bothL end job 1: window span 20444 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 6 per 100 frames; rate over 100: 6
 sources bothL end job 1: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
 layer census end job 2: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"Missing renderer of node for given nodeId"}; window y 5267 of 5267
+iteration ticks bothL end job 2: window span 6940 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 2 per 100 frames; rate over 100: -1
 sources bothL end job 2: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
 layer census end job 3: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"Missing renderer of node for given nodeId"}; window y 5231 of 5231
+iteration ticks bothL end job 3: window span 13309 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 4 per 100 frames; rate over 100: 1
 sources bothL end job 3: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
 layer census back job 1: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"Missing renderer of node for given nodeId"}; window y 5267 of 5267
+iteration ticks bothL back job 1: window span 14765 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 4 per 100 frames; rate over 100: 1
 sources bothL back job 1: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
 layer census back job 2: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"Missing renderer of node for given nodeId"}; window y 5267 of 5267
+iteration ticks bothL back job 2: window span 9401 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 3 per 100 frames; rate over 100: 0
 sources bothL back job 2: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
 layer census back job 3: 4 loops, 4 running, 2 in view, properties ["transform"], pending 0; evidence inferred (inspector not read or mixed; accelerated state INFERRED from the property list); layer tree {"error":"Missing renderer of node for given nodeId"}; window y 5267 of 5267
+iteration ticks bothL back job 3: window span 12735 ms (inside the 24000 ms the Lean bound covers); 4 loops, one tick each per 4000 ms iteration with an animationend listener on the document (INFERRED, WebKit KeyframeEffect.cpp:2747-2763 @862f17d): at most 4 per 100 frames; rate over 100: 1
 sources bothL back job 3: owners sweep-module_sweepLayerX_RPijif on i.sweep-module_layerBg_JDBzVk x4
 pinned windows: 6 of 6 end windows read at the end of the page (y equals maxY)
 answer both end: tiers [two, two, two] overall two; reaches 100 per 100: no
