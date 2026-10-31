@@ -1,0 +1,12 @@
+{"deps":[],"kinds":[]}
+{"deps":[[]],"kinds":["other"]}
+{"deps":[[],[0]],"kinds":["install","other"]}
+{"deps":[[],[0,3,4],[0],[0],[0,3],[0],[0,3,4],[0,3,4],[0,3,4]],"kinds":["install","coreUser","other","lakeLint","fwcoreBuild","other","coreUser","coreUser","coreUser"]}
+{"deps":[[1,2,3],[2,3],[3],[],[3]],"kinds":["coreUser","fwcoreBuild","lakeLint","install","other"]}
+{"deps":[[],[0],[0,1]],"kinds":["install","lakeLint","coreUser"]}
+{"deps":[[],[0]],"kinds":["lakeLint","coreUser"]}
+{"deps":[[1],[]],"kinds":["fwcoreBuild","lakeLint"]}
+{"deps":[[],[0],[0,1]],"kinds":["lakeLint","lakeLint","fwcoreBuild"]}
+{"deps":[[],[0]],"kinds":["fwcoreBuild","fwcoreBuild"]}
+{"deps":[[],[],[0,1]],"kinds":["install","install","other"]}
+{"deps":[[],[],[]],"kinds":["other","other","coreUser"]}

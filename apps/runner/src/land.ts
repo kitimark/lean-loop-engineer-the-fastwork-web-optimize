@@ -216,14 +216,24 @@ export const selectBin = (ds: { id: string; reads: string[] }[], changed: string
 export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
   selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
 
-export function checkDeps(list: string[][]): number[][] {
-  const isInstall = (a: string[]) => a[0] === "pnpm" && a[1] === "install";
-  const isCheckSh = (a: string[]) => a[0] === "sh" && (a[1] === "lean/scripts/check.sh" || a[1] === BUILD_ARGV[1]);
-  const usesCore = (a: string[]) => a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`);
-  const idx = (f: (a: string[]) => boolean) => list.flatMap((a, i) => (f(a) ? [i] : []));
-  const inst = idx(isInstall), sh = idx(isCheckSh);
-  return list.map((a, i) => [...(isInstall(a) ? [] : inst), ...(usesCore(a) ? sh : [])].filter((d) => d !== i));
+/** Kinds of Fw.Ops.LandDry.Kind, by identity of the command line. */
+export type CheckKind = "install" | "lakeLint" | "fwcoreBuild" | "coreUser" | "other";
+export function checkKind(a: string[]): CheckKind {
+  if (a[0] === "pnpm" && a[1] === "install") return "install";
+  if (isLakeLint(a)) return "lakeLint";
+  if (a.join("\0") === BUILD_ARGV.join("\0")) return "fwcoreBuild";
+  if (a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`)) return "coreUser";
+  return "other";
 }
+const buildsLake = (k: CheckKind) => k === "lakeLint" || k === "fwcoreBuild";
+/** TS stand-in for Fw.Ops.LandDry.deps (lake_serial, core_after_builds, install_first), checked against
+ *  packages/contracts/golden/ops/land-dry-deps.jsonl. Marked for Lean replacement by a fwcore op. */
+export function kindDeps(ks: CheckKind[]): number[][] {
+  const dep = (a: CheckKind, b: CheckKind): boolean =>
+    a === "install" ? false : b === "install" ? true : (a === "fwcoreBuild" && b === "lakeLint") || (a === "coreUser" && (b === "fwcoreBuild" || b === "lakeLint"));
+  return ks.map((a, i) => ks.flatMap((b, j) => (j !== i && (dep(a, b) || (buildsLake(a) && a === b && j < i)) ? [j] : [])));
+}
+export const checkDeps = (list: string[][]): number[][] => kindDeps(list.map(checkKind));
 
 export const READS_SCAN_ID = "reads-scan";
 export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
