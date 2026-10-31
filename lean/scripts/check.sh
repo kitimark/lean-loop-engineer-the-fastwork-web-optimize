@@ -157,6 +157,7 @@ run_group() {
   job "device-scroll-park-verdict golden check" sh -c "printf 'import Fw.Device.ScrollParkVerdict\\n#eval Fw.Device.ScrollParkVerdict.checkRepo\\n' | lake env lean --stdin"
   job "device-sim-end-floor golden check" lake env lean --run scripts/SimEndFloorGolden.lean --check
   job "device-sim-floor-attrib golden check" lake env lean --run scripts/SimFloorAttribGolden.lean --check
+  job "device-sim-end-cut golden check" lake env lean --run scripts/SimEndCutGolden.lean --check
   job "scroll-park golden check" sh -c "printf 'import Fw.Parts.ScrollPark\\n#eval Fw.Parts.ScrollPark.run [\"--check\"]\\n' | lake env lean --stdin"
   job "paint-visible golden check" lake env lean --run scripts/PaintVisibleGolden.lean --check ../packages/contracts/golden/measure/paint-visible.jsonl
   job "unthrottle golden check" sh -c "printf 'import Fw.Parts.EngineScrollUnthrottle\\n#eval Fw.Parts.EngineScrollUnthrottle.run [\"--check\"]\\n' | lake env lean --stdin"

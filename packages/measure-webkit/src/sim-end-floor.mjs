@@ -24,13 +24,33 @@ export const ARMS = Object.freeze([
   { id: 'minusBoth', fw: 'platform:faded-pause', search: '?fw=platform:faded-pause' },
   { id: 'v2pCancelScroll', fw: V2P, search: `?fw=${V2P}`, act: 'cancelScroll' },
 ]);
+const PARKS = 'engine.scroll:unthrottle-park,hero.exit:threaded-park,platform:faded-pause';
+const PAUSES = 'engine.scroll:unthrottle,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded,platform.sweep:offscreen-pause';
+const BOTH = 'engine.scroll:unthrottle-park,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded-park,platform.sweep:offscreen-pause';
+
+/** The arms of task sim-end-cut after the v2p arm: the parks, the off-screen pauses and both stacked on the v2-proved preset. */
+export const CUT_ARMS = Object.freeze([
+  { id: 'parks', fw: PARKS, search: `?fw=${PARKS}` },
+  { id: 'pauses', fw: PAUSES, search: `?fw=${PAUSES}` },
+  { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
+]);
+
+/** The arm sets a run can load: `attrib` (sim-floor-attrib, the default) and `cut` (sim-end-cut: v2p against the three stacked arms). */
+export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]) });
+export function armsOf(set = 'attrib') {
+  const arms = ARM_SETS[set];
+  if (!arms) throw new Error(`unknown arm set ${set}`);
+  return arms;
+}
+
 /**
  * The reads of one load: at the end of the page after the jump there settled (`end`, the pinned unit), after a scroll up by one viewport and back to the
  * end settled (`back`), and with every document animation paused (`paused`, a diagnostic: whether animations carry the floor).
  */
 export const STAGES = Object.freeze(['end', 'back', 'paused']);
 /** The `--config` queries the site build needs (the default config is always built). */
-export const BUILD_SEARCHES = Object.freeze([...new Set(ARMS.filter((a) => !a.blank && a.search !== '').map((a) => a.search))]);
+export const buildSearches = (set = 'attrib') => [...new Set(armsOf(set).filter((a) => !a.blank && a.search !== '').map((a) => a.search))];
+export const BUILD_SEARCHES = Object.freeze(buildSearches('attrib'));
 
 export const rate = (w) => (w.raf === 0 ? 0 : Math.floor((w.recalcs * 100) / w.raf));
 export const readable = (w) => w.raf === WIN_RAF && MIN_SEEN <= w.seen;
@@ -111,12 +131,17 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
     const an = document.getAnimations();
     const by = {};
     const running = [];
+    const paused = [];
+    const name = (a) => a.animationName || a.transitionProperty || a.id || '';
     for (const a of an) {
       const k = kind(a.timeline) + ':' + a.playState;
       by[k] = (by[k] || 0) + 1;
-      if (a.playState === 'running' && running.length < 24) running.push([kind(a.timeline), a.animationName || a.transitionProperty || a.id || '', desc(a.effect && a.effect.target)]);
+      if (a.playState === 'running' && running.length < 24) running.push([kind(a.timeline), name(a), desc(a.effect && a.effect.target)]);
+      let inf = false;
+      try { inf = a.effect.getComputedTiming().iterations === Infinity; } catch (e) { /* no timing */ }
+      if (a.playState === 'paused' && inf && paused.length < 24) paused.push([kind(a.timeline), name(a), desc(a.effect && a.effect.target)]);
     }
-    return { total: an.length, by, running, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
+    return { total: an.length, by, running, paused, parked: document.querySelectorAll('[data-exit-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
   scrollTo({ top: root.scrollHeight - innerHeight, behavior: 'instant' });
   await frame(); await frame();
@@ -148,21 +173,21 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
 })()`;
 
 const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
-const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}` : 'no census');
+const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}${c.paused ? ` pausedLoops ${JSON.stringify(c.paused)} parked ${c.parked ?? '-'}` : ''}` : 'no census');
 
 /** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
-export function rowLines(raw) {
+export function rowLines(raw, arms = armsOf(raw.meta?.armSet)) {
   const out = [];
   for (const r of raw.rounds) {
     for (const stage of STAGES) {
-      for (const a of ARMS) {
+      for (const a of arms) {
         const w = r.arms[a.id]?.[stage];
         if (!w) { out.push(`round ${r.round} ${stage} ${a.id}: unread`); continue; }
         const t = w.tally;
         out.push(`round ${r.round} ${stage} ${a.id}: raf ${w.raf} seen ${w.seen} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} renderingFrame ${t.RenderingFrame}) span ${w.spanMs ?? '-'} ms html "${w.cls ?? ''}" y ${w.y ?? '-'}`);
       }
     }
-    for (const a of ARMS) {
+    for (const a of arms) {
       const arm = r.arms[a.id];
       if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
       if (arm && a.act) out.push(`round ${r.round} paused ${a.id} act ${a.act}: cancelled ${arm.cancelled ?? '-'}; after the act, before the window: ${censusText(arm.animsActed)}`);

@@ -1,0 +1,77 @@
+sim-end-cut band 10 per 100, min rounds 2, rounds 3, builds 2afff9f6ba69b7ff60f60aa66aaf00013a321701
+runtime com.apple.CoreSimulator.SimRuntime.iOS-27-0 ua Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0 Mobile/15E148 Safari/604.1
+prediction (recorded before the run): v2p two, parks two, pauses two, both one at the live stages
+parks against v2p [parks] end round 1: 200 against 200 per 100 -> noEffect:parks
+parks against v2p [parks] end round 2: 202 against 200 per 100 -> noEffect:parks
+parks against v2p [parks] end round 3: 205 against 202 per 100 -> noEffect:parks
+parks against v2p [parks] end overall: noEffect:parks; predicted noEffect:parks; untested
+parks against v2p [parks] back round 1: 200 against 200 per 100 -> noEffect:parks
+parks against v2p [parks] back round 2: 200 against 200 per 100 -> noEffect:parks
+parks against v2p [parks] back round 3: 200 against 200 per 100 -> noEffect:parks
+parks against v2p [parks] back overall: noEffect:parks; predicted noEffect:parks; untested
+pauses against v2p [pauses] end round 1: 200 against 200 per 100 -> noEffect:pauses
+pauses against v2p [pauses] end round 2: 204 against 200 per 100 -> noEffect:pauses
+pauses against v2p [pauses] end round 3: 202 against 202 per 100 -> noEffect:pauses
+pauses against v2p [pauses] end overall: noEffect:pauses; predicted noEffect:pauses; untested
+pauses against v2p [pauses] back round 1: 200 against 200 per 100 -> noEffect:pauses
+pauses against v2p [pauses] back round 2: 200 against 200 per 100 -> noEffect:pauses
+pauses against v2p [pauses] back round 3: 200 against 200 per 100 -> noEffect:pauses
+pauses against v2p [pauses] back overall: noEffect:pauses; predicted noEffect:pauses; untested
+both against parks [pauses] end round 1: 200 against 200 per 100 -> noEffect:pauses
+both against parks [pauses] end round 2: 203 against 202 per 100 -> noEffect:pauses
+both against parks [pauses] end round 3: 201 against 205 per 100 -> noEffect:pauses
+both against parks [pauses] end overall: noEffect:pauses; predicted cut:pauses; untested
+both against parks [pauses] back round 1: 200 against 200 per 100 -> noEffect:pauses
+both against parks [pauses] back round 2: 200 against 200 per 100 -> noEffect:pauses
+both against parks [pauses] back round 3: 200 against 200 per 100 -> noEffect:pauses
+both against parks [pauses] back overall: noEffect:pauses; predicted cut:pauses; untested
+both against pauses [parks] end round 1: 200 against 200 per 100 -> noEffect:parks
+both against pauses [parks] end round 2: 203 against 204 per 100 -> noEffect:parks
+both against pauses [parks] end round 3: 201 against 202 per 100 -> noEffect:parks
+both against pauses [parks] end overall: noEffect:parks; predicted cut:parks; untested
+both against pauses [parks] back round 1: 200 against 200 per 100 -> noEffect:parks
+both against pauses [parks] back round 2: 200 against 200 per 100 -> noEffect:parks
+both against pauses [parks] back round 3: 200 against 200 per 100 -> noEffect:parks
+both against pauses [parks] back overall: noEffect:parks; predicted cut:parks; untested
+tier v2p end: [two, two, two] overall two; predicted two; held
+tier parks end: [two, two, two] overall two; predicted two; untested
+tier pauses end: [two, two, two] overall two; predicted two; untested
+tier both end: [two, two, two] overall two; predicted one; untested
+tier v2p back: [two, two, two] overall two; predicted two; held
+tier parks back: [two, two, two] overall two; predicted two; untested
+tier pauses back: [two, two, two] overall two; predicted two; untested
+tier both back: [two, two, two] overall two; predicted one; untested
+tier v2p paused: [two, two, two] overall two (reference)
+tier both paused: [two, two, two] overall two (reference)
+effect v2p end round 1: none; still ticks: view-driven 13, scroll-driven 1, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect v2p end round 2: none; still ticks: view-driven 13, scroll-driven 1, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect v2p end round 3: none; still ticks: view-driven 13, scroll-driven 1, cue float running 1, platform sweep running 4; complete true
+effect v2p end overall: inconclusive
+effect parks end round 1: missing:hero.exit:threaded-park; still ticks: view-driven 13, cue float running 1, platform sweep running 4; complete true
+effect parks end round 2: missing:hero.exit:threaded-park; still ticks: view-driven 13, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect parks end round 3: missing:hero.exit:threaded-park; still ticks: view-driven 13, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect parks end overall: missing:hero.exit:threaded-park
+effect pauses end round 1: missing:platform.sweep:offscreen-pause; still ticks: view-driven 13, scroll-driven 1, platform sweep running 2; complete true
+effect pauses end round 2: missing:platform.sweep:offscreen-pause; still ticks: view-driven 13, scroll-driven 1, platform sweep running 2; complete true
+effect pauses end round 3: missing:platform.sweep:offscreen-pause; still ticks: view-driven 13, scroll-driven 1, platform sweep running 2; complete true
+effect pauses end overall: missing:platform.sweep:offscreen-pause
+effect both end round 1: missing:hero.exit:threaded-park,hero.accent:offscreen-pause,platform.sweep:offscreen-pause; still ticks: view-driven 13, accent idle running 3, platform sweep running 2; complete true
+effect both end round 2: missing:hero.exit:threaded-park,platform.sweep:offscreen-pause; still ticks: view-driven 13, platform sweep running 2; complete true
+effect both end round 3: missing:hero.exit:threaded-park,platform.sweep:offscreen-pause; still ticks: view-driven 13, platform sweep running 2; complete true
+effect both end overall: mixed
+effect v2p back round 1: none; still ticks: view-driven 13, scroll-driven 1, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect v2p back round 2: none; still ticks: view-driven 13, scroll-driven 1, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect v2p back round 3: none; still ticks: view-driven 13, scroll-driven 1, cue float running 1, platform sweep running 4; complete true
+effect v2p back overall: inconclusive
+effect parks back round 1: missing:hero.exit:threaded-park; still ticks: view-driven 13, cue float running 1, platform sweep running 4; complete true
+effect parks back round 2: missing:hero.exit:threaded-park; still ticks: view-driven 13, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect parks back round 3: missing:hero.exit:threaded-park; still ticks: view-driven 13, accent idle running 3, cue float running 1, platform sweep running 4; complete true
+effect parks back overall: missing:hero.exit:threaded-park
+effect pauses back round 1: missing:platform.sweep:offscreen-pause; still ticks: view-driven 13, scroll-driven 1, platform sweep running 2; complete true
+effect pauses back round 2: missing:platform.sweep:offscreen-pause; still ticks: view-driven 13, scroll-driven 1, platform sweep running 2; complete true
+effect pauses back round 3: missing:platform.sweep:offscreen-pause; still ticks: view-driven 13, scroll-driven 1, platform sweep running 2; complete true
+effect pauses back overall: missing:platform.sweep:offscreen-pause
+effect both back round 1: missing:hero.exit:threaded-park,hero.accent:offscreen-pause,platform.sweep:offscreen-pause; still ticks: view-driven 13, accent idle running 3, platform sweep running 2; complete true
+effect both back round 2: missing:hero.exit:threaded-park,platform.sweep:offscreen-pause; still ticks: view-driven 13, platform sweep running 2; complete true
+effect both back round 3: missing:hero.exit:threaded-park,platform.sweep:offscreen-pause; still ticks: view-driven 13, platform sweep running 2; complete true
+effect both back overall: mixed
