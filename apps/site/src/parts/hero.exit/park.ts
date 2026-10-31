@@ -115,39 +115,62 @@ export function scrollParked(parkedBefore: boolean, boundary: number, y: number)
   return parkedBefore && boundary <= y;
 }
 
+/** Lean `scrollEvent`: parked stays parked until `y` is back above the end; not parked parks when `y` is more than the margin past the end. */
+export function scrollEvent(parkedBefore: boolean, boundary: number, margin: number, y: number): boolean {
+  return parkedBefore ? scrollParked(true, boundary, y) : boundary + margin < y;
+}
+
 export interface ParkDeps {
   setParked(on: boolean): void;
   placeSentinel(): void;
   watch(far: (far: boolean) => void): () => void;
   listenScroll(cb: () => void): () => void;
   readBoundary(): number;
+  /** The margin in px (`MARGIN_VIEWPORTS` viewports). */
+  margin(): number;
   scrollY(): number;
 }
 
+/**
+ * The park controller. Two events engage it (Lean `io_engages`, `scrollEvent_engages`): the observer reporting the sentinel far, and a scroll event
+ * at a far position, which also covers a jump the observer never saw. The boundary read (a layout read) happens only when `y` passes the last
+ * read threshold, never on every scroll event.
+ */
 export function createPark(deps: ParkDeps) {
   let parked = false;
   let boundary = 0;
+  let threshold = Number.POSITIVE_INFINITY;
   let stopScroll: (() => void) | null = null;
   let stopWatch: (() => void) | null = null;
   const unpark = () => {
     if (!parked) return;
     parked = false;
     deps.setParked(false);
-    stopScroll?.();
-    stopScroll = null;
   };
   const park = () => {
     if (parked) return;
     boundary = deps.readBoundary();
     parked = true;
     deps.setParked(true);
-    stopScroll = deps.listenScroll(() => {
-      if (!scrollParked(true, boundary, deps.scrollY())) unpark();
-    });
+  };
+  const onScroll = () => {
+    const y = deps.scrollY();
+    if (parked) {
+      if (!scrollEvent(true, boundary, 0, y)) unpark();
+      return;
+    }
+    if (y <= threshold) return;
+    const b = deps.readBoundary();
+    const m = deps.margin();
+    threshold = b + m;
+    if (scrollEvent(false, b, m, y)) park();
   };
   const start = () => {
     deps.placeSentinel();
+    threshold = deps.readBoundary() + deps.margin();
     stopWatch = deps.watch((far) => (far ? park() : unpark()));
+    stopScroll = deps.listenScroll(onScroll);
+    onScroll();
   };
   start();
   return {
@@ -155,11 +178,14 @@ export function createPark(deps: ParkDeps) {
     resize() {
       unpark();
       stopWatch?.();
+      stopScroll?.();
       start();
     },
     stop() {
       stopWatch?.();
       stopWatch = null;
+      stopScroll?.();
+      stopScroll = null;
       unpark();
     },
   };

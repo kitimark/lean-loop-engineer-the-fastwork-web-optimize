@@ -13,6 +13,7 @@ import {
   parkCss,
   parkRows,
   parkSentinelTop,
+  scrollEvent,
   scrollParked,
   toCss,
   type ParkDeps,
@@ -104,6 +105,20 @@ describe('hero.exit:threaded-park against the Lean golden', () => {
   });
 });
 
+describe('the scroll-event rule equals the Lean rule', () => {
+  it('every sample, parked and live', () => {
+    const rows = of('scrollEvent');
+    expect(rows.length).toBe(9);
+    for (const r of rows) {
+      const v = q(r.in.v);
+      const b = q(r.in.T) + exitRange(q(r.in.h), v);
+      const out = r.out as { fromParked: boolean; fromLive: boolean };
+      expect(scrollEvent(true, b, MARGIN_VIEWPORTS * v, q(r.in.y))).toBe(out.fromParked);
+      expect(scrollEvent(false, b, MARGIN_VIEWPORTS * v, q(r.in.y))).toBe(out.fromLive);
+    }
+  });
+});
+
 describe('the park stylesheet mirrors the live rules', () => {
   const live = readFileSync(resolve(__dirname, 'threaded.module.css'), 'utf8');
   const body = live.slice(0, live.indexOf('@keyframes'));
@@ -131,11 +146,12 @@ describe('the park stylesheet mirrors the live rules', () => {
   });
 });
 
-function parkHarness(boundary = 2000) {
+function parkHarness(boundary = 2000, margin = 800, startY = 0) {
   const log: string[] = [];
   let far: (f: boolean) => void = () => {};
   let scroll: () => void = () => {};
-  let y = 0;
+  let y = startY;
+  let reads = 0;
   let parked = false;
   let listeners = 0;
   const deps: ParkDeps = {
@@ -156,7 +172,11 @@ function parkHarness(boundary = 2000) {
         listeners--;
       };
     },
-    readBoundary: () => boundary,
+    readBoundary: () => {
+      reads++;
+      return boundary;
+    },
+    margin: () => margin,
     scrollY: () => y,
   };
   const p = createPark(deps);
@@ -170,6 +190,7 @@ function parkHarness(boundary = 2000) {
     },
     parked: () => parked,
     listeners: () => listeners,
+    reads: () => reads,
   };
 }
 
@@ -177,6 +198,37 @@ describe('park controller', () => {
   it('places the sentinel and watches it on start', () => {
     const a = parkHarness();
     expect(a.log).toEqual(['place', 'watch']);
+  });
+
+  it('jump path: one scroll event past the margin parks with no observer report', () => {
+    const a = parkHarness(2000, 800);
+    a.scrollTo(2800);
+    expect(a.parked()).toBe(false);
+    a.scrollTo(2801);
+    expect(a.parked()).toBe(true);
+  });
+
+  it('walk path: small steps park at the first event past the margin; a later step back above the end restores', () => {
+    const a = parkHarness(2000, 800);
+    for (let y = 100; y <= 2800; y += 100) a.scrollTo(y);
+    expect(a.parked()).toBe(false);
+    a.scrollTo(2900);
+    expect(a.parked()).toBe(true);
+    a.scrollTo(1999);
+    expect(a.parked()).toBe(false);
+  });
+
+  it('a page loaded already past the margin parks on the start check', () => {
+    expect(parkHarness(2000, 800, 4000).parked()).toBe(true);
+  });
+
+  it('reads the boundary only when y passes the last threshold, not on each scroll event', () => {
+    const a = parkHarness(2000, 800);
+    const before = a.reads();
+    for (let y = 0; y < 2800; y += 50) a.scrollTo(y);
+    expect(a.reads()).toBe(before);
+    a.scrollTo(2801);
+    expect(a.reads()).toBe(before + 2);
   });
 
   it('parks when the sentinel is far, adds one scroll listener, and restores when it is not', () => {
@@ -188,7 +240,7 @@ describe('park controller', () => {
     expect(a.log.filter((x) => x === 'park').length).toBe(1);
     a.far(false);
     expect(a.parked()).toBe(false);
-    expect(a.listeners()).toBe(0);
+    expect(a.listeners()).toBe(1);
   });
 
   it('a scroll event that reaches the range restores at once; one at or past the end keeps the park', () => {
@@ -200,7 +252,6 @@ describe('park controller', () => {
     expect(a.parked()).toBe(true);
     a.scrollTo(1999);
     expect(a.parked()).toBe(false);
-    expect(a.listeners()).toBe(0);
   });
 
   it('a resize restores and observes afresh; stop restores and stops watching', () => {
