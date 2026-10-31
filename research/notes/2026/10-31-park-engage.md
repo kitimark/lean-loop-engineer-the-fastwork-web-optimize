@@ -42,3 +42,8 @@ Not measured here: the effect on the end-of-page style-recalc rate of the full s
 
 `--arms park` of `sim-end-floor-cli.mjs` (workflow tokens `[end-floor] [end-park]`) runs the two park arms of `src/sim-park-engage.mjs`;
 `park-report` formats the census (`took` = parked and no view-driven animation). The page script gained the `park` probe in every census and the `walk` act.
+
+## 5. Re-run after merging main (MEASURED, run 41185704042 on 0058ef332)
+
+Main brought the arm sets of sim-end-cut; the park arms became the set `park` (`--arms park`) and the workflow token `[end-park]` picks it. Same result on the merged
+harness: both arms parked, view-driven 0, took in 3 of 3 rounds (`results/park-engage/r3/park.txt`).

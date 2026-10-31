@@ -1,0 +1,17 @@
+serving the snapshot read-only at http://127.0.0.1:49739/
+proxy up: SIMULATOR on :9341, tabs on :9342
+  no tab after 6 s: sending openurl again (extra ask 1)
+  no tab after 15 s: sending openurl again (extra ask 2)
+  no tab after 21 s: sending openurl again (extra ask 3)
+  no tab after 28 s: sending openurl again (extra ask 4)
+  no tab after 34 s: sending openurl again (extra ask 5)
+  no tab after 43 s: sending openurl again (extra ask 6)
+  no tab after 49 s: sending openurl again (extra ask 7)
+  no tab after 55 s: sending openurl again (extra ask 8)
+end-floor: preference overrides {"safari":["read failed: "],"global":["read failed: "]}
+end-floor round 1 park: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 parkWalk: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 2 parkWalk: end raf 360 seen 360 recalcs 702; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 2 park: end raf 360 seen 367 recalcs 727; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 3 park: end raf 360 seen 360 recalcs 725; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 3 parkWalk: end raf 360 seen 360 recalcs 727; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
