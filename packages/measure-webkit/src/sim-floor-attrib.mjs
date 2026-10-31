@@ -53,10 +53,6 @@ export const edgeOf = (build, e, wa, wc) => edge(build, build, e.arm, e.cmp, wa,
 export const overallEdge = (vs) => overallNames(vs.filter((v) => v !== 'unreadable' && v !== 'offGrid'));
 export const overallTier = (ts) => overallNames(ts.filter((t) => t !== 'unreadable' && t !== 'off'));
 
-/**
- * The rounds of several files in one list. Files from separate CI jobs are labelled by job ("job 2"; "job 2 round 1" when a job holds several rounds),
- * so a line never calls a job a round; one file keeps "round N".
- */
 export function mergeRaws(raws) {
   const rounds = [];
   const builds = new Set();

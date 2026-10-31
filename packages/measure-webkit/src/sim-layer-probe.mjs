@@ -1,9 +1,4 @@
-// The inspector read of the layer-sweep layers (task sim-layer-sweep). I/O only: it counts layers and compositing reasons; sim-layer-sweep.mjs decides.
-// WebKit LayerTree.json: `reasonsForCompositingLayer` answers a `compositingReasons` object whose `animation` flag is set when the layer is composited for an
-// animation. RenderLayerCompositor.cpp:3842-3860 sets it for a running accelerated animation and also for an effect stack that merely affects transform,
-// so the flag is necessary, not sufficient, for "running accelerated".
-
-/** Read the layers of the layer-sweep nodes: how many nodes match, how many layers they have, how many carry the `animation` and `willChange` reasons. */
+// RenderLayerCompositor.cpp:3842-3860@862f17d sets the `animation` reason also for an effect stack that merely affects transform
 export async function layerProbe(c) {
   try {
     await c.enable('Page').catch(() => {});
@@ -18,7 +13,6 @@ export async function layerProbe(c) {
     let noRenderer = 0;
     let noReasons = 0;
     for (const nodeId of nodes) {
-      // a node without a renderer (display none at this width) has no layer: the call errors, the node is counted aside
       const own = await c.send('LayerTree.layersForNode', { nodeId }).catch(() => null);
       if (own === null) { noRenderer++; continue; }
       for (const l of own.layers ?? []) {

@@ -6,7 +6,7 @@ gate: none (measurement task; layer-sweep gate run 40335795674 is older).
 
 ## Answer
 
-Yes, on the Simulator. With `platform.sweep:offscreen-pause` replaced by `platform.sweep:layer-sweep` (arm `bothL`), the
+Yes, on the Simulator. With `platform.sweep:layer-sweep` replacing `platform.sweep:offscreen-pause` (arm `bothL`), the
 end-of-page window reads 99..110 style recalcs per 100 animation-frame callbacks (tier one), against 199..204 for `both`
 (tier two). Back at the top: `bothL` 100..102, `both` 200. The paused stage reads 100 for both arms in every job.
 
@@ -29,8 +29,7 @@ all three runs. Tiers: `bothL` one and `both` two in 9 of 9 jobs.
 - Accelerated state: run 3 read the Web Inspector. 5 `layerBg` nodes, 1 without a renderer (`display:none`-like, no layer
   tree entry), 4 layers, all 4 with the `animation` compositing reason, `will-change` reasons 0. The `animation` reason is
   necessary but not sufficient (`RenderLayerCompositor.cpp:3842-3860` @862f17d), so the evidence is "inspector" plus the
-  property list; whether the animation runs on the compositor is INFERRED. Runs 1 and 2 had probe errors (harness defects,
-  fixed in the next push); their rates are unaffected.
+  property list; whether the animation runs on the compositor is INFERRED. Runs 1 and 2 had probe errors; their rates are unaffected.
 
 ## Lean tick demand (CONFIRMED source, @862f17d)
 
@@ -53,13 +52,12 @@ per 100 over a window up to 24000 ms. The rest is shared window noise (`both` al
 - Premise refuted: the 360-callback windows are not 6-8 s on the Simulator. They span 6.9..23.7 s (end) and up to 28.2 s
   (a `both` back window), about 13..50 fps. The Lean bound `windowMsMax` was set to 24000 from the measured spans; the report
   flags windows outside it (r3 back job 3: 24407 ms, still tier one).
-- Pin: 18 of 18 end windows have y equal to the window's own maxY (0 jumps), so the end window sat at the end of the page as
-  it was. Only 5 of 18 sit at the final page end 5267 (the others at 5231; back windows always 5267). The 36 px growth between
+- Pin: 18 of 18 end windows have y equal to the window's own maxY (0 jumps), so the end window sat at the end of the page. Only 5 of 18 sit at the final page end 5267 (the others at 5231; back windows always 5267). The 36 px growth between
   the end and back stages is not investigated (follow-up). No rate difference between the 5231 and 5267 windows.
 
 ## Limits
 
-Simulator only (not the phone, not WebKit on the GPU of a device); 3 jobs x 1 round per run; accelerated state is inspector
+Simulator only (not the phone); 3 jobs x 1 round per run; accelerated state is inspector
 evidence plus INFERRED; no look verdict (layer-sweep changes the look of the sweep and stays class L); no preset change.
 
 Raw results: `results/sim-layer-sweep/r1|r2|r3/` (job JSON, logs, rows.txt, table.txt, layer.txt).

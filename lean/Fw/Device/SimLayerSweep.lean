@@ -1,9 +1,6 @@
 import Fw.Device.SimEndCut
 
-/-! # sim-layer-sweep: does a completely accelerated sweep loop remove the last per-frame style recalc on the iOS Simulator
-
-Part one models the tick demand of one animation source from the WebKit source (@862f17d). Part two is the page model: the census
-of the layer loops, the two arms (`both` and `bothL`), the took-check, and the prediction with its verdict. -/
+/-! # sim-layer-sweep: does a completely accelerated sweep loop remove the last per-frame style recalc on the iOS Simulator -/
 namespace Fw.Device.SimLayerSweep
 
 open Fw.Device.SimEndCut Fw.Device.SimEndFloor Fw.Device.EndWktr
@@ -44,9 +41,6 @@ theorem shareOf_full_iff (ps : List String) : shareOf ps = .full ↔ ps ≠ [] �
     · simp only [h, Bool.false_eq_true, ↓reduceIte, iff_false]
       split <;> simp
 
-/-- One animation source: its keyframe properties, whether it has a renderer, whether it runs accelerated, the representation path
-(`none` is the Core Animation path; `some d` the THREADED_ANIMATIONS path with `d` = no representation yet or a disallowed property) and
-whether it is a CSS animation. -/
 structure Effect where
   props : List String
   rendered : Bool
@@ -73,7 +67,6 @@ inductive Demand where
 def Demand.name : Demand → String
   | .everyFrame => "everyFrame" | .perIteration => "perIteration" | .atEnd => "atEnd"
 
-/-- `atEnd` is the demand of an infinite loop that never asks for a tick before its end. -/
 def Effect.demand (e : Effect) (listeners : Bool) : Demand :=
   if e.ticks then .everyFrame else if listeners && e.css then .perIteration else .atEnd
 
@@ -104,8 +97,6 @@ theorem ticks_rep_iff (e : Effect) (d : Bool) (h : e.rep = some d) (hf : shareOf
   have hne' : e.props.isEmpty = false := by simpa [List.isEmpty_iff] using hne
   simp [Effect.ticks, hne', hq, hf, hr, h]
 
-/-- The headline: a completely accelerated running loop, on the Core Animation path or on a representation with nothing disallowed, adds no
-per-frame scheduled style recalc, and with no CSS animation listener it asks for no tick at all. -/
 theorem accelerated_loop_adds_no_frame_tick (e : Effect) (hne : e.props ≠ []) (ha : e.props.all accelerated = true)
     (hr : e.running = true) (hrep : e.rep = none ∨ e.rep = some false) (l : Bool) :
     e.ticks = false ∧ e.demand l ≠ .everyFrame ∧ (l = false → e.demand l = .atEnd) := by
@@ -132,10 +123,8 @@ theorem demand_listener (e : Effect) (h : e.ticks = false) (hc : e.css = true) :
 
 theorem demand_no_listener (e : Effect) (h : e.ticks = false) : e.demand false = .atEnd := by simp [Effect.demand, h]
 
-/-- The site sweep loop animates `background-position`: not accelerated, so it ticks every frame. -/
 def sweepDocProps : List String := ["background-position"]
 
-/-- The layer sweep loop animates `transform` on a layer. -/
 def sweepLayerProps : List String := ["transform"]
 
 theorem sweepDoc_ticks (rep : Option Bool) (running : Bool) : (Effect.mk sweepDocProps true running rep true).ticks = true := by
@@ -155,25 +144,20 @@ theorem sweepLayer_no_listener_at_end : (Effect.mk sweepLayerProps true true non
 
 theorem sweepLayer_listener_per_iteration : (Effect.mk sweepLayerProps true true none true).demand true = .perIteration := by decide
 
-/-- With a CSS animation listener each loop asks one tick per iteration: over a window of `windowMs`, `iterMs` per iteration. -/
 def iterTicks (windowMs iterMs : Nat) : Nat := windowMs / iterMs + 1
 
 def iterRate (loops windowMs iterMs frames : Nat) : Nat := loops * iterTicks windowMs iterMs * 100 / frames
 
 def sweepIterMs : Nat := 4000
 
-/-- The five sweep words of the platform section. -/
 def sweepLoopCount : Nat := 5
 
-/-- 360 frames took up to 23675 ms in the 18 end windows of the CI Simulator (MEASURED, three runs of task sim-layer-sweep, about 15 frames per second at the
-slowest), so the window the bound covers is 24000 ms. An earlier premise of 8000 ms (45 Hz) was refuted by those spans. -/
 def windowMsMax : Nat := 24000
 
 theorem iterRate_le (w : Nat) (h : w ≤ windowMsMax) : iterRate sweepLoopCount w sweepIterMs winRaf ≤ 9 := by
   simp only [iterRate, iterTicks, sweepLoopCount, sweepIterMs, winRaf, windowMsMax] at *
   omega
 
-/-- The per-iteration ticks of the five layer loops add at most 9 per 100 frames over a 24000 ms window, inside the tier band of 10 around one. -/
 theorem iterRate_in_band (w : Nat) (h : w ≤ windowMsMax) : 100 + iterRate sweepLoopCount w sweepIterMs winRaf ≤ 100 + band := by
   have := iterRate_le w h
   simp only [band] at *
@@ -189,7 +173,6 @@ def _root_.Fw.Device.SimEndCut.Census.foreignRunning (c : Census) : Nat := c.run
 
 def _root_.Fw.Device.SimEndCut.Census.sweepDocLoops (c : Census) : Nat := (c.running ++ c.paused).filter (fun n => kindOf n == .sweep) |>.length
 
-/-- Nothing but layer loops can ask for a frame: no view-driven or scroll-driven animation and no other running animation. -/
 def _root_.Fw.Device.SimEndCut.Census.layerOnly (c : Census) : Bool := c.viewDriven == 0 && c.scrollDriven == 0 && c.foreignRunning == 0
 
 theorem layerOnly_iff (c : Census) : c.layerOnly = true ↔ c.viewDriven = 0 ∧ c.scrollDriven = 0 ∧ c.foreignRunning = 0 := by
@@ -198,15 +181,12 @@ theorem layerOnly_iff (c : Census) : c.layerOnly = true ↔ c.viewDriven = 0 ∧
 theorem foreign_zero_of_running_layer (c : Census) (h : c.running.length = c.layerRunning) : c.foreignRunning = 0 := by
   simp [Census.foreignRunning, h]
 
-/-- The read of the layer loops of one stage: how many run, the keyframe properties they animate (distinct), and whether the inspector reports
-the layer composited for an animation (`none` when it was not read). -/
 structure LayerRead where
   loops : Nat
   props : List String
   reason : Option Bool
   deriving DecidableEq, Repr
 
-/-- The effect the read describes: rendered, and running accelerated unless the inspector contradicts it. -/
 def LayerRead.effect (r : LayerRead) (rep : Option Bool) : Effect := ⟨r.props, true, r.reason != some false, rep, true⟩
 
 def LayerRead.evidence (r : LayerRead) : String :=
@@ -225,8 +205,6 @@ theorem evidence_inferred (r : LayerRead) (h0 : r.loops ≠ 0) (h1 : shareOf r.p
 theorem evidence_inspector (r : LayerRead) (h0 : r.loops ≠ 0) (h1 : shareOf r.props = .full) (h : r.reason = some true) :
     r.evidence = "inspector" := by simp [LayerRead.evidence, h0, h1, h]
 
-/-- The prediction for the tier of an arm whose sweeps are layer loops. A source that is not a layer loop keeps the floor at two; a layer loop
-that does not tick leaves one. -/
 def predTierL (r : Option LayerRead) (rep : Option Bool) (c : Census) : Tier :=
   match r with
   | none => .two
@@ -261,9 +239,7 @@ theorem predTierL_rep_irrelevant (r : LayerRead) (c : Census) (hp : r.props = sw
     simpa [LayerRead.effect, hp, hb] using this
   simp [predTierL, h1, h2]
 
-/-- The inspector read of the layers of the layer-sweep nodes: how many layers it reports and how many carry the `animation` compositing reason.
-All carry it: composited for an animation (`some true`, necessary for running accelerated, not sufficient: RenderLayerCompositor.cpp:3842-3860 also
-answers true for an effect stack that merely affects transform); none carries it: contradicted (`some false`); a mix or no layer: no verdict. -/
+-- RenderLayerCompositor.cpp:3842-3860@862f17d answers true for an effect stack that merely affects transform
 def reasonOf (layers anim : Nat) : Option Bool :=
   if layers == 0 then none else if anim == layers then some true else if anim == 0 then some false else none
 
@@ -275,7 +251,6 @@ theorem reasonOf_none (n : Nat) (h : n ≠ 0) : reasonOf n 0 = some false := by 
 
 theorem reasonOf_mixed (n a : Nat) (h0 : a ≠ 0) (h1 : a ≠ n) (h2 : n ≠ 0) : reasonOf n a = none := by simp [reasonOf, h0, h1, h2]
 
-/-- An inspector that reports no composited animation on the layer contradicts the accelerated state: the loop ticks, the prediction is two. -/
 theorem predTierL_contradicted (r : LayerRead) (rep : Option Bool) (c : Census) (h : c.layerOnly = true) (hn : 0 < c.layerRunning)
     (hp : r.props ≠ []) (hr : r.reason = some false) : predTierL (some r) rep c = .two := by
   have : (r.effect rep).ticks = true := ticks_not_running _ (by simpa [LayerRead.effect] using hp) rfl (by simp [LayerRead.effect, hr])
@@ -303,11 +278,8 @@ theorem delta_bothL : Fw.Ops.Attrib.delta LArm.both.flags LArm.bothL.flags = ["p
 
 theorem delta_bothL_symm : Fw.Ops.Attrib.delta LArm.bothL.flags LArm.both.flags = ["platform.sweep"] := by decide
 
-/-- A part takes one variant: the two arms differ in exactly one part. -/
 theorem bothL_one_variant_per_part : (LArm.bothL.flags.map (·.1)).eraseDups = LArm.bothL.flags.map (·.1) := by decide
 
-/-- Registry conflicts (`apps/site/src/parts/*/part.json`): the only conflict of the `platform` part and its descendants with a flag of these arms
-is `platform:faded-pause` against `platform.sweep:offscreen-pause`; neither arm carries `platform:faded-pause`. -/
 theorem arms_no_faded_pause : fadedPause ∉ LArm.both.flags ∧ fadedPause ∉ LArm.bothL.flags := by decide
 
 theorem bothL_drops_offscreen_pause : ("platform.sweep", "offscreen-pause") ∈ LArm.both.flags ∧
@@ -321,7 +293,6 @@ inductive LFlag where
 def LFlag.name : LFlag → String
   | .base f => f.name | .layerSweep => layerSweepFlag
 
-/-- The layer sweep took: the census is complete, the layer loops run, and no faithful `sweepDoc` loop is left. -/
 def layerSweepTook (c : Census) : Bool := c.complete && 0 < c.layerRunning && c.sweepDocLoops == 0
 
 theorem layerSweepTook_iff (c : Census) : layerSweepTook c = true ↔ c.complete = true ∧ 0 < c.layerRunning ∧ c.sweepDocLoops = 0 := by
@@ -373,7 +344,6 @@ theorem sideTookL_none (a : LArm) (h : a.active.isEmpty = false) : sideTookL a n
   | nil => simp [hh] at h
   | cons f fs => simp [sideTookL, hh]
 
-/-- One stage of one job: the census of `bothL`, its layer read, and the census of `both`. -/
 structure Stage where
   armCensus : Option Census
   layer : Option LayerRead
@@ -393,7 +363,6 @@ theorem edgeTookL_true (rounds : List Stage)
   intro s hs
   simp [(h s hs).1, (h s hs).2]
 
-/-- The edge the rates are read as: `bothL` against `both`, one part (`platform.sweep`) apart. -/
 def edgeOfL (build : String) (wa wc : Win) : EdgeV :=
   Fw.Device.SimEndCut.edgeTier build build LArm.bothL.flags LArm.both.flags (tier wa) (tier wc)
 
@@ -420,8 +389,6 @@ theorem pred_noEffect (s : Stage) (rep : Option Bool) (hA : predTierArm rep .bot
     (by decide) rfl
   simpa [predEdgeL, hA, hC] using this
 
-/-- The layer arm cannot do worse than the arm it replaces unless a foreign source runs: with only layer loops and an accelerated read it
-predicts a cut. -/
 theorem pred_cut_of_census (rep : Option Bool) (c d : Census) (r : LayerRead) (hl : c.layerOnly = true) (hp : r.props ≠ [])
     (ha : r.props.all accelerated = true) (hrun : r.reason ≠ some false) (hrep : rep = none ∨ rep = some false)
     (hd : d.sourceRemains = true) : predEdgeL rep ⟨some c, some r, some d⟩ = .noEffect "platform.sweep" ∨
@@ -451,7 +418,6 @@ private def fin : List (String × Nat) := [("document:finished", 20), ("document
 private def cen (b : List (String × Nat)) (run pau : List String) (parked ut utP : Nat) (sw : Option Nat) : Census :=
   ⟨b, run, pau, parked, ut, utP, sw⟩
 
-/-- A job's `bothL` census at the end: the layer loops run (all five), accent and cue finished or paused. -/
 private def bothLC : Census := cen (fin ++ [("document:running", 5)]) layerLoops (idles ++ [cue]) 1 1 1 (some 0)
 private def bothLInViewC : Census := cen (fin ++ [("document:running", 2)]) inViewLayer (layerLoops ++ idles ++ [cue]) 1 1 1 (some 0)
 private def bothLNoLayerC : Census := cen fin [] (idles ++ [cue] ++ layerLoops) 1 1 1 (some 0)

@@ -7,7 +7,7 @@ Arms: both (sim-end-cut) and bothL (both with offscreen-pause replaced by layer-
 
 MEASURED (webkit-sim 41212638765, 41215962130, 41219277317; 9 jobs): end bothL 99..110 vs both 199..204 per 100; back bothL 100..102 vs both 200;
 paused 100 in both arms; every flag took; Lean verdict cut:platform.sweep held in all runs; tiers bothL one, both two (9 of 9 jobs).
-Inspector (run 3): 4 layers with the animation reason (necessary, not sufficient): accelerated state is INFERRED beyond that.
+Inspector (run 3): 4 layers with the animation reason (necessary, not sufficient); accelerated state is INFERRED.
 Premise refuted: 360-frame windows span 7..28 s, not 6-8 s (Lean windowMsMax 24000).
 
 Read first: research/notes/2026/10-31-sim-layer-sweep.md, results/sim-layer-sweep/r3/layer.txt.

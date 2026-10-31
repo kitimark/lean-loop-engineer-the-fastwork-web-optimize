@@ -37,7 +37,6 @@ export const CUT_ARMS = Object.freeze([
   { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
 ]);
 
-/** The arms of task sim-layer-sweep: `both` of sim-end-cut and `bothL`, the same with platform.sweep:layer-sweep for platform.sweep:offscreen-pause (class L). */
 const BOTH_L = 'engine.scroll:unthrottle-park,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded-park,platform.sweep:layer-sweep';
 export const LAYER_ARMS = Object.freeze([CUT_ARMS.find((a) => a.id === 'both'), { id: 'bothL', fw: BOTH_L, search: `?fw=${BOTH_L}`, layer: true }]);
 
@@ -123,16 +122,14 @@ export const SWEEP_LOOPS_JS = `const sweepLoops = () => document.getAnimations()
     return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight];
   });`;
 
-/** The layer sweep loops (`sweepLayerX`): state, whether pending, in view, and the keyframe properties (kebab-case) each animates. */
 export const LAYER_LOOPS_JS = `const layerLoops = () => document.getAnimations().filter((a) => /sweepLayerX/.test(a.animationName || '')).map((a) => {
     const t = a.effect && a.effect.target;
     const r = t ? t.getBoundingClientRect() : null;
     let props = [];
-    try { props = Array.from(new Set(a.effect.getKeyframes().flatMap((k) => Object.keys(k)).filter((k) => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).map((k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())))); } catch (e) { /* no keyframes */ }
+    try { props = Array.from(new Set(a.effect.getKeyframes().flatMap((k) => Object.keys(k)).filter((k) => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)).map((k) => k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())))); } catch (e) { }
     return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight, props];
   });`;
 
-/** The page script's pin: scroll to the end of the page as it is now, until the scroll position equals it (the page grows after the first jump). */
 export const PIN_JS = `const pin = async () => {
     for (let i = 0; i < 4; i++) {
       const max = root.scrollHeight - innerHeight;
@@ -220,7 +217,6 @@ const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} ru
 
 const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport ${JSON.stringify(l)}` : 'no read');
 
-/** A round's name in the lines: merged separate jobs carry a `label` ("job 2"), a single file keeps "round N". */
 export const roundName = (r) => r.label ?? `round ${r.round}`;
 
 const layerText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport, properties ${JSON.stringify([...new Set(l.flatMap((x) => x[5] ?? []))])} ${JSON.stringify(l)}` : 'no read');

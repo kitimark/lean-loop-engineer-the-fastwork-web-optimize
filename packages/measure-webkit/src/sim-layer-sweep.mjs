@@ -1,9 +1,3 @@
-// sim-layer-sweep: does platform.sweep:layer-sweep remove the last per-frame scheduled style recalc at the end of the page on the iOS Simulator.
-//
-// TS STAND-IN of lean/Fw/Device/SimLayerSweep.lean: accelerated, shareFull, effectTicks, effectDemand, reasonOf, the layer census (layerRunning, foreignRunning,
-// sweepDocLoops, layerOnly, layerSweepTook), layerEvidence, predTierL, the arms and their took-checks, edgeOfL, predEdgeL, edgeTookL and overallPredL are checked against
-// packages/contracts/golden/device/sim-layer-sweep.jsonl (test/sim-layer-sweep.test.mjs). The page script and the inspector probe only count; they decide nothing.
-// The reductions layerReadOf (raw rows to the Lean LayerRead) and the report lines are TS stand-ins without a Lean golden.
 import { STAGES, rate, overallNames, roundName } from './sim-end-floor.mjs';
 import { overallEdge, overallTier, tier } from './sim-floor-attrib.mjs';
 import { ARM_FLAGS as CUT_FLAGS, FLAGS, LIVE_STAGES, active as cutActive, complete, edgeTier, gate, held, heldGated, kindOf, overallEffect, ownersText, predTierFor, scrollDriven, stillTicks, toCensus, viewDriven } from './sim-end-cut.mjs';
@@ -16,10 +10,9 @@ export const LARM_IDS = Object.freeze(['both', 'bothL']);
 export const LAYER_SWEEP = ['platform.sweep', 'layer-sweep'];
 
 export const accelerated = (p) => p === 'transform' || p === 'opacity';
-/** Lean `shareOf props = full`: at least one property and every property is accelerated. */
 export const shareFull = (props) => props.length > 0 && props.every(accelerated);
 
-/** Lean `Effect.ticks` (KeyframeEffect.cpp:2724-2745 @862f17d). `rep` is null on the Core Animation path, else true when the representation is missing or a property is disallowed. */
+// KeyframeEffect.cpp:2724-2745@862f17d
 export function effectTicks(e) {
   if (e.props.length === 0) return false;
   if (!e.rendered) return false;
@@ -34,7 +27,6 @@ export function effectDemand(e, listeners) {
 export const iterTicks = (windowMs, iterMs) => Math.floor(windowMs / iterMs) + 1;
 export const iterRate = (loops, windowMs, iterMs, frames) => Math.floor((loops * iterTicks(windowMs, iterMs) * 100) / frames);
 
-/** Lean `reasonOf`: all layers carry the animation reason, none does, or no verdict. */
 export function reasonOf(layers, anim) {
   if (layers === 0) return null;
   if (anim === layers) return true;
@@ -63,7 +55,6 @@ export function predTierL(r, rep, c) {
   return layerRunning(c) > 0 && effectTicks(readEffect(r, rep)) ? 'two' : 'one';
 }
 
-/** The still-ticking sources of the census without the layer loops, which the model says add no frame tick. */
 export const stillTicksL = (c) => stillTicks(c).map(([k, n]) => [k, k === 'other running' ? n - layerRunning(c) : n]).filter(([, n]) => n > 0);
 
 export const LARM_FLAGS = Object.freeze({
@@ -80,7 +71,6 @@ export function effectNameL(id, c) {
   const m = missingL(id, c);
   return m.length === 0 ? 'took' : `missing:${m.join(',')}`;
 }
-/** A stage: [census of bothL, LayerRead of bothL or null, census of both]. */
 export const edgeTookL = (stages) => stages.every(([ca, , cc]) => sideTookL('bothL', ca) && sideTookL('both', cc));
 
 export const edgeOfL = (build, wa, wc) => edgeTier(build, build, LARM_FLAGS.bothL, LARM_FLAGS.both, tier(wa), tier(wc));
@@ -89,7 +79,6 @@ export const predTierArm = (rep, id, c, r) => (id === 'both' ? predTierFor('both
 export const predEdgeL = (rep, [ca, r, cc]) => edgeTier('b', 'b', LARM_FLAGS.bothL, LARM_FLAGS.both, predTierArm(rep, 'bothL', ca, r), predTierArm(rep, 'both', cc, null));
 export const overallPredL = (rep, stages) => overallNames(stages.map((s) => predEdgeL(rep, s)));
 
-/** The Lean LayerRead of a stage from the raw rows: loops running, the properties they animate, and the inspector verdict (null when not read or on error). */
 export function layerReadOf(arm, stage) {
   const rows = stage === 'end' ? arm?.layerEnd : arm?.layerBack;
   if (!Array.isArray(rows)) return null;
@@ -107,7 +96,6 @@ const win = (r, id, stage) => r.arms[id]?.[stage] ?? EMPTY;
 const censusOf = (r, id, stage) => (r.arms[id]?.[CENSUS_OF[stage]] ? toCensus(r.arms[id][CENSUS_OF[stage]], r.arms[id][SWEEP_OF[stage]]) : null);
 const per = (n, raf) => (raf === 0 ? '-' : (n / raf).toFixed(2));
 
-/** The rate and tier table, every live stage and the paused stage as a reference. */
 export function tableLines(merged) {
   const out = [];
   for (const stage of STAGES) {
@@ -126,7 +114,6 @@ const stageOf = (r, stage) => [censusOf(r, 'bothL', stage), layerReadOf(r.arms.b
 
 const layerRowText = (rows) => (Array.isArray(rows) ? `${rows.length} loops, ${rows.filter((x) => x[1] === 'running').length} running, ${rows.filter((x) => x[1] === 'running' && x[4]).length} in view, properties ${JSON.stringify([...new Set(rows.flatMap((x) => x[5] ?? []))])}, pending ${rows.filter((x) => x[2]).length}` : 'not read');
 
-/** The verdict file for the pinned unit: per arm and stage the took-check, the layer census, the rates, the Lean-gated verdict against the prediction. */
 export function verdictLines(merged) {
   const out = [];
   const m = merged.meta ?? {};
