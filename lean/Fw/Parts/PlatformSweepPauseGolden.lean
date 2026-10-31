@@ -50,8 +50,19 @@ def constLine : String :=
     ("out", Json.mkObj [("periodMs", numJ period), ("flag", "platform.sweep:offscreen-pause"),
       ("variant", "offscreen-pause")])]).compress
 
+def resumeCases : List (Rat × Rat × Rat) := [(0, 5, 5), (250, 1000, 1400), (1234, 16, 9016)]
+
+def resumeLine (c : Rat × Rat × Rat) : String :=
+  (Json.mkObj [("fn", "resumeTime"), ("in", Json.mkObj [("cur", numJ c.1), ("at", numJ c.2.1), ("now", numJ c.2.2)]),
+    ("out", numJ (resumeTime (Held.mk c.1 c.2.1) c.2.2))]).compress
+
+def holdLine (held running : Bool) : String :=
+  (Json.mkObj [("fn", "holdNew"), ("in", Json.mkObj [("held", .bool held), ("running", .bool running)]),
+    ("out", .bool (holdNew held running))]).compress
+
 def lines (_ : Unit := ()) : List String :=
-  constLine :: (cases.flatMap fun (n, o, t) => [traceLine n o t, origLine o t])
+  constLine :: (cases.flatMap fun (n, o, t) => [traceLine n o t, origLine o t]) ++ resumeCases.map resumeLine ++
+    [holdLine false false, holdLine false true, holdLine true false, holdLine true true]
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
 
@@ -61,7 +72,7 @@ def sameOnVisible (o : Rat) (tr : List Step) : Bool :=
     !f.2.1 || (seek (run (init o) (tr.take k)) f).loc == orig o (tr.take k)
 
 #guard cases.all fun (_, o, t) => sameOnVisible o t
-#guard (lines ()).length == 7
+#guard (lines ()).length == 14
 
 def run' (args : List String) : IO UInt32 := do
   match args with

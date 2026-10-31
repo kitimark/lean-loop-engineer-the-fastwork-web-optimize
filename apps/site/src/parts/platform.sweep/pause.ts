@@ -42,6 +42,8 @@ interface ElState {
   readonly held: Map<Animation, Held>;
 }
 
+export const holdNew = (held: boolean, running: boolean): boolean => !held && running;
+
 export const resumeTime = (h: Held, now: number): number => h.cur + (now - h.at);
 
 /**
@@ -60,7 +62,7 @@ export function watchSweepPause(
   for (const el of els) state.set(el, { paused: false, held: new Map() });
   const hold = (el: Element, st: ElState) => {
     for (const a of el.getAnimations()) {
-      if (st.held.has(a) || a.playState !== 'running') continue;
+      if (!holdNew(st.held.has(a), a.playState === 'running')) continue;
       st.held.set(a, { start: a.startTime, cur: Number(a.currentTime ?? 0), at: now() });
       a.pause();
     }

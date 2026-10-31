@@ -178,6 +178,61 @@ theorem scroll_restores (parkedBefore : Bool) (T h v y : Rat) (hp : timelineProg
   right
   grind
 
+def scrollEvent (parkedBefore : Bool) (T h v M y : Rat) : Bool :=
+  if parkedBefore then scrollParked true T h v y else decide (bound T h v + M < y)
+
+theorem scrollEvent_engages (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hy : bound T h v + M < y) :
+    scrollEvent pb T h v M y = true := by
+  unfold scrollEvent scrollParked
+  by_cases hp : pb = true
+  · simp only [hp, ↓reduceIte, Bool.true_and, decide_eq_true_eq]
+    grind
+  · simp only [Bool.not_eq_true] at hp
+    simp only [hp, Bool.false_eq_true, ↓reduceIte, decide_eq_true_eq]
+    exact hy
+
+theorem jump_engages (T h v M yPrev y : Rat) (hM : 0 ≤ M) (hprev : yPrev ≤ bound T h v + M) (hy : bound T h v + M < y) :
+    ioParked T h v M yPrev = false ∧ scrollEvent false T h v M y = true := by
+  refine ⟨?_, scrollEvent_engages false T h v M y hM hy⟩
+  unfold ioParked
+  simp only [decide_eq_false_iff_not]
+  grind
+
+theorem walk_engages (ys : List Rat) (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hy : bound T h v + M < y) :
+    (ys ++ [y]).foldl (fun p z => scrollEvent p T h v M z) pb = true := by
+  rw [List.foldl_append]
+  exact scrollEvent_engages _ T h v M y hM hy
+
+theorem io_engages (T h v M yPrev : Rat) (hy : bound T h v + M < yPrev) : ioParked T h v M yPrev = true := by
+  unfold ioParked
+  exact decide_eq_true hy
+
+theorem scrollEvent_no_stale (k : Consumer) (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) :
+    shown k T h v (scrollEvent pb T h v M y) y = k.anim (timelineProgress T (exitRange h v) y) := by
+  unfold shown scrollEvent
+  by_cases hp : pb = true
+  · simp only [hp, ↓reduceIte]
+    exact scroll_no_stale k T h v y true
+  · simp only [Bool.not_eq_true] at hp
+    simp only [hp, Bool.false_eq_true, ↓reduceIte]
+    by_cases hf : bound T h v + M < y
+    · have hb : T + exitRange h v ≤ y := by unfold bound at hf; grind
+      simp only [hf, decide_true, ↓reduceIte]
+      rw [progress_one T _ y (exitRange_pos h v) hb]
+      exact (fill_is_anim_end k).symm
+    · simp [hf]
+
+theorem scrollEvent_restores (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hp : timelineProgress T (exitRange h v) y ≠ 1) :
+    scrollEvent pb T h v M y = false := by
+  have := lt_bound_of_progress_ne T _ y (exitRange_pos h v) hp
+  unfold scrollEvent scrollParked bound
+  by_cases hb : pb = true
+  · simp only [hb, ↓reduceIte, Bool.true_and, decide_eq_false_iff_not]
+    grind
+  · simp only [Bool.not_eq_true] at hb
+    simp only [hb, Bool.false_eq_true, ↓reduceIte, decide_eq_false_iff_not]
+    grind
+
 def marginViewports : Nat := 1
 
 def margin (v : Rat) : Rat := marginViewports * v
@@ -239,6 +294,10 @@ private def samples : List (Rat × Rat × Rat × Rat × Rat) :=
   [(0, 1600, 800, 800, 801), (0, 1600, 800, 800, 799), (0, 1600, 800, 800, 5000), (300, 1600, 800, 800, 1099), (300, 1600, 800, 800, 1100),
    (300, 1600, 800, 800, 1101), (0, 1688, 844, 844, 845), (0, 100, 800, 800, 5)]
 
+private def engageSamples : List (Rat × Rat × Rat × Rat) :=
+  [(0, 1600, 800, 1600), (0, 1600, 800, 1601), (0, 1600, 800, 2399), (0, 1600, 800, 2400), (0, 1600, 800, 2401), (0, 1600, 800, 5000),
+   (300, 1600, 800, 2700), (300, 1600, 800, 2701), (0, 100, 800, 5)]
+
 def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("fn", "consts"), ("out", Json.mkObj [("marginViewports", marginViewports), ("utStillFrames", utStillFrames),
     ("utStillMs", utStillMs), ("restoreLatency", restoreLatency)])]).compress] ++
@@ -254,6 +313,10 @@ def goldenLines (_ : Unit) : List String :=
       ("out", Json.mkObj [("parked", ioParked T h v M yPrev), ("sentinelTop", jrat (sentinelTopPark h v M))])]).compress,
      (Json.mkObj [("fn", "scrollParked"), ("in", Json.mkObj [("T", jrat T), ("h", jrat h), ("v", jrat v), ("y", jrat y)]),
       ("out", Json.mkObj [("fromParked", scrollParked true T h v y), ("fromLive", scrollParked false T h v y)])]).compress]) ++
+  (engageSamples.flatMap fun (T, h, v, y) =>
+    let M := margin v
+    [(Json.mkObj [("fn", "scrollEvent"), ("in", Json.mkObj [("T", jrat T), ("h", jrat h), ("v", jrat v), ("y", jrat y)]),
+      ("out", Json.mkObj [("fromParked", scrollEvent true T h v M y), ("fromLive", scrollEvent false T h v M y)])]).compress]) ++
   (([UtEv.scroll, .touch, .still].flatMap fun e => [false, true].map fun pk =>
     (Json.mkObj [("fn", "utStep"), ("in", Json.mkObj [("event", j (match e with | .scroll => "scroll" | .touch => "touch" | .still => "still")),
       ("parked", toJson pk)]), ("out", toJson (utStep pk e))]).compress))

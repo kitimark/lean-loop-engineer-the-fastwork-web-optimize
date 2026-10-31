@@ -139,4 +139,65 @@ theorem offscreen_ticks_le_one (g : Step) (rest : List Step) (hv : g.2.1 = false
 
 theorem ticks_le_original (f : Step) : ticks f ≤ 1 := by unfold ticks; split <;> omega
 
+/-! ## Loops with no start time, and the re-hold on a scene attribute change
+
+`Scene` premise use: a loop the scene rule starts again has no start time, so `hold` saves its current time and the clock; the unpaused page
+runs it from that time (`Unpaused`), so resuming at `resumeTime` shows the unpaused phase. A scene attribute change calls `hold` again for the
+reported elements: a loop already held is skipped (first hold wins), a running one is held, a non-running one is left alone (three branches). -/
+
+/-- A held loop with no start time: current time and clock when it was paused. -/
+structure Held where
+  cur : Rat
+  t0 : Rat
+deriving Repr
+
+def resumeTime (h : Held) (now : Rat) : Rat := h.cur + (now - h.t0)
+
+/-- Premise `Scene`: the unpaused loop runs on from its hold time at the clock rate. -/
+def Unpaused (h : Held) (t : Rat) : Rat := h.cur + (t - h.t0)
+
+theorem resume_pending_same (h : Held) (now : Rat) : resumeTime h now = Unpaused h now := rfl
+
+theorem resume_pending_phase (h : Held) (now : Rat) :
+    phase (resumeTime h now) = phase (Unpaused h now) ∧ pos (resumeTime h now) = pos (Unpaused h now) :=
+  ⟨rfl, rfl⟩
+
+/-- The resume keeps the unpaused phase through any paused span: later `now` gives the later unpaused time. -/
+theorem resume_pending_span (h : Held) (now d : Rat) :
+    resumeTime h (now + d) = resumeTime h now + d := by
+  simp [resumeTime]; grind
+
+/-- Hold one running animation: skipped when already held (first hold wins), not running left alone. -/
+def holdNew (held running : Bool) : Bool := !held && running
+
+theorem hold_already_held (running : Bool) : holdNew true running = false := by simp [holdNew]
+
+theorem hold_running_new : holdNew false true = true := rfl
+
+theorem hold_not_running (held : Bool) : holdNew held false = false := by simp [holdNew]
+
+/-- The held table: animation id to its saved hold. `hold` inserts only an id not yet present. -/
+def hold (H : List (Nat × Held)) (a : Nat) (h : Held) : List (Nat × Held) :=
+  if H.any (·.1 == a) then H else (a, h) :: H
+
+theorem hold_present (H : List (Nat × Held)) (a : Nat) (h : Held) (hp : H.any (·.1 == a) = true) :
+    hold H a h = H := by simp [hold, hp]
+
+/-- A re-hold on a scene attribute change never moves an earlier hold. -/
+theorem rehold_keeps (H : List (Nat × Held)) (a : Nat) (h h' : Held) :
+    hold (hold H a h) a h' = hold H a h := by
+  unfold hold
+  by_cases hp : H.any (·.1 == a) = true
+  · simp [hp]
+  · simp at hp
+    simp [hp]
+
+/-- The scene re-hold is idempotent on the held table. -/
+theorem rehold_idem (H : List (Nat × Held)) (a : Nat) (h : Held) : hold (hold H a h) a h = hold H a h :=
+  rehold_keeps H a h h
+
+#guard resumeTime (Held.mk 250 1000) 1400 == 650
+#guard resumeTime (Held.mk 0 5) 5 == 0
+#guard holdNew false true && !holdNew true true && !holdNew false false
+
 end Fw.Parts.PlatformSweepPause

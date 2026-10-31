@@ -19,6 +19,8 @@ goldenConformance('platform-sweep-pause', {
       return { loc: a.loc, phase: P.phase({ t: a.loc }), ticks: P.ticks(f.rep), paused: a.paused };
     });
   },
+  resumeTime: (i) => P.resumeTime({ start: null, cur: i.cur as number, at: i.at as number }, i.now as number),
+  holdNew: (i) => P.holdNew(i.held as boolean, i.running as boolean),
   orig: (i) => P.orig(i.off as number, (i.frames as Fr[]).map((f) => f.d)),
 });
 

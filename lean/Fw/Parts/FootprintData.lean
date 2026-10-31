@@ -475,11 +475,20 @@ def accesses : List Access := [
   ⟨"hero.exit", "hero.exit/index.tsx", 101, .setContent, "textContent", "hero.exit", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 101, .setContent, "textContent", "hero.exit", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 104, .rect, "", "hero.exit", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 104, .rect, "", "hero.exit", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 104, .rect, "", "hero.exit", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 104, .rect, "", "hero.exit", "observer:IntersectionObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 104, .rect, "", "hero.exit", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 105, .scrollY, "scrollY", "", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 105, .scrollY, "scrollY", "", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 105, .scrollY, "scrollY", "", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 105, .scrollY, "scrollY", "", "observer:IntersectionObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 105, .scrollY, "scrollY", "", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 105, .vh, "innerHeight", "", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 105, .vh, "innerHeight", "", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 105, .vh, "innerHeight", "", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 105, .vh, "innerHeight", "", "observer:IntersectionObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 105, .vh, "innerHeight", "", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 108, .setAttr, "data-exit-parked", "hero.exit", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 108, .setAttr, "data-exit-parked", "hero.exit", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 108, .setAttr, "data-exit-parked", "hero.exit", "observer:IntersectionObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
@@ -494,10 +503,15 @@ def accesses : List Access := [
   ⟨"hero.exit", "hero.exit/index.tsx", 110, .vh, "innerHeight", "", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 117, .rect, "", "hero.exit", "observer:IntersectionObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/index.tsx", 121, .listen, "scroll", "document", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
-  ⟨"hero.exit", "hero.exit/index.tsx", 121, .listen, "scroll", "document", "observer:IntersectionObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
-  ⟨"hero.exit", "hero.exit/index.tsx", 125, .scrollY, "scrollY", "", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
-  ⟨"hero.exit", "hero.exit/index.tsx", 125, .scrollY, "scrollY", "", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
-  ⟨"hero.exit", "hero.exit/index.tsx", 130, .setContent, "remove", "hero.exit", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 121, .listen, "scroll", "document", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 121, .listen, "scroll", "document", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 125, .vh, "innerHeight", "", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 125, .vh, "innerHeight", "", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 125, .vh, "innerHeight", "", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 125, .vh, "innerHeight", "", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 126, .scrollY, "scrollY", "", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 126, .scrollY, "scrollY", "", "listener:scroll", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
+  ⟨"hero.exit", "hero.exit/index.tsx", 131, .setContent, "remove", "hero.exit", "callback", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/media.ts", 13, .media, "?", "", "effect", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/scope.ts", 43, .attrRead, "*", "hero.exit", "observer:MutationObserver", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
   ⟨"hero.exit", "hero.exit/threaded.module.css", 13, .cssAttr, "data-exit-live", "", "style", ["faithful", "scoped", "threaded", "threaded-park", "contain"]⟩,
@@ -3040,12 +3054,12 @@ def accesses : List Access := [
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "hero.accent", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 55, .clock, "performance.now", "", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 55, .clock, "performance.now", "", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 57, .clock, "performance.now", "", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 57, .clock, "performance.now", "", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 73, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 75, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 75, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
 
 /-- Extractor findings (dead, dynamic, unresolved selectors and targets): (part, file, line, kind, detail). -/
 def findings : List Finding := [
@@ -3206,10 +3220,10 @@ def findings : List Finding := [
   ⟨"platform.glint", "platform.glint/pause.ts", 44, "unmodelled-api", "call el.setCurrentTime"⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 39, "unresolved-target", "rect"⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 42, "unresolved-target", "setVar --sw6"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, "dynamic-name", "setStyle"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, "unresolved-target", "setStyle ?"⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 73, "dynamic-name", "setStyle"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, "unresolved-target", "setStyle ?"⟩]
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, "unresolved-target", "setStyle ?"⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 75, "dynamic-name", "setStyle"⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 75, "unresolved-target", "setStyle ?"⟩]
 
 /-- Every variant of every part.json with its `files` list, in part then part.json order: (part, variant, files). -/
 def variantFiles : List (String × String × List String) := [

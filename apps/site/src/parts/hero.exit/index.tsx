@@ -6,7 +6,7 @@ import { exitRange } from './logic';
 import { matchList } from './media';
 import css from './hero.module.css';
 import { liveReaders, registerScoped, SCOPED } from './scope';
-import { createPark, PARKED_ATTR, parkCss, parkSentinelTop, THREADED_PARK } from './park';
+import { createPark, MARGIN_VIEWPORTS, PARKED_ATTR, parkCss, parkSentinelTop, THREADED_PARK } from './park';
 import { createHandoff, pointerNoneFromEntry, sentinelTop, THREADED } from './threaded';
 import threaded from './threaded.module.css';
 
@@ -122,6 +122,7 @@ function startParkOn(track: HTMLElement, sentinel: HTMLElement) {
       return () => window.removeEventListener('scroll', cb);
     },
     readBoundary: boundary,
+    margin: () => MARGIN_VIEWPORTS * window.innerHeight,
     scrollY: () => window.scrollY,
   });
   return {

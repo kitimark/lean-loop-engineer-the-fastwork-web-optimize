@@ -36,6 +36,17 @@ if (cmd === 'run') {
     writeFileSync(join(resolve(dir), 'verdict.txt'), `${verdict.join('\n')}\n`);
   }
   console.log([...verdict, '', ...rows].join('\n'));
+} else if (cmd === 'park-report') {
+  const file = args[1];
+  if (!file) { console.error('park-report needs a sim-end-floor.json file'); process.exit(2); }
+  const { parkLines } = await import('./sim-park-engage.mjs');
+  const lines = parkLines(JSON.parse(readFileSync(file, 'utf8')));
+  const dir = flag('--out');
+  if (dir) {
+    mkdirSync(resolve(dir), { recursive: true });
+    writeFileSync(join(resolve(dir), 'park.txt'), `${lines.join('\n')}\n`);
+  }
+  console.log(lines.join('\n'));
 } else if (cmd === 'attrib') {
   const files = args.slice(1).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--out');
   if (!files.length) { console.error('attrib needs one or more sim-end-floor.json files (one per CI job)'); process.exit(2); }
