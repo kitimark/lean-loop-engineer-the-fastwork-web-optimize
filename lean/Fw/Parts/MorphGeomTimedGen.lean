@@ -131,6 +131,8 @@ def outcomeSets : List (List Outcome) :=
 def nextCases : List (Nat × Nat × Attempt) :=
   [(1, 2, .fault), (2, 2, .fault), (3, 2, .fault), (1, 2, .reading true), (2, 2, .reading false), (1, 1, .fault)]
 
+def errNames : List String := ["LimitError", "TimeoutError", "TypeError", "Error", "RangeError", "", "limiterror"]
+
 def verifyLines (_ : Unit) : List String :=
   gline "verify" [] (Json.mkObj [("windowMs", .num ⟨verifyWindowMs, 0⟩), ("frameMs", jdec 4 verifyFrameMs), ("tolPx", jdec 4 verifyTolPx),
     ("mutations", jl (Mutation.all.map fun m => Json.mkObj [("id", .str m.name), ("reading", .str m.reading)]))]) ::
@@ -163,6 +165,10 @@ def verifyLines (_ : Unit) : List String :=
     gline "verifyAttempts" [("max", .num ⟨m, 0⟩), ("attempts", jl (as.map fun a => Json.str a.name))] (.str (cellOutcome m as).name)) ++
   (nextCases.map fun (n, m, a) =>
     gline "verifyNext" [("n", .num ⟨n, 0⟩), ("max", .num ⟨m, 0⟩), ("attempt", .str a.name)] (.str (retryNext n m a).name)) ++
+  (errNames.map fun e =>
+    gline "verifyErr" [("name", .str e)]
+      (Json.mkObj [("kind", .str (errKind e).name), ("next", .str (retryNext 1 maxAttempts (errKind e).attempt).name),
+        ("outcome", .str (cellOutcome maxAttempts [(errKind e).attempt]).name)])) ++
   (outcomeSets.map fun os =>
     gline "verifyCells" [("outcomes", jl (os.map fun o => Json.str o.name))]
       (Json.mkObj [("pass", Json.bool (cellsPass os)), ("kept", Json.bool (cellsKept os))])) ++

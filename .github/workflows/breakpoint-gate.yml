@@ -307,7 +307,7 @@ jobs:
     concurrency:
       group: ci-lane:breakpoint-gate:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:flip-cell:${{ strategy.job-index }}
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
+    timeout-minutes: 90
     name: flip-cell ${{ matrix.engine }}
     strategy:
       fail-fast: false

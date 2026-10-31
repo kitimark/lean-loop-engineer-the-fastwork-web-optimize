@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { GOLDEN, LIMITS, LimitError, bound, call, cellOutcome, cellReady, cellsKept, cellsPass, closeBounded, retryNext, takeCell, waitCell, waitStep } from '../src/bounded.mjs';
+import { GOLDEN, LIMITS, LimitError, bound, call, cellOutcome, cellReady, cellsKept, cellsPass, closeBounded, errKind, retryNext, takeCell, waitCell, waitStep } from '../src/bounded.mjs';
 
 const lines = readFileSync(GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (fn) => lines.filter((l) => l.fn === fn);
@@ -24,6 +24,17 @@ test('every verifyAttempts golden line is replayed by cellOutcome', () => {
 test('every verifyNext golden line is replayed by retryNext', () => {
   assert.ok(of('verifyNext').length >= 5);
   for (const l of of('verifyNext')) assert.equal(retryNext(l.in.n, l.in.max, l.in.attempt), l.out, JSON.stringify(l.in));
+});
+
+test('every verifyErr golden line is replayed by errKind, retryNext and cellOutcome', () => {
+  assert.ok(of('verifyErr').length >= 5);
+  for (const l of of('verifyErr')) {
+    const kind = errKind(l.in.name);
+    assert.equal(kind, l.out.kind, JSON.stringify(l.in));
+    const attempt = kind === 'stall' ? 'fault' : 'fail';
+    assert.equal(retryNext(1, LIMITS.attempts, attempt), l.out.next, JSON.stringify(l.in));
+    assert.equal(cellOutcome(LIMITS.attempts, [attempt]), l.out.outcome, JSON.stringify(l.in));
+  }
 });
 
 test('every verifyCells golden line is replayed by cellsKept and cellsPass', () => {
@@ -74,13 +85,13 @@ test('call runs page.evaluate with the function and argument', async () => {
 test('takeCell retries a fault on a fresh start and reports pass', async () => {
   const seen = [];
   const dropped = [];
-  const r = await takeCell('c', async (n) => { seen.push(n); if (n === 1) throw new Error('stall'); return { ok: true, value: 'v' }; }, { onFault: async (e, n) => dropped.push(n) });
+  const r = await takeCell('c', async (n) => { seen.push(n); if (n === 1) throw new LimitError('screenshot', 5); return { ok: true, value: 'v' }; }, { onFault: async (e, n) => dropped.push(n) });
   assert.equal(r.outcome, 'pass');
   assert.equal(r.value, 'v');
   assert.deepEqual(seen, [1, 2]);
   assert.deepEqual(dropped, [1]);
   assert.equal(r.faults.length, 1);
-  assert.match(r.faults[0].error, /stall/);
+  assert.match(r.faults[0].error, /screenshot/);
 });
 
 test('takeCell does not retry a failing reading', async () => {
@@ -88,6 +99,24 @@ test('takeCell does not retry a failing reading', async () => {
   const r = await takeCell('c', async () => { n++; return { ok: false, value: 'bad' }; });
   assert.equal(r.outcome, 'fail');
   assert.equal(n, 1);
+});
+
+test('takeCell rejects a defect after 1 attempt and calls onFault 0 times', async () => {
+  let n = 0;
+  let dropped = 0;
+  await assert.rejects(
+    takeCell('c', async () => { n++; throw new TypeError('x'); }, { onFault: async () => { dropped++; } }),
+    (e) => e instanceof TypeError && e.message === 'x',
+  );
+  assert.equal(n, 1);
+  assert.equal(dropped, 0);
+});
+
+test('takeCell retries Playwright TimeoutError as a stall', async () => {
+  let n = 0;
+  const r = await takeCell('c', async () => { n++; if (n === 1) { const e = new Error('Timeout 120000ms exceeded'); e.name = 'TimeoutError'; throw e; } return { ok: true, value: 1 }; });
+  assert.equal(r.outcome, 'pass');
+  assert.equal(r.faults.length, 1);
 });
 
 test('takeCell is exhausted after the attempt limit of faults', async () => {

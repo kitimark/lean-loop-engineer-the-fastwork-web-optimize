@@ -185,6 +185,41 @@ theorem retry_fault_stops (n max : Nat) (h : max ≤ n) : retryNext n max .fault
   have : ¬ n < max := by omega
   simp [retryNext, this]
 
+/-- What a thrown error says: the call ran out of time (`stall`), or the page code or the harness is wrong (`defect`). -/
+inductive ErrKind where
+  | stall
+  | defect
+  deriving DecidableEq
+
+def ErrKind.name : ErrKind → String
+  | .stall => "stall"
+  | .defect => "defect"
+
+/-- Only the harness's own limit (`LimitError`) and Playwright's timeout (`TimeoutError`) are stalls; every other name is a defect. -/
+def errKind (errName : String) : ErrKind :=
+  if errName = "LimitError" ∨ errName = "TimeoutError" then .stall else .defect
+
+/-- A stall is a fault; a defect is a failing reading, so it is never retried into a pass. -/
+def ErrKind.attempt : ErrKind → Attempt
+  | .stall => .fault
+  | .defect => .reading false
+
+theorem err_limit_is_stall : errKind "LimitError" = .stall := by simp [errKind]
+
+theorem err_timeout_is_stall : errKind "TimeoutError" = .stall := by simp [errKind]
+
+theorem err_other_is_defect (errName : String) (h1 : errName ≠ "LimitError") (h2 : errName ≠ "TimeoutError") :
+    errKind errName = .defect := by simp [errKind, h1, h2]
+
+theorem err_stall_is_fault : ErrKind.attempt .stall = .fault := rfl
+
+theorem err_defect_not_retried (n max : Nat) : retryNext n max (ErrKind.attempt .defect) = .done := rfl
+
+theorem err_defect_first_fails (max : Nat) (rest : List Attempt) (h : 0 < max) :
+    cellOutcome max (ErrKind.attempt .defect :: rest) = .fail := by
+  have := retry_defect_stays_fail max [] rest (by simp) (by simpa using h)
+  simpa [ErrKind.attempt] using this
+
 def cellsPass (os : List Outcome) : Bool := os.all Outcome.ok
 
 def cellsKept (os : List Outcome) : Bool := os.all fun o => o != .exhausted

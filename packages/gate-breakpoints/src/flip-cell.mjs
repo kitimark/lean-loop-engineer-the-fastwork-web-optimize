@@ -264,6 +264,6 @@ export async function runFlipCell({ engineName, fw, outDir, bandFilter = null, m
     console.log(`flip cell ${engineName} mutation ${mutation}: ${hit > 0 ? 'caught' : 'NOT caught'} (${hit} of ${rows.length} readings fail on its reading; ${failed} fail in all)`);
     return expectFail ? hit > 0 : true;
   }
-  console.log(`flip cell ${engineName} ${fw}: ${failed === 0 ? 'pass' : 'fail'} (${rows.length} readings, ${failed} failed, ${skipped} skipped)${reportOnly ? ' reported only, exit 0' : ''}`);
+  console.log(`flip cell ${engineName} ${fw}: ${failed === 0 ? 'pass' : 'fail'} (${rows.length} readings, ${failed} failed, ${skipped} skipped, ${faults.length} faults)${reportOnly ? ' reported only, exit 0' : ''}`);
   return reportOnly || cellsPass(outcomes);
 }

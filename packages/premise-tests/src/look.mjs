@@ -321,5 +321,5 @@ try {
 const bad = rows.filter((r) => r.verify && !r.verify.ok).length;
 const kept = cellsKept(outcomes);
 flush(!budgetSpent);
-process.stderr.write(`look ${FW} ${engineName}: ${rows.length} rows, ${bad} unverified${kept ? ' (exit 0: reported only)' : `, ${outcomes.filter((o) => o === 'exhausted').length} cells with no reading (exit 1)`}\n`);
+process.stderr.write(`look ${FW} ${engineName}: ${rows.length} rows, ${bad} unverified, ${faults.length} faults${kept ? ' (exit 0: reported only)' : `, ${outcomes.filter((o) => o === 'exhausted').length} cells with no reading (exit 1)`}\n`);
 process.exit(kept ? 0 : 1);

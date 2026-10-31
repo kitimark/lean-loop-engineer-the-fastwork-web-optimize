@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { PKG } from './serve.mjs';
 
 // Ready, wait and fault rules of the flip-cell and look readings.
-// Lean: lean/Fw/Parts/MorphGeomReady.lean. Golden lines verifyReady, verifyWait, verifyAttempts, verifyNext, verifyCells and
+// Lean: lean/Fw/Parts/MorphGeomReady.lean. Golden lines verifyReady, verifyWait, verifyAttempts, verifyNext, verifyErr, verifyCells and
 // verifyLimits of packages/contracts/golden/morph-geom-timed.jsonl (replayed by test/bounded.test.mjs).
 
 export const GOLDEN = resolve(PKG, '../contracts/golden/morph-geom-timed.jsonl');
@@ -33,6 +33,8 @@ export const cellOutcome = (max, names) => {
   return r === true ? 'pass' : r === false ? 'fail' : 'exhausted';
 };
 export const retryNext = (n, max, name) => (name !== 'fault' ? 'done' : n < max ? 'again' : 'stop');
+/** Lean `errKind`: only the harness limit and Playwright's timeout are stalls (faults); any other error is a page or harness defect. */
+export const errKind = (name) => (name === 'LimitError' || name === 'TimeoutError' ? 'stall' : 'defect');
 export const cellsPass = (outcomes) => outcomes.every((o) => o === 'pass');
 export const cellsKept = (outcomes) => outcomes.every((o) => o !== 'exhausted');
 
@@ -111,7 +113,7 @@ export const faultNote = (name, n, err) => ({
 });
 
 /**
- * One cell: `attempt(n)` returns `{ ok, value }` (a reading) or throws (a fault). Faults are retried up to the Lean attempt limit
+ * One cell: `attempt(n)` returns `{ ok, value }` (a reading) or throws (a fault). Only stalls (`errKind`) are faults; any other error is a defect and rejects at once. Faults are retried up to the Lean attempt limit
  * after `onFault` (which drops the pages); the first reading decides, so a failing reading is never retried into a pass.
  * Returns the Lean outcome (`pass`, `fail`, `exhausted`), the value of the reading and the fault notes.
  */
@@ -126,6 +128,7 @@ export async function takeCell(name, attempt, { max = LIMITS.attempts, onFault =
       kind = r.ok ? 'pass' : 'fail';
       value = r.value;
     } catch (err) {
+      if (errKind(err && err.name) !== 'stall') throw err;
       kind = 'fault';
       faults.push(faultNote(name, n, err));
       process.stderr.write(`fault ${name} attempt ${n} of ${max}: ${faults[faults.length - 1].error}\n`);

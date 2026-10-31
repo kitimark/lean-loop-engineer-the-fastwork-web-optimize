@@ -132,6 +132,13 @@
 {"fn":"verifyNext","in":{"attempt":"pass","max":2,"n":1},"out":"done"}
 {"fn":"verifyNext","in":{"attempt":"fail","max":2,"n":2},"out":"done"}
 {"fn":"verifyNext","in":{"attempt":"fault","max":1,"n":1},"out":"stop"}
+{"fn":"verifyErr","in":{"name":"LimitError"},"out":{"kind":"stall","next":"again","outcome":"exhausted"}}
+{"fn":"verifyErr","in":{"name":"TimeoutError"},"out":{"kind":"stall","next":"again","outcome":"exhausted"}}
+{"fn":"verifyErr","in":{"name":"TypeError"},"out":{"kind":"defect","next":"done","outcome":"fail"}}
+{"fn":"verifyErr","in":{"name":"Error"},"out":{"kind":"defect","next":"done","outcome":"fail"}}
+{"fn":"verifyErr","in":{"name":"RangeError"},"out":{"kind":"defect","next":"done","outcome":"fail"}}
+{"fn":"verifyErr","in":{"name":""},"out":{"kind":"defect","next":"done","outcome":"fail"}}
+{"fn":"verifyErr","in":{"name":"limiterror"},"out":{"kind":"defect","next":"done","outcome":"fail"}}
 {"fn":"verifyCells","in":{"outcomes":[]},"out":{"kept":true,"pass":true}}
 {"fn":"verifyCells","in":{"outcomes":["pass"]},"out":{"kept":true,"pass":true}}
 {"fn":"verifyCells","in":{"outcomes":["pass","pass"]},"out":{"kept":true,"pass":true}}
