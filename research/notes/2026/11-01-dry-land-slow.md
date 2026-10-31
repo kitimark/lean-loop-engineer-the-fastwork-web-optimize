@@ -7,14 +7,14 @@ Task dry-land-slow. Status words: MEASURED (from `.fw-console/timings.jsonl` or 
 - Nothing grew per step. Every sub-step ran as long as in the fast sample (reads test 9.7 to 10.1 s in all samples).
   The slow samples ran more checks: the lake build (lint cache miss), the workflow lint, and `runner:overflow-widths`
   (12 s). `fw land` ran its phases one after the other: reads test, then the lints, then the local tests. The dry
-  land time was the sum of the three phases (MEASURED, spans below).
+  land time was the sum of the three phases (MEASURED, spans below; timings rows 001d247 and 0058ef3 of `land dry lake`, startMs in the table source).
 - Host load is a small second cause: `console-api:compose` 6.0 s (load 5.4) became 7.1 and 8.3 s (load 4.7 and 6.2).
   The slowest sample (38.1 s) is not the one with the highest load at its start.
 - Fix: the three phases start together (Lean `Fw.Ops.LandDry`, theorems `par_eq_seq`, `seqRan_sub_parRan`,
   `waves_cover`), so the dry land costs the longest chain, not the sum. No check is dropped, the refusal named for the
   same results is the same.
 
-## Spans of the dry land (offsets from the start of "land dry lake", seconds; MEASURED)
+## Spans of the dry land (offsets from the start of "land dry lake", seconds; MEASURED, rows of `.fw-console/timings.jsonl` with the commits named in the header)
 
 | step | fast c83df96 (20.8 s, load 5.4) | 001d247 (33.3 s, load 4.7) | 0058ef3 (38.1 s, load 6.2) |
 |---|---|---|---|
@@ -55,7 +55,7 @@ not.
 - `recordLake`: the lake pass record is written only when reads and lints passed (`recordLake_needs_reads`,
   `recordLake_needs_lints`). The ledger-note check stays a short read after the wave (`waves_no_ledger`).
 
-## Before and after (MEASURED, my own dry lands, lake cache off so the lake step runs; same change set, same machine)
+## Before and after, small change set (MEASURED, timings rows d8c021d startMs 1793483732538 (before) and 4ed5e45 startMs 1793483702472 (after); lake cache off)
 
 The change set: lean/ and golden changes (lake lint), land-inputs read scan, `research/findings/ledger.json` (selects
 compose and the ledger test). `runner:overflow-widths` and the workflow lint cannot be selected inside this task's
@@ -67,9 +67,32 @@ writes, so they are absent from both rows.
 | mid | phases in series after a build conflict rule | 22.5 s | 3.0, 3.3 | 11.7 | 8.3 | 7.4 | 2.1 |
 | after | one wave | 14.2 s | 4.9, 5.5 | 11.2 | 9.2 | 7.7 | 2.3 |
 
-With the slow samples' extra checks (INFERRED from the spans above, not re-run): the chains are reads 10, lake 9 then
-fwcore-using tests (compose 7 to 8, overflow-widths 12) behind the build step, so the dry land is about 9 + 12 = 21 s
-at the same load, below the 30 s budget, against 33 to 38 s.
+## Before and after, slow change set (MEASURED, 2 pairs, order after, before, before, after)
+
+Scratch branch `scratch/dls-slowset` (never landed, deleted after) on main 261827249: a one-line comment in
+`.github/workflows/path-pix.yml` and one in `lean/Fw/Ci/Trigger.lean`. It selects the lake lint, the workflow lint,
+`runner:overflow-widths` and the reads scan. `FW_LAND_LAKE_CACHE=off`; "before" runs main's `land.ts`, "after" this
+branch's. All five printed `VERDICT dry`. Timings rows are `land dry lake` of commit 09ab4c0 (the checkout that ran
+`fw`); the key is the startMs. Spans are seconds, offset from the row start.
+
+| run | code | startMs | total | load (start) | lake lint | fwcore-build | overflow-widths (offset, length) | compose |
+|---|---|---|---|---|---|---|---|---|
+| A1 | after | 1793485078913 | 15.8 s | 4.79 | 7.8 | 1.3 | 2.1, 13.5 | not selected |
+| B1 | before | 1793485115727 | 25.2 s | 4.28 | 2.1 | 0.9 | 13.7, 11.4 | not selected |
+| B2 | before | 1793485142154 | 26.0 s | 5.02 | 2.9 | 0.9 | 14.4, 11.4 | not selected |
+| A2 | after | 1793485196559 | 15.8 s | 6.73 | 10.7 | 1.1 | 2.3, 13.0 | not selected |
+
+Gain: 25.2 and 26.0 s down to 15.8 and 15.8 s (about 10 s). The longest chain after is fwcore-build, then
+overflow-widths (1.3 + 13.5 = 14.8 s, plus about 1 s of merge and claims lint). The lake lint (8 to 11 s) runs beside
+it. A run with a ledger change would also select compose; it was not part of this set, so no compose span is claimed.
+
+Honest reading: the alert's samples were 33 to 38 s. This set was 25 to 26 s before the fix and 15.8 s after, so it
+shows the fix on a set whose lake step was warm (built 0; the 33 to 38 s samples had a cold or missed lake cache and
+the ledger-selected compose). The 30 s budget is met on this set after the fix (15.8 s) and was already met before it
+(25.2 to 26.0 s); no measured row exists for a set that was over budget before. I do not claim the 33 to 38 s case is
+cured, only that the same checks cost the longest chain instead of the sum.
+The offsets of sample 001d247 give about 2.3 + 7.6 + 1.0 + 12.0 = 22.9 s at the same load, before the slowdown of
+running the checks together (reads test 9.8 s before, 11.2 s after).
 Accepted limit: `runner:overflow-widths` waits for the build step, so its 12 s starts after the lake build when both
 run; a smaller chain would need the width test not to use fwcore (a follow-up).
 
