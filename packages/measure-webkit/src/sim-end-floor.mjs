@@ -37,8 +37,6 @@ export const CUT_ARMS = Object.freeze([
   { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
 ]);
 
-/** The arm sets a run can load: `attrib` (sim-floor-attrib, the default), `cut` (sim-end-cut: v2p against the three stacked arms), `park` (park-engage) and `sweep` (sweep-pause-all: the default config against the sweep pause alone). */
-/** The single flag of task sweep-pause-all against the default config. */
 export const SWEEP_ARMS = Object.freeze([ARMS[0], { id: 'sweepPause', fw: SWEEP_PAUSE, search: `?fw=${SWEEP_PAUSE}` }]);
 
 export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), sweep: SWEEP_ARMS, park: PARK_ARMS });
@@ -115,17 +113,12 @@ export function windowOf(rows, stage, raf) {
   return { raf, seen: t.FireAnimationFrame, recalcs: t.RecalculateStyles, marks: true, tally: t, spanMs: Math.round((b - a) * 1000) };
 }
 
-/**
- * In-page function `sweepLoops()` (task sweep-pause-all): one row per `sweepDoc` document animation, [target, playState, pending,
- * startTime is null, target intersects the viewport]. It reads, it decides nothing.
- */
 export const SWEEP_LOOPS_JS = `const sweepLoops = () => document.getAnimations().filter((a) => /sweepDoc/.test(a.animationName || '')).map((a) => {
     const t = a.effect && a.effect.target;
     const r = t ? t.getBoundingClientRect() : null;
     return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight];
   });`;
 
-/** The in-page script of one load: scroll to the end, settle, read the `end` window, go up one viewport and back, settle, read the `back` window, then list the animations. */
 export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act = null } = {}) => `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const frame = () => new Promise((r) => requestAnimationFrame(r));
@@ -196,7 +189,6 @@ const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} ru
 
 const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport ${JSON.stringify(l)}` : 'no read');
 
-/** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
 export function rowLines(raw, arms = armsOf(raw.meta?.armSet)) {
   const out = [];
   for (const r of raw.rounds) {

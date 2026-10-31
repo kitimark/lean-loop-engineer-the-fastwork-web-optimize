@@ -31,11 +31,7 @@ export { PERIOD_MS, phase };
 
 export const reportAction = (paused: boolean, rep: boolean): 'pause' | 'resume' | 'none' => (rep ? (paused ? 'none' : 'pause') : paused ? 'resume' : 'none');
 
-/**
- * Lean `Held`: `cur` active time so far, `fz` frozen time so far, `since` the clock at the last close, `frozen` the scene state of the open span.
- * A script pause overrides the CSS play state for good (WebKit CSSAnimation.cpp:278-287@862f17d), so the scene rule no longer freezes a held or
- * resumed loop; the spans in which the scene is paused are tracked here and left out of the resumed phase.
- */
+// A script pause overrides the CSS play state for good (WebKit CSSAnimation.cpp:278-287@862f17d).
 export interface Held {
   readonly start: CSSNumberish | null;
   readonly cur: number;
@@ -51,24 +47,15 @@ interface ElState {
 
 export const holdNew = (held: boolean, running: boolean): boolean => !held && running;
 
-/** Lean `close`: the open span counts as frozen or active by the saved scene state. */
 export const close = (h: Held, now: number): Held =>
   h.frozen ? { ...h, fz: h.fz + (now - h.since), since: now } : { ...h, cur: h.cur + (now - h.since), since: now };
 
-/** Lean `setScene`: close the open span, open one with the new scene state. */
 export const setScene = (h: Held, now: number, active: boolean): Held => ({ ...close(h, now), frozen: !active });
 
-/** Lean `resumeTime`: where a loop with no start time resumes. */
 export const resumeTime = (h: Held, now: number): number => close(h, now).cur;
 
-/** Lean `startShift`: the frozen time a loop with a start time moves its start by. */
 export const startShift = (h: Held, now: number): number => close(h, now).fz;
 
-/**
- * `host` is the element that carries the scene attribute (the platform section). Its paused rule pauses every loop in CSS while the section is
- * far from the viewport and plays them again when the attribute turns active, also the loops of a word that is still out of the viewport: that
- * start is not a report, so an attribute change holds the reported elements again.
- */
 export function watchSweepPause(
   els: Element[],
   IO: typeof IntersectionObserver = IntersectionObserver,

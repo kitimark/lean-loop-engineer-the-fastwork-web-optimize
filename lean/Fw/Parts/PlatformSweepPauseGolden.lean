@@ -50,7 +50,6 @@ def constLine : String :=
     ("out", Json.mkObj [("periodMs", numJ period), ("flag", "platform.sweep:offscreen-pause"),
       ("variant", "offscreen-pause")])]).compress
 
-/-- A hold: current time, clock, scene frozen at the hold, scene events (clock, new active), the resume clock. -/
 abbrev HoldCase := Rat × Rat × Bool × List (Rat × Bool) × Rat
 
 def holdCases : List HoldCase :=

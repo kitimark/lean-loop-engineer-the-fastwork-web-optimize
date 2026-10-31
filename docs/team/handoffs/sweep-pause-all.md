@@ -14,7 +14,7 @@ CI runs: webkit-sim end-floor (arm set sweep, the fix) 41189420040 at c74f1111e:
 Verified locally: vitest platform.sweep (3 files), @fw/site typecheck, part-footprint --check after --write.
 Open: platform:faded-pause composition (finding only); hero.accent/hero.cue watchers may have the same scene-restart shape; the 2 in-view sweep loops still run at the end of the page (by design, same look).
 
-State: cause found (platform scene CSS rule restarts hidden loops when the section comes near; no IO report follows). `watchSweepPause(els, IO, now, host)` re-holds on a scene attribute change; pauses every running loop; no-start-time loops resume at currentTime + paused. Local Playwright repro passes (dbg script in session scratchpad only).
+State: cause found (platform scene CSS rule restarts hidden loops when the section comes near; no IO report follows). `watchSweepPause(els, IO, now, host)` re-holds on a scene attribute change; pauses every running loop; no-start-time loops resume at currentTime + paused. Local Playwright repro passes.
 Harness: SWEEP_LOOPS_JS and arm `sweepPause` in packages/measure-webkit/src/sim-end-floor.mjs (own function, rows line "sweep loops <arm>").
 Finding only: platform:faded-pause conflict (two owners of pause/startTime; could compose with a reason set; new Lean case, follow-up).
 Read first: research/notes/2026/10-31-sweep-pause-all.md.

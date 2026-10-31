@@ -1,15 +1,7 @@
 import Fw.Parts.PlatformSweep
 /-!
 # `platform.sweep:offscreen-pause`: the sweep stops ticking while its element is offscreen, and shows the same phase
-
-Named premise `Running` (TS guard, not proved about the engine): the watcher `watchSweepPause` (apps/site/src/parts/platform.sweep/pause.ts)
-reads `getAnimations()` at each report and pauses every running animation. A loop with a start time resumes with that start time, which is `seek`
-to `orig`. A loop with no start time yet (a play still pending) has current time 0 or the hold time, and resumes at that time plus the time
-paused (`resumeTime`), within one frame of `orig` (INFERRED, both engines).
-Named premises `Scene` and `Override` (WebKit CONFIRMED, Chromium INFERRED the same): the platform section's CSS rule starts a loop again when the scene
-attribute turns active, also one whose word is still out of the viewport; the watcher holds the reported elements again on that attribute change
-(MutationObserver, no per-frame work). A script `pause()` overrides the CSS play state for good (`Override`, CSSAnimation.cpp:278-287@862f17d), so
-the rule no longer freezes a held loop; the watcher tracks the spans with the scene paused and leaves them out. See "Held loops" below.
+Premise `Override`: a script `pause()` overrides the CSS play state for good (WebKit CSSAnimation.cpp:278-287@862f17d).
 -/
 namespace Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweep (phase pos)
@@ -140,24 +132,8 @@ theorem offscreen_ticks_le_one (g : Step) (rest : List Step) (hv : g.2.1 = false
 
 theorem ticks_le_original (f : Step) : ticks f ≤ 1 := by unfold ticks; split <;> omega
 
-/-! ## Held loops: scene-frozen spans
-
-The watcher holds a running loop with a script `pause()`. WebKit then keeps the loop's play state overridden for good
-(Source/WebCore/animation/CSSAnimation.cpp:278-287@862f17d: after `play()` or `pause()`, `m_overriddenProperties` gets `PlayState`), so the
-platform section's CSS rule (`animation-play-state: paused` while the scene attribute is `paused`) no longer freezes a loop the watcher has
-resumed or holds. That fact is the named premise `Override` (CONFIRMED for WebKit, INFERRED for Chromium). Without tracking, a resumed loop
-shows its hold phase plus all the wall-clock time (`untracked`), which the flag-off page does not: there the rule freezes it while the scene is
-paused. The flag-off phase (`Unpaused`) is the hold phase plus the sum of the durations of the spans in which the scene was active.
-
-The hold is a list of spans (duration, scene active). The TS state is `Held`: `cur` the active time so far (starting at the loop's current
-time), `fz` the frozen time so far, `since` the clock at the last close, `frozen` the scene state of the open span. `advance` adds one closed
-span; `close` closes the open span at a clock value; `setScene` closes it and opens the next one (the MutationObserver callback). A resume
-calls `close` and reads `cur` (no start time) or `fz` (a start time: the start moves later by the frozen time). A hold of a loop with a start
-time saves `cur = since - start`, because a running loop shows the clock minus its start time (premise `Clock`). -/
-
 abbrev Span := Rat × Bool
 
-/-- A held loop: active time so far, frozen time so far, clock at the last close, scene frozen in the open span. -/
 structure Held where
   cur : Rat
   fz : Rat
@@ -165,23 +141,18 @@ structure Held where
   frozen : Bool
 deriving Repr
 
-/-- One closed span of the given duration and scene state. -/
 def advance (h : Held) (s : Span) : Held :=
   if s.2 then { h with cur := h.cur + s.1, since := h.since + s.1 }
   else { h with fz := h.fz + s.1, since := h.since + s.1 }
 
-/-- Close the open span at clock `now`: it counts as frozen or active by the saved scene state. -/
 def close (h : Held) (now : Rat) : Held :=
   if h.frozen then { h with fz := h.fz + (now - h.since), since := now }
   else { h with cur := h.cur + (now - h.since), since := now }
 
-/-- The scene attribute changed at `now`: close the open span, open one with the new state. -/
 def setScene (h : Held) (now : Rat) (active : Bool) : Held := { close h now with frozen := !active }
 
-/-- The time a no-start-time loop resumes at. -/
 def resumeTime (h : Held) (now : Rat) : Rat := (close h now).cur
 
-/-- The frozen time a loop with a start time moves its start by. -/
 def startShift (h : Held) (now : Rat) : Rat := (close h now).fz
 
 def activeSum (spans : List Span) : Rat := ((spans.filter (·.2)).map (·.1)).sum
@@ -190,10 +161,8 @@ def frozenSum (spans : List Span) : Rat := ((spans.filter (fun s => !s.2)).map (
 
 def totalSum (spans : List Span) : Rat := (spans.map (·.1)).sum
 
-/-- What the flag-off page shows: the hold phase plus the durations of the spans in which the scene was active (the CSS rule runs the loop only then). -/
 def Unpaused (cur : Rat) (spans : List Span) : Rat := cur + activeSum spans
 
-/-- What a held loop shows without tracking, once the script pause has overridden the CSS rule (premise `Override`). -/
 def untracked (cur : Rat) (spans : List Span) : Rat := cur + totalSum spans
 
 theorem activeSum_cons (s : Span) (t : List Span) : activeSum (s :: t) = (if s.2 then s.1 else 0) + activeSum t := by
@@ -223,7 +192,6 @@ theorem advance_fz (h : Held) (s : Span) : (advance h s).fz = h.fz + (if s.2 the
 theorem advance_since (h : Held) (s : Span) : (advance h s).since = h.since + s.1 := by
   unfold advance; split <;> simp
 
-/-- The fold of `advance` over the spans: all three accumulators, by induction. -/
 theorem fold_core (h : Held) (spans : List Span) :
     (spans.foldl advance h).cur = Unpaused h.cur spans ∧ (spans.foldl advance h).fz = h.fz + frozenSum spans ∧
     (spans.foldl advance h).since = h.since + totalSum spans := by
@@ -242,22 +210,18 @@ theorem fold_core (h : Held) (spans : List Span) :
 theorem fold_cur (h : Held) (spans : List Span) : (spans.foldl advance h).cur = Unpaused h.cur spans :=
   (fold_core h spans).1
 
-/-- The fold equals the flag-off phase, and the page without tracking differs from it by exactly the frozen time. -/
 theorem untracked_off (cur : Rat) (spans : List Span) : untracked cur spans = Unpaused cur spans + frozenSum spans := by
   unfold untracked Unpaused
   rw [total_split]; grind
 
-/-- A scene-frozen span of positive length makes the untracked page differ (the path of the refused round: hidden, scene paused, scrolled back). -/
 theorem untracked_differs (cur : Rat) (spans : List Span) (hz : 0 < frozenSum spans) :
     untracked cur spans ≠ Unpaused cur spans := by
   rw [untracked_off]; grind
 
-/-- The spans an event list cuts the hold into: from `since` with scene state `frozen`, each event (clock, new active) ends one span. -/
 def spansOf : Rat → Bool → List (Rat × Bool) → Rat → List Span
   | since, frozen, [], now => [(now - since, !frozen)]
   | since, frozen, e :: rest, now => (e.1 - since, !frozen) :: spansOf e.1 (!e.2) rest now
 
-/-- The TS handler: the events applied one by one with `setScene`. -/
 def events (h : Held) (evs : List (Rat × Bool)) : Held := evs.foldl (fun g e => setScene g e.1 e.2) h
 
 def core (h : Held) : Rat × Rat × Rat := (h.cur, h.fz, h.since)
@@ -275,7 +239,6 @@ theorem fold_core_ext (h h' : Held) (hc : core h = core h') (l : List Span) :
   unfold Unpaused at a b
   refine ⟨?_, ?_, ?_⟩ <;> grind
 
-/-- The event handler closed at the resume equals the span fold: the TS event code is the span model. -/
 theorem events_core (h : Held) (evs : List (Rat × Bool)) (now : Rat) :
     core (close (events h evs) now) = core ((spansOf h.since h.frozen evs now).foldl advance h) := by
   induction evs generalizing h with
@@ -295,13 +258,11 @@ theorem events_core (h : Held) (evs : List (Rat × Bool)) (now : Rat) :
     unfold setScene
     simpa [core] using hc
 
-/-- No start time: the resumed time equals the flag-off phase over the spans (not by `rfl`: it is the fold above). -/
 theorem resume_same (h : Held) (evs : List (Rat × Bool)) (now : Rat) :
     resumeTime (events h evs) now = Unpaused h.cur (spansOf h.since h.frozen evs now) := by
   have := congrArg (·.1) (events_core h evs now)
   simpa [core, resumeTime, fold_cur] using this
 
-/-- Any looking function of the resumed loop equals the one of the flag-off page. -/
 theorem look_same_pending {α : Type} (g : Rat → α) (h : Held) (evs : List (Rat × Bool)) (now : Rat) :
     g (resumeTime (events h evs) now) = g (Unpaused h.cur (spansOf h.since h.frozen evs now)) := by
   rw [resume_same]
@@ -311,7 +272,6 @@ theorem resume_pending_phase (h : Held) (evs : List (Rat × Bool)) (now : Rat) :
     pos (resumeTime (events h evs) now) = pos (Unpaused h.cur (spansOf h.since h.frozen evs now)) := by
   rw [resume_same]; exact ⟨rfl, rfl⟩
 
-/-- A loop with a start time `st` (premise `Clock`: `h.cur = h.since - st` at the hold) resumes with start `st + startShift`: it shows `now - start`, the flag-off phase. -/
 theorem start_same (h : Held) (st : Rat) (hc : h.cur = h.since - st) (hfz : h.fz = 0) (evs : List (Rat × Bool)) (now : Rat) :
     now - (st + startShift (events h evs) now) = Unpaused h.cur (spansOf h.since h.frozen evs now) := by
   have e := events_core h evs now
@@ -325,7 +285,6 @@ theorem start_same (h : Held) (st : Rat) (hc : h.cur = h.since - st) (hfz : h.fz
   unfold Unpaused at f1 ⊢
   grind
 
-/-- Hold one running animation: skipped when already held (first hold wins), not running left alone. -/
 def holdNew (held running : Bool) : Bool := !held && running
 
 theorem hold_already_held (running : Bool) : holdNew true running = false := by simp [holdNew]
@@ -334,14 +293,12 @@ theorem hold_running_new : holdNew false true = true := rfl
 
 theorem hold_not_running (held : Bool) : holdNew held false = false := by simp [holdNew]
 
-/-- The held table: animation id to its saved hold. `hold` inserts only an id not yet present. -/
 def hold (H : List (Nat × Held)) (a : Nat) (h : Held) : List (Nat × Held) :=
   if H.any (·.1 == a) then H else (a, h) :: H
 
 theorem hold_present (H : List (Nat × Held)) (a : Nat) (h : Held) (hp : H.any (·.1 == a) = true) :
     hold H a h = H := by simp [hold, hp]
 
-/-- A re-hold on a scene attribute change never moves an earlier hold. -/
 theorem rehold_keeps (H : List (Nat × Held)) (a : Nat) (h h' : Held) :
     hold (hold H a h) a h' = hold H a h := by
   unfold hold
@@ -350,7 +307,6 @@ theorem rehold_keeps (H : List (Nat × Held)) (a : Nat) (h h' : Held) :
   · simp at hp
     simp [hp]
 
-/-- The scene re-hold is idempotent on the held table. -/
 theorem rehold_idem (H : List (Nat × Held)) (a : Nat) (h : Held) : hold (hold H a h) a h = hold H a h :=
   rehold_keeps H a h h
 

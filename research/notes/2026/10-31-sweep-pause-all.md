@@ -31,7 +31,7 @@ at that time plus the time the scene was active while held (`resumeTime`), which
 the loop while the scene is paused. A loop with a start time moves its start later by the time the scene was paused while held (`startShift`). Local repro with the fix: end stage Document and Earn paused, Secure and Organized running. Unit tests in
 `platform.sweep/pause.test.ts` (scene attribute change holds a reported element; leaves an on-screen one; no start time pauses and resumes at
 time plus paused; created after mount; empty first report; cancelled while paused left alone). No `animationstart` listener (the
-`engine.events:quiet` premise allows none). Lean: see "Lean for the fix" below; `shown_same`, `visible_phase` unchanged.
+`engine.events:quiet` premise allows none). `shown_same`, `visible_phase` unchanged.
 After the first `pause()` the CSS play state is overridden on that animation (WebKit CSSAnimation.cpp:278-287@862f17d), so the scene rule no longer
 pauses a loop we hold or resumed. Round 1 missed what follows: hidden at the end of the page, scroll to the top (scene paused), scroll back showed
 cur + whole wall-clock time instead of cur + the time the scene was active (off by the scene-paused span mod PERIOD_MS). The MutationObserver callback
