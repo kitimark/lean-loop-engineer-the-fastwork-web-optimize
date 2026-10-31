@@ -19,7 +19,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { fileIntents } from "./land-intent.ts";
-import { dryRecordLake, dryWaves, type DryPhase } from "./land-dry.ts";
+import { dryRecordLake, DRY_WAVES, type DryPhase } from "./land-dry.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { noteShapeProblems } from "./land-notes.ts";
@@ -890,7 +890,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       if (lakeSkipped) lines.push(`dry: lake build and axiom check skipped (a pass is on record for the lean/ tree ${lakeKey!.lean.slice(0, 12)} and the golden tree ${lakeKey!.golden.slice(0, 12)})`);
       // Fw.Ops.LandDry: every phase's checks run (waves from the Lean rule), then the first failing phase in order names the refusal.
       const folded: Partial<Record<DryPhase, Folded>> = {};
-      for (const wave of dryWaves(lakeRuns, needsBuild)) {
+      for (const wave of DRY_WAVES) {
         const parts = wave.map((ph) => ({ ph, argv: ph === "reads" ? readsArgv : ph === "lints" ? lintArgv : localArgv })).filter((x) => x.argv.length > 0);
         const list = parts.flatMap((x) => x.argv);
         let at = 0;

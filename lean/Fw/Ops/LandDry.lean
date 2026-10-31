@@ -78,25 +78,20 @@ theorem par_loc_last (r : Res) (h0 : r.reads = true) (h1 : r.lints = true) (h2 :
   rw [par_eq_seq]; simp [seqVerdict, h0, h1, h2, h]
 
 /-- The waves of checks: the phases of one wave start together; the next wave starts when the wave before it has finished.
-The lake build of the lints and the fwcore build of the local tests share one build tree, so with both they never overlap. -/
-def waves (lakeLint needsBuild : Bool) : List (List Phase) :=
-  if lakeLint && needsBuild then [[.reads, .lints], [.loc]] else [[.reads, .lints, .loc]]
+One wave holds all three phases. The lake build of the lints and the fwcore build of the local tests share one build tree,
+and both run under the machine-wide Lake slot (`scripts/lake-slot-lib.sh`, `Fw.Sched.LakeSlot`), which lets one build at a
+time through; a local test that needs `fwcore` waits for the build step through `checkDeps`. -/
+def waves : List (List Phase) := [[.reads, .lints, .loc]]
 
 /-- Every phase that holds checks is in exactly one wave. -/
-theorem waves_cover (a b : Bool) (p : Phase) (h : p = .reads ∨ p = .lints ∨ p = .loc) :
-    (waves a b).flatten.count p = 1 := by
-  rcases h with rfl | rfl | rfl <;> cases a <;> cases b <;> decide
+theorem waves_cover (p : Phase) (h : p = .reads ∨ p = .lints ∨ p = .loc) : waves.flatten.count p = 1 := by
+  rcases h with rfl | rfl | rfl <;> decide
 
-/-- The ledger-note check is not a wave: it is a short read of the merge tree, run after the waves. -/
-theorem waves_no_ledger (a b : Bool) : Phase.ledger ∉ (waves a b).flatten := by
-  cases a <;> cases b <;> decide
+/-- The ledger-note check is not a wave: it is a short read of the merge tree, run after the wave. -/
+theorem waves_no_ledger : Phase.ledger ∉ waves.flatten := by decide
 
-/-- With both builds, the lake lints and the local tests never start together. -/
-theorem waves_build_serial : waves true true = [[.reads, .lints], [.loc]] := rfl
-
-/-- Without a build conflict, one wave holds all three. -/
-theorem waves_free (a b : Bool) (h : (a && b) = false) : waves a b = [[.reads, .lints, .loc]] := by
-  simp [waves, h]
+/-- The old protocol ran its checks in three steps; the new one starts them together, so no wave is later than the first. -/
+theorem waves_single : waves.length = 1 := rfl
 
 /-- The lake pass record is written only when the reads and the lints both passed and the lake lint ran. -/
 def recordLake (r : Res) (lakeRan : Bool) : Bool := r.reads && r.lints && lakeRan
@@ -107,14 +102,11 @@ theorem recordLake_needs_reads (r : Res) (l : Bool) (h : recordLake r l = true) 
 theorem recordLake_needs_lints (r : Res) (l : Bool) (h : recordLake r l = true) : r.lints = true := by
   simp [recordLake] at h; exact h.1.2
 
-#guard waves true true == [[.reads, .lints], [.loc]]
-#guard waves true false == [[.reads, .lints, .loc]]
-#guard parVerdict ⟨true, false, false, false⟩ == some .lints
+#guard waves == [[.reads, .lints, .loc]]
+#guard parVerdict ⟨true, false, true, true⟩ == some .lints
 
 structure Row where
   r : Res
-  lakeLint : Bool
-  needsBuild : Bool
 deriving Repr
 
 def phaseName : Phase → String
@@ -130,21 +122,20 @@ def optName : Option Phase → Json
 def namesJson (l : List Phase) : Json := Json.arr (l.map (Json.str ∘ phaseName)).toArray
 
 def rowJson (w : Row) : Json :=
-  Json.mkObj [("ledger", w.r.ledger), ("lakeLint", w.lakeLint), ("lints", w.r.lints), ("local", w.r.loc),
-    ("needsBuild", w.needsBuild), ("ranOld", namesJson (seqRan w.r)),
+  Json.mkObj [("ledger", w.r.ledger), ("lints", w.r.lints), ("local", w.r.loc),
+    ("ranOld", namesJson (seqRan w.r)),
     ("reads", w.r.reads), ("verdict", optName (parVerdict w.r)),
-    ("waves", Json.arr ((waves w.lakeLint w.needsBuild).map namesJson).toArray)]
+    ("waves", Json.arr (waves.map namesJson).toArray)]
 
 def rows : List Row :=
   let ok : Res := ⟨true, true, true, true⟩
-  [⟨ok, true, true⟩, ⟨ok, true, false⟩, ⟨ok, false, true⟩, ⟨ok, false, false⟩,
-   ⟨{ ok with reads := false }, true, false⟩,
-   ⟨{ ok with lints := false }, true, true⟩,
-   ⟨{ ok with ledger := false }, false, false⟩,
-   ⟨{ ok with loc := false }, false, true⟩,
-   ⟨⟨false, false, false, false⟩, true, true⟩,
-   ⟨⟨true, false, true, false⟩, false, false⟩,
-   ⟨⟨true, true, false, false⟩, true, false⟩]
+  [⟨ok⟩, ⟨{ ok with reads := false }⟩,
+   ⟨{ ok with lints := false }⟩,
+   ⟨{ ok with ledger := false }⟩,
+   ⟨{ ok with loc := false }⟩,
+   ⟨⟨false, false, false, false⟩⟩,
+   ⟨⟨true, false, true, false⟩⟩,
+   ⟨⟨true, true, false, false⟩⟩]
 
 def jsonl (_ : Unit) : String := String.join (rows.map fun r => (rowJson r).compress ++ "\n")
 
