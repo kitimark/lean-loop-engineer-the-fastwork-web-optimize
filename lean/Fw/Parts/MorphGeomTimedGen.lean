@@ -92,7 +92,17 @@ def traceCases : List (List TakeEv × List Bool) :=
    ([.push, .take, .push, .take, .push, .take, .push], [true, true, true, false]),
    ([.push, .take, .push, .take, .push, .push], [true, true, false, false]),
    ([.push, .take, .push, .take, .push, .take, .push, .take], [false, false, false, false]),
-   ([.push, .take, .push, .take, .push, .push], [false, false, false, false])]
+   ([.push, .take, .push, .take, .push, .push], [false, false, false, false]),
+   ([.push, .push, .take, .push, .push, .take], [false, false, false, true]),
+   ([.push, .push, .take, .push, .push, .take], [true, false, false, true]),
+   ([.push, .push], [false, false]), ([.push, .push], [true, true])]
+
+def coveredCases : List (Rat × Rat × Rat) :=
+  [(0, 800, 800), (0, 799, 800), (100, 900, 800), (100, 899, 800), (5000, 5000, 800), (0, 12000, 800)]
+
+def retryCases : List (List PushObs) :=
+  [[], [⟨false, false, true⟩, ⟨false, true, true⟩], [⟨true, false, false⟩], [⟨true, false, true⟩], [⟨true, true, false⟩],
+   [⟨true, false, false⟩, ⟨false, false, true⟩], [⟨true, false, false⟩, ⟨true, true, true⟩]]
 
 def verifyLines (_ : Unit) : List String :=
   gline "verify" [] (Json.mkObj [("windowMs", .num ⟨verifyWindowMs, 0⟩), ("frameMs", jdec 4 verifyFrameMs), ("tolPx", jdec 4 verifyTolPx),
@@ -106,7 +116,12 @@ def verifyLines (_ : Unit) : List String :=
       ("pairs", jl (ps.map fun (dt, b, a) => Json.mkObj [("dt", jdec 4 dt), ("before", jdec 4 b), ("after", jdec 4 a)]))]
       (.bool (keptAll verifyFrameMs lost ps))) ++
   (traceCases.map fun (evs, cs) =>
-    gline "verifyTrace" [("events", jl (evs.map fun e => Json.str e.name)), ("chances", jl (cs.map fun c => Json.bool c))] (.bool (traceOk evs cs)))
+    gline "verifyTrace" [("events", jl (evs.map fun e => Json.str e.name)), ("chances", jl (cs.map fun c => Json.bool c))] (.bool (traceOk evs cs))) ++
+  (coveredCases.map fun (l, t, w) =>
+    gline "verifyCovered" [("leave", jdec 4 l), ("last", jdec 4 t), ("window", jdec 4 w)] (.bool (leaveCovered l t w))) ++
+  (retryCases.map fun ps =>
+    gline "verifyRetry" [("pushes", jl (ps.map fun p => Json.mkObj [("light", Json.bool p.light), ("chance", Json.bool p.chance), ("taken", Json.bool p.taken)]))]
+      (.bool (retryJudged ps)))
 
 def goldenText (_ : Unit) : String := String.join ((scenarioLines () ++ rebaseLines () ++ crossLines () ++ takeLines () ++ verifyLines ()).map (· ++ "\n"))
 

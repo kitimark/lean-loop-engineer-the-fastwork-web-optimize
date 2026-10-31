@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { GOLDEN, analyseFlipProbe, colorDist, judgeKept, judgeQuiet, judgeTrace, loadVerify, MUTATION_OWNER, MUTATION_RUN } from '../src/flip-verify.mjs';
+import { GOLDEN, analyseFlipProbe, colorDist, installFlipProbe, judgeKept, judgeQuiet, judgeTrace, leaveCovered, loadVerify, MUTATION_OWNER, MUTATION_RUN, pushChance, retryJudged } from '../src/flip-verify.mjs';
 
 const lines = readFileSync(GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (fn) => lines.filter((l) => l.fn === fn);
@@ -19,6 +19,22 @@ test('every verifyKept golden line is replayed by judgeKept', () => {
 test('every verifyTrace golden line is replayed by judgeTrace', () => {
   assert.ok(of('verifyTrace').length >= 10);
   for (const l of of('verifyTrace')) assert.equal(judgeTrace(l.in.events, l.in.chances), l.out, JSON.stringify(l.in));
+});
+
+test('every verifyCovered golden line is replayed by leaveCovered', () => {
+  assert.ok(of('verifyCovered').length >= 6);
+  for (const l of of('verifyCovered')) assert.equal(leaveCovered(l.in.leave, l.in.last, l.in.window), l.out, JSON.stringify(l.in));
+});
+
+test('every verifyRetry golden line is replayed by retryJudged', () => {
+  assert.ok(of('verifyRetry').length >= 7);
+  for (const l of of('verifyRetry')) assert.equal(retryJudged(l.in.pushes), l.out, JSON.stringify(l.in));
+});
+
+test('a push is a chance when the nav was dark at it or a later frame followed the first dark one', () => {
+  assert.equal(pushChance(true, false), true);
+  assert.equal(pushChance(false, true), true);
+  assert.equal(pushChance(false, false), false);
 });
 
 test('the golden names the six mutations and the window', () => {
@@ -88,7 +104,7 @@ test('a one-frame stall in a slow frame is within that frame, a restart is not',
   assert.equal(analyseFlipProbe({ frames: stall, trace }, { baseWidth: 984, verify }).a3a.ok, true);
 });
 
-test('a push the guard never opened for is not judged, but only one in four may be excused', () => {
+test('a push the guard never opened for is not judged, and any number may be excused while one push is taken', () => {
   const four = [{ kind: 'push', at: 0 }, { kind: 'take', el: 1 }, { kind: 'push', at: 700 }, { kind: 'take', el: 1 }, { kind: 'push', at: 1400 }, { kind: 'take', el: 1 }, { kind: 'push', at: 2100 }];
   const frames = Array.from({ length: 200 }, (_, i) => fr(i * 16.7));
   const none = frames.map((f) => (f.ts >= 2100 ? { ...f, dark: false } : f));
@@ -100,7 +116,75 @@ test('a push the guard never opened for is not judged, but only one in four may 
   assert.equal(opened.a5.ok, false, 'the guard was open with a later frame in the window and the push was not taken');
   const two = [{ kind: 'push', at: 0 }, { kind: 'take', el: 1 }, { kind: 'push', at: 700 }, { kind: 'take', el: 1 }, { kind: 'push', at: 1400 }, { kind: 'push', at: 2100 }];
   const late = frames.map((f) => (f.ts >= 1400 ? { ...f, dark: false } : f));
-  assert.equal(analyseFlipProbe({ frames: late, trace: two }, { baseWidth: 984, verify }).a5.ok, false);
+  assert.equal(analyseFlipProbe({ frames: late, trace: two }, { baseWidth: 984, verify }).a5.ok, true);
+  const dead = [{ kind: 'push', at: 0 }, { kind: 'push', at: 700 }];
+  assert.equal(analyseFlipProbe({ frames: late, trace: dead }, { baseWidth: 984, verify }).a5.ok, false, 'no push taken: the guard is dead');
+});
+
+test('a band whose open pushes start light on a starved runner passes on its taken closes, as in run 41198892838', () => {
+  const light = 'is-hero-chrome-ready';
+  const dark = 'is-hero-chrome-ready is-on-dark';
+  const trace = [
+    { kind: 'push', at: 300, nav: light },
+    { kind: 'push', at: 11000, nav: dark },
+    { kind: 'take', el: 25 },
+    { kind: 'push', at: 13000, nav: light },
+    { kind: 'push', at: 23700, nav: dark },
+    { kind: 'take', el: 27 },
+  ];
+  const frames = Array.from({ length: 40 }, (_, i) => fr(300 + i * 600, { dark: false }));
+  const r = analyseFlipProbe({ frames, trace }, { baseWidth: 984, verify, expectedPushes: 4 });
+  assert.deepEqual(r.a5.chances, [false, true, false, true]);
+  assert.equal(r.a5.ok, true);
+  assert.deepEqual(r.a5.obs.map((o) => o.light), [true, false, true, false]);
+  assert.equal(retryJudged(r.a5.obs), false, 'no light-start push was judged: the run must not pass on the retry');
+});
+
+test('a push the nav was dark at, left untaken on a one-frame runner, is a lost chance', () => {
+  const trace = [{ kind: 'push', at: 0, nav: 'is-on-dark' }, { kind: 'push', at: 700, nav: 'is-on-dark' }, { kind: 'take', el: 2 }];
+  const frames = [fr(0, { dark: true }), fr(2000, { dark: true })];
+  const r = analyseFlipProbe({ frames, trace }, { baseWidth: 984, verify });
+  assert.deepEqual(r.a5.chances, [true, true]);
+  assert.equal(r.a5.ok, false);
+});
+
+test('the probe says a leave is covered only after a frame windowMs past it', () => {
+  const g = globalThis;
+  const saved = { window: g.window, document: g.document, requestAnimationFrame: g.requestAnimationFrame };
+  let flip = false;
+  let frame = null;
+  g.window = { scrollY: 0 };
+  g.document = {
+    documentElement: { classList: { contains: () => flip } },
+    querySelector: () => null,
+  };
+  g.requestAnimationFrame = (cb) => {
+    frame = cb;
+  };
+  try {
+    installFlipProbe();
+    const p = g.window.__fwFlipProbe;
+    p.start();
+    const tick = (ts) => {
+      const cb = frame;
+      frame = null;
+      cb(ts);
+    };
+    assert.equal(p.leaveReady(800), true, 'no flip seen: nothing to wait for');
+    flip = true;
+    tick(0);
+    assert.equal(p.leaveReady(800), false, 'flip on and not yet left');
+    flip = false;
+    assert.equal(p.leaveReady(800), false, 'the page left but no frame saw it');
+    tick(100);
+    assert.equal(p.leaveReady(800), false, 'the leave frame alone does not cover the window');
+    tick(899);
+    assert.equal(p.leaveReady(800), false);
+    tick(900);
+    assert.equal(p.leaveReady(800), true);
+  } finally {
+    Object.assign(g, saved);
+  }
 });
 
 test('a dark frame that is the last one in the window leaves no tick to retry on', () => {
