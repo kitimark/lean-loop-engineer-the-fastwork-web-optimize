@@ -49,7 +49,6 @@ def ArmId.flags : ArmId → List (String × String)
   | .pauses => threadFlags ++ pauseFlags
   | .both => parkFlags ++ pauseFlags
 
-/-- `platform:faded-pause` conflicts with `platform.sweep:offscreen-pause` (platform/part.json), so the pause arms swap it for the three pauses. -/
 theorem pause_arms_swap_faded :
     fadedPause ∈ ArmId.v2p.flags ∧ fadedPause ∈ ArmId.parks.flags ∧
     fadedPause ∉ ArmId.pauses.flags ∧ fadedPause ∉ ArmId.both.flags := by decide
@@ -177,7 +176,6 @@ theorem held_undecided_mixed (p : String) (h : "mixed" ≠ p) : held "mixed" p =
 theorem held_missed (n p : String) (h : n ≠ p) (h1 : n ≠ "inconclusive") (h2 : n ≠ "mixed") : held n p = "missed" := by
   simp [held, h, h1, h2]
 
-/-- The prediction verdict, gated on the census: a flag that did not engage leaves the edge `untested`, never `held` or `missed`. -/
 def heldGated (overall predicted : String) (took : Bool) : String := if took then held overall predicted else "untested"
 
 theorem heldGated_untested (overall predicted : String) : heldGated overall predicted false = "untested" := by simp [heldGated]
@@ -243,7 +241,6 @@ def Flag.name : Flag → String
   | .accentPause => "hero.accent:offscreen-pause" | .cuePause => "hero.cue:offscreen-pause"
   | .sweepPause => "platform.sweep:offscreen-pause"
 
-/-- A pause took when the census is complete and no loop of the kind runs: a loop that finished on its own is not a source. -/
 def pauseTook (c : Census) (k : Kind) : Bool := c.complete && c.runningOf k == 0
 
 def Flag.took (c : Census) : Flag → Bool
@@ -299,7 +296,6 @@ def sideTook (a : ArmId) (c : Option Census) : Bool :=
     | some c => f.took c
     | none => false
 
-/-- Every flag of both arms of the edge took in every round at the stage; a round with no census does not count as took. -/
 def edgeTook (e : Edge) (rounds : List (Option Census × Option Census)) : Bool :=
   rounds.all fun (ca, cc) => sideTook e.arm ca && sideTook e.cmp cc
 

@@ -70,7 +70,7 @@ v2p 0, parks 1, pauses 2, both 3 and stage end 0, back 1, paused 2). The census 
 |---|---|---|---|
 | `engine.scroll:unthrottle-park` | parks, both | yes, yes, yes | scroll-driven animations 0 (v2p and pauses hold 1 `scroll:finished`) |
 | `hero.exit:threaded-park` | parks, both | no, no, no | 13 `view:finished` animations remain in every parks and both window (`rows.txt:16`, `:22`, `:40`, `:46`, `:64`, `:70`) |
-| `hero.accent:offscreen-pause` | pauses, both | pauses yes x3 (`cut.txt:54-56`); both no, yes, yes | both job 1: 3 accent idle loops still running (`cut.txt:58`, `:74`); both jobs 2 and 3: none running (`cut.txt:59-60`, `:75-76`): the loop finished on its own, which is not a source and does not count as missing |
+| `hero.accent:offscreen-pause` | pauses, both | pauses yes x3 (`cut.txt:54-56`); both no, yes, yes | both job 1: 3 accent idle loops still running (`cut.txt:58`, `:74`); both jobs 2 and 3: none running (`cut.txt:59-60`, `:75-76`): the loop finished on its own, so it is not missing |
 | `hero.cue:offscreen-pause` | pauses, both | yes, yes, yes | cue float not running in pauses or both |
 | `platform.sweep:offscreen-pause` | pauses, both | no, no, no | 2 sweep loops still running (v2p holds 4) (`cut.txt:54-56`, `:58-60`) |
 
@@ -94,7 +94,7 @@ cue 1, sweep 4; pauses 13 view, 1 scroll, sweep 2; both 13 view, sweep 2, accent
 
 ### Deviation
 
-- The `pauses` and `both` arms drop `platform:faded-pause` (conflict, section 1): a deviation from the task text, accepted by the lead (`platform:faded-pause` conflicts with `platform.sweep:offscreen-pause`, `apps/site/src/registry/resolve.ts:141`). sim-floor-attrib measured
+- The `pauses` and `both` arms drop `platform:faded-pause` (conflict, section 1), accepted by the lead (it conflicts with `platform.sweep:offscreen-pause`, `apps/site/src/registry/resolve.ts:141`). sim-floor-attrib measured
   `platform:faded-pause` as noEffect at every stage (`10-31-sim-floor-attrib.md`, section 3), so the swap is not expected to move the rate; this run has no arm that isolates it (INFERRED).
 
 ### Accepted limits
@@ -108,4 +108,4 @@ cue 1, sweep 4; pauses 13 view, 1 scroll, sweep 2; both 13 view, sweep 2, accent
 2. `sweep-pause-all`: track every `sweepDoc` element, not only `.${sw.sweep}`, and log full class names in the census.
 3. Then re-run the four arms (v2p, parks, pauses, both) with the same Lean verdicts, now gated on the census. Prediction for that run: census shows view-driven 0 and no sweep loop running in `both`, and `both` reads 100 at end and back (INFERRED from the 200 to 100 cancel in sim-floor-attrib); parks alone and pauses alone stay 200.
 
-Lesson recorded here: a census `took` check gates the verdict (Lean `heldGated`), since a flag that does not engage gives a clean-looking noEffect.
+A flag that does not engage gives a clean-looking noEffect, so the census `took` check gates the verdict (Lean `heldGated`).

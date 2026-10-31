@@ -1,7 +1,3 @@
-// sim-end-cut: the stacked end-of-page cut on the iOS Simulator (task sim-end-cut).
-//
-// TS STAND-IN of lean/Fw/Device/SimEndCut.lean: ARM_SETS, ARM_FLAGS, EDGES, PRED_TIER, edgeTier, held, kindOf, the census rules and the overall
-// lines are checked against packages/contracts/golden/device/sim-end-cut.jsonl (test/sim-end-cut.test.mjs). The report only formats.
 import { BAND, MIN_ROUNDS, STAGES, rate } from './sim-end-floor.mjs';
 import { TIER_RANK, delta, overallEdge, overallTier, tier } from './sim-floor-attrib.mjs';
 import { overallNames } from './sim-end-floor.mjs';
