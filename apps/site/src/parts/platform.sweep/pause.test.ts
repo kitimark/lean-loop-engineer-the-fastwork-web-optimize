@@ -67,7 +67,7 @@ class MO {
 const mkEl = (list: () => FakeAnim[]) => ({ el: { getAnimations: list } as unknown as Element });
 
 describe('platform.sweep watchSweepPause', () => {
-  it('a play with no start time yet is paused too and resumes at its time plus the time spent paused', () => {
+  it('a play with no start time yet is paused too and resumes at its time plus the scene-active time while held', () => {
     const loop = new Timed(null, 0);
     const { el } = mkEl(() => [loop]);
     const { IO, report } = fakeIO();

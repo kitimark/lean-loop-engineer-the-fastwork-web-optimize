@@ -26,9 +26,9 @@ the pending-play guard was the cause.
 `watchSweepPause(els, IO, now, host)` holds the reported elements again when the scene attribute of `host` (the section) changes
 (MutationObserver on `data-fw-scene`, a microtask in the report/frame step, no per-frame work): the CSS start leaves a pending play, which is
 paused before the frame is drawn. It reads `getAnimations()` at each hold and pauses every running animation. A loop with a start time restores
-it at the resume (Lean `seek` to `orig`, unchanged). A loop with none (the scene start) saves its current time (the CSS hold time) and resumes
+it at the resume, moved later by the time the scene was paused while held (`startShift`, `start_same`). A loop with none (the scene start) saves its current time (the CSS hold time) and resumes
 at that time plus the time the scene was active while held (`resumeTime`), which is the phase the flag-off page shows: there the CSS rule freezes
-the loop while the scene is paused. A loop with a start time moves its start later by the time the scene was paused while held (`startShift`). Local repro with the fix: end stage Document and Earn paused, Secure and Organized running. Unit tests in
+the loop while the scene is paused. Local repro with the fix: end stage Document and Earn paused, Secure and Organized running. Unit tests in
 `platform.sweep/pause.test.ts` (scene attribute change holds a reported element; leaves an on-screen one; no start time pauses and resumes at
 time plus paused; created after mount; empty first report; cancelled while paused left alone). No `animationstart` listener (the
 `engine.events:quiet` premise allows none). `shown_same`, `visible_phase` unchanged.
@@ -72,7 +72,7 @@ including scene paused then active while held; `pause.test.ts` replays them and 
 ## Why the pending-play guard is reversed
 
 `sweep-pending-play` paused only a loop with a start time, so a pending play was left running. Here a pending play is the scene rule's own start of a
-hidden loop, which that guard left running; pausing it and resuming at `cur + paused` shows the unpaused phase (`resume_pending_span`).
+hidden loop, which that guard left running; pausing it and resuming at `cur` plus the scene-active time over the held spans shows the unpaused phase (`resume_same`, `start_same`).
 
 ## Census (own function, same harness)
 

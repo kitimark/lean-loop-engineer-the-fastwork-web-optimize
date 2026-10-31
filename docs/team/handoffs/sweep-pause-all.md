@@ -19,6 +19,6 @@ Harness: SWEEP_LOOPS_JS and arm `sweepPause` in packages/measure-webkit/src/sim-
 Finding only: platform:faded-pause conflict (two owners of pause/startTime; could compose with a reason set; new Lean case, follow-up).
 Read first: research/notes/2026/10-31-sweep-pause-all.md.
 
-Finisher: Lean theorems added (PlatformSweepPause: resume_pending_same/phase/span, hold_* , rehold_keeps/idem; OffscreenPause.look_same_pending), golden platform-sweep-pause.jsonl 14 lines, TS replays resumeTime/holdNew. Main merged, footprint goldens regenerated. Open: census of run 41189420040 (still in_progress), check.sh, tests, plan lint, dry land.
+Lean theorems (PlatformSweepPause: fold_core, events_core, resume_same, start_same, untracked_differs, resume_pending_phase, hold_* , rehold_keeps/idem; OffscreenPause.look_same_pending), golden platform-sweep-pause.jsonl 14 lines, TS replays resumeTime/holdNew. Main merged, footprint goldens regenerated. Open: census of run 41189420040 (still in_progress), check.sh, tests, plan lint, dry land.
 
 Done: run 41189420040 census hidden loops running 0 of 2 at end/back in 3 of 3 jobs (results/sweep-pause-all/r2). check.sh green, site/measure-webkit/ci-paths/land-inputs tests green, plan lint 0 errors. Open: dry land result in the report; gate dispatch by the lead.
