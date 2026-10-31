@@ -6,7 +6,8 @@
 /** Read the layers of the layer-sweep nodes: how many nodes match, how many layers they have, how many carry the `animation` and `willChange` reasons. */
 export async function layerProbe(c) {
   try {
-    await c.enable('DOM');
+    await c.enable('Page').catch(() => {});
+    await c.enable('DOM').catch(() => {});
     await c.enable('LayerTree');
     const doc = (await c.send('DOM.getDocument', { depth: 0 })).root.nodeId;
     const found = await c.send('DOM.querySelectorAll', { nodeId: doc, selector: '[class*="layerBg"]' });

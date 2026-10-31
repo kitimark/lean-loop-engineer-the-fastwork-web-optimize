@@ -63,6 +63,9 @@ export function predTierL(r, rep, c) {
   return layerRunning(c) > 0 && effectTicks(readEffect(r, rep)) ? 'two' : 'one';
 }
 
+/** The still-ticking sources of the census without the layer loops, which the model says add no frame tick. */
+export const stillTicksL = (c) => stillTicks(c).map(([k, n]) => [k, k === 'other running' ? n - layerRunning(c) : n]).filter(([, n]) => n > 0);
+
 export const LARM_FLAGS = Object.freeze({
   both: CUT_FLAGS.both,
   bothL: [['engine.scroll', 'unthrottle-park'], ['hero.exit', 'threaded-park'], ['hero.accent', 'offscreen-pause'], ['hero.cue', 'offscreen-pause'], LAYER_SWEEP],
@@ -164,8 +167,8 @@ export function verdictLines(merged) {
         if (!c) { out.push(`effect ${id} ${stage} ${roundName(r)}: no census`); continue; }
         const n = effectNameL(id, c);
         ns.push(n);
-        const st = stillTicks(c).map(([k, x]) => `${k} ${x}`).join(', ') || 'nothing';
-        out.push(`effect ${id} ${stage} ${roundName(r)}: ${n}; layer loops running ${layerRunning(c)}, sweepDoc loops ${sweepDocLoops(c)}, other running ${foreignRunning(c)}; still ticks: ${st}; complete ${complete(c)}`);
+        const st = stillTicksL(c).map(([k, x]) => `${k} ${x}`).join(', ') || 'nothing';
+        out.push(`effect ${id} ${stage} ${roundName(r)}: ${n}; layer loops running ${layerRunning(c)}, sweepDoc loops ${sweepDocLoops(c)}, non-layer running ${foreignRunning(c)}; still ticks: ${st}; complete ${complete(c)}`);
       }
       out.push(`effect ${id} ${stage} overall: ${overallEffect(ns)}`);
     }

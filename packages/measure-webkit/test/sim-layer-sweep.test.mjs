@@ -152,7 +152,7 @@ test('report: bothL at tier one against both at tier two is a cut of platform.sw
   has('pinned windows: 6 of 6 end windows read at the end of the page (y equals maxY)');
   assert.ok(v.some((l) => l.startsWith('bothL against both [platform.sweep] end job 1:')));
   assert.ok(v.some((l) => l.startsWith('layer census end job 1: 5 loops, 5 running, 5 in view, properties ["transform"]') && l.includes('evidence inspector') && l.includes('window y 5267 of 5267')));
-  assert.ok(v.some((l) => l.startsWith('effect bothL end job 1: took; layer loops running 5, sweepDoc loops 0, other running 0')));
+  assert.ok(v.some((l) => l.startsWith('effect bothL end job 1: took; layer loops running 5, sweepDoc loops 0, non-layer running 0; still ticks: nothing; complete true')));
   assert.ok(v.every((l) => !l.includes('round 1')));
 });
 
