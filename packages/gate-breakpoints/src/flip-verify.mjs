@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { PKG, siteDist, startServer } from './serve.mjs';
 import { PIN_SRC } from './page.mjs';
 import { loadFlipCell, readLive } from './flip-cell.mjs';
+import { closeBounded } from './bounded.mjs';
 
 export const GOLDEN = resolve(PKG, '../contracts/golden/morph-geom-timed.jsonl');
 
@@ -56,6 +57,9 @@ export function judgeTrace(events, chances) {
 export const retryJudged = (pushes) => !pushes.some((p) => p.light) || pushes.some((p) => p.light && (p.chance || p.taken));
 export const leaveCovered = (leaveTs, lastTs, windowMs) => windowMs <= lastTs - leaveTs;
 export const leaveOk = (covered, quiet) => covered && quiet;
+export const leaveCountOk = (leaves, cycles) => cycles > 0 && leaves === cycles;
+export const bandOk = (b) => b.a3a && b.a4 && b.a5;
+export const runVerdict = (bands, retry) => bands.length > 0 && bands.every(bandOk) && retry;
 
 export const MUTATION_RUN = { A1: 'cell', A3b: 'cell', A3c: 'cell', A4: 'verify', A3a: 'verify', A5: 'verify' };
 export const MUTATION_OWNER = {
@@ -141,6 +145,10 @@ export function installFlipProbe() {
       lastTs = 0;
       running = true;
       requestAnimationFrame(sample);
+    },
+    beginCycle() {
+      sawOn = false;
+      leaveTs = null;
     },
     leaveReady(windowMs) {
       return !sawOn && (leaveTs === null || lastTs - leaveTs >= windowMs);
@@ -231,7 +239,7 @@ export const colorDist = (a, b) => {
 };
 const BG_TOL = 0.02;
 
-export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null }) {
+export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null, cycles = null }) {
   const { frames, trace } = raw;
   const tol = verify.tolPx;
   const frameMs = verify.frameMs;
@@ -311,7 +319,7 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
   };
   return {
     a3a: { transitions: a3a, enters: a3a.filter((t) => t.kind === 'enter').length, leaves: a3a.filter((t) => t.kind === 'leave').length, ok: a3a.length > 0 && a3a.every((t) => t.ok) },
-    a4: { leaves: a4, ok: a4.length > 0 && a4.every((t) => t.ok) },
+    a4: { leaves: a4, ok: leaveCountOk(a4.length, cycles ?? a4.length) && a4.every((t) => t.ok) },
     a5,
   };
 }
@@ -377,6 +385,7 @@ export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, window
   await sleep(300);
   for (let c = 0; c < cycles; c++) {
     const pushed = [];
+    await page.evaluate(() => window.__fwFlipProbe.beginCycle());
     await page.mouse.wheel(0, 120);
     pushed.push(await until(page, PUSHES(2 * c + 1), 3000));
     pushed.push(await until(page, TAKES(2 * c + 1), 3000));
@@ -420,16 +429,16 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
         let applied = null;
         if (mutation) applied = await B.page.evaluate(mutatePage, mutation);
         const { raw, baseWidth, diag } = await driveFlipProbe(B.page, { cycles, coverMs: verify.windowMs });
-        const res = analyseFlipProbe(raw, { baseWidth, verify, expectedPushes: cycles * 2 });
+        const res = analyseFlipProbe(raw, { baseWidth, verify, expectedPushes: cycles * 2, cycles });
         const row = { band: `${band.w}x${band.h}`, baseWidth, applied, diag, ...res };
         rows.push(row);
         process.stderr.write(`${row.band} A3a ${res.a3a.ok ? 'ok' : 'FAIL'} (enter ${res.a3a.enters}, leave ${res.a3a.leaves}) A4 ${res.a4.ok ? 'ok' : 'FAIL'} A5 ${res.a5.ok ? 'ok' : 'FAIL'} [${res.a5.events.join(',')}] take ms ${res.a5.takeMs.join('/')}${res.a5.unjudged ? ` (${res.a5.unjudged} push not judged: the guard had no chance)` : ''}\n`);
       } finally {
-        await B.close().catch(() => {});
+        await closeBounded('close page', B);
       }
     }
   } finally {
-    await engine.close?.();
+    await closeBounded('close browser', engine);
     server.close?.();
   }
   mkdirSync(outDir, { recursive: true });
@@ -443,7 +452,7 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
     return expectFail ? caught : true;
   }
   const retry = retryJudged(rows.flatMap((r) => r.a5.obs));
-  const ok = failed('a3a') + failed('a4') + failed('a5') === 0 && retry;
+  const ok = runVerdict(rows.map((r) => ({ a3a: r.a3a.ok, a4: r.a4.ok, a5: r.a5.ok })), retry);
   console.log(`flip verify ${engineName} ${fw}: ${ok ? 'pass' : 'fail'} (${summary} bands passed${retry ? '' : '; no light-start push was judged, so the retry was not'})`);
   return ok;
 }

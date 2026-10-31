@@ -245,6 +245,64 @@ theorem leave_noisy_fails (covered : Bool) : leaveOk covered false = false := by
 
 theorem leave_covered_quiet_passes : leaveOk true true = true := by decide
 
+/-- Each cycle ends in one leave, so the leaves seen must equal the cycles driven; no leave at all
+(a flip that never closed, a probe that never read it) is a fail, never a vacuous pass. -/
+def leaveCountOk (leaves cycles : Nat) : Bool := decide (0 < cycles) && leaves == cycles
+
+theorem leave_count_none_fails (cycles : Nat) (h : 0 < cycles) : leaveCountOk 0 cycles = false := by
+  have : (0 : Nat) ≠ cycles := by omega
+  simp [leaveCountOk, this]
+
+theorem leave_count_short_fails (leaves cycles : Nat) (h : leaves < cycles) : leaveCountOk leaves cycles = false := by
+  have : leaves ≠ cycles := by omega
+  simp [leaveCountOk, this]
+
+theorem leave_count_extra_fails (leaves cycles : Nat) (h : cycles < leaves) : leaveCountOk leaves cycles = false := by
+  have : leaves ≠ cycles := by omega
+  simp [leaveCountOk, this]
+
+theorem leave_count_exact_passes (cycles : Nat) (h : 0 < cycles) : leaveCountOk cycles cycles = true := by
+  simp [leaveCountOk, h]
+
+theorem leave_count_no_cycles_fails (leaves : Nat) : leaveCountOk leaves 0 = false := by simp [leaveCountOk]
+
+/-- The three flip readings of one band. -/
+structure BandObs where
+  a3a : Bool
+  a4 : Bool
+  a5 : Bool
+
+def bandOk (b : BandObs) : Bool := b.a3a && b.a4 && b.a5
+
+/-- The run passes when at least one band was read, every band passed all three readings, and the
+retry was judged (`retryJudged`); a run with no band row is a fail, not a pass of zero failures. -/
+def runVerdict (bs : List BandObs) (retry : Bool) : Bool := !bs.isEmpty && bs.all bandOk && retry
+
+theorem run_empty_fails (retry : Bool) : runVerdict [] retry = false := by simp [runVerdict]
+
+theorem run_unjudged_retry_fails (bs : List BandObs) : runVerdict bs false = false := by simp [runVerdict]
+
+theorem run_band_fails (b : BandObs) (bs : List BandObs) (hm : b ∈ bs) (hb : bandOk b = false) (retry : Bool) :
+    runVerdict bs retry = false := by
+  have : bs.all bandOk = false := by
+    cases h : bs.all bandOk with
+    | false => rfl
+    | true =>
+      have := List.all_eq_true.mp h b hm
+      simp_all
+  simp [runVerdict, this]
+
+theorem run_passes (bs : List BandObs) (hne : bs ≠ []) (hall : ∀ b ∈ bs, bandOk b = true) :
+    runVerdict bs true = true := by
+  have : bs.all bandOk = true := List.all_eq_true.mpr hall
+  simp [runVerdict, this, hne]
+
+theorem band_a3a_fails (b : BandObs) (h : b.a3a = false) : bandOk b = false := by simp [bandOk, h]
+
+theorem band_a4_fails (b : BandObs) (h : b.a4 = false) : bandOk b = false := by simp [bandOk, h]
+
+theorem band_a5_fails (b : BandObs) (h : b.a5 = false) : bandOk b = false := by simp [bandOk, h]
+
 theorem leave_covered_later (leaveTs lastTs lastTs' windowMs : Rat) (h : leaveCovered leaveTs lastTs windowMs = true)
     (hl : lastTs ≤ lastTs') : leaveCovered leaveTs lastTs' windowMs = true := by
   simp only [leaveCovered, decide_eq_true_eq] at *

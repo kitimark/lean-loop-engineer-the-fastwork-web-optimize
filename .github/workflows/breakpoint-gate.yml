@@ -348,6 +348,7 @@ jobs:
           engine: ${{ matrix.engine }}
       - name: Flip-state cell
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 15
         env:
           ENGINE: ${{ matrix.engine }}
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -355,6 +356,7 @@ jobs:
         run: node src/cli.mjs flip --engine "$ENGINE" --fw morph.geom:on --out out/flip/on
       - name: Flip-state cell, geom-timed (reported only)
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 15
         env:
           ENGINE: ${{ matrix.engine }}
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
@@ -398,6 +400,7 @@ jobs:
           exit $rc
       - name: Pixel look report
         if: ${{ !cancelled() && steps.stale.outcome == 'skipped' }}
+        timeout-minutes: 40
         env:
           ENGINE: ${{ matrix.engine }}
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot

@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { PIN_SRC } from '../../gate-breakpoints/src/page.mjs';
+import { LIMITS, bound, call, cellsKept, closeBounded, observeCell, takeCell, waitCell } from '../../gate-breakpoints/src/bounded.mjs';
 import { siteDist, startServer } from '../../gate-breakpoints/src/serve.mjs';
 import { LAUNCHERS } from '../../visual-diff/src/engines.mjs';
 import { decode, encodePng } from '../../visual-diff/src/diff.mjs';
@@ -167,21 +168,43 @@ const flag = rewritePathFor(dist, FW);
 const server = await startServer(dist);
 const engine = await LAUNCHERS[engineName]();
 const rows = [];
-const flush = (complete) => writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, complete, cells: rows.length, unverified: rows.filter((r) => r.verify && !r.verify.ok).length, rows }, null, 1) + '\n');
+const faults = [];
+const outcomes = [];
+let budgetSpent = false;
+const flush = (complete) => writeFileSync(join(out, `look-${engineName}.json`), JSON.stringify({ fw: FW, over: CELL.over, engine: engineName, ms: MS, limits: LIMITS, complete, cells: rows.length, unverified: rows.filter((r) => r.verify && !r.verify.ok).length, exhausted: rows.filter((r) => r.exhausted).length, faults, rows }, null, 1) + '\n');
 mkdirSync(out, { recursive: true });
+const shot = (page) => bound('screenshot', LIMITS.shotMs + 10000, async () => {
+  const t0 = Date.now();
+  const img = decode(await page.screenshot({ animations: 'allow', caret: 'hide', timeout: LIMITS.shotMs }));
+  return { img, ms: Date.now() - t0 };
+});
 try {
   for (const [w, h] of BANDS) {
-    if (Date.now() > DEADLINE) { process.stderr.write(`budget spent: stopped before ${w}x${h}\n`); break; }
+    if (Date.now() > DEADLINE) { process.stderr.write(`budget spent: stopped before ${w}x${h}\n`); budgetSpent = true; break; }
     const env = { width: w, height: h, deviceWidth: w, deviceHeight: h, dpr: w <= 640 ? 3 : 1, hover: w <= 1024 ? 'none' : 'hover', pointer: w <= 1024 ? 'coarse' : 'fine', colorScheme: 'light', reducedMotion: 'no-preference' };
-    const open = async (path) => {
+    const open = (path) => bound('open page', LIMITS.callMs, async () => {
       const s = await engine.open(env, { origin: server.origin, path, init: PIN_SRC });
       await s.page.evaluate(async () => { for (let i = 0; i < 100 && !(window.__fw && window.__fw.hydrated); i++) await new Promise((r) => setTimeout(r, 50)); });
       await settleScroll(s.page);
       await sleep(1800);
       return s;
+    });
+    let pair = null;
+    const ensure = async () => {
+      if (pair) return pair;
+      const A = await open('/');
+      let B;
+      try { B = await open(flag.path + flag.search); } catch (err) { await closeBounded('close base page', A); throw err; }
+      pair = { A, B };
+      return pair;
     };
-    const A = await open('/');
-    const B = await open(flag.path + flag.search);
+    const drop = async () => {
+      const p = pair;
+      pair = null;
+      if (!p) return;
+      await closeBounded('close base page', p.A);
+      await closeBounded('close flag page', p.B);
+    };
     try {
       for (const m of MS) {
         const band = `${w}x${h}`;
@@ -189,89 +212,114 @@ try {
           rows.push({ band, m, skipped: 'geom-timed rests only at m 0 and 1 (Lean timedSettled); its tracks, published value and end are real-time timers, so no page is pinned between' });
           continue;
         }
-        const f = fadeOf(golden, m);
-        const fails = [];
-        const note = {};
-        const ra = await A.page.evaluate(pinNav, m);
-        await A.page.evaluate(writeFade, { fade: String(f.fade), none: f.pointerNone });
-        if (TIMED) {
-          if (m === 1) {
-            note.tween = await realTween(B.page, w, h);
-            if (!note.tween.started) fails.push('the wheel did not start a tween');
-            else if (!note.tween.settled) fails.push('the tween did not settle');
+        if (Date.now() > DEADLINE) { process.stderr.write(`budget spent: stopped before ${band} m=${m}\n`); budgetSpent = true; break; }
+        const taken = await takeCell(`${band} m=${m}`, async () => {
+          const { A, B } = await ensure();
+          const f = fadeOf(golden, m);
+          const fails = [];
+          const note = {};
+          const ra = await call('pin base', A.page, pinNav, m);
+          await call('fade base', A.page, writeFade, { fade: String(f.fade), none: f.pointerNone });
+          if (TIMED) {
+            if (m === 1) {
+              note.tween = await bound('wheel tween', 120000, () => realTween(B.page, w, h));
+              if (!note.tween.started) fails.push('the wheel did not start a tween');
+              else if (!note.tween.settled) fails.push('the tween did not settle');
+            }
+          } else {
+            await call('pin flag', B.page, pinNav, m);
+            await sleep(900);
+            if (m > 0) await call('morph flag', B.page, (v) => { const n = document.querySelector('[data-fw="nav"]'); n.dataset.fwMorph = String(v); }, m);
           }
-        } else {
-          await B.page.evaluate(pinNav, m);
+          const darkFlip = TIMED && m === 0 ? await call('dark flag', B.page, () => document.querySelector('[data-fw="nav"]').classList.contains('is-on-dark')) : null;
+          Object.assign(ra, await call('pin base again', A.page, pinNav, m));
+          if (darkFlip !== null) {
+            await call('dark base', A.page, (d) => document.querySelector('[data-fw="nav"]').classList.toggle('is-on-dark', d), darkFlip);
+            note.navOnDark = darkFlip;
+          }
           await sleep(900);
-          if (m > 0) await B.page.evaluate((v) => { const n = document.querySelector('[data-fw="nav"]'); n.dataset.fwMorph = String(v); }, m);
-        }
-        const darkFlip = TIMED && m === 0 ? await B.page.evaluate(() => document.querySelector('[data-fw="nav"]').classList.contains('is-on-dark')) : null;
-        Object.assign(ra, await A.page.evaluate(pinNav, m));
-        if (darkFlip !== null) {
-          await A.page.evaluate((d) => document.querySelector('[data-fw="nav"]').classList.toggle('is-on-dark', d), darkFlip);
-          note.navOnDark = darkFlip;
-        }
-        await sleep(900);
-        const freeze = () => { for (const a of document.getAnimations()) if (a instanceof CSSAnimation) { a.pause(); a.currentTime = 4000; } };
-        await A.page.evaluate(freeze);
-        await B.page.evaluate(freeze);
-        await sleep(200);
-        const sta = await A.page.evaluate(readState);
-        const stb = await B.page.evaluate(readState);
-        if (!scrollEq(CELL, sta.scrollY, stb.scrollY)) fails.push(`scrollY differs: base ${sta.scrollY}, flip ${stb.scrollY}`);
-        if (!fadeShows(CELL, golden, sta.opacity, m)) fails.push(`base platform opacity ${sta.opacity}, expected the fade of m`);
-        if (!TIMED || m === 1) if (!fadeShows(CELL, golden, stb.opacity, m)) fails.push(`flip platform opacity ${stb.opacity}, expected the fade of m`);
-        if (TIMED) {
-          if (!timedSettled(m, stb.flip, stb.goal, stb.tracks.length)) fails.push(`timed page not at rest ${m}: flip ${stb.flip}, goal ${stb.goal}, tracks ${stb.tracks.length}`);
-        } else {
-          if (!within(CELL, stb.navMorph, m)) fails.push(`flip nav data-fw-morph ${stb.navMorph}, expected ${m}`);
-          if (!tracksOk(m, stb.tracks.length)) fails.push(`flip holds ${stb.tracks.length} tracks at m=${m}`);
-          for (const t of stb.tracks) if (!trackAt(CELL, t.dur, t.ct, m)) fails.push(`track ${t.el} (duration ${t.dur}) at ${t.ct} does not show m=${m}`);
-        }
-        const verify = { ok: fails.length === 0, fails: fails.slice(0, 8), failCount: fails.length, scrollBase: sta.scrollY, scrollFlip: stb.scrollY, scrollMax: [sta.scrollMax, stb.scrollMax], opacityBase: sta.opacity, opacityFlip: stb.opacity, tracks: stb.tracks.length, navMorph: stb.navMorph, ...note };
-        const boxesA = await A.page.evaluate(collectBoxes);
-        const boxesB = await B.page.evaluate(collectBoxes);
-        const rb = await B.page.evaluate(() => document.querySelector('[data-fw="nav"]').getBoundingClientRect().toJSON());
-        const imgA = decode(await A.page.screenshot({ animations: 'allow', caret: 'hide' }));
-        const imgB = decode(await B.page.screenshot({ animations: 'allow', caret: 'hide' }));
-        if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
-          rows.push({ band, m, verify: { ...verify, ok: false, fails: [...verify.fails, `screenshot sizes differ ${imgA.width}x${imgA.height} vs ${imgB.width}x${imgB.height}`] } });
-          continue;
-        }
-        const k = imgA.width / w;
-        const px = (r) => ({ x: r.x * k, y: r.y * k, width: r.width * k, height: r.height * k });
-        const nav = { x: Math.min(ra.x, rb.x) * k, y: Math.min(ra.y, rb.y) * k, width: Math.max(ra.width, rb.width) * k, height: Math.max(ra.height, rb.height) * k };
-        const whole = { x: 0, y: 0, width: imgA.width, height: imgA.height };
-        const clip = (r, q) => { const x = Math.max(r.x, q.x), y = Math.max(r.y, q.y); return { x, y, width: Math.max(0, Math.min(r.x + r.width, q.x + q.width) - x), height: Math.max(0, Math.min(r.y + r.height, q.y + q.height) - y) }; };
-        const cols = ra.cols ? clip(px(ra.cols), nav) : nav;
-        const bar = ra.bar ? px(ra.bar) : nav;
-        const map = diffMap(imgA, imgB);
-        const st = (r) => regionStats(CELL, map, imgA.width, imgA.height, r);
-        const row = { band, m, nav: st(nav), cols: st(cols), bar: st(bar), page: st(whole), flagBox: px(rb), verify };
-        const table = elementTable(CELL, map, imgA.width, imgA.height, unionBoxes(boxesA, boxesB).map((b) => ({ key: b.key, ...px(b) })));
-        row.elements = { total: table.total, unowned: table.unowned, rows: table.rows.filter((r) => r.over > 0).slice(0, 14).map((r) => ({ ...r, shareOfBox: +r.shareOfBox.toFixed(4), shareOfDiff: +r.shareOfDiff.toFixed(4) })) };
-        rows.push(row);
-        if (IMAGES) {
-          const dir = join(out, 'img', band, `m${m}`);
-          mkdirSync(dir, { recursive: true });
-          for (const [name, box, always] of [['nav', nav, true], ['cols', cols, true], ['page', whole, false]]) {
-            const s = st(box);
-            if (s.over === 0 && !always) continue;
-            writeFileSync(join(dir, `${name}-diff.png`), encodePng(diffImage(map, imgA.width, box, CELL.over)));
-            if (always || s.share >= PAGE_ARMS_SHARE) {
-              writeFileSync(join(dir, `${name}-base.png`), encodePng(crop(imgA, box)));
-              writeFileSync(join(dir, `${name}-flip.png`), encodePng(crop(imgB, box)));
+          const freeze = () => { for (const a of document.getAnimations()) if (a instanceof CSSAnimation) { a.pause(); a.currentTime = 4000; } };
+          await call('freeze base', A.page, freeze);
+          await call('freeze flag', B.page, freeze);
+          await sleep(200);
+          if (!TIMED) {
+            const base0 = await call('columns base', A.page, observeCell);
+            const ready = await waitCell(A.page, B.page, base0.cols);
+            note.ready = { step: ready.step, waitedMs: ready.waitedMs };
+          }
+          const sta = await call('state base', A.page, readState);
+          const stb = await call('state flag', B.page, readState);
+          if (!scrollEq(CELL, sta.scrollY, stb.scrollY)) fails.push(`scrollY differs: base ${sta.scrollY}, flip ${stb.scrollY}`);
+          if (!fadeShows(CELL, golden, sta.opacity, m)) fails.push(`base platform opacity ${sta.opacity}, expected the fade of m`);
+          if (!TIMED || m === 1) if (!fadeShows(CELL, golden, stb.opacity, m)) fails.push(`flip platform opacity ${stb.opacity}, expected the fade of m`);
+          if (TIMED) {
+            if (!timedSettled(m, stb.flip, stb.goal, stb.tracks.length)) fails.push(`timed page not at rest ${m}: flip ${stb.flip}, goal ${stb.goal}, tracks ${stb.tracks.length}`);
+          } else {
+            if (!within(CELL, stb.navMorph, m)) fails.push(`flip nav data-fw-morph ${stb.navMorph}, expected ${m}`);
+            if (!tracksOk(m, stb.tracks.length)) fails.push(`flip holds ${stb.tracks.length} tracks at m=${m}`);
+            for (const t of stb.tracks) if (!trackAt(CELL, t.dur, t.ct, m)) fails.push(`track ${t.el} (duration ${t.dur}) at ${t.ct} does not show m=${m}`);
+          }
+          const verify = { ok: fails.length === 0, fails: fails.slice(0, 8), failCount: fails.length, scrollBase: sta.scrollY, scrollFlip: stb.scrollY, scrollMax: [sta.scrollMax, stb.scrollMax], opacityBase: sta.opacity, opacityFlip: stb.opacity, tracks: stb.tracks.length, navMorph: stb.navMorph, ...note };
+          const boxesA = await call('boxes base', A.page, collectBoxes);
+          const boxesB = await call('boxes flag', B.page, collectBoxes);
+          const rb = await call('nav flag', B.page, () => document.querySelector('[data-fw="nav"]').getBoundingClientRect().toJSON());
+          const shotA = await shot(A.page);
+          const shotB = await shot(B.page);
+          const imgA = shotA.img;
+          const imgB = shotB.img;
+          verify.shotMs = { base: shotA.ms, flag: shotB.ms };
+          if (imgA.width !== imgB.width || imgA.height !== imgB.height) {
+            const bad = { band, m, verify: { ...verify, ok: false, fails: [...verify.fails, `screenshot sizes differ ${imgA.width}x${imgA.height} vs ${imgB.width}x${imgB.height}`] } };
+            return { ok: false, value: { row: bad, line: null } };
+          }
+          const k = imgA.width / w;
+          const px = (r) => ({ x: r.x * k, y: r.y * k, width: r.width * k, height: r.height * k });
+          const nav = { x: Math.min(ra.x, rb.x) * k, y: Math.min(ra.y, rb.y) * k, width: Math.max(ra.width, rb.width) * k, height: Math.max(ra.height, rb.height) * k };
+          const whole = { x: 0, y: 0, width: imgA.width, height: imgA.height };
+          const clip = (r, q) => { const x = Math.max(r.x, q.x), y = Math.max(r.y, q.y); return { x, y, width: Math.max(0, Math.min(r.x + r.width, q.x + q.width) - x), height: Math.max(0, Math.min(r.y + r.height, q.y + q.height) - y) }; };
+          const cols = ra.cols ? clip(px(ra.cols), nav) : nav;
+          const bar = ra.bar ? px(ra.bar) : nav;
+          const map = diffMap(imgA, imgB);
+          const st = (r) => regionStats(CELL, map, imgA.width, imgA.height, r);
+          const row = { band, m, nav: st(nav), cols: st(cols), bar: st(bar), page: st(whole), flagBox: px(rb), verify };
+          const table = elementTable(CELL, map, imgA.width, imgA.height, unionBoxes(boxesA, boxesB).map((b) => ({ key: b.key, ...px(b) })));
+          row.elements = { total: table.total, unowned: table.unowned, rows: table.rows.filter((r) => r.over > 0).slice(0, 14).map((r) => ({ ...r, shareOfBox: +r.shareOfBox.toFixed(4), shareOfDiff: +r.shareOfDiff.toFixed(4) })) };
+          if (IMAGES) {
+            const dir = join(out, 'img', band, `m${m}`);
+            mkdirSync(dir, { recursive: true });
+            for (const [name, box, always] of [['nav', nav, true], ['cols', cols, true], ['page', whole, false]]) {
+              const s = st(box);
+              if (s.over === 0 && !always) continue;
+              writeFileSync(join(dir, `${name}-diff.png`), encodePng(diffImage(map, imgA.width, box, CELL.over)));
+              if (always || s.share >= PAGE_ARMS_SHARE) {
+                writeFileSync(join(dir, `${name}-base.png`), encodePng(crop(imgA, box)));
+                writeFileSync(join(dir, `${name}-flip.png`), encodePng(crop(imgB, box)));
+              }
             }
           }
+          const top = row.elements.rows[0];
+          const line = `${band} m=${m} ${verify.ok ? 'ok' : `UNVERIFIED(${verify.failCount}): ${verify.fails[0]}`} nav ${row.nav.share.toFixed(4)} bar ${row.bar.share.toFixed(4)} cols ${row.cols.share.toFixed(4)} page ${row.page.share.toFixed(4)} top ${top ? `${top.key} ${top.own}` : '-'} shot ${shotA.ms}+${shotB.ms} ms${note.ready && note.ready.step === 'late' ? ` [ready wait ran out after ${note.ready.waitedMs} ms]` : ''}`;
+          return { ok: verify.ok, value: { row, line } };
+        }, { onFault: drop });
+        faults.push(...taken.faults);
+        outcomes.push(taken.outcome);
+        if (taken.outcome === 'exhausted') {
+          const last = taken.faults[taken.faults.length - 1];
+          const why = `no reading in ${taken.attempts} attempts (${last ? last.error : 'no fault noted'})`;
+          rows.push({ band, m, exhausted: true, verify: { ok: false, fails: [why], failCount: 1 } });
+          process.stderr.write(`${band} m=${m} ${why}\n`);
+        } else {
+          rows.push(taken.value.row);
+          if (taken.value.line) process.stderr.write(`${taken.value.line}\n`);
         }
-        const top = row.elements.rows[0];
-        process.stderr.write(`${band} m=${m} ${verify.ok ? 'ok' : `UNVERIFIED(${verify.failCount}): ${verify.fails[0]}`} nav ${row.nav.share.toFixed(4)} bar ${row.bar.share.toFixed(4)} cols ${row.cols.share.toFixed(4)} page ${row.page.share.toFixed(4)} top ${top ? `${top.key} ${top.own}` : '-'}\n`);
       }
-    } finally { await A.close().catch(() => {}); await B.close().catch(() => {}); }
+    } finally { await drop(); }
     flush(false);
+    if (budgetSpent) break;
   }
-} finally { await engine.close?.(); server.close?.(); }
+} finally { await closeBounded('close browser', engine); server.close?.(); }
 const bad = rows.filter((r) => r.verify && !r.verify.ok).length;
-flush(true);
-process.stderr.write(`look ${FW} ${engineName}: ${rows.length} rows, ${bad} unverified (exit 0: reported only)\n`);
-process.exit(0);
+const kept = cellsKept(outcomes);
+flush(!budgetSpent);
+process.stderr.write(`look ${FW} ${engineName}: ${rows.length} rows, ${bad} unverified${kept ? ' (exit 0: reported only)' : `, ${outcomes.filter((o) => o === 'exhausted').length} cells with no reading (exit 1)`}\n`);
+process.exit(kept ? 0 : 1);

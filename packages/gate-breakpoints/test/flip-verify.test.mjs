@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { GOLDEN, analyseFlipProbe, colorDist, installFlipProbe, judgeKept, judgeQuiet, judgeTrace, leaveCovered, loadVerify, MUTATION_OWNER, MUTATION_RUN, pushChance, retryJudged } from '../src/flip-verify.mjs';
+import { GOLDEN, analyseFlipProbe, bandOk, colorDist, installFlipProbe, judgeKept, judgeQuiet, judgeTrace, leaveCovered, leaveCountOk, loadVerify, MUTATION_OWNER, MUTATION_RUN, pushChance, retryJudged, runVerdict } from '../src/flip-verify.mjs';
 
 const lines = readFileSync(GOLDEN, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 const of = (fn) => lines.filter((l) => l.fn === fn);
@@ -199,4 +199,61 @@ test('taken pushes on a runner too slow to show the guard open still pass', () =
   const r = analyseFlipProbe({ frames, trace: four }, { baseWidth: 984, verify });
   assert.deepEqual(r.a5.chances, [false, false, false, false]);
   assert.equal(r.a5.ok, true);
+});
+
+test('every verifyLeaveCount golden line is replayed by leaveCountOk', () => {
+  assert.ok(of('verifyLeaveCount').length >= 6);
+  for (const l of of('verifyLeaveCount')) assert.equal(leaveCountOk(l.in.leaves, l.in.cycles), l.out, JSON.stringify(l.in));
+});
+
+test('every verifyRun golden line is replayed by runVerdict', () => {
+  assert.ok(of('verifyRun').length >= 6);
+  for (const l of of('verifyRun')) assert.equal(runVerdict(l.in.bands, l.in.retry), l.out, JSON.stringify(l.in));
+});
+
+test('a band is ok only when A3a, A4 and A5 all hold', () => {
+  assert.equal(bandOk({ a3a: true, a4: true, a5: true }), true);
+  for (const k of ['a3a', 'a4', 'a5']) assert.equal(bandOk({ a3a: true, a4: true, a5: true, [k]: false }), false, k);
+});
+
+test('a run with fewer leaves than cycles fails A4 even when every leave it saw was fine', () => {
+  const frames = Array.from({ length: 10 }, (_, i) => fr(i * 100, { dark: false }));
+  const none = analyseFlipProbe({ frames, trace: [] }, { baseWidth: 984, verify, cycles: 2 });
+  assert.equal(none.a4.ok, false, 'no leave at all in two cycles');
+});
+
+test('the probe starts each cycle with no leave and no flip seen (beginCycle)', () => {
+  const g = globalThis;
+  const saved = { window: g.window, document: g.document, requestAnimationFrame: g.requestAnimationFrame };
+  let flip = false;
+  let frame = null;
+  g.window = { scrollY: 0 };
+  g.document = { documentElement: { classList: { contains: () => flip } }, querySelector: () => null };
+  g.requestAnimationFrame = (cb) => {
+    frame = cb;
+  };
+  try {
+    installFlipProbe();
+    const p = g.window.__fwFlipProbe;
+    p.start();
+    const tick = (ts) => {
+      const cb = frame;
+      frame = null;
+      cb(ts);
+    };
+    flip = true;
+    tick(0);
+    flip = false;
+    tick(100);
+    assert.equal(p.leaveReady(800), false, 'cycle 1 left at 100 and the window is not covered');
+    p.beginCycle();
+    assert.equal(p.leaveReady(800), true, 'cycle 2 does not wait on the leave of cycle 1');
+    flip = true;
+    tick(200);
+    assert.equal(p.leaveReady(800), false, 'cycle 2 flip on');
+    p.beginCycle();
+    assert.equal(p.leaveReady(800), true, 'a flip left open by cycle 2 does not block cycle 3');
+  } finally {
+    Object.assign(g, saved);
+  }
 });

@@ -94,6 +94,7 @@ import Fw.Parts.MorphGeomCounts
 import Fw.Parts.MorphGeomLook
 import Fw.Parts.MorphGeomLookRule
 import Fw.Parts.MorphGeomVerify
+import Fw.Parts.MorphGeomReady
 import Fw.Parts.MorphGeomGen
 import Fw.Parts.MorphGeomTimed
 import Fw.Parts.MorphGeomTimedGen
