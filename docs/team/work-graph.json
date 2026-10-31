@@ -24840,7 +24840,9 @@
     "research/notes/2026/10-31-flip-cell-pixel-hang.md",
     "research/notes/2026/11-01-flip-cell-pixel-hang.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/flip-cell-pixel-hang.md"
+    "docs/team/handoffs/flip-cell-pixel-hang.md",
+    "packages/premise-tests/src/look.mjs",
+    "apps/runner/src/land.ts"
    ]
   }
  ],
