@@ -24870,6 +24870,59 @@
     "research/notes/2026/11-02-dry-land-slow.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/dry-land-slow.md"
+   ],
+   "evidence": "e5e69b9"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-land-timing-key",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [],
+   "title": "timing key of the dry-land steps carries the selected check set (work dim 'checks'), so the relative slow rule (Timing.lean:1173-1177) compares like with like; Lean rule + golden, land.ts/slot*.ts emit the dim, replay timings.jsonl through the Lean judge; timing only",
+   "writes": [
+    "lean/Fw/Obs/Timing*.lean",
+    "lean/Fw/Ops/LandDry*.lean",
+    "packages/contracts/golden/obs/**",
+    "packages/contracts/golden/ops/**",
+    "apps/runner/src/land*.ts",
+    "apps/runner/src/slot*.ts",
+    "apps/runner/src/timing*.ts",
+    "apps/runner/test/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/11-01-dry-land-timing-key.md",
+    "research/notes/2026/11-02-dry-land-timing-key.md",
+    "docs/team/handoffs/dry-land-timing-key.md",
+    "research/notes/2026/dry-land-timing-key/**"
+   ],
+   "evidence": "ca49bd8"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-land-waves",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "dry-land-timing-key"
+   ],
+   "title": "run the dry-land phases in one wave with a Lean dependency rule (Fw.Ops.LandDry.deps: fwcore-build after the lake lint, fwcore users after both; lake_serial, core_after_builds), checkDeps golden-checked; measured on 001d247's check set, warm and cold, no overlapping lake builds in locks.jsonl (base: branch worktree-wf_779ff154-e9a-1)",
+   "writes": [
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/**",
+    "lean/Fw/Ops/LandDry*.lean",
+    "packages/contracts/golden/ops/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/11-01-dry-land-slow.md",
+    "research/notes/2026/11-01-dry-land-waves.md",
+    "research/notes/2026/11-02-dry-land-waves.md",
+    "docs/team/handoffs/dry-land-waves.md",
+    "docs/team/handoffs/dry-land-slow.md"
    ]
   }
  ],

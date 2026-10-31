@@ -1,106 +1,49 @@
-# dry-land-slow: why `fw land --dry` took 33 to 38 s, and the cut
+# dry-land-slow: closed as a finding (premise refuted)
 
-Task dry-land-slow. Status words: MEASURED (from `.fw-console/timings.jsonl` or my own runs), CONFIRMED (source cited), INFERRED.
+Task dry-land-slow (graph r615) asked why `fw land --dry` "got slower" (timing.slow alerts: 34.6 s, 38.1 s, 33.3 s against a
+p50 of 21.7 s, budget 30 s) and how to cut it back. Two build-review rounds were refused; a Fable investigation
+(fable-refusals, run wf_590291a8-320) and its adversarial check found that the premise does not hold. Nothing grew. No code
+from the task branch (worktree-wf_779ff154-e9a-1 at 3f8a055b2) lands; the branch stays as the base of follow-up B.
 
-## Answer
+Source of every MEASURED line: `.fw-console/timings.jsonl` and `.fw-console/locks.jsonl` (local only, not committed); each
+line names its row key (commit, startMs) or row numbers.
 
-- Nothing grew per step. Every sub-step ran as long as in the fast sample (reads test 9.7 to 10.1 s in all samples).
-  The slow samples ran more checks: the lake build (lint cache miss), the workflow lint, and `runner:overflow-widths`
-  (12 s). `fw land` ran its phases one after the other: reads test, then the lints, then the local tests. The dry
-  land time was the sum of the three phases (MEASURED, spans below; timings rows 001d247 and 0058ef3 of `land dry lake`, startMs in the table source).
-- Host load is a small second cause: `console-api:compose` 6.0 s (load 5.4) became 7.1 and 8.3 s (load 4.7 and 6.2).
-  The slowest sample (38.1 s) is not the one with the highest load at its start.
-- Fix: the three phases start together (Lean `Fw.Ops.LandDry`, theorems `par_eq_seq`, `seqRan_sub_parRan`,
-  `waves_cover`), so the dry land costs the longest chain, not the sum. No check is dropped, the refusal named for the
-  same results is the same.
+## Finding
 
-## Spans of the dry land (offsets from the start of "land dry lake", seconds; MEASURED, rows of `.fw-console/timings.jsonl` with the commits named in the header)
+1. MEASURED: a dry land takes the sum of its selected checks along the dependency chain. In all three alert samples the
+   critical path is claims ~1.2 s + reads test 9.7-10.0 s + lake lint 6.7-8.9 s (built 0) + fwcore-build 1.0 s +
+   overflow-widths 11.9-12.9 s. Rows: 0180811 startMs 1793431500999 34.6 s; 0058ef3 1793436388545 38.1 s; 001d247
+   1793478536258 33.3 s.
+2. MEASURED: nothing on that critical path grew since 10-25. Two spans off the path grew (daily medians): the compose test
+   3.2 s (10-22) to 7.1 s (10-31, 11-01) and the workflow lint 1.9 to 2.7 s. In every alert sample compose ends before
+   overflow-widths (001d247: compose ends at 28.10 s, overflow-widths at 33.01 s).
+3. MEASURED: this check-set shape first existed on 10-24, when a workflow change started selecting overflow-widths
+   (94f974b89). Its daily p50 has been 30.0-35.2 s every day from 10-25 to 10-31. The "p50 21.7 s" baseline mixes in runs
+   that hit the lake pass cache (a10d2e549, 10-24), which skip the lake lint.
+4. MEASURED: host load is not the cause. Same commit 37a77f8: 32.6 s with the lake lint at load 2.78, 27.7 s without it
+   (cache hit) at load 3.98.
+5. MEASURED: cold-lake runs (built > 0) took 29.0-42.3 s (10-30 to 11-01, built 6-24).
+6. MEASURED: running the three dry phases in one wave (the task branch) cut a warm set from 25.2/26.0 s to 15.8/15.8 s,
+   but it let the lake lint and `scripts/fwcore-build.sh` run `lake build` at the same time in one land-wt `lean/.lake`.
+   There are two Lake slots, not one (`LAKE_SLOT_POOLS='full 4'`, lean/Fw/Sched/LakeSlot.lean:276; scripts/lake-slot-lib.sh
+   `_ls_take`), and Lake takes no build lock (CONFIRMED, Lake/Util/Lock.lean:17-20 at lean4 eb6cafb, v4.35.0). Both slots
+   were taken within 82-88 ms in locks rows 20291-20292, 20295-20296 and 20307-20308.
+7. The branch's only lake-miss run failed: commit 09ab4c0, startMs 1793485018826, built 2, exit 1; the lake lint and
+   fwcore-build both ran from 0.91 s to 16.55 s. INFERRED cause: a race on hard-linked .olean files (enableArtifactCache,
+   lean/lakefile.toml:8-14). Not proven: the error text was overwritten by the passing rerun.
 
-| step | fast c83df96 (20.8 s, load 5.4) | 001d247 (33.3 s, load 4.7) | 0058ef3 (38.1 s, load 6.2) |
-|---|---|---|---|
-| claims lint | 2.5 | 1.3 | 2.3 |
-| reads test (land-inputs) | 9.9 (3.5..13.4) | 9.7 (2.3..12.0) | 10.1 (3.3..13.4) |
-| lake build + axiom check | not run (cache hit) | 7.6 (12.2..19.8) | 8.9 (13.6..22.5) |
-| workflow lint | not selected | 2.8 | 2.7 |
-| ledger-merge + notes test | 2.1 | 3.5 | 3.0 |
-| console-api:compose | 6.0 (14.7..20.7) | 7.1 (21.0..28.1) | 8.3 (24.6..32.9) |
-| runner:overflow-widths | not selected | 12.0 (21.0..33.0) | 12.3 (24.6..36.9) |
-| total | 20.8 | 33.3 | 38.1 |
+## Lessons
 
-Critical path: fast = claims + reads + compose; slow = claims + reads + lake + overflow-widths (1.3 + 9.7 + 7.6 + 12.0
-= 30.6 s, plus 2.7 s of git and install before the first check). The checks of one phase ran in parallel, the phases did
-not.
+- A CONFIRMED tag needs its file:line read in that round. The branch note tagged "one build at a time" CONFIRMED from a
+  comment in lake-slot-lib.sh; the slot count is two. Same class as incident inc-number-from-memory.
+- The lead's task prompt offered two causes (growth, host load) and neither was true. The prompt should have asked for
+  attribution only and left the cause open.
+- A run of new code that fails once and passes on retry is evidence, not noise: the one failed lake-miss run was the race.
 
-## What was added, when (CONFIRMED, git log)
+## Follow-ups (graph r616)
 
-- 2026-10-23 `986f847b9` workflow lint check; 2026-10-24 `94f974b89` any workflow change selects the overflow width test
-  (Lean LandTier rule); `29c007fe8` the 6-job width test. Both were on main before the fast sample's window, so neither
-  explains a change of speed by itself: the three slow samples are the first dry lands whose change set selected all of
-  them together with a lake miss (lean/ and golden changed).
-- Since 2026-10-25 no new land lint or local test was added (git log of `apps/runner/src/land*.ts`).
-
-## The rule (Lean first)
-
-`lean/Fw/Ops/LandDry.lean`, golden `packages/contracts/golden/ops/land-dry.jsonl` (8 rows), TS stand-in
-`apps/runner/src/land-dry.ts` (marked for Lean replacement by a fwcore op), checked by `apps/runner/test/land-dry-waves.test.ts`.
-
-- `seqVerdict` is the old protocol (each phase only after the earlier ones passed). `parVerdict` runs all and names the
-  first failing phase of `order`. `par_eq_seq`: same refusal for the same results. `par_none_iff`: ok only when all
-  four pass. `par_reads_first`, `par_lints_second`, `par_ledger_third`, `par_loc_last`: one theorem per branch.
-- `seqRan_sub_parRan`: every phase the old protocol ran, the new one runs (no check dropped).
-- `waves`: one wave holds reads, lints and local. The lake build and the fwcore build step both go through the
-  machine-wide Lake slot (CONFIRMED, scripts/lake-slot-lib.sh:2-3: a flock per slot), so they queue instead of racing;
-  a local test that uses fwcore waits for the build step through `checkDeps` (land.ts). A first version kept a second
-  wave for that case (`waves_build_serial`); its run took 22.5 s (below), so the rule was dropped for the slot.
-- `recordLake`: the lake pass record is written only when reads and lints passed (`recordLake_needs_reads`,
-  `recordLake_needs_lints`). The ledger-note check stays a short read after the wave (`waves_no_ledger`).
-
-## Before and after, small change set (MEASURED, timings rows d8c021d startMs 1793483732538 (before) and 4ed5e45 startMs 1793483702472 (after); lake cache off)
-
-The change set: lean/ and golden changes (lake lint), land-inputs read scan, `research/findings/ledger.json` (selects
-compose and the ledger test). `runner:overflow-widths` and the workflow lint cannot be selected inside this task's
-writes, so they are absent from both rows.
-
-| run | code | total | load (start, end) | reads | lake | compose | ledger-merge |
-|---|---|---|---|---|---|---|---|
-| before | main land.ts (phases in series) | 20.8 s | 5.0, 5.1 | 9.8 | 3.2 (warm) | 6.1 | 2.1 |
-| mid | phases in series after a build conflict rule | 22.5 s | 3.0, 3.3 | 11.7 | 8.3 | 7.4 | 2.1 |
-| after | one wave | 14.2 s | 4.9, 5.5 | 11.2 | 9.2 | 7.7 | 2.3 |
-
-## Before and after, slow change set (MEASURED, 2 pairs, order after, before, before, after)
-
-Scratch branch `scratch/dls-slowset` (never landed, deleted after) on main 261827249: a one-line comment in
-`.github/workflows/path-pix.yml` and one in `lean/Fw/Ci/Trigger.lean`. It selects the lake lint, the workflow lint,
-`runner:overflow-widths` and the reads scan. `FW_LAND_LAKE_CACHE=off`; "before" runs main's `land.ts`, "after" this
-branch's. All five printed `VERDICT dry`. Timings rows are `land dry lake` of commit 09ab4c0 (the checkout that ran
-`fw`); the key is the startMs. Spans are seconds, offset from the row start.
-
-| run | code | startMs | total | load (start) | lake lint | fwcore-build | overflow-widths (offset, length) | compose |
-|---|---|---|---|---|---|---|---|---|
-| A1 | after | 1793485078913 | 15.8 s | 4.79 | 7.8 | 1.3 | 2.1, 13.5 | not selected |
-| B1 | before | 1793485115727 | 25.2 s | 4.28 | 2.1 | 0.9 | 13.7, 11.4 | not selected |
-| B2 | before | 1793485142154 | 26.0 s | 5.02 | 2.9 | 0.9 | 14.4, 11.4 | not selected |
-| A2 | after | 1793485196559 | 15.8 s | 6.73 | 10.7 | 1.1 | 2.3, 13.0 | not selected |
-
-Gain: 25.2 and 26.0 s down to 15.8 and 15.8 s (about 10 s). The longest chain after is fwcore-build, then
-overflow-widths (1.3 + 13.5 = 14.8 s, plus about 1 s of merge and claims lint). The lake lint (8 to 11 s) runs beside
-it. A run with a ledger change would also select compose; it was not part of this set, so no compose span is claimed.
-
-Honest reading: the alert's samples were 33 to 38 s. This set was 25 to 26 s before the fix and 15.8 s after, so it
-shows the fix on a set whose lake step was warm (built 0; the 33 to 38 s samples had a cold or missed lake cache and
-the ledger-selected compose). The 30 s budget is met on this set after the fix (15.8 s) and was already met before it
-(25.2 to 26.0 s); no measured row exists for a set that was over budget before. I do not claim the 33 to 38 s case is
-cured, only that the same checks cost the longest chain instead of the sum.
-The offsets of sample 001d247 give about 2.3 + 7.6 + 1.0 + 12.0 = 22.9 s at the same load, before the slowdown of
-running the checks together (reads test 9.8 s before, 11.2 s after).
-Accepted limit: `runner:overflow-widths` waits for the build step, so its 12 s starts after the lake build when both
-run; a smaller chain would need the width test not to use fwcore (a follow-up).
-
-## Follow-ups (outside the unit)
-
-- A load-aware baseline for `timing.slow` is not needed: reads (the step least sensitive to the plan) is flat across
-  loads 4.7 to 6.2.
-- `scripts/hooks/pre-commit` takes about 3 minutes on a commit that touches `research/findings/ledger.json` (the preset
-  check elaborates Lean through `lake env lean --stdin`); not part of the dry land.
-- The `fwcore-build.sh` step after a lake lint that already built the same tree is a no-op; skipping it needs a rule on
-  what `lake build` covers (Lean first).
+- dry-land-timing-key: the timing key of the dry steps carries the identity of the selected check set, so the relative
+  slow rule (lean/Fw/Obs/Timing.lean:1173-1177) compares like with like. Timing only; speed and land semantics unchanged.
+- dry-land-waves: the parallel run from the task branch with a Lean dependency rule (`Fw.Ops.LandDry.deps`: fwcore-build
+  after the lake lint, fwcore users after both; theorem `lake_serial`), measured on 001d247's exact check set with warm and
+  cold runs. INFERRED warm critical path after the edges: about 23 s.
