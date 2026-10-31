@@ -142,7 +142,7 @@ test('report: the in-view sweep loops are a source, so both is predicted at tier
   has('effect v2p end overall: took');
   has('answer both end: tiers [one, one, one] overall one; reaches 100 per 100: yes');
   has('answer parks back: tiers [two, two, two] overall two; reaches 100 per 100: no');
-  assert.ok(v.some((l) => l.startsWith('sources both end round 1: platform sweep running 2; sweep loops running 2, hidden 0; owners sweep-module_sweepDoc_x@span x2; candidate platform.sweep:layer-sweep')));
+  assert.ok(v.some((l) => l.startsWith('sources both end round 1: platform sweep running 2; sweep loops running 2, hidden 0; owners sweep-module_sweepDoc_x on span x2; candidate platform.sweep:layer-sweep')));
   const same = verdictLines(three({ bothRate: 720 }));
   assert.ok(same.includes('both against parks [pauses] end overall: noEffect:pauses (rate reading noEffect:pauses); predicted noEffect:pauses; held'));
   assert.ok(same.includes('tier both end: [two, two, two] overall two; predicted two; held'));

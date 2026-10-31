@@ -217,6 +217,6 @@ export function verdictLines(merged) {
 /** The running animations of a page census grouped by animation name and target. */
 export function ownersText(raw) {
   const n = {};
-  for (const x of raw?.running ?? []) { const k = `${x[1] || '?'}@${x[2]}`; n[k] = (n[k] ?? 0) + 1; }
+  for (const x of raw?.running ?? []) { const k = `${x[1] || '?'} on ${x[2]}`; n[k] = (n[k] ?? 0) + 1; }
   return Object.entries(n).map(([k, v]) => `${k} x${v}`).join('; ') || 'none';
 }

@@ -463,7 +463,12 @@ private def verdictCases : List (String × Edge × Win × Win) :=
    ("unreadable arm window", ⟨.both, .parks, liveStages⟩, ⟨360, 100, 360⟩, w 360 720),
    ("unreadable comparator window", ⟨.both, .parks, liveStages⟩, w 360 360, ⟨360, 100, 720⟩),
    ("arm off the grid", ⟨.both, .parks, liveStages⟩, w 360 540, w 360 720),
-   ("comparator off the grid", ⟨.both, .parks, liveStages⟩, w 360 360, w 360 540)]
+   ("comparator off the grid", ⟨.both, .parks, liveStages⟩, w 360 360, w 360 540),
+   ("run 41204019629 job 1 end, both against parks", ⟨.both, .parks, liveStages⟩, w 370 730, w 369 731),
+   ("run 41204019629 job 2 end, both against parks", ⟨.both, .parks, liveStages⟩, w 360 710, w 360 727),
+   ("run 41204019629 job 3 end, both against parks", ⟨.both, .parks, liveStages⟩, w 371 731, w 360 720),
+   ("run 41204019629 job 2 end, both against pauses", ⟨.both, .pauses, liveStages⟩, w 360 710, w 361 721),
+   ("run 41204019629 job 1 end, parks against v2p", ⟨.parks, .v2p, liveStages⟩, w 369 731, w 372 741)]
 
 private def heldCases : List (String × String × String) :=
   [("same cut", "cut:pauses", "cut:pauses"), ("same noEffect", "noEffect:parks", "noEffect:parks"),
@@ -548,7 +553,9 @@ private def overallPredCases : List (String × Edge × List (Option Census × Op
   [("a source remains in 3 of 3", ⟨.both, .parks, liveStages⟩, [(some bothC, some parksC), (some bothC, some parksC), (some bothC, some parksC)]),
    ("nothing remains in 3 of 3", ⟨.both, .parks, liveStages⟩, [(some bothClearC, some parksC), (some bothClearC, some parksC), (some bothClearC, some parksC)]),
    ("a source remains in 1 of 3", ⟨.both, .parks, liveStages⟩, [(some bothC, some parksC), (some bothClearC, some parksC), (some bothClearC, some parksC)]),
-   ("parks against v2p", ⟨.parks, .v2p, liveStages⟩, [(some parksC, some v2pC), (some parksC, some v2pC), (some parksC, some v2pC)])]
+   ("parks against v2p", ⟨.parks, .v2p, liveStages⟩, [(some parksC, some v2pC), (some parksC, some v2pC), (some parksC, some v2pC)]),
+   ("run 41204019629 both against pauses, the 2 in-view sweep loops remain in 3 of 3", ⟨.both, .pauses, liveStages⟩,
+    [(some bothC, some pausesC), (some bothC, some pausesC), (some bothC, some pausesC)])]
 
 private def overallEffectCases : List (String × List String) :=
   [("all took", ["took", "took", "took"]), ("one missing", ["took", "missing:hero.exit:threaded-park", "took"]),
