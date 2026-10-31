@@ -5,7 +5,7 @@ any of the four arms (v2p, parks, pauses, both)? No flag or preset change; gate:
 
 Answer: no, not in any arm. All 12 arm-stage cells read tier two (197 to 205 per 100) in 3 of 3 jobs (`results/sim-end-cut-2/r1/table.txt:1-8`). This time every flag took in every
 job (census, section 3), so the result is a real no-effect, not an untested one. `both` has one source left in its census: the 2 sweep loops that are in view (Secure, Organized).
-They must run, so the sweep pause rightly leaves them (INFERRED), and they hold the rate at 200. Pausing them (the `paused` stage) reads 100 per 100 in `both` (3 of 3 jobs).
+They must run, so the sweep pause leaves them (INFERRED), and they hold the rate at 200. Pausing them (the `paused` stage) reads 100 per 100 in `both` (3 of 3 jobs).
 Candidate for the next step: `platform.sweep:layer-sweep` (class L, look change, spec only here).
 
 ## 1. Run
@@ -70,20 +70,20 @@ Tier lines `cut.txt:36-45`: v2p, parks, pauses, both two at end and back, all he
 
 - `both` end and back: the only running animation is `platform sweep` x2 (`sources both end round 1..3`, `cut.txt`): two `sweepDoc` loops on `span.platform-module_word...sweep-module_sw` and `...platform-module`, both in the viewport,
   0 running out of the viewport. Everything else is parked, paused or finished.
-- The same arm and load reads 100 when every document animation is paused (paused stage), so the 200 minus 100 is held by animations that play. The census lists only those 2 loops (INFERRED: they are the holder; this run has no arm
+- The same arm reads 100 with every document animation paused (paused stage), so the 200 minus 100 is held by animations that play. The census lists only those 2 loops (INFERRED: they are the holder; this run has no arm
   that removes only them).
 - Why they cost a recalc per frame: the sweep animates `background-position` with `background-clip:text`; WebKit gives `background-position` no accelerated animation wrapper (`Source/WebCore/css/CSSProperties.json` at 862f17d, cited in
   `apps/site/src/parts/platform.sweep/part.json` `layer-sweep` webkit field), so each frame restyles the word (INFERRED).
 - Candidate: `platform.sweep:layer-sweep` (`apps/site/src/parts/platform.sweep/part.json:22`): a child layer with the same gradient, translated under a static text mask, so the animation is composited (transform). It is class L, a look change for the user's
   visual review, never into a preset. SPEC ONLY here; not measured on the Simulator.
 
-## 6. Finding: the floor of `both` with everything paused is 100, not 0
+## 6. The floor of `both` with everything paused is 100, not 0
 
 Paused `both` keeps one recalc per frame with 0 scheduled (`table.txt:10`): the unscheduled per-frame recalc left open in `10-31-sim-floor-attrib.md` is still the floor under all flags (INFERRED: one recalc per rAF frame the harness itself causes, unmeasured here).
 So 100 per 100 is the best any flag set reaches on this Simulator; the live target of 100 needs the in-view sweep loops off the main thread.
 
 ## 7. Accepted limits
 
-- Simulator only, not the phone; 3 jobs x 1 round; the in-view sweep loops may run; attribution of the remaining source is INFERRED from the census owner list.
+- Simulator only, not the phone; 3 jobs x 1 round; attribution of the remaining source is INFERRED from the census owner list.
 - `platform:faded-pause` is absent from `pauses` and `both` (conflict); sim-floor-attrib measured it as noEffect (INFERRED to carry over).
 - No flag or preset change. Gate: none (measurement task).

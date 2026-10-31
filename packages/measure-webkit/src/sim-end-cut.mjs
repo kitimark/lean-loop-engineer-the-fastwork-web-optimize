@@ -46,7 +46,6 @@ export function held(overall, predicted) {
   if (overall === 'inconclusive' || overall === 'mixed') return 'undecided';
   return 'missed';
 }
-/** The prediction verdict gated on the census: a flag that did not engage leaves the edge untested. */
 export const heldGated = (overall, predicted, took) => gate(held(overall, predicted), took);
 
 const hasPrefix = (pre, s) => s.startsWith(pre);
@@ -58,10 +57,6 @@ export function kindOf(name) {
 }
 const KINDS = ['accent idle', 'cue float', 'platform sweep', 'other'];
 
-/**
- * The Lean `Census` of a page census and its sweep read: the `by` counts, the running names, the paused infinite-loop names, the park and unthrottle
- * element counts, and the running sweep loops out of the viewport (null when the sweep read is missing). A sweep row is [target, playState, pending, startNull, inView].
- */
 export const toCensus = (c, sweep = null) => ({
   byKey: Object.entries(c?.by ?? {}),
   running: (c?.running ?? []).map((x) => x[1]),
@@ -76,10 +71,8 @@ export const viewDriven = (c) => sumKeys(c, 'view:');
 export const scrollDriven = (c) => sumKeys(c, 'scroll:');
 export const complete = (c) => c.running.length < CENSUS_CAP && c.paused.length < CENSUS_CAP;
 const runningOf = (c, k) => c.running.filter((n) => kindOf(n) === k).length;
-/** A pause took when the census is complete and no loop of the kind runs: a loop that finished on its own is not a source. */
 const pauseTook = (c, k) => complete(c) && runningOf(c, k) === 0;
 
-/** A pause of the sweep took when no loop runs out of the viewport; the loops in view run by design. */
 const sweepTook = (c) => complete(c) && c.sweepHidden === 0;
 
 export const FLAGS = Object.freeze([
@@ -92,9 +85,7 @@ export const FLAGS = Object.freeze([
   { name: 'platform.sweep:offscreen-pause', took: sweepTook },
 ]);
 export const active = (id) => [...(HAS[id][0] ? FLAGS.slice(2, 4) : FLAGS.slice(0, 2)), ...(HAS[id][1] ? FLAGS.slice(4) : [])];
-/** Every active flag of the arm took in this census; a missing census does not count as took. */
 export const sideTook = (id, c) => active(id).every((f) => c !== null && f.took(c));
-/** Every flag of both arms of the edge took in every round: `rounds` are [arm census, comparator census] pairs, null where a round has none. */
 export const edgeTook = (e, rounds) => rounds.every(([ca, cc]) => sideTook(e.arm, ca) && sideTook(e.cmp, cc));
 export const missing = (id, c) => active(id).filter((f) => !f.took(c)).map((f) => f.name);
 export function effectName(id, c) {
@@ -107,18 +98,14 @@ export function stillTicks(c) {
 }
 export const overallEffect = (ns) => overallNames(ns.filter((n) => n !== 'none'));
 
-/** Some source still ticks: a view or scroll animation, or a running loop. */
 export const sourceRemains = (c) => stillTicks(c).length > 0;
-/** Only running sweep loops remain (the in-view ones): the candidate owner of a remaining rate is `platform.sweep:layer-sweep`. */
 export const sweepOnly = (c) => viewDriven(c) === 0 && scrollDriven(c) === 0 && ['accent idle', 'cue float', 'other'].every((k) => runningOf(c, k) === 0) && runningOf(c, 'platform sweep') > 0;
 export const LAYER_SWEEP = 'platform.sweep:layer-sweep';
 export const candidateOf = (c) => (sweepOnly(c) ? LAYER_SWEEP : null);
 
-/** The tier predicted for the arm given its census: both reaches 100 only when no source remains. */
 export const predTierFor = (id, c) => (c && id === 'both' && sourceRemains(c) ? 'two' : PRED_TIER[id]);
 export const predEdgeFor = (e, ca, cc) => edgeTier('b', 'b', ARM_SETS[e.arm], ARM_SETS[e.cmp], predTierFor(e.arm, ca), predTierFor(e.cmp, cc));
 export const overallPred = (e, rounds) => overallNames(rounds.map(([ca, cc]) => predEdgeFor(e, ca, cc)));
-/** A verdict about a flag stands only when the flag took; otherwise it reads untested. */
 export const gate = (v, took) => (took ? v : 'untested');
 
 const EMPTY = { raf: 0, seen: 0, recalcs: 0, tally: {} };
@@ -214,7 +201,6 @@ export function verdictLines(merged) {
   return out;
 }
 
-/** The running animations of a page census grouped by animation name and target. */
 export function ownersText(raw) {
   const n = {};
   for (const x of raw?.running ?? []) { const k = `${x[1] || '?'} on ${x[2]}`; n[k] = (n[k] ?? 0) + 1; }

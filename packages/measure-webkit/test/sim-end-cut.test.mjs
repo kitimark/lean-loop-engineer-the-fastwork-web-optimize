@@ -108,7 +108,6 @@ const loops = [['document', 'accent-module_idle0_x', 'svg'], ['document', 'cue-m
 const sweepRun = [['p', 'running', false, false, true], ['p', 'running', false, false, true]];
 const sweepRows = (hiddenState) => [...sweepRun, ['h', hiddenState, false, false, false], ['h', hiddenState, false, false, false]];
 const sweepOnlyRunning = loops.slice(2);
-/** The census of an arm in a state: `park` (parks on), `pause` (pauses on), `inView` (in-view sweep loops run), `missPark` (park flags without effect). */
 const census = ({ park, pause, missPark = false }) => ({
   total: 40,
   by: { 'document:finished': 20, ...(park && !missPark ? {} : { 'view:finished': 13, 'scroll:finished': 1 }) },
