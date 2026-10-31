@@ -36,31 +36,38 @@ interface ElState {
   readonly starts: Map<Animation, CSSNumberish | null>;
 }
 
-export function watchSweepPause(els: Element[]): () => void {
+export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver = IntersectionObserver): () => void {
   const state = new Map<Element, ElState>();
   for (const el of els) state.set(el, { paused: false, anims: el.getAnimations(), starts: new Map() });
   const resume = (st: ElState) => {
     for (const [a, s] of st.starts) {
+      if (a.playState !== 'paused') continue;
       a.play();
       if (s != null) a.startTime = s;
     }
     st.starts.clear();
   };
-  const stop = watchHidden(els, 'rect', (el, hidden) => {
-    const st = state.get(el);
-    if (!st) return;
-    const act = reportAction(st.paused, hidden);
-    if (act === 'pause') {
-      for (const a of st.anims) {
-        st.starts.set(a, a.startTime);
-        a.pause();
+  const stop = watchHidden(
+    els,
+    'rect',
+    (el, hidden) => {
+      const st = state.get(el);
+      if (!st) return;
+      const act = reportAction(st.paused, hidden);
+      if (act === 'pause') {
+        for (const a of st.anims) {
+          if (a.playState !== 'running' || a.startTime == null) continue;
+          st.starts.set(a, a.startTime);
+          a.pause();
+        }
+        st.paused = true;
+      } else if (act === 'resume') {
+        resume(st);
+        st.paused = false;
       }
-      st.paused = true;
-    } else if (act === 'resume') {
-      resume(st);
-      st.paused = false;
-    }
-  });
+    },
+    IO,
+  );
   return () => {
     stop();
     for (const st of state.values()) if (st.paused) resume(st);
