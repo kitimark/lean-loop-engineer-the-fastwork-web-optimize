@@ -1,4 +1,5 @@
 import { watchHidden } from '../engine.scene/observe';
+import { SCENE_ATTR } from '../platform/scene';
 import { PERIOD_MS, phase } from './logic';
 
 export const VARIANT = 'offscreen-pause';
@@ -43,7 +44,18 @@ interface ElState {
 
 export const resumeTime = (h: Held, now: number): number => h.cur + (now - h.at);
 
-export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver = IntersectionObserver, now: () => number = () => performance.now()): () => void {
+/**
+ * `host` is the element that carries the scene attribute (the platform section). Its paused rule pauses every loop in CSS while the section is
+ * far from the viewport and plays them again when the attribute turns active, also the loops of a word that is still out of the viewport: that
+ * start is not a report, so an attribute change holds the reported elements again.
+ */
+export function watchSweepPause(
+  els: Element[],
+  IO: typeof IntersectionObserver = IntersectionObserver,
+  now: () => number = () => performance.now(),
+  host: Element | null = null,
+  MO: typeof MutationObserver | null = typeof MutationObserver === 'undefined' ? null : MutationObserver,
+): () => void {
   const state = new Map<Element, ElState>();
   for (const el of els) state.set(el, { paused: false, held: new Map() });
   const hold = (el: Element, st: ElState) => {
@@ -79,8 +91,13 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
     },
     IO,
   );
+  const mo = host && MO ? new MO(() => {
+    for (const [el, st] of state) if (st.paused) hold(el, st);
+  }) : null;
+  mo?.observe(host!, { attributes: true, attributeFilter: [SCENE_ATTR] });
   return () => {
     stop();
+    mo?.disconnect();
     for (const st of state.values()) if (st.paused) resume(st);
   };
 }

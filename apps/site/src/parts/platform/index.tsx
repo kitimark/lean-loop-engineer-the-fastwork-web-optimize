@@ -148,7 +148,7 @@ export function Platform({ variant, sub = {} }: PlatformProps) {
   useEffect(() => {
     const sec = section.current;
     if (!sweepPause || !sec) return;
-    return watchSweepPause([...sec.querySelectorAll(`.${sw.sweep}`)]);
+    return watchSweepPause([...sec.querySelectorAll(`.${sw.sweep}`)], undefined, undefined, sec);
   }, [sweepPause]);
 
   useEffect(() => {

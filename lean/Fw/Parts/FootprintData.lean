@@ -3040,12 +3040,12 @@ def accesses : List Access := [
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "hero.accent", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 46, .clock, "performance.now", "", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 46, .clock, "performance.now", "", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 59, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 59, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 61, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 61, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 55, .clock, "performance.now", "", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 55, .clock, "performance.now", "", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
 
 /-- Extractor findings (dead, dynamic, unresolved selectors and targets): (part, file, line, kind, detail). -/
 def findings : List Finding := [
@@ -3206,10 +3206,10 @@ def findings : List Finding := [
   ⟨"platform.glint", "platform.glint/pause.ts", 44, "unmodelled-api", "call el.setCurrentTime"⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 39, "unresolved-target", "rect"⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 42, "unresolved-target", "setVar --sw6"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 59, "dynamic-name", "setStyle"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 59, "unresolved-target", "setStyle ?"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 61, "dynamic-name", "setStyle"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 61, "unresolved-target", "setStyle ?"⟩]
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, "dynamic-name", "setStyle"⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 71, "unresolved-target", "setStyle ?"⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, "dynamic-name", "setStyle"⟩,
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 73, "unresolved-target", "setStyle ?"⟩]
 
 /-- Every variant of every part.json with its `files` list, in part then part.json order: (part, variant, files). -/
 def variantFiles : List (String × String × List String) := [

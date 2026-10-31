@@ -108,4 +108,51 @@ describe('platform.sweep watchSweepPause', () => {
     report(el, false);
     expect(loop.log).toEqual(['pause']);
   });
+  it('a scene attribute change holds a reported element whose CSS play started again (the section paused rule flips to active)', () => {
+    const loop = new Timed(null, 145);
+    loop.playState = 'paused';
+    const { el } = mkEl(() => [loop]);
+    const { IO, report } = fakeIO();
+    let fire: () => void = () => undefined;
+    let watched: unknown = null;
+    class MO {
+      constructor(cb: () => void) {
+        fire = cb;
+      }
+      observe(t: unknown, o: unknown) {
+        watched = [t, o];
+      }
+      disconnect() {}
+    }
+    const host = {} as Element;
+    let t = 10;
+    P.watchSweepPause([el], IO, () => t, host, MO as unknown as typeof MutationObserver);
+    expect(watched).toEqual([host, { attributes: true, attributeFilter: ['data-fw-scene'] }]);
+    report(el, true);
+    expect(loop.log).toEqual([]);
+    loop.playState = 'running';
+    t = 20;
+    fire();
+    expect(loop.log).toEqual(['pause']);
+    t = 520;
+    report(el, false);
+    expect(loop.log).toEqual(['pause', 'play']);
+    expect(loop.currentTime).toBe(645);
+  });
+  it('an attribute change leaves an element that is on screen alone', () => {
+    const loop = new Timed(9);
+    const { el } = mkEl(() => [loop]);
+    const { IO } = fakeIO();
+    let fire: () => void = () => undefined;
+    class MO {
+      constructor(cb: () => void) {
+        fire = cb;
+      }
+      observe() {}
+      disconnect() {}
+    }
+    P.watchSweepPause([el], IO, () => 0, {} as Element, MO as unknown as typeof MutationObserver);
+    fire();
+    expect(loop.log).toEqual([]);
+  });
 });

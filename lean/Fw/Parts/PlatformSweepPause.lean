@@ -6,6 +6,9 @@ Named premise `Running` (TS guard, not proved about the engine): the watcher `wa
 reads `getAnimations()` at each report and pauses every running animation. A loop with a start time resumes with that start time, which is `seek`
 to `orig`. A loop with no start time yet (a play still pending) has current time 0 or the hold time, and resumes at that time plus the time
 paused (`resumeTime`), within one frame of `orig` (INFERRED, both engines).
+Named premise `Scene` (INFERRED, both engines): the platform section's CSS paused rule starts a loop again when the scene attribute turns active, also one whose
+word is still out of the viewport; the watcher holds the reported elements again on that attribute change (MutationObserver, no per-frame work), so a
+loop started by the rule is paused before the frame is drawn and resumes at its time plus the time paused, which is what the unpaused page shows.
 -/
 namespace Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweep (phase pos)
