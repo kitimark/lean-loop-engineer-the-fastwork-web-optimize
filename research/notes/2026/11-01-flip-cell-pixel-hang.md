@@ -32,11 +32,10 @@ Code: `packages/gate-breakpoints/src/bounded.mjs`, `flip-cell.mjs`, `flip-verify
 
 - MEASURED, push run 41231318047 at d6dcdce9a (first attempt), breakpoint-gate: green on both engines. WebKit flip-cell step times: Flip-state cell 2.8 min, geom-timed 6.8 min, verify 3.8 min, repeats 2.0 min, mutations 3.4 min, Pixel look report 8.6 min (the step that stalled before; passing run 41211006218 took 8.5 min).
 - WebKit artifact `flip-cell-playwright-webkit`: 0 faults and 0 exhausted cells in every file; `limits` recorded; 0 of 48 + 24 + 24 flip cells and 0 of 60 look rows ran out the ready wait (`late`); longest ready wait 4546 ms (flip, "on"), 1286 ms (look); longest screenshot 7883 ms. The 640x1000 m=0 cell read the 3 columns. The geom-timed look on WebKit is skipped by design (its tween does not start from a wheel there).
-- What one run proves: little. The old failure came in whole batches (fvf-b 4 of 4 runs failed, fvf-a 0 of 4 on the same sha and image), so a green run does not show the fault path. The fault path is proved in Lean and by `packages/gate-breakpoints/test/bounded.test.mjs` (stalled call, retry, exhausted), not by this run. Dispatch items for more first-attempt runs are in the report.
+- What one run proves: little. The old failure came in whole batches (fvf-b 4 of 4 runs failed, fvf-a 0 of 4 on the same sha and image), so a green run does not show the fault path. The fault path is proved in Lean and by `packages/gate-breakpoints/test/bounded.test.mjs` (stalled call, retry, exhausted), not by this run.
 - MEASURED, the lead's 4 dispatched runs 41234736854, 41234739514, 41234742109 and 41234744891: the dispatch input was `engines=playwright-webkit`, but `gh run view` shows the flip-cell jobs of both engines ran in each (they were not WebKit-only runs).
 
 ## Open items
 
 - The Pixel look screenshot timeout hit the flag page (`look.mjs` imgB) at the cell after 640x1000 m=0.5, while the base page of that cell had succeeded. A flag-specific render cost is not ruled out; the next fault artifact should be read for base and flag `shotMs` side by side.
-- Flip verify, repeats and mutation page calls are unbounded (follow-up).
 - More first-attempt WebKit runs; the fault path is shown by Lean and offline tests, not by a CI run.

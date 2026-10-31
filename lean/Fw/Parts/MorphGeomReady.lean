@@ -185,7 +185,6 @@ theorem retry_fault_stops (n max : Nat) (h : max ≤ n) : retryNext n max .fault
   have : ¬ n < max := by omega
   simp [retryNext, this]
 
-/-- What a thrown error says: the call ran out of time (`stall`), or the page code or the harness is wrong (`defect`). -/
 inductive ErrKind where
   | stall
   | defect
@@ -195,11 +194,9 @@ def ErrKind.name : ErrKind → String
   | .stall => "stall"
   | .defect => "defect"
 
-/-- Only the harness's own limit (`LimitError`) and Playwright's timeout (`TimeoutError`) are stalls; every other name is a defect. -/
 def errKind (errName : String) : ErrKind :=
   if errName = "LimitError" ∨ errName = "TimeoutError" then .stall else .defect
 
-/-- A stall is a fault; a defect is a failing reading, so it is never retried into a pass. -/
 def ErrKind.attempt : ErrKind → Attempt
   | .stall => .fault
   | .defect => .reading false

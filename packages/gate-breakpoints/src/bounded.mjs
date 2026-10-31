@@ -3,10 +3,6 @@ import { freemem, loadavg } from 'node:os';
 import { resolve } from 'node:path';
 import { PKG } from './serve.mjs';
 
-// Ready, wait and fault rules of the flip-cell and look readings.
-// Lean: lean/Fw/Parts/MorphGeomReady.lean. Golden lines verifyReady, verifyWait, verifyAttempts, verifyNext, verifyErr, verifyCells and
-// verifyLimits of packages/contracts/golden/morph-geom-timed.jsonl (replayed by test/bounded.test.mjs).
-
 export const GOLDEN = resolve(PKG, '../contracts/golden/morph-geom-timed.jsonl');
 
 export function loadLimits(path = GOLDEN) {
@@ -33,12 +29,10 @@ export const cellOutcome = (max, names) => {
   return r === true ? 'pass' : r === false ? 'fail' : 'exhausted';
 };
 export const retryNext = (n, max, name) => (name !== 'fault' ? 'done' : n < max ? 'again' : 'stop');
-/** Lean `errKind`: only the harness limit and Playwright's timeout are stalls (faults); any other error is a page or harness defect. */
 export const errKind = (name) => (name === 'LimitError' || name === 'TimeoutError' ? 'stall' : 'defect');
 export const cellsPass = (outcomes) => outcomes.every((o) => o === 'pass');
 export const cellsKept = (outcomes) => outcomes.every((o) => o !== 'exhausted');
 
-/** A page call that outlived its named limit. It is a fault, never a reading. */
 export class LimitError extends Error {
   constructor(name, ms) {
     super(`${name}: no answer in ${ms} ms`);
@@ -48,7 +42,6 @@ export class LimitError extends Error {
   }
 }
 
-/** Race `work` (a promise or a function returning one) against a named limit; the loser's late rejection is swallowed. */
 export function bound(name, ms, work) {
   const p = Promise.resolve(typeof work === 'function' ? work() : work);
   p.catch(() => {});
@@ -59,20 +52,16 @@ export function bound(name, ms, work) {
   return Promise.race([p, late]).finally(() => clearTimeout(timer));
 }
 
-/** `page.evaluate` under the call limit. */
 export const call = (name, page, fn, arg) => bound(name, LIMITS.callMs, () => page.evaluate(fn, arg));
 
-/** Close a page or browser under the close limit; a close that hangs or throws is dropped (the process exit kills the browser). */
 export const closeBounded = async (name, closable) => {
   if (!closable) return;
   try {
     await bound(name, LIMITS.closeMs, () => closable.close());
   } catch {
-    // dropped on purpose: the close ran out of time or the target was already gone
   }
 };
 
-/** Runs in the page: what it shows of the morph columns, and the CSS transitions still running. */
 export function observeCell() {
   const cols = [...document.querySelectorAll('[data-fw="morph-columns"] > div')].filter((c) => getComputedStyle(c).display !== 'none');
   const imgs = cols.flatMap((c) => [...c.querySelectorAll('img')]);
@@ -86,10 +75,6 @@ export function observeCell() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Poll both pages until `cellReady` or the ready limit (Lean `waitStep`): `read` once ready, `late` after the limit. The caller
- * reads and judges either way; `late` only notes that the wait ran out.
- */
 export async function waitCell(base, flag, want, { limitMs = LIMITS.readyMs, pollMs = LIMITS.pollMs } = {}) {
   const t0 = Date.now();
   for (;;) {
@@ -102,7 +87,6 @@ export async function waitCell(base, flag, want, { limitMs = LIMITS.readyMs, pol
   }
 }
 
-/** Why and when a cell attempt failed to read: kept in the output so a stall is explained next time. */
 export const faultNote = (name, n, err) => ({
   cell: name,
   attempt: n,
@@ -112,11 +96,6 @@ export const faultNote = (name, n, err) => ({
   at: new Date().toISOString(),
 });
 
-/**
- * One cell: `attempt(n)` returns `{ ok, value }` (a reading) or throws (a fault). Only stalls (`errKind`) are faults; any other error is a defect and rejects at once. Faults are retried up to the Lean attempt limit
- * after `onFault` (which drops the pages); the first reading decides, so a failing reading is never retried into a pass.
- * Returns the Lean outcome (`pass`, `fail`, `exhausted`), the value of the reading and the fault notes.
- */
 export async function takeCell(name, attempt, { max = LIMITS.attempts, onFault = async () => {} } = {}) {
   const names = [];
   const faults = [];
