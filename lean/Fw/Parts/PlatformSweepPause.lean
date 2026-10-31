@@ -1,6 +1,9 @@
 import Fw.Parts.PlatformSweep
 /-!
 # `platform.sweep:offscreen-pause`: the sweep stops ticking while its element is offscreen, and shows the same phase
+
+Named premise `Running` (TS guard, not proved about the engine): the watcher `watchSweepPause` (apps/site/src/parts/platform.sweep/pause.ts)
+pauses only an animation that is running with a start time, the only kind `seek` models.
 -/
 namespace Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweep (phase pos)

@@ -21,11 +21,11 @@ the pure model (`init`, `seek`, `tick`, `reportAction`) is shared as before.
 
 ## Lean
 
-Premise `Running` is now named in the module docstring of `lean/Fw/Parts/PlatformSweepPause.lean`: `seek` pauses only a running
-animation with a start time; `shown_same` and `Ok` concern the animations the watcher pauses. A TS guard, not proved about the engine.
+Premise `Running` is now named in the module docstring of `lean/Fw/Parts/PlatformSweepPause.lean`: `watchSweepPause` pauses only a running
+animation with a start time, the only kind `seek` models; `shown_same` and `Ok` concern the animations the watcher pauses. A TS guard, not proved about the engine.
 `Lag` (the observer reports after the frame the element leaves) stays a named premise. No theorem changed.
 
 ## Goldens, class, limits
 
-Footprint regenerated with `part-footprint.mjs --write`, `--check` green (sweep rows only, line 45 to 50). Same look (class E), no preset
+Footprint regenerated with `part-footprint.mjs --write`, `--check` green (sweep rows only, line 45 to 46). Same look (class E), no preset
 change, no device or Simulator claim. Gate: breakpoint gate both engines, flag alone: pass, run 41174543214 at 7dda334.
