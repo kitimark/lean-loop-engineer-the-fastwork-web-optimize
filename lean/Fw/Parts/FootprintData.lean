@@ -3041,8 +3041,7 @@ def accesses : List Access := [
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "nav", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 53, .rect, "", "people.deck", "observer:ResizeObserver", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 62, .setStyle, "?", "?", "callback", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 62, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 72, .listen, "animationstart", "?", "effect", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 62, .setStyle, "?", "?", "cleanup", ["faithful", "offscreen-pause", "layer-sweep", "probe-off"]⟩]
 
 /-- Extractor findings (dead, dynamic, unresolved selectors and targets): (part, file, line, kind, detail). -/
 def findings : List Finding := [
@@ -3204,8 +3203,7 @@ def findings : List Finding := [
   ⟨"platform.sweep", "platform.sweep/layer.ts", 39, "unresolved-target", "rect"⟩,
   ⟨"platform.sweep", "platform.sweep/layer.ts", 42, "unresolved-target", "setVar --sw6"⟩,
   ⟨"platform.sweep", "platform.sweep/pause.ts", 62, "dynamic-name", "setStyle"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 62, "unresolved-target", "setStyle ?"⟩,
-  ⟨"platform.sweep", "platform.sweep/pause.ts", 72, "unresolved-target", "listen animationstart"⟩]
+  ⟨"platform.sweep", "platform.sweep/pause.ts", 62, "unresolved-target", "setStyle ?"⟩]
 
 /-- Every variant of every part.json with its `files` list, in part then part.json order: (part, variant, files). -/
 def variantFiles : List (String × String × List String) := [

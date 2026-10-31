@@ -52,13 +52,8 @@ class Pend extends FakeAnim {
 }
 
 const mkEl = (list: () => FakeAnim[]) => {
-  const ls = new Map<string, () => void>();
-  const el = {
-    getAnimations: list,
-    addEventListener: (n: string, f: () => void) => ls.set(n, f),
-    removeEventListener: (n: string) => ls.delete(n),
-  } as unknown as Element;
-  return { el, fire: (n: string) => ls.get(n)?.(), ls };
+  const el = { getAnimations: list } as unknown as Element;
+  return { el };
 };
 
 describe('platform.sweep watchSweepPause', () => {
@@ -89,38 +84,39 @@ describe('platform.sweep watchSweepPause', () => {
     await Promise.resolve();
     expect(loop.log).toEqual([]);
   });
-  it('an animation created after the first hidden report is paused when it starts (the old snapshot missed it)', () => {
+  it('an animation created after mount and before the report is paused (the old mount-time list missed it)', () => {
     const late = new FakeAnim(77);
     let made = false;
-    const { el, fire } = mkEl(() => (made ? [late] : []));
+    const { el } = mkEl(() => (made ? [late] : []));
     const { IO, report } = fakeIO();
     P.watchSweepPause([el], IO);
-    report(el, true);
     made = true;
-    fire('animationstart');
+    report(el, true);
     expect(late.log).toEqual(['pause']);
     report(el, false);
     expect(late.log).toEqual(['pause', 'play']);
     expect(late.startTime).toBe(77);
   });
-  it('a new animation is not touched while the element is visible', () => {
-    const late = new FakeAnim(77);
-    const { el, fire } = mkEl(() => [late]);
-    const { IO } = fakeIO();
-    P.watchSweepPause([el], IO);
-    fire('animationstart');
-    expect(late.log).toEqual([]);
-  });
-  it('pauses a running animation, resumes it with the saved start time, and the stop function detaches the listener', () => {
-    const loop = new FakeAnim(123);
-    const { el, ls } = mkEl(() => [loop]);
+  it('a hidden report with nothing to pause does not stop a later report from pausing', () => {
+    const late = new FakeAnim(5);
+    let made = false;
+    const { el } = mkEl(() => (made ? [late] : []));
     const { IO, report } = fakeIO();
-    const stop = P.watchSweepPause([el], IO);
+    P.watchSweepPause([el], IO);
+    report(el, true);
+    report(el, false);
+    made = true;
+    report(el, true);
+    expect(late.log).toEqual(['pause']);
+  });
+  it('pauses a running animation and resumes it with the saved start time', () => {
+    const loop = new FakeAnim(123);
+    const { el } = mkEl(() => [loop]);
+    const { IO, report } = fakeIO();
+    P.watchSweepPause([el], IO);
     report(el, true);
     report(el, false);
     expect(loop.log).toEqual(['pause', 'play']);
     expect(loop.startTime).toBe(123);
-    stop();
-    expect(ls.size).toBe(0);
   });
 });

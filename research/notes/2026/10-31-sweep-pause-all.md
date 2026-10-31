@@ -15,9 +15,9 @@ All three are one defect: the pause decision used a list taken at another time t
 ## Fix (class E, same look)
 
 `watchSweepPause` reads `getAnimations()` at each hidden report, pauses what is running with a start time, waits on `ready` for a pending play
-and pauses it then if the element is still reported, and pauses a loop created while reported on `animationstart`. The start time saved at
+and pauses it then if the element is still reported, and a loop created while the element stays reported is not tracked (no `animationstart` listener: the `engine.events:quiet` premise allows none). The start time saved at
 the pause is restored at the resume, so the phase is `orig` (`Fw.Parts.PlatformSweepPause.seek`, `shown_same`, `visible_phase`): no new
-Lean case, the model's `paused` state covers a loop paused later. Unit tests: pending then ready, ready after visible again, created later, not touched while visible.
+Lean case, the model's `paused` state covers a loop paused later. Unit tests: pending then ready, ready after visible again, created later.
 TS stand-in: none new; the pure model is still golden-checked (`platform-sweep-pause`).
 
 ## Census (own function, same harness)

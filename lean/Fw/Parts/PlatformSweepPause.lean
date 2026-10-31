@@ -3,7 +3,7 @@ import Fw.Parts.PlatformSweep
 # `platform.sweep:offscreen-pause`: the sweep stops ticking while its element is offscreen, and shows the same phase
 
 Named premise `Running` (TS guard, not proved about the engine): the watcher `watchSweepPause` (apps/site/src/parts/platform.sweep/pause.ts)
-pauses only an animation that is running with a start time, the only kind `seek` models: one whose play is still pending is paused when its `ready` promise resolves (if the element is still reported), one created after the first report is paused on `animationstart`, and the list is read from `getAnimations()` at each report, not once at mount. The start time saved at the pause is restored at the resume, so the phase is `orig`.
+pauses only an animation that is running with a start time, the only kind `seek` models: one whose play is still pending is paused when its `ready` promise resolves (if the element is still reported), and the list is read from `getAnimations()` at each report, not once at mount (a loop created while the element stays reported is not tracked). The start time saved at the pause is restored at the resume, so the phase is `orig`.
 -/
 namespace Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweep (phase pos)

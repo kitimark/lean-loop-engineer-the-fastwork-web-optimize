@@ -63,14 +63,6 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
     }
     st.starts.clear();
   };
-  const started = new Map<Element, () => void>();
-  for (const [el, st] of state) {
-    const on = () => {
-      if (st.paused) hold(el, st);
-    };
-    started.set(el, on);
-    el.addEventListener('animationstart', on);
-  }
   const stop = watchHidden(
     els,
     'rect',
@@ -90,7 +82,6 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
   );
   return () => {
     stop();
-    for (const [el, on] of started) el.removeEventListener('animationstart', on);
     for (const st of state.values()) if (st.paused) resume(st);
   };
 }

@@ -3032,8 +3032,7 @@
 {"part":"platform.sweep","file":"platform.sweep/layer.ts","line":53,"op":"rect","name":"","owner":"nav","ctx":"observer:ResizeObserver","variants":["faithful","offscreen-pause","layer-sweep","probe-off"]},
 {"part":"platform.sweep","file":"platform.sweep/layer.ts","line":53,"op":"rect","name":"","owner":"people.deck","ctx":"observer:ResizeObserver","variants":["faithful","offscreen-pause","layer-sweep","probe-off"]},
 {"part":"platform.sweep","file":"platform.sweep/pause.ts","line":62,"op":"setStyle","name":"?","owner":"?","ctx":"callback","variants":["faithful","offscreen-pause","layer-sweep","probe-off"]},
-{"part":"platform.sweep","file":"platform.sweep/pause.ts","line":62,"op":"setStyle","name":"?","owner":"?","ctx":"cleanup","variants":["faithful","offscreen-pause","layer-sweep","probe-off"]},
-{"part":"platform.sweep","file":"platform.sweep/pause.ts","line":72,"op":"listen","name":"animationstart","owner":"?","ctx":"effect","variants":["faithful","offscreen-pause","layer-sweep","probe-off"]}
+{"part":"platform.sweep","file":"platform.sweep/pause.ts","line":62,"op":"setStyle","name":"?","owner":"?","ctx":"cleanup","variants":["faithful","offscreen-pause","layer-sweep","probe-off"]}
 ],
 "findings":[
 {"part":"commission","file":"commission/index.tsx","line":85,"kind":"unresolved-target","detail":"rect"},
@@ -3194,6 +3193,5 @@
 {"part":"platform.sweep","file":"platform.sweep/layer.ts","line":39,"kind":"unresolved-target","detail":"rect"},
 {"part":"platform.sweep","file":"platform.sweep/layer.ts","line":42,"kind":"unresolved-target","detail":"setVar --sw6"},
 {"part":"platform.sweep","file":"platform.sweep/pause.ts","line":62,"kind":"dynamic-name","detail":"setStyle"},
-{"part":"platform.sweep","file":"platform.sweep/pause.ts","line":62,"kind":"unresolved-target","detail":"setStyle ?"},
-{"part":"platform.sweep","file":"platform.sweep/pause.ts","line":72,"kind":"unresolved-target","detail":"listen animationstart"}
+{"part":"platform.sweep","file":"platform.sweep/pause.ts","line":62,"kind":"unresolved-target","detail":"setStyle ?"}
 ]}
