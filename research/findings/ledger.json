@@ -4793,7 +4793,7 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E (Lean HeroAccentPause, accent_visible_same_all: on every visible frame the paused animation shows the unpaused value, for every easing and for all boxes together). Breakpoint gate: dispatched by the lead (pending, not a result).",
+   "visual": "E (Lean HeroAccentPause, accent_visible_same_all: on every visible frame the paused animation shows the unpaused value, for all three boxes together). Breakpoint gate both engines, flag alone: pass, run 41162953722 at 9a55ed6.",
    "mechanism": "INFERRED: the three idle loops are main-thread CSS animations that run while the accent is offscreen (sim-floor-attrib). PROVED in Lean: a frame reported offscreen leaves the local time unchanged and counts no tick; under the named premise Lag an offscreen stretch ticks at most once (Fw.Parts.PlatformSweepPause offscreen_ticks_le_one, reused). Not measured: no lane counts rendering updates of the rewrite while the element is offscreen (sim-end-cut measures the stack).",
    "leanFor": [
     "Fw.Parts.HeroAccentPause.accent_visible_same",
@@ -4815,8 +4815,8 @@
    ],
    "v1Evidence": "",
    "lesson": "A looping animation shows a function of its local time, so one look-identity theorem (OffscreenPause.look_same) covers every loop; the part-specific work is only the function and which animations count as loops.",
-   "evidence": "branch ci/hero-offscreen-pause; gate run dispatched by the lead (pnpm -s fw run --gate --engines both --preset v2-proved --fw hero.accent:offscreen-pause,hero.cue:offscreen-pause,platform.sweep:offscreen-pause --ref ci/hero-offscreen-pause)",
-   "next": "Gate both engines on the pushed branch; then sim-end-cut measures the stack on the iOS Simulator.",
+   "evidence": "branch ci/hero-offscreen-pause; breakpoint gate both engines, flag alone, run 41162953722 at 9a55ed6 (pass); combined gate 41157732610 failed at smoke: two-flag FW_SEARCH not prerendered (tooling)",
+   "next": "sim-end-cut measures the stack on the iOS Simulator; a multi-flag gate needs prerendered flag sets (follow-up).",
    "flag": "hero.accent:offscreen-pause"
   },
   {
@@ -4830,7 +4830,7 @@
    ],
    "chromium": "unknown",
    "webkit": "unknown",
-   "visual": "E (Lean HeroCuePause, cue_visible_same: on every visible frame the paused animation shows the unpaused value, for every easing and for all boxes together). Breakpoint gate: dispatched by the lead (pending, not a result).",
+   "visual": "E (Lean HeroCuePause, cue_visible_same: on every visible frame the paused animation shows the unpaused value, for every easing). Breakpoint gate both engines, flag alone: pass, run 41168068169 at 9a55ed6.",
    "mechanism": "INFERRED: the cue float is a main-thread transform animation in the hero and keeps running when the hero is scrolled away (sim-floor-attrib). PROVED in Lean: a frame reported offscreen leaves the local time unchanged and counts no tick; under the named premise Lag an offscreen stretch ticks at most once (Fw.Parts.PlatformSweepPause offscreen_ticks_le_one, reused). Not measured: no lane counts rendering updates of the rewrite while the element is offscreen (sim-end-cut measures the stack).",
    "leanFor": [
     "Fw.Parts.HeroCuePause.cue_visible_same",
@@ -4851,8 +4851,8 @@
    ],
    "v1Evidence": "",
    "lesson": "A looping animation shows a function of its local time, so one look-identity theorem (OffscreenPause.look_same) covers every loop; the part-specific work is only the function and which animations count as loops.",
-   "evidence": "branch ci/hero-offscreen-pause; gate run dispatched by the lead (pnpm -s fw run --gate --engines both --preset v2-proved --fw hero.accent:offscreen-pause,hero.cue:offscreen-pause,platform.sweep:offscreen-pause --ref ci/hero-offscreen-pause)",
-   "next": "Gate both engines on the pushed branch; then sim-end-cut measures the stack on the iOS Simulator.",
+   "evidence": "branch ci/hero-offscreen-pause; breakpoint gate both engines, flag alone, run 41168068169 at 9a55ed6 (pass); combined gate 41157732610 failed at smoke: two-flag FW_SEARCH not prerendered (tooling)",
+   "next": "sim-end-cut measures the stack on the iOS Simulator; a multi-flag gate needs prerendered flag sets (follow-up).",
    "flag": "hero.cue:offscreen-pause"
   }
  ],

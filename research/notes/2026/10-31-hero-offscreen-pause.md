@@ -37,8 +37,10 @@ Named premises (not proved about the engine): `Lag` (the observer reports an ele
 
 Same look (class E), no `visClass`. No preset change. Footprint: the extractor reads `pause()`/`play()`/`startTime` as a write of the element's style
 (`part-footprint.mjs`, `ANIM_CALLS`), so `hero.accent` and `hero.cue` gained a write; the footprint rows, diff and `Bridge.lean` tables were
-regenerated (hero.cue is no longer independent of itself: 4 not 5 such rows; 266 chain pairs, was 285). The breakpoint gate for
-`v2-proved` plus the two flags plus `platform.sweep:offscreen-pause` is a dispatch item for the lead.
+regenerated (hero.cue is no longer independent of itself: 4 not 5 such rows; 266 chain pairs, was 285). Breakpoint gate, both engines, each flag alone: pass,
+runs 41162953722 (`hero.accent:offscreen-pause`) and 41168068169 (`hero.cue:offscreen-pause`) at 9a55ed6 (the commit that adds the pending-play guard;
+later commits change no site code). A multi-flag gate cannot run yet: the gate prerenders presets and single flags only (run 41157732610 failed
+at smoke, not prerendered; follow-up).
 
 ## Which end-of-page animations remain
 
