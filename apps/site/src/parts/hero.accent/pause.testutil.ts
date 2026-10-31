@@ -1,4 +1,3 @@
-/** Test doubles for the loop pause (test only): a fake Animation and a hand-driven IntersectionObserver. */
 export class FakeAnim {
   playState: 'running' | 'paused' | 'idle' = 'running';
   log: string[] = [];

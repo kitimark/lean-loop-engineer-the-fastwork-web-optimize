@@ -14,7 +14,6 @@ function scrollNext() {
 
 export function HeroCue({ variant }: HeroCueProps) {
   const floatRef = useRef<HTMLSpanElement>(null);
-  // Variant `offscreen-pause` (Lean HeroCuePause): the float loop stops while the cue is off screen.
   useEffect(() => {
     const el = floatRef.current;
     if (variant !== PAUSE_VARIANT || !el) return;

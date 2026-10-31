@@ -1,6 +1,5 @@
 Branch: worktree-wf_c1c23b19-417-1 (ci branch ci/hero-offscreen-pause, pushed at 629f0d982). Worktree: .claude/worktrees/wf_c1c23b19-417-1.
-Last commit: 629f0d982 is the pushed tip; later local commits carry only this file. CI runs: trajectory-probe 41157675414 failed at the smoke step (my fault:
-FW_SEARCH with two flags is not prerendered; build.mjs enumerates single flags and presets only, so a probe takes one flag). lean lane ran on the push (default lane).
+Last commit: 629f0d982 is the pushed tip; later local commits carry only this file. CI runs: trajectory-probe 41157675414 failed at the smoke step (FW_SEARCH with two flags is not prerendered; build.mjs enumerates single flags and presets only, so a probe takes one flag). lean lane ran on the push.
 Gate dispatch (lead): pnpm -s fw run --gate --engines both --preset v2-proved --fw hero.accent:offscreen-pause,hero.cue:offscreen-pause,platform.sweep:offscreen-pause --ref ci/hero-offscreen-pause
 Verified: Lean OffscreenPause/HeroAccentPause/HeroCuePause build; goldens hero-accent-pause.jsonl, hero-cue-pause.jsonl --check ok; footprint rows/diff/Bridge regenerated
 (hero.cue no longer self-independent: 4 rows, 266 chain pairs); preset decisions goldens regenerated (Gen.run []); @fw/site 8513 tests, typecheck, runner 3749, ci-paths 56 pass.

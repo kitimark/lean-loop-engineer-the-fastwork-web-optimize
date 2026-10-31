@@ -2,17 +2,11 @@ import Lean.Data.Json
 import Fw.Parts.HeroAccentPause
 import Fw.Parts.HeroCuePause
 import Fw.Parts.PlatformSweepPauseGolden
-/-!
-# Golden vectors for `hero.accent:offscreen-pause` and `hero.cue:offscreen-pause`
-
-Same trace cases as `PlatformSweepPauseGolden`; the look column is the part's shown value (accent: the three box
-opacities; cue: `translateY` for the identity easing).
--/
+/-! # Golden vectors for `hero.accent:offscreen-pause` and `hero.cue:offscreen-pause` -/
 namespace Fw.Parts.OffscreenPauseGolden
 open Lean Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweepPauseGolden (numJ frameJ leaveReturn mountedOff flicker)
 
-/-- The part's shown value at local time `t`, as JSON. -/
 abbrev Look := Rat → Json
 
 def accentLook : Look := fun t =>

@@ -95,8 +95,6 @@ export function HeroAccent({ variant }: HeroAccentProps) {
     };
   }, [variant]);
 
-  // Variant `offscreen-pause` (Lean HeroAccentPause): the idle loops stop while the accent is off screen. It reads no
-  // chain state, so the chain above runs unchanged.
   useEffect(() => {
     const em = emRef.current;
     if (variant !== PAUSE_VARIANT || !em) return;

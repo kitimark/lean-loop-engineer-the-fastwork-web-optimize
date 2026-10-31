@@ -10,8 +10,7 @@ ease-in-out infinite` on `span.float`, `apps/site/src/parts/hero.cue/cue.module.
 
 - `watchLoopPause` (`apps/site/src/parts/hero.accent/pause.ts`, shared with hero.cue) observes one element per part with the engine.scene
   observer (`watchHidden`, kind `rect`, threshold 0). A hidden report pauses the element's running infinite-iteration animations and saves each
-  `startTime`; the first visible report resumes them with `play()` then `startTime = saved`, so the animation sits on the document timeline phase
-  it would have had. The pure model is the sweep's (`platform.sweep/pause.ts`: `init`, `seek`, `tick`, `step`, `ticks`, `orig`, `reportAction`), reused, not copied.
+  `startTime`; the first visible report resumes them with `play()` then `startTime = saved`, so the animation keeps its document timeline phase. The pure model is the sweep's (`platform.sweep/pause.ts`: `init`, `seek`, `tick`, `step`, `ticks`, `orig`, `reportAction`), reused, not copied.
 - Loops are read when the element is reported, not at mount (the cue's float starts after the splash). Only `iterations === Infinity` counts, so
   the finite draw animations are left alone. A paused animation the page cancelled meanwhile (`playState` no longer `paused`, the accent's class
   change to a draw state) is not resumed.
@@ -44,5 +43,5 @@ regenerated (hero.cue is no longer independent of itself: 4 not 5 such rows; 266
 ## Which end-of-page animations remain
 
 After these three variants, the document animations still running at the end of the page are the other platform loops (glint dashes, marquee,
-entries, covered by their own flags or none) and anything else the faithful page keeps running; `sim-end-cut` measures the stack. Whether pausing
+entries, covered by their own flags or none); `sim-end-cut` measures the stack. Whether pausing
 lowers the 2 recalcs per frame on the Simulator is not known here (INFERRED only from `10-31-sim-floor-attrib.md` section 3).
