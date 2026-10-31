@@ -24812,6 +24812,34 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/sim-layer-sweep.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "flip-cell-pixel-hang",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "flip-verify-flake"
+   ],
+   "title": "breakpoint-gate flip-cell playwright-webkit 'Pixel look report' hangs or times out (page.screenshot Timeout 30000ms after 640x1000 m=0.5, step 2422 s then cancelled) in 4 of 4 first attempts of one dispatch batch (runs 41214032493, 41214035220, 41214038309, 41214042166) and 0 of 4 of the batch before (same runner image 20261021.618); also 'Flip-state cell' 640x1000 m=0 'columns: 0, expected 3' (41214032493, 41189419989). Find the cause with log/artifact evidence, check main, make both deterministic (bounded screenshot wait, wait for a deterministic page signal) without weakening the reading; Lean-stated rule where a decision is made",
+   "writes": [
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    "lean/Fw/Gate/**",
+    "lean/Fw/Parts/MorphGeom*.lean",
+    "packages/contracts/golden/morph-geom*.jsonl",
+    "packages/contracts/golden/gate/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/10-31-flip-cell-pixel-hang.md",
+    "research/notes/2026/11-01-flip-cell-pixel-hang.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/flip-cell-pixel-hang.md"
+   ]
   }
  ],
  "deadline": {
