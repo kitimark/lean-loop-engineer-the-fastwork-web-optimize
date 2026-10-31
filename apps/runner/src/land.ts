@@ -6,12 +6,17 @@ import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "@fw/contracts";
 import { branchCard } from "../../console-api/src/reconcile/naming.ts";
-import { begin as rawBegin, builtModules, lakeMember, noteSpan, outerBuilt, record as rawRecord, span as rawSpan, writeLakeHandoff } from "./timing.ts";
+import { begin as rawBegin, builtModules, lakeMember, noteSpan, outerBuilt, record as rawRecord, span as rawSpan, writeHandoff } from "./timing.ts";
 
 let stepPrefix = "";
 export const dryTotalStep = (plan: string[][], fwcoreBuild: boolean): string => (plan.some((a) => a.join("\0") === LINT_ARGV.axioms.join("\0")) || fwcoreBuild ? "dry total lake" : "dry total");
 let dryStep: string | null = null;
 let dryLake: { built: number } | null = null;
+let dryIds: string[] = [];
+export const lintCheckId = (a: string[]): string => {
+  const k = (Object.keys(LINT_ARGV) as (keyof typeof LINT_ARGV)[]).find((n) => LINT_ARGV[n].join("\0") === a.join("\0"));
+  return `lint:${k ?? a.join(" ")}`;
+};
 export const lastDryStep = (): string | null => dryStep;
 const begin: typeof rawBegin = (tool, step, cwd) => rawBegin(tool, stepPrefix + step, cwd);
 const record: typeof rawRecord = (s, cwd) => rawRecord({ ...s, step: stepPrefix + s.step }, cwd);
@@ -619,8 +624,8 @@ export async function land(branch: string, o: LandOptions, via?: string): Promis
   const before = stepPrefix;
   if (!via) stepPrefix = o.dry ? "dry " : "";
   const end = via ? () => {} : begin("fw land", "total");
-  if (!via) { dryStep = null; dryLake = null; }
-  const named = (code: number) => end(code, dryStep === null ? {} : { step: dryStep, ...(dryLake === null ? {} : { lake: dryLake }) });
+  if (!via) { dryStep = null; dryLake = null; dryIds = []; }
+  const named = (code: number) => end(code, dryStep === null ? {} : { step: dryStep, set: [...dryIds], ...(dryLake === null ? {} : { lake: dryLake }) });
   try { const r = await landRun(branch, o, via); named(r.ok ? 0 : 1); return r; } catch (e) { named(1); throw e; } finally { stepPrefix = before; }
 }
 
@@ -867,6 +872,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         const bad = await runChecks(slot.dir, [argv]);
         test = bad === null; detail = bad ?? "";
         if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
+        dryIds.push(READS_SCAN_ID);
       } else lines.push("dry: reads not selected (the change selects no read-set scan, so the real land does not run the test either)");
       const reads = !selected || test;
       let lints = true;
@@ -884,6 +890,7 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
           }
         }
         dryPlan = lintArgv;
+        dryIds.push(...lintArgv.map(lintCheckId));
         dryStep = dryTotalStep(lintArgv, false);
         if (lintArgv.length) {
           const bad = await runChecks(slot.dir, lintArgv);
@@ -905,6 +912,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
         if (local.length) {
           const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || lakeSkipped || !existsSync(join(slot.dir, FWCORE_BIN)));
           dryStep = dryTotalStep(dryPlan ?? o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
+          if (needsBuild) dryIds.push("fwcore-build");
+          dryIds.push(...local.map((t) => t.id));
           const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
           const bad = await runChecks(slot.dir, argv);
           lints = bad === null; detail = bad ?? "";
@@ -917,10 +926,10 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       return { ok: true, lines, kind: "dry", outcome: oc };
     } finally {
       slot.free();
-      if (dryStep?.endsWith("lake")) {
-        dryLake = { built: outerBuilt(builds) };
-        noteSpan("fw", "land dry", { lake: dryLake });
-        writeLakeHandoff(dryLake);
+      if (dryStep !== null) {
+        const lake = dryStep.endsWith("lake") ? (dryLake = { built: outerBuilt(builds) }) : undefined;
+        noteSpan("fw", "land dry", { set: [...dryIds], ...(lake ? { lake } : {}) });
+        writeHandoff({ ...(lake ? { lake } : {}), set: [...dryIds] });
       }
     }
   }
