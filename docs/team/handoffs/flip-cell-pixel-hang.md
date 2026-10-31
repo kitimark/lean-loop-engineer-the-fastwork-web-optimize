@@ -1,15 +1,16 @@
-# Handoff: flip-cell-pixel-hang (finisher, graph r613)
+# Handoff: flip-cell-pixel-hang (finisher round 2, graph r614)
 
-State: branch worktree wf_400db961-014-1, CI branch `ci/flip-cell-pixel-hang`, pushed at d6dcdce9a with [ci:breakpoint-gate]. CI run 41231318047 (first attempt, both engines): green; WebKit 0 faults, 0 late waits, longest screenshot 7883 ms. One green run does not show the bad-host path.
+Branch: worktree branch `worktree-wf_400db961-014-1`, CI branch `ci/flip-cell-pixel-hang`.
+Worktree: .claude/worktrees/wf_400db961-014-1. Last work commit: ad74ddb22 (round 2 fixes); CI push commit follows it.
+CI runs: round 1 run 41231318047 (d6dcdce9a, both engines green, 0 faults). Round 2 run: pending (id below once pushed).
 
-Done and verified locally (not a result):
-- Lean `lean/Fw/Parts/MorphGeomReady.lean` (ready, wait, attempt/outcome, retry, cellsPass/cellsKept, limits) and `MorphGeomVerify.lean` (leaveCountOk, bandOk, runVerdict); golden lines in `packages/contracts/golden/morph-geom-timed.jsonl` from `MorphGeomTimedGen.lean`. `sh lean/scripts/check.sh` rc 0 at edb060b27.
-- TS: `packages/gate-breakpoints/src/bounded.mjs` (limits from the golden, bound, call, closeBounded, waitCell, takeCell), used by `flip-cell.mjs` and `packages/premise-tests/src/look.mjs`; `flip-verify.mjs` per-cycle `beginCycle`, leave count = cycles, `runVerdict`.
-- Workflow: step `timeout-minutes` 15 / 15 / 40 on Flip-state cell, geom-timed, Pixel look report.
-- Tests: gate-breakpoints 856 pass, premise-tests 20 pass, ci-paths 56 pass, runner land-inputs 73 pass (land.ts premise-tests reads gained bounded.mjs).
+Round 2 (only the two refused items plus cheap follow-ups):
+- Fault = stall only: Lean `errKind`, `ErrKind.attempt` and theorems `err_limit_is_stall`, `err_timeout_is_stall`, `err_other_is_defect`, `err_stall_is_fault`, `err_defect_not_retried`, `err_defect_first_fails` in `lean/Fw/Parts/MorphGeomReady.lean`; golden `verifyErr` rows in `packages/contracts/golden/morph-geom-timed.jsonl`; TS `errKind` and the rethrow at the top of the `takeCell` catch in `packages/gate-breakpoints/src/bounded.mjs`; tests in `test/bounded.test.mjs` (golden replay, TypeError rejects after 1 attempt with 0 onFault, TimeoutError retried).
+- Job `flip-cell` `timeout-minutes: 90` in `.github/workflows/breakpoint-gate.yml`; note says which limit fires first.
+- Fault count printed in the `flip cell ... pass` and `look ...` summary lines.
+- Note corrected (4 dispatched runs ran both engines) and open items added: `research/notes/2026/11-01-flip-cell-pixel-hang.md`.
 
-Open:
-- More first-attempt WebKit runs (cause A is INFERRED host slowness; B is lazy mount plus unsettled transitions).
-- look.mjs is glue with no local test (TS stand-in for the per-cell loop; the decision rules are Lean-golden checked).
+Verified locally (not a result): lean check.sh rc 0; gate-breakpoints 859 pass; premise-tests 20 pass; ci-paths 56 pass; runner 3749 pass.
 
-Read first: `research/notes/2026/11-01-flip-cell-pixel-hang.md`, `bounded.mjs`, `MorphGeomReady.lean`.
+Open: Flip verify/repeats/mutation page-call bounds (follow-up); more first-attempt WebKit runs; flag-page screenshot cost (record base and flag shotMs); look.mjs per-cell loop is a TS stand-in.
+Read first: the note, `bounded.mjs`, `MorphGeomReady.lean`.
