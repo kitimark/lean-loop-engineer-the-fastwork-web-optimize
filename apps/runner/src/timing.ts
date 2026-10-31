@@ -15,6 +15,8 @@ export type Span = { tool: string; step: string; startMs: number; durMs: number;
   runIds?: number[]; phases?: Record<string, number | string | boolean>;
   slot?: { width: number; jobs?: number; availMB?: number; chargedMB?: number };
   checks?: { n: number; kinds: string[] };
+  /** the ids of the checks a dry land selected (Lean `Fw.Obs.Timing.checkSetId`); its identity is the `checks` work dimension */
+  set?: string[];
   lake?: { built: number } };
 
 export function slotWork(slot: unknown): { work?: Record<string, string> } {
@@ -32,6 +34,14 @@ export function checksWork(checks: unknown): { work?: Record<string, string> } {
   if (!Array.isArray(k)) return {};
   const heavy = HEAVY_CHECKS.filter((h) => k.includes(h));
   return { work: { checks: heavy.length ? heavy.join("+") : "light" } };
+}
+
+/** Lean `Fw.Obs.Timing.checkSetId`, checked against the set golden: the ids in string order, joined by `+`. */
+export const checkSetId = (ids: readonly string[]): string => [...ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)).join("+");
+
+/** Lean `Fw.Obs.Timing.setWork`: the identity of a `set` member (an array of strings); none for anything else. */
+export function setWork(set: unknown): { work?: Record<string, string> } {
+  return Array.isArray(set) && set.every((x) => typeof x === "string") ? { work: { checks: checkSetId(set as string[]) } } : {};
 }
 
 /** Lean `Fw.Obs.Timing.modsLow`: 0, else the largest power of 4 at most `n`. */
@@ -88,21 +98,29 @@ export const LAKE_HANDOFF_ENV = "FW_SLOT_LAKE_FILE";
 
 /** Child side of the handoff: write the member to the parent's file when the parent set one. Never throws. */
 export function writeLakeHandoff(lake: { built: number }, env: NodeJS.ProcessEnv = process.env): void {
-  const f = env[LAKE_HANDOFF_ENV];
-  if (!f) return;
-  try { writeFileSync(f, JSON.stringify(lake)); } catch { /* a timing member never fails a step */ }
+  writeHandoff({ lake }, env);
 }
 
-/** Parent side: the `lake` member the child wrote, or none (no file, empty, or not a non-negative integer count). */
-export function readLakeHandoff(file: string): { lake?: { built: number } } {
+/** Child side of the handoff: the members of the outer dry-land span, the `lake` count and the selected check `set`. */
+export function writeHandoff(m: { lake?: { built: number }; set?: string[] }, env: NodeJS.ProcessEnv = process.env): void {
+  const f = env[LAKE_HANDOFF_ENV];
+  if (!f) return;
+  try { writeFileSync(f, JSON.stringify({ ...(m.lake ? { built: m.lake.built } : {}), ...(m.set ? { set: m.set } : {}) })); } catch { /* a timing member never fails a step */ }
+}
+
+/** Parent side: the `lake` member the child wrote (none without a non-negative integer count) and its `set` member
+ *  (none unless an array of strings); `{}` for no file, an empty file or bad JSON. */
+export function readLakeHandoff(file: string): { lake?: { built: number }; set?: string[] } {
   try {
-    const b = (JSON.parse(readFileSync(file, "utf8")) as { built?: unknown }).built;
-    return typeof b === "number" && Number.isInteger(b) && b >= 0 ? { lake: { built: b } } : {};
+    const o = JSON.parse(readFileSync(file, "utf8")) as { built?: unknown; set?: unknown };
+    const b = o.built;
+    return { ...(typeof b === "number" && Number.isInteger(b) && b >= 0 ? { lake: { built: b } } : {}),
+      ...(Array.isArray(o.set) && o.set.every((x) => typeof x === "string") ? { set: o.set as string[] } : {}) };
   } catch { return {}; }
 }
 
-export function spanWork(o: { slot?: unknown; checks?: unknown; lake?: unknown }): { work?: Record<string, string> } {
-  const work = { ...checksWork(o.checks).work, ...lakeWork(o.lake).work, ...slotWork(o.slot).work };
+export function spanWork(o: { slot?: unknown; checks?: unknown; set?: unknown; lake?: unknown }): { work?: Record<string, string> } {
+  const work = { ...checksWork(o.checks).work, ...setWork(o.set).work, ...lakeWork(o.lake).work, ...slotWork(o.slot).work };
   return Object.keys(work).length ? { work } : {};
 }
 

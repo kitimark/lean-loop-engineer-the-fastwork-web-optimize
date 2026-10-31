@@ -582,6 +582,19 @@ def modsLow (n : Nat) : Nat := if n = 0 then 0 else 4 ^ (n.log2 / 2)
 
 def modsWork (n : Nat) : List (String × String) := [(modsDim, toString (modsLow n))]
 
+def idLe (a b : String) : Bool := decide (a ≤ b)
+
+def checkSetId (ids : List String) : String := "+".intercalate (ids.mergeSort idLe)
+
+def setWork (ids : List String) : List (String × String) := [(checksDim, checkSetId ids)]
+
+def landWork (width jobs : Option Nat) (ids : List String) (built : Option Nat := none) : List (String × String) :=
+  setWork ids ++ (built.map modsWork).getD [] ++ slotWork width jobs
+
+#guard checkSetId ["reads", "axioms", "fwcoreBuild"] == "axioms+fwcoreBuild+reads"
+#guard checkSetId ["fwcoreBuild", "reads"] == checkSetId ["reads", "fwcoreBuild"] && checkSetId [] == ""
+#guard checkSetId ["reads", "fwcoreBuild"] != checkSetId ["reads", "axioms", "fwcoreBuild"]
+
 def builtLine (l : String) : Bool :=
   match l.splitOn "] Built " with
   | [pre, post] =>
@@ -1463,6 +1476,50 @@ theorem judgeQ0_unbuilt (p : Params) (hist others : List Sample) (i : Nat) (s : 
     obtain ⟨a, hx⟩ := h x hx
     rw [hx, hs]
     exact spanWork_built_ne_unbuilt w j c a
+
+theorem checkSetId_perm (a b : List String) (h : a.Perm b) : checkSetId a = checkSetId b := by
+  have hle : ∀ x y : String, (idLe x y || idLe y x) = true := fun x y => by
+    simp only [idLe, Bool.or_eq_true, decide_eq_true_eq]; exact String.le_total x y
+  have htr : ∀ x y z : String, idLe x y = true → idLe y z = true → idLe x z = true := fun x y z => by
+    simp only [idLe, decide_eq_true_eq]; exact String.le_trans
+  have hp := List.pairwise_mergeSort htr hle
+  have e : a.mergeSort idLe = b.mergeSort idLe :=
+    List.Perm.eq_of_pairwise (le := fun x y => idLe x y = true)
+      (fun x y _ _ hxy hyx => by
+        simp only [idLe, decide_eq_true_eq] at hxy hyx
+        exact String.le_antisymm hxy hyx)
+      (hp a) (hp b) (((List.mergeSort_perm a idLe).trans h).trans (List.mergeSort_perm b idLe).symm)
+  simp only [checkSetId, e]
+
+theorem landWork_set_ne (w j w' j' : Option Nat) (a b : List String) (c c' : Option Nat)
+    (h : checkSetId a ≠ checkSetId b) : landWork w j a c ≠ landWork w' j' b c' := by
+  intro e
+  simp only [landWork, setWork, List.singleton_append] at e
+  exact h (by simpa using (List.cons.inj e).1)
+
+theorem judgeQ0_other_set (p : Params) (hist others : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+    (a : List String) (c : Option Nat) (hs : s.work = landWork w j a c)
+    (h : ∀ x ∈ others, ∃ w' j' b c', x.work = landWork w' j' b c' ∧ checkSetId b ≠ checkSetId a) :
+    judgeQ0 p (hist ++ others) i s = judgeQ0 p hist i s :=
+  judgeQ0_other_work p hist others i s fun x hx => by
+    obtain ⟨w', j', b, c', hx, hne⟩ := h x hx
+    rw [hx, hs]
+    exact landWork_set_ne w' j' w j b a c' c hne
+
+theorem judge_new_set_noBaseline (p : Params) (hist : List Sample) (i : Nat) (s : Sample) (w j : Option Nat)
+    (a : List String) (c : Option Nat) (hs : s.work = landWork w j a c) (hp : 0 < p.nMin)
+    (h : ∀ x ∈ hist, ∃ w' j' b c', x.work = landWork w' j' b c' ∧ checkSetId b ≠ checkSetId a)
+    (hb : ceilingBreach p s = false) : (judge p hist i s).code = .noBaseline := by
+  refine (noBaseline_iff p hist i s).2 ⟨?_, hb⟩
+  have hw : windowOf p hist s.key = [] := by
+    unfold windowOf
+    have : hist.filter (fun x => decide (x.key = s.key) && counts p x) = [] :=
+      List.filter_eq_nil_iff.2 fun x hx => by
+        obtain ⟨w', j', b, c', hx', hne⟩ := h x hx
+        have : x.key ≠ s.key := fun e => landWork_set_ne w' j' w j b a c' c hne (by rw [← hx', ← hs]; exact congrArg Key.work e)
+        simp [this]
+    rw [this]; simp [lastN]
+  rw [hw]; exact hp
 
 theorem windowOf_unworked (p : Params) (hist : List Sample) (k : Key) (hk : k.work = [])
     (hh : ∀ x ∈ hist, x.work = []) :
@@ -3027,6 +3084,16 @@ def incidentSlotRun (keyed : Bool) : List Sample :=
 #guard ((sampleVerdicts {} (incidentOuterRun false)).getLast?.map (·.code)) == some .slow
 #guard ((sampleVerdicts {} (incidentSlotRun true)).getLast?.map (·.code)) == some .noBaseline
 
+def setRun (sameSet : Bool) : List Sample :=
+  ([21700, 22100, 21400, 22800, 21900, 22300].map fun d =>
+    ({ tool := "fw land", step := "dry total lake", durMs := d, host := .«local», load := 4, exit := some 0,
+       work := landWork none none (if sameSet then ["lint:axioms", "lint:ciPaths", "reads-scan"] else ["fwcore-build", "lint:ciPaths", "reads-scan"]) (some 0) } : Sample)) ++
+  [{ tool := "fw land", step := "dry total lake", durMs := 33257, host := .«local», load := 4, exit := some 0,
+     work := landWork none none ["lint:axioms", "lint:ciPaths", "reads-scan"] (some 0) }]
+
+#guard ((sampleVerdicts {} (setRun true)).getLast?.map (·.code)) == some .slow
+#guard ((sampleVerdicts {} (setRun false)).getLast?.map (·.code)) == some .noBaseline
+
 def ciWaitData : List (Nat × Nat × Nat) :=
   [(316141, 20570, 2), (440814, 16696, 3), (179419, 26169, 4), (335984, 25290, 5), (387370, 27352, 5),
    (293198, 12245, 4), (1377258, 27294, 5)]
@@ -3396,6 +3463,33 @@ def outerGoldenText (_ : Unit := ()) : String :=
 
 def outerGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-outer.jsonl"
 
+def setCases : List (String × List String × Option Nat × Option Nat) :=
+  [("lake lint, reads test and local gates", ["reads-scan", "lint:ciPaths", "lint:axioms", "runner:overflow-widths", "workflow-lint"], some 0, none),
+   ("the same set selected in another order", ["workflow-lint", "lint:axioms", "runner:overflow-widths", "reads-scan", "lint:ciPaths"], some 0, none),
+   ("lake lint skipped by a pass, fwcore build ran (commit 37a77f8)", ["reads-scan", "lint:ciPaths", "fwcore-build", "runner:overflow-widths", "workflow-lint"], some 0, none),
+   ("reads test only, no lake", ["reads-scan"], none, none),
+   ("no check selected", [], none, none),
+   ("lake lint that built 6 modules, with a slot width", ["lint:axioms", "reads-scan"], some 6, some 2)]
+
+def setSpanJson (ids : List String) (lake : Option Nat) (width : Option Nat) : Json :=
+  Json.mkObj ([("tool", .str "fw land"), ("step", .str "dry total lake"), ("startMs", toJson (1793478536258 : Nat)),
+    ("durMs", toJson (33257 : Nat)), ("exit", toJson (0 : Nat)), ("commit", .str "001d247"), ("load", toJson (4 : Nat)),
+    ("host", .str "local"), ("set", toJson ids)] ++
+    (width.map fun w => [("slot", Json.mkObj [("width", toJson w), ("jobs", toJson (30 : Nat))])]).getD [] ++
+    (lake.map fun b => [("lake", Json.mkObj [("built", toJson b)])]).getD [])
+
+def setGoldenText (_ : Unit := ()) : String :=
+  String.join (setCases.map fun (n, ids, lake, width) =>
+    (Json.mkObj [("name", .str n), ("ids", toJson ids), ("id", .str (checkSetId ids)),
+      ("span", setSpanJson ids lake width), ("work", workJson (landWork width (width.map fun _ => 30) ids lake))]).compress ++ "\n")
+
+#guard setCases.map (checkSetId ·.2.1) ==
+  ["lint:axioms+lint:ciPaths+reads-scan+runner:overflow-widths+workflow-lint",
+   "lint:axioms+lint:ciPaths+reads-scan+runner:overflow-widths+workflow-lint",
+   "fwcore-build+lint:ciPaths+reads-scan+runner:overflow-widths+workflow-lint", "reads-scan", "", "lint:axioms+reads-scan"]
+
+def setGoldenPath : System.FilePath := "../packages/contracts/golden/obs/timing-set.jsonl"
+
 def boundsText (_ : Unit := ()) : String :=
   "// Generated from lean/Fw/Obs/Timing.lean by lean/scripts/TimingGolden.lean; do not edit.\n" ++
   "export const GH_BOUNDS = {\n" ++
@@ -3545,12 +3639,14 @@ def writeGolden : IO Unit := do
   IO.FS.writeFile goldenPath goldenText; IO.FS.writeFile boundsPath boundsText; IO.FS.writeFile workGoldenPath workGoldenText
   IO.FS.writeFile lakeGoldenPath lakeGoldenText; IO.FS.writeFile ownGoldenPath ownGoldenText
   IO.FS.writeFile capNetsGoldenPath capNetsGoldenText; IO.FS.writeFile outerGoldenPath outerGoldenText
+  IO.FS.writeFile setGoldenPath setGoldenText
 
 def checkGolden : IO Bool := do
   return (← IO.FS.readFile goldenPath) == goldenText && (← IO.FS.readFile boundsPath) == boundsText &&
     (← IO.FS.readFile workGoldenPath) == workGoldenText && (← IO.FS.readFile lakeGoldenPath) == lakeGoldenText &&
     (← IO.FS.readFile ownGoldenPath) == ownGoldenText && (← IO.FS.readFile capNetsGoldenPath) == capNetsGoldenText &&
-    (← IO.FS.readFile outerGoldenPath) == outerGoldenText
+    (← IO.FS.readFile outerGoldenPath) == outerGoldenText &&
+    (← IO.FS.readFile setGoldenPath) == setGoldenText
 
 end Fw.Wire.Obs.Timing
 
