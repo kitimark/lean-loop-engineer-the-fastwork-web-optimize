@@ -167,6 +167,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
 const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
 const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}` : 'no census');
 
+const armsOf = (r) => RUN_ARMS.filter((a) => ARMS.includes(a) || r.arms[a.id]);
 const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length} ${JSON.stringify(l)}` : 'no read');
 
 /** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
@@ -174,14 +175,14 @@ export function rowLines(raw) {
   const out = [];
   for (const r of raw.rounds) {
     for (const stage of STAGES) {
-      for (const a of RUN_ARMS) {
+      for (const a of armsOf(r)) {
         const w = r.arms[a.id]?.[stage];
         if (!w) { out.push(`round ${r.round} ${stage} ${a.id}: unread`); continue; }
         const t = w.tally;
         out.push(`round ${r.round} ${stage} ${a.id}: raf ${w.raf} seen ${w.seen} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} renderingFrame ${t.RenderingFrame}) span ${w.spanMs ?? '-'} ms html "${w.cls ?? ''}" y ${w.y ?? '-'}`);
       }
     }
-    for (const a of RUN_ARMS) {
+    for (const a of armsOf(r)) {
       const arm = r.arms[a.id];
       if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
       if (arm?.sweepEnd) out.push(`round ${r.round} sweep loops ${a.id}: end ${sweepText(arm.sweepEnd)}; back ${sweepText(arm.sweepBack)}`);
