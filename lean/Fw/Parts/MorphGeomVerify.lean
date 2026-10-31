@@ -139,25 +139,51 @@ def takenFlags : Bool → List TakeEv → Option (List Bool)
 
 def pushJudged (chance taken : Bool) : Bool := !chance || taken
 
-def judgedEnough (judged total : Nat) : Bool := 0 < total && 3 * total ≤ 4 * judged
+def pushChance (darkAtPush framed : Bool) : Bool := darkAtPush || framed
+
+def pairsOk (chances ts : List Bool) : Bool :=
+  ts.length == chances.length && (chances.zip ts).all (fun (c, t) => pushJudged c t) && ts.any id
 
 def traceOk (evs : List TakeEv) (chances : List Bool) : Bool :=
   match takenFlags false evs with
   | none => false
-  | some ts => ts.length == chances.length && (chances.zip ts).all (fun (c, t) => pushJudged c t) &&
-      judgedEnough ((chances.zip ts).filter (fun (c, t) => c || t)).length chances.length
+  | some ts => pairsOk chances ts
+
+theorem pairs_lost_chance_fails (chances ts : List Bool) (h : (true, false) ∈ chances.zip ts) :
+    pairsOk chances ts = false := by
+  simp only [pairsOk, Bool.and_eq_false_iff, List.all_eq_false]
+  left; right
+  exact ⟨(true, false), h, by simp [pushJudged]⟩
+
+theorem pairs_dead_fails (chances ts : List Bool) (h : ts.any id = false) : pairsOk chances ts = false := by
+  simp [pairsOk, h]
+
+theorem pairs_excused_free (chances ts : List Bool) :
+    pairsOk (chances ++ [false]) (ts ++ [false]) = pairsOk chances ts := by
+  by_cases h : ts.length = chances.length
+  · simp [pairsOk, h, List.zip_append h.symm, pushJudged]
+  · have hb : (ts.length == chances.length) = false := by simpa using h
+    simp [pairsOk, hb]
 
 theorem trace_ok_cycle : traceOk [.push, .take, .push, .take] [true, true] = true := by decide
 
-theorem judged_enough_taken : traceOk [.push, .take, .push, .take, .push, .take, .push, .take] [true, true, true, true] = true := by decide
+theorem judged_all_taken_passes : traceOk [.push, .take, .push, .take, .push, .take, .push, .take] [true, true, true, true] = true := by decide
 
 theorem judged_open_untaken_fails : traceOk [.push, .take, .push, .take, .push, .take, .push] [true, true, true, true] = false := by decide
 
 theorem judged_no_chance_excused :
     traceOk [.push, .take, .push, .take, .push, .take, .push] [true, true, true, false] = true := by decide
 
-theorem judged_two_excused_fails :
-    traceOk [.push, .take, .push, .take, .push, .push] [true, true, false, false] = false := by decide
+theorem judged_two_excused_passes :
+    traceOk [.push, .take, .push, .take, .push, .push] [true, true, false, false] = true := by decide
+
+theorem judged_open_starved_passes :
+    traceOk [.push, .push, .take, .push, .push, .take] [false, false, false, true] = true := by decide
+
+theorem judged_dead_without_chance_fails : traceOk [.push, .push] [false, false] = false := by decide
+
+theorem judged_open_lost_with_closes_taken_fails :
+    traceOk [.push, .push, .take, .push, .push, .take] [true, false, false, true] = false := by decide
 
 theorem judged_stray_take_fails : traceOk [.take, .push, .take] [true] = false := by decide
 
@@ -170,8 +196,64 @@ theorem judged_chances_mismatch_fails : traceOk [.push, .take] [true, true] = fa
 theorem judged_taken_without_chance_passes :
     traceOk [.push, .take, .push, .take, .push, .take, .push, .take] [false, false, false, false] = true := by decide
 
-theorem judged_untaken_without_chance_counted_out :
-    traceOk [.push, .take, .push, .take, .push, .push] [false, false, false, false] = false := by decide
+theorem judged_untaken_without_chance_passes :
+    traceOk [.push, .take, .push, .take, .push, .push] [false, false, false, false] = true := by decide
+
+theorem push_chance_dark (framed : Bool) : pushChance true framed = true := by simp [pushChance]
+
+theorem push_chance_framed (dark : Bool) : pushChance dark true = true := by simp [pushChance]
+
+theorem push_chance_none : pushChance false false = false := by decide
+
+theorem dark_push_untaken_fails : traceOk [.push, .push] [pushChance true false, pushChance true false] = false := by decide
+
+structure PushObs where
+  light : Bool
+  chance : Bool
+  taken : Bool
+
+def retryJudged (ps : List PushObs) : Bool := !ps.any (·.light) || ps.any fun p => p.light && (p.chance || p.taken)
+
+theorem retry_vacuous (ps : List PushObs) (h : ps.any (·.light) = false) : retryJudged ps = true := by
+  simp [retryJudged, h]
+
+theorem retry_unjudged_fails (ps : List PushObs) (hl : ps.any (·.light) = true)
+    (h : ps.any (fun p => p.light && (p.chance || p.taken)) = false) : retryJudged ps = false := by
+  simp [retryJudged, hl, h]
+
+theorem retry_taken_passes (p : PushObs) (ps : List PushObs) (hm : p ∈ ps) (hl : p.light = true) (ht : p.taken = true) :
+    retryJudged ps = true := by
+  have : ps.any (fun p => p.light && (p.chance || p.taken)) = true := by
+    simp only [List.any_eq_true]
+    exact ⟨p, hm, by simp [hl, ht]⟩
+  simp [retryJudged, this]
+
+theorem retry_chance_passes (p : PushObs) (ps : List PushObs) (hm : p ∈ ps) (hl : p.light = true) (hc : p.chance = true) :
+    retryJudged ps = true := by
+  have : ps.any (fun p => p.light && (p.chance || p.taken)) = true := by
+    simp only [List.any_eq_true]
+    exact ⟨p, hm, by simp [hl, hc]⟩
+  simp [retryJudged, this]
+
+def leaveCovered (leaveTs lastTs windowMs : Rat) : Bool := decide (windowMs ≤ lastTs - leaveTs)
+
+def leaveOk (covered quiet : Bool) : Bool := covered && quiet
+
+theorem leave_uncovered_fails (quiet : Bool) : leaveOk false quiet = false := by simp [leaveOk]
+
+theorem leave_noisy_fails (covered : Bool) : leaveOk covered false = false := by simp [leaveOk]
+
+theorem leave_covered_quiet_passes : leaveOk true true = true := by decide
+
+theorem leave_covered_later (leaveTs lastTs lastTs' windowMs : Rat) (h : leaveCovered leaveTs lastTs windowMs = true)
+    (hl : lastTs ≤ lastTs') : leaveCovered leaveTs lastTs' windowMs = true := by
+  simp only [leaveCovered, decide_eq_true_eq] at *
+  grind
+
+theorem leave_short_not_covered (leaveTs lastTs windowMs : Rat) (h : lastTs - leaveTs < windowMs) :
+    leaveCovered leaveTs lastTs windowMs = false := by
+  have : ¬ (windowMs ≤ lastTs - leaveTs) := Rat.not_le.mpr h
+  simp [leaveCovered, this]
 
 theorem push_judged_untaken (taken : Bool) (h : pushJudged true taken = false) : taken = false := by
   cases taken <;> simp_all [pushJudged]

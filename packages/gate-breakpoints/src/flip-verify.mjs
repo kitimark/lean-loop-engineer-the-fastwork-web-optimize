@@ -45,13 +45,17 @@ export function takenFlags(events) {
 }
 
 export const pushJudged = (chance, taken) => !chance || taken;
-export const judgedEnough = (judged, total) => total > 0 && 3 * total <= 4 * judged;
+export const pushChance = (darkAtPush, framed) => darkAtPush || framed;
 
 export function judgeTrace(events, chances) {
   const ts = takenFlags(events);
   if (ts === null || ts.length !== chances.length) return false;
-  return chances.every((c, i) => pushJudged(c, ts[i])) && judgedEnough(chances.filter((c, i) => c || ts[i]).length, chances.length);
+  return chances.every((c, i) => pushJudged(c, ts[i])) && ts.some((t) => t);
 }
+
+export const retryJudged = (pushes) => !pushes.some((p) => p.light) || pushes.some((p) => p.light && (p.chance || p.taken));
+export const leaveCovered = (leaveTs, lastTs, windowMs) => windowMs <= lastTs - leaveTs;
+export const leaveOk = (covered, quiet) => covered && quiet;
 
 export const MUTATION_RUN = { A1: 'cell', A3b: 'cell', A3c: 'cell', A4: 'verify', A3a: 'verify', A5: 'verify' };
 export const MUTATION_OWNER = {
@@ -77,6 +81,10 @@ export function installFlipProbe() {
   const frames = [];
   const all = [];
   let running = false;
+  let sawOn = false;
+  let prevFlip = null;
+  let leaveTs = null;
+  let lastTs = 0;
   window.__fwTakeTrace = (ev) => {
     const nav = document.querySelector('[data-fw="nav"]');
     trace.push({ ...ev, at: performance.now(), y: Math.round(window.scrollY), nav: nav ? nav.className.split(' ').filter((c) => c.startsWith('is-')).join(' ') : '', flip: document.documentElement.classList.contains('is-flip') });
@@ -104,9 +112,17 @@ export function installFlipProbe() {
     if (!running) return;
     const nav = document.querySelector('[data-fw="nav"]');
     const tr = nav && typeof CSSTransition !== 'undefined' ? nav.getAnimations().filter((a) => a instanceof CSSTransition).map((a) => a.transitionProperty) : [];
+    const flip = document.documentElement.classList.contains('is-flip');
+    if (flip) sawOn = true;
+    if (prevFlip === true && !flip) {
+      leaveTs = ts;
+      sawOn = false;
+    }
+    prevFlip = flip;
+    lastTs = ts;
     frames.push({
       ts,
-      flip: document.documentElement.classList.contains('is-flip'),
+      flip,
       w: nav ? nav.getBoundingClientRect().width : null,
       bg: nav ? getComputedStyle(nav).backgroundColor : '',
       dark: nav ? /(^| )is-on-dark( |$)/.test(nav.className) : false,
@@ -119,8 +135,15 @@ export function installFlipProbe() {
     start() {
       frames.length = 0;
       trace.length = 0;
+      sawOn = false;
+      prevFlip = null;
+      leaveTs = null;
+      lastTs = 0;
       running = true;
       requestAnimationFrame(sample);
+    },
+    leaveReady(windowMs) {
+      return !sawOn && (leaveTs === null || lastTs - leaveTs >= windowMs);
     },
     stop() {
       running = false;
@@ -243,7 +266,7 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
       moving: frames[j].tr.filter((p) => MOVING(p) && (p === 'width' ? Math.abs(frames[j].w - baseWidth) > tol : colorDist(frames[j].bg, endBg) > BG_TOL)).length,
       width: frames[j].w,
     }));
-    const covered = frames[frames.length - 1].ts - t0 >= verify.windowMs;
+    const covered = leaveCovered(t0, frames[frames.length - 1].ts, verify.windowMs);
     return {
       frame: i,
       frames: win.length,
@@ -257,19 +280,21 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
         if (!rs.length || rs[rs.length - 1].sig !== sig) rs.push({ at: Math.round(f.ts - t0), sig });
         return rs;
       }, []),
-      ok: covered && judgeQuiet(baseWidth, tol, quietWin),
+      ok: leaveOk(covered, judgeQuiet(baseWidth, tol, quietWin)),
     };
   });
   const events = trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => e.kind);
   const pushEvs = trace.filter((e) => e.kind === 'push');
   const pushes = pushEvs.length;
   const t0 = frames.length ? frames[0].ts : 0;
-  const chances = pushEvs.map((e) => {
+  const darkAtPush = pushEvs.map((e) => (e.nav || '').split(' ').includes('is-on-dark'));
+  const chances = pushEvs.map((e, i) => {
     const win = frames.filter((f) => f.ts >= e.at && f.ts < e.at + DURATION_MS);
     const firstDark = win.findIndex((f) => f.dark);
-    return firstDark >= 0 && firstDark < win.length - 1;
+    return pushChance(darkAtPush[i], firstDark >= 0 && firstDark < win.length - 1);
   });
   const flags = takenFlags(events) || [];
+  const obs = pushEvs.map((_, i) => ({ light: !darkAtPush[i], chance: chances[i], taken: flags[i] === true }));
   const a5 = {
     log: trace.filter((e) => e.kind === 'push' || e.kind === 'take').map((e) => ({
       kind: e.kind,
@@ -279,6 +304,7 @@ export function analyseFlipProbe(raw, { baseWidth, verify, expectedPushes = null
     events,
     pushes,
     chances,
+    obs,
     unjudged: chances.filter((c, i) => !c && !flags[i]).length,
     takeMs: trace.filter((e) => e.kind === 'take').map((e) => Math.round(e.el)),
     ok: judgeTrace(events, chances) && (expectedPushes === null || pushes === expectedPushes),
@@ -313,7 +339,7 @@ const FLIP_OFF = `!${FLIP_ON}`;
 const PUSHES = (n) => `window.__fwFlipProbe.count().push >= ${n}`;
 const TAKES = (n) => `window.__fwFlipProbe.count().take >= ${n}`;
 
-export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, windowMs = 1200, warmTries = 8 } = {}) {
+export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, windowMs = 1200, warmTries = 8, coverMs = 800, coverCapMs = 30000, tailMs = 200 } = {}) {
   const size = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
   const diag = { warm: [], cycles: [] };
   const atEnd = await page.evaluate(async () => {
@@ -359,8 +385,9 @@ export async function driveFlipProbe(page, { cycles = 2, settleMs = 1500, window
     await page.mouse.wheel(0, -120);
     pushed.push(await until(page, PUSHES(2 * c + 2), 3000));
     await until(page, FLIP_OFF, 8000);
-    await sleep(windowMs);
-    diag.cycles.push({ cycle: c + 1, openPush: pushed[0], openTake: pushed[1], closePush: pushed[2] });
+    const covered = await until(page, `window.__fwFlipProbe.leaveReady(${coverMs})`, coverCapMs);
+    await sleep(tailMs);
+    diag.cycles.push({ cycle: c + 1, openPush: pushed[0], openTake: pushed[1], closePush: pushed[2], covered });
   }
   diag.end = await page.evaluate(readLive);
   const raw = await page.evaluate(() => window.__fwFlipProbe.stop());
@@ -392,7 +419,7 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
         await sleep(1800);
         let applied = null;
         if (mutation) applied = await B.page.evaluate(mutatePage, mutation);
-        const { raw, baseWidth, diag } = await driveFlipProbe(B.page, { cycles });
+        const { raw, baseWidth, diag } = await driveFlipProbe(B.page, { cycles, coverMs: verify.windowMs });
         const res = analyseFlipProbe(raw, { baseWidth, verify, expectedPushes: cycles * 2 });
         const row = { band: `${band.w}x${band.h}`, baseWidth, applied, diag, ...res };
         rows.push(row);
@@ -415,7 +442,8 @@ export async function runFlipVerify({ engineName, fw, outDir, mutation = null, e
     console.log(`flip verify ${engineName} mutation ${mutation}: ${caught ? 'caught' : 'NOT caught'} (${own} failed in ${failed(own)} of ${rows.length} bands; ${summary})`);
     return expectFail ? caught : true;
   }
-  const ok = failed('a3a') + failed('a4') + failed('a5') === 0;
-  console.log(`flip verify ${engineName} ${fw}: ${ok ? 'pass' : 'fail'} (${summary} bands passed)`);
+  const retry = retryJudged(rows.flatMap((r) => r.a5.obs));
+  const ok = failed('a3a') + failed('a4') + failed('a5') === 0 && retry;
+  console.log(`flip verify ${engineName} ${fw}: ${ok ? 'pass' : 'fail'} (${summary} bands passed${retry ? '' : '; no light-start push was judged, so the retry was not'})`);
   return ok;
 }

@@ -24779,7 +24779,8 @@
     "research/notes/2026/10-31-flip-verify-flake.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/flip-verify-flake.md"
-   ]
+   ],
+   "evidence": "fc05607"
   },
   {
    "devices": [
