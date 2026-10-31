@@ -213,6 +213,10 @@ structure Census where
   byKey : List (String × Nat)
   running : List String
   paused : List String
+  parked : Nat
+  ut : Nat
+  utParked : Nat
+  sweepHidden : Option Nat
   deriving DecidableEq, Repr
 
 def censusCap : Nat := 24
@@ -229,6 +233,8 @@ def Census.scrollDriven (c : Census) : Nat := c.sumKeys "scroll:"
 def Census.runningOf (c : Census) (k : Kind) : Nat := (c.running.filter fun n => kindOf n == k).length
 
 inductive Flag where
+  | unthrottle
+  | threaded
   | heroPark
   | scrollPark
   | accentPause
@@ -237,27 +243,35 @@ inductive Flag where
   deriving DecidableEq, Repr
 
 def Flag.name : Flag → String
+  | .unthrottle => "engine.scroll:unthrottle" | .threaded => "hero.exit:threaded"
   | .heroPark => "hero.exit:threaded-park" | .scrollPark => "engine.scroll:unthrottle-park"
   | .accentPause => "hero.accent:offscreen-pause" | .cuePause => "hero.cue:offscreen-pause"
   | .sweepPause => "platform.sweep:offscreen-pause"
 
 def pauseTook (c : Census) (k : Kind) : Bool := c.complete && c.runningOf k == 0
 
+def sweepTook (c : Census) : Bool := c.complete && c.sweepHidden == some 0
+
 def Flag.took (c : Census) : Flag → Bool
-  | .heroPark => c.viewDriven == 0
-  | .scrollPark => c.scrollDriven == 0
+  | .unthrottle => 0 < c.ut && 0 < c.scrollDriven
+  | .threaded => 0 < c.viewDriven && c.parked == 0
+  | .heroPark => c.viewDriven == 0 && 0 < c.parked
+  | .scrollPark => c.scrollDriven == 0 && 0 < c.utParked
   | .accentPause => pauseTook c .accent
   | .cuePause => pauseTook c .cue
-  | .sweepPause => pauseTook c .sweep
+  | .sweepPause => sweepTook c
+
+def allFlags : List Flag := [.unthrottle, .threaded, .heroPark, .scrollPark, .accentPause, .cuePause, .sweepPause]
 
 def ArmId.active (a : ArmId) : List Flag :=
-  (if a.hasParks then [Flag.heroPark, .scrollPark] else []) ++ (if a.hasPauses then [Flag.accentPause, .cuePause, .sweepPause] else [])
+  (if a.hasParks then [Flag.heroPark, .scrollPark] else [Flag.unthrottle, .threaded]) ++
+    (if a.hasPauses then [Flag.accentPause, .cuePause, .sweepPause] else [])
 
-theorem active_v2p : ArmId.v2p.active = [] := by decide
+theorem active_v2p : ArmId.v2p.active = [.unthrottle, .threaded] := by decide
 
 theorem active_parks : ArmId.parks.active = [.heroPark, .scrollPark] := by decide
 
-theorem active_pauses : ArmId.pauses.active = [.accentPause, .cuePause, .sweepPause] := by decide
+theorem active_pauses : ArmId.pauses.active = [.unthrottle, .threaded, .accentPause, .cuePause, .sweepPause] := by decide
 
 theorem active_both : ArmId.both.active = [.heroPark, .scrollPark, .accentPause, .cuePause, .sweepPause] := by decide
 
@@ -266,8 +280,6 @@ def missing (a : ArmId) (c : Census) : List String := (a.active.filter fun f => 
 def effectName (a : ArmId) (c : Census) : String :=
   if a.active.isEmpty then "none" else if (missing a c).isEmpty then "took" else "missing:" ++ String.intercalate "," (missing a c)
 
-theorem effect_none (c : Census) : effectName .v2p c = "none" := by simp [effectName, active_v2p]
-
 theorem effect_took (a : ArmId) (c : Census) (h0 : a.active.isEmpty = false) (h : missing a c = []) : effectName a c = "took" := by
   simp [effectName, h0, h]
 
@@ -275,9 +287,28 @@ theorem effect_missing (a : ArmId) (c : Census) (h0 : a.active.isEmpty = false) 
     effectName a c = "missing:" ++ String.intercalate "," (missing a c) := by
   simp [effectName, h0, h]
 
-theorem heroPark_took_iff (c : Census) : Flag.took c .heroPark = true ↔ c.viewDriven = 0 := by simp [Flag.took]
+theorem heroPark_took_iff (c : Census) : Flag.took c .heroPark = true ↔ c.viewDriven = 0 ∧ 0 < c.parked := by simp [Flag.took]
 
-theorem scrollPark_took_iff (c : Census) : Flag.took c .scrollPark = true ↔ c.scrollDriven = 0 := by simp [Flag.took]
+theorem scrollPark_took_iff (c : Census) : Flag.took c .scrollPark = true ↔ c.scrollDriven = 0 ∧ 0 < c.utParked := by
+  simp [Flag.took]
+
+theorem unthrottle_took_iff (c : Census) : Flag.took c .unthrottle = true ↔ 0 < c.ut ∧ 0 < c.scrollDriven := by simp [Flag.took]
+
+theorem threaded_took_iff (c : Census) : Flag.took c .threaded = true ↔ 0 < c.viewDriven ∧ c.parked = 0 := by simp [Flag.took]
+
+theorem sweepPause_took_iff (c : Census) : Flag.took c .sweepPause = true ↔ c.complete = true ∧ c.sweepHidden = some 0 := by
+  simp [Flag.took, sweepTook]
+
+theorem sweepPause_in_view_allowed (c : Census) (h : c.complete = true) (hh : c.sweepHidden = some 0) (hr : 0 < c.runningOf .sweep) :
+    Flag.took c .sweepPause = true ∧ pauseTook c .sweep = false := by
+  refine ⟨(sweepPause_took_iff c).2 ⟨h, hh⟩, ?_⟩
+  simp [pauseTook, Nat.pos_iff_ne_zero.mp hr]
+
+theorem sweepPause_hidden_running (c : Census) (n : Nat) (hn : c.sweepHidden = some (n + 1)) : Flag.took c .sweepPause = false := by
+  simp [Flag.took, sweepTook, hn]
+
+theorem sweepPause_no_read (c : Census) (h : c.sweepHidden = none) : Flag.took c .sweepPause = false := by
+  simp [Flag.took, sweepTook, h]
 
 theorem pause_not_took_running (c : Census) (k : Kind) (h : c.runningOf k ≠ 0) : pauseTook c k = false := by
   simp [pauseTook, h]
@@ -299,7 +330,8 @@ def sideTook (a : ArmId) (c : Option Census) : Bool :=
 def edgeTook (e : Edge) (rounds : List (Option Census × Option Census)) : Bool :=
   rounds.all fun (ca, cc) => sideTook e.arm ca && sideTook e.cmp cc
 
-theorem sideTook_v2p (c : Option Census) : sideTook .v2p c = true := by simp [sideTook, active_v2p]
+theorem sideTook_v2p (c : Census) : sideTook .v2p (some c) = true ↔ Flag.took c .unthrottle = true ∧ Flag.took c .threaded = true := by
+  simp [sideTook, active_v2p]
 
 theorem sideTook_no_census (a : ArmId) (h : a.active.isEmpty = false) : sideTook a none = false := by
   cases hh : a.active with
@@ -327,6 +359,86 @@ def stillTicks (c : Census) : List (String × Nat) :=
 theorem stillTicks_empty (c : Census) (h : c.viewDriven = 0 ∧ c.scrollDriven = 0 ∧ c.running = []) : stillTicks c = [] := by
   obtain ⟨h1, h2, h3⟩ := h
   simp [stillTicks, Census.runningOf, h1, h2, h3]
+
+def Census.sourceRemains (c : Census) : Bool := !(stillTicks c).isEmpty
+
+def Census.sweepOnly (c : Census) : Bool :=
+  c.viewDriven == 0 && c.scrollDriven == 0 && c.runningOf .accent == 0 && c.runningOf .cue == 0 && c.runningOf .other == 0 &&
+    0 < c.runningOf .sweep
+
+theorem sourceRemains_empty (c : Census) (h : c.viewDriven = 0 ∧ c.scrollDriven = 0 ∧ c.running = []) : c.sourceRemains = false := by
+  simp [Census.sourceRemains, stillTicks_empty c h]
+
+theorem sweepOnly_remains (c : Census) (h : c.sweepOnly = true) : c.sourceRemains = true := by
+  simp only [Census.sweepOnly, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at h
+  obtain ⟨⟨⟨⟨⟨h1, h2⟩, h3⟩, h4⟩, h5⟩, h6⟩ := h
+  have hmem : ("platform sweep running", c.runningOf .sweep) ∈ stillTicks c := by
+    simp [stillTicks, Kind.name, h6]
+  cases hs : stillTicks c with
+  | nil => simp [hs] at hmem
+  | cons x xs => simp [Census.sourceRemains, hs]
+
+def layerSweepFlag : String := "platform.sweep:layer-sweep"
+
+def candidateOf (c : Census) : Option String := if c.sweepOnly then some layerSweepFlag else none
+
+theorem candidate_iff (c : Census) : candidateOf c = some layerSweepFlag ↔ c.sweepOnly = true := by
+  simp [candidateOf]
+
+def predTierFor (a : ArmId) : Option Census → Tier
+  | some c => if a = .both ∧ c.sourceRemains = true then .two else predTier a
+  | none => predTier a
+
+theorem predTierFor_both_clear (c : Census) (h : c.sourceRemains = false) : predTierFor .both (some c) = .one := by
+  simp [predTierFor, h, predTier]
+
+theorem predTierFor_both_remains (c : Census) (h : c.sourceRemains = true) : predTierFor .both (some c) = .two := by
+  simp [predTierFor, h]
+
+theorem predTierFor_other (a : ArmId) (c : Option Census) (h : a ≠ .both) : predTierFor a c = predTier a := by
+  cases c with
+  | none => rfl
+  | some c => simp [predTierFor, h]
+
+theorem predTierFor_no_census (a : ArmId) : predTierFor a none = predTier a := rfl
+
+def predEdgeFor (e : Edge) (ca cc : Option Census) : EdgeV :=
+  edgeTier "b" "b" e.arm.sets e.cmp.sets (predTierFor e.arm ca) (predTierFor e.cmp cc)
+
+theorem predEdgeFor_both_parks_remains (c d : Census) (h : c.sourceRemains = true) :
+    predEdgeFor ⟨.both, .parks, liveStages⟩ (some c) (some d) = .noEffect pausesSet := by
+  have := edgeTier_noEffect "b" ArmId.both.sets ArmId.parks.sets .two .two pausesSet (by decide) (by decide) (by decide) rfl
+  simpa [predEdgeFor, predTierFor, predTier, h] using this
+
+theorem predEdgeFor_both_parks_clear (c d : Census) (h : c.sourceRemains = false) :
+    predEdgeFor ⟨.both, .parks, liveStages⟩ (some c) (some d) = .cut pausesSet := by
+  have := edgeTier_cut "b" ArmId.both.sets ArmId.parks.sets .one .two pausesSet (by decide) (by decide) (by decide) (by decide)
+    (by decide)
+  simpa [predEdgeFor, predTierFor, predTier, h] using this
+
+theorem predEdgeFor_both_pauses_remains (c d : Census) (h : c.sourceRemains = true) :
+    predEdgeFor ⟨.both, .pauses, liveStages⟩ (some c) (some d) = .noEffect parksSet := by
+  have := edgeTier_noEffect "b" ArmId.both.sets ArmId.pauses.sets .two .two parksSet (by decide) (by decide) (by decide) rfl
+  simpa [predEdgeFor, predTierFor, predTier, h] using this
+
+theorem predEdgeFor_both_pauses_clear (c d : Census) (h : c.sourceRemains = false) :
+    predEdgeFor ⟨.both, .pauses, liveStages⟩ (some c) (some d) = .cut parksSet := by
+  have := edgeTier_cut "b" ArmId.both.sets ArmId.pauses.sets .one .two parksSet (by decide) (by decide) (by decide) (by decide)
+    (by decide)
+  simpa [predEdgeFor, predTierFor, predTier, h] using this
+
+theorem predEdgeFor_no_census (e : Edge) : predEdgeFor e none none = predEdge e := rfl
+
+def overallPred (e : Edge) (rounds : List (Option Census × Option Census)) : String :=
+  overallNames (rounds.map fun (ca, cc) => (predEdgeFor e ca cc).name)
+
+def gate (v : String) (took : Bool) : String := if took then v else "untested"
+
+theorem gate_untested (v : String) : gate v false = "untested" := by simp [gate]
+
+theorem gate_took (v : String) : gate v true = v := by simp [gate]
+
+theorem heldGated_eq_gate (o p : String) (t : Bool) : heldGated o p t = gate (held o p) t := by simp [heldGated, gate]
 
 def overallEffect (ns : List String) : String := overallNames (ns.filter fun n => n != "none")
 
@@ -363,42 +475,80 @@ private def kindCases : List String :=
    "wave-module_x", "", "accent-module_draw", "cue-module_float"]
 
 private def sweeps : List String := List.replicate 4 "sweep-module_sweepDoc_zGc1tE"
+private def inView : List String := List.replicate 2 "sweep-module_sweepDoc_zGc1tE"
 private def idles : List String := ["accent-module_idle0_t7SI92", "accent-module_idle1_a3NQoa", "accent-module_idle2_Q1MyP3"]
 private def cue : String := "cue-module_scrollFloat_6RFPnC"
 private def fin : List (String × Nat) := [("document:finished", 20), ("document:paused", 7)]
 
+private def cen (b : List (String × Nat)) (run pau : List String) (parked ut utP : Nat) (sw : Option Nat) : Census :=
+  ⟨b, run, pau, parked, ut, utP, sw⟩
+
 private def censusCases : List (String × Census) :=
-  [("v2p at the end", ⟨fin ++ [("view:finished", 13), ("scroll:finished", 1), ("document:running", 8)], idles ++ [cue] ++ sweeps, []⟩),
-   ("parks took", ⟨fin ++ [("document:running", 8)], idles ++ [cue] ++ sweeps, []⟩),
-   ("hero park missed", ⟨fin ++ [("view:finished", 13), ("document:running", 8)], idles ++ [cue] ++ sweeps, []⟩),
-   ("scroll park missed", ⟨fin ++ [("scroll:running", 1)], idles ++ [cue] ++ sweeps, []⟩),
-   ("pauses took", ⟨fin ++ [("document:paused", 15)], [], idles ++ [cue] ++ sweeps⟩),
-   ("sweeps still run", ⟨fin, sweeps, idles ++ [cue]⟩),
-   ("cue still runs", ⟨fin, [cue], idles ++ sweeps⟩),
-   ("accent finished", ⟨fin, [], [cue] ++ sweeps⟩), ("accent running", ⟨fin, idles, [cue] ++ sweeps⟩),
-   ("running list full", ⟨fin, List.replicate 24 "wave-module_x", idles ++ [cue] ++ sweeps⟩),
-   ("both took", ⟨fin, [], idles ++ [cue] ++ sweeps⟩),
-   ("both, other loops run", ⟨fin, ["glint-module_dash", "glint-module_dash"], idles ++ [cue] ++ sweeps⟩)]
+  [("v2p at the end", cen (fin ++ [("view:finished", 13), ("scroll:finished", 1), ("document:running", 8)]) (idles ++ [cue] ++ sweeps) [] 0 1 0 (some 2)),
+   ("parks took", cen (fin ++ [("document:running", 8)]) (idles ++ [cue] ++ sweeps) [] 1 1 1 (some 2)),
+   ("hero park missed", cen (fin ++ [("view:finished", 13), ("document:running", 8)]) (idles ++ [cue] ++ sweeps) [] 0 1 1 (some 2)),
+   ("hero park attribute without the animations gone", cen (fin ++ [("view:finished", 13)]) [] [] 1 1 1 none),
+   ("scroll park missed", cen (fin ++ [("scroll:running", 1)]) (idles ++ [cue] ++ sweeps) [] 1 1 0 (some 2)),
+   ("scroll park gone without the park attribute", cen fin (idles ++ [cue] ++ sweeps) [] 1 0 0 (some 2)),
+   ("pauses took, hidden sweeps paused", cen (fin ++ [("document:paused", 15)]) inView (idles ++ [cue] ++ sweeps) 0 1 0 (some 0)),
+   ("sweeps still run hidden", cen fin sweeps (idles ++ [cue]) 0 1 0 (some 2)),
+   ("sweep census not read", cen fin inView (idles ++ [cue]) 0 1 0 none),
+   ("cue still runs", cen fin [cue] (idles ++ sweeps) 0 1 0 (some 0)),
+   ("accent finished", cen fin [] ([cue] ++ sweeps) 0 1 0 (some 0)), ("accent running", cen fin idles ([cue] ++ sweeps) 0 1 0 (some 0)),
+   ("running list full", cen fin (List.replicate 24 "wave-module_x") (idles ++ [cue] ++ sweeps) 0 1 0 (some 0)),
+   ("both took, in-view sweeps run", cen (fin ++ [("document:running", 2)]) inView (idles ++ [cue] ++ sweeps) 1 1 1 (some 0)),
+   ("both took, nothing runs", cen fin [] (idles ++ [cue] ++ sweeps) 1 1 1 (some 0)),
+   ("both, other loops run", cen fin ["glint-module_dash", "glint-module_dash"] (idles ++ [cue] ++ sweeps) 1 1 1 (some 0)),
+   ("both, in-view sweeps and a cue run", cen fin (inView ++ [cue]) (idles ++ sweeps) 1 1 1 (some 0))]
 
 private def heldGatedCases : List (String × String × String × Bool) :=
   [("held and took", "cut:pauses", "cut:pauses", true), ("missed and took", "noEffect:pauses", "cut:pauses", true),
    ("inconclusive and took", "inconclusive", "cut:pauses", true), ("held, flag did not engage", "cut:pauses", "cut:pauses", false),
    ("missed, flag did not engage", "noEffect:pauses", "cut:pauses", false), ("mixed, flag did not engage", "mixed", "cut:pauses", false)]
 
-private def tookC : Census := ⟨fin, [], idles ++ [cue] ++ sweeps⟩
-private def v2pC : Census := ⟨fin ++ [("view:finished", 13), ("scroll:finished", 1)], idles ++ [cue] ++ sweeps, []⟩
-private def parkMissC : Census := ⟨fin ++ [("view:finished", 13)], [], idles ++ [cue] ++ sweeps⟩
-private def sweepRunC : Census := ⟨fin, sweeps, idles ++ [cue]⟩
-private def accentFinC : Census := ⟨fin, [], [cue] ++ sweeps⟩
+private def gateCases : List (String × String × Bool) :=
+  [("noEffect, flag did not engage", "noEffect:parks", false), ("cut, flag did not engage", "cut:pauses", false),
+   ("noEffect, took", "noEffect:parks", true), ("cut, took", "cut:pauses", true), ("raised, flag did not engage", "raised:parks", false)]
+
+private def tookC : Census := cen fin inView (idles ++ [cue] ++ sweeps) 1 1 1 (some 0)
+private def v2pC : Census := cen (fin ++ [("view:finished", 13), ("scroll:finished", 1)]) (idles ++ [cue] ++ sweeps) [] 0 1 0 (some 2)
+private def parkMissC : Census := cen (fin ++ [("view:finished", 13)]) [] (idles ++ [cue] ++ sweeps) 0 1 1 (some 0)
+private def sweepRunC : Census := cen fin sweeps (idles ++ [cue]) 0 1 0 (some 2)
+private def accentFinC : Census := cen fin [] ([cue] ++ sweeps) 1 1 1 (some 0)
+private def parksC : Census := cen fin (idles ++ [cue] ++ sweeps) [] 1 1 1 (some 2)
+private def pausesC : Census := cen (fin ++ [("view:finished", 13), ("scroll:finished", 1)]) inView (idles ++ [cue] ++ sweeps) 0 1 0 (some 0)
+private def bothC : Census := cen fin inView (idles ++ [cue] ++ sweeps) 1 1 1 (some 0)
+private def bothClearC : Census := cen fin [] (idles ++ [cue] ++ sweeps) 1 1 1 (some 0)
 
 private def edgeTookCases : List (String × Edge × List (Option Census × Option Census)) :=
-  [("parks and v2p took", ⟨.parks, .v2p, liveStages⟩, [(some tookC, some v2pC), (some tookC, some v2pC), (some tookC, some v2pC)]),
+  [("parks and v2p took", ⟨.parks, .v2p, liveStages⟩, [(some parksC, some v2pC), (some parksC, some v2pC), (some parksC, some v2pC)]),
    ("hero park missed", ⟨.parks, .v2p, liveStages⟩, [(some parkMissC, some v2pC)]),
-   ("one round missed", ⟨.both, .parks, liveStages⟩, [(some tookC, some tookC), (some parkMissC, some tookC), (some tookC, some tookC)]),
+   ("one round missed", ⟨.both, .parks, liveStages⟩, [(some tookC, some parksC), (some parkMissC, some parksC), (some tookC, some parksC)]),
    ("sweeps still run", ⟨.pauses, .v2p, liveStages⟩, [(some sweepRunC, some v2pC)]),
-   ("accent finished", ⟨.both, .pauses, liveStages⟩, [(some accentFinC, some accentFinC)]),
+   ("pauses took, in-view sweeps run", ⟨.pauses, .v2p, liveStages⟩, [(some pausesC, some v2pC), (some pausesC, some v2pC), (some pausesC, some v2pC)]),
+   ("accent finished", ⟨.both, .pauses, liveStages⟩, [(some accentFinC, some pausesC)]),
+   ("comparator v2p without its sources", ⟨.parks, .v2p, liveStages⟩, [(some parksC, some parksC)]),
    ("no census for the arm", ⟨.parks, .v2p, liveStages⟩, [(none, some v2pC)]),
-   ("no census for v2p", ⟨.parks, .v2p, liveStages⟩, [(some tookC, none)])]
+   ("no census for v2p", ⟨.parks, .v2p, liveStages⟩, [(some parksC, none)])]
+
+private def predForCases : List (String × ArmId × Option Census) :=
+  [("v2p", .v2p, some v2pC), ("parks", .parks, some parksC), ("pauses", .pauses, some pausesC),
+   ("both, in-view sweeps run", .both, some bothC), ("both, nothing runs", .both, some bothClearC), ("both, no census", .both, none)]
+
+private def predEdgeForCases : List (String × Edge × Option Census × Option Census) :=
+  [("both against parks, a source remains", ⟨.both, .parks, liveStages⟩, some bothC, some parksC),
+   ("both against parks, nothing remains", ⟨.both, .parks, liveStages⟩, some bothClearC, some parksC),
+   ("both against pauses, a source remains", ⟨.both, .pauses, liveStages⟩, some bothC, some pausesC),
+   ("both against pauses, nothing remains", ⟨.both, .pauses, liveStages⟩, some bothClearC, some pausesC),
+   ("parks against v2p", ⟨.parks, .v2p, liveStages⟩, some parksC, some v2pC),
+   ("pauses against v2p", ⟨.pauses, .v2p, liveStages⟩, some pausesC, some v2pC),
+   ("both against parks, no census", ⟨.both, .parks, liveStages⟩, none, none)]
+
+private def overallPredCases : List (String × Edge × List (Option Census × Option Census)) :=
+  [("a source remains in 3 of 3", ⟨.both, .parks, liveStages⟩, [(some bothC, some parksC), (some bothC, some parksC), (some bothC, some parksC)]),
+   ("nothing remains in 3 of 3", ⟨.both, .parks, liveStages⟩, [(some bothClearC, some parksC), (some bothClearC, some parksC), (some bothClearC, some parksC)]),
+   ("a source remains in 1 of 3", ⟨.both, .parks, liveStages⟩, [(some bothC, some parksC), (some bothClearC, some parksC), (some bothClearC, some parksC)]),
+   ("parks against v2p", ⟨.parks, .v2p, liveStages⟩, [(some parksC, some v2pC), (some parksC, some v2pC), (some parksC, some v2pC)])]
 
 private def overallEffectCases : List (String × List String) :=
   [("all took", ["took", "took", "took"]), ("one missing", ["took", "missing:hero.exit:threaded-park", "took"]),
@@ -419,7 +569,8 @@ private def edgeJ (e : Edge) : List (String × Json) :=
 
 private def censusJ (c : Census) : Json :=
   Json.mkObj [("by", Json.arr (c.byKey.map fun (k, n) => Json.arr #[Json.str k, Json.num n]).toArray), ("running", strsJ c.running),
-    ("paused", strsJ c.paused)]
+    ("paused", strsJ c.paused), ("parked", c.parked), ("ut", c.ut), ("utParked", c.utParked),
+    ("sweepHidden", match c.sweepHidden with | some n => Json.num n | none => Json.null)]
 
 private def optCensusJ : Option Census → Json
   | some c => censusJ c
@@ -447,7 +598,21 @@ def goldenLines (_ : Unit) : List String :=
   (censusCases.map fun (n, c) =>
     (Json.mkObj [("kind", "census"), ("name", n), ("census", censusJ c), ("viewDriven", c.viewDriven), ("scrollDriven", c.scrollDriven),
       ("complete", Json.bool c.complete), ("effects", Json.mkObj (allArms.map fun a => (a.name, Json.str (effectName a c)))),
-      ("stillTicks", Json.arr ((stillTicks c).map fun (k, x) => Json.arr #[Json.str k, Json.num x]).toArray)]).compress) ++
+      ("stillTicks", Json.arr ((stillTicks c).map fun (k, x) => Json.arr #[Json.str k, Json.num x]).toArray),
+      ("flags", Json.mkObj (allFlags.map fun f => (f.name, Json.bool (f.took c)))), ("sourceRemains", Json.bool c.sourceRemains),
+      ("sweepOnly", Json.bool c.sweepOnly), ("candidate", match candidateOf c with | some n => Json.str n | none => Json.null)]).compress) ++
+  (gateCases.map fun (n, v, t) =>
+    (Json.mkObj [("kind", "gate"), ("name", n), ("verdict", Json.str v), ("took", Json.bool t), ("gated", Json.str (gate v t))]).compress) ++
+  (predForCases.map fun (n, a, c) =>
+    (Json.mkObj [("kind", "predFor"), ("name", n), ("arm", Json.str a.name), ("census", optCensusJ c),
+      ("tier", Json.str (predTierFor a c).name)]).compress) ++
+  (predEdgeForCases.map fun (n, e, ca, cc) =>
+    (Json.mkObj (("kind", Json.str "predEdgeFor") :: ("name", Json.str n) :: edgeJ e ++
+      [("armCensus", optCensusJ ca), ("cmpCensus", optCensusJ cc), ("predicted", Json.str (predEdgeFor e ca cc).name)])).compress) ++
+  (overallPredCases.map fun (n, e, rs) =>
+    (Json.mkObj (("kind", Json.str "overallPred") :: ("name", Json.str n) :: edgeJ e ++
+      [("rounds", Json.arr (rs.map fun (a, c) => Json.arr #[optCensusJ a, optCensusJ c]).toArray),
+       ("predicted", Json.str (overallPred e rs))])).compress) ++
   (heldGatedCases.map fun (n, o, p, t) =>
     (Json.mkObj [("kind", "heldGated"), ("name", n), ("overall", Json.str o), ("predicted", Json.str p), ("took", Json.bool t),
       ("verdict", Json.str (heldGated o p t))]).compress) ++

@@ -47,7 +47,7 @@ export function held(overall, predicted) {
   return 'missed';
 }
 /** The prediction verdict gated on the census: a flag that did not engage leaves the edge untested. */
-export const heldGated = (overall, predicted, took) => (took ? held(overall, predicted) : 'untested');
+export const heldGated = (overall, predicted, took) => gate(held(overall, predicted), took);
 
 const hasPrefix = (pre, s) => s.startsWith(pre);
 export function kindOf(name) {
@@ -58,8 +58,19 @@ export function kindOf(name) {
 }
 const KINDS = ['accent idle', 'cue float', 'platform sweep', 'other'];
 
-/** The Lean `Census` of a page census: the `by` counts, the running names and the paused infinite-loop names. */
-export const toCensus = (c) => ({ byKey: Object.entries(c?.by ?? {}), running: (c?.running ?? []).map((x) => x[1]), paused: (c?.paused ?? []).map((x) => x[1]) });
+/**
+ * The Lean `Census` of a page census and its sweep read: the `by` counts, the running names, the paused infinite-loop names, the park and unthrottle
+ * element counts, and the running sweep loops out of the viewport (null when the sweep read is missing). A sweep row is [target, playState, pending, startNull, inView].
+ */
+export const toCensus = (c, sweep = null) => ({
+  byKey: Object.entries(c?.by ?? {}),
+  running: (c?.running ?? []).map((x) => x[1]),
+  paused: (c?.paused ?? []).map((x) => x[1]),
+  parked: c?.parked ?? 0,
+  ut: c?.ut ?? 0,
+  utParked: c?.utParked ?? 0,
+  sweepHidden: Array.isArray(sweep) ? sweep.filter((l) => l[1] === 'running' && !l[4]).length : null,
+});
 const sumKeys = (c, pre) => c.byKey.filter(([k]) => hasPrefix(pre, k)).reduce((s, [, n]) => s + n, 0);
 export const viewDriven = (c) => sumKeys(c, 'view:');
 export const scrollDriven = (c) => sumKeys(c, 'scroll:');
@@ -68,14 +79,19 @@ const runningOf = (c, k) => c.running.filter((n) => kindOf(n) === k).length;
 /** A pause took when the census is complete and no loop of the kind runs: a loop that finished on its own is not a source. */
 const pauseTook = (c, k) => complete(c) && runningOf(c, k) === 0;
 
+/** A pause of the sweep took when no loop runs out of the viewport; the loops in view run by design. */
+const sweepTook = (c) => complete(c) && c.sweepHidden === 0;
+
 export const FLAGS = Object.freeze([
-  { name: 'hero.exit:threaded-park', took: (c) => viewDriven(c) === 0 },
-  { name: 'engine.scroll:unthrottle-park', took: (c) => scrollDriven(c) === 0 },
+  { name: 'engine.scroll:unthrottle', took: (c) => c.ut > 0 && scrollDriven(c) > 0 },
+  { name: 'hero.exit:threaded', took: (c) => viewDriven(c) > 0 && c.parked === 0 },
+  { name: 'hero.exit:threaded-park', took: (c) => viewDriven(c) === 0 && c.parked > 0 },
+  { name: 'engine.scroll:unthrottle-park', took: (c) => scrollDriven(c) === 0 && c.utParked > 0 },
   { name: 'hero.accent:offscreen-pause', took: (c) => pauseTook(c, 'accent idle') },
   { name: 'hero.cue:offscreen-pause', took: (c) => pauseTook(c, 'cue float') },
-  { name: 'platform.sweep:offscreen-pause', took: (c) => pauseTook(c, 'platform sweep') },
+  { name: 'platform.sweep:offscreen-pause', took: sweepTook },
 ]);
-export const active = (id) => [...(HAS[id][0] ? FLAGS.slice(0, 2) : []), ...(HAS[id][1] ? FLAGS.slice(2) : [])];
+export const active = (id) => [...(HAS[id][0] ? FLAGS.slice(2, 4) : FLAGS.slice(0, 2)), ...(HAS[id][1] ? FLAGS.slice(4) : [])];
 /** Every active flag of the arm took in this census; a missing census does not count as took. */
 export const sideTook = (id, c) => active(id).every((f) => c !== null && f.took(c));
 /** Every flag of both arms of the edge took in every round: `rounds` are [arm census, comparator census] pairs, null where a round has none. */
@@ -91,10 +107,25 @@ export function stillTicks(c) {
 }
 export const overallEffect = (ns) => overallNames(ns.filter((n) => n !== 'none'));
 
+/** Some source still ticks: a view or scroll animation, or a running loop. */
+export const sourceRemains = (c) => stillTicks(c).length > 0;
+/** Only running sweep loops remain (the in-view ones): the candidate owner of a remaining rate is `platform.sweep:layer-sweep`. */
+export const sweepOnly = (c) => viewDriven(c) === 0 && scrollDriven(c) === 0 && ['accent idle', 'cue float', 'other'].every((k) => runningOf(c, k) === 0) && runningOf(c, 'platform sweep') > 0;
+export const LAYER_SWEEP = 'platform.sweep:layer-sweep';
+export const candidateOf = (c) => (sweepOnly(c) ? LAYER_SWEEP : null);
+
+/** The tier predicted for the arm given its census: both reaches 100 only when no source remains. */
+export const predTierFor = (id, c) => (c && id === 'both' && sourceRemains(c) ? 'two' : PRED_TIER[id]);
+export const predEdgeFor = (e, ca, cc) => edgeTier('b', 'b', ARM_SETS[e.arm], ARM_SETS[e.cmp], predTierFor(e.arm, ca), predTierFor(e.cmp, cc));
+export const overallPred = (e, rounds) => overallNames(rounds.map(([ca, cc]) => predEdgeFor(e, ca, cc)));
+/** A verdict about a flag stands only when the flag took; otherwise it reads untested. */
+export const gate = (v, took) => (took ? v : 'untested');
+
 const EMPTY = { raf: 0, seen: 0, recalcs: 0, tally: {} };
 const win = (r, id, stage) => r.arms[id]?.[stage] ?? EMPTY;
 const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
-const censusOf = (r, id, stage) => (r.arms[id]?.[CENSUS_OF[stage]] ? toCensus(r.arms[id][CENSUS_OF[stage]]) : null);
+const SWEEP_OF = { end: 'sweepEnd', back: 'sweepBack' };
+const censusOf = (r, id, stage) => (r.arms[id]?.[CENSUS_OF[stage]] ? toCensus(r.arms[id][CENSUS_OF[stage]], r.arms[id][SWEEP_OF[stage]]) : null);
 const per = (n, raf) => (raf === 0 ? '-' : (n / raf).toFixed(2));
 const PAUSED_ARMS = ['v2p', 'both'];
 const stagesOf = (id) => (PAUSED_ARMS.includes(id) ? STAGES : LIVE_STAGES);
@@ -121,21 +152,22 @@ export function verdictLines(merged) {
   const m = merged.meta ?? {};
   out.push(`sim-end-cut band ${BAND} per 100, min rounds ${MIN_ROUNDS}, rounds ${merged.rounds.length}, builds ${(m.builds ?? []).join(' ') || '-'}`);
   out.push(`runtime ${m.runtime ?? '-'} ua ${m.ua ?? '-'}`);
-  out.push(`prediction (recorded before the run): ${ARM_IDS.map((id) => `${id} ${PRED_TIER[id]}`).join(', ')} at the live stages`);
+  out.push('prediction (recorded before the run): v2p two, parks two, pauses two at the live stages; both one only if no source remains in its census, two otherwise (INFERRED: the 2 in-view sweep loops remain, so both two)');
   const build = m.builds?.[0] ?? 'local';
   for (const e of EDGES) {
     const parts = edgeParts(e).join('+');
-    const pred = predEdge(e);
     for (const stage of e.stages) {
       const vs = [];
-      const took = edgeTook(e, merged.rounds.map((r) => [censusOf(r, e.arm, stage), censusOf(r, e.cmp, stage)]));
+      const pairs = merged.rounds.map((r) => [censusOf(r, e.arm, stage), censusOf(r, e.cmp, stage)]);
+      const took = edgeTook(e, pairs);
+      const pred = overallPred(e, pairs);
       for (const r of merged.rounds) {
         const v = edgeOf(build, e, win(r, e.arm, stage), win(r, e.cmp, stage));
         vs.push(v);
         out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} round ${r.round}: ${rate(win(r, e.arm, stage))} against ${rate(win(r, e.cmp, stage))} per 100 -> ${v}`);
       }
       const ov = overallEdge(vs);
-      out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} overall: ${ov}; predicted ${pred}; ${heldGated(ov, pred, took)}`);
+      out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} overall: ${gate(ov, took)} (rate reading ${ov}); predicted ${pred}; ${heldGated(ov, pred, took)}`);
     }
   }
   for (const stage of STAGES) {
@@ -145,7 +177,9 @@ export function verdictLines(merged) {
       const ov = overallTier(ts);
       const live = LIVE_STAGES.includes(stage);
       const took = live && merged.rounds.every((r) => sideTook(id, censusOf(r, id, stage)));
-      out.push(`tier ${id} ${stage}: [${ts.join(', ')}] overall ${ov}${live ? `; predicted ${PRED_TIER[id]}; ${heldGated(ov, PRED_TIER[id], took)}` : ' (reference)'}`);
+      const preds = merged.rounds.map((r) => predTierFor(id, censusOf(r, id, stage)));
+      const pt = preds.every((x) => x === preds[0]) ? preds[0] : 'mixed';
+      out.push(`tier ${id} ${stage}: [${ts.join(', ')}] overall ${ov}${live ? `; predicted ${pt}; ${heldGated(ov, pt, took)}` : ' (reference)'}`);
     }
   }
   for (const stage of LIVE_STAGES) {
@@ -162,5 +196,27 @@ export function verdictLines(merged) {
       out.push(`effect ${id} ${stage} overall: ${overallEffect(ns)}`);
     }
   }
+  for (const stage of LIVE_STAGES) {
+    for (const id of ARM_IDS) {
+      const ts = [];
+      for (const r of merged.rounds) {
+        ts.push(tier(win(r, id, stage)));
+        const c = censusOf(r, id, stage);
+        if (!c) continue;
+        const cand = candidateOf(c);
+        const st = stillTicks(c).map(([k, x]) => `${k} ${x}`).join(', ') || 'nothing';
+        out.push(`sources ${id} ${stage} round ${r.round}: ${st}; sweep loops running ${runningOf(c, 'platform sweep')}, hidden ${c.sweepHidden ?? '-'}; owners ${ownersText(r.arms[id]?.[CENSUS_OF[stage]])}${cand ? `; candidate ${cand} (spec only, class L)` : ''}`);
+      }
+      const ov = overallTier(ts);
+      out.push(`answer ${id} ${stage}: tiers [${ts.join(', ')}] overall ${ov}; reaches 100 per 100: ${ov === 'one' ? 'yes' : ov === 'two' ? 'no' : 'undecided'}`);
+    }
+  }
   return out;
+}
+
+/** The running animations of a page census grouped by animation name and target. */
+export function ownersText(raw) {
+  const n = {};
+  for (const x of raw?.running ?? []) { const k = `${x[1] || '?'}@${x[2]}`; n[k] = (n[k] ?? 0) + 1; }
+  return Object.entries(n).map(([k, v]) => `${k} x${v}`).join('; ') || 'none';
 }
