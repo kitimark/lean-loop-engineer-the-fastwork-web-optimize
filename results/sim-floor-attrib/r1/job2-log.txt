@@ -1,0 +1,18 @@
+serving the snapshot read-only at http://127.0.0.1:50331/
+proxy up: SIMULATOR on :9341, tabs on :9342
+end-floor: preference overrides {"safari":["read failed: Error: Domain 'com.apple.mobilesafari' not found."],"global":[]}
+  end-floor minusT round 1 attempt 1 failed (Runtime.evaluate timed out after 120000 ms); reconnecting and retrying from a fresh load
+end-floor round 1 minusT: end raf 360 seen 369 recalcs 744; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+inspector probe failed (tick): socket up, proxy down, page missing; 1 failed in a row
+  end-floor minusU round 1 attempt 1 failed (Runtime.evaluate timed out after 120000 ms); reconnecting and retrying from a fresh load
+  waiting for the Safari tab (37 s of 480 s, try 1): no page target (is another inspector client attached to this tab?)
+  waiting for the Safari tab (81 s of 480 s, try 2): no page target (is another inspector client attached to this tab?)
+inspector probe failed (tick): socket up, proxy down, page listed; 1 failed in a row
+  end-floor minusU round 1 attempt 2 failed (Runtime.evaluate timed out after 120000 ms); reconnecting and retrying from a fresh load
+  waiting for the Safari tab (40 s of 480 s, try 1): no page target (is another inspector client attached to this tab?)
+end-floor round 1 minusU: end raf 360 seen 360 recalcs 720; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
+end-floor round 1 blank: end raf 360 seen 360 recalcs 0; back raf 360 seen 360 recalcs 0; paused raf 360 seen 360 recalcs 0
+end-floor round 1 minusBoth: end raf 360 seen 367 recalcs 731; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 v2pCancelScroll: end raf 360 seen 378 recalcs 740; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 base: end raf 360 seen 363 recalcs 723; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 v2p: end raf 360 seen 362 recalcs 722; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 720
