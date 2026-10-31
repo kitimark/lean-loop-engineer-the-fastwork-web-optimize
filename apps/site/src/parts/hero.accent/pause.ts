@@ -44,7 +44,7 @@ export function watchLoopPause(
       const act = reportAction(st.paused, hidden);
       if (act === 'pause') {
         for (const a of pick(el)) {
-          if (a.playState !== 'running') continue;
+          if (a.playState !== 'running' || a.startTime == null) continue;
           st.starts.set(a, a.startTime);
           a.pause();
         }

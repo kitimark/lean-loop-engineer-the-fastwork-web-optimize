@@ -58,6 +58,15 @@ describe('hero.accent offscreen-pause', () => {
     report(el, false);
     expect(loop.log).toEqual(['pause']);
   });
+  it('leaves a loop whose play is still pending (startTime null) running', () => {
+    const el = {} as Element;
+    const loop = new FakeAnim(null);
+    const { IO, report } = fakeIO();
+    P.watchLoopPause([el], () => [loop] as unknown as Animation[], IO);
+    report(el, true);
+    expect(loop.log).toEqual([]);
+    expect(loop.playState).toBe('running');
+  });
   it('the cleanup resumes what is still paused', () => {
     const el = {} as Element;
     const loop = new FakeAnim(42);
