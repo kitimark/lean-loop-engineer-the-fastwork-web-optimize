@@ -37,20 +37,21 @@ An animation effect ticks the frame loop only while it is running, rendered and 
 `KeyframeEffect.cpp:2724-2745` (`ticksContinuouslyWhileActive`), `AnimationEffect.cpp:391-401`,
 `DocumentTimeline.cpp:371-388`, `KeyframeEffect.cpp:1736-1768`. The sweepDoc loops animate `background-position`, which is not
 accelerated, so each in-view loop ticks every frame; the layer loops animate transform only, so they do not.
-Theorems in `lean/Fw/Device/SimLayerSweep.lean`: `ticks_core` :95, `accelerated_loop_adds_no_frame_tick` :109,
-`sweepDoc_ticks` :141, `sweepLayer_core_no_tick` :146, `predTierL_accelerated` :239, `predTierL_contradicted` :279,
-`pred_cut_of_census` :425. TS stand-in checked against `packages/contracts/golden/device/sim-layer-sweep.jsonl`
+Theorems in `lean/Fw/Device/SimLayerSweep.lean`: `ticks_core` :88, `accelerated_loop_adds_no_frame_tick` :100,
+`sweepDoc_ticks` :130, `sweepLayer_core_no_tick` :135, `predTierL_accelerated` :217, `predTierL_contradicted` :254,
+`pred_cut_of_census` :392. TS stand-in checked against `packages/contracts/golden/device/sim-layer-sweep.jsonl`
 (`packages/measure-webkit/src/sim-layer-sweep.mjs`; `layerReadOf` and the report lines have no golden, TS stand-in).
 
-Residual over 100 for `bothL` (0..10): a document `animationend` listener (`apps/site/src/parts/hero.exit/index.tsx:65-66`)
-gives one tick per 4 s iteration per loop (`KeyframeEffect.cpp:2747-2763`, INFERRED). Lean bound `iterRate_le` :172: at most 9
+Path on iOS @862f17d: ENABLE_THREADED_ANIMATIONS is 1 on Cocoa (Source/WTF/wtf/PlatformEnableCocoa.h:904-906), but canHaveAcceleratedRepresentation needs the setting threadedTimeBasedAnimationsEnabled (Source/WebCore/animation/KeyframeEffect.cpp:3253-3263), which defaults to false (status preview, Source/WTF/Scripts/Preferences/UnifiedWebPreferences.yaml:8557-8570). So isRunningAccelerated is m_runningAccelerated == Yes (KeyframeEffect.cpp:1680-1689), the Core Animation path (Lean rep = none, ticks_core :88); the report uses rep = null for this reason. The runtime value of the setting on the iOS 27.0 Simulator was not read (INFERRED); predTierL_rep_irrelevant gives the same prediction on the threaded path with nothing disallowed.
+
+Residual over 100 for `bothL` (0..10): an `animationend` listener on the hero element (`apps/site/src/parts/hero.exit/index.tsx:65-66`), which sets the document-wide ListenerType::CSSAnimation flag (`Source/WebCore/dom/Document.cpp:7271-7273` @862f17d),
+gives one tick per 4 s iteration per loop (`KeyframeEffect.cpp:2747-2763`, INFERRED). Lean bound `iterRate_le` :157: at most 9
 per 100 over a window up to 24000 ms. The rest is shared window noise (`both` also reads up to +4 over 200). r3 job 3 reads
 110 (window 23.7 s), at the tier-one band edge.
 
 ## Findings from the harness
 
-- Premise refuted: the 360-callback windows are not 6-8 s on the Simulator. They span 6.9..23.7 s (end) and up to 28.2 s
-  (a `both` back window), about 13..50 fps. The Lean bound `windowMsMax` was set to 24000 from the measured spans; the report
+- Premise refuted: the 360-callback windows are not 6-8 s on the Simulator. They span 6.9..23.7 s (end), up to 28.2 s back (r1 job 3 `both`, r1/job3.json rounds[0].arms.both.back.spanMs 28206) and up to 30.0 s paused (r3 job 3 `bothL`, r3/job3.json rounds[0].arms.bothL.paused.spanMs 30045), about 13..50 fps. The Lean bound `windowMsMax` was set to 24000 from the measured spans; the report
   flags windows outside it (r3 back job 3: 24407 ms, still tier one).
 - Pin: 18 of 18 end windows have y equal to the window's own maxY (0 jumps), so the end window sat at the end of the page. Only 5 of 18 sit at the final page end 5267 (the others at 5231; back windows always 5267). The 36 px growth between
   the end and back stages is not investigated (follow-up). No rate difference between the 5231 and 5267 windows.
