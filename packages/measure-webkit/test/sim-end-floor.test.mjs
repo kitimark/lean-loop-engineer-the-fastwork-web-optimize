@@ -42,7 +42,7 @@ test('overall lines equal the Lean overall', () => {
 });
 
 test('arms: the base, the v2-proved preset and one removal each, canonical searches', () => {
-  assert.deepEqual(ARMS.map((a) => a.id), ['base', 'v2p', 'minusT', 'minusU', 'blank', 'minusBoth', 'v2pCancelScroll']);
+  assert.deepEqual(ARMS.map((a) => a.id), ['base', 'v2p', 'minusT', 'minusU', 'blank', 'minusBoth', 'v2pCancelScroll', 'sweepPause']);
   const preset = JSON.parse(readFileSync(join(here, '../../contracts/golden/preset/v2-proved.json'), 'utf8')).fw;
   const parts = (fw) => new Set(fw === '' ? [] : fw.split(','));
   const v2p = parts(ARMS[1].fw);
@@ -51,7 +51,7 @@ test('arms: the base, the v2-proved preset and one removal each, canonical searc
   assert.deepEqual([...parts(ARMS[3].fw)], [...v2p].filter((p) => p !== 'engine.scroll:unthrottle'));
   for (const a of ARMS) assert.equal(canonSearch(a.search), a.search, a.id);
   assert.equal(ARMS[0].search, '');
-  assert.deepEqual(BUILD_SEARCHES, [ARMS[1], ARMS[2], ARMS[3], ARMS[5]].map((a) => a.search));
+  assert.deepEqual(BUILD_SEARCHES, [ARMS[1], ARMS[2], ARMS[3], ARMS[5], ARMS[7]].map((a) => a.search));
   assert.deepEqual(Object.keys(armTrees('x')), ARMS.map((a) => a.id));
   assert.deepEqual(armTrees('x').blank, { blank: true });
   assert.equal(ARMS[6].search, ARMS[1].search);

@@ -10,6 +10,7 @@ export const WIN_RAF = 360;
 export const MIN_SEEN = 288;
 export const MIN_ROUNDS = 2;
 
+const SWEEP_PAUSE = 'platform.sweep:offscreen-pause';
 const V2P = 'engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause';
 /**
  * The arms: the four of sim-end-floor in the Lean `Round` order, then the three controls of sim-floor-attrib. `search` is the query the
@@ -23,6 +24,7 @@ export const ARMS = Object.freeze([
   { id: 'blank', fw: '', search: '', blank: true },
   { id: 'minusBoth', fw: 'platform:faded-pause', search: '?fw=platform:faded-pause' },
   { id: 'v2pCancelScroll', fw: V2P, search: `?fw=${V2P}`, act: 'cancelScroll' },
+  { id: 'sweepPause', fw: SWEEP_PAUSE, search: `?fw=${SWEEP_PAUSE}` },
 ]);
 /**
  * The reads of one load: at the end of the page after the jump there settled (`end`, the pinned unit), after a scroll up by one viewport and back to the
@@ -90,6 +92,16 @@ export function windowOf(rows, stage, raf) {
   return { raf, seen: t.FireAnimationFrame, recalcs: t.RecalculateStyles, marks: true, tally: t, spanMs: Math.round((b - a) * 1000) };
 }
 
+/**
+ * In-page function `sweepLoops()` (task sweep-pause-all): one row per `sweepDoc` document animation, [target, playState, pending,
+ * startTime is null, target intersects the viewport]. It reads, it decides nothing.
+ */
+export const SWEEP_LOOPS_JS = `const sweepLoops = () => document.getAnimations().filter((a) => /sweepDoc/.test(a.animationName || '')).map((a) => {
+    const t = a.effect && a.effect.target;
+    const r = t ? t.getBoundingClientRect() : null;
+    return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight];
+  });`;
+
 /** The in-page script of one load: scroll to the end, settle, read the `end` window, go up one viewport and back, settle, read the `back` window, then list the animations. */
 export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act = null } = {}) => `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -118,10 +130,12 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
     }
     return { total: an.length, by, running, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
+  ${SWEEP_LOOPS_JS}
   scrollTo({ top: root.scrollHeight - innerHeight, behavior: 'instant' });
   await frame(); await frame();
   await sleep(${settleMs});
   out.anims = census();
+  out.sweepEnd = sweepLoops();
   out.end = await win('end');
   scrollTo({ top: Math.max(0, root.scrollHeight - 2 * innerHeight), behavior: 'instant' });
   await frame(); await frame();
@@ -131,6 +145,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
   await sleep(${settleMs});
   out.back = await win('back');
   out.animsBack = census();
+  out.sweepBack = sweepLoops();
   const cancelScroll = ${act === 'cancelScroll'};
   let cancelled = 0;
   for (const a of document.getAnimations()) {
@@ -150,6 +165,8 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
 const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
 const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}` : 'no census');
 
+const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length} ${JSON.stringify(l)}` : 'no read');
+
 /** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
 export function rowLines(raw) {
   const out = [];
@@ -165,6 +182,7 @@ export function rowLines(raw) {
     for (const a of ARMS) {
       const arm = r.arms[a.id];
       if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
+      if (arm?.sweepEnd) out.push(`round ${r.round} sweep loops ${a.id}: end ${sweepText(arm.sweepEnd)}; back ${sweepText(arm.sweepBack)}`);
       if (arm && a.act) out.push(`round ${r.round} paused ${a.id} act ${a.act}: cancelled ${arm.cancelled ?? '-'}; after the act, before the window: ${censusText(arm.animsActed)}`);
     }
   }

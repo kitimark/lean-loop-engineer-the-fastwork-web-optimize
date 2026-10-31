@@ -32,13 +32,29 @@ export const reportAction = (paused: boolean, rep: boolean): 'pause' | 'resume' 
 
 interface ElState {
   paused: boolean;
-  readonly anims: readonly Animation[];
   readonly starts: Map<Animation, CSSNumberish | null>;
 }
 
 export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver = IntersectionObserver): () => void {
   const state = new Map<Element, ElState>();
-  for (const el of els) state.set(el, { paused: false, anims: el.getAnimations(), starts: new Map() });
+  for (const el of els) state.set(el, { paused: false, starts: new Map() });
+  const holdOne = (st: ElState, a: Animation) => {
+    if (st.starts.has(a) || a.playState !== 'running' || a.startTime == null) return;
+    st.starts.set(a, a.startTime);
+    a.pause();
+  };
+  const hold = (el: Element, st: ElState) => {
+    for (const a of el.getAnimations()) {
+      if (a.playState === 'running' && a.startTime == null) {
+        void a.ready.then(
+          () => {
+            if (st.paused) holdOne(st, a);
+          },
+          () => undefined,
+        );
+      } else holdOne(st, a);
+    }
+  };
   const resume = (st: ElState) => {
     for (const [a, s] of st.starts) {
       if (a.playState !== 'paused') continue;
@@ -47,6 +63,14 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
     }
     st.starts.clear();
   };
+  const started = new Map<Element, () => void>();
+  for (const [el, st] of state) {
+    const on = () => {
+      if (st.paused) hold(el, st);
+    };
+    started.set(el, on);
+    el.addEventListener('animationstart', on);
+  }
   const stop = watchHidden(
     els,
     'rect',
@@ -55,12 +79,8 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
       if (!st) return;
       const act = reportAction(st.paused, hidden);
       if (act === 'pause') {
-        for (const a of st.anims) {
-          if (a.playState !== 'running' || a.startTime == null) continue;
-          st.starts.set(a, a.startTime);
-          a.pause();
-        }
         st.paused = true;
+        hold(el, st);
       } else if (act === 'resume') {
         resume(st);
         st.paused = false;
@@ -70,6 +90,7 @@ export function watchSweepPause(els: Element[], IO: typeof IntersectionObserver 
   );
   return () => {
     stop();
+    for (const [el, on] of started) el.removeEventListener('animationstart', on);
     for (const st of state.values()) if (st.paused) resume(st);
   };
 }

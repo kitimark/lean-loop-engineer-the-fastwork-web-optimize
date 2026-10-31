@@ -45,7 +45,7 @@ export async function runEndFloor({ siteDir, rounds = 3, rotateBy = 0, settleMs 
     let page;
     try { page = await ctx.c.runAsync(endFloorJs({ settleMs, act: spec.act ?? null }), { pollMs: 1000, timeoutMs: T(180000) }); } catch (e) { await tl.stop().catch(() => {}); throw e; }
     const rows = await tl.stop();
-    const arm = { config: info.fw?.configHash ?? null, mode: info.fw?.mode ?? null, hydrated: info.fw?.hydrated ?? null, maxY: page.maxY, anims: page.anims, animsBack: page.animsBack, animsPaused: page.animsPaused, animsActed: page.animsActed, cancelled: page.cancelled };
+    const arm = { config: info.fw?.configHash ?? null, mode: info.fw?.mode ?? null, hydrated: info.fw?.hydrated ?? null, maxY: page.maxY, anims: page.anims, animsBack: page.animsBack, animsPaused: page.animsPaused, animsActed: page.animsActed, sweepEnd: page.sweepEnd, sweepBack: page.sweepBack, cancelled: page.cancelled };
     for (const stage of STAGES) arm[stage] = { ...windowOf(rows, stage, page[stage].raf), cls: page[stage].cls, y: page[stage].y, pageMs: page[stage].pageMs };
     return arm;
   };
