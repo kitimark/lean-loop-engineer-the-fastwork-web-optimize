@@ -5,7 +5,7 @@ stage style-recalc rate drop from 200 to 100 per 100 frames when the park flags 
 remove the looping document animations? No flag or preset change.
 
 Answer: not tested. Two of the five flags did not engage (`hero.exit:threaded-park` and `platform.sweep:offscreen-pause`, `cut.txt:50-60`, `:66-76`), so 13 view-timeline animations and 2 sweep loops stayed. With the flags as built, v2p,
-parks, pauses and both read 200 per 100 at end and back in 3 of 3 jobs (`table.txt:1-8`). Every prediction verdict is gated on the census and reads untested (`cut.txt:7-35`, sections 3 and 4).
+parks, pauses and both read tier two in 3 of 3 jobs: 200 to 205 per 100 at end (`table.txt:1-4`) and 200 at back (`table.txt:5-8`). Every prediction verdict is gated on the census and reads untested (`cut.txt:7-35`, sections 3 and 4).
 
 ## 1. Run
 
@@ -70,7 +70,7 @@ v2p 0, parks 1, pauses 2, both 3 and stage end 0, back 1, paused 2). The census 
 |---|---|---|---|
 | `engine.scroll:unthrottle-park` | parks, both | yes, yes, yes | scroll-driven animations 0 (v2p and pauses hold 1 `scroll:finished`) |
 | `hero.exit:threaded-park` | parks, both | no, no, no | 13 `view:finished` animations remain in every parks and both window (`rows.txt:16`, `:22`, `:40`, `:46`, `:64`, `:70`) |
-| `hero.accent:offscreen-pause` | pauses, both | pauses yes x3 (`cut.txt:54-56`); both no, yes, yes | both job 1: 3 accent idle loops still running (`cut.txt:58`, `:74`); both jobs 2 and 3: none running (`cut.txt:59-60`, `:75-76`): the loop finished on its own, so it is not missing |
+| `hero.accent:offscreen-pause` | pauses, both | pauses yes x3 (`cut.txt:54-56`); both no, yes, yes | both job 1: 3 accent idle loops still running (`cut.txt:58`, `:74`); both job 2: none running or paused, the loop finished on its own, which is not a source (`rows.txt:46-47`, document:finished 23); both job 3: the 3 loops paused by the flag (`rows.txt:70-71`, pausedLoops accent-module_idle0-2) |
 | `hero.cue:offscreen-pause` | pauses, both | yes, yes, yes | cue float not running in pauses or both |
 | `platform.sweep:offscreen-pause` | pauses, both | no, no, no | 2 sweep loops still running (v2p holds 4) (`cut.txt:54-56`, `:58-60`) |
 
