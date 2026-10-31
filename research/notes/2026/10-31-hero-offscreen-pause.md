@@ -27,7 +27,7 @@ ease-in-out infinite` on `span.float`, `apps/site/src/parts/hero.cue/cue.module.
   `accent_visible_same_all` (the three boxes), `accent_reported_no_tick`, `accent_offscreen_ticks_le_one`.
 - `lean/Fw/Parts/HeroCuePause.lean`: `cueY e t` for every easing `e`; `cue_visible_same`, `cue_reported_no_tick`, `cue_offscreen_ticks_le_one`.
   The easing is a parameter, so no fact about the engine's cubic-bezier is assumed.
-- Goldens `packages/contracts/golden/parts/hero-accent-pause.jsonl`, `hero-cue-pause.jsonl` (generator `lean/Fw/Parts/HeroPauseGolden.lean`,
+- Goldens `packages/contracts/golden/parts/hero-accent-pause.jsonl`, `hero-cue-pause.jsonl` (generator `lean/Fw/Parts/OffscreenPauseGolden.lean`,
   check.sh jobs, trigger rows); replayed by `pause.test.ts` in both parts.
 
 Named premises (not proved about the engine): `Lag` (the observer reports an element after the frame it leaves, so that frame still ticks),

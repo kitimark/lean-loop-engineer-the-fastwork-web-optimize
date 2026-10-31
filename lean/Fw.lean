@@ -132,7 +132,7 @@ import Fw.Parts.PlatformSweepPauseGolden
 import Fw.Parts.OffscreenPause
 import Fw.Parts.HeroAccentPause
 import Fw.Parts.HeroCuePause
-import Fw.Parts.HeroPauseGolden
+import Fw.Parts.OffscreenPauseGolden
 import Fw.Parts.PlatformFadedPause
 import Fw.Parts.PlatformFadedPauseGolden
 import Fw.Parts.PlatformSweepLayer

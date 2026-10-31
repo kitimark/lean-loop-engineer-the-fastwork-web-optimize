@@ -8,7 +8,7 @@ import Fw.Parts.PlatformSweepPauseGolden
 Same trace cases as `PlatformSweepPauseGolden`; the look column is the part's shown value (accent: the three box
 opacities; cue: `translateY` for the identity easing).
 -/
-namespace Fw.Parts.HeroPauseGolden
+namespace Fw.Parts.OffscreenPauseGolden
 open Lean Fw.Parts.PlatformSweepPause
 open Fw.Parts.PlatformSweepPauseGolden (numJ frameJ leaveReturn mountedOff flicker)
 
@@ -82,6 +82,6 @@ def run' (args : List String) : IO UInt32 := do
     match pick w with
     | none => IO.eprintln "hero-pause golden: first argument is accent or cue"; return 2
     | some (_, txt) => IO.print txt; return 0
-  | _ => IO.eprintln "usage: HeroPauseGolden <accent|cue> [--check path]"; return 2
+  | _ => IO.eprintln "usage: OffscreenPauseGolden <accent|cue> [--check path]"; return 2
 
-end Fw.Parts.HeroPauseGolden
+end Fw.Parts.OffscreenPauseGolden

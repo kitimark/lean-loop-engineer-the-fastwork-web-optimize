@@ -7,5 +7,5 @@ Verified: Lean OffscreenPause/HeroAccentPause/HeroCuePause build; goldens hero-a
 Open: gate run (dispatch item); no probe result for the new flags (one flag per probe, not run); hero.accent/hero.cue variants are exclusive per part, so no combined
 steps+pause or draw-one+pause variant (follow-up).
 Read first: research/notes/2026/10-31-hero-offscreen-pause.md, lean/Fw/Parts/OffscreenPause.lean, apps/site/src/parts/hero.accent/pause.ts.
-Writes outside the task graph: lean/Fw.lean, lean/Fw/Ci/Trigger.lean, lean/scripts/check.sh, lean/scripts/HeroPauseGolden.lean, lean/Fw/Parts/{Footprint*,Bridge,HeroPauseGolden}.lean,
+Writes outside the task graph: lean/Fw.lean, lean/Fw/Ci/Trigger.lean, lean/scripts/check.sh, lean/scripts/HeroOffscreenPauseGolden.lean, lean/Fw/Parts/{Footprint*,Bridge,OffscreenPauseGolden}.lean,
 packages/contracts/golden/{ci/triggers.jsonl,parts/footprint*.json,preset/*.decisions.jsonl,parts/hero-*-pause.jsonl}, research/findings/ledger.json (rows 98, 99).
