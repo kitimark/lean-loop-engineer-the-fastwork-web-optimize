@@ -34,20 +34,29 @@ def ArmId.hasPauses : ArmId → Bool
 
 def ArmId.sets (a : ArmId) : List (String × String) := [(parksSet, onOff a.hasParks), (pausesSet, onOff a.hasPauses)]
 
-def parkFlags : List (String × String) := [("engine.scroll", "unthrottle-park"), ("hero.exit", "threaded-park"), ("platform", "faded-pause")]
+def parkFlags : List (String × String) := [("engine.scroll", "unthrottle-park"), ("hero.exit", "threaded-park")]
+
+def threadFlags : List (String × String) := [("engine.scroll", "unthrottle"), ("hero.exit", "threaded")]
+
+def fadedPause : String × String := ("platform", "faded-pause")
 
 def pauseFlags : List (String × String) :=
   [("hero.accent", "offscreen-pause"), ("hero.cue", "offscreen-pause"), ("platform.sweep", "offscreen-pause")]
 
 def ArmId.flags : ArmId → List (String × String)
   | .v2p => v2pFlags
-  | .parks => parkFlags
-  | .pauses => v2pFlags ++ pauseFlags
+  | .parks => parkFlags ++ [fadedPause]
+  | .pauses => threadFlags ++ pauseFlags
   | .both => parkFlags ++ pauseFlags
+
+/-- `platform:faded-pause` conflicts with `platform.sweep:offscreen-pause` (platform/part.json), so the pause arms swap it for the three pauses. -/
+theorem pause_arms_swap_faded :
+    fadedPause ∈ ArmId.v2p.flags ∧ fadedPause ∈ ArmId.parks.flags ∧
+    fadedPause ∉ ArmId.pauses.flags ∧ fadedPause ∉ ArmId.both.flags := by decide
 
 def setParts : String → List String
   | "parks" => ["engine.scroll", "hero.exit"]
-  | "pauses" => ["hero.accent", "hero.cue", "platform.sweep"]
+  | "pauses" => ["platform", "hero.accent", "hero.cue", "platform.sweep"]
   | _ => []
 
 structure Edge where

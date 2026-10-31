@@ -25,8 +25,8 @@ export const ARMS = Object.freeze([
   { id: 'v2pCancelScroll', fw: V2P, search: `?fw=${V2P}`, act: 'cancelScroll' },
 ]);
 const PARKS = 'engine.scroll:unthrottle-park,hero.exit:threaded-park,platform:faded-pause';
-const PAUSES = 'engine.scroll:unthrottle,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded,platform:faded-pause,platform.sweep:offscreen-pause';
-const BOTH = 'engine.scroll:unthrottle-park,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded-park,platform:faded-pause,platform.sweep:offscreen-pause';
+const PAUSES = 'engine.scroll:unthrottle,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded,platform.sweep:offscreen-pause';
+const BOTH = 'engine.scroll:unthrottle-park,hero.accent:offscreen-pause,hero.cue:offscreen-pause,hero.exit:threaded-park,platform.sweep:offscreen-pause';
 
 /** The arms of task sim-end-cut after the v2p arm: the parks, the off-screen pauses and both stacked on the v2-proved preset. */
 export const CUT_ARMS = Object.freeze([

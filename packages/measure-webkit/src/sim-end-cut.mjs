@@ -10,14 +10,16 @@ export const CENSUS_CAP = 24;
 export const ARM_IDS = Object.freeze(['v2p', 'parks', 'pauses', 'both']);
 export const LIVE_STAGES = Object.freeze(['end', 'back']);
 
-const V2P = [['engine.scroll', 'unthrottle'], ['hero.exit', 'threaded'], ['platform', 'faded-pause']];
-const PARK = [['engine.scroll', 'unthrottle-park'], ['hero.exit', 'threaded-park'], ['platform', 'faded-pause']];
+const FADED = ['platform', 'faded-pause'];
+const THREAD = [['engine.scroll', 'unthrottle'], ['hero.exit', 'threaded']];
+const V2P = [...THREAD, FADED];
+const PARK = [['engine.scroll', 'unthrottle-park'], ['hero.exit', 'threaded-park']];
 const PAUSE = [['hero.accent', 'offscreen-pause'], ['hero.cue', 'offscreen-pause'], ['platform.sweep', 'offscreen-pause']];
-export const ARM_FLAGS = Object.freeze({ v2p: V2P, parks: PARK, pauses: [...V2P, ...PAUSE], both: [...PARK, ...PAUSE] });
+export const ARM_FLAGS = Object.freeze({ v2p: V2P, parks: [...PARK, FADED], pauses: [...THREAD, ...PAUSE], both: [...PARK, ...PAUSE] });
 const HAS = { v2p: [false, false], parks: [true, false], pauses: [false, true], both: [true, true] };
 const onOff = (b) => (b ? 'on' : 'off');
 export const ARM_SETS = Object.freeze(Object.fromEntries(ARM_IDS.map((id) => [id, [['parks', onOff(HAS[id][0])], ['pauses', onOff(HAS[id][1])]]])));
-export const SET_PARTS = Object.freeze({ parks: ['engine.scroll', 'hero.exit'], pauses: ['hero.accent', 'hero.cue', 'platform.sweep'] });
+export const SET_PARTS = Object.freeze({ parks: ['engine.scroll', 'hero.exit'], pauses: ['platform', 'hero.accent', 'hero.cue', 'platform.sweep'] });
 
 export const EDGES = Object.freeze([
   { arm: 'parks', cmp: 'v2p', stages: LIVE_STAGES },
