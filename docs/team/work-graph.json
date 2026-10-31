@@ -24654,6 +24654,99 @@
     "docs/team/handoffs/sweep-pending-play.md"
    ],
    "evidence": "d97f33a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "park-engage",
+   "owner": "part-builder",
+   "stream": "experiment",
+   "deps": [
+    "scrolldriven-park"
+   ],
+   "title": "hero.exit:threaded-park engages at the end of the page on the Simulator (sim-end-cut: 13 view-timeline animations stayed in 3 of 3 jobs after an instant jump); log whether startParkOn ran, find which of two causes holds (observer after an instant jump vs startPark only via createHandoff), fix with the same look",
+   "writes": [
+    "apps/site/src/parts/hero.exit/**",
+    "lean/Fw/Parts/ScrollPark*.lean",
+    "lean/Fw/Parts/HeroExit*.lean",
+    "lean/scripts/ScrollPark*Golden.lean",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/Footprint*.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "results/park-engage/**",
+    "research/notes/2026/10-31-park-engage.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/park-engage.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sweep-pause-all",
+   "owner": "part-builder",
+   "stream": "experiment",
+   "deps": [
+    "sweep-pending-play"
+   ],
+   "title": "platform.sweep:offscreen-pause pauses every sweep loop at the end of the page (sim-end-cut: 2 of 4 sweepDoc loops kept running in 3 of 3 jobs); find which elements the watcher misses, fix with the same look; and decide whether platform:faded-pause and platform.sweep:offscreen-pause can compose (resolve.ts:141 conflict)",
+   "writes": [
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/platform/**",
+    "apps/site/src/registry/**",
+    "lean/Fw/Parts/PlatformSweep*.lean",
+    "lean/Fw/Parts/Platform*.lean",
+    "lean/scripts/PlatformSweep*Golden.lean",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/Footprint*.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "results/sweep-pause-all/**",
+    "research/notes/2026/10-31-sweep-pause-all.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/sweep-pause-all.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-end-cut-2",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "sim-end-cut",
+    "park-engage",
+    "sweep-pause-all"
+   ],
+   "title": "re-run the sim-end-cut arms (v2p, parks, pauses, both) on the CI Simulator once every flag engages in the census; verdicts gated on took; does the live end-of-page rate reach 100 per 100?",
+   "writes": [
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Device/SimEndCut*.lean",
+    "lean/scripts/SimEndCut*Golden.lean",
+    "packages/contracts/golden/device/sim-end-cut*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "results/sim-end-cut-2/**",
+    "research/notes/2026/11-0x-sim-end-cut-2.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/sim-end-cut-2.md"
+   ]
   }
  ],
  "deadline": {
