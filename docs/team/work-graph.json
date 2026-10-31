@@ -24561,6 +24561,71 @@
     "docs/team/handoffs/sim-floor-attrib.md"
    ],
    "evidence": "09b7629"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "hero-offscreen-pause",
+   "owner": "part-builder",
+   "stream": "experiment",
+   "deps": [
+    "sim-floor-attrib"
+   ],
+   "title": "hero.accent:offscreen-pause and hero.cue:offscreen-pause: pause the accent idle loops and the cue float while their element is off screen (same look, Lean proof per part after Fw.Parts.PlatformSweepPause), breakpoint gate both engines; the end-of-page running document animations that keep iOS at 2 recalcs per frame (sim-floor-attrib)",
+   "writes": [
+    "apps/site/src/parts/hero.accent/**",
+    "apps/site/src/parts/hero.cue/**",
+    "apps/site/src/registry/**",
+    "lean/Fw/Parts/HeroAccent*.lean",
+    "lean/Fw/Parts/HeroCue*.lean",
+    "lean/Fw/Parts/OffscreenPause*.lean",
+    "lean/scripts/HeroOffscreenPause*Golden.lean",
+    "packages/contracts/golden/parts/**",
+    "lean/Fw/Parts/Footprint*.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "packages/contracts/golden/preset/look-change.candidates.jsonl",
+    "packages/contracts/golden/preset/shipped.decisions.jsonl",
+    "packages/contracts/golden/preset/v2-proved.decisions.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "results/hero-offscreen-pause/**",
+    "research/notes/2026/10-31-hero-offscreen-pause.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/hero-offscreen-pause.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-end-cut",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "sim-floor-attrib",
+    "hero-offscreen-pause"
+   ],
+   "title": "iOS Simulator end-of-page live rate with the cut stacked: v2p vs v2p+parks vs v2p+off-screen pauses (sweep, accent, cue) vs v2p+parks+pauses, end and back stages, 3 rounds; Lean verdict per arm (Attrib); does the live end-of-page rate reach 100 per 100?",
+   "writes": [
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Device/SimEndCut*.lean",
+    "lean/scripts/SimEndCut*Golden.lean",
+    "packages/contracts/golden/device/sim-end-cut*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "apps/runner/src/land.ts",
+    "results/sim-end-cut/**",
+    "research/notes/2026/10-31-sim-end-cut.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/sim-end-cut.md"
+   ]
   }
  ],
  "deadline": {
