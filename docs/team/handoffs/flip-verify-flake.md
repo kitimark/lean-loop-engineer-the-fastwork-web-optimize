@@ -1,6 +1,6 @@
 # flip-verify-flake handoff
 
-State: branch worktree-wf_7d377ec7-c1b-1, fix commit 4eefcb29a, pushed as ci/flip-verify-flake with [ci:breakpoint-gate]. CI run: pending (first push).
+State: branch worktree-wf_7d377ec7-c1b-1, fix commit 4eefcb29a, pushed as ci/flip-verify-flake with [ci:breakpoint-gate]. CI run 1: breakpoint-gate 41204138908 at 4eefcb29a, both flip-cell jobs (chromium, playwright-webkit) passed Flip verify and Flip verify repeats on the first attempt (run still finishing its look report when written). Run 2 pushed from the merge of main. Local checks done: lean check.sh green, gate-breakpoints tests 836 pass, ci-paths 56 pass, land-inputs 73 pass, plan lint 0 errors (main merged).
 
 Cause (MEASURED from artifacts of runs 41198892838, 41196819967, 41181634194, 41190009074; passes 41194080600, 41198860679):
 - A5 at 320x568: WebKit on the ARM runner is software-rendered, rAF gives 1 to 4 frames per 680 ms. The light-start open push gets no tick after the nav turns dark, so it is untaken and had no "chance". The old 3/4 quorum (`judgedEnough`) then failed the band.
