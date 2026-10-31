@@ -2,7 +2,7 @@
 
 Task `sweep-pause-all` (plan r609). Follow-up of `10-31-sweep-pending-play.md`.
 
-## Finding 1: the task's premise fell (MEASURED, CI iOS Simulator run 41182219539, rounds 1 and 2, `results/sweep-pause-all/`)
+## Finding 1: the task's premise fell (MEASURED, CI iOS Simulator run 41182219539, jobs 1 to 3, one round each, `results/sweep-pause-all/`)
 
 sim-end-cut (run 41173535319) read "platform sweep running 2" at the end of the page as two loops the pause missed. The new census
 `sweepLoops()` (one row per sweepDoc animation: target, playState, pending, startTime null, target in the viewport) shows the two loops
