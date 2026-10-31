@@ -19,7 +19,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { fileIntents } from "./land-intent.ts";
-import { dryRecordLake, DRY_WAVES, type DryPhase } from "./land-dry.ts";
+import { dryRecordLake, dryVerdict, DRY_WAVES, type DryPhase, type DryRes } from "./land-dry.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { noteShapeProblems } from "./land-notes.ts";
@@ -901,31 +901,31 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const passes = (ph: DryPhase): boolean => (folded[ph] ? folded[ph]!.bad === null : true);
       const refused = (ph: DryPhase): void => { detail = folded[ph]?.bad ?? ""; badKind = folded[ph]?.kind ?? "checks"; };
       const reads = passes("reads");
-      let lints = true;
-      if (!reads) {
-        refused("reads");
-        lines.push("dry: lints skipped (reads refused first)");
-      } else {
+      let ledgerBad: string | null = null;
+      if (!reads) lines.push("dry: lints skipped (reads refused first)");
+      else {
         if (selected) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
         else lines.push("dry: reads not selected (the change selects no read-set scan, so the real land does not run the test either)");
-        lints = passes("lints");
         dryStep = dryTotalStep(lintArgv, false);
-        if (!lints) refused("lints");
-        else if (lakeKey && !lakeSkipped && dryRecordLake({ reads, lints, ledger: true, local: true }, lakeRuns)) {
-          const f = lakePassFile(join(mainDir, ".fw-console"), lakeKey);
-          mkdirSync(dirname(f), { recursive: true });
-          writeFileSync(f, `${new Date().toISOString()}\n`);
+        if (passes("lints")) {
+          if (lakeKey && !lakeSkipped && dryRecordLake({ reads, lints: true, ledger: true, local: true }, lakeRuns)) {
+            const f = lakePassFile(join(mainDir, ".fw-console"), lakeKey);
+            mkdirSync(dirname(f), { recursive: true });
+            writeFileSync(f, `${new Date().toISOString()}\n`);
+          }
+          ledgerBad = ledgerNoteKeyCheck(slot.dir);
+          if (ledgerBad === null) lines.push(`dry: ledger notes ok (one note per (entry, task) in ${LEDGER_FILE})`);
         }
       }
-      if (reads && lints) {
-        const bad = ledgerNoteKeyCheck(slot.dir);
-        lints = bad === null; detail = bad ?? "";
-        if (lints) lines.push(`dry: ledger notes ok (one note per (entry, task) in ${LEDGER_FILE})`);
-      }
-      if (reads && lints && local.length) {
+      const dryRes: DryRes = { reads, lints: passes("lints"), ledger: ledgerBad === null, local: !local.length || passes("local") };
+      if (reads && dryRes.lints && dryRes.ledger && local.length) {
         dryStep = dryTotalStep(dryPlan ?? o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
-        if (!passes("local")) { lints = false; refused("local"); } else lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
       }
+      const refusal = dryVerdict(dryRes);
+      if (refusal === "ledger") detail = ledgerBad ?? "";
+      else if (refusal) refused(refusal);
+      else if (local.length) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
+      const lints = !reads || refusal === null;
       const oc = outcome({ reads, lints });
       if (outcomeKind(oc) !== "dry") return fail(detail || `dry land refused: ${outcomeKind(oc)}`, "unknown", oc);
       lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);
