@@ -1,0 +1,13 @@
+run 41196494063 (ce9eb255b, arm set sweep, CI iOS Simulator, round 2 code with scene-frozen spans); hidden = target out of the viewport; rows [target, playState, pending, startTime null, in viewport] of sweepEnd and sweepBack
+job 1 base sweepEnd running 4 of 4 hidden running 2 of 2
+job 1 base sweepBack running 4 of 4 hidden running 2 of 2
+job 1 sweepPause sweepEnd running 2 of 4 hidden running 0 of 2
+job 1 sweepPause sweepBack running 2 of 4 hidden running 0 of 2
+job 2 base sweepEnd running 4 of 4 hidden running 2 of 2
+job 2 base sweepBack running 4 of 4 hidden running 2 of 2
+job 2 sweepPause sweepEnd running 2 of 4 hidden running 0 of 2
+job 2 sweepPause sweepBack running 2 of 4 hidden running 0 of 2
+job 3 base sweepEnd running 4 of 4 hidden running 2 of 2
+job 3 base sweepBack running 4 of 4 hidden running 2 of 2
+job 3 sweepPause sweepEnd running 2 of 4 hidden running 0 of 2
+job 3 sweepPause sweepBack running 2 of 4 hidden running 0 of 2

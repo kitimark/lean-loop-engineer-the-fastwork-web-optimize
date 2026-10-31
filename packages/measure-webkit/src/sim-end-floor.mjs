@@ -11,6 +11,7 @@ export const WIN_RAF = 360;
 export const MIN_SEEN = 288;
 export const MIN_ROUNDS = 2;
 
+const SWEEP_PAUSE = 'platform.sweep:offscreen-pause';
 const V2P = 'engine.scroll:unthrottle,hero.exit:threaded,platform:faded-pause';
 /**
  * The arms: the four of sim-end-floor in the Lean `Round` order, then the three controls of sim-floor-attrib. `search` is the query the
@@ -36,7 +37,9 @@ export const CUT_ARMS = Object.freeze([
   { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
 ]);
 
-export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), park: PARK_ARMS });
+export const SWEEP_ARMS = Object.freeze([ARMS[0], { id: 'sweepPause', fw: SWEEP_PAUSE, search: `?fw=${SWEEP_PAUSE}` }]);
+
+export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), sweep: SWEEP_ARMS, park: PARK_ARMS });
 export function armsOf(set = 'attrib') {
   const arms = ARM_SETS[set];
   if (!arms) throw new Error(`unknown arm set ${set}`);
@@ -110,7 +113,12 @@ export function windowOf(rows, stage, raf) {
   return { raf, seen: t.FireAnimationFrame, recalcs: t.RecalculateStyles, marks: true, tally: t, spanMs: Math.round((b - a) * 1000) };
 }
 
-/** The in-page script of one load: scroll to the end, settle, read the `end` window, go up one viewport and back, settle, read the `back` window, then list the animations. */
+export const SWEEP_LOOPS_JS = `const sweepLoops = () => document.getAnimations().filter((a) => /sweepDoc/.test(a.animationName || '')).map((a) => {
+    const t = a.effect && a.effect.target;
+    const r = t ? t.getBoundingClientRect() : null;
+    return [desc(t), a.playState, !!a.pending, a.startTime == null, !!r && r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight];
+  });`;
+
 export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act = null } = {}) => `(async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const frame = () => new Promise((r) => requestAnimationFrame(r));
@@ -144,10 +152,12 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
     }
     return { total: an.length, by, running, paused, park: parkProbe(), parked: document.querySelectorAll('[data-exit-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
+  ${SWEEP_LOOPS_JS}
   ${firstScrollJs(act)}
   await frame(); await frame();
   await sleep(${settleMs});
   out.anims = census();
+  out.sweepEnd = sweepLoops();
   out.end = await win('end');
   scrollTo({ top: Math.max(0, root.scrollHeight - 2 * innerHeight), behavior: 'instant' });
   await frame(); await frame();
@@ -157,6 +167,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
   await sleep(${settleMs});
   out.back = await win('back');
   out.animsBack = census();
+  out.sweepBack = sweepLoops();
   const cancelScroll = ${act === 'cancelScroll'};
   let cancelled = 0;
   for (const a of document.getAnimations()) {
@@ -176,7 +187,8 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
 const CENSUS_OF = { end: 'anims', back: 'animsBack', paused: 'animsPaused' };
 const censusText = (c) => (c ? `${c.total} animations ${JSON.stringify(c.by)} running ${JSON.stringify(c.running ?? [])}${c.paused ? ` pausedLoops ${JSON.stringify(c.paused)} parked ${c.parked ?? '-'}` : ''}` : 'no census');
 
-/** The rows file: one line per round, arm and stage, then the animation census of each arm (round 1 and later rounds alike). */
+const sweepText = (l) => (l ? `${l.filter((x) => x[1] === 'running').length} running of ${l.length}, ${l.filter((x) => x[1] === 'running' && !x[4]).length} running out of the viewport ${JSON.stringify(l)}` : 'no read');
+
 export function rowLines(raw, arms = armsOf(raw.meta?.armSet)) {
   const out = [];
   for (const r of raw.rounds) {
@@ -191,6 +203,7 @@ export function rowLines(raw, arms = armsOf(raw.meta?.armSet)) {
     for (const a of arms) {
       const arm = r.arms[a.id];
       if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
+      if (arm?.sweepEnd) out.push(`round ${r.round} sweep loops ${a.id}: end ${sweepText(arm.sweepEnd)}; back ${sweepText(arm.sweepBack)}`);
       if (arm && a.act) out.push(`round ${r.round} paused ${a.id} act ${a.act}: cancelled ${arm.cancelled ?? '-'}; after the act, before the window: ${censusText(arm.animsActed)}`);
     }
   }

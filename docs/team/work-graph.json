@@ -24719,7 +24719,8 @@
     "research/notes/2026/10-31-sweep-pause-all.md",
     "research/findings/ledger.json",
     "docs/team/handoffs/sweep-pause-all.md"
-   ]
+   ],
+   "evidence": "2669857"
   },
   {
    "devices": [
@@ -24747,7 +24748,9 @@
     "results/sim-end-cut-2/**",
     "research/notes/2026/11-0x-sim-end-cut-2.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/sim-end-cut-2.md"
+    "docs/team/handoffs/sim-end-cut-2.md",
+    "research/notes/2026/10-31-sim-end-cut-2.md",
+    "research/notes/2026/11-01-sim-end-cut-2.md"
    ]
   },
   {
