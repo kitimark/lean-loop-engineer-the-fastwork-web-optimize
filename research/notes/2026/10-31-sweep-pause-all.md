@@ -54,7 +54,7 @@ The merge commit changed `pause.ts` only by the `holdNew` helper (same branch co
 runs on from its hold time (`Unpaused h t = cur + (t - t0)`); `resume_pending_same` and `resume_pending_phase` show `resumeTime` shows that phase,
 `resume_pending_span` that the resume keeps it through any paused span. Scene re-hold: `holdNew held running` has three branches
 (`hold_already_held`, `hold_running_new`, `hold_not_running`) and the table `hold` never moves an earlier entry (`rehold_keeps`, `rehold_idem`).
-`OffscreenPause.look_same_pending` lifts it to any looking function. The engine fact (the CSS start leaves a pending play that is paused before the frame
+`PlatformSweepPause.look_same_pending` lifts it to any looking function. The engine fact (the CSS start leaves a pending play that is paused before the frame
 is drawn, and the hold time is the CSS hold time) is the named premise `Scene`, INFERRED. Golden `platform-sweep-pause.jsonl` (14 lines) adds `resumeTime`
 and `holdNew` rows; `pause.test.ts` replays them.
 

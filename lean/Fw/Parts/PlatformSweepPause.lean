@@ -167,6 +167,10 @@ theorem resume_pending_span (h : Held) (now d : Rat) :
     resumeTime h (now + d) = resumeTime h now + d := by
   simp [resumeTime]; grind
 
+/-- Any looking function of a resumed no-start-time loop equals the unpaused one (the `OffscreenPause` shape for the pending case). -/
+theorem look_same_pending {α : Type} (g : Rat → α) (h : Held) (now : Rat) :
+    g (resumeTime h now) = g (Unpaused h now) := rfl
+
 /-- Hold one running animation: skipped when already held (first hold wins), not running left alone. -/
 def holdNew (held running : Bool) : Bool := !held && running
 
