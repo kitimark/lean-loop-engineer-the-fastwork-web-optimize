@@ -1,0 +1,12 @@
+serving the snapshot read-only at http://127.0.0.1:49603/
+proxy up: SIMULATOR on :9341, tabs on :9342
+  no tab after 6 s: sending openurl again (extra ask 1)
+  no tab after 13 s: sending openurl again (extra ask 2)
+  no tab after 19 s: sending openurl again (extra ask 3)
+  no tab after 25 s: sending openurl again (extra ask 4)
+  no tab after 34 s: sending openurl again (extra ask 5)
+end-floor: preference overrides {"safari":["read failed: "],"global":[]}
+  end-floor both round 1 attempt 1 failed (Runtime.evaluate timed out after 120000 ms); reconnecting and retrying from a fresh load
+  waiting for the Safari tab (38 s of 480 s, try 1): no page target (is another inspector client attached to this tab?)
+end-floor round 1 both: end raf 360 seen 366 recalcs 726; back raf 360 seen 360 recalcs 720; paused raf 360 seen 360 recalcs 360
+end-floor round 1 bothL: end raf 360 seen 360 recalcs 363; back raf 360 seen 360 recalcs 365; paused raf 360 seen 360 recalcs 360

@@ -252,8 +252,8 @@ jobs:
           SEARCH: ${{ needs.plan.outputs.search }}
           # end-floor (task sim-end-floor): only the default config and the arms' queries (packages/measure-webkit/src/sim-end-floor.mjs ARMS)
           END_FLOOR: ${{ contains(github.event.head_commit.message, '[end-floor]') && 'yes' || 'no' }}
-          # [end-cut] (task sim-end-cut) picks the arm set cut (v2p, parks, pauses, both), [end-park] (task park-engage) the set park (park, parkWalk), [end-sweep] (task sweep-pause-all) the set sweep (base, the sweep pause alone); without them the sim-floor-attrib set
-          EF_ARMS: ${{ contains(github.event.head_commit.message, '[end-park]') && 'park' || contains(github.event.head_commit.message, '[end-cut]') && 'cut' || contains(github.event.head_commit.message, '[end-sweep]') && 'sweep' || 'attrib' }}
+          # [end-cut] (task sim-end-cut) picks the arm set cut (v2p, parks, pauses, both), [end-park] (task park-engage) the set park (park, parkWalk), [end-sweep] (task sweep-pause-all) the set sweep (base, the sweep pause alone), [end-layer] (task sim-layer-sweep) the set layer (both, bothL); without them the sim-floor-attrib set
+          EF_ARMS: ${{ contains(github.event.head_commit.message, '[end-park]') && 'park' || contains(github.event.head_commit.message, '[end-cut]') && 'cut' || contains(github.event.head_commit.message, '[end-sweep]') && 'sweep' || contains(github.event.head_commit.message, '[end-layer]') && 'layer' || 'attrib' }}
         run: |
           set -euo pipefail
           if [ "$END_FLOOR" = yes ]; then
@@ -424,8 +424,8 @@ jobs:
           # [end-floor-vms:3] (task sim-floor-attrib): seven arms do not fit three rounds in one step, so each of 3 jobs runs one round, arm order rotated by 2 per job
           EF_ROUNDS: ${{ contains(github.event.head_commit.message, '[end-floor-vms:3]') && '1' || '3' }}
           # [end-cut] (task sim-end-cut): four arms, so the order rotates by 1 per job (v2p, parks, pauses first)
-          EF_ARMS: ${{ contains(github.event.head_commit.message, '[end-park]') && 'park' || contains(github.event.head_commit.message, '[end-cut]') && 'cut' || contains(github.event.head_commit.message, '[end-sweep]') && 'sweep' || 'attrib' }}
-          EF_ROT: ${{ (contains(github.event.head_commit.message, '[end-cut]') || contains(github.event.head_commit.message, '[end-sweep]')) && '1' || '2' }}
+          EF_ARMS: ${{ contains(github.event.head_commit.message, '[end-park]') && 'park' || contains(github.event.head_commit.message, '[end-cut]') && 'cut' || contains(github.event.head_commit.message, '[end-sweep]') && 'sweep' || contains(github.event.head_commit.message, '[end-layer]') && 'layer' || 'attrib' }}
+          EF_ROT: ${{ (contains(github.event.head_commit.message, '[end-cut]') || contains(github.event.head_commit.message, '[end-sweep]') || contains(github.event.head_commit.message, '[end-layer]')) && '1' || '2' }}
           LAG: ${{ (inputs.lag || contains(github.event.head_commit.message, '[swap-lane]')) && 'yes' || 'no' }}
           # lag cost passes: the cost dispatch input (off|on|only); a push carries no inputs, so it is off, unless the head commit says [swap-lane]:
           # then a push runs the swap lane (rewrite, fw people.carousel:crop, 3 VMs, lag cost only; task carousel-swap-webkit-lane)

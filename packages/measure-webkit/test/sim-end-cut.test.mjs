@@ -141,7 +141,7 @@ test('report: the in-view sweep loops are a source, so both is predicted at tier
   has('effect v2p end overall: took');
   has('answer both end: tiers [one, one, one] overall one; reaches 100 per 100: yes');
   has('answer parks back: tiers [two, two, two] overall two; reaches 100 per 100: no');
-  assert.ok(v.some((l) => l.startsWith('sources both end round 1: platform sweep running 2; sweep loops running 2, hidden 0; owners sweep-module_sweepDoc_x on span x2; candidate platform.sweep:layer-sweep')));
+  assert.ok(v.some((l) => l.startsWith('sources both end job 1: platform sweep running 2; sweep loops running 2, hidden 0; owners sweep-module_sweepDoc_x on span x2; candidate platform.sweep:layer-sweep')));
   const same = verdictLines(three({ bothRate: 720 }));
   assert.ok(same.includes('both against parks [pauses] end overall: noEffect:pauses (rate reading noEffect:pauses); predicted noEffect:pauses; held'));
   assert.ok(same.includes('tier both end: [two, two, two] overall two; predicted two; held'));
@@ -155,19 +155,19 @@ test('report: a flag that did not take reads untested, never noEffect', () => {
   assert.ok(un.includes('tier both end: [two, two, two] overall two; predicted two; untested'));
   assert.ok(un.includes('tier v2p end: [two, two, two] overall two; predicted two; held'));
   assert.ok(un.includes('pauses against v2p [pauses] end overall: noEffect:pauses (rate reading noEffect:pauses); predicted noEffect:pauses; held'));
-  assert.ok(un.some((l) => l.startsWith('effect parks end round 1: missing:hero.exit:threaded-park,engine.scroll:unthrottle-park;')));
+  assert.ok(un.some((l) => l.startsWith('effect parks end job 1: missing:hero.exit:threaded-park,engine.scroll:unthrottle-park;')));
 });
 
 test('report: a hidden sweep loop that still runs, or a missing sweep read, leaves the sweep pause untested', () => {
   const hiddenRuns = { ...rawOf({ bothRate: 720 }) };
   hiddenRuns.rounds[0].arms.pauses.sweepEnd = sweepRows('running');
   const v = verdictLines(mergeRaws([hiddenRuns, rawOf({ bothRate: 720 }), rawOf({ bothRate: 720 })]));
-  assert.ok(v.some((l) => l.startsWith('effect pauses end round 1: missing:platform.sweep:offscreen-pause;')));
+  assert.ok(v.some((l) => l.startsWith('effect pauses end job 1: missing:platform.sweep:offscreen-pause;')));
   assert.ok(v.includes('pauses against v2p [pauses] end overall: untested (rate reading noEffect:pauses); predicted noEffect:pauses; untested'));
   const noRead = rawOf({ bothRate: 720 });
   delete noRead.rounds[0].arms.both.sweepEnd;
   const v2 = verdictLines(mergeRaws([noRead, rawOf({ bothRate: 720 }), rawOf({ bothRate: 720 })]));
-  assert.ok(v2.some((l) => l.startsWith('effect both end round 1: missing:platform.sweep:offscreen-pause;')));
+  assert.ok(v2.some((l) => l.startsWith('effect both end job 1: missing:platform.sweep:offscreen-pause;')));
 });
 
 test('report: nothing remains in both, so the prediction is tier one', () => {
