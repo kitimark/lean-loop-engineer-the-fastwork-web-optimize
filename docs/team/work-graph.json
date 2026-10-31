@@ -24840,7 +24840,35 @@
     "research/notes/2026/10-31-flip-cell-pixel-hang.md",
     "research/notes/2026/11-01-flip-cell-pixel-hang.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/flip-cell-pixel-hang.md"
+    "docs/team/handoffs/flip-cell-pixel-hang.md",
+    "packages/premise-tests/src/look.mjs",
+    "apps/runner/src/land.ts"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-land-slow",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "flip-cell-pixel-hang"
+   ],
+   "title": "fw land --dry got slower: samples 35.0 s (0180811), 38.6 s (0058ef3), 33.3 s (001d247, load 4.7) vs p50 21.7 s, budget 30 s (timing.slow fw land/dry total lake). Attribute the time per dry step from the recorded spans, find what grew (new lints, premise tests, lake work, cache misses), cut it back under budget without dropping a check; any rule that decides what to skip or cache is Lean-stated",
+   "writes": [
+    "apps/runner/src/land*.ts",
+    "apps/runner/src/slot*.ts",
+    "packages/plan-lint/**",
+    "lean/Fw/Ops/Land*.lean",
+    "lean/Fw/Ops/Timing*.lean",
+    "packages/contracts/golden/ops/**",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/11-01-dry-land-slow.md",
+    "research/notes/2026/11-02-dry-land-slow.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/dry-land-slow.md"
    ]
   }
  ],
