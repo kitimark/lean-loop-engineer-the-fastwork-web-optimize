@@ -16,7 +16,7 @@ ease-in-out infinite` on `span.float`, `apps/site/src/parts/hero.cue/cue.module.
   change to a draw state) is not resumed.
 - Variants are exclusive per part (`resolve.ts`), so `hero.accent:offscreen-pause` runs the faithful CSS boil and the unchanged timer chain
   (`driver.ts`); `steps` has no CSS loop (its finite zero-duration steps are re-begun by `boil.ts`) and `draw-one` only sets a data attribute.
-  The pause reads no chain state, so a combined variant is possible; not built (follow-up).
+  The pause reads no chain state, so a combined variant is possible but not built.
 
 ## Lean
 
@@ -44,6 +44,5 @@ at smoke, not prerendered; follow-up).
 
 ## Which end-of-page animations remain
 
-After these three variants, the document animations still running at the end of the page are the other platform loops (glint dashes, marquee,
-entries, covered by their own flags or none); `sim-end-cut` measures the stack. Whether pausing
+Still running at the end of the page: the other platform loops (glint dashes, marquee, entries). `sim-end-cut` measures the stack. Whether pausing
 lowers the 2 recalcs per frame on the Simulator is not known here (INFERRED only from `10-31-sim-floor-attrib.md` section 3).
