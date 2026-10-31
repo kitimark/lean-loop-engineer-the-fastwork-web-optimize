@@ -1,14 +1,6 @@
 import Fw.Parts.MorphGeomVerify
-/-! Ready, wait and fault rules of the flip-cell and look readings.
-
-A reading waits for a page signal (columns rendered, images loaded, no running transition) under
-a named limit, and a Playwright call that stalls is a fault, not a reading. Only a fault is
-retried; a reading, once taken, decides its cell, so no retry can turn a failing reading into a
-pass. -/
 namespace Fw.Parts.MorphGeom
 
-/-- What one page shows: visible morph columns, their images, images loaded, CSS transitions
-still running. -/
 structure CellObs where
   cols : Nat
   imgs : Nat
@@ -19,8 +11,6 @@ def sideLoaded (o : CellObs) : Bool := o.loaded == o.imgs
 
 def sideSettled (o : CellObs) : Bool := o.running == 0
 
-/-- The flag page is read when it shows the band's columns, the same image count as the base page,
-every image of both pages loaded and no transition running on either page. -/
 def cellReady (want : Nat) (base flag : CellObs) : Bool :=
   flag.cols == want && flag.imgs == base.imgs && sideLoaded base && sideLoaded flag && sideSettled base && sideSettled flag
 
@@ -47,7 +37,6 @@ theorem ready_mounted_reads (want : Nat) (base flag : CellObs) (hc : flag.cols =
     cellReady want base flag = true := by
   simp [cellReady, sideLoaded, sideSettled, hc, hi, hb, hf, hbr, hfr]
 
-/-- One poll of a bounded wait. -/
 inductive WaitStep where
   | poll
   | read
@@ -59,8 +48,6 @@ def WaitStep.name : WaitStep → String
   | .read => "read"
   | .late => "late"
 
-/-- Ready reads at once; otherwise the wait polls until the limit, then reads late (the reading is
-taken and judged all the same, with the wait noted). -/
 def waitStep (elapsed limit : Nat) (ready : Bool) : WaitStep :=
   if ready then .read else if limit ≤ elapsed then .late else .poll
 
@@ -73,8 +60,6 @@ theorem wait_polls_early (elapsed limit : Nat) (h : elapsed < limit) : waitStep 
   have : ¬ limit ≤ elapsed := by omega
   simp [waitStep, this]
 
-/-- The verdict of a reading: none while the wait polls, else whether the judged defects are empty.
-It does not look at how the wait ended. -/
 def waitVerdict (st : WaitStep) (defects : Nat) : Option Bool :=
   if st = .poll then none else some (defects == 0)
 
@@ -85,7 +70,6 @@ theorem late_defect_fails (defects : Nat) (h : 0 < defects) : waitVerdict .late 
   have : defects ≠ 0 := by omega
   simp [waitVerdict, this]
 
-/-- One attempt at a cell (a band at one morph value): a stalled call, or a reading with its verdict. -/
 inductive Attempt where
   | fault
   | reading (ok : Bool)
@@ -110,13 +94,11 @@ def Outcome.ok : Outcome → Bool
   | .pass => true
   | _ => false
 
-/-- The first reading among the attempts decides; faults before it are skipped. -/
 def firstReading : List Attempt → Option Bool
   | [] => none
   | .fault :: rest => firstReading rest
   | .reading ok :: _ => some ok
 
-/-- At most `max` attempts are made; with no reading in them the cell is exhausted. -/
 def cellOutcome (max : Nat) (as : List Attempt) : Outcome :=
   match firstReading (as.take max) with
   | some true => .pass
@@ -160,12 +142,10 @@ theorem take_past_prefix (pre rest : List Attempt) (x : Attempt) (max : Nat) (h 
       have h' : t.length < k := by simp at h; omega
       simp [ih k h']
 
-/-- A reading that fails stays a fail whatever faults came before it, within the attempt limit. -/
 theorem retry_defect_stays_fail (max : Nat) (pre rest : List Attempt) (h : ∀ a ∈ pre, a = .fault)
     (hl : pre.length < max) : cellOutcome max (pre ++ .reading false :: rest) = .fail := by
   rw [cellOutcome, take_past_prefix pre rest (.reading false) max hl, firstReading_prefix pre _ false h]
 
-/-- A pass needs a passing reading among the attempts: faults alone never pass. -/
 theorem outcome_pass_has_reading (max : Nat) (as : List Attempt) (h : (cellOutcome max as).ok = true) :
     Attempt.reading true ∈ as := by
   have key : ∀ l : List Attempt, firstReading l = some true → Attempt.reading true ∈ l := by
@@ -182,7 +162,6 @@ theorem outcome_pass_has_reading (max : Nat) (as : List Attempt) (h : (cellOutco
   · rename_i hr; simp [Outcome.ok] at h
   · rename_i hr; simp [Outcome.ok] at h
 
-/-- The next step after attempt number `n` (1-based) of at most `max`. -/
 inductive Next where
   | done
   | again
@@ -206,11 +185,8 @@ theorem retry_fault_stops (n max : Nat) (h : max ≤ n) : retryNext n max .fault
   have : ¬ n < max := by omega
   simp [retryNext, this]
 
-/-- Every cell passed: the rule of the flip-cell step (a failed or exhausted cell fails it). -/
 def cellsPass (os : List Outcome) : Bool := os.all Outcome.ok
 
-/-- No cell is exhausted: the rule of the pixel look step, which only reports a failed reading but
-may not lose one. -/
 def cellsKept (os : List Outcome) : Bool := os.all fun o => o != .exhausted
 
 theorem cells_pass_exhausted_fails (os : List Outcome) (h : Outcome.exhausted ∈ os) : cellsPass os = false := by
@@ -237,14 +213,11 @@ theorem cells_kept_exhausted_fails (os : List Outcome) (h : Outcome.exhausted �
 theorem cells_kept_reports_fail (os : List Outcome) (h : ∀ o ∈ os, o ≠ .exhausted) : cellsKept os = true := by
   exact List.all_eq_true.mpr fun o ho => by simpa using h o ho
 
-/-- The named limits, ms: a ready wait, its poll step, a screenshot, one other page call, closing a
-page or the browser. A call that outlives its limit is a fault, never a reading. -/
 def readyLimitMs : Nat := 20000
 def readyPollMs : Nat := 250
 def shotLimitMs : Nat := 120000
 def callLimitMs : Nat := 60000
 def closeLimitMs : Nat := 15000
-/-- Attempts per cell, the first included. -/
 def maxAttempts : Nat := 2
 
 theorem limits_ordered : readyPollMs < readyLimitMs ∧ closeLimitMs < callLimitMs ∧ callLimitMs < shotLimitMs ∧ 1 < maxAttempts := by

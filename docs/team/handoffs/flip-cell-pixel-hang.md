@@ -1,6 +1,6 @@
 # Handoff: flip-cell-pixel-hang (finisher, graph r613)
 
-State: branch worktree wf_400db961-014-1, CI branch `ci/flip-cell-pixel-hang`, pushed at d6dcdce9a with [ci:breakpoint-gate]. CI run 41231318047 (first attempt, both engines): green; WebKit 0 faults, 0 late waits, longest screenshot 7883 ms. One green run does not show the bad-host path; the lead dispatches more (see report).
+State: branch worktree wf_400db961-014-1, CI branch `ci/flip-cell-pixel-hang`, pushed at d6dcdce9a with [ci:breakpoint-gate]. CI run 41231318047 (first attempt, both engines): green; WebKit 0 faults, 0 late waits, longest screenshot 7883 ms. One green run does not show the bad-host path.
 
 Done and verified locally (not a result):
 - Lean `lean/Fw/Parts/MorphGeomReady.lean` (ready, wait, attempt/outcome, retry, cellsPass/cellsKept, limits) and `MorphGeomVerify.lean` (leaveCountOk, bandOk, runVerdict); golden lines in `packages/contracts/golden/morph-geom-timed.jsonl` from `MorphGeomTimedGen.lean`. `sh lean/scripts/check.sh` rc 0 at edb060b27.
@@ -11,6 +11,5 @@ Done and verified locally (not a result):
 Open:
 - More first-attempt WebKit runs (cause A is INFERRED host slowness; B is lazy mount plus unsettled transitions).
 - look.mjs is glue with no local test (TS stand-in for the per-cell loop; the decision rules are Lean-golden checked).
-- Note `research/notes/2026/11-01-flip-cell-pixel-hang.md` and a ledger note row are written.
 
-Read first: the note, `bounded.mjs`, `MorphGeomReady.lean`.
+Read first: `research/notes/2026/11-01-flip-cell-pixel-hang.md`, `bounded.mjs`, `MorphGeomReady.lean`.

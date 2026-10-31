@@ -245,8 +245,6 @@ theorem leave_noisy_fails (covered : Bool) : leaveOk covered false = false := by
 
 theorem leave_covered_quiet_passes : leaveOk true true = true := by decide
 
-/-- Each cycle ends in one leave, so the leaves seen must equal the cycles driven; no leave at all
-(a flip that never closed, a probe that never read it) is a fail, never a vacuous pass. -/
 def leaveCountOk (leaves cycles : Nat) : Bool := decide (0 < cycles) && leaves == cycles
 
 theorem leave_count_none_fails (cycles : Nat) (h : 0 < cycles) : leaveCountOk 0 cycles = false := by
@@ -266,7 +264,6 @@ theorem leave_count_exact_passes (cycles : Nat) (h : 0 < cycles) : leaveCountOk 
 
 theorem leave_count_no_cycles_fails (leaves : Nat) : leaveCountOk leaves 0 = false := by simp [leaveCountOk]
 
-/-- The three flip readings of one band. -/
 structure BandObs where
   a3a : Bool
   a4 : Bool
@@ -274,8 +271,6 @@ structure BandObs where
 
 def bandOk (b : BandObs) : Bool := b.a3a && b.a4 && b.a5
 
-/-- The run passes when at least one band was read, every band passed all three readings, and the
-retry was judged (`retryJudged`); a run with no band row is a fail, not a pass of zero failures. -/
 def runVerdict (bs : List BandObs) (retry : Bool) : Bool := !bs.isEmpty && bs.all bandOk && retry
 
 theorem run_empty_fails (retry : Bool) : runVerdict [] retry = false := by simp [runVerdict]
