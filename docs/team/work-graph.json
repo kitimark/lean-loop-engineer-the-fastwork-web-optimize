@@ -24627,6 +24627,32 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/sim-end-cut.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sweep-pending-play",
+   "owner": "part-builder",
+   "stream": "experiment",
+   "deps": [
+    "hero-offscreen-pause"
+   ],
+   "title": "platform.sweep:offscreen-pause: leave an animation with a pending play (startTime null) running, as hero.accent/pause.ts does since hero-offscreen-pause r1, so resume never lags the unpaused phase; or reuse watchLoopPause",
+   "writes": [
+    "apps/site/src/parts/platform.sweep/**",
+    "apps/site/src/parts/hero.accent/pause.ts",
+    "apps/site/src/parts/hero.accent/pause.test.ts",
+    "lean/Fw/Parts/PlatformSweepPause*.lean",
+    "lean/Fw/Parts/OffscreenPause*.lean",
+    "lean/Fw/Parts/FootprintData.lean",
+    "lean/Fw/Parts/FootprintRows.lean",
+    "lean/Fw/Parts/Bridge.lean",
+    "packages/contracts/golden/parts/**",
+    "research/findings/ledger.json",
+    "research/notes/2026/10-31-sweep-pending-play.md",
+    "docs/team/handoffs/sweep-pending-play.md"
+   ]
   }
  ],
  "deadline": {
