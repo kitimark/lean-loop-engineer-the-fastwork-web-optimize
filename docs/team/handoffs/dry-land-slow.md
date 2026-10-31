@@ -1,6 +1,6 @@
 # dry-land-slow handoff
 
-Branch: worktree-wf_779ff154-e9a-1. Worktree: .claude/worktrees/wf_779ff154-e9a-1. No CI runs (local tooling task, no CI push).
+Branch: worktree-wf_779ff154-e9a-1. Worktree: .claude/worktrees/wf_779ff154-e9a-1. Last code commit: 09ab4c0 (r2 refusal from dryVerdict); no CI runs (local tooling task).
 State: Lean rule + golden + TS stand-in + land.ts change committed; note written. Last commit: see `git log -1`.
 
 Verified (MEASURED, my dry lands; timings rows named in the note): small set 20.8 s -> 14.2 s (d8c021d 1793483732538, 4ed5e45 1793483702472); slow set (workflow + lean/Fw, lake cache off) 25.2/26.0 s before -> 15.8/15.8 s after (startMs 1793485115727, 1793485142154, 1793485078913, 1793485196559); all VERDICT dry. Round 2: refusal now from dryVerdict in land.ts.
