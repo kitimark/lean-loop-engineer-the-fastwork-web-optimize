@@ -1,5 +1,6 @@
 import Fw.Parts.MorphGeomTimed
 import Fw.Parts.MorphGeomVerify
+import Fw.Parts.MorphGeomReady
 namespace Fw.Parts.MorphGeomTimed
 open Lean Fw.Parts.MorphGeom Fw.Parts.MorphTween
 
@@ -104,6 +105,34 @@ def retryCases : List (List PushObs) :=
   [[], [⟨false, false, true⟩, ⟨false, true, true⟩], [⟨true, false, false⟩], [⟨true, false, true⟩], [⟨true, true, false⟩],
    [⟨true, false, false⟩, ⟨false, false, true⟩], [⟨true, false, false⟩, ⟨true, true, true⟩]]
 
+def leaveCountCases : List (Nat × Nat) := [(0, 2), (1, 2), (2, 2), (3, 2), (0, 0), (1, 1), (0, 1), (2, 0)]
+
+def runCases : List (List BandObs × Bool) :=
+  [([], true), ([⟨true, true, true⟩], true), ([⟨true, true, true⟩], false), ([⟨true, true, true⟩, ⟨true, true, true⟩], true),
+   ([⟨false, true, true⟩], true), ([⟨true, false, true⟩], true), ([⟨true, true, false⟩], true),
+   ([⟨true, true, true⟩, ⟨true, false, true⟩], true), ([⟨true, true, true⟩, ⟨true, true, true⟩, ⟨false, false, false⟩], true)]
+
+def readyCases : List (Nat × CellObs × CellObs) :=
+  [(3, ⟨3, 13, 13, 0⟩, ⟨3, 13, 13, 0⟩), (3, ⟨3, 13, 13, 0⟩, ⟨0, 0, 0, 0⟩), (3, ⟨3, 13, 13, 0⟩, ⟨2, 13, 13, 0⟩), (3, ⟨3, 13, 13, 0⟩, ⟨3, 12, 12, 0⟩),
+   (3, ⟨3, 13, 13, 0⟩, ⟨3, 13, 9, 0⟩), (3, ⟨3, 13, 7, 0⟩, ⟨3, 13, 13, 0⟩), (3, ⟨0, 0, 0, 0⟩, ⟨3, 13, 13, 0⟩), (0, ⟨0, 0, 0, 0⟩, ⟨0, 0, 0, 0⟩),
+   (2, ⟨2, 8, 8, 0⟩, ⟨2, 8, 8, 0⟩), (2, ⟨2, 8, 8, 0⟩, ⟨3, 8, 8, 0⟩), (3, ⟨3, 13, 13, 0⟩, ⟨3, 13, 13, 2⟩), (3, ⟨3, 13, 13, 1⟩, ⟨3, 13, 13, 0⟩)]
+
+def waitCases : List (Nat × Nat × Bool) :=
+  [(0, 20000, true), (0, 20000, false), (19999, 20000, false), (20000, 20000, false), (25000, 20000, false), (25000, 20000, true), (0, 0, false)]
+
+def attemptCases : List (Nat × List Attempt) :=
+  [(2, []), (2, [.reading true]), (2, [.reading false]), (2, [.fault]), (2, [.fault, .fault]), (2, [.fault, .reading true]),
+   (2, [.fault, .reading false]), (2, [.fault, .fault, .reading true]), (3, [.fault, .fault, .reading true]), (1, [.fault, .reading true]),
+   (2, [.reading false, .reading true]), (2, [.reading true, .fault]), (0, [.reading true])]
+
+def outcomeSets : List (List Outcome) :=
+  [[], [.pass], [.pass, .pass], [.pass, .fail], [.pass, .exhausted], [.fail, .exhausted], [.exhausted]]
+
+def nextCases : List (Nat × Nat × Attempt) :=
+  [(1, 2, .fault), (2, 2, .fault), (3, 2, .fault), (1, 2, .reading true), (2, 2, .reading false), (1, 1, .fault)]
+
+def errNames : List String := ["LimitError", "TimeoutError", "TypeError", "Error", "RangeError", "", "limiterror"]
+
 def verifyLines (_ : Unit) : List String :=
   gline "verify" [] (Json.mkObj [("windowMs", .num ⟨verifyWindowMs, 0⟩), ("frameMs", jdec 4 verifyFrameMs), ("tolPx", jdec 4 verifyTolPx),
     ("mutations", jl (Mutation.all.map fun m => Json.mkObj [("id", .str m.name), ("reading", .str m.reading)]))]) ::
@@ -121,7 +150,30 @@ def verifyLines (_ : Unit) : List String :=
     gline "verifyCovered" [("leave", jdec 4 l), ("last", jdec 4 t), ("window", jdec 4 w)] (.bool (leaveCovered l t w))) ++
   (retryCases.map fun ps =>
     gline "verifyRetry" [("pushes", jl (ps.map fun p => Json.mkObj [("light", Json.bool p.light), ("chance", Json.bool p.chance), ("taken", Json.bool p.taken)]))]
-      (.bool (retryJudged ps)))
+      (.bool (retryJudged ps))) ++
+  (leaveCountCases.map fun (l, c) =>
+    gline "verifyLeaveCount" [("leaves", .num ⟨l, 0⟩), ("cycles", .num ⟨c, 0⟩)] (.bool (leaveCountOk l c))) ++
+  (runCases.map fun (bs, r) =>
+    gline "verifyRun" [("bands", jl (bs.map fun b => Json.mkObj [("a3a", Json.bool b.a3a), ("a4", Json.bool b.a4), ("a5", Json.bool b.a5)])), ("retry", Json.bool r)]
+      (.bool (runVerdict bs r))) ++
+  (readyCases.map fun (w, b, f) =>
+    let side (o : CellObs) := Json.mkObj [("cols", .num ⟨o.cols, 0⟩), ("imgs", .num ⟨o.imgs, 0⟩), ("loaded", .num ⟨o.loaded, 0⟩), ("running", .num ⟨o.running, 0⟩)]
+    gline "verifyReady" [("want", .num ⟨w, 0⟩), ("base", side b), ("flag", side f)] (.bool (cellReady w b f))) ++
+  (waitCases.map fun (e, l, r) =>
+    gline "verifyWait" [("elapsed", .num ⟨e, 0⟩), ("limit", .num ⟨l, 0⟩), ("ready", Json.bool r)] (.str (waitStep e l r).name)) ++
+  (attemptCases.map fun (m, as) =>
+    gline "verifyAttempts" [("max", .num ⟨m, 0⟩), ("attempts", jl (as.map fun a => Json.str a.name))] (.str (cellOutcome m as).name)) ++
+  (nextCases.map fun (n, m, a) =>
+    gline "verifyNext" [("n", .num ⟨n, 0⟩), ("max", .num ⟨m, 0⟩), ("attempt", .str a.name)] (.str (retryNext n m a).name)) ++
+  (errNames.map fun e =>
+    gline "verifyErr" [("name", .str e)]
+      (Json.mkObj [("kind", .str (errKind e).name), ("next", .str (retryNext 1 maxAttempts (errKind e).attempt).name),
+        ("outcome", .str (cellOutcome maxAttempts [(errKind e).attempt]).name)])) ++
+  (outcomeSets.map fun os =>
+    gline "verifyCells" [("outcomes", jl (os.map fun o => Json.str o.name))]
+      (Json.mkObj [("pass", Json.bool (cellsPass os)), ("kept", Json.bool (cellsKept os))])) ++
+  [gline "verifyLimits" [] (Json.mkObj [("readyMs", .num ⟨readyLimitMs, 0⟩), ("pollMs", .num ⟨readyPollMs, 0⟩), ("shotMs", .num ⟨shotLimitMs, 0⟩),
+    ("callMs", .num ⟨callLimitMs, 0⟩), ("closeMs", .num ⟨closeLimitMs, 0⟩), ("attempts", .num ⟨maxAttempts, 0⟩)])]
 
 def goldenText (_ : Unit) : String := String.join ((scenarioLines () ++ rebaseLines () ++ crossLines () ++ takeLines () ++ verifyLines ()).map (· ++ "\n"))
 
