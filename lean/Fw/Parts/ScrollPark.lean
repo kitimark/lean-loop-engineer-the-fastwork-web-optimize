@@ -178,13 +178,9 @@ theorem scroll_restores (parkedBefore : Bool) (T h v y : Rat) (hp : timelineProg
   right
   grind
 
-/-- The scroll event while the hero is live. Parked: stay parked while `y` has not gone back above the end of the range (`scrollParked`). Not parked:
-park when `y` is more than the margin `M` past the end, read from `y` alone, so a jump that no observer saw still parks. -/
 def scrollEvent (parkedBefore : Bool) (T h v M y : Rat) : Bool :=
   if parkedBefore then scrollParked true T h v y else decide (bound T h v + M < y)
 
-/-- A scroll event at a far position parks, from either state. This is the instant jump (one event, whatever the position before) and the last
-event of a continuous scroll. -/
 theorem scrollEvent_engages (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hy : bound T h v + M < y) :
     scrollEvent pb T h v M y = true := by
   unfold scrollEvent scrollParked
@@ -195,8 +191,6 @@ theorem scrollEvent_engages (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hy : b
     simp only [hp, Bool.false_eq_true, ↓reduceIte, decide_eq_true_eq]
     exact hy
 
-/-- Jump path: the observer reports on the sentinel crossing the viewport, and a jump from above the margin to past the end never crosses it, so the
-observer's last report can still say near; the scroll event parks anyway. -/
 theorem jump_engages (T h v M yPrev y : Rat) (hM : 0 ≤ M) (hprev : yPrev ≤ bound T h v + M) (hy : bound T h v + M < y) :
     ioParked T h v M yPrev = false ∧ scrollEvent false T h v M y = true := by
   refine ⟨?_, scrollEvent_engages false T h v M y hM hy⟩
@@ -204,18 +198,15 @@ theorem jump_engages (T h v M yPrev y : Rat) (hM : 0 ≤ M) (hprev : yPrev ≤ b
   simp only [decide_eq_false_iff_not]
   grind
 
-/-- Scroll path: after any run of scroll events that ends at a far position the hero is parked, whatever the state before the run. -/
 theorem walk_engages (ys : List Rat) (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hy : bound T h v + M < y) :
     (ys ++ [y]).foldl (fun p z => scrollEvent p T h v M z) pb = true := by
   rw [List.foldl_append]
   exact scrollEvent_engages _ T h v M y hM hy
 
-/-- Observer path: a report from a far position parks. -/
 theorem io_engages (T h v M yPrev : Rat) (hy : bound T h v + M < yPrev) : ioParked T h v M yPrev = true := by
   unfold ioParked
   exact decide_eq_true hy
 
-/-- The scroll event parks only at or past the end of the range, so the held values are the animated ones. -/
 theorem scrollEvent_no_stale (k : Consumer) (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) :
     shown k T h v (scrollEvent pb T h v M y) y = k.anim (timelineProgress T (exitRange h v) y) := by
   unfold shown scrollEvent
@@ -231,7 +222,6 @@ theorem scrollEvent_no_stale (k : Consumer) (pb : Bool) (T h v M y : Rat) (hM : 
       exact (fill_is_anim_end k).symm
     · simp [hf]
 
-/-- Inside the animated range the scroll event leaves the hero live. -/
 theorem scrollEvent_restores (pb : Bool) (T h v M y : Rat) (hM : 0 ≤ M) (hp : timelineProgress T (exitRange h v) y ≠ 1) :
     scrollEvent pb T h v M y = false := by
   have := lt_bound_of_progress_ne T _ y (exitRange_pos h v) hp

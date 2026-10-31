@@ -1,11 +1,11 @@
-# park-engage: why hero.exit:threaded-park did not engage at the end of the page, and the fix
+# Why hero.exit:threaded-park did not engage at the end of the page, and the fix
 
 Task `park-engage`, follow-up of `10-31-sim-end-cut.md` (the park never engaged in 3 of 3 jobs: 13 view-timeline animations kept ticking) and of
 `10-30-scrolldriven-park.md` section 3. `hero.exit:threaded-park` stays class L (look-change proposal); no preset change; no breakpoint gate (not shipped).
 
 ## 1. Cause (MEASURED, CI iOS Simulator, run 41179356320 on 39d27a6ab, the unfixed park, 3 rounds)
 
-The page census now reads the DOM state of the park: `live` (data-exit-live: the hand-over ran, so `startParkOn` ran), `styled` (the park stylesheet is in
+The page census reads the DOM state of the park: `live` (data-exit-live: the hand-over ran, so `startParkOn` ran), `styled` (the park stylesheet is in
 the head), `parked` (data-exit-parked on the track). Source: `results/park-engage/r1/park.txt`.
 
 | arm | live | styled | parked | view-driven | rounds |
@@ -23,8 +23,8 @@ the head), `parked` (data-exit-parked on the track). Source: `results/park-engag
 
 Two events start the park: the observer reporting the sentinel far (`io_engages`), and a scroll event at a position more than the margin (one viewport) past the
 end of the exit range (`scrollEvent_engages`). The scroll listener is now always on (it was added only while parked); a parked page unparks as before
-(`scrollParked`). Theorems, each path on its own:
-- `jump_engages`: a position past the margin where the observer's last report was near and `ioParked` is false: `scrollEvent` parks. One event, any state before.
+(`scrollParked`). Theorems:
+- `jump_engages`: a position past the margin where the observer's last report was near and `ioParked` is false: `scrollEvent` parks.
 - `walk_engages`: any run of scroll events that ends past the margin ends parked, whatever the state before.
 - `io_engages`: the observer path.
 - `scrollEvent_no_stale` (held value = animated value, so the look is the same as before), `scrollEvent_restores` (inside the range the hero is live).
@@ -45,5 +45,5 @@ Not measured here: the effect on the end-of-page style-recalc rate of the full s
 
 ## 5. Re-run after merging main (MEASURED, run 41185704042 on 0058ef332)
 
-Main brought the arm sets of sim-end-cut; the park arms became the set `park` (`--arms park`) and the workflow token `[end-park]` picks it. Same result on the merged
+The park arms are now the set `park` (`--arms park`), picked by `[end-park]`. Same result on the merged
 harness: both arms parked, view-driven 0, took in 3 of 3 rounds (`results/park-engage/r3/park.txt`).

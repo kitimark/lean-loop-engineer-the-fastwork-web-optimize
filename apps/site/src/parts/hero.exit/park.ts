@@ -115,7 +115,6 @@ export function scrollParked(parkedBefore: boolean, boundary: number, y: number)
   return parkedBefore && boundary <= y;
 }
 
-/** Lean `scrollEvent`: parked stays parked until `y` is back above the end; not parked parks when `y` is more than the margin past the end. */
 export function scrollEvent(parkedBefore: boolean, boundary: number, margin: number, y: number): boolean {
   return parkedBefore ? scrollParked(true, boundary, y) : boundary + margin < y;
 }
@@ -126,16 +125,10 @@ export interface ParkDeps {
   watch(far: (far: boolean) => void): () => void;
   listenScroll(cb: () => void): () => void;
   readBoundary(): number;
-  /** The margin in px (`MARGIN_VIEWPORTS` viewports). */
   margin(): number;
   scrollY(): number;
 }
 
-/**
- * The park controller. Two events engage it (Lean `io_engages`, `scrollEvent_engages`): the observer reporting the sentinel far, and a scroll event
- * at a far position, which also covers a jump the observer never saw. The boundary read (a layout read) happens only when `y` passes the last
- * read threshold, never on every scroll event.
- */
 export function createPark(deps: ParkDeps) {
   let parked = false;
   let boundary = 0;

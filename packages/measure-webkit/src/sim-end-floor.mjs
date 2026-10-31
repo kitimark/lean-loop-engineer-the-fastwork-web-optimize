@@ -36,7 +36,6 @@ export const CUT_ARMS = Object.freeze([
   { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
 ]);
 
-/** The arm sets a run can load: `attrib` (sim-floor-attrib, the default), `cut` (sim-end-cut: v2p against the three stacked arms) and `park` (park-engage: the park after the jump and after a walk). */
 export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), park: PARK_ARMS });
 export function armsOf(set = 'attrib') {
   const arms = ARM_SETS[set];
