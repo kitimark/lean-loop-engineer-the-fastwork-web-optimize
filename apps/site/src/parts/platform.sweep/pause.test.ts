@@ -19,7 +19,11 @@ goldenConformance('platform-sweep-pause', {
       return { loc: a.loc, phase: P.phase({ t: a.loc }), ticks: P.ticks(f.rep), paused: a.paused };
     });
   },
-  resumeTime: (i) => P.resumeTime({ start: null, cur: i.cur as number, at: i.at as number }, i.now as number),
+  resume: (i) => {
+    let h: P.Held = { start: null, cur: i.cur as number, fz: 0, since: i.since as number, frozen: i.frozen as boolean };
+    for (const e of i.events as { t: number; active: boolean }[]) h = P.setScene(h, e.t, e.active);
+    return { resume: P.resumeTime(h, i.now as number), shift: P.startShift(h, i.now as number), unpaused: P.resumeTime(h, i.now as number) };
+  },
   holdNew: (i) => P.holdNew(i.held as boolean, i.running as boolean),
   orig: (i) => P.orig(i.off as number, (i.frames as Fr[]).map((f) => f.d)),
 });
@@ -46,6 +50,20 @@ class Timed extends FakeAnim {
   }
 }
 
+const mkHost = (v: string | null = null) => {
+  const host = { v, getAttribute: (_: string) => host.v } as unknown as Element & { v: string | null };
+  return host;
+};
+
+class MO {
+  static fire: () => void = () => undefined;
+  constructor(cb: () => void) {
+    MO.fire = cb;
+  }
+  observe() {}
+  disconnect() {}
+}
+
 const mkEl = (list: () => FakeAnim[]) => ({ el: { getAnimations: list } as unknown as Element });
 
 describe('platform.sweep watchSweepPause', () => {
@@ -63,7 +81,7 @@ describe('platform.sweep watchSweepPause', () => {
     expect(loop.currentTime).toBe(2500);
   });
   it('resumeTime adds the paused time to the saved time', () => {
-    expect(P.resumeTime({ start: null, cur: 40, at: 10 }, 110)).toBe(140);
+    expect(P.resumeTime({ start: null, cur: 40, fz: 0, since: 10, frozen: false }, 110)).toBe(140);
   });
   it('an animation created after mount and before the report is paused (the old mount-time list missed it)', () => {
     const late = new Timed(77);
@@ -126,13 +144,14 @@ describe('platform.sweep watchSweepPause', () => {
       }
       disconnect() {}
     }
-    const host = {} as Element;
+    const host = mkHost('paused');
     let t = 10;
     P.watchSweepPause([el], IO, () => t, host, MO as unknown as typeof MutationObserver);
     expect(watched).toEqual([host, { attributes: true, attributeFilter: ['data-fw-scene'] }]);
     report(el, true);
     expect(loop.log).toEqual([]);
     loop.playState = 'running';
+    host.v = 'active';
     t = 20;
     fire();
     expect(loop.log).toEqual(['pause']);
@@ -153,8 +172,46 @@ describe('platform.sweep watchSweepPause', () => {
       observe() {}
       disconnect() {}
     }
-    P.watchSweepPause([el], IO, () => 0, {} as Element, MO as unknown as typeof MutationObserver);
+    P.watchSweepPause([el], IO, () => 0, mkHost('active'), MO as unknown as typeof MutationObserver);
     fire();
     expect(loop.log).toEqual([]);
+  });
+  it('a scene paused span while held is left out of the resume (no start time): hidden, scene paused, scene active again', () => {
+    const loop = new Timed(null, 0);
+    loop.playState = 'running';
+    const { el } = mkEl(() => [loop]);
+    const { IO, report } = fakeIO();
+    const host = mkHost('active');
+    let t = 0;
+    P.watchSweepPause([el], IO, () => t, host, MO as unknown as typeof MutationObserver);
+    t = 100;
+    report(el, true);
+    host.v = 'paused';
+    t = 400;
+    MO.fire();
+    host.v = 'active';
+    t = 900;
+    MO.fire();
+    t = 1000;
+    report(el, false);
+    expect(loop.currentTime).toBe(300 + 100);
+  });
+  it('the same path for a loop with a start time moves the start by the frozen span', () => {
+    const loop = new Timed(50, 0);
+    const { el } = mkEl(() => [loop]);
+    const { IO, report } = fakeIO();
+    const host = mkHost('active');
+    let t = 100;
+    P.watchSweepPause([el], IO, () => t, host, MO as unknown as typeof MutationObserver);
+    report(el, true);
+    host.v = 'paused';
+    t = 400;
+    MO.fire();
+    host.v = 'active';
+    t = 900;
+    MO.fire();
+    t = 1000;
+    report(el, false);
+    expect(loop.startTime).toBe(50 + 500);
   });
 });

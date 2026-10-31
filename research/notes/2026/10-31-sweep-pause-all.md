@@ -27,14 +27,15 @@ the pending-play guard was the cause.
 (MutationObserver on `data-fw-scene`, a microtask in the report/frame step, no per-frame work): the CSS start leaves a pending play, which is
 paused before the frame is drawn. It reads `getAnimations()` at each hold and pauses every running animation. A loop with a start time restores
 it at the resume (Lean `seek` to `orig`, unchanged). A loop with none (the scene start) saves its current time (the CSS hold time) and resumes
-at that time plus the time paused (`resumeTime`), which is the phase the unpaused page shows, since the original loop also runs from its hold
-time once the scene is active. Local repro with the fix: end stage Document and Earn paused, Secure and Organized running. Unit tests in
+at that time plus the time the scene was active while held (`resumeTime`), which is the phase the flag-off page shows: there the CSS rule freezes
+the loop while the scene is paused. A loop with a start time moves its start later by the time the scene was paused while held (`startShift`). Local repro with the fix: end stage Document and Earn paused, Secure and Organized running. Unit tests in
 `platform.sweep/pause.test.ts` (scene attribute change holds a reported element; leaves an on-screen one; no start time pauses and resumes at
 time plus paused; created after mount; empty first report; cancelled while paused left alone). No `animationstart` listener (the
-`engine.events:quiet` premise allows none). No new Lean theorem: premises `Running` and `Scene` named in the
-`PlatformSweepPause.lean` module docstring; `shown_same`, `visible_phase` unchanged.
-After the first `pause()` the CSS play state is overridden on that animation (WebKit CSSAnimation.cpp:166, 285), so the scene rule no longer
-pauses a loop we resumed; the hidden report pauses it again, and a loop on screen is near, so the scene is active.
+`engine.events:quiet` premise allows none). Lean: see "Lean for the fix" below; `shown_same`, `visible_phase` unchanged.
+After the first `pause()` the CSS play state is overridden on that animation (WebKit CSSAnimation.cpp:278-287@862f17d), so the scene rule no longer
+pauses a loop we hold or resumed. Round 1 missed what follows: hidden at the end of the page, scroll to the top (scene paused), scroll back showed
+cur + whole wall-clock time instead of cur + the time the scene was active (off by the scene-paused span mod PERIOD_MS). The MutationObserver callback
+now reads the scene attribute and closes a span for every held entry (`setScene`).
 
 ## Census of the fix (MEASURED)
 
@@ -50,13 +51,22 @@ The merge commit changed `pause.ts` only by the `holdNew` helper (same branch co
 
 ## Lean for the fix (class E, same look)
 
-`Fw.Parts.PlatformSweepPause` now states both decisions. Pending (no start time) loop: hold saves `Held cur t0`; premise `Scene` says the unpaused loop
-runs on from its hold time (`Unpaused h t = cur + (t - t0)`); `resume_pending_same` and `resume_pending_phase` show `resumeTime` shows that phase,
-`resume_pending_span` that the resume keeps it through any paused span. Scene re-hold: `holdNew held running` has three branches
-(`hold_already_held`, `hold_running_new`, `hold_not_running`) and the table `hold` never moves an earlier entry (`rehold_keeps`, `rehold_idem`).
-`PlatformSweepPause.look_same_pending` lifts it to any looking function. The engine fact (the CSS start leaves a pending play that is paused before the frame
-is drawn, and the hold time is the CSS hold time) is the named premise `Scene`, INFERRED. Golden `platform-sweep-pause.jsonl` (14 lines) adds `resumeTime`
-and `holdNew` rows; `pause.test.ts` replays them.
+`Fw.Parts.PlatformSweepPause`, section "Held loops". Premise `Override` (CSSAnimation.cpp:278-287@862f17d, CONFIRMED for WebKit; Chromium INFERRED the
+same): after a script pause the scene rule no longer freezes the loop. The hold is a list of spans (duration, scene active). `Unpaused cur spans` is
+defined on its own as `cur + activeSum spans`, what the flag-off page shows. The TS state `Held` (`cur`, `fz`, `since`, `frozen`) steps by `advance`
+(one closed span), `close` and `setScene` (the observer callback). Proofs, all by induction on the spans or events:
+
+| statement | theorem |
+|---|---|
+| the fold of `advance` gives cur = `Unpaused`, fz = frozen sum, since = total | `fold_core` |
+| the page without tracking differs by exactly the frozen sum; a positive frozen span makes it differ | `untracked_off`, `untracked_differs` |
+| the TS event handler closed at the resume equals the span fold | `events_core` |
+| no start time: `resumeTime` = `Unpaused` over the spans, so any looking function agrees | `resume_same`, `look_same_pending`, `resume_pending_phase` |
+| start time: `now - (start + startShift)` = `Unpaused` (premise `Clock`: a running loop shows clock minus start, so `cur = since - start`) | `start_same` |
+
+Re-hold: `holdNew held running` has three branches (`hold_already_held`, `hold_running_new`, `hold_not_running`); the table `hold` never moves an earlier
+entry (`rehold_keeps`, `rehold_idem`). Golden `platform-sweep-pause.jsonl` (17 lines): `resume` rows (resume time, start shift, independent `Unpaused`),
+including scene paused then active while held; `pause.test.ts` replays them and has the two path cases (no start time, start time).
 
 ## Why the pending-play guard is reversed
 

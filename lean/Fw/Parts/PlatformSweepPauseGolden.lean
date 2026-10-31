@@ -50,18 +50,31 @@ def constLine : String :=
     ("out", Json.mkObj [("periodMs", numJ period), ("flag", "platform.sweep:offscreen-pause"),
       ("variant", "offscreen-pause")])]).compress
 
-def resumeCases : List (Rat × Rat × Rat) := [(0, 5, 5), (250, 1000, 1400), (1234, 16, 9016)]
+/-- A hold: current time, clock, scene frozen at the hold, scene events (clock, new active), the resume clock. -/
+abbrev HoldCase := Rat × Rat × Bool × List (Rat × Bool) × Rat
 
-def resumeLine (c : Rat × Rat × Rat) : String :=
-  (Json.mkObj [("fn", "resumeTime"), ("in", Json.mkObj [("cur", numJ c.1), ("at", numJ c.2.1), ("now", numJ c.2.2)]),
-    ("out", numJ (resumeTime (Held.mk c.1 c.2.1) c.2.2))]).compress
+def holdCases : List HoldCase :=
+  [(0, 5, false, [], 5), (250, 1000, false, [], 1400), (1234, 16, false, [], 9016),
+   (0, 0, false, [(100, false), (400, true)], 1000), (50, 10, true, [(60, true), (70, false), (90, true)], 200),
+   (3000, 500, false, [(600, false), (700, true), (900, false), (950, true)], 2000)]
+
+def evJ (e : Rat × Bool) : Json := Json.mkObj [("t", numJ e.1), ("active", .bool e.2)]
+
+def resumeLine (c : HoldCase) : String :=
+  let h : Held := ⟨c.1, 0, c.2.1, c.2.2.1⟩
+  (Json.mkObj [("fn", "resume"),
+    ("in", Json.mkObj [("cur", numJ c.1), ("since", numJ c.2.1), ("frozen", .bool c.2.2.1),
+      ("events", .arr (c.2.2.2.1.map evJ).toArray), ("now", numJ c.2.2.2.2)]),
+    ("out", Json.mkObj [("resume", numJ (resumeTime (events h c.2.2.2.1) c.2.2.2.2)),
+      ("shift", numJ (startShift (events h c.2.2.2.1) c.2.2.2.2)),
+      ("unpaused", numJ (Unpaused c.1 (spansOf c.2.1 c.2.2.1 c.2.2.2.1 c.2.2.2.2)))])]).compress
 
 def holdLine (held running : Bool) : String :=
   (Json.mkObj [("fn", "holdNew"), ("in", Json.mkObj [("held", .bool held), ("running", .bool running)]),
     ("out", .bool (holdNew held running))]).compress
 
 def lines (_ : Unit := ()) : List String :=
-  constLine :: (cases.flatMap fun (n, o, t) => [traceLine n o t, origLine o t]) ++ resumeCases.map resumeLine ++
+  constLine :: (cases.flatMap fun (n, o, t) => [traceLine n o t, origLine o t]) ++ holdCases.map resumeLine ++
     [holdLine false false, holdLine false true, holdLine true false, holdLine true true]
 
 def goldenText (_ : Unit := ()) : String := String.join ((lines ()).map (· ++ "\n"))
@@ -72,7 +85,9 @@ def sameOnVisible (o : Rat) (tr : List Step) : Bool :=
     !f.2.1 || (seek (run (init o) (tr.take k)) f).loc == orig o (tr.take k)
 
 #guard cases.all fun (_, o, t) => sameOnVisible o t
-#guard (lines ()).length == 14
+#guard (lines ()).length == 17
+#guard holdCases.all fun c =>
+  resumeTime (events ⟨c.1, 0, c.2.1, c.2.2.1⟩ c.2.2.2.1) c.2.2.2.2 == Unpaused c.1 (spansOf c.2.1 c.2.2.1 c.2.2.2.1 c.2.2.2.2)
 
 def run' (args : List String) : IO UInt32 := do
   match args with
