@@ -24780,6 +24780,38 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/flip-verify-flake.md"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-layer-sweep",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "sim-end-cut-2"
+   ],
+   "title": "does platform.sweep:layer-sweep (transform layer, class-L proposal) remove the last per-frame recalc at the end of the page on the CI iOS Simulator? arms both vs bothL (layer-sweep instead of the sweep pause); Lean tick-demand model from WebKit source (accelerated loops do not tick); harness: job labels, end window pinned to maxY",
+   "writes": [
+    "packages/measure-webkit/**",
+    ".github/workflows/webkit-sim.yml",
+    "lean/Fw/Device/SimEndCut*.lean",
+    "lean/Fw/Device/SimLayerSweep*.lean",
+    "lean/Fw/Ops/Attrib*.lean",
+    "lean/scripts/SimEndCut*Golden.lean",
+    "lean/scripts/SimLayerSweep*Golden.lean",
+    "packages/contracts/golden/device/sim-end-cut*.jsonl",
+    "packages/contracts/golden/device/sim-layer-sweep*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "results/sim-layer-sweep/**",
+    "research/notes/2026/10-31-sim-layer-sweep.md",
+    "research/notes/2026/11-01-sim-layer-sweep.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/sim-layer-sweep.md"
+   ]
   }
  ],
  "deadline": {
