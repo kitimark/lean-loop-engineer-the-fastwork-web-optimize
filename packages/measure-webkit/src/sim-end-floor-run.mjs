@@ -4,7 +4,7 @@ import { findDevice, simctlAsync, SAFARI } from './sim.mjs';
 import { reconnect } from './wip.mjs';
 import { attempts, T } from './timeouts.mjs';
 import { startTimeline } from './timeline.mjs';
-import { ARMS, STAGES, WIN_RAF, endFloorJs, windowOf } from './sim-end-floor.mjs';
+import { RUN_ARMS as ARMS, STAGES, WIN_RAF, endFloorJs, windowOf } from './sim-end-floor.mjs';
 
 export const SCHEMA = 'fw.webkit.endfloor/1';
 

@@ -24,15 +24,17 @@ export const ARMS = Object.freeze([
   { id: 'blank', fw: '', search: '', blank: true },
   { id: 'minusBoth', fw: 'platform:faded-pause', search: '?fw=platform:faded-pause' },
   { id: 'v2pCancelScroll', fw: V2P, search: `?fw=${V2P}`, act: 'cancelScroll' },
-  { id: 'sweepPause', fw: SWEEP_PAUSE, search: `?fw=${SWEEP_PAUSE}` },
 ]);
+/** Arms the harness loads besides the Lean `ArmId` ones (no Lean verdict reads them): the single flag of task sweep-pause-all. */
+export const EXTRA_ARMS = Object.freeze([{ id: 'sweepPause', fw: SWEEP_PAUSE, search: `?fw=${SWEEP_PAUSE}` }]);
+export const RUN_ARMS = Object.freeze([...ARMS, ...EXTRA_ARMS]);
 /**
  * The reads of one load: at the end of the page after the jump there settled (`end`, the pinned unit), after a scroll up by one viewport and back to the
  * end settled (`back`), and with every document animation paused (`paused`, a diagnostic: whether animations carry the floor).
  */
 export const STAGES = Object.freeze(['end', 'back', 'paused']);
 /** The `--config` queries the site build needs (the default config is always built). */
-export const BUILD_SEARCHES = Object.freeze([...new Set(ARMS.filter((a) => !a.blank && a.search !== '').map((a) => a.search))]);
+export const BUILD_SEARCHES = Object.freeze([...new Set(RUN_ARMS.filter((a) => !a.blank && a.search !== '').map((a) => a.search))]);
 
 export const rate = (w) => (w.raf === 0 ? 0 : Math.floor((w.recalcs * 100) / w.raf));
 export const readable = (w) => w.raf === WIN_RAF && MIN_SEEN <= w.seen;
@@ -172,14 +174,14 @@ export function rowLines(raw) {
   const out = [];
   for (const r of raw.rounds) {
     for (const stage of STAGES) {
-      for (const a of ARMS) {
+      for (const a of RUN_ARMS) {
         const w = r.arms[a.id]?.[stage];
         if (!w) { out.push(`round ${r.round} ${stage} ${a.id}: unread`); continue; }
         const t = w.tally;
         out.push(`round ${r.round} ${stage} ${a.id}: raf ${w.raf} seen ${w.seen} recalcs ${w.recalcs} rate ${rate(w)} per 100 (layout ${t.Layout} paint ${t.Paint} composite ${t.Composite} schedule ${t.ScheduleStyleRecalculation} renderingFrame ${t.RenderingFrame}) span ${w.spanMs ?? '-'} ms html "${w.cls ?? ''}" y ${w.y ?? '-'}`);
       }
     }
-    for (const a of ARMS) {
+    for (const a of RUN_ARMS) {
       const arm = r.arms[a.id];
       if (arm) for (const stage of STAGES) out.push(`round ${r.round} ${stage} ${a.id} census: ${censusText(arm[CENSUS_OF[stage]])}`);
       if (arm?.sweepEnd) out.push(`round ${r.round} sweep loops ${a.id}: end ${sweepText(arm.sweepEnd)}; back ${sweepText(arm.sweepBack)}`);

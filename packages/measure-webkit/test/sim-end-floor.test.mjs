@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  ARMS, BAND, BUILD_SEARCHES, MIN_SEEN, MIN_ROUNDS, STAGES, WIN_RAF, cmp, endFloorJs, flagV, overallFlag, overallPair, pair, rate, rowLines, verdictLines, windowOf,
+  ARMS, EXTRA_ARMS, RUN_ARMS, BAND, BUILD_SEARCHES, MIN_SEEN, MIN_ROUNDS, STAGES, WIN_RAF, cmp, endFloorJs, flagV, overallFlag, overallPair, pair, rate, rowLines, verdictLines, windowOf,
 } from '../src/sim-end-floor.mjs';
 import { armTrees, rotate } from '../src/sim-end-floor-run.mjs';
 import { canonSearch } from '../../contracts/src/flag-key.mjs';
@@ -42,7 +42,7 @@ test('overall lines equal the Lean overall', () => {
 });
 
 test('arms: the base, the v2-proved preset and one removal each, canonical searches', () => {
-  assert.deepEqual(ARMS.map((a) => a.id), ['base', 'v2p', 'minusT', 'minusU', 'blank', 'minusBoth', 'v2pCancelScroll', 'sweepPause']);
+  assert.deepEqual(ARMS.map((a) => a.id), ['base', 'v2p', 'minusT', 'minusU', 'blank', 'minusBoth', 'v2pCancelScroll']);
   const preset = JSON.parse(readFileSync(join(here, '../../contracts/golden/preset/v2-proved.json'), 'utf8')).fw;
   const parts = (fw) => new Set(fw === '' ? [] : fw.split(','));
   const v2p = parts(ARMS[1].fw);
@@ -51,8 +51,9 @@ test('arms: the base, the v2-proved preset and one removal each, canonical searc
   assert.deepEqual([...parts(ARMS[3].fw)], [...v2p].filter((p) => p !== 'engine.scroll:unthrottle'));
   for (const a of ARMS) assert.equal(canonSearch(a.search), a.search, a.id);
   assert.equal(ARMS[0].search, '');
-  assert.deepEqual(BUILD_SEARCHES, [ARMS[1], ARMS[2], ARMS[3], ARMS[5], ARMS[7]].map((a) => a.search));
-  assert.deepEqual(Object.keys(armTrees('x')), ARMS.map((a) => a.id));
+  assert.deepEqual(BUILD_SEARCHES, [ARMS[1], ARMS[2], ARMS[3], ARMS[5], ...EXTRA_ARMS].map((a) => a.search));
+  assert.deepEqual(Object.keys(armTrees('x')), RUN_ARMS.map((a) => a.id));
+  assert.deepEqual(EXTRA_ARMS.map((a) => [a.id, a.search]), [['sweepPause', '?fw=platform.sweep:offscreen-pause']]);
   assert.deepEqual(armTrees('x').blank, { blank: true });
   assert.equal(ARMS[6].search, ARMS[1].search);
   assert.equal(ARMS[6].act, 'cancelScroll');
