@@ -4,6 +4,7 @@
 // overall lines are checked against packages/contracts/golden/device/sim-end-floor.jsonl (test/sim-end-floor.test.mjs). The page script
 // and the Timeline tally only count; they decide nothing.
 import { markTime } from './reduce.mjs';
+import { firstScrollJs, PARK_ARMS, PARK_PROBE_JS } from './sim-park-engage.mjs';
 
 export const BAND = 10;
 export const WIN_RAF = 360;
@@ -35,8 +36,7 @@ export const CUT_ARMS = Object.freeze([
   { id: 'both', fw: BOTH, search: `?fw=${BOTH}` },
 ]);
 
-/** The arm sets a run can load: `attrib` (sim-floor-attrib, the default) and `cut` (sim-end-cut: v2p against the three stacked arms). */
-export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]) });
+export const ARM_SETS = Object.freeze({ attrib: ARMS, cut: Object.freeze([ARMS.find((a) => a.id === 'v2p'), ...CUT_ARMS]), park: PARK_ARMS });
 export function armsOf(set = 'attrib') {
   const arms = ARM_SETS[set];
   if (!arms) throw new Error(`unknown arm set ${set}`);
@@ -127,6 +127,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
   const out = {};
   const kind = (t) => (!t ? 'none' : window.ViewTimeline && t instanceof ViewTimeline ? 'view' : window.ScrollTimeline && t instanceof ScrollTimeline ? 'scroll' : 'document');
   const desc = (e) => (e ? (e.tagName || '?').toLowerCase() + (e.id ? '#' + e.id : '') + (typeof e.className === 'string' && e.className ? '.' + e.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') : '-').slice(0, 48);
+  const parkProbe = ${PARK_PROBE_JS};
   const census = () => {
     const an = document.getAnimations();
     const by = {};
@@ -141,9 +142,9 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
       try { inf = a.effect.getComputedTiming().iterations === Infinity; } catch (e) { /* no timing */ }
       if (a.playState === 'paused' && inf && paused.length < 24) paused.push([kind(a.timeline), name(a), desc(a.effect && a.effect.target)]);
     }
-    return { total: an.length, by, running, paused, parked: document.querySelectorAll('[data-exit-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
+    return { total: an.length, by, running, paused, park: parkProbe(), parked: document.querySelectorAll('[data-exit-parked]').length, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
-  scrollTo({ top: root.scrollHeight - innerHeight, behavior: 'instant' });
+  ${firstScrollJs(act)}
   await frame(); await frame();
   await sleep(${settleMs});
   out.anims = census();
