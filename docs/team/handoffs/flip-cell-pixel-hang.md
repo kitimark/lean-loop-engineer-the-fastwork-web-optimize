@@ -2,7 +2,7 @@
 
 Branch: worktree branch `worktree-wf_400db961-014-1`, CI branch `ci/flip-cell-pixel-hang`.
 Worktree: .claude/worktrees/wf_400db961-014-1. Last work commit: ad74ddb22 (round 2 fixes); CI push commit follows it.
-CI runs: round 1 run 41231318047 (d6dcdce9a, both engines green, 0 faults). Round 2 run: pending (id below once pushed).
+CI runs: round 1 run 41231318047 (d6dcdce9a, both engines green, 0 faults). Round 2 run 41240456482 (breakpoint-gate, push 20eec84a5): running. Main merged after the push (dry land VERDICT ok).
 
 Round 2 (only the two refused items plus cheap follow-ups):
 - Fault = stall only: Lean `errKind`, `ErrKind.attempt` and theorems `err_limit_is_stall`, `err_timeout_is_stall`, `err_other_is_defect`, `err_stall_is_fault`, `err_defect_not_retried`, `err_defect_first_fails` in `lean/Fw/Parts/MorphGeomReady.lean`; golden `verifyErr` rows in `packages/contracts/golden/morph-geom-timed.jsonl`; TS `errKind` and the rethrow at the top of the `takeCell` catch in `packages/gate-breakpoints/src/bounded.mjs`; tests in `test/bounded.test.mjs` (golden replay, TypeError rejects after 1 attempt with 0 onFault, TimeoutError retried).
