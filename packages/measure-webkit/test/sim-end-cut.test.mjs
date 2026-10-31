@@ -8,7 +8,7 @@ import { armTrees, rotate } from '../src/sim-end-floor-run.mjs';
 import { canonSearch } from '../../contracts/src/flag-key.mjs';
 import { mergeRaws, overallTier } from '../src/sim-floor-attrib.mjs';
 import {
-  ARM_FLAGS, ARM_IDS, ARM_SETS, CENSUS_CAP, EDGES, FLAGS, PRED_TIER, active, complete, edgeOf, edgeParts, edgeRealParts, edgeTier, effectName, held, kindOf,
+  ARM_FLAGS, ARM_IDS, ARM_SETS, CENSUS_CAP, EDGES, FLAGS, PRED_TIER, active, complete, edgeOf, edgeParts, edgeRealParts, edgeTier, edgeTook, effectName, held, heldGated, kindOf,
   overallEffect, predEdge, scrollDriven, stillTicks, tableLines, verdictLines, viewDriven,
 } from '../src/sim-end-cut.mjs';
 
@@ -48,6 +48,10 @@ test('edge verdicts equal the Lean edge on every case', () => {
 
 test('held, kindOf, census effects, still-ticking and the overall lines equal the Lean ones', () => {
   for (const l of of('held')) assert.equal(held(l.overall, l.predicted), l.verdict, l.name);
+  assert.ok(of('heldGated').length >= 6);
+  for (const l of of('heldGated')) assert.equal(heldGated(l.overall, l.predicted, l.took), l.verdict, l.name);
+  assert.ok(of('edgeTook').length >= 7);
+  for (const l of of('edgeTook')) assert.equal(edgeTook({ arm: l.arm, cmp: l.cmp }, l.rounds.map(([a, c]) => [a && toC(a), c && toC(c)])), l.took, l.name);
   for (const l of of('kindOf')) assert.equal(kindOf(l.name), l.verdict, l.name);
   assert.ok(of('census').length >= 11);
   for (const l of of('census')) {
@@ -114,6 +118,20 @@ test('report: rows follow the arm set of the run, the table and the verdicts com
   assert.ok(missed.includes('both against parks [pauses] end overall: noEffect:pauses; predicted cut:pauses; missed'));
   assert.ok(missed.includes('effect both end round 1: took; still ticks: nothing; complete true'));
   assert.ok(missed.includes('effect v2p end round 1: none; still ticks: view-driven 13, scroll-driven 1, accent idle running 1, cue float running 1, platform sweep running 1; complete true'));
+  const bare = (park, pause) => ({ total: 40, by: { 'document:finished': 20, ...(park ? {} : { 'view:finished': 13 }) }, running: pause ? [] : loops, paused: [] });
+  const armN = (n, c) => ({ end: w(n), back: w(n), paused: w(360), anims: c, animsBack: c, animsPaused: c });
+  const rawOf = (arms) => ({ meta: { build: 'abc', runtime: 'rt', ua: 'ua', armSet: 'cut' }, rounds: [{ arms }] });
+  const noEngage = mergeRaws([1, 2, 3].map(() => rawOf({
+    v2p: armN(720, bare(false, false)), parks: armN(720, bare(false, false)), pauses: armN(720, bare(true, false)), both: armN(720, bare(false, true)) })));
+  const un = verdictLines(noEngage);
+  assert.ok(un.includes('parks against v2p [parks] end overall: noEffect:parks; predicted noEffect:parks; untested'));
+  assert.ok(un.includes('both against parks [pauses] back overall: noEffect:pauses; predicted cut:pauses; untested'));
+  assert.ok(un.includes('tier both end: [two, two, two] overall two; predicted one; untested'));
+  assert.ok(un.includes('tier v2p end: [two, two, two] overall two; predicted two; held'));
+  const finished = { total: 40, by: { 'document:finished': 20 }, running: loops.slice(1), paused: [] };
+  const fv = verdictLines(mergeRaws([rawOf({
+    v2p: armN(720, bare(false, false)), parks: armN(720, bare(true, false)), pauses: armN(720, { ...finished, running: [] }), both: armN(720, bare(true, true)) })]));
+  assert.ok(fv.includes('effect pauses end round 1: took; still ticks: nothing; complete true'));
   const t = tableLines(merged);
   assert.equal(t.length, 2 * 4 + 2);
   assert.ok(t.every((l) => !l.startsWith('paused parks') && !l.startsWith('paused pauses')));

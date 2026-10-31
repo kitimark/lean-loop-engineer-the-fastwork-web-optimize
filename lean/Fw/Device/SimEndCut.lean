@@ -177,6 +177,14 @@ theorem held_undecided_mixed (p : String) (h : "mixed" ≠ p) : held "mixed" p =
 theorem held_missed (n p : String) (h : n ≠ p) (h1 : n ≠ "inconclusive") (h2 : n ≠ "mixed") : held n p = "missed" := by
   simp [held, h, h1, h2]
 
+/-- The prediction verdict, gated on the census: a flag that did not engage leaves the edge `untested`, never `held` or `missed`. -/
+def heldGated (overall predicted : String) (took : Bool) : String := if took then held overall predicted else "untested"
+
+theorem heldGated_untested (overall predicted : String) : heldGated overall predicted false = "untested" := by simp [heldGated]
+
+theorem heldGated_eq_held (overall predicted : String) : heldGated overall predicted true = held overall predicted := by
+  simp [heldGated]
+
 inductive Kind where
   | accent
   | cue
@@ -222,8 +230,6 @@ def Census.scrollDriven (c : Census) : Nat := c.sumKeys "scroll:"
 
 def Census.runningOf (c : Census) (k : Kind) : Nat := (c.running.filter fun n => kindOf n == k).length
 
-def Census.pausedOf (c : Census) (k : Kind) : Nat := (c.paused.filter fun n => kindOf n == k).length
-
 inductive Flag where
   | heroPark
   | scrollPark
@@ -237,7 +243,8 @@ def Flag.name : Flag → String
   | .accentPause => "hero.accent:offscreen-pause" | .cuePause => "hero.cue:offscreen-pause"
   | .sweepPause => "platform.sweep:offscreen-pause"
 
-def pauseTook (c : Census) (k : Kind) : Bool := c.complete && c.runningOf k == 0 && 0 < c.pausedOf k
+/-- A pause took when the census is complete and no loop of the kind runs: a loop that finished on its own is not a source. -/
+def pauseTook (c : Census) (k : Kind) : Bool := c.complete && c.runningOf k == 0
 
 def Flag.took (c : Census) : Flag → Bool
   | .heroPark => c.viewDriven == 0
@@ -278,8 +285,44 @@ theorem scrollPark_took_iff (c : Census) : Flag.took c .scrollPark = true ↔ c.
 theorem pause_not_took_running (c : Census) (k : Kind) (h : c.runningOf k ≠ 0) : pauseTook c k = false := by
   simp [pauseTook, h]
 
+theorem pause_took_finished (c : Census) (k : Kind) (h : c.complete = true) (hr : c.runningOf k = 0) : pauseTook c k = true := by
+  simp [pauseTook, h, hr]
+
+theorem pause_took_iff (c : Census) (k : Kind) : pauseTook c k = true ↔ c.complete = true ∧ c.runningOf k = 0 := by
+  simp [pauseTook]
+
 theorem pause_not_took_incomplete (c : Census) (k : Kind) (h : c.complete = false) : pauseTook c k = false := by
   simp [pauseTook, h]
+
+def sideTook (a : ArmId) (c : Option Census) : Bool :=
+  a.active.all fun f => match c with
+    | some c => f.took c
+    | none => false
+
+/-- Every flag of both arms of the edge took in every round at the stage; a round with no census does not count as took. -/
+def edgeTook (e : Edge) (rounds : List (Option Census × Option Census)) : Bool :=
+  rounds.all fun (ca, cc) => sideTook e.arm ca && sideTook e.cmp cc
+
+theorem sideTook_v2p (c : Option Census) : sideTook .v2p c = true := by simp [sideTook, active_v2p]
+
+theorem sideTook_no_census (a : ArmId) (h : a.active.isEmpty = false) : sideTook a none = false := by
+  cases hh : a.active with
+  | nil => simp [hh] at h
+  | cons f fs => simp [sideTook, hh]
+
+theorem sideTook_some (a : ArmId) (c : Census) : sideTook a (some c) = true ↔ ∀ f ∈ a.active, f.took c = true := by
+  simp [sideTook]
+
+theorem edgeTook_false (e : Edge) (rounds : List (Option Census × Option Census)) (ca cc : Option Census) (h : (ca, cc) ∈ rounds)
+    (hs : (sideTook e.arm ca && sideTook e.cmp cc) = false) : edgeTook e rounds = false := by
+  simp only [edgeTook, List.all_eq_false]
+  exact ⟨(ca, cc), h, by simpa using hs⟩
+
+theorem edgeTook_true (e : Edge) (rounds : List (Option Census × Option Census))
+    (h : ∀ r ∈ rounds, sideTook e.arm r.1 = true ∧ sideTook e.cmp r.2 = true) : edgeTook e rounds = true := by
+  simp only [edgeTook, List.all_eq_true]
+  intro r hr
+  simp [(h r hr).1, (h r hr).2]
 
 def stillTicks (c : Census) : List (String × Nat) :=
   ([("view-driven", c.viewDriven), ("scroll-driven", c.scrollDriven)] ++
@@ -336,10 +379,30 @@ private def censusCases : List (String × Census) :=
    ("pauses took", ⟨fin ++ [("document:paused", 15)], [], idles ++ [cue] ++ sweeps⟩),
    ("sweeps still run", ⟨fin, sweeps, idles ++ [cue]⟩),
    ("cue still runs", ⟨fin, [cue], idles ++ sweeps⟩),
-   ("accent not paused", ⟨fin, [], [cue] ++ sweeps⟩),
+   ("accent finished", ⟨fin, [], [cue] ++ sweeps⟩), ("accent running", ⟨fin, idles, [cue] ++ sweeps⟩),
    ("running list full", ⟨fin, List.replicate 24 "wave-module_x", idles ++ [cue] ++ sweeps⟩),
    ("both took", ⟨fin, [], idles ++ [cue] ++ sweeps⟩),
    ("both, other loops run", ⟨fin, ["glint-module_dash", "glint-module_dash"], idles ++ [cue] ++ sweeps⟩)]
+
+private def heldGatedCases : List (String × String × String × Bool) :=
+  [("held and took", "cut:pauses", "cut:pauses", true), ("missed and took", "noEffect:pauses", "cut:pauses", true),
+   ("inconclusive and took", "inconclusive", "cut:pauses", true), ("held, flag did not engage", "cut:pauses", "cut:pauses", false),
+   ("missed, flag did not engage", "noEffect:pauses", "cut:pauses", false), ("mixed, flag did not engage", "mixed", "cut:pauses", false)]
+
+private def tookC : Census := ⟨fin, [], idles ++ [cue] ++ sweeps⟩
+private def v2pC : Census := ⟨fin ++ [("view:finished", 13), ("scroll:finished", 1)], idles ++ [cue] ++ sweeps, []⟩
+private def parkMissC : Census := ⟨fin ++ [("view:finished", 13)], [], idles ++ [cue] ++ sweeps⟩
+private def sweepRunC : Census := ⟨fin, sweeps, idles ++ [cue]⟩
+private def accentFinC : Census := ⟨fin, [], [cue] ++ sweeps⟩
+
+private def edgeTookCases : List (String × Edge × List (Option Census × Option Census)) :=
+  [("parks and v2p took", ⟨.parks, .v2p, liveStages⟩, [(some tookC, some v2pC), (some tookC, some v2pC), (some tookC, some v2pC)]),
+   ("hero park missed", ⟨.parks, .v2p, liveStages⟩, [(some parkMissC, some v2pC)]),
+   ("one round missed", ⟨.both, .parks, liveStages⟩, [(some tookC, some tookC), (some parkMissC, some tookC), (some tookC, some tookC)]),
+   ("sweeps still run", ⟨.pauses, .v2p, liveStages⟩, [(some sweepRunC, some v2pC)]),
+   ("accent finished", ⟨.both, .pauses, liveStages⟩, [(some accentFinC, some accentFinC)]),
+   ("no census for the arm", ⟨.parks, .v2p, liveStages⟩, [(none, some v2pC)]),
+   ("no census for v2p", ⟨.parks, .v2p, liveStages⟩, [(some tookC, none)])]
 
 private def overallEffectCases : List (String × List String) :=
   [("all took", ["took", "took", "took"]), ("one missing", ["took", "missing:hero.exit:threaded-park", "took"]),
@@ -361,6 +424,10 @@ private def edgeJ (e : Edge) : List (String × Json) :=
 private def censusJ (c : Census) : Json :=
   Json.mkObj [("by", Json.arr (c.byKey.map fun (k, n) => Json.arr #[Json.str k, Json.num n]).toArray), ("running", strsJ c.running),
     ("paused", strsJ c.paused)]
+
+private def optCensusJ : Option Census → Json
+  | some c => censusJ c
+  | none => Json.null
 
 def goldenLines (_ : Unit) : List String :=
   [(Json.mkObj [("kind", "consts"), ("band", band), ("winRaf", winRaf), ("minSeen", minSeen), ("minRounds", minRounds),
@@ -385,6 +452,12 @@ def goldenLines (_ : Unit) : List String :=
     (Json.mkObj [("kind", "census"), ("name", n), ("census", censusJ c), ("viewDriven", c.viewDriven), ("scrollDriven", c.scrollDriven),
       ("complete", Json.bool c.complete), ("effects", Json.mkObj (allArms.map fun a => (a.name, Json.str (effectName a c)))),
       ("stillTicks", Json.arr ((stillTicks c).map fun (k, x) => Json.arr #[Json.str k, Json.num x]).toArray)]).compress) ++
+  (heldGatedCases.map fun (n, o, p, t) =>
+    (Json.mkObj [("kind", "heldGated"), ("name", n), ("overall", Json.str o), ("predicted", Json.str p), ("took", Json.bool t),
+      ("verdict", Json.str (heldGated o p t))]).compress) ++
+  (edgeTookCases.map fun (n, e, rs) =>
+    (Json.mkObj (("kind", Json.str "edgeTook") :: ("name", Json.str n) :: edgeJ e ++
+      [("rounds", Json.arr (rs.map fun (a, c) => Json.arr #[optCensusJ a, optCensusJ c]).toArray), ("took", Json.bool (edgeTook e rs))])).compress) ++
   (overallEffectCases.map fun (n, ns) =>
     (Json.mkObj [("kind", "overallEffect"), ("name", n), ("effects", strsJ ns), ("overall", Json.str (overallEffect ns))]).compress) ++
   (overallTierCases.map fun (n, ts) =>

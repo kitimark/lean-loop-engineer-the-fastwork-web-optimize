@@ -50,6 +50,8 @@ export function held(overall, predicted) {
   if (overall === 'inconclusive' || overall === 'mixed') return 'undecided';
   return 'missed';
 }
+/** The prediction verdict gated on the census: a flag that did not engage leaves the edge untested. */
+export const heldGated = (overall, predicted, took) => (took ? held(overall, predicted) : 'untested');
 
 const hasPrefix = (pre, s) => s.startsWith(pre);
 export function kindOf(name) {
@@ -67,8 +69,8 @@ export const viewDriven = (c) => sumKeys(c, 'view:');
 export const scrollDriven = (c) => sumKeys(c, 'scroll:');
 export const complete = (c) => c.running.length < CENSUS_CAP && c.paused.length < CENSUS_CAP;
 const runningOf = (c, k) => c.running.filter((n) => kindOf(n) === k).length;
-const pausedOf = (c, k) => c.paused.filter((n) => kindOf(n) === k).length;
-const pauseTook = (c, k) => complete(c) && runningOf(c, k) === 0 && pausedOf(c, k) > 0;
+/** A pause took when the census is complete and no loop of the kind runs: a loop that finished on its own is not a source. */
+const pauseTook = (c, k) => complete(c) && runningOf(c, k) === 0;
 
 export const FLAGS = Object.freeze([
   { name: 'hero.exit:threaded-park', took: (c) => viewDriven(c) === 0 },
@@ -78,6 +80,10 @@ export const FLAGS = Object.freeze([
   { name: 'platform.sweep:offscreen-pause', took: (c) => pauseTook(c, 'platform sweep') },
 ]);
 export const active = (id) => [...(HAS[id][0] ? FLAGS.slice(0, 2) : []), ...(HAS[id][1] ? FLAGS.slice(2) : [])];
+/** Every active flag of the arm took in this census; a missing census does not count as took. */
+export const sideTook = (id, c) => active(id).every((f) => c !== null && f.took(c));
+/** Every flag of both arms of the edge took in every round: `rounds` are [arm census, comparator census] pairs, null where a round has none. */
+export const edgeTook = (e, rounds) => rounds.every(([ca, cc]) => sideTook(e.arm, ca) && sideTook(e.cmp, cc));
 export const missing = (id, c) => active(id).filter((f) => !f.took(c)).map((f) => f.name);
 export function effectName(id, c) {
   if (active(id).length === 0) return 'none';
@@ -126,13 +132,14 @@ export function verdictLines(merged) {
     const pred = predEdge(e);
     for (const stage of e.stages) {
       const vs = [];
+      const took = edgeTook(e, merged.rounds.map((r) => [censusOf(r, e.arm, stage), censusOf(r, e.cmp, stage)]));
       for (const r of merged.rounds) {
         const v = edgeOf(build, e, win(r, e.arm, stage), win(r, e.cmp, stage));
         vs.push(v);
         out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} round ${r.round}: ${rate(win(r, e.arm, stage))} against ${rate(win(r, e.cmp, stage))} per 100 -> ${v}`);
       }
       const ov = overallEdge(vs);
-      out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} overall: ${ov}; predicted ${pred}; ${held(ov, pred)}`);
+      out.push(`${e.arm} against ${e.cmp} [${parts}] ${stage} overall: ${ov}; predicted ${pred}; ${heldGated(ov, pred, took)}`);
     }
   }
   for (const stage of STAGES) {
@@ -141,7 +148,8 @@ export function verdictLines(merged) {
       const ts = merged.rounds.map((r) => tier(win(r, id, stage)));
       const ov = overallTier(ts);
       const live = LIVE_STAGES.includes(stage);
-      out.push(`tier ${id} ${stage}: [${ts.join(', ')}] overall ${ov}${live ? `; predicted ${PRED_TIER[id]}; ${held(ov, PRED_TIER[id])}` : ' (reference)'}`);
+      const took = live && merged.rounds.every((r) => sideTook(id, censusOf(r, id, stage)));
+      out.push(`tier ${id} ${stage}: [${ts.join(', ')}] overall ${ov}${live ? `; predicted ${PRED_TIER[id]}; ${heldGated(ov, PRED_TIER[id], took)}` : ' (reference)'}`);
     }
   }
   for (const stage of LIVE_STAGES) {

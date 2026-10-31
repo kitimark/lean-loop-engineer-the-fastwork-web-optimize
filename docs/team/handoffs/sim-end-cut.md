@@ -1,18 +1,10 @@
-# Handoff sim-end-cut (checkpoint 3, results in, checks running)
+# Handoff sim-end-cut (round 2: closed as a FINDING, not tested)
 
-- Branch: worktree-wf_e8817152-d6f-1; worktree: .claude/worktrees/wf_e8817152-d6f-1; CI branch: ci/sim-end-cut
-- Last commit: see `git log -1` (tip pushed to CI: 2afff9f6b, tokens `[ci:webkit-sim] [end-floor] [end-floor-vms:3] [end-cut]`; results commit 3990e7420; main merged after)
-- CI runs: webkit-sim 41173075281 (35807f6bc) failed at the site build (platform:faded-pause conflicts with platform.sweep:offscreen-pause);
-  webkit-sim 41173535319 (2afff9f6b) success, 3 jobs x 1 round; lean 41173535375 (2afff9f6b) success.
-- Results: `results/sim-end-cut/r1/` (job1..3.json, job1..3-log.txt, rows.txt, table.txt, cut.txt). Note: research/notes/2026/10-31-sim-end-cut.md. Ledger row added (task sim-end-cut).
-- Finding (negative): v2p, parks, pauses, both all read 200 per 100 at end and back in 3 of 3 jobs. Prediction held for parks alone and pauses alone, missed for both.
-  Census: hero.exit:threaded-park did not engage (13 view animations remain) and platform.sweep:offscreen-pause left 2 of 4 sweep loops running; the other three flags took effect.
-- Verified: Lean module `lean/Fw/Device/SimEndCut.lean`, golden `packages/contracts/golden/device/sim-end-cut.jsonl`, TS stand-in `packages/measure-webkit/src/sim-end-cut.mjs`
-  equals the golden; measure-webkit tests (1075), ci-paths test (56) and runner land-inputs test (73) pass after the merge of main; plan lint shows no writesClosure for sim-end-cut.
-- Open: check.sh result after the merge, dry land, review ready (see the final report). Follow-up candidate in the note section 6 (hero park engage after an instant jump; track every sweepDoc element).
-
-## State
-- Arms (sim-end-floor.mjs CUT_ARMS): v2p, parks, pauses, both; pauses and both drop platform:faded-pause (conflict). Report: `sim-end-floor-cli.mjs cut job1.json job2.json job3.json --out results/sim-end-cut/r1`.
-
-## Read first
-- research/notes/2026/10-31-sim-end-cut.md, lean/Fw/Device/SimEndCut.lean.
+- Branch: worktree-wf_e8817152-d6f-1; worktree: .claude/worktrees/wf_e8817152-d6f-1; CI branch: ci/sim-end-cut; last commit: `git log -1` (round 2 work on top of 8b9b2aca8).
+- CI runs: webkit-sim 41173075281 failed at the site build (faded-pause conflict); webkit-sim 41173535319 success (3 jobs x 1 round, the data); lean 41173535375 success. No new run in round 2.
+- Finding: not tested. `hero.exit:threaded-park` never engaged (13 view animations remain, cut.txt:50-60, :66-76) and `platform.sweep:offscreen-pause` left 2 of 4 sweep loops running. With the flags as built, v2p, parks, pauses and both read 200 per 100 at end and back in 3 of 3 jobs (table.txt:1-8).
+- Census per arm and job (cut.txt): scroll park, cue pause took everywhere; hero.accent pause: pauses took x3 (cut.txt:54-56), both job 1 missing (3 accent loops running, cut.txt:58, :74), both jobs 2 and 3 took (accent loop finished on its own, not a source, cut.txt:59-60, :75-76).
+- Round 2 changes: Lean `heldGated` (+ `heldGated_untested`, `heldGated_eq_held`), `edgeTook`/`sideTook`, `pauseTook` no longer counts a finished loop as missing (`pause_took_finished`, `pause_took_iff`); golden and TS stand-in `packages/measure-webkit/src/sim-end-cut.mjs` mirror them; cut.txt regenerated from job*.json (table.txt unchanged); note and ledger row (refiled under platform.sweep:offscreen-pause) reworded; faded-pause swap is a deviation accepted by the lead.
+- Open (follow-ups, spec only, own tasks): park-engage (log startParkOn, engage after an instant jump; two candidate causes, observer after instant jump or startPark only via createHandoff index.tsx:50-52), sweep-pause-all (track every sweepDoc element), then re-run the four arms.
+- Read first: research/notes/2026/10-31-sim-end-cut.md, lean/Fw/Device/SimEndCut.lean.
+- Regenerate: `node packages/measure-webkit/src/sim-end-floor-cli.mjs cut results/sim-end-cut/r1/job{1,2,3}.json --out results/sim-end-cut/r1`; golden: `lake env lean --run scripts/SimEndCutGolden.lean` in lean/.
