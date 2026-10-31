@@ -4,6 +4,8 @@
 // overall lines are checked against packages/contracts/golden/device/sim-end-floor.jsonl (test/sim-end-floor.test.mjs). The page script
 // and the Timeline tally only count; they decide nothing.
 import { markTime } from './reduce.mjs';
+import { firstScrollJs, PARK_PROBE_JS } from './sim-park-engage.mjs';
+export { PARK_ARMS } from './sim-park-engage.mjs';
 
 export const BAND = 10;
 export const WIN_RAF = 360;
@@ -107,6 +109,7 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
   const out = {};
   const kind = (t) => (!t ? 'none' : window.ViewTimeline && t instanceof ViewTimeline ? 'view' : window.ScrollTimeline && t instanceof ScrollTimeline ? 'scroll' : 'document');
   const desc = (e) => (e ? (e.tagName || '?').toLowerCase() + (e.id ? '#' + e.id : '') + (typeof e.className === 'string' && e.className ? '.' + e.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') : '-').slice(0, 48);
+  const parkProbe = ${PARK_PROBE_JS};
   const census = () => {
     const an = document.getAnimations();
     const by = {};
@@ -116,9 +119,9 @@ export const endFloorJs = ({ raf = WIN_RAF, settleMs = 2500, backMs = 1500, act 
       by[k] = (by[k] || 0) + 1;
       if (a.playState === 'running' && running.length < 24) running.push([kind(a.timeline), a.animationName || a.transitionProperty || a.id || '', desc(a.effect && a.effect.target)]);
     }
-    return { total: an.length, by, running, viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
+    return { total: an.length, by, running, park: parkProbe(), viewTimeline: !!window.ViewTimeline, scrollTimeline: !!window.ScrollTimeline };
   };
-  scrollTo({ top: root.scrollHeight - innerHeight, behavior: 'instant' });
+  ${firstScrollJs(act)}
   await frame(); await frame();
   await sleep(${settleMs});
   out.anims = census();

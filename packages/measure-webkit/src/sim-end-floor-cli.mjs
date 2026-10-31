@@ -15,14 +15,16 @@ if (cmd === 'run') {
   mkdirSync(out, { recursive: true });
   const write = (r) => writeFileSync(file, `${JSON.stringify(r)}\n`);
   const { runEndFloor } = await import('./sim-end-floor-run.mjs');
+  const { PARK_ARMS } = await import('./sim-end-floor.mjs');
+  const arms = flag('--arms') === 'park' ? PARK_ARMS : undefined;
   const onRound = (n, of, snap) => writePassFile(file, n, of, snap);
-  const res = await runEndFloor({ siteDir: resolve(site), rounds: Number(flag('--rounds') ?? 3), rotateBy: Number(flag('--rotate') ?? 0), settleMs: Number(flag('--settle') ?? 2500), onProgress: write, onRound });
+  const res = await runEndFloor({ siteDir: resolve(site), ...(arms ? { arms } : {}), rounds: Number(flag('--rounds') ?? 3), rotateBy: Number(flag('--rotate') ?? 0), settleMs: Number(flag('--settle') ?? 2500), onProgress: write, onRound });
   write(res);
   console.log(`sim-end-floor: ${res.rounds.length} rounds, incomplete=${res.incomplete ?? 'no'}, ${res.wallSeconds} s, ${res.meta.runtime}`);
   process.exit(res.rounds.length && !res.incomplete ? 0 : 1);
 } else if (cmd === 'searches') {
-  const { BUILD_SEARCHES } = await import('./sim-end-floor.mjs');
-  console.log(BUILD_SEARCHES.join('\n'));
+  const { BUILD_SEARCHES, PARK_ARMS } = await import('./sim-end-floor.mjs');
+  console.log((flag('--arms') === 'park' ? [...new Set(PARK_ARMS.map((a) => a.search))] : BUILD_SEARCHES).join('\n'));
 } else if (cmd === 'report') {
   const file = args[1];
   if (!file) { console.error('report needs a sim-end-floor.json file'); process.exit(2); }
@@ -36,6 +38,17 @@ if (cmd === 'run') {
     writeFileSync(join(resolve(dir), 'verdict.txt'), `${verdict.join('\n')}\n`);
   }
   console.log([...verdict, '', ...rows].join('\n'));
+} else if (cmd === 'park-report') {
+  const file = args[1];
+  if (!file) { console.error('park-report needs a sim-end-floor.json file'); process.exit(2); }
+  const { parkLines } = await import('./sim-park-engage.mjs');
+  const lines = parkLines(JSON.parse(readFileSync(file, 'utf8')));
+  const dir = flag('--out');
+  if (dir) {
+    mkdirSync(resolve(dir), { recursive: true });
+    writeFileSync(join(resolve(dir), 'park.txt'), `${lines.join('\n')}\n`);
+  }
+  console.log(lines.join('\n'));
 } else if (cmd === 'attrib') {
   const files = args.slice(1).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--out');
   if (!files.length) { console.error('attrib needs one or more sim-end-floor.json files (one per CI job)'); process.exit(2); }
