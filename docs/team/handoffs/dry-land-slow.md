@@ -9,7 +9,7 @@ local tests) ran in series. Details: research/notes/2026/11-01-dry-land-slow.md.
 
 Files: lean/Fw/Ops/LandDry.lean (+Golden, Fw.lean import), packages/contracts/golden/ops/land-dry.jsonl (generated:
 `cd lean && lake env lean --run <script calling Fw.Ops.LandDry.jsonl>`; the #guard in LandDryGolden fails when stale),
-apps/runner/src/land-dry.ts, land.ts (runChecksSplit, one wave), apps/runner/test/land-dry.test.ts (outside the graph
+apps/runner/src/land-dry.ts, land.ts (runChecksSplit, one wave), apps/runner/test/land-dry-waves.test.ts (outside the graph
 writes: apps/runner/test/**).
 
 Open: slow-sample extras (overflow-widths, workflow lint) could not be selected inside this task's writes, so the

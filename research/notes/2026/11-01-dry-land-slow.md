@@ -42,7 +42,7 @@ not.
 ## The rule (Lean first)
 
 `lean/Fw/Ops/LandDry.lean`, golden `packages/contracts/golden/ops/land-dry.jsonl` (8 rows), TS stand-in
-`apps/runner/src/land-dry.ts` (marked for Lean replacement by a fwcore op), checked by `apps/runner/test/land-dry.test.ts`.
+`apps/runner/src/land-dry.ts` (marked for Lean replacement by a fwcore op), checked by `apps/runner/test/land-dry-waves.test.ts`.
 
 - `seqVerdict` is the old protocol (each phase only after the earlier ones passed). `parVerdict` runs all and names the
   first failing phase of `order`. `par_eq_seq`: same refusal for the same results. `par_none_iff`: ok only when all
