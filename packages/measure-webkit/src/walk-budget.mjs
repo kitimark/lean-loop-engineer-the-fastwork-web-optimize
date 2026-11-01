@@ -22,11 +22,58 @@ export const TAIL_MS = 398000;
 
 export const TAIL_EVERY = 20;
 
-export const MARGIN = 2;
-
 export const MIN_SAMPLES = 3;
 
-export const JOBS_NEEDED = MIN_SAMPLES + MARGIN;
+export const MAC_SLOTS = 5;
+
+export const MAC_JOBS = 3;
+
+export const PLAN_RATE = Object.freeze({ decisive: 2, jobs: 5 });
+
+export const TARGET = Object.freeze({ num: 4, den: 5 });
+
+export const JOBS_CAP = 30;
+
+export const DRIVER_FAULT = 'touch-driver-not-ready';
+
+const pascal = (n) => { let r = [1n]; for (let i = 0; i < n; i++) r = [...r, 0n].map((x, j) => x + (j > 0 ? r[j - 1] : 0n)); return r; };
+
+export const tailNum = (n, k, a, b) => {
+  const row = pascal(n);
+  let s = 0n;
+  for (let i = k; i <= n; i++) s += row[i] * BigInt(a) ** BigInt(i) * BigInt(b - a) ** BigInt(n - i);
+  return s;
+};
+
+export const reaches = (n, k, a, b, tn, td) => BigInt(tn) * BigInt(b) ** BigInt(n) <= BigInt(td) * tailNum(n, k, a, b);
+
+export const reachPer10k = (n, k, a, b) => Number(10000n * tailNum(n, k, a, b) / BigInt(b) ** BigInt(n));
+
+export const jobsFor = (k, a, b, tn, td, cap) => {
+  for (let n = 0; n <= cap; n++) if (k <= n && reaches(n, k, a, b, tn, td)) return n;
+  return null;
+};
+
+export const JOBS_NEEDED = jobsFor(MIN_SAMPLES, PLAN_RATE.decisive, PLAN_RATE.jobs, TARGET.num, TARGET.den, JOBS_CAP) ?? JOBS_CAP;
+
+export const MARGIN = JOBS_NEEDED - MIN_SAMPLES;
+
+export const waves = (jobs, slots) => Math.floor((jobs + slots - 1) / slots);
+
+export const legs = (simOnly, control) => [
+  ...(simOnly ? [] : [{ name: 'webkit-mac', jobs: MAC_JOBS, parallel: 1 }]),
+  { name: 'webkit-sim', jobs: JOBS_NEEDED + (control ? 1 : 0), parallel: MAC_SLOTS },
+];
+
+export const totalJobs = (ls) => ls.reduce((s, l) => s + l.jobs, 0);
+
+export const peak = (ls) => ls.reduce((s, l) => s + Math.min(l.jobs, l.parallel), 0);
+
+export const runWaves = (ls) => waves(totalJobs(ls), MAC_SLOTS);
+
+export const startAtOnce = (ls) => totalJobs(ls) <= MAC_SLOTS;
+
+export const driverFault = (requested, on) => requested && !on;
 
 export const SHAPES = Object.freeze({ full: 2, endOnly: 1 });
 

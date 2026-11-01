@@ -1,4 +1,4 @@
-{"bodyMs":29000,"clockMs":6000,"completeMs":4000,"deadlineAt":2400000,"driftMs":50000,"graceMs":120000,"hardStopMs":45000,"jobsNeeded":5,"lifeWindows":36,"macSlots":5,"margin":2,"meanMs":37490,"minKept":5,"minSamples":3,"op":"constants","overrunMs":420000,"postMs":600000,"postStepsMs":540000,"readyAllowMs":480000,"repsWant":6,"setupWorstMs":900000,"slackMs":480000,"tailEvery":20,"tailMs":398000,"timeoutMs":3600000,"windowSamples":216}
+{"bodyMs":29000,"clockMs":6000,"completeMs":4000,"deadlineAt":2400000,"dominant":"touch-driver-not-ready","driftMs":50000,"graceMs":120000,"hardStopMs":45000,"jobsCap":30,"jobsNeeded":10,"lifeWindows":36,"macJobs":3,"macSlots":5,"margin":7,"meanMs":37490,"minKept":5,"minSamples":3,"op":"constants","overrunMs":420000,"planDecisive":2,"planJobs":5,"pooledDecisive":2,"pooledJobs":10,"postMs":600000,"postStepsMs":540000,"reachPer10k":8327,"reachPooledPer10k":3222,"readyAllowMs":480000,"repsWant":6,"setupWorstMs":900000,"slackMs":480000,"tailEvery":20,"tailMs":398000,"targetDen":5,"targetNum":4,"timeoutMs":3600000,"windowSamples":216}
 {"capMs":null,"case":"walk starts after 4.6 min","deadlineMs":2400000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":37}
 {"capMs":null,"case":"walk starts at the job start","deadlineMs":2400000,"elapsedMs":0,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":42}
 {"capMs":null,"case":"walk starts at the deadline","deadlineMs":2400000,"elapsedMs":2400000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":2}
@@ -69,3 +69,48 @@
 {"across":"same","decisive":4,"lost":1,"op":"jobs","verdicts":["first","first","first","second","insufficient"]}
 {"across":"insufficient","decisive":2,"lost":2,"op":"jobs","verdicts":["first","same","insufficient","insufficient"]}
 {"across":"first","decisive":3,"lost":1,"op":"jobs","verdicts":["first","first","first","insufficient"]}
+{"across":"insufficient","decisive":2,"lost":8,"op":"jobs","verdicts":["first","first","insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","insufficient"]}
+{"across":"first","decisive":3,"lost":7,"op":"jobs","verdicts":["insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","first","first","first"]}
+{"across":"insufficient","decisive":2,"lost":8,"op":"jobs","verdicts":["insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","insufficient","first","first"]}
+{"decisiveNum":2,"den":5,"jobs":10,"k":3,"op":"reach","per10k":8327,"reaches":true,"tailNum":8131936}
+{"decisiveNum":2,"den":5,"jobs":9,"k":3,"op":"reach","per10k":7682,"reaches":false,"tailNum":1500416}
+{"decisiveNum":2,"den":5,"jobs":11,"k":3,"op":"reach","per10k":8810,"reaches":true,"tailNum":43021640}
+{"decisiveNum":1,"den":5,"jobs":10,"k":3,"op":"reach","per10k":3222,"reaches":false,"tailNum":3146489}
+{"decisiveNum":1,"den":5,"jobs":20,"k":3,"op":"reach","per10k":7939,"reaches":false,"tailNum":75713661294129}
+{"decisiveNum":1,"den":5,"jobs":21,"k":3,"op":"reach","per10k":8212,"reaches":true,"tailNum":391625007050485}
+{"decisiveNum":2,"den":5,"jobs":5,"k":3,"op":"reach","per10k":3174,"reaches":false,"tailNum":992}
+{"decisiveNum":1,"den":2,"jobs":3,"k":3,"op":"reach","per10k":1250,"reaches":false,"tailNum":1}
+{"decisiveNum":1,"den":2,"jobs":2,"k":3,"op":"reach","per10k":0,"reaches":false,"tailNum":0}
+{"decisiveNum":1,"den":2,"jobs":0,"k":0,"op":"reach","per10k":10000,"reaches":true,"tailNum":1}
+{"decisiveNum":2,"den":7,"jobs":12,"k":3,"op":"reach","per10k":7114,"reaches":false,"tailNum":9847146576}
+{"cap":30,"decisiveNum":2,"den":5,"jobs":10,"k":3,"op":"jobsFor"}
+{"cap":30,"decisiveNum":1,"den":5,"jobs":21,"k":3,"op":"jobsFor"}
+{"cap":30,"decisiveNum":1,"den":2,"jobs":8,"k":3,"op":"jobsFor"}
+{"cap":30,"decisiveNum":1,"den":10,"jobs":null,"k":3,"op":"jobsFor"}
+{"cap":8,"decisiveNum":2,"den":5,"jobs":null,"k":3,"op":"jobsFor"}
+{"jobs":0,"op":"waves","slots":5,"waves":0}
+{"jobs":1,"op":"waves","slots":5,"waves":1}
+{"jobs":5,"op":"waves","slots":5,"waves":1}
+{"jobs":6,"op":"waves","slots":5,"waves":2}
+{"jobs":10,"op":"waves","slots":5,"waves":2}
+{"jobs":11,"op":"waves","slots":5,"waves":3}
+{"jobs":13,"op":"waves","slots":5,"waves":3}
+{"jobs":14,"op":"waves","slots":5,"waves":3}
+{"control":false,"legs":[{"jobs":10,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simOnly":true,"startAtOnce":false,"totalJobs":10,"waves":2}
+{"control":true,"legs":[{"jobs":11,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simOnly":true,"startAtOnce":false,"totalJobs":11,"waves":3}
+{"control":false,"legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":10,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simOnly":false,"startAtOnce":false,"totalJobs":13,"waves":3}
+{"control":true,"legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":11,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simOnly":false,"startAtOnce":false,"totalJobs":14,"waves":3}
+{"fault":false,"name":"touch-driver-not-ready","on":true,"op":"driverFault","requested":true}
+{"fault":true,"name":"touch-driver-not-ready","on":false,"op":"driverFault","requested":true}
+{"fault":false,"name":"touch-driver-not-ready","on":true,"op":"driverFault","requested":false}
+{"fault":false,"name":"touch-driver-not-ready","on":false,"op":"driverFault","requested":false}
+{"fault":"budget","job":1,"op":"observed","run":1}
+{"fault":"touch-driver-not-ready","job":2,"op":"observed","run":1}
+{"fault":"touch-driver-not-ready","job":3,"op":"observed","run":1}
+{"fault":"socket-crash","job":4,"op":"observed","run":1}
+{"fault":"budget","job":5,"op":"observed","run":1}
+{"fault":"none","job":1,"op":"observed","run":2}
+{"fault":"none","job":2,"op":"observed","run":2}
+{"fault":"page-lost-or-evaluate-timeout","job":3,"op":"observed","run":2}
+{"fault":"page-lost-or-evaluate-timeout","job":4,"op":"observed","run":2}
+{"fault":"touch-driver-not-ready","job":5,"op":"observed","run":2}

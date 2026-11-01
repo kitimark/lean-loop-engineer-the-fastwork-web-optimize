@@ -73,8 +73,16 @@ def smoothSource : String :=
 
 def simWallDm : Nat := 10 * (Fw.Measure.WalkBudget.job.timeoutMs / 60000) * 100 / 130
 
+/-- Job walls in seconds (jobs API) of the successful `webkit-sim` jobs of runs 41345594217 (4 of 5) and 41349666358 (5 of 5). -/
+def simWalls : List Nat := [1486, 1332, 1294, 1801, 1100, 2609, 2228, 2034, 2297]
+
+/-- Lanes whose `p90dm` is the plan's own bound, not a p90 of measured walls. -/
+def derivedLanes : List String := ["smoothness-webkit-sim"]
+
+def Row.derived (r : Row) : Bool := derivedLanes.contains r.lane
+
 def simSource : String :=
-  "bound of the walk plan, INFERRED: the job timeout of Fw.Measure.WalkBudget.job; measured: runs 41345594217 and 41349666358, 18.3..43.5 min, linear p90 38.9 min (API times)"
+  "bound of the walk plan, INFERRED: the job timeout of Fw.Measure.WalkBudget.job; measured successes: runs 41345594217 and 41349666358, job walls from the jobs API (measuredN, measuredP90dm; thin until 10 successes)"
 
 def rows : List Row :=
   [⟨"wktr", "wktr.yml", "wktr", 93, 119⟩,
@@ -84,7 +92,7 @@ def rows : List Row :=
    ⟨"gate-gaps", "gate-gaps.yml", "collect-macos", 3, 198⟩,
    ⟨"trajectory-probe", "trajectory-probe.yml", "probe-apple", probeWalls.length, p90dmOfSec (probeWalls.map (·.1))⟩,
    ⟨"smoothness-webkit-mac", "smoothness.yml", "webkit-mac", 3, 111⟩,
-   ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", 3, simWallDm⟩]
+   ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", simWalls.length, simWallDm⟩]
 
 def excluded : List (String × String) :=
   [("path-pix.yml", "path-pix-lanes"), ("toolbar-throttle.yml", "toolbar-throttle-probe"), ("webkit-sim.yml", "webkit-sim-failfast"), ("chrome-crash-probe.yml", "chrome-crash-platforms"), ("font-fidelity.yml", "counts-font-fidelity")]
@@ -99,7 +107,11 @@ theorem rows_lanes_nodup : (rows.map (·.lane)).Nodup := by decide
 
 theorem excluded_disjoint : ∀ e ∈ excluded, e.1 ∉ rows.map (·.file) := by decide
 
-theorem thin_lanes : (rows.filter (·.thin)).map (·.lane) = ["gate-gaps", "trajectory-probe", "smoothness-webkit-mac", "smoothness-webkit-sim"] := by decide
+theorem thin_lanes : (rows.filter fun r => !r.derived && r.thin).map (·.lane) = ["gate-gaps", "trajectory-probe", "smoothness-webkit-mac"] := by decide
+
+theorem derived_lanes : (rows.filter (·.derived)).map (·.lane) = ["smoothness-webkit-sim"] := by decide
+
+theorem sim_walls_under_bound : p90dmOfSec simWalls ≤ simWallDm := by decide
 
 theorem caps_eq : rows.map (fun r => (r.lane, r.cap)) =
     [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26),
@@ -128,11 +140,15 @@ theorem legWorstSec_mono {w : Nat} {a b : Nat} (h : a ≤ b) : legWorstSec w a �
 /-- The p90 values (tenths of a minute) of the golden's `vector` rows. -/
 def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 132, 161, 198, 289, 300, 1000]
 
+private def derivedJson (r : Row) : Json :=
+  Json.mkObj [("kind", "cap"), ("lane", r.lane), ("file", r.file), ("job", r.job), ("basis", "bound"), ("boundDm", r.p90dm),
+    ("capMin", r.cap), ("measuredN", r.n), ("measuredP90dm", p90dmOfSec simWalls), ("measuredThin", r.thin), ("status", "INFERRED"), ("source", simSource)]
+
 private def capJson (r : Row) : Json :=
+  if r.derived then derivedJson r else
   Json.mkObj [("kind", "cap"), ("lane", r.lane), ("file", r.file), ("job", r.job), ("n", r.n), ("p90dm", r.p90dm),
-    ("capMin", r.cap), ("thin", r.thin), ("status", if r.lane == "smoothness-webkit-sim" then "INFERRED" else "MEASURED"),
+    ("capMin", r.cap), ("thin", r.thin), ("status", "MEASURED"),
     ("source", if r.lane == "trajectory-probe" then probeSource
-      else if r.lane == "smoothness-webkit-sim" then simSource
       else if r.lane.startsWith "smoothness-webkit" then smoothSource else source)]
 
 /-- The golden `packages/contracts/golden/ci/pool-caps.jsonl`: the cap rows, the excluded workflows, the `capMin` vectors. -/

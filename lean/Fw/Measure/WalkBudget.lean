@@ -328,13 +328,109 @@ theorem groupArms_cover (controls cands g : Nat) (hg : 0 < g) : cands ≤ g * (g
   rw [← ht] at h1 ⊢
   omega
 
-def margin : Nat := 2
+/-- What kept a job of the two verdict runs from a decisive end-touch verdict. -/
+inductive Fault where
+  | none
+  | budget
+  | driver
+  | hang
+  | crash
+deriving DecidableEq, Repr
 
-def jobsNeeded : Nat := Fw.Gate.Smooth.minSamples + margin
+def Fault.name : Fault → String
+  | .none => "none"
+  | .budget => "budget"
+  | .driver => "touch-driver-not-ready"
+  | .hang => "page-lost-or-evaluate-timeout"
+  | .crash => "socket-crash"
 
-theorem jobsNeeded_le_slots : jobsNeeded ≤ Fw.Measure.WktrLayout.macSlots := by decide
+/-- The ten jobs of runs 41345594217 (run 1) and 41349666358 (run 2): run, job, fault. -/
+def observedJobs : List (Nat × Nat × Fault) :=
+  [(1, 1, .budget), (1, 2, .driver), (1, 3, .driver), (1, 4, .crash), (1, 5, .budget),
+   (2, 1, .none), (2, 2, .none), (2, 3, .hang), (2, 4, .hang), (2, 5, .driver)]
 
-theorem jobsNeeded_value : jobsNeeded = 5 := by decide
+def faultCount (f : Fault) (js : List (Nat × Nat × Fault) := observedJobs) : Nat := (js.filter (·.2.2 == f)).length
+
+/-- The fault with the most jobs among the faulty ones (the first on a tie). -/
+def dominant : Fault :=
+  [Fault.budget, .driver, .hang, .crash].foldl (fun best f => if faultCount best < faultCount f then f else best) .budget
+
+theorem observed_ten : observedJobs.length = 10 := by decide
+
+theorem observed_decisive : faultCount .none = 2 := by decide
+
+theorem dominant_driver : dominant = .driver := by decide
+
+theorem driver_count : faultCount .driver = 3 := by decide
+
+/-- Decisive jobs over jobs, as a fraction, for the jobs of one run (`none`: all). -/
+def decisiveRate (run : Option Nat) : Nat × Nat :=
+  let js := observedJobs.filter fun j => run.all (· == j.1)
+  (faultCount .none js, js.length)
+
+theorem pooled_rate : decisiveRate none = (2, 10) := by decide
+
+/-- The rate the plan uses: run 2 ran the code of the matrix (the 60 min job, the 480 s driver wait and the socket guard fix the faults `budget` and `crash` of run 1). -/
+def planRate : Nat × Nat := decisiveRate (some 2)
+
+theorem planRate_value : planRate = (2, 5) := by decide
+
+def pascal : Nat → List Nat
+  | 0 => [1]
+  | n + 1 => let r := pascal n; List.zipWith (· + ·) (0 :: r) (r ++ [0])
+
+def choose (n k : Nat) : Nat := (pascal n).getD k 0
+
+/-- The numerator, over `b ^ n`, of the chance that at least `k` of `n` jobs are decisive when each is with chance `a / b`. -/
+def tailNum (n k a b : Nat) : Nat :=
+  (List.range (n + 1)).foldl (fun s i => if k ≤ i then s + choose n i * a ^ i * (b - a) ^ (n - i) else s) 0
+
+def reaches (n k a b tn td : Nat) : Bool := decide (tn * b ^ n ≤ td * tailNum n k a b)
+
+theorem tailNum_total : ∀ n, n ≤ 12 → tailNum n 0 2 5 = 5 ^ n := by decide +kernel
+
+/-- Chance target of the plan: at least 4 in 5 that the run has `minSamples` decisive jobs. -/
+def target : Nat × Nat := (4, 5)
+
+def jobsCap : Nat := 30
+
+/-- The least job count of at least `k` that reaches `k` decisive jobs with the target chance. -/
+def jobsFor (k a b tn td cap : Nat) : Option Nat :=
+  (List.range (cap + 1)).find? fun n => decide (k ≤ n) && reaches n k a b tn td
+
+def jobsNeeded : Nat :=
+  (jobsFor Fw.Gate.Smooth.minSamples planRate.1 planRate.2 target.1 target.2 jobsCap).getD jobsCap
+
+/-- Lost jobs the plan survives: every job past the `minSamples` decisive ones. -/
+def margin : Nat := jobsNeeded - Fw.Gate.Smooth.minSamples
+
+theorem jobsNeeded_value : jobsNeeded = 10 := by decide +kernel
+
+theorem margin_value : margin = 7 := by decide +kernel
+
+theorem margin_add : Fw.Gate.Smooth.minSamples + margin = jobsNeeded := by
+  unfold margin
+  have : Fw.Gate.Smooth.minSamples ≤ jobsNeeded := by decide +kernel
+  omega
+
+/-- **Reach**: at the plan rate (2 of 5 jobs decisive) 10 jobs give at least 3 decisive ones with chance at least 4 in 5. -/
+theorem reach_at_plan : reaches jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2 target.1 target.2 = true := by
+  decide +kernel
+
+theorem reach_least : ∀ n, n < jobsNeeded → Fw.Gate.Smooth.minSamples ≤ n →
+    reaches n Fw.Gate.Smooth.minSamples planRate.1 planRate.2 target.1 target.2 = false := by
+  decide +kernel
+
+/-- The exact chance at the plan rate, in parts per 10000 (rounded down): 8327. -/
+def reachPer10k (n k a b : Nat) : Nat := 10000 * tailNum n k a b / b ^ n
+
+theorem reach_plan_value : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2 = 8327 := by decide +kernel
+
+/-- At the rate of all ten jobs (2 of 10) the same 10 jobs reach with a chance of only 3222 in 10000: the plan bets on run 2's rate. -/
+theorem reach_at_pooled : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 5 = 3222 := by decide +kernel
+
+/-- Jobs for the target chance at the pooled rate: 21. -/
+theorem pooled_jobs : jobsFor Fw.Gate.Smooth.minSamples 1 5 target.1 target.2 jobsCap = some 21 := by decide +kernel
 
 theorem decisive_add_insufficient (vs : List Verdict) :
     Fw.Gate.Smooth.decisive vs + vs.count .insufficient = vs.length := by
@@ -347,7 +443,7 @@ theorem decisive_add_insufficient (vs : List Verdict) :
 theorem plan_decisive (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs.count .insufficient ≤ margin) :
     Fw.Gate.Smooth.minSamples ≤ Fw.Gate.Smooth.decisive vs := by
   have := decisive_add_insufficient vs
-  unfold jobsNeeded at hn
+  have := margin_add
   omega
 
 theorem hitchJudge_ne_insufficient (a b : List Nat) : Fw.Gate.Smooth.hitchJudge a b ≠ .insufficient := by
@@ -380,6 +476,103 @@ theorem across_decisive_ne_insufficient (vs : List Verdict) (h : Fw.Gate.Smooth.
 theorem plan_across (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs.count .insufficient ≤ margin) :
     Fw.Gate.Smooth.acrossDecisive vs ≠ .insufficient :=
   across_decisive_ne_insufficient vs (plan_decisive vs hn hl)
+
+/-! ## Waves and the macOS legs of one run -/
+
+/-- Rounds of `slots` jobs that `jobs` jobs need. -/
+def waves (jobs slots : Nat) : Nat := (jobs + slots - 1) / slots
+
+theorem jobs_le_waves (jobs slots : Nat) (h : 0 < slots) : jobs ≤ waves jobs slots * slots := by
+  unfold waves
+  have h1 := Nat.div_add_mod (jobs + slots - 1) slots
+  have h2 := Nat.mod_lt (jobs + slots - 1) h
+  rw [Nat.mul_comm] at h1
+  omega
+
+/-- **Waves**: a pool of `p` slots that starts a job as soon as one of the `p` before it has ended, jobs of at most `T`, starts job `i` by `(i / p) * T`. -/
+theorem wave_start (p T : Nat) (hp : 0 < p) (start : Nat → Nat) (h0 : ∀ i, i < p → start i = 0)
+    (hs : ∀ i, p ≤ i → start i ≤ start (i - p) + T) : ∀ i, start i ≤ i / p * T := by
+  intro i
+  induction i using Nat.strongRecOn with
+  | _ i ih =>
+    by_cases hi : i < p
+    · rw [h0 i hi]; exact Nat.zero_le _
+    · have hle : p ≤ i := by omega
+      have h1 := ih (i - p) (by omega)
+      have h2 := hs i hle
+      have h3 : i / p = (i - p) / p + 1 := by
+        have e : i = (i - p) + p := by omega
+        have := Nat.add_div_right (i - p) hp
+        rw [← e] at this
+        exact this
+      rw [h3, Nat.add_mul, Nat.one_mul]
+      omega
+
+/-- Every job of the pool ends by `waves * T`. -/
+theorem wave_end (p T jobs : Nat) (hp : 0 < p) (start : Nat → Nat) (h0 : ∀ i, i < p → start i = 0)
+    (hs : ∀ i, p ≤ i → start i ≤ start (i - p) + T) : ∀ i, i < jobs → start i + T ≤ waves jobs p * T := by
+  intro i hi
+  have h1 := wave_start p T hp start h0 hs i
+  have h2 := jobs_le_waves jobs p hp
+  have h3 : i / p + 1 ≤ waves jobs p := by
+    have : i / p < waves jobs p := (Nat.div_lt_iff_lt_mul hp).2 (by omega)
+    omega
+  have h4 := Nat.mul_le_mul_right T h3
+  rw [Nat.add_mul, Nat.one_mul] at h4
+  omega
+
+/-- One macOS leg of a smoothness run: the matrix size and its `max-parallel`. -/
+structure Leg where
+  name : String
+  jobs : Nat
+  parallel : Nat
+deriving DecidableEq, Repr
+
+def macJobs : Nat := 3
+
+/-- The legs of a run on the free macOS runners: `webkit-mac` unless `[sim-only]`, `webkit-sim` with the control job when `[sim-touch-control]`. -/
+def legs (simOnly control : Bool) : List Leg :=
+  (if simOnly then [] else [⟨"webkit-mac", macJobs, 1⟩]) ++
+    [⟨"webkit-sim", jobsNeeded + (if control then 1 else 0), Fw.Measure.WktrLayout.macSlots⟩]
+
+def Leg.peak (l : Leg) : Nat := min l.jobs l.parallel
+
+def peak (ls : List Leg) : Nat := (ls.map Leg.peak).sum
+
+def totalJobs (ls : List Leg) : Nat := (ls.map (·.jobs)).sum
+
+def runWaves (ls : List Leg) : Nat := waves (totalJobs ls) Fw.Measure.WktrLayout.macSlots
+
+/-- Every job of the run starts at once: they all fit the free slots. -/
+def startAtOnce (ls : List Leg) : Bool := decide (totalJobs ls ≤ Fw.Measure.WktrLayout.macSlots)
+
+theorem never_at_once : ∀ s c : Bool, startAtOnce (legs s c) = false := by decide +kernel
+
+theorem sim_only_waves : runWaves (legs true false) = 2 := by decide +kernel
+
+theorem sim_only_peak : peak (legs true false) = Fw.Measure.WktrLayout.macSlots := by decide +kernel
+
+theorem mac_leg_waves : runWaves (legs false false) = 3 := by decide +kernel
+
+theorem control_waves : runWaves (legs true true) = 3 := by decide +kernel
+
+theorem mac_leg_peak : peak (legs false false) = Fw.Measure.WktrLayout.macSlots + 1 := by decide +kernel
+
+theorem sim_only_wall : runWaves (legs true false) * job.timeoutMs = 7200000 := by decide +kernel
+
+/-- A walk with the touch driver asked for ends at once when the driver is not on: no untouched windows follow. -/
+def driverFault (requested on : Bool) : Bool := requested && !on
+
+def driverFaultName : String := Fault.driver.name
+
+theorem driverFault_untouched (r o : Bool) (h : driverFault r o = true) : r = true ∧ o = false := by
+  cases r <;> cases o <;> simp_all [driverFault]
+
+theorem driverFault_on (r : Bool) : driverFault r true = false := by cases r <;> rfl
+
+theorem driverFault_unasked (o : Bool) : driverFault false o = false := rfl
+
+theorem driverFault_asked_off : driverFault true false = true := rfl
 
 def readyAllowMs : Nat := 480000
 
@@ -452,7 +645,19 @@ def verdictCases : List (List Verdict) := [
   [.same, .same, .same, .same, .same],
   [.first, .first, .first, .second, .insufficient],
   [.first, .same, .insufficient, .insufficient],
-  [.first, .first, .first, .insufficient]]
+  [.first, .first, .first, .insufficient],
+  [.first, .first, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient],
+  [.insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .first, .first, .first],
+  [.insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .insufficient, .first, .first]]
+
+def reachCases : List (Nat × Nat × Nat × Nat) :=
+  [(10, 3, 2, 5), (9, 3, 2, 5), (11, 3, 2, 5), (10, 3, 1, 5), (20, 3, 1, 5), (21, 3, 1, 5), (5, 3, 2, 5), (3, 3, 1, 2), (2, 3, 1, 2), (0, 0, 1, 2), (12, 3, 2, 7)]
+
+def jobsForCases : List (Nat × Nat × Nat × Nat) := [(3, 2, 5, 30), (3, 1, 5, 30), (3, 1, 2, 30), (3, 1, 10, 30), (3, 2, 5, 8)]
+
+def wavesCases : List (Nat × Nat) := [(0, 5), (1, 5), (5, 5), (6, 5), (10, 5), (11, 5), (13, 5), (14, 5)]
+
+def faultCases : List (Bool × Bool) := [(true, true), (true, false), (false, true), (false, false)]
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
@@ -463,6 +668,11 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("minKept", toJson minKept), ("repsWant", toJson repsWant), ("lifeWindows", toJson lifeWindows), ("windowSamples", toJson windowSecs.length),
     ("bodyMs", toJson bodyMs), ("tailMs", toJson tailMs), ("meanMs", toJson meanMs), ("tailEvery", toJson tailEvery),
     ("margin", toJson margin), ("readyAllowMs", toJson readyAllowMs), ("setupWorstMs", toJson setupWorstMs), ("jobsNeeded", toJson jobsNeeded), ("macSlots", toJson Fw.Measure.WktrLayout.macSlots),
+    ("planDecisive", toJson planRate.1), ("planJobs", toJson planRate.2), ("pooledDecisive", toJson (decisiveRate none).1), ("pooledJobs", toJson (decisiveRate none).2),
+    ("targetNum", toJson target.1), ("targetDen", toJson target.2), ("jobsCap", toJson jobsCap),
+    ("reachPer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2)),
+    ("reachPooledPer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 5)), ("dominant", Json.str dominant.name),
+    ("macJobs", toJson macJobs),
     ("minSamples", toJson Fw.Gate.Smooth.minSamples)]).compress
   let ss := stepCases.map fun (name, elapsed, cap) =>
     let dl := cappedDeadline job elapsed cap
@@ -495,7 +705,26 @@ def goldenLines (_ : Unit := ()) : List String :=
   let js := verdictCases.map fun vs =>
     (Json.mkObj [("op", "jobs"), ("verdicts", toJson (vs.map Verdict.name)), ("decisive", toJson (Fw.Gate.Smooth.decisive vs)),
       ("lost", toJson (vs.count .insufficient)), ("across", Json.str (Fw.Gate.Smooth.acrossDecisive vs).name)]).compress
-  [consts] ++ ss ++ ws ++ bs ++ ps ++ es ++ gs ++ js
+  let rs := reachCases.map fun (n, k, a, b) =>
+    (Json.mkObj [("op", "reach"), ("jobs", toJson n), ("k", toJson k), ("decisiveNum", toJson a), ("den", toJson b),
+      ("tailNum", toJson (tailNum n k a b)), ("per10k", toJson (reachPer10k n k a b)),
+      ("reaches", toJson (reaches n k a b target.1 target.2))]).compress
+  let fs := jobsForCases.map fun (k, a, b, cap) =>
+    (Json.mkObj [("op", "jobsFor"), ("k", toJson k), ("decisiveNum", toJson a), ("den", toJson b), ("cap", toJson cap),
+      ("jobs", match jobsFor k a b target.1 target.2 cap with | some v => toJson v | none => Json.null)]).compress
+  let wv := wavesCases.map fun (j, sl) =>
+    (Json.mkObj [("op", "waves"), ("jobs", toJson j), ("slots", toJson sl), ("waves", toJson (waves j sl))]).compress
+  let lg := [(true, false), (true, true), (false, false), (false, true)].map fun (so, c) =>
+    (Json.mkObj [("op", "legs"), ("simOnly", toJson so), ("control", toJson c),
+      ("legs", toJson ((legs so c).map fun l => Json.mkObj [("name", Json.str l.name), ("jobs", toJson l.jobs), ("parallel", toJson l.parallel)])),
+      ("totalJobs", toJson (totalJobs (legs so c))), ("peak", toJson (peak (legs so c))), ("waves", toJson (runWaves (legs so c))),
+      ("startAtOnce", toJson (startAtOnce (legs so c)))]).compress
+  let fl := faultCases.map fun (r, o) =>
+    (Json.mkObj [("op", "driverFault"), ("requested", toJson r), ("on", toJson o), ("fault", toJson (driverFault r o)),
+      ("name", Json.str driverFaultName)]).compress
+  let ob := observedJobs.map fun (run, j, f) =>
+    (Json.mkObj [("op", "observed"), ("run", toJson run), ("job", toJson j), ("fault", Json.str f.name)]).compress
+  [consts] ++ ss ++ ws ++ bs ++ ps ++ es ++ gs ++ js ++ rs ++ fs ++ wv ++ lg ++ fl ++ ob
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 

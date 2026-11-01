@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path';
 import { KINDS, ZONES, medianNat, zoneVerdict, profileFromRaw } from './reduce.mjs';
 import { readRaws } from './raw.mjs';
-import { JOBS_NEEDED, MIN_SAMPLES } from '../walk-budget.mjs';
+import { JOBS_NEEDED, MIN_SAMPLES, MIN_KEPT } from '../walk-budget.mjs';
 import { acrossDecisive, agreeNeeded, decisive, hitchVerdict, armRate, repOf, quantile, enoughN, countsOf, sumCounts } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2'], ['base', 'bound']];
@@ -267,16 +267,30 @@ export function touchTable(jobs) {
   return out.join('\n');
 }
 
+export function faultOf(f, kept) {
+  if (f.fault) return f.fault;
+  if (f.repPlan?.outcome === 'budgetShort') return 'budget';
+  if (kept >= MIN_KEPT) return 'none';
+  const text = `${f.incomplete ?? ''} ${(f.hiccups ?? []).map((h) => h.why).join(' ')}`;
+  if (/setTypeOfService|socket/i.test(text)) return 'socket-crash';
+  if (/pageLost|page lost|timed out/i.test(text)) return 'page-lost-or-evaluate-timeout';
+  return f.incomplete ? 'walk-deadline-or-other' : 'none';
+}
+
 export function jobsTable(jobs, leg) {
   const sim = jobs.filter((j) => j.leg === 'sim' && !isControl(j.file));
-  const out = [head(['job', 'rep plan', 'end touch windows (fewest per arm)', 'wall s', 'stopped', 'job verdicts'])];
+  const out = [head(['job', 'rep plan', 'end touch windows (fewest per arm)', 'wall s', 'fault', 'stopped', 'job verdicts'])];
+  const faults = {};
   for (const j of sim) {
     const c = jobCadence(j.file, 'end touch', 'events');
     const kept = j.file.arms.length ? Math.min(...j.file.arms.map((a) => c.arms[a].reps)) : 0;
     const p = j.file.repPlan;
     const v = Object.entries(c.verdicts).map(([k, x]) => `${k.replace('|', ', ')}: ${x}`).join('; ');
-    out.push(row([j.label, p ? `${p.shape ?? 'full'} ${p.outcome}, ${p.reps} reps${p.groups > 1 ? `, ${p.groups} jobs of arms` : ''}` : '-', kept, fmt(j.file.wallSeconds), j.file.incomplete ? shortWhy(j.file.incomplete).slice(0, 70) : '-', v || '-']));
+    const fault = faultOf(j.file, kept);
+    faults[fault] = (faults[fault] ?? 0) + 1;
+    out.push(row([j.label, p ? `${p.shape ?? 'full'} ${p.outcome}, ${p.reps} reps${p.groups > 1 ? `, ${p.groups} jobs of arms` : ''}` : '-', kept, fmt(j.file.wallSeconds), fault, j.file.incomplete ? shortWhy(j.file.incomplete).slice(0, 70) : '-', v || '-']));
   }
+  out.push('', `faults: ${Object.entries(faults).map(([k, n]) => `${k} ${n}`).join(', ') || 'no jobs'}`);
   out.push('', head(['pair (first, second)', 'jobs planned', 'jobs with a file', 'decisive', 'without a verdict', 'decisive needed', 'verdict over jobs']));
   const vs = leg?.cadence?.['end touch|events']?.verdicts ?? {};
   for (const [p, v] of Object.entries(vs)) {

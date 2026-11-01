@@ -17,7 +17,7 @@ if (cmd === 'run') {
   const push = { dragPt: Number(flag('--drag-pt') ?? PAN.dragPt), velocity: Number(flag('--velocity') ?? PAN.velocity), holdMs: Number(flag('--hold-ms') ?? PAN.holdMs) };
   const res = await runTouchLock({
     push,
-    siteDir: resolve(site), reps: Number(flag('--reps') ?? 6), settleMs: Number(flag('--settle') ?? 2500), touchDriver: resolve(flag('--touch-driver')),
+    siteDir: resolve(site), reps: flag('--reps') ?? 'auto', settleMs: Number(flag('--settle') ?? 2500), touchDriver: resolve(flag('--touch-driver')),
     deadlineMs: flag('--deadline-ms') ? Number(flag('--deadline-ms')) : null, onProgress: write,
   });
   write(res);

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { isSocketTosFault, guardSocketFault } from '../src/profile/sim-cadence.mjs';
+import { isSocketTosFault, guardSocketFault, driverEnd } from '../src/profile/sim-cadence.mjs';
 
 const tos = Object.assign(new Error('setTypeOfService EINVAL'), { code: 'EINVAL', syscall: 'setTypeOfService', errno: -22 });
 
@@ -25,4 +25,11 @@ test('the guard logs the socket fault and keeps running, ends the process on any
   assert.equal(proc.exitCode, 1);
   release();
   assert.equal(proc.listenerCount('uncaughtException'), 0);
+});
+
+test('driverEnd: a walk that asked for the touch driver ends with the named fault when it is off, and never otherwise (Lean driverFault)', () => {
+  assert.deepEqual(driverEnd(true, false, 'no ready file after 480 s'), { fault: 'touch-driver-not-ready', cut: 'fault touch-driver-not-ready: no ready file after 480 s' });
+  assert.equal(driverEnd(true, true, null), null);
+  assert.equal(driverEnd(false, false, 'x'), null);
+  assert.equal(driverEnd(false, true, null), null);
 });

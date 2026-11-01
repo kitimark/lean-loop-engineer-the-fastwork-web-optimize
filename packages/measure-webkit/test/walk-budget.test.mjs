@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { planSim } from '../src/profile/sim-cadence.mjs';
-import { JOB, GAPS, REPS_WANT, READY_ALLOW_MS, SETUP_WORST_MS, MIN_KEPT, LIFE_WINDOWS, BODY_MS, TAIL_MS, TAIL_EVERY, MARGIN, MIN_SAMPLES, JOBS_NEEDED, blockMs, windowsPerRep, groupArms, groupsFor, repsFit, repsLife, planReps, outcome, endsDone, deadlineAt, cappedDeadline, stepMinutes, runsWalk, startsWindow, remaining, planWalk, untilDeadline, MIN_WALK_MINUTES, HARD_STOP_MS } from '../src/walk-budget.mjs';
+import { JOB, GAPS, REPS_WANT, READY_ALLOW_MS, SETUP_WORST_MS, MIN_KEPT, LIFE_WINDOWS, BODY_MS, TAIL_MS, TAIL_EVERY, MARGIN, MIN_SAMPLES, JOBS_NEEDED, blockMs, windowsPerRep, groupArms, groupsFor, repsFit, repsLife, planReps, outcome, endsDone, deadlineAt, cappedDeadline, stepMinutes, runsWalk, startsWindow, remaining, planWalk, untilDeadline, MIN_WALK_MINUTES, HARD_STOP_MS, MAC_SLOTS, MAC_JOBS, PLAN_RATE, TARGET, JOBS_CAP, DRIVER_FAULT, tailNum, reaches, reachPer10k, jobsFor, waves, legs, totalJobs, peak, runWaves, startAtOnce, driverFault } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/walk-budget.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
 
@@ -20,7 +20,11 @@ test('walk-budget: constants and every golden step and start line match Lean', (
   assert.ok(MIN_KEPT <= REPS_WANT);
   assert.equal(LIFE_WINDOWS, c.lifeWindows);
   assert.deepEqual({ BODY_MS, TAIL_MS, TAIL_EVERY, MARGIN, MIN_SAMPLES, JOBS_NEEDED }, { BODY_MS: c.bodyMs, TAIL_MS: c.tailMs, TAIL_EVERY: c.tailEvery, MARGIN: c.margin, MIN_SAMPLES: c.minSamples, JOBS_NEEDED: c.jobsNeeded });
-  assert.ok(c.jobsNeeded <= c.macSlots);
+  assert.deepEqual({ MAC_SLOTS, MAC_JOBS, JOBS_CAP, PLAN_RATE, TARGET }, { MAC_SLOTS: c.macSlots, MAC_JOBS: c.macJobs, JOBS_CAP: c.jobsCap, PLAN_RATE: { decisive: c.planDecisive, jobs: c.planJobs }, TARGET: { num: c.targetNum, den: c.targetDen } });
+  assert.equal(c.margin, c.jobsNeeded - c.minSamples);
+  assert.deepEqual([c.pooledDecisive, c.pooledJobs, c.dominant], [2, 10, 'touch-driver-not-ready']);
+  assert.equal(reachPer10k(JOBS_NEEDED, MIN_SAMPLES, PLAN_RATE.decisive, PLAN_RATE.jobs), c.reachPer10k);
+  assert.equal(reachPer10k(JOBS_NEEDED, MIN_SAMPLES, 1, 5), c.reachPooledPer10k);
   assert.ok(c.windowSamples * c.meanMs <= blockMs(c.windowSamples));
   for (const g of golden.filter((x) => x.op === 'step')) {
     const dl = cappedDeadline(JOB, g.elapsedMs, g.capMs);
@@ -51,6 +55,23 @@ test('walk-budget: constants and every golden step and start line match Lean', (
     assert.equal(g.verdicts.length - decisive, g.lost);
     assert.equal(decisive >= MIN_SAMPLES, g.across !== 'insufficient');
   }
+  for (const g of golden.filter((x) => x.op === 'reach')) {
+    assert.equal(tailNum(g.jobs, g.k, g.decisiveNum, g.den), BigInt(g.tailNum), JSON.stringify(g));
+    assert.equal(reachPer10k(g.jobs, g.k, g.decisiveNum, g.den), g.per10k, JSON.stringify(g));
+    assert.equal(reaches(g.jobs, g.k, g.decisiveNum, g.den, TARGET.num, TARGET.den), g.reaches, JSON.stringify(g));
+  }
+  for (const g of golden.filter((x) => x.op === 'jobsFor')) assert.equal(jobsFor(g.k, g.decisiveNum, g.den, TARGET.num, TARGET.den, g.cap), g.jobs, JSON.stringify(g));
+  for (const g of golden.filter((x) => x.op === 'waves')) assert.equal(waves(g.jobs, g.slots), g.waves, JSON.stringify(g));
+  for (const g of golden.filter((x) => x.op === 'legs')) {
+    const ls = legs(g.simOnly, g.control);
+    assert.deepEqual(ls, g.legs);
+    assert.deepEqual([totalJobs(ls), peak(ls), runWaves(ls), startAtOnce(ls)], [g.totalJobs, g.peak, g.waves, g.startAtOnce]);
+  }
+  for (const g of golden.filter((x) => x.op === 'driverFault')) {
+    assert.equal(driverFault(g.requested, g.on), g.fault);
+    assert.equal(g.name, DRIVER_FAULT);
+  }
+  assert.equal(golden.filter((x) => x.op === 'observed').length, 10);
   for (const g of golden.filter((x) => x.op === 'start')) {
     assert.equal(startsWindow(g.deadlineMs, g.nowMs, g.reserveMs), g.starts, g.case);
     assert.equal(remaining(g.deadlineMs, g.nowMs), g.remainingMs, g.case);
@@ -117,7 +138,7 @@ test('plan: an ok plan reserves its block budget inside the deadline, and the jo
     assert.ok(blockMs(planReps(dl, now, shape, arms) * windowsPerRep(shape, arms)) <= dl - now, `${shape} ${arms} ${now}`);
     if (outcome(dl, now, shape, arms) === 'ok') assert.ok(now + blockMs(MIN_KEPT * windowsPerRep(shape, arms)) <= dl);
   }
-  assert.ok(JOBS_NEEDED <= 5);
+  assert.equal(waves(JOBS_NEEDED, MAC_SLOTS), 2);
 });
 
 test('planSim: the plan clock reads the time it is given, the driver picks end-only windows, a short plan names the jobs that would fit', () => {
@@ -136,7 +157,7 @@ test('planSim: the plan clock reads the time it is given, the driver picks end-o
   assert.equal(at(276, { deadlineMs: null }).reps, 12);
 });
 
-test('smoothness.yml: the simulator matrix has the Lean job count, the control job comes after them, and max-parallel is the free macOS slots', () => {
+test('smoothness.yml: the simulator matrix has the Lean job count, the control job comes after them, and max-parallel is the free macOS slots (two waves)', () => {
   const c = golden.find((g) => g.op === 'constants');
   const yml = readFileSync(new URL('../../../.github/workflows/smoothness.yml', import.meta.url), 'utf8');
   const sim = yml.slice(yml.indexOf('  webkit-sim:'));

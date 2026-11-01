@@ -567,11 +567,18 @@ test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap
 
 test('pool caps: every cap is at least 1.3 x its p90 and the least such minute; the golden holds capMin 289 = 38', () => {
   for (const r of capRows.filter((x) => x.kind !== 'excluded')) {
-    assert.ok(13 * r.p90dm <= 100 * r.capMin && 100 * r.capMin < 13 * r.p90dm + 100, JSON.stringify(r));
-    assert.ok(r.p90dm <= 10 * r.capMin);
+    const dm = r.basis === 'bound' ? r.boundDm : r.p90dm;
+    assert.ok(13 * dm <= 100 * r.capMin && 100 * r.capMin < 13 * dm + 100, JSON.stringify(r));
+    assert.ok(dm <= 10 * r.capMin);
   }
   assert.ok(capRows.some((r) => r.kind === 'vector' && r.p90dm === 289 && r.capMin === 38));
-  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3], ['trajectory-probe', 6], ['smoothness-webkit-mac', 3], ['smoothness-webkit-sim', 3]]);
+  assert.deepEqual(capRows.filter((r) => r.kind === 'cap' && r.thin).map((r) => [r.lane, r.n]), [['gate-gaps', 3], ['trajectory-probe', 6], ['smoothness-webkit-mac', 3]]);
+  const derived = capRows.filter((r) => r.kind === 'cap' && r.basis === 'bound');
+  assert.deepEqual(derived.map((r) => r.lane), ['smoothness-webkit-sim']);
+  for (const r of derived) {
+    assert.equal('n' in r || 'p90dm' in r || 'thin' in r, false, r.lane);
+    assert.ok(r.measuredP90dm <= r.boundDm && r.measuredN > 0 && r.measuredThin === r.measuredN < 10, r.lane);
+  }
 });
 
 test('lint: a drifted or missing cap timeout is reported and set back by --write', () => {

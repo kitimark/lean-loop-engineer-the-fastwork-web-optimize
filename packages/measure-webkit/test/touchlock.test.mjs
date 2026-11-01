@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { fights, reversals, openCalls, cmp, look, cmpKnown, lockedCmp, traceCounts, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS, RANKED_TEXT } from '../src/touchlock.mjs';
-import { restartServer, armTrees, armPath } from '../src/touchlock-run.mjs';
+import { restartServer, armTrees, armPath, planLock } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -288,4 +288,15 @@ test('summarize: a pin arm that never writes has no open calls; it counts as unr
 
 test('a window reloads the arm path: only the pin arm keeps its flag in the query, the others reload the root', () => {
   assert.deepEqual(ARMS.map((id) => armPath('/site', id)), ['/', '/', '/', '/?fw=morph.tween:end-pin']);
+});
+
+test('planLock: the four arms plan reps from the Lean tail budget, six at most, end-only windows', () => {
+  const dl = 1_000_000_000_000 + 2_400_000;
+  const at = (sec, over = {}) => planLock({ deadlineMs: dl, nowMs: 1_000_000_000_000 + sec * 1000, ...over });
+  assert.deepEqual(at(276), { repPlan: { shape: 'endOnly', outcome: 'ok', reps: 6 }, reps: 6 });
+  assert.deepEqual(at(900).repPlan, { shape: 'endOnly', outcome: 'ok', reps: 6 });
+  assert.equal(at(1451).repPlan.reps, 5);
+  assert.equal(at(1452).repPlan.outcome, 'budgetShort');
+  assert.equal(at(276, { repsArg: '2' }).reps, 2);
+  assert.deepEqual(at(276, { deadlineMs: null }), { repPlan: null, reps: 6 });
 });
