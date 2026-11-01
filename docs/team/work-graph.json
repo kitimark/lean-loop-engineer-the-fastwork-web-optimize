@@ -25096,6 +25096,31 @@
     "packages/contracts/golden/parts/footprint.gen.json"
    ],
    "evidence": "cb8df7b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-pin-followups",
+   "owner": "lean-prover",
+   "stream": "experiment",
+   "deps": [
+    "end-pin-trace"
+   ],
+   "title": "Review follow-ups of end-pin-trace: (1) one writesLive over a pin policy, instantiated for the end pin and the faithful pin (same function decides both counts; the faithful witness now uses its own counter with a fixed s); (2) the shipped END_PIN computes outcome/dueWhy on every reading: set env.trace only when window.__fwPinTrace exists; (3) morph.tween part.json end-pin provenance lists the new theorems (writesLive_zero, target per event) and the momentum-is-INFERRED limit; (4) lockedCmp states that it ranks only runs where the pin wrote (a selected subset). Lean and site only; no CI dispatch.",
+   "writes": [
+    "lean/Fw/Parts/EndPin*.lean",
+    "packages/contracts/golden/measure/touch-lock.jsonl",
+    "lean/scripts/TouchLockGolden.lean",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/measure-webkit/src/touchlock.mjs",
+    "packages/measure-webkit/test/touchlock*.test.mjs",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json",
+    "research/notes/2026/11-0*-end-pin-followups.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-pin-followups.md"
+   ]
   }
  ],
  "deadline": {
