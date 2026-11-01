@@ -4757,6 +4757,56 @@
    "leanVerdict": "provable",
    "leanReason": "The check that would have caught it: a test that sends the land's own pusher through the hook (now in apps/runner/test/ci-push-lane-check.test.ts); the admission itself is the Lean decision landCheck with one theorem per refusal branch.",
    "hardening": "land-push-lane"
+  },
+  {
+   "id": "inc-scratch-symlink-wait",
+   "at": "2026-11-01T10:00+07:00",
+   "title": "A builder symlinked the shared scratchpad into its worktree and sat 30 min on a permission prompt",
+   "symptom": "Build of flip-cell-pixel-hang made no progress for about 30 minutes; fw watch raised team.permissionWait. The builder had linked the session scratchpad into its worktree as .scr and a cp from that link waited for a permission answer no one gave.",
+   "cause": "INFERRED (the agent transcript shows the link and the waiting cp; the permission rule that matched was not recorded): a path through a symlink resolves outside the worktree, so the copy did not match the worktree write allow rules and asked. The task prompt did not name a scratch subdir or forbid links.",
+   "evidence": [
+    {
+     "kind": "file",
+     "ref": "docs/team/handoffs/flip-cell-pixel-hang.md",
+     "note": "finisher run after the stop"
+    }
+   ],
+   "repro": "In a workflow agent, ln -s <session scratchpad> <worktree>/.scr, then cp .scr/x <worktree>/y: the cp asks for permission.",
+   "fix": {
+    "task": "flip-cell-pixel-hang",
+    "commits": [],
+    "note": "Lead stopped the workflow, removed the link, and started a finisher whose prompt says: own scratch subdir, no symlinks, goldens only through the Lean generator."
+   },
+   "regression": "none yet: the rule lives in the finisher prompt only.",
+   "mistakeClass": "c-env-assume",
+   "leanVerdict": "partly",
+   "leanReason": "Which paths an agent may write is a pure rule (worktree, its own scratch subdir); a dry-land check could refuse a branch that adds a symlink leaving the worktree. The wait itself is a harness event, not a decision.",
+   "hardening": "scratch-link-check"
+  },
+  {
+   "id": "inc-land-template-vanished",
+   "at": "2026-11-01T09:00+07:00",
+   "title": "The lead land script template in the session scratchpad vanished and a land ran nothing",
+   "symptom": "The sed that builds a land script from the template read a missing file, so the generated script was empty; the land printed no VERDICT and nothing merged.",
+   "cause": "INFERRED: the template was a hand-kept file in the session scratchpad, which other agents also write; what removed it was not found.",
+   "evidence": [
+    {
+     "kind": "proc",
+     "ref": "sed on <scratchpad>/land-rlm.sh: No such file or directory; the generated land script was empty and the shell printed no VERDICT",
+     "note": "lead land line, 2026-11-01"
+    }
+   ],
+   "repro": "Remove the template, run the land command line: sed fails, the script is empty, the shell exits 0 with no VERDICT line.",
+   "fix": {
+    "task": "land-queue",
+    "commits": [],
+    "note": "Template recreated from an earlier copy and a backup kept; the land line checks with grep -c that the generated script holds its dl line before it runs. The lasting fix is to land through fw land --queue (task land-queue, done) instead of a scratch template."
+   },
+   "regression": "The grep -c guard stops the empty-script case; a lost template still needs a hand rebuild.",
+   "mistakeClass": "c-handcopy",
+   "leanVerdict": "no",
+   "leanReason": "A lost scratch file is an I/O fact; the fix is to land through the repo command (fw land --queue) instead of a scratch template.",
+   "empiricalCheck": "The lead land line runs grep -c on the generated script and stops when the dl line is missing; a land that prints no VERDICT line is reported as failed, never as landed."
   }
  ]
 }
