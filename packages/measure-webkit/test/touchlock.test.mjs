@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { fights, reversals, openCalls, cmp, look, cmpKnown, lockedCmp, traceCounts, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
+import { fights, reversals, openCalls, cmp, look, cmpKnown, lockedCmp, traceCounts, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS, RANKED_TEXT } from '../src/touchlock.mjs';
 import { restartServer, armTrees, armPath } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
@@ -90,6 +90,18 @@ test('summarize: an arm whose runs stored no lock reads n/a for every lock-defin
   assert.deepEqual(s.verdicts.lockVsBase, { fights: 'n/a', restores: 'n/a', eventFights: 'n/a' });
   assert.deepEqual(s.verdicts.pinVsBase, { fights: 'n/a', restores: 'n/a', eventFights: 'n/a' });
   assert.match(markdown(s), /pin vs base: fights n\/a, restores n\/a, event fights n\/a; pin vs orig: fights n\/a/);
+});
+
+test('summarize states the selection lockedCmp ranks: only runs where the arm wrote, per arm', () => {
+  const rows = [...[0, 1, 2].flatMap(() => ARMS.map((a) => rowOf(a, steadyLocked))), rowOf('pin', steady), rowOf('pin', steady)];
+  const s = summarize(rows);
+  assert.deepEqual(s.verdicts.ranked.pin, { ranked: 3, runs: 5 });
+  assert.deepEqual(s.verdicts.ranked.base, { ranked: 3, runs: 3 });
+  const { base, pin } = s.arms;
+  assert.equal(lockedCmp(base.fightRuns, pin.fightRuns), lockedCmp(base.fightRuns, pin.fightRuns.filter((k) => k[0] !== null)));
+  const md = markdown(s);
+  assert.ok(md.includes(RANKED_TEXT));
+  assert.match(md, /orig 3 of 3, base 3 of 3, lock 3 of 3, pin 3 of 5/);
 });
 
 test('lockedCmp replays the Lean golden and never reads a verdict from an arm without a stored lock', () => {

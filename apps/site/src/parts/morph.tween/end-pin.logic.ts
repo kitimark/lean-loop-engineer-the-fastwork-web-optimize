@@ -11,7 +11,9 @@ export const start = (y0: number): Pin => ({ touching: false, since: 0, a: null,
 
 export const reverses = (a: number | null, b: number, s: number): boolean => a !== null && (b - a) * (s - b) < 0;
 
-export const mayWrite = (p: Pin, s: number): boolean => !p.touching && QUIET_MS <= p.since && p.b !== s && !reverses(p.a, p.b, s);
+export type Policy = (q: Pin, s: number) => boolean;
+
+export const mayWrite: Policy = (p, s) => !p.touching && QUIET_MS <= p.since && p.b !== s && !reverses(p.a, p.b, s);
 
 export const live = (q: Pin): boolean => q.touching || q.since < QUIET_MS;
 
@@ -31,9 +33,9 @@ export const touch = (p: Pin, down: boolean): Pin => ({ ...p, touching: down, si
 
 export const moved = (p: Pin, y: number): Pin => ({ ...p, since: 0, a: y === p.b ? p.a : p.b, b: y });
 
-export function idle(p: Pin, s: number, ms: number): [Pin, number | null] {
+export function idle(p: Pin, s: number, ms: number, may: Policy = mayWrite): [Pin, number | null] {
   const q = { ...p, since: p.since + ms };
-  return mayWrite(q, s) ? [{ ...q, since: 0, a: q.b, b: s }, s] : [q, null];
+  return may(q, s) ? [{ ...q, since: 0, a: q.b, b: s }, s] : [q, null];
 }
 
 export const due = (p: Pin, s: number): number | null =>
@@ -51,7 +53,7 @@ export function outcome(p: Pin, s: number, y: number, dt: number): Outcome {
 }
 
 export type Ev = ['move', number] | ['down'] | ['up'] | ['idle', number, number];
-export function play(p: Pin, es: readonly Ev[]): number[] {
+export function play(p: Pin, es: readonly Ev[], may: Policy = mayWrite): number[] {
   const out: number[] = [];
   let cur = p;
   for (const e of es) {
@@ -59,7 +61,7 @@ export function play(p: Pin, es: readonly Ev[]): number[] {
       out.push(e[1]);
       cur = moved(cur, e[1]);
     } else if (e[0] === 'idle') {
-      const [next, w] = idle(cur, e[2], e[1]);
+      const [next, w] = idle(cur, e[2], e[1], may);
       if (w !== null) out.push(w);
       cur = next;
     } else cur = touch(cur, e[0] === 'down');
