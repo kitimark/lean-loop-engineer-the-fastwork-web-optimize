@@ -14472,7 +14472,8 @@
     "packages/measure-webkit/test/pinfight-*.test.mjs",
     "research/notes/2026/10-2x-pin-fight.md",
     "docs/team/handoffs/pin-fight-measure.md"
-   ]
+   ],
+   "evidence": "ccd59f7"
   },
   {
    "devices": [
@@ -25025,6 +25026,35 @@
     "lean/Fw/Ops/Golden.lean",
     "research/notes/2026/11-0*-scratch-link-check.md",
     "docs/team/handoffs/scratch-link-check.md"
+   ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-pin-no-fight",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [],
+   "title": "End of page, iPhone felt jitter: the page-end lock fights a live pan or its momentum in every arm (touch-lock-windows, runs 40071802991 40074062290: lock 4 of 5 accepted windows still fight). Design a page-end pin that never moves the page against a live gesture on WebKit iOS (cite source @862f17d for what a script scrollTo does to a pan and to deceleration), state it in Lean (no restore while a gesture or momentum is live; fights 0 under the TouchLock model), add it as a morph.tween flag variant, measure it on the CI Simulator touch-lock lane against base and orig (fights, reversals, displaced per window, 2 jobs), look class from Lean (an L goes to the user's review). If no design avoids the fight with the same look, close it as a negative finding with the WebKit reason. Supersedes pin-fight-measure.",
+   "writes": [
+    "research/notes/2026/11-0*-end-pin-no-fight.md",
+    "lean/Fw/Parts/EndPin*.lean",
+    "lean/Fw/Parts/MorphTweenOpt.lean",
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/scripts/TouchLockGolden.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/touch-lock.jsonl",
+    "packages/contracts/golden/parts/end-pin*.jsonl",
+    "packages/contracts/golden/parts/morph-tween-scroll-lock.jsonl",
+    "apps/site/src/parts/morph.tween/**",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/test/touchlock*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "results/end-pin-no-fight/**",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-pin-no-fight.md"
    ]
   }
  ],
