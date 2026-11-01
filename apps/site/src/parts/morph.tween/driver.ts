@@ -5,7 +5,7 @@ import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, typ
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 import { crossings, idealAt } from './geom-timed.logic';
-import { due, observe, start, touch, type Pin } from './end-pin.logic';
+import { due, dueWhy, observe, outcome, start, touch, type Outcome, type Pin } from './end-pin.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -47,8 +47,14 @@ export interface TweenEnv {
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
   endPin?: { touch(cb: (down: boolean) => void): () => void };
-  trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
+  trace?(ev: TraceEv): void;
 }
+
+export type PinOp = Outcome | 'inactive' | 'due' | 'touch';
+export type TraceEv =
+  | { kind: 'push'; from: number; to: number; at: number }
+  | { kind: 'take'; el: number }
+  | { kind: 'pin'; op: PinOp; at: number; y?: number; s?: number; dt?: number; ms?: number; write?: number | null; down?: boolean };
 
 export interface EffectSink {
   push(from: number, to: number, start: number): void;
@@ -170,7 +176,12 @@ export function createTweenDriver(env: TweenEnv) {
   const recheck = () => {
     if (!rp || rpTimer || !env.clock.interval) return;
     const d = due(rp, rpTarget);
-    if (d === null) return;
+    if (d === null) {
+      const w = env.trace ? dueWhy(rp, rpTarget) : null;
+      if (w) env.trace?.({ kind: 'pin', op: w, at: env.now(), y: rp.b, s: rpTarget, dt: rp.since });
+      return;
+    }
+    env.trace?.({ kind: 'pin', op: 'due', at: env.now(), ms: d, s: rpTarget });
     const off = env.clock.interval(Math.max(1, Math.round(d)), () => {
       off();
       rpTimer = null;
@@ -181,6 +192,7 @@ export function createTweenDriver(env: TweenEnv) {
   const restPin = () => {
     if (!isActive()) {
       rp = null;
+      env.trace?.({ kind: 'pin', op: 'inactive', at: env.now() });
       return;
     }
     const y = env.scrollY();
@@ -190,7 +202,10 @@ export function createTweenDriver(env: TweenEnv) {
       rp = { ...start(y), touching: touchDown };
       rpAt = now;
     }
-    const [next, write] = observe(rp, rpTarget, y, Math.max(0, now - rpAt));
+    const dt = Math.max(0, now - rpAt);
+    const op = env.trace ? outcome(rp, rpTarget, y, dt) : null;
+    const [next, write] = observe(rp, rpTarget, y, dt);
+    if (op) env.trace?.({ kind: 'pin', op, at: now, y, s: rpTarget, dt, write });
     rp = next;
     rpAt = now;
     if (write !== null) env.scrollToInstant(write);
@@ -198,6 +213,7 @@ export function createTweenDriver(env: TweenEnv) {
   };
   const offTouch = env.endPin?.touch((down) => {
     touchDown = down;
+    env.trace?.({ kind: 'pin', op: 'touch', at: env.now(), down });
     if (!rp) return;
     rp = touch(rp, down);
     rpAt = env.now();

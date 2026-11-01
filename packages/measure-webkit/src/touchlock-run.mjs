@@ -75,6 +75,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps = 6, settleMs = 2
     const frameGaps = rec.fr.slice(1).map((f, i) => f[2] - rec.fr[i][2]);
     return { ...row, status: got.outcome, variant, obs: got.obs, presses: got.presses, startGap: near.maxY - near.y, maxY10: rec.maxY10, finalY10: rec.finalY10,
       frames: rec.fr.map((f) => [f[0], f[1], Math.round(f[2] * 10) / 10]), calls: (rec.ca ?? []).map((c) => [c[0], c[1], Math.round(c[2] * 10) / 10]), events: rec.ev.map((e) => [e[0], e[1], Math.round(e[2] * 10) / 10]),
+      pin: id === 'pin' ? rec.pin ?? { seen: 0, entries: [] } : null,
       q2: { firstScrollMs, longFrames50: frameGaps.filter((g) => g > 50).length, maxFrameGap: Math.round(Math.max(0, ...frameGaps)) } };
   };
 

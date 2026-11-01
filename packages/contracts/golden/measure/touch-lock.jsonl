@@ -61,46 +61,67 @@
 {"cand":[0],"case":"one steady run each","faith":[0],"op":"lookKnown","out":"undecided"}
 {"cand":[0,0],"case":"two steady runs each","faith":[0,0],"op":"lookKnown","out":"undecided"}
 {"cand":[1],"case":"one candidate run, displaced","faith":[0,0,0],"op":"lookKnown","out":"undecided"}
+{"cand":[[5,0],[5,0],[5,1]],"case":"both locked, candidate below","faith":[[5,2],[5,3],[5,5]],"op":"lockedCmp","out":"lower"}
+{"cand":[[null,0],[null,0],[null,0],[null,0]],"case":"candidate never stored a lock","faith":[[5,2],[5,3],[5,5]],"op":"lockedCmp","out":"n/a"}
+{"cand":[[5,1],[5,2],[5,1]],"case":"faithful never stored a lock","faith":[[null,0],[null,0],[null,0]],"op":"lockedCmp","out":"n/a"}
+{"cand":[[null,0]],"case":"both never stored a lock","faith":[[null,0]],"op":"lockedCmp","out":"n/a"}
+{"cand":[],"case":"no candidate run","faith":[[5,1],[5,1],[5,1]],"op":"lockedCmp","out":"undecided"}
+{"cand":[[5,1]],"case":"no faithful run","faith":[],"op":"lockedCmp","out":"undecided"}
+{"cand":[[5,0],[null,9],[5,1],[5,0]],"case":"mixed candidate, locked runs only","faith":[[5,4],[5,5],[5,6]],"op":"lockedCmp","out":"lower"}
+{"cand":[[5,0]],"case":"one locked run each","faith":[[5,4]],"op":"lockedCmp","out":"undecided"}
+{"cand":[[5,3],[5,4],[5,4]],"case":"candidate above","faith":[[5,0],[5,1],[5,1]],"op":"lockedCmp","out":"higher"}
 {"op":"pinConstants","quietMs":120}
-{"case":"at rest off the target, moving on","op":"pinMay","out":true,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0}
-{"case":"no history","op":"pinMay","out":true,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0}
-{"case":"a touch is down","op":"pinMay","out":false,"pin":{"a":null,"b":60,"since":200,"touching":true},"s":0}
-{"case":"a scroll event 50 ms ago","op":"pinMay","out":false,"pin":{"a":null,"b":60,"since":50,"touching":false},"s":0}
-{"case":"on the target","op":"pinMay","out":false,"pin":{"a":null,"b":0,"since":200,"touching":false},"s":0}
-{"case":"would turn around","op":"pinMay","out":false,"pin":{"a":0,"b":90,"since":200,"touching":false},"s":0}
-{"case":"quiet exactly quietMs","op":"pinMay","out":true,"pin":{"a":80,"b":60,"since":120,"touching":false},"s":0}
-{"case":"one ms short of quiet","op":"pinMay","out":false,"pin":{"a":80,"b":60,"since":119,"touching":false},"s":0}
-{"case":"below the target, moving up","op":"pinMay","out":true,"pin":{"a":-90,"b":-60,"since":200,"touching":false},"s":0}
-{"case":"below the target, turning down","op":"pinMay","out":false,"pin":{"a":-60,"b":-90,"since":200,"touching":false},"s":0}
-{"case":"the page moved","dt":16,"op":"pinObserve","pin":{"a":80,"b":60,"since":300,"touching":false},"pinOut":{"a":60,"b":40,"since":0,"touching":false},"s":0,"write":null,"y":40}
-{"case":"the page moved onto the target","dt":16,"op":"pinObserve","pin":{"a":80,"b":60,"since":300,"touching":false},"pinOut":{"a":60,"b":0,"since":0,"touching":false},"s":0,"write":null,"y":0}
-{"case":"same place, quiet","dt":200,"op":"pinObserve","pin":{"a":80,"b":60,"since":0,"touching":false},"pinOut":{"a":60,"b":0,"since":0,"touching":false},"s":0,"write":0,"y":60}
-{"case":"same place, time accumulates","dt":50,"op":"pinObserve","pin":{"a":80,"b":60,"since":70,"touching":false},"pinOut":{"a":60,"b":0,"since":0,"touching":false},"s":0,"write":0,"y":60}
-{"case":"same place, not quiet yet","dt":50,"op":"pinObserve","pin":{"a":80,"b":60,"since":10,"touching":false},"pinOut":{"a":80,"b":60,"since":60,"touching":false},"s":0,"write":null,"y":60}
-{"case":"same place, touch down","dt":500,"op":"pinObserve","pin":{"a":80,"b":60,"since":500,"touching":true},"pinOut":{"a":80,"b":60,"since":1000,"touching":true},"s":0,"write":null,"y":60}
-{"case":"same place, would turn around","dt":500,"op":"pinObserve","pin":{"a":0,"b":90,"since":0,"touching":false},"pinOut":{"a":0,"b":90,"since":500,"touching":false},"s":0,"write":null,"y":90}
-{"case":"same place, on the target","dt":500,"op":"pinObserve","pin":{"a":null,"b":0,"since":0,"touching":false},"pinOut":{"a":null,"b":0,"since":500,"touching":false},"s":0,"write":null,"y":0}
-{"case":"at rest off the target, moving on","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0}
-{"case":"no history","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0}
-{"case":"a touch is down","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":true},"s":0}
-{"case":"a scroll event 50 ms ago","op":"pinDue","out":70,"pin":{"a":null,"b":60,"since":50,"touching":false},"s":0}
-{"case":"on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":200,"touching":false},"s":0}
-{"case":"would turn around","op":"pinDue","out":null,"pin":{"a":0,"b":90,"since":200,"touching":false},"s":0}
-{"case":"quiet exactly quietMs","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":120,"touching":false},"s":0}
-{"case":"one ms short of quiet","op":"pinDue","out":1,"pin":{"a":80,"b":60,"since":119,"touching":false},"s":0}
-{"case":"below the target, moving up","op":"pinDue","out":null,"pin":{"a":-90,"b":-60,"since":200,"touching":false},"s":0}
-{"case":"below the target, turning down","op":"pinDue","out":null,"pin":{"a":-60,"b":-90,"since":200,"touching":false},"s":0}
-{"case":"a touch just ended","op":"pinDue","out":120,"pin":{"a":80,"b":60,"since":0,"touching":false},"s":0}
+{"case":"at rest off the target, moving on","op":"pinMay","out":true,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"no history","op":"pinMay","out":true,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"a touch is down","op":"pinMay","out":false,"pin":{"a":null,"b":60,"since":200,"touching":true},"s":0,"why":"touching"}
+{"case":"a scroll event 50 ms ago","op":"pinMay","out":false,"pin":{"a":null,"b":60,"since":50,"touching":false},"s":0,"why":"live"}
+{"case":"on the target","op":"pinMay","out":false,"pin":{"a":null,"b":0,"since":200,"touching":false},"s":0,"why":"onTarget"}
+{"case":"would turn around","op":"pinMay","out":false,"pin":{"a":0,"b":90,"since":200,"touching":false},"s":0,"why":"reversal"}
+{"case":"quiet exactly quietMs","op":"pinMay","out":true,"pin":{"a":80,"b":60,"since":120,"touching":false},"s":0,"why":null}
+{"case":"one ms short of quiet","op":"pinMay","out":false,"pin":{"a":80,"b":60,"since":119,"touching":false},"s":0,"why":"live"}
+{"case":"below the target, moving up","op":"pinMay","out":true,"pin":{"a":-90,"b":-60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"below the target, turning down","op":"pinMay","out":false,"pin":{"a":-60,"b":-90,"since":200,"touching":false},"s":0,"why":"reversal"}
+{"case":"touch down and not quiet","op":"pinMay","out":false,"pin":{"a":80,"b":60,"since":10,"touching":true},"s":0,"why":"touching"}
+{"case":"not quiet and on the target","op":"pinMay","out":false,"pin":{"a":null,"b":0,"since":10,"touching":false},"s":0,"why":"live"}
+{"case":"the page moved","dt":16,"op":"pinObserve","outcome":"moved","pin":{"a":80,"b":60,"since":300,"touching":false},"pinOut":{"a":60,"b":40,"since":0,"touching":false},"s":0,"write":null,"y":40}
+{"case":"the page moved onto the target","dt":16,"op":"pinObserve","outcome":"moved","pin":{"a":80,"b":60,"since":300,"touching":false},"pinOut":{"a":60,"b":0,"since":0,"touching":false},"s":0,"write":null,"y":0}
+{"case":"same place, quiet","dt":200,"op":"pinObserve","outcome":"write","pin":{"a":80,"b":60,"since":0,"touching":false},"pinOut":{"a":60,"b":0,"since":0,"touching":false},"s":0,"write":0,"y":60}
+{"case":"same place, time accumulates","dt":50,"op":"pinObserve","outcome":"write","pin":{"a":80,"b":60,"since":70,"touching":false},"pinOut":{"a":60,"b":0,"since":0,"touching":false},"s":0,"write":0,"y":60}
+{"case":"same place, not quiet yet","dt":50,"op":"pinObserve","outcome":"live","pin":{"a":80,"b":60,"since":10,"touching":false},"pinOut":{"a":80,"b":60,"since":60,"touching":false},"s":0,"write":null,"y":60}
+{"case":"same place, touch down","dt":500,"op":"pinObserve","outcome":"touching","pin":{"a":80,"b":60,"since":500,"touching":true},"pinOut":{"a":80,"b":60,"since":1000,"touching":true},"s":0,"write":null,"y":60}
+{"case":"same place, would turn around","dt":500,"op":"pinObserve","outcome":"reversal","pin":{"a":0,"b":90,"since":0,"touching":false},"pinOut":{"a":0,"b":90,"since":500,"touching":false},"s":0,"write":null,"y":90}
+{"case":"same place, on the target","dt":500,"op":"pinObserve","outcome":"onTarget","pin":{"a":null,"b":0,"since":0,"touching":false},"pinOut":{"a":null,"b":0,"since":500,"touching":false},"s":0,"write":null,"y":0}
+{"case":"at rest off the target, moving on","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"no history","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"a touch is down","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":true},"s":0,"why":"touching"}
+{"case":"a scroll event 50 ms ago","op":"pinDue","out":70,"pin":{"a":null,"b":60,"since":50,"touching":false},"s":0,"why":null}
+{"case":"on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":200,"touching":false},"s":0,"why":"onTarget"}
+{"case":"would turn around","op":"pinDue","out":null,"pin":{"a":0,"b":90,"since":200,"touching":false},"s":0,"why":"reversal"}
+{"case":"quiet exactly quietMs","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":120,"touching":false},"s":0,"why":null}
+{"case":"one ms short of quiet","op":"pinDue","out":1,"pin":{"a":80,"b":60,"since":119,"touching":false},"s":0,"why":null}
+{"case":"below the target, moving up","op":"pinDue","out":null,"pin":{"a":-90,"b":-60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"below the target, turning down","op":"pinDue","out":null,"pin":{"a":-60,"b":-90,"since":200,"touching":false},"s":0,"why":"reversal"}
+{"case":"touch down and not quiet","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":10,"touching":true},"s":0,"why":"touching"}
+{"case":"not quiet and on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":10,"touching":false},"s":0,"why":"onTarget"}
+{"case":"a touch just ended","op":"pinDue","out":120,"pin":{"a":80,"b":60,"since":0,"touching":false},"s":0,"why":null}
 {"down":true,"op":"pinTouch","pin":{"a":null,"b":7,"since":0,"touching":false},"pinOut":{"a":null,"b":7,"since":0,"touching":true}}
 {"down":false,"op":"pinTouch","pin":{"a":null,"b":7,"since":0,"touching":false},"pinOut":{"a":null,"b":7,"since":0,"touching":false}}
-{"case":"spring back lands on the target","events":[["down"],["move",90],["move",60],["move",30],["up"],["idle",50],["idle",100]],"fights":0,"frames":[[0,1],[90,1],[60,1],[30,1],[0,1]],"op":"pinPlay","positions":[90,60,30,0],"reversals":1,"s":0,"writes":[0],"y0":0}
-{"case":"a pan away is left where it stopped","events":[["down"],["move",90],["up"],["idle",200]],"fights":0,"frames":[[0,1],[90,1]],"op":"pinPlay","positions":[90],"reversals":0,"s":0,"writes":[],"y0":0}
-{"case":"momentum, then quiet","events":[["move",40],["move",30],["idle",16],["move",20],["idle",16],["move",10],["idle",130]],"fights":0,"frames":[[50,1],[40,1],[30,1],[20,1],[10,1],[0,1]],"op":"pinPlay","positions":[40,30,20,10,0],"reversals":0,"s":0,"writes":[0],"y0":50}
-{"case":"nothing moves, the page is on the target","events":[["idle",200],["down"],["up"],["idle",200]],"fights":0,"frames":[[0,1]],"op":"pinPlay","positions":[],"reversals":0,"s":0,"writes":[],"y0":0}
-{"case":"one move away, long quiet","events":[["move",70],["idle",300]],"fights":0,"frames":[[0,1],[70,1]],"op":"pinPlay","positions":[70],"reversals":0,"s":0,"writes":[],"y0":0}
-{"case":"pan toward the target","events":[["move",80],["idle",200]],"fights":0,"frames":[[100,1],[80,1],[0,1]],"op":"pinPlay","positions":[80,0],"reversals":0,"s":0,"writes":[0],"y0":100}
-{"case":"pan toward, written, then away again","events":[["move",80],["idle",200],["move",50],["idle",200]],"fights":0,"frames":[[100,1],[80,1],[0,1],[50,1]],"op":"pinPlay","positions":[80,0,50],"reversals":1,"s":0,"writes":[0],"y0":100}
-{"case":"a touch stays down","events":[["down"],["move",80],["idle",5000]],"fights":0,"frames":[[100,1],[80,1]],"op":"pinPlay","positions":[80],"reversals":0,"s":0,"writes":[],"y0":100}
-{"case":"the page springs out and back twice","fights":2,"frames":[[0,1],[90,1],[0,1],[60,1],[0,1]],"moves":[90,60],"op":"pinFaith","positions":[90,0,60,0],"s":0,"y0":0}
-{"case":"one overscroll","fights":1,"frames":[[0,1],[90,1],[0,1]],"moves":[90],"op":"pinFaith","positions":[90,0],"s":0,"y0":0}
-{"case":"pan toward the target","fights":1,"frames":[[100,1],[80,1],[0,1],[60,1],[0,1]],"moves":[80,60],"op":"pinFaith","positions":[80,0,60,0],"s":0,"y0":100}
+{"case":"spring back lands on the target","events":[["down"],["move",90],["move",60],["move",30],["up"],["idle",50,0],["idle",100,0]],"faithWritesLive":3,"fights":0,"frames":[[0,1],[90,1],[60,1],[30,1],[0,1]],"op":"pinPlay","positions":[90,60,30,0],"reversals":1,"s":0,"writes":[0],"writesLive":0,"y0":0}
+{"case":"a pan away is left where it stopped","events":[["down"],["move",90],["up"],["idle",200,0]],"faithWritesLive":1,"fights":0,"frames":[[0,1],[90,1]],"op":"pinPlay","positions":[90],"reversals":0,"s":0,"writes":[],"writesLive":0,"y0":0}
+{"case":"momentum, then quiet","events":[["move",40],["move",30],["idle",16,0],["move",20],["idle",16,0],["move",10],["idle",130,0]],"faithWritesLive":4,"fights":0,"frames":[[50,1],[40,1],[30,1],[20,1],[10,1],[0,1]],"op":"pinPlay","positions":[40,30,20,10,0],"reversals":0,"s":0,"writes":[0],"writesLive":0,"y0":50}
+{"case":"nothing moves, the page is on the target","events":[["idle",200,0],["down"],["up"],["idle",200,0]],"faithWritesLive":0,"fights":0,"frames":[[0,1]],"op":"pinPlay","positions":[],"reversals":0,"s":0,"writes":[],"writesLive":0,"y0":0}
+{"case":"one move away, long quiet","events":[["move",70],["idle",300,0]],"faithWritesLive":1,"fights":0,"frames":[[0,1],[70,1]],"op":"pinPlay","positions":[70],"reversals":0,"s":0,"writes":[],"writesLive":0,"y0":0}
+{"case":"pan toward the target","events":[["move",80],["idle",200,0]],"faithWritesLive":1,"fights":0,"frames":[[100,1],[80,1],[0,1]],"op":"pinPlay","positions":[80,0],"reversals":0,"s":0,"writes":[0],"writesLive":0,"y0":100}
+{"case":"pan toward, written, then away again","events":[["move",80],["idle",200,0],["move",50],["idle",200,0]],"faithWritesLive":2,"fights":0,"frames":[[100,1],[80,1],[0,1],[50,1]],"op":"pinPlay","positions":[80,0,50],"reversals":1,"s":0,"writes":[0],"writesLive":0,"y0":100}
+{"case":"a touch stays down","events":[["down"],["move",80],["idle",5000,0]],"faithWritesLive":1,"fights":0,"frames":[[100,1],[80,1]],"op":"pinPlay","positions":[80],"reversals":0,"s":0,"writes":[],"writesLive":0,"y0":100}
+{"case":"the target moves between waits","events":[["move",80],["idle",200,60],["move",70],["idle",200,0]],"faithWritesLive":2,"fights":0,"frames":[[100,1],[80,1],[60,1],[70,1]],"op":"pinPlay","positions":[80,60,70],"reversals":1,"s":0,"writes":[60],"writesLive":0,"y0":100}
+{"case":"the target moves while the page is not quiet","events":[["move",80],["idle",50,0],["idle",100,20]],"faithWritesLive":1,"fights":0,"frames":[[100,1],[80,1],[20,1]],"op":"pinPlay","positions":[80,20],"reversals":0,"s":0,"writes":[20],"writesLive":0,"y0":100}
+{"case":"the target jumps over the page","events":[["move",70],["idle",300,90],["idle",300,0]],"faithWritesLive":1,"fights":0,"frames":[[0,1],[70,1],[90,1]],"op":"pinPlay","positions":[70,90],"reversals":0,"s":0,"writes":[90],"writesLive":0,"y0":0}
+{"case":"the page springs out and back twice","fights":2,"frames":[[0,1],[90,1],[0,1],[60,1],[0,1]],"moves":[90,60],"op":"pinFaith","positions":[90,0,60,0],"s":0,"writesLive":2,"y0":0}
+{"case":"one overscroll","fights":1,"frames":[[0,1],[90,1],[0,1]],"moves":[90],"op":"pinFaith","positions":[90,0],"s":0,"writesLive":1,"y0":0}
+{"case":"pan toward the target","fights":1,"frames":[[100,1],[80,1],[0,1],[60,1],[0,1]],"moves":[80,60],"op":"pinFaith","positions":[80,0,60,0],"s":0,"writesLive":2,"y0":100}
+{"case":"nothing","counts":{"declined":0,"due":0,"inactive":0,"live":0,"moved":0,"onTarget":0,"ran":false,"readings":0,"reversal":0,"touches":0,"touching":0,"wrote":0},"names":[],"op":"pinTrace"}
+{"case":"every kind","counts":{"declined":4,"due":1,"inactive":1,"live":1,"moved":1,"onTarget":1,"ran":true,"readings":6,"reversal":1,"touches":1,"touching":1,"wrote":1},"names":["inactive","due","touch","moved","write","touching","live","onTarget","reversal"],"op":"pinTrace"}
+{"case":"a pan and a decline","counts":{"declined":1,"due":1,"inactive":0,"live":0,"moved":2,"onTarget":0,"ran":true,"readings":3,"reversal":1,"touches":2,"touching":0,"wrote":0},"names":["touch","moved","moved","due","reversal","touch"],"op":"pinTrace"}
+{"case":"only inactive","counts":{"declined":0,"due":0,"inactive":2,"live":0,"moved":0,"onTarget":0,"ran":true,"readings":0,"reversal":0,"touches":0,"touching":0,"wrote":0},"names":["inactive","inactive"],"op":"pinTrace"}
+{"case":"a write after waiting","counts":{"declined":1,"due":2,"inactive":0,"live":1,"moved":1,"onTarget":0,"ran":true,"readings":3,"reversal":0,"touches":0,"touching":0,"wrote":1},"names":["moved","due","live","due","write"],"op":"pinTrace"}

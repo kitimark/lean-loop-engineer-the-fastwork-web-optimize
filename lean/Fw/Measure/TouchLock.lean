@@ -362,6 +362,79 @@ theorem lookKnown_some_needs (faith cand : List Nat) (l : Look) (h : lookKnown f
 theorem lookKnown_of_known (faith cand : List Nat) (h : known faith cand = true) :
     lookKnown faith cand = some (look faith cand) := by simp [lookKnown, h]
 
+structure Counted where
+  lock : Option Int
+  n : Nat
+deriving Repr, BEq
+
+def lockedOf (ks : List Counted) : List Nat := (ks.filter (·.lock.isSome)).map (·.n)
+
+inductive LockedCmp where
+  | undecided | na | out (c : Cmp)
+deriving Repr, BEq, DecidableEq
+
+def LockedCmp.name : LockedCmp → String
+  | .undecided => "undecided"
+  | .na => "n/a"
+  | .out c => c.name
+
+def lockedCmp (faith cand : List Counted) : LockedCmp :=
+  if faith.isEmpty || cand.isEmpty then .undecided
+  else if (lockedOf faith).isEmpty || (lockedOf cand).isEmpty then .na
+  else match cmpKnown (lockedOf faith) (lockedOf cand) with
+    | some c => .out c
+    | none => .undecided
+
+theorem lockedOf_none (ks : List Counted) (h : ∀ k ∈ ks, k.lock = none) : lockedOf ks = [] := by
+  unfold lockedOf
+  rw [List.map_eq_nil_iff, List.filter_eq_nil_iff]
+  intro k hk
+  simp [h k hk]
+
+theorem lockedCmp_na_cand (faith cand : List Counted) (hf : faith ≠ []) (hc : cand ≠ []) (h : ∀ k ∈ cand, k.lock = none) :
+    lockedCmp faith cand = .na := by
+  have hl := lockedOf_none cand h
+  have h1 : faith.isEmpty = false := by simpa using hf
+  have h2 : cand.isEmpty = false := by simpa using hc
+  simp [lockedCmp, h1, h2, hl]
+
+theorem lockedCmp_na_faith (faith cand : List Counted) (hf : faith ≠ []) (hc : cand ≠ []) (h : ∀ k ∈ faith, k.lock = none) :
+    lockedCmp faith cand = .na := by
+  have hl := lockedOf_none faith h
+  have h1 : faith.isEmpty = false := by simpa using hf
+  have h2 : cand.isEmpty = false := by simpa using hc
+  simp [lockedCmp, h1, h2, hl]
+
+theorem lockedCmp_undecided_empty_faith (cand : List Counted) : lockedCmp [] cand = .undecided := by simp [lockedCmp]
+
+theorem lockedCmp_undecided_empty_cand (faith : List Counted) : lockedCmp faith [] = .undecided := by simp [lockedCmp]
+
+theorem lockedCmp_out_locked (faith cand : List Counted) (c : Cmp) (h : lockedCmp faith cand = .out c) :
+    lockedOf faith ≠ [] ∧ lockedOf cand ≠ [] := by
+  unfold lockedCmp at h
+  split at h
+  · simp at h
+  · split at h
+    · simp at h
+    · rename_i _ h2
+      simp only [Bool.or_eq_true, not_or] at h2
+      constructor <;> intro e <;> simp_all
+
+theorem lockedCmp_all_locked (faith cand : List Counted) (hf : ∀ k ∈ faith, k.lock.isSome = true) (hc : ∀ k ∈ cand, k.lock.isSome = true)
+    (c : Cmp) (h : cmpKnown (faith.map (·.n)) (cand.map (·.n)) = some c) : lockedCmp faith cand = .out c := by
+  have e1 : lockedOf faith = faith.map (·.n) := by
+    unfold lockedOf; rw [List.filter_eq_self.mpr (by simpa using hf)]
+  have e2 : lockedOf cand = cand.map (·.n) := by
+    unfold lockedOf; rw [List.filter_eq_self.mpr (by simpa using hc)]
+  have hk := cmpKnown_some_needs _ _ _ h
+  have hfne : faith ≠ [] := by rintro rfl; simp [minSamples] at hk
+  have hcne : cand ≠ [] := by rintro rfl; simp [minSamples] at hk
+  have h1 : faith.isEmpty = false := by simpa using hfne
+  have h2 : cand.isEmpty = false := by simpa using hcne
+  have n1 : (faith.map (·.n)).isEmpty = false := by simpa using hfne
+  have n2 : (cand.map (·.n)).isEmpty = false := by simpa using hcne
+  simp [lockedCmp, h1, h2, e1, e2, n1, n2, h]
+
 theorem tally_le (rs : List Run) : (tally rs).2 ≤ (tally rs).1 := by
   simp only [tally]
   exact List.length_filter_le _ _
@@ -502,6 +575,17 @@ def cmpKnownCases : List (String × List Nat × List Nat) := [
   ("two runs each, separated", ([0, 1], [3, 4])),
   ("two candidate runs, separated", ([5, 6, 7], [0, 1]))]
 
+def lockedCmpCases : List (String × List Counted × List Counted) := [
+  ("both locked, candidate below", ([⟨some 5, 2⟩, ⟨some 5, 3⟩, ⟨some 5, 5⟩], [⟨some 5, 0⟩, ⟨some 5, 0⟩, ⟨some 5, 1⟩])),
+  ("candidate never stored a lock", ([⟨some 5, 2⟩, ⟨some 5, 3⟩, ⟨some 5, 5⟩], [⟨none, 0⟩, ⟨none, 0⟩, ⟨none, 0⟩, ⟨none, 0⟩])),
+  ("faithful never stored a lock", ([⟨none, 0⟩, ⟨none, 0⟩, ⟨none, 0⟩], [⟨some 5, 1⟩, ⟨some 5, 2⟩, ⟨some 5, 1⟩])),
+  ("both never stored a lock", ([⟨none, 0⟩], [⟨none, 0⟩])),
+  ("no candidate run", ([⟨some 5, 1⟩, ⟨some 5, 1⟩, ⟨some 5, 1⟩], [])),
+  ("no faithful run", ([], [⟨some 5, 1⟩])),
+  ("mixed candidate, locked runs only", ([⟨some 5, 4⟩, ⟨some 5, 5⟩, ⟨some 5, 6⟩], [⟨some 5, 0⟩, ⟨none, 9⟩, ⟨some 5, 1⟩, ⟨some 5, 0⟩])),
+  ("one locked run each", ([⟨some 5, 4⟩], [⟨some 5, 0⟩])),
+  ("candidate above", ([⟨some 5, 0⟩, ⟨some 5, 1⟩, ⟨some 5, 1⟩], [⟨some 5, 3⟩, ⟨some 5, 4⟩, ⟨some 5, 4⟩]))]
+
 def lookKnownCases : List (String × List Nat × List Nat) := [
   ("both steady", ([0, 0, 0], [0, 0, 0])),
   ("faithful displaced", ([0, 2, 0], [0, 0, 0])),
@@ -513,6 +597,9 @@ def lookKnownCases : List (String × List Nat × List Nat) := [
   ("one steady run each", ([0], [0])),
   ("two steady runs each", ([0, 0], [0, 0])),
   ("one candidate run, displaced", ([0, 0, 0], [1]))]
+
+open Lean in
+def countedJson (k : Counted) : Json := Json.arr #[match k.lock with | some l => toJson l | none => Json.null, toJson k.n]
 
 open Lean in
 def sampleJson (s : Sample) : Json := Json.arr #[toJson s.y, toJson (if s.isOpen then 1 else 0)]
@@ -547,6 +634,9 @@ def goldenLines (_ : Unit := ()) : List String :=
   let lks := lookKnownCases.map fun (name, f, c) =>
     (Json.mkObj [("op", "lookKnown"), ("case", Json.str name), ("faith", toJson f), ("cand", toJson c),
       ("out", Json.str (optName Look.name (lookKnown f c)))]).compress
+  let lcs := lockedCmpCases.map fun (name, f, c) =>
+    (Json.mkObj [("op", "lockedCmp"), ("case", Json.str name), ("faith", Json.arr (f.map countedJson).toArray),
+      ("cand", Json.arr (c.map countedJson).toArray), ("out", Json.str (lockedCmp f c).name)]).compress
   let ts := [("two arms", [⟨steadyFrames, steadyFrames, mk []⟩, ⟨fightFrames, fightFrames, mk [(5000, true)]⟩, neverOpen, shortOpen])].map fun (name, l) =>
     (Json.mkObj [("op", "tally"), ("case", Json.str name), ("runs", Json.arr (l.map fun r =>
       Json.mkObj [("frames", samplesJson r.frames), ("events", samplesJson r.events), ("calls", samplesJson r.calls)]).toArray),
@@ -558,7 +648,7 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("out", Json.str (afterWindow used stalled).name)]).compress
   let tg := (List.range 4).map fun n =>
     (Json.mkObj [("op", "tag"), ("restarts", toJson n), ("tag", Json.str (serveTag n))]).compress
-  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg ++ cks ++ lks
+  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg ++ cks ++ lks ++ lcs
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -588,6 +678,7 @@ def run (args : List String) : IO UInt32 := runText goldenText goldenLines.lengt
 #guard cmpKnown [] [1] == none
 #guard cmpKnown [0, 1] [3, 4] == none
 #guard cmpKnown [2, 3, 5] [0, 0, 1] == some .lower
+#guard lockedCmp [⟨some 5, 1⟩] [⟨none, 0⟩] == .na
 #guard lookKnown [] [] == none
 #guard lookKnown [0] [0] == none
 #guard lookKnown [0, 0, 0] [0, 0, 0] == some .same

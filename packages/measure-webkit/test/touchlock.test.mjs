@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { fights, reversals, openCalls, cmp, look, cmpKnown, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
+import { fights, reversals, openCalls, cmp, look, cmpKnown, lockedCmp, traceCounts, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
 import { restartServer, armTrees, armPath } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
@@ -63,10 +63,11 @@ test('open phase is the first open stretch only', () => {
 
 const fight = ops('run').find((g) => g.case === 'restore after a displaced frame');
 const steady = ops('run').find((g) => g.case === 'steady open phase');
+const steadyLocked = { ...steady, calls: [[steady.frames[3][0], 1]] };
 const rowOf = (arm, g) => ({ arm, frames: g.frames.map((f) => [...f, 0]), events: g.events.map((f) => [...f, 0]), calls: g.calls.map((f) => [...f, 0]) });
 
 test('summarize: a lock arm that never leaves the lock is lower; the look class is change while the base is displaced', () => {
-  const rows = [...Array(3).fill(0).flatMap(() => [rowOf('orig', fight), rowOf('base', fight), rowOf('lock', steady)]), { arm: 'lock', status: 'push:beginLate' }];
+  const rows = [...Array(3).fill(0).flatMap(() => [rowOf('orig', fight), rowOf('base', fight), rowOf('lock', steadyLocked)]), { arm: 'lock', status: 'push:beginLate' }];
   const s = summarize(rows);
   assert.equal(s.arms.base.jitterRuns, 3);
   assert.equal(s.arms.lock.jitterRuns, 0);
@@ -79,9 +80,58 @@ test('summarize: a lock arm that never leaves the lock is lower; the look class 
 });
 
 test('summarize: no fights anywhere is overlap and the same look', () => {
-  const s = summarize([0, 1, 2].flatMap(() => ARMS.map((a) => rowOf(a, steady))));
+  const s = summarize([0, 1, 2].flatMap(() => ARMS.map((a) => rowOf(a, steadyLocked))));
   assert.equal(s.verdicts.lockVsBase.fights, 'overlap');
   assert.equal(s.verdicts.look, 'same');
+});
+
+test('summarize: an arm whose runs stored no lock reads n/a for every lock-defined count, never lower', () => {
+  const s = summarize([0, 1, 2].flatMap(() => ARMS.map((a) => rowOf(a, steady))));
+  assert.deepEqual(s.verdicts.lockVsBase, { fights: 'n/a', restores: 'n/a', eventFights: 'n/a' });
+  assert.deepEqual(s.verdicts.pinVsBase, { fights: 'n/a', restores: 'n/a', eventFights: 'n/a' });
+  assert.match(markdown(s), /pin vs base: fights n\/a, restores n\/a, event fights n\/a; pin vs orig: fights n\/a/);
+});
+
+test('lockedCmp replays the Lean golden and never reads a verdict from an arm without a stored lock', () => {
+  assert.ok(ops('lockedCmp').length >= 8);
+  for (const g of ops('lockedCmp')) assert.equal(lockedCmp(g.faith, g.cand), g.out, g.case);
+  assert.ok(ops('lockedCmp').some((g) => g.out === 'n/a') && ops('lockedCmp').some((g) => g.out === 'lower') && ops('lockedCmp').some((g) => g.out === 'undecided'));
+});
+
+test('traceCounts replays the Lean golden', () => {
+  assert.ok(ops('pinTrace').length >= 5);
+  for (const g of ops('pinTrace')) assert.deepEqual(traceCounts(g.names), g.counts, g.case);
+});
+
+test('a window with a pin trace shows its counts, a window without one shows none', () => {
+  const entries = [['touch', 1, null, null, 1], ['moved', 2, 40, 0, 16], ['due', 3, null, 0, 120], ['reversal', 4, 40, 0, 200], ['inactive', 5, null, null, null]];
+  const rows = [{ ...rowOf('pin', steady), rep: 0, pin: { seen: 9, entries } }, { ...rowOf('base', steady), rep: 0, pin: null }, { ...rowOf('pin', steady), rep: 1, pin: { seen: 0, entries: [] } }];
+  const w = windowsOf(rows);
+  assert.equal(w[0].pin.seen, 9);
+  assert.deepEqual([w[0].pin.touches, w[0].pin.moved, w[0].pin.due, w[0].pin.reversal, w[0].pin.inactive, w[0].pin.ran], [1, 1, 1, 1, 1, true]);
+  assert.equal(w[1].pin, null);
+  assert.equal(w[2].pin.ran, false);
+  const md = markdown(summarize(rows));
+  assert.match(md, /\| window \| arm \| pin calls seen \|/);
+  assert.match(md, /\| 1 \| pin \| 9 \| 1 \| 1 \| 1 \| 1 \| 0 \| 0 \| 0 \| 0 \| 1 \| yes \|/);
+  assert.match(md, /\| 3 \| pin \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| no \|/);
+});
+
+test('the page hook records pin entries; the window keeps those from its first touchstart to its stop', async () => {
+  const listeners = {};
+  const win = { scrollY: 0, scrollTo: () => {}, innerHeight: 800 };
+  let t = 0;
+  const doc = { querySelector: () => ({ style: { getPropertyValue: () => '0' } }), documentElement: { classList: { toggle: () => {} } }, createElement: () => ({}), head: { appendChild: () => {} } };
+  const install = new Function('window', 'document', 'addEventListener', 'requestAnimationFrame', 'performance', `return ${installJs(false)}`);
+  install(win, doc, (n, f) => { listeners[n] = f; }, () => 0, { now: () => t });
+  t = 5; win.__fwPinTrace({ kind: 'pin', op: 'moved', y: 10, s: 0, dt: 16 });
+  t = 20; win.__fwPinTrace({ kind: 'pin', op: 'write', y: 0, s: 0, dt: 130, write: 0 });
+  t = 30; win.__fwPinTrace({ kind: 'push' });
+  t = 40; win.__fwPinTrace({ kind: 'pin', op: 'due', at: 40, ms: 80, s: 0 });
+  assert.equal(win.__tl.pinSeen, 3);
+  assert.deepEqual(win.__tl.pin.map((e) => e[0]), ['moved', 'write', 'due']);
+  assert.deepEqual(win.__tl.pin[1], ['write', 20, 0, 0, 0]);
+  assert.deepEqual(win.__tl.pin[2], ['due', 40, null, 0, 80]);
 });
 
 test('summarize: an arm with no accepted run is undecided, not overlap or the same look', () => {
@@ -199,7 +249,7 @@ test('markdown carries the push failure reason and one line per window with its 
 });
 
 test('end-pin rows: the metric counts the Lean fights and reversals over the frames', () => {
-  assert.ok(ops('pinPlay').length >= 8 && ops('pinFaith').length >= 1);
+  assert.ok(ops('pinPlay').length >= 11 && ops('pinFaith').length >= 1);
   for (const g of ops('pinPlay')) {
     assert.equal(fights(g.s, g.frames), g.fights, g.case);
     assert.equal(fights(g.s, g.frames), 0, g.case);
@@ -220,8 +270,8 @@ test('summarize: a pin arm that never writes has no open calls; it counts as unr
   assert.equal(s.arms.pin.unrestored, 3);
   assert.deepEqual(s.arms.pin.calls, [0, 0, 0]);
   assert.equal(s.arms.base.unrestored, 0);
-  assert.equal(s.verdicts.pinVsBase.fights, 'lower');
-  assert.match(markdown(s), /pin vs base: fights lower/);
+  assert.equal(s.verdicts.pinVsBase.fights, 'n/a');
+  assert.match(markdown(s), /pin vs base: fights n\/a/);
 });
 
 test('a window reloads the arm path: only the pin arm keeps its flag in the query, the others reload the root', () => {

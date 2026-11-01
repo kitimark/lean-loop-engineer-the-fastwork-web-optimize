@@ -13,6 +13,20 @@ export const reverses = (a: number | null, b: number, s: number): boolean => a !
 
 export const mayWrite = (p: Pin, s: number): boolean => !p.touching && QUIET_MS <= p.since && p.b !== s && !reverses(p.a, p.b, s);
 
+export const live = (q: Pin): boolean => q.touching || q.since < QUIET_MS;
+
+export type Why = 'touching' | 'live' | 'onTarget' | 'reversal';
+
+export function why(q: Pin, s: number): Why | null {
+  if (q.touching) return 'touching';
+  if (q.since < QUIET_MS) return 'live';
+  if (q.b === s) return 'onTarget';
+  if (reverses(q.a, q.b, s)) return 'reversal';
+  return null;
+}
+
+export const dueWhy = (q: Pin, s: number): Why | null => why({ ...q, since: QUIET_MS }, s);
+
 export const touch = (p: Pin, down: boolean): Pin => ({ ...p, touching: down, since: 0 });
 
 export const moved = (p: Pin, y: number): Pin => ({ ...p, since: 0, a: y === p.b ? p.a : p.b, b: y });
@@ -29,8 +43,15 @@ export function observe(p: Pin, s: number, y: number, dt: number): [Pin, number 
   return y === p.b ? idle(p, s, dt) : [moved(p, y), null];
 }
 
-export type Ev = ['move', number] | ['down'] | ['up'] | ['idle', number];
-export function play(s: number, p: Pin, es: readonly Ev[]): number[] {
+export type Outcome = 'moved' | 'write' | Why;
+
+export function outcome(p: Pin, s: number, y: number, dt: number): Outcome {
+  if (y !== p.b) return 'moved';
+  return why({ ...p, since: p.since + dt }, s) ?? 'write';
+}
+
+export type Ev = ['move', number] | ['down'] | ['up'] | ['idle', number, number];
+export function play(p: Pin, es: readonly Ev[]): number[] {
   const out: number[] = [];
   let cur = p;
   for (const e of es) {
@@ -38,7 +59,7 @@ export function play(s: number, p: Pin, es: readonly Ev[]): number[] {
       out.push(e[1]);
       cur = moved(cur, e[1]);
     } else if (e[0] === 'idle') {
-      const [next, w] = idle(cur, s, e[1]);
+      const [next, w] = idle(cur, e[2], e[1]);
       if (w !== null) out.push(w);
       cur = next;
     } else cur = touch(cur, e[0] === 'down');

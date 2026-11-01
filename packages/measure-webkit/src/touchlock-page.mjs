@@ -4,10 +4,17 @@ import { LOCK_CSS } from './touchlock.mjs';
 export const installJs = (lock) => `(() => {
   const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
   const root = document.documentElement;
-  const st = window.__tl = { on: false, fr: [], ev: [], ca: [], lock: ${lock ? 'true' : 'false'} };
+  const st = window.__tl = { on: false, fr: [], ev: [], ca: [], pin: [], pinSeen: 0, lock: ${lock ? 'true' : 'false'} };
   const open = () => (nav && Number(nav.style.getPropertyValue('--morph')) > 0.001 ? 1 : 0);
   const y10 = () => Math.round(window.scrollY * 10);
   if (st.lock) { const s = document.createElement('style'); s.textContent = ${JSON.stringify(LOCK_CSS)}; document.head.appendChild(s); }
+  const pinX = (e) => (e.op === 'write' ? e.write : e.op === 'due' ? e.ms : e.op === 'touch' ? (e.down ? 1 : 0) : (e.dt ?? null));
+  window.__fwPinTrace = (e) => {
+    if (!e || e.kind !== 'pin') return;
+    st.pinSeen++;
+    st.pin.push([e.op, Math.round(performance.now() * 10) / 10, e.y ?? null, e.s ?? null, pinX(e)]);
+    if (st.pin.length > 5000) st.pin.shift();
+  };
   const orig = window.scrollTo;
   const scrollTo = window.scrollTo.bind(window);
   window.scrollTo = function (...a) {
@@ -36,9 +43,11 @@ export const windowJs = `(async () => {
   const st = window.__tl;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let begun = false;
-  addEventListener('touchstart', () => { if (!begun) { begun = true; st.fr = []; st.ev = []; st.ca = []; st.on = true; } }, { capture: true, passive: true });
+  let t0 = 0;
+  addEventListener('touchstart', (e) => { if (!begun) { begun = true; t0 = e.timeStamp; st.fr = []; st.ev = []; st.ca = []; st.on = true; } }, { capture: true, passive: true });
   while (!window.__fwTouchStop) await sleep(40);
   st.on = false;
-  return { fr: st.fr, ev: st.ev, ca: st.ca, begun, origin: performance.timeOrigin, touch: window.__fwTouch || null,
+  const t1 = performance.now();
+  return { fr: st.fr, ev: st.ev, ca: st.ca, pin: { seen: st.pinSeen, entries: st.pin.filter((x) => x[1] >= t0 && x[1] <= t1) }, begun, origin: performance.timeOrigin, touch: window.__fwTouch || null,
     maxY10: Math.round((document.documentElement.scrollHeight - window.innerHeight) * 10), finalY10: Math.round(window.scrollY * 10) };
 })()`;

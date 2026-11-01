@@ -71,6 +71,24 @@ export const look = (faith, cand) => (faith.every((x) => x === 0) && cand.every(
 
 export const MIN_SAMPLES = 3;
 
+export const lockedOf = (ks) => ks.filter((k) => k[0] !== null).map((k) => k[1]);
+
+export function lockedCmp(faith, cand) {
+  if (faith.length === 0 || cand.length === 0) return 'undecided';
+  const f = lockedOf(faith);
+  const c = lockedOf(cand);
+  if (f.length === 0 || c.length === 0) return 'n/a';
+  return cmpKnown(f, c);
+}
+
+export function traceCounts(names) {
+  const n = (w) => names.filter((x) => x === w).length;
+  const c = { inactive: n('inactive'), due: n('due'), touches: n('touch'), moved: n('moved'), wrote: n('write'), touching: n('touching'), live: n('live'), onTarget: n('onTarget'), reversal: n('reversal') };
+  const declined = c.touching + c.live + c.onTarget + c.reversal;
+  const readings = c.moved + c.wrote + declined;
+  return { ...c, declined, readings, ran: c.inactive + readings > 0 };
+}
+
 export const known = (faith, cand) => faith.length >= MIN_SAMPLES && cand.length >= MIN_SAMPLES;
 
 export const cmpKnown = (faith, cand) => (known(faith, cand) ? cmp(faith, cand) : 'undecided');
@@ -108,7 +126,7 @@ const reasonOf = (status) => String(status ?? 'unknown').replace(/^(push|refused
 
 export function windowsOf(rows) {
   return rows.map((r, i) => {
-    const base = { n: i + 1, arm: r.arm, rep: r.rep ?? null };
+    const base = { n: i + 1, arm: r.arm, rep: r.rep ?? null, pin: r.pin ? { seen: r.pin.seen, ...traceCounts(r.pin.entries.map((e) => e[0])) } : null };
     if (!r.frames) return { ...base, state: String(r.status ?? '').startsWith('push:') ? 'push failed' : 'refused', reason: reasonOf(r.status) };
     const run = runOf(r);
     const why = refusal(run);
@@ -137,6 +155,7 @@ export function summarize(rows) {
       fights: kept.map((k) => k.frameFights), reversals: kept.map((k) => k.frameReversals), displaced: kept.map((k) => k.displacedFrames),
       restores: kept.map((k) => k.restores), eventFights: kept.map((k) => k.eventFights), eventReversals: kept.map((k) => k.eventReversals),
       locks: kept.map((k) => k.lock), calls: kept.map((k) => k.openCalls), unrestored: kept.filter((k) => k.openCalls === 0).length,
+      fightRuns: kept.map((k) => [k.lock, k.frameFights]), eventFightRuns: kept.map((k) => [k.lock, k.eventFights]), restoreRuns: kept.map((k) => [k.lock, k.restores]),
     };
   }
   const { orig, base, lock, pin } = arms;
@@ -144,10 +163,10 @@ export function summarize(rows) {
     arms,
     windows: windowsOf(rows),
     verdicts: {
-      lockVsBase: { fights: cmpKnown(base.fights, lock.fights), restores: cmpKnown(base.restores, lock.restores), eventFights: cmpKnown(base.eventFights, lock.eventFights) },
-      baseVsOrig: { fights: cmpKnown(orig.fights, base.fights), restores: cmpKnown(orig.restores, base.restores) },
-      pinVsBase: { fights: cmpKnown(base.fights, pin.fights), restores: cmpKnown(base.restores, pin.restores), eventFights: cmpKnown(base.eventFights, pin.eventFights) },
-      pinVsOrig: { fights: cmpKnown(orig.fights, pin.fights) },
+      lockVsBase: { fights: lockedCmp(base.fightRuns, lock.fightRuns), restores: lockedCmp(base.restoreRuns, lock.restoreRuns), eventFights: lockedCmp(base.eventFightRuns, lock.eventFightRuns) },
+      baseVsOrig: { fights: lockedCmp(orig.fightRuns, base.fightRuns), restores: lockedCmp(orig.restoreRuns, base.restoreRuns) },
+      pinVsBase: { fights: lockedCmp(base.fightRuns, pin.fightRuns), restores: lockedCmp(base.restoreRuns, pin.restoreRuns), eventFights: lockedCmp(base.eventFightRuns, pin.eventFightRuns) },
+      pinVsOrig: { fights: lockedCmp(orig.fightRuns, pin.fightRuns) },
       look: lookKnown(base.displaced, lock.displaced),
       pinLook: lookKnown(base.displaced, pin.displaced),
       pinWrites: pin.accepted === 0 ? 'undecided' : pin.unrestored === 0 ? 'every run wrote' : `${pin.unrestored} of ${pin.accepted} runs never wrote (their fights are 0 by definition)`,
@@ -169,6 +188,11 @@ export function markdown(s) {
   if (wins.length) {
     lines.push('', ...table('| window | arm | rep | state | reason | open frames | reversals | fights | displaced | restores | stored lock |',
       wins.map((w) => `| ${w.n} | ${w.arm} | ${w.rep ?? ''} | ${w.state} | ${w.reason ?? ''} | ${w.openFrames ?? ''} | ${w.reversals ?? ''} | ${w.fights ?? ''} | ${w.displaced ?? ''} | ${w.restores ?? ''} | ${w.state === 'open' ? (w.lock ?? 'none') : ''} |`)));
+    const traced = wins.filter((w) => w.pin);
+    if (traced.length) {
+      lines.push('', ...table('| window | arm | pin calls seen | inactive | touches | due | moved | writes | declined: touching | live | onTarget | reversal | ran |',
+        traced.map((w) => `| ${w.n} | ${w.arm} | ${w.pin.seen ?? ''} | ${w.pin.inactive} | ${w.pin.touches} | ${w.pin.due} | ${w.pin.moved} | ${w.pin.wrote} | ${w.pin.touching} | ${w.pin.live} | ${w.pin.onTarget} | ${w.pin.reversal} | ${w.pin.ran ? 'yes' : 'no'} |`)));
+    }
   }
   const v = s.verdicts;
   lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${lookText(v.look)}`);
