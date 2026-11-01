@@ -294,9 +294,10 @@ test('planLock: the four arms plan reps from the Lean tail budget, six at most, 
   const dl = 1_000_000_000_000 + 2_400_000;
   const at = (sec, over = {}) => planLock({ deadlineMs: dl, nowMs: 1_000_000_000_000 + sec * 1000, ...over });
   assert.deepEqual(at(276), { repPlan: { shape: 'endOnly', outcome: 'ok', reps: 6 }, reps: 6 });
-  assert.deepEqual(at(900).repPlan, { shape: 'endOnly', outcome: 'ok', reps: 6 });
-  assert.equal(at(1451).repPlan.reps, 5);
-  assert.equal(at(1452).repPlan.outcome, 'budgetShort');
+  assert.deepEqual(at(798).repPlan, { shape: 'endOnly', outcome: 'ok', reps: 6 });
+  assert.deepEqual(at(900).repPlan, { shape: 'endOnly', outcome: 'ok', reps: 5 });
+  assert.equal(at(950).repPlan.reps, 5);
+  assert.equal(at(951).repPlan.outcome, 'budgetShort');
   assert.equal(at(276, { repsArg: '2' }).reps, 2);
   assert.deepEqual(at(276, { deadlineMs: null }), { repPlan: null, reps: 6 });
 });
