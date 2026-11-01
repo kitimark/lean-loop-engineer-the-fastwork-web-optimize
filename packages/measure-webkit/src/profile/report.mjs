@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { join } from 'node:path';
 import { KINDS, ZONES, medianNat, zoneVerdict, profileFromRaw } from './reduce.mjs';
 import { readRaws } from './raw.mjs';
+import { JOBS_NEEDED, MIN_SAMPLES } from '../walk-budget.mjs';
 import { acrossDecisive, agreeNeeded, decisive, hitchVerdict, armRate, repOf, quantile, enoughN, countsOf, sumCounts } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 
 export const PAIRS = [['orig', 'base'], ['base', 'look'], ['orig', 'look'], ['base', 'v2'], ['base', 'bound']];
@@ -266,6 +267,27 @@ export function touchTable(jobs) {
   return out.join('\n');
 }
 
+// Lean Fw.Measure.WalkBudget: JOBS_NEEDED simulator jobs are planned and the across-jobs rule needs MIN_SAMPLES decisive ones, so up to JOBS_NEEDED - MIN_SAMPLES jobs may be lost.
+export function jobsTable(jobs, leg) {
+  const sim = jobs.filter((j) => j.leg === 'sim' && !isControl(j.file));
+  const out = [head(['job', 'rep plan', 'end touch windows (fewest per arm)', 'wall s', 'stopped', 'job verdicts'])];
+  for (const j of sim) {
+    const c = jobCadence(j.file, 'end touch', 'events');
+    const kept = j.file.arms.length ? Math.min(...j.file.arms.map((a) => c.arms[a].reps)) : 0;
+    const p = j.file.repPlan;
+    const v = Object.entries(c.verdicts).map(([k, x]) => `${k.replace('|', ', ')}: ${x}`).join('; ');
+    out.push(row([j.label, p ? `${p.shape ?? 'full'} ${p.outcome}, ${p.reps} reps${p.groups > 1 ? `, ${p.groups} jobs of arms` : ''}` : '-', kept, fmt(j.file.wallSeconds), j.file.incomplete ? shortWhy(j.file.incomplete).slice(0, 70) : '-', v || '-']));
+  }
+  out.push('', head(['pair (first, second)', 'jobs planned', 'jobs with a file', 'decisive', 'without a verdict', 'decisive needed', 'verdict over jobs']));
+  const vs = leg?.cadence?.['end touch|events']?.verdicts ?? {};
+  for (const [p, v] of Object.entries(vs)) {
+    const dec = v.first + v.second + v.same;
+    out.push(row([p.replace('|', ', '), JOBS_NEEDED, sim.length, dec, Math.max(0, JOBS_NEEDED - dec), MIN_SAMPLES, v.verdict]));
+  }
+  if (!Object.keys(vs).length) out.push(row(['no end touch windows', JOBS_NEEDED, sim.length, 0, JOBS_NEEDED, MIN_SAMPLES, 'insufficient']));
+  return out.join('\n');
+}
+
 export function runTable(jobs) {
   const out = [head(['job', 'leg', 'engine', 'version / runtime', 'arms', 'dropped by flags', 'windows', 'kept', 'refused (reason)', 'end push', 'wall s'])];
   for (const j of jobs) {
@@ -301,6 +323,7 @@ export function blocksOf(summary, jobs, minutes) {
     b[`${leg}-kinds`] = kindTable(s);
     b[`${leg}-cadence`] = cadenceTable(s);
     b[`${leg}-cadence-verdict`] = cadenceVerdictTable(s);
+    if (leg === 'sim') b['sim-jobs'] = jobsTable(jobs, s);
   }
   b.minutes = minutesTable(minutes);
   return b;

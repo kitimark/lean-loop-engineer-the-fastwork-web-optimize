@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { KINDS, profileWindow } from '../src/profile/reduce.mjs';
 import { medianNat } from '../src/profile/reduce.mjs';
 import { writeRaws } from '../src/profile/raw.mjs';
-import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, touchTable, isControl, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf } from '../src/profile/report.mjs';
+import { jobCell, poolCell, runTable, armWindows, cadenceTable, kindTable, jobVerdicts, acrossJobs, legSummary, touchTable, isControl, headlineTable, verdictTable, ratioTable, fillBlocks, loadRuns, rereduce, reportMain, minutesTable, minutesOf, jobsTable } from '../src/profile/report.mjs';
 
 const zero = () => KINDS.map((k) => [k, 0, 0]);
 const prof = (frames, perFrame, layout) => ({ frames, work: perFrame * frames / 10, perFrame, cells: zero().map((c) => (c[0] === 'Layout' ? ['Layout', layout, layout * 10] : c)) });
@@ -258,4 +258,18 @@ test('touchTable and isControl: the control job (Safari coordinates) is told apa
   const lines = touchTable([test, control]).split('\n').slice(2);
   assert.equal(lines[0], '| 1 | springboard | off | 3 | 2 | swipeLate 1 | 4000 | 6000 | 12000 | 30 |');
   assert.equal(lines[1], '| 4 | safari | off | 1 | 1 | - | 3000 | 4000 | 20000 | 40 |');
+});
+
+test('jobsTable: planned jobs, kept end touch windows, and the across-jobs verdict over the jobs that have a file', () => {
+  const th = [0, 167, 333, 500, 667, 1000];
+  const endRows = (arm, hs) => hs.map((h, rep) => ({ arm, window: 'end', rep, mode: 'events', ok: true, push: 'touch', timeline: false, ivs: [167, 167, 167, 167, 333], th, hitches: h, touched: { variant: 'springboard', outcome: 'ok' } }));
+  const job = (label, reps, repPlan, incomplete = null) => ({ label, leg: 'sim', file: { leg: 'sim', arms: ['orig', 'base', 'aa'], plan: { kept: [], dropped: [], flags: {} }, repPlan, incomplete, wallSeconds: 900, rows: [...endRows('orig', reps.map(() => 1)), ...endRows('base', reps.map(() => 9)), ...endRows('aa', reps.map(() => 9))] } });
+  const plan = { shape: 'endOnly', outcome: 'ok', reps: 6, groups: 1 };
+  const jobs = [job('1:a', [0, 0, 0, 0, 0], plan), job('2:a', [0, 0, 0, 0, 0, 0], plan), job('3:a', [0, 0, 0, 0, 0], plan), job('4:a', [0, 0], { ...plan, outcome: 'budgetShort' }, 'walk deadline: no time left to start base end rep 2')];
+  const leg = legSummary(jobs, () => ({}));
+  const lines = jobsTable(jobs, leg).split('\n');
+  assert.match(lines[2], /^\| 1:a \| endOnly ok, 6 reps \| 5 \| 900 \| - \| orig, base: first \|$/);
+  assert.match(lines[5], /^\| 4:a \| endOnly budgetShort, 6 reps \| 2 \| 900 \| walk deadline: no time left to start base end rep 2 \| orig, base: insufficient/);
+  assert.equal(lines[9], '| orig, base | 5 | 4 | 3 | 2 | 3 | first |');
+  assert.match(jobsTable([], null), /no end touch windows \| 5 \| 0 \| 0 \| 5 \| 3 \| insufficient/);
 });

@@ -23,6 +23,8 @@ const { pickWidths } = (await import(join(root, "packages/gate-breakpoints/src/t
 const widthsMax = (): number => { const ws = [390, 640, 641, 1280]; let best = 0; for (let m = 0; m < 16; m++) { const l = ws.filter((_, i) => m & (1 << i)); if (pickWidths(l.join(",")) !== null) best = Math.max(best, l.length); } return best; };
 /** the number of sets in `set: [1, 2, 3]` of smoothness.yml's plan step */
 const setsOf = (text: string): number => { const m = /set: \[((?:\d, )*\d)\]/.exec(text); if (!m) throw new Error("smoothness sets: no match"); return m[1]!.split(", ").length; };
+/** the longest list of `'[1,2,3]'` in the `webkit-sim` job of smoothness.yml */
+const simJobsMax = (text: string): number => { const from = text.indexOf("  webkit-sim:"); const sec = text.slice(from, text.indexOf("    env:", from)); const lists = [...sec.matchAll(/'\[([\d,]+)\]'/g)].map((m) => m[1]!.split(",").length); if (!lists.length) throw new Error("smoothness webkit-sim: no matrix list"); return Math.max(...lists); };
 const engines2 = 2; // `both` is [chromium, playwright-webkit] in the plan step of every workflow below
 
 /** The most one dynamic matrix can have, per `workflow/job`, with where the bound comes from (CONFIRMED by reading it, at the time of this commit). */
@@ -47,7 +49,8 @@ function dynamicMax(): Record<string, () => number> {
     // sim-speed.yml:121 `fromJSON(needs.plan.outputs.matrix)` = arms (any number of words, :105) x reps 1..3 (:104); unbounded, so the 5 macOS slots (runs-on xcode-27) are the bound
     "sim-speed/probe": () => 1e9,
     "smoothness/cadence": () => widthsMax() * setsOf(wf("smoothness.yml")),
-    "smoothness/webkit-sim": () => 4,
+    // smoothness.yml `webkit-sim` matrix: the longest job list of its `fromJSON('[..]')` choices (5 jobs, 6 with the control job)
+    "smoothness/webkit-sim": () => simJobsMax(wf("smoothness.yml")),
     "toolbar-throttle/sim": () => 6,
     "trajectory-probe/probe": () => traj().linux,
     "trajectory-probe/probe-apple": () => traj().apple,

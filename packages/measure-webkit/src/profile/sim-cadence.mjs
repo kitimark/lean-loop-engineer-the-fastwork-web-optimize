@@ -12,7 +12,7 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, planReps, repsLife, outcome } from '../walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, planReps, repsLife, outcome, groupsFor } from '../walk-budget.mjs';
 
 const BLOCK_MS = 15 * 60000;
 
@@ -35,6 +35,21 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
+const CONTROLS = ['base', 'aa'];
+
+// Lean Fw.Measure.WalkBudget: the walk plan, made when the Simulator is booted, the touch driver runs and Safari is open. Touch end pushes are the
+// decision window of the touch lanes, so with the driver up each arm walks only its end window (`endOnly`); otherwise hero and end (`full`).
+export function planSim({ deadlineMs, nowMs, touchOn, armIds, repsArg = 'auto' }) {
+  const shape = touchOn ? 'endOnly' : 'full';
+  const n = armIds.length;
+  const wins = shape === 'endOnly' ? ['end'] : ['hero', 'end'];
+  if (deadlineMs == null) return { shape, wins, repPlan: null, reps: repsArg !== 'auto' ? Number(repsArg) : repsLife(shape, n) };
+  const out = outcome(deadlineMs, nowMs, shape, n);
+  const controls = armIds.filter((a) => CONTROLS.includes(a)).length;
+  const groups = out === 'ok' ? 1 : groupsFor(deadlineMs, nowMs, shape, controls, n - controls);
+  return { shape, wins, repPlan: { shape, outcome: out, reps: planReps(deadlineMs, nowMs, shape, n), groups }, reps: repsArg !== 'auto' ? Number(repsArg) : planReps(deadlineMs, nowMs, shape, n) };
+}
+
 export function windowVerdict(pw, timelineOn) {
   return timelineOn ? { ok: pw.ok, reason: pw.reason ?? null } : { ok: true, reason: 'timeline-off' };
 }
@@ -43,9 +58,9 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
   const end = endPushFor(holdMs);
   const plan = only ? { kept: [], dropped: [], flags: {} } : sessionPlan(lookSearch);
   const arms = simArms(plan, siteDir, lookSearch, only);
-  const repPlan = deadlineMs == null ? null : { outcome: outcome(deadlineMs, now(), arms.length), reps: planReps(deadlineMs, now(), arms.length) };
-  const reps = repsArg !== 'auto' ? Number(repsArg) : repPlan ? repPlan.reps : repsLife(arms.length);
-  log(`webkit sim: ${reps} reps of ${arms.length} arms (${repsArg === 'auto' ? `rep plan ${repPlan?.outcome ?? 'without a deadline'}` : 'set by hand'})`);
+  let reps = 0;
+  let repPlan = null;
+  let wins = ['hero', 'end'];
   const device = findDevice();
   const started = Date.now();
   const rows = [];
@@ -121,9 +136,12 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
           await reconnect(ctx, { log });
         } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
+      const planned = planSim({ deadlineMs, nowMs: now(), touchOn: touch.on, armIds: arms.map((a) => a.id), repsArg });
+      ({ reps, repPlan, wins } = planned);
+      log(`webkit sim: ${reps} reps of ${arms.length} arms, ${planned.shape} windows (${repsArg === 'auto' ? `rep plan ${repPlan ? `${repPlan.outcome}${repPlan.outcome === 'ok' ? '' : `, ${repPlan.groups ?? 'no'} jobs of arms would fit`}` : 'without a deadline'}` : 'set by hand'})`);
       walk: for (let rep = 0; rep < reps && !refused; rep++) {
         for (const a of orderFor(arms, rep)) {
-          for (const win of ['hero', 'end']) {
+          for (const win of wins) {
             const t0 = Date.now();
             let got = null;
             for (let attempt = 1; !got; attempt++) {
