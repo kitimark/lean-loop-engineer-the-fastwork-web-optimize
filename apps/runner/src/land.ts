@@ -24,6 +24,7 @@ const span: typeof rawSpan = (tool, step, fn, exitOf) => rawSpan(tool, stepPrefi
 import { cachedLaneView, circleciAdapter, DEFAULT_ALLOW, githubAdapter, makePusher, BUILD_ARGV, runTiered, spawnWait, type Adapter, type OverflowPlan, type Provider } from "./land-remote.ts";
 import { ccStatusFrom, forceFullFromEnv, ghStatusOnce, overflowFor, readSlots, realCircle } from "./land-overflow.ts";
 import { fileIntents } from "./land-intent.ts";
+import { dryRecordLake, dryVerdict, DRY_WAVES, type DryPhase, type DryRes } from "./land-dry.ts";
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { noteShapeProblems } from "./land-notes.ts";
@@ -215,14 +216,21 @@ export const selectBin = (ds: { id: string; reads: string[] }[], changed: string
 export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
   selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
 
-export function checkDeps(list: string[][]): number[][] {
-  const isInstall = (a: string[]) => a[0] === "pnpm" && a[1] === "install";
-  const isCheckSh = (a: string[]) => a[0] === "sh" && (a[1] === "lean/scripts/check.sh" || a[1] === BUILD_ARGV[1]);
-  const usesCore = (a: string[]) => a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`);
-  const idx = (f: (a: string[]) => boolean) => list.flatMap((a, i) => (f(a) ? [i] : []));
-  const inst = idx(isInstall), sh = idx(isCheckSh);
-  return list.map((a, i) => [...(isInstall(a) ? [] : inst), ...(usesCore(a) ? sh : [])].filter((d) => d !== i));
+export type CheckKind = "install" | "lakeLint" | "fwcoreBuild" | "coreUser" | "other";
+export function checkKind(a: string[]): CheckKind {
+  if (a[0] === "pnpm" && a[1] === "install") return "install";
+  if (isLakeLint(a)) return "lakeLint";
+  if (a.join("\0") === BUILD_ARGV.join("\0") || (a[0] === "sh" && a[1] === "lean/scripts/check.sh")) return "fwcoreBuild";
+  if (a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`)) return "coreUser";
+  return "other";
 }
+const buildsLake = (k: CheckKind) => k === "lakeLint" || k === "fwcoreBuild";
+export function kindDeps(ks: CheckKind[]): number[][] {
+  const dep = (a: CheckKind, b: CheckKind): boolean =>
+    a === "install" ? false : b === "install" ? true : (a === "fwcoreBuild" && b === "lakeLint") || (a === "coreUser" && (b === "fwcoreBuild" || b === "lakeLint"));
+  return ks.map((a, i) => ks.flatMap((b, j) => (j !== i && (dep(a, b) || (buildsLake(a) && a === b && j < i)) ? [j] : [])));
+}
+export const checkDeps = (list: string[][]): number[][] => kindDeps(list.map(checkKind));
 
 export const READS_SCAN_ID = "reads-scan";
 export const READS_SCAN_ARGV = ["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"];
@@ -803,8 +811,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   };
   let badKind: Kind = "checks";
   const builds: number[] = [];
-  const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
-    badKind = "checks";
+  type Folded = { bad: string | null; kind: Kind };
+  const runChecksSplit = async (cwd: string, list: string[][], groups: number[][]): Promise<Folded[]> => {
     mkdirSync(join(mainDir, ".fw-console", "land-logs"), { recursive: true });
     if (!logStarted) { writeFileSync(logFile, ""); logStarted = true; }
     const deps = checkDeps(list);
@@ -836,25 +844,33 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       const p = await span("fw land", `${argv.join(" ")} (retry alone: timed out under load)`, () => runCheck(cwd, argv), (r) => r.status);
       results[i] = { status: p.status, out: `${r0.out}\n[timed out under load; re-run alone]\n${p.stdout}${p.stderr}${p.error ? String(p.error) : ""}` };
     }
-    const bad: string[] = [], failedChecks: { reads: boolean; stages: string[] }[] = [];
+    const badAt: string[] = [], failedAt: ({ reads: boolean; stages: string[] } | null)[] = list.map(() => null);
     list.forEach((argv, i) => {
       const r = results[i]!;
       builds.push(builtModules(r.out));
       appendFileSync(logFile, `$ ${argv.join(" ")}  (cwd ${cwd})\n${r.out}\n[exit ${r.status}]\n\n`);
       if (r.status !== 0) {
-        failedChecks.push({ reads: READS_FAIL_RE.test(r.out), stages: failedStages(r.out) });
+        failedAt[i] = { reads: READS_FAIL_RE.test(r.out), stages: failedStages(r.out) };
         const tail = r.out.split("\n").filter((l) => l !== "").slice(-30).join("\n");
-        bad.push(`check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`);
+        badAt[i] = `check FAILED: ${argv.join(" ")}\nlog: ${logFile}\n${tail}`;
       } else lines.push(`check ok: ${argv.join(" ")}`);
     });
-    if (failedChecks.length) badKind = checkFailKind(failedChecks);
-    return bad.length ? bad.join("\n\n") : null;
+    return groups.map((g) => {
+      const failed = g.flatMap((i) => (failedAt[i] ? [failedAt[i]!] : []));
+      return { bad: failed.length ? g.flatMap((i) => (badAt[i] === undefined ? [] : [badAt[i]!])).join("\n\n") : null, kind: failed.length ? checkFailKind(failed) : "checks" } as Folded;
+    });
+  };
+  const runChecks = async (cwd: string, list: string[][]): Promise<string | null> => {
+    badKind = "checks";
+    const [f] = await runChecksSplit(cwd, list, [list.map((_, i) => i)]);
+    if (f!.bad !== null) badKind = f!.kind;
+    return f!.bad;
   };
   if (dm) {
     const { main0, tree } = dm;
     const c = git(mainDir, ["commit-tree", tree, "-p", main0, "-p", sha, "-m", `dry ${branch}`]);
     const slot = claimLandWt(mainDir, c);
-    let lakeKey: LakeKey | null = null, lakeSkipped = false, dryPlan: string[][] | null = null;
+    let lakeKey: LakeKey | null = null, lakeSkipped = false, dryPlan: string[][] | null = null, detail = "";
     try {
       const instDry = checkoutLandWt(mainDir, slot.dir, c, o.dryReads ? undefined : prepLandWt(o.installExec, o.installFs));
       if (instDry) return fail(instDry, "install", outcome({ installs: false }));
@@ -866,60 +882,62 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       lines.push(`dry: merge ok (${main} ${main0.slice(0, 7)}, tip ${sha.slice(0, 7)}), no conflict markers`);
       await claimsLint(slot.dir);
       const selected = o.dryReads?.selected ?? selectChecks(candidateChecks(slot.dir), changed).includes(READS_SCAN_ID);
-      let test = true, detail = "";
-      if (selected) {
-        const argv = o.dryReads?.argv ?? READS_SCAN_ARGV;
-        const bad = await runChecks(slot.dir, [argv]);
-        test = bad === null; detail = bad ?? "";
-        if (test) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
-        dryIds.push(READS_SCAN_ID);
-      } else lines.push("dry: reads not selected (the change selects no read-set scan, so the real land does not run the test either)");
-      const reads = !selected || test;
-      let lints = true;
-      if (reads) {
-        let lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
-        if (!o.dryLints && process.env.FW_LAND_LAKE_CACHE !== "off" && lintArgv.some(isLakeLint)) {
-          lakeKey = lakeKeyOf(mainDir, tree);
-          if (lakeKey) {
-            const revs = git(mainDir, ["rev-list", "--first-parent", "-n", "12", `${main}..${sha}`]).split("\n").filter(Boolean);
-            if (!runLake(true, lakeRecords(join(mainDir, ".fw-console"), mainDir, revs, lakeKey), lakeKey)) {
-              lintArgv = withoutLake(lintArgv);
-              lakeSkipped = true;
-              lines.push(`dry: lake build and axiom check skipped (a pass is on record for the lean/ tree ${lakeKey.lean.slice(0, 12)} and the golden tree ${lakeKey.golden.slice(0, 12)})`);
-            }
+      let lintArgv = o.dryLints ?? dryLintArgv(slot.dir, changed);
+      if (!o.dryLints && process.env.FW_LAND_LAKE_CACHE !== "off" && lintArgv.some(isLakeLint)) {
+        lakeKey = lakeKeyOf(mainDir, tree);
+        if (lakeKey) {
+          const revs = git(mainDir, ["rev-list", "--first-parent", "-n", "12", `${main}..${sha}`]).split("\n").filter(Boolean);
+          if (!runLake(true, lakeRecords(join(mainDir, ".fw-console"), mainDir, revs, lakeKey), lakeKey)) {
+            lintArgv = withoutLake(lintArgv);
+            lakeSkipped = true;
           }
         }
-        dryPlan = lintArgv;
-        dryIds.push(...lintArgv.map(lintCheckId));
+      }
+      const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
+      const needsBuild = local.length > 0 && !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || lakeSkipped || !existsSync(join(slot.dir, FWCORE_BIN)));
+      const lakeRuns = lintArgv.some(isLakeLint);
+      const readsArgv = selected ? [o.dryReads?.argv ?? READS_SCAN_ARGV] : [];
+      const localArgv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
+      dryPlan = lintArgv;
+      dryIds.push(...(selected ? [READS_SCAN_ID] : []), ...lintArgv.map(lintCheckId), ...(needsBuild ? ["fwcore-build"] : []), ...local.map((t) => t.id));
+      if (lakeSkipped) lines.push(`dry: lake build and axiom check skipped (a pass is on record for the lean/ tree ${lakeKey!.lean.slice(0, 12)} and the golden tree ${lakeKey!.golden.slice(0, 12)})`);
+      const folded: Partial<Record<DryPhase, Folded>> = {};
+      for (const wave of DRY_WAVES) {
+        const parts = wave.map((ph) => ({ ph, argv: ph === "reads" ? readsArgv : ph === "lints" ? lintArgv : localArgv })).filter((x) => x.argv.length > 0);
+        const list = parts.flatMap((x) => x.argv);
+        let at = 0;
+        const groups = parts.map((x) => { const g = x.argv.map((_, i) => at + i); at += x.argv.length; return g; });
+        const res = list.length ? await runChecksSplit(slot.dir, list, groups) : [];
+        parts.forEach((x, i) => { folded[x.ph] = res[i]!; });
+      }
+      const passes = (ph: DryPhase): boolean => (folded[ph] ? folded[ph]!.bad === null : true);
+      const refused = (ph: DryPhase): void => { detail = folded[ph]?.bad ?? ""; badKind = folded[ph]?.kind ?? "checks"; };
+      const reads = passes("reads");
+      let ledgerBad: string | null = null;
+      if (!reads) lines.push("dry: lints not judged (reads refused first)");
+      else {
+        if (selected) lines.push("dry: reads ok (the static land-inputs test passes on the merge tree)");
+        else lines.push("dry: reads not selected (the change selects no read-set scan, so the real land does not run the test either)");
         dryStep = dryTotalStep(lintArgv, false);
-        if (lintArgv.length) {
-          const bad = await runChecks(slot.dir, lintArgv);
-          lints = bad === null; detail = bad ?? "";
-          if (lints && lakeKey && !lakeSkipped && lintArgv.some(isLakeLint)) {
+        if (passes("lints")) {
+          if (lakeKey && !lakeSkipped && dryRecordLake({ reads, lints: true, ledger: true, local: true }, lakeRuns)) {
             const f = lakePassFile(join(mainDir, ".fw-console"), lakeKey);
             mkdirSync(dirname(f), { recursive: true });
             writeFileSync(f, `${new Date().toISOString()}\n`);
           }
-        }
-      } else lines.push("dry: lints skipped (reads refused first)");
-      if (reads && lints) {
-        const bad = ledgerNoteKeyCheck(slot.dir);
-        lints = bad === null; detail = bad ?? "";
-        if (lints) lines.push(`dry: ledger notes ok (one note per (entry, task) in ${LEDGER_FILE})`);
-      }
-      if (reads && lints) {
-        const local = (o.dryLocal ?? LOCAL_GATES).filter((t) => selectChecks([t], changed).length > 0);
-        if (local.length) {
-          const needsBuild = !o.dryLocal && local.some((t) => FWCORE_USERS.includes(t.id)) && (phase1Build(changed) || lakeSkipped || !existsSync(join(slot.dir, FWCORE_BIN)));
-          dryStep = dryTotalStep(dryPlan ?? o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
-          if (needsBuild) dryIds.push("fwcore-build");
-          dryIds.push(...local.map((t) => t.id));
-          const argv = [...(needsBuild ? [["sh", "scripts/fwcore-build.sh"]] : []), ...local.map((t) => t.argv)];
-          const bad = await runChecks(slot.dir, argv);
-          lints = bad === null; detail = bad ?? "";
-          if (lints) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
+          ledgerBad = ledgerNoteKeyCheck(slot.dir);
+          if (ledgerBad === null) lines.push(`dry: ledger notes ok (one note per (entry, task) in ${LEDGER_FILE})`);
         }
       }
+      const dryRes: DryRes = { reads, lints: passes("lints"), ledger: ledgerBad === null, local: !local.length || passes("local") };
+      if (reads && dryRes.lints && dryRes.ledger && local.length) {
+        dryStep = dryTotalStep(dryPlan ?? o.dryLints ?? dryLintArgv(slot.dir, changed), needsBuild);
+      }
+      const refusal = dryVerdict(dryRes);
+      if (refusal === "ledger") detail = ledgerBad ?? "";
+      else if (refusal) refused(refusal);
+      else if (local.length) lines.push(`dry: local tests ok (${local.map((t) => t.id).join(", ")})`);
+      const lints = !reads || refusal === null;
       const oc = outcome({ reads, lints });
       if (outcomeKind(oc) !== "dry") return fail(detail || `dry land refused: ${outcomeKind(oc)}`, "unknown", oc);
       lines.push(`dry ok at ${main} ${main0.slice(0, 7)}: the land's scope, merge, reads and fast lints pass unless ${main} moves`);

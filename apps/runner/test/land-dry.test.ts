@@ -86,6 +86,22 @@ describe("fw land --dry", () => {
     expect(ok.kind).toBe("dry");
     expect(text(ok)).toContain("dry: ledger notes ok (one note per (entry, task) in research/findings/ledger.json)");
   });
+  it("when two phases fail the refusal names the first in the golden order (dryVerdict): reads over local, ledger over local", async () => {
+    const { fx, wt, opts } = await setup(["research/**", "src/**"]);
+    const badLocal = { dryLocal: [{ id: "console-api:compose", reads: ["**"], argv: ["sh", "-c", "echo LOCALFAIL; exit 1"] }] };
+    fx.commit(wt, "src/a.ts");
+    const r1 = await land(BR, { ...opts, dry: true, ...reads(["sh", "-c", "echo READSFAIL; exit 1"]), dryLints: [], ...badLocal });
+    expect(r1.kind).toBe("reads");
+    expect(text(r1)).toContain("READSFAIL");
+    expect(text(r1)).not.toContain("LOCALFAIL");
+    expect(text(r1)).toContain("dry: lints not judged (reads refused first)");
+    const note = (task: string, field: string) => ({ entry: "e1", task, field, text: `${task} ${field}` });
+    fx.commit(wt, "research/findings/ledger.json", JSON.stringify({ findings: [{ n: 1, candidate: "e1", mechanism: "", missingWhy: "", next: "" }], notes: [note("t1", "mechanism"), note("t1", "next")] }, null, 1) + "\n");
+    const r2 = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...badLocal });
+    expect(r2.kind).toBe("lint");
+    expect(text(r2)).toContain("ledger-note-key");
+    expect(text(r2)).not.toContain("dry: local tests ok");
+  });
   it("path-pix 4 -> 6 (incident 2026-10-24): a workflow file change runs the overflow width test and the dry land refuses the stale row", async () => {
     const { fx, wt, opts } = await setup([".github/**"]);
     fx.commit(wt, ".github/workflows/path-pix.yml");
