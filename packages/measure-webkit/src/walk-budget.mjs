@@ -2,11 +2,18 @@ import { pathToFileURL } from 'node:url';
 
 const MINUTE_MS = 60000;
 
-export const JOB = Object.freeze({ timeoutMs: 2700000, postMs: 600000, graceMs: 120000, slackMs: 480000 });
+export const JOB = Object.freeze({ timeoutMs: 3600000, postMs: 600000, graceMs: 120000, slackMs: 480000 });
 
 export const GAPS = Object.freeze({ clockMs: 6000, driftMs: 50000, completeMs: 4000, overrunMs: 420000 });
 
 export const MIN_KEPT = 5;
+
+export const REPS_WANT = 6;
+
+// Lean readyAllowMs: how long the harness waits for the touch driver; the plan clock is read after it answers.
+export const READY_ALLOW_MS = 480000;
+
+export const SETUP_WORST_MS = 900000;
 
 export const LIFE_WINDOWS = 36;
 
@@ -37,7 +44,7 @@ export const repsFit = (dl, now, shape, arms) => {
 
 export const repsLife = (shape, arms) => (windowsPerRep(shape, arms) === 0 ? 0 : Math.floor(LIFE_WINDOWS / windowsPerRep(shape, arms)));
 
-export const planReps = (dl, now, shape, arms) => Math.min(repsLife(shape, arms), repsFit(dl, now, shape, arms));
+export const planReps = (dl, now, shape, arms) => Math.min(repsLife(shape, arms), repsFit(dl, now, shape, arms), REPS_WANT);
 
 export const outcome = (dl, now, shape, arms) => (repsLife(shape, arms) < MIN_KEPT ? 'lifeShort' : repsFit(dl, now, shape, arms) < MIN_KEPT ? 'budgetShort' : 'ok');
 

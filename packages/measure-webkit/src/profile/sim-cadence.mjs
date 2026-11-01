@@ -12,9 +12,23 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, planReps, repsLife, outcome, groupsFor } from '../walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planReps, repsLife, outcome, groupsFor } from '../walk-budget.mjs';
 
 const BLOCK_MS = 15 * 60000;
+
+// Node's HTTP client (undici) threw `setTypeOfService EINVAL` out of a socket write on a loaded runner and ended the process after 7 windows (run 41345594217 job 4).
+// That fault belongs to one request, which the harness's own timeout and retry then handle; any other uncaught error still ends the process.
+export const isSocketTosFault = (e) => e?.code === 'EINVAL' && e?.syscall === 'setTypeOfService';
+
+export function guardSocketFault(log, proc = process) {
+  const on = (e) => {
+    if (isSocketTosFault(e)) { log(`webkit sim: ignored a socket fault (${e.message}); the request it belonged to times out and is retried`); return; }
+    console.error(e?.stack ?? String(e));
+    proc.exit(1);
+  };
+  proc.on('uncaughtException', on);
+  return () => proc.removeListener('uncaughtException', on);
+}
 
 export function simArms(plan, siteDir, lookSearch, only) {
   const out = [
@@ -68,6 +82,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
   let refused = false;
   let error = null;
   let ua = '';
+  const unguard = guardSocketFault(log);
   const opened = openDriver(touchDriver);
   const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
 
@@ -132,7 +147,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
     const walk = withSession(async (ctx) => {
       if (touch.on) {
         try {
-          touch.server = await startServer(touch.driver, { udid: device.udid, log });
+          touch.server = await startServer(touch.driver, { udid: device.udid, log, readyMs: READY_ALLOW_MS });
           await reconnect(ctx, { log });
         } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
@@ -180,6 +195,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
     log(`webkit sim: INCOMPLETE after ${rows.length} windows (${error})`);
   } finally {
     if (touch.server) await Promise.race([stopServer(touch.server), sleep(25000)]);
+    unguard();
   }
   return snapshot(error);
 }

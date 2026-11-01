@@ -18,7 +18,7 @@ name: smoothness
 # `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Simulator jobs: 5 of them (Lean `Fw.Measure.WalkBudget.jobsNeeded`: the 3 decisive jobs the across-jobs rule asks, `Fw.Gate.Smooth.minSamples`, plus a margin of 2 lost
 # jobs; the 5 free macOS slots hold them all). Reps per job come from `planReps` (`--reps auto`), planned once the Simulator is booted, the touch driver runs and Safari is open: with the driver each arm walks only its end
 # window (touch pushes), 5 kept windows per arm (`Fw.Gate.Smooth.minReps`) being the minimum for a verdict; the time is a tail budget, not the mean (a window's 75th percentile, 29 s, plus one 99th-percentile slot, 398 s, per 20 windows; the walk
-# deadline is job start + 25 min), so 3 arms plan 6 reps from a walk that starts within 4.6 min and 5 reps up to 11.6 min; a walk that starts later is `budgetShort`, 4 arms still plan ok, 5 or more are `budgetShort` and `sim.json`'s `repPlan.groups` says how many jobs of arms would fit; `sim.json` records `repPlan`.
+# deadline is job start + 40 min of the 60 min job: 10 min of post steps, 2 min grace, 8 min slack), so 3 or 4 arms plan 6 reps (at most `repsWant`) from a walk that starts within 15 min (the longest setup seen, `setupWorstMs`; the driver may take 8 min, `readyAllowMs`) and 5 reps up to 26.6 min (3 arms) or 24.2 min (4 arms); a walk that starts later is `budgetShort`, 5 arms plan ok to the same start, 8 or more are `lifeShort` and `sim.json`'s `repPlan.groups` says how many jobs of arms would fit; `sim.json` records `repPlan`.
 # `[touch-lock]` (task touch-lock-page-end, with `[webkit-cadence] [sim-only]`) runs simulator jobs that flick the page into its end with real touches in the original, the faithful build, a CSS-lock candidate and the morph.tween:end-pin variant (two jobs, task end-pin-no-fight; the commit's `[trajectory fw=...]` line names the pin flag the site is built with)
 # (packages/measure-webkit/src/touchlock-cli.mjs; Lean Fw.Measure.TouchLock) and counts scroll reversals while the morph is open.
 # `[sim-touch-control]` adds a 6th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 5 take them from SpringBoard. Both skip the Timeline in touch
@@ -392,7 +392,7 @@ jobs:
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 45
+    timeout-minutes: 60
     name: webkit sim (mobile safari, xcode-27) job ${{ matrix.job }}
     strategy:
       # Lean Fw.Measure.WalkBudget: jobsNeeded = 5 (minSamples 3 plus a margin of 2 lost jobs) and macSlots = 5, so all jobs of a run start at once;

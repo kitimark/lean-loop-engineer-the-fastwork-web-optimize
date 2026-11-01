@@ -12,7 +12,7 @@ structure Job where
   slackMs : Nat
 deriving Repr, BEq
 
-def job : Job := ⟨2700000, 600000, 120000, 480000⟩
+def job : Job := ⟨3600000, 600000, 120000, 480000⟩
 
 def postSteps : List (String × Nat) :=
   [("host state", 60000), ("upload", 120000), ("upload retry", 120000), ("shutdown", 120000), ("telemetry", 120000)]
@@ -118,7 +118,7 @@ theorem runsWalk_true (j : Job) (elapsed dl needMin : Nat) (h : needMin ≤ step
 
 theorem static_sum_exceeds : deadlineAt job < 18 * 145600 := by decide
 
-theorem deadline_value : deadlineAt job = 1500000 := by decide
+theorem deadline_value : deadlineAt job = 2400000 := by decide
 
 theorem job_ends_inside_gaps (elapsed : Nat) (hc : elapsed ≤ deadlineAt job + job.graceMs) :
     elapsed + gaps.clockMs + gaps.driftMs + gaps.overrunMs + stepMinutes job elapsed (deadlineAt job) * minuteMs + job.postMs + gaps.completeMs ≤ job.timeoutMs := by
@@ -209,7 +209,12 @@ def repsFit (dl now : Nat) (s : Shape) (arms : Nat) : Nat :=
 
 def repsLife (s : Shape) (arms : Nat) : Nat := lifeWindows / windowsPerRep s arms
 
-def planReps (dl now : Nat) (s : Shape) (arms : Nat) : Nat := min (repsLife s arms) (repsFit dl now s arms)
+/-- The reps a plan asks for at most: the minimum plus one for a refused window, so a healthy job ends early and a slow one is cut by the deadline. -/
+def repsWant : Nat := 6
+
+theorem minKept_le_repsWant : minKept ≤ repsWant := by decide
+
+def planReps (dl now : Nat) (s : Shape) (arms : Nat) : Nat := min (min (repsLife s arms) (repsFit dl now s arms)) repsWant
 
 inductive Outcome where
   | ok
@@ -247,7 +252,7 @@ theorem repsFitAux_fits (b w : Nat) : ∀ k, blockMs (repsFitAux b w k * w) ≤ 
 /-- The reps of a plan fit the time left, at the block budget. -/
 theorem planReps_fits (dl now : Nat) (s : Shape) (arms : Nat) :
     blockMs (planReps dl now s arms * windowsPerRep s arms) ≤ dl - now := by
-  have hle : planReps dl now s arms ≤ repsFit dl now s arms := Nat.min_le_right _ _
+  have hle : planReps dl now s arms ≤ repsFit dl now s arms := Nat.le_trans (Nat.min_le_left _ _) (Nat.min_le_right _ _)
   unfold repsFit at hle
   split at hle
   · rename_i h0
@@ -256,7 +261,7 @@ theorem planReps_fits (dl now : Nat) (s : Shape) (arms : Nat) :
   · exact Nat.le_trans (blockMs_mono _ _ (Nat.mul_le_mul_right _ hle)) (repsFitAux_fits _ _ _)
 
 theorem planReps_life (s : Shape) (arms dl now : Nat) : planReps dl now s arms * windowsPerRep s arms ≤ lifeWindows :=
-  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.min_le_left _ _)) (Nat.div_mul_le_self _ _)
+  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.le_trans (Nat.min_le_left _ _) (Nat.min_le_left _ _))) (Nat.div_mul_le_self _ _)
 
 theorem outcome_lifeShort (dl now : Nat) (s : Shape) (arms : Nat) (h : repsLife s arms < minKept) : outcome dl now s arms = .lifeShort := by
   simp [outcome, h]
@@ -273,6 +278,7 @@ theorem outcome_ok (dl now : Nat) (s : Shape) (arms : Nat) (hl : minKept ≤ rep
   simp [outcome, h1, h2]
 
 theorem outcome_ok_plan (dl now : Nat) (s : Shape) (arms : Nat) (h : outcome dl now s arms = .ok) : minKept ≤ planReps dl now s arms := by
+  have hw := minKept_le_repsWant
   unfold outcome at h
   unfold planReps
   split at h
@@ -403,14 +409,29 @@ theorem plan_across (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs
     Fw.Gate.Smooth.acrossDecisive vs ≠ .insufficient :=
   across_decisive_ne_insufficient vs (plan_decisive vs hn hl)
 
+/-- How long the harness waits for the touch driver to answer, counted from its start. A driver that is late only moves the plan clock, which is read after it answers. -/
+def readyAllowMs : Nat := 480000
+
+/-- The longest setup measured before the plan clock: 5 min of job steps, 1.5 min to a tab and `readyAllowMs` for the driver (run 41345594217: job steps 4.9 min, a driver ready after 107 s, a tab after 40 s; two jobs waited out 240 s). -/
+def setupWorstMs : Nat := 900000
+
+theorem setup_worst_fits : 300000 + 90000 + readyAllowMs ≤ setupWorstMs := by decide
+
+/-- A plan clocked at the worst setup is still ok for 3 and for 4 arms of end windows. -/
+theorem ok_at_worst_setup (arms : Nat) (h3 : 3 ≤ arms) (h4 : arms ≤ 4) : outcome (deadlineAt job) setupWorstMs .endOnly arms = .ok := by
+  have : arms = 3 ∨ arms = 4 := by omega
+  rcases this with rfl | rfl <;> decide +kernel
+
+theorem worst_setup_inside_job : setupWorstMs ≤ deadlineAt job := by decide
+
 /-! ## Golden -/
 
 def stepCases : List (String × Nat × Option Nat) := [
   ("walk starts after 4.6 min", 276000, none),
   ("walk starts at the job start", 0, none),
-  ("walk starts at the deadline", 1500000, none),
-  ("walk starts in the grace", 1530000, none),
-  ("walk starts too late", 1800000, none),
+  ("walk starts at the deadline", 2400000, none),
+  ("walk starts in the grace", 2430000, none),
+  ("walk starts too late", 2700000, none),
   ("cap 8 min", 276000, some 480000),
   ("cap above the deadline", 276000, some 3000000)]
 
@@ -422,15 +443,19 @@ def startCases : List (String × Nat × Nat × Nat) := [
 
 def planCases : List (String × Nat × Option Nat × Shape × Nat) := [
   ("3 arms end only, walk starts after 4.6 min", 276000, none, .endOnly, 3),
-  ("3 arms end only, walk starts after 8 min", 480000, none, .endOnly, 3),
-  ("3 arms end only, walk starts after 11.6 min", 696000, none, .endOnly, 3),
-  ("3 arms end only, one ms too late", 696001, none, .endOnly, 3),
+  ("3 arms end only, walk starts after 15 min", 900000, none, .endOnly, 3),
+  ("3 arms end only, 6 reps still fit", 1509000, none, .endOnly, 3),
+  ("3 arms end only, 6 reps one ms too late", 1509001, none, .endOnly, 3),
+  ("3 arms end only, walk starts after 26.6 min", 1596000, none, .endOnly, 3),
+  ("3 arms end only, one ms too late", 1596001, none, .endOnly, 3),
   ("3 arms end only, cap 10 min", 276000, some 600000, .endOnly, 3),
   ("2 arms end only", 276000, none, .endOnly, 2),
   ("4 arms end only", 276000, none, .endOnly, 4),
-  ("4 arms end only, walk starts after 9.2 min", 551000, none, .endOnly, 4),
-  ("4 arms end only, one ms too late", 551001, none, .endOnly, 4),
+  ("4 arms end only, walk starts after 15 min", 900000, none, .endOnly, 4),
+  ("4 arms end only, walk starts after 24.2 min", 1451000, none, .endOnly, 4),
+  ("4 arms end only, one ms too late", 1451001, none, .endOnly, 4),
   ("5 arms end only", 276000, none, .endOnly, 5),
+  ("5 arms end only, walk starts after 15 min", 900000, none, .endOnly, 5),
   ("10 arms end only", 276000, none, .endOnly, 10),
   ("no arms", 276000, none, .endOnly, 0),
   ("2 arms full", 276000, none, .full, 2),
@@ -445,11 +470,11 @@ def endsCases : List (Shape × Nat × Nat × Nat) :=
 
 def groupCases : List (String × Nat × Shape × Nat × Nat) := [
   ("3 arms fit one job", 276000, .endOnly, 2, 1),
-  ("4 arms fit one job", 276000, .endOnly, 2, 2),
-  ("5 arms need two jobs", 276000, .endOnly, 2, 3),
-  ("7 arms need two jobs", 276000, .endOnly, 2, 5),
-  ("9 arms need three jobs", 276000, .endOnly, 2, 7),
-  ("full shape has no split that fits", 276000, .full, 2, 3),
+  ("5 arms fit one job", 276000, .endOnly, 2, 3),
+  ("7 arms fit one job", 276000, .endOnly, 2, 5),
+  ("8 arms need two jobs", 276000, .endOnly, 2, 6),
+  ("11 arms need two jobs", 276000, .endOnly, 2, 9),
+  ("5 arms full need three jobs", 276000, .full, 2, 3),
   ("no candidates", 276000, .endOnly, 2, 0)]
 
 def verdictCases : List (List Verdict) := [
@@ -468,9 +493,9 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("graceMs", toJson job.graceMs), ("slackMs", toJson job.slackMs), ("deadlineAt", toJson (deadlineAt job)),
     ("hardStopMs", toJson hardStopMs), ("postStepsMs", toJson postStepsMs), ("clockMs", toJson gaps.clockMs),
     ("driftMs", toJson gaps.driftMs), ("completeMs", toJson gaps.completeMs), ("overrunMs", toJson gaps.overrunMs),
-    ("minKept", toJson minKept), ("lifeWindows", toJson lifeWindows), ("windowSamples", toJson windowSecs.length),
+    ("minKept", toJson minKept), ("repsWant", toJson repsWant), ("lifeWindows", toJson lifeWindows), ("windowSamples", toJson windowSecs.length),
     ("bodyMs", toJson bodyMs), ("tailMs", toJson tailMs), ("meanMs", toJson meanMs), ("tailEvery", toJson tailEvery),
-    ("margin", toJson margin), ("jobsNeeded", toJson jobsNeeded), ("macSlots", toJson Fw.Measure.WktrLayout.macSlots),
+    ("margin", toJson margin), ("readyAllowMs", toJson readyAllowMs), ("setupWorstMs", toJson setupWorstMs), ("jobsNeeded", toJson jobsNeeded), ("macSlots", toJson Fw.Measure.WktrLayout.macSlots),
     ("minSamples", toJson Fw.Gate.Smooth.minSamples)]).compress
   let ss := stepCases.map fun (name, elapsed, cap) =>
     let dl := cappedDeadline job elapsed cap
