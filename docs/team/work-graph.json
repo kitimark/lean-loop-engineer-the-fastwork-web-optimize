@@ -24996,7 +24996,14 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "research/notes/2026/11-01-layer-sweep-review.md",
     "research/notes/2026/11-02-layer-sweep-review.md",
-    "docs/team/handoffs/layer-sweep-review.md"
+    "docs/team/handoffs/layer-sweep-review.md",
+    ".github/workflows/visual-diff.yml",
+    "lean/Fw/Ops/Golden.lean",
+    "lean/Fw/Wire/Review.lean",
+    "research/findings/ledger.json",
+    "apps/runner/src/land.ts",
+    "apps/console-api/test/review.test.ts",
+    "apps/console-web/test/review.test.tsx"
    ]
   }
  ],
