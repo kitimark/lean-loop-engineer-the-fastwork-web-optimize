@@ -4901,8 +4901,7 @@
    ],
    "missingWhy": [
     "what UIKit does to a running pan or deceleration when setContentOffset: is called (not in WebKit source)",
-    "that a deceleration emits a scroll event at least every 120 ms (INFERRED from frame cadence)",
-    "that a real deceleration emits a scroll event at least every 120 ms: the Simulator readings are 38 to 507 ms apart, so a gap above the quiet time exists there (INFERRED for the phone)"
+    "that a real deceleration emits a scroll event at least every 120 ms (INFERRED from frame cadence; on the CI Simulator scroll events during a deceleration were up to 286 ms apart, run 41289882234 job 1 window 21)"
    ],
    "premises": [
     "the user's own positions avoid the pin target (a spring-back that turns exactly on the target would count as a fight in the metric)"
