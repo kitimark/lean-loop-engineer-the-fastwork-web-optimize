@@ -20,4 +20,4 @@
 {"flag":"pain:dark-static","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"people.carousel:crop","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
 {"flag":"platform.glint:compositor","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}
-{"flag":"platform.sweep:layer-sweep","kind":"proposal","member":false,"userDecision":{"date":"2026-11-01","decision":"kept","material":{"chromium":{"artifact":"sweep-strips-chromium","expires":"2026-12-01","run":"41261936045","state":"ready","task":"layer-sweep-review"},"webkit":{"artifact":"sweep-strips-playwright-webkit","expires":"2026-12-01","run":"41261936045","state":"ready","task":"layer-sweep-review"}},"review":"pending"},"visClass":"L"}
+{"flag":"platform.sweep:layer-sweep","kind":"proposal","member":false,"userDecision":null,"visClass":"L"}

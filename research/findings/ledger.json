@@ -4871,7 +4871,7 @@
    "candidate": "morph.tween:end-pin: the page-end pin writes scrollTo only at rest (no touch down, 120 ms without a scroll event, the page off the target, and the write does not turn the page around) instead of on every scroll frame, so it never writes into a live pan or its deceleration",
    "status": "look-change",
    "chromium": "not measured (the premise is iOS UIKit scrolling; Chromium has no pan the script write fights)",
-   "webkit": "pending: CI Simulator touch-lock windows",
+   "webkit": "MEASURED (CI Simulator touch-lock windows, runs 41267567864, 41270567124, 41275699141; 4 accepted pin windows from 2 jobs): the pin made 0 scrollTo calls in 4 of 4, fights 0 by definition (openCalls 0), the page rested on the end (final = maxY10) where base rests 0 to 31 px past it; vs base fights/restores lower, vs orig overlap. The write branch was not seen on the Simulator; phone not measured",
    "visual": "look change (L): the page may rest off the target after a pan or its momentum when the write would reverse the last motion, and otherwise returns after the quiet time instead of at once (Lean decline_rests_off_target, faith_ends_on_target)",
    "mechanism": "PROVED in Lean (lean/Fw/Parts/EndPin.lean): pin_fights_zero (0 fights under the TouchLock model when the user's own positions avoid the target), play_no_turn (the invariant), one theorem per branch of the write decision (no_write_touching, no_write_live, no_write_settled, no_write_reversal, write_of_clear), writes_target, due_write, observe_write, faith_fights_witness (the faithful pin fights twice on a spring out and back) against decline_fights_zero. CONFIRMED (source, WebKit 862f17d): a script scrollTo does not stop a user pan or deceleration on iOS; scrollend is not fired for a native pan or its momentum on the iOS root, so quiet time is the only end signal.",
    "leanFor": [
@@ -4900,8 +4900,8 @@
    ],
    "v1Evidence": "",
    "lesson": "A write that must not fight a gesture cannot hold the page during it; it can only wait for the gesture to end, and on the iOS root no event says when a pan or its momentum ended, so the wait is a quiet debounce and the page may rest off the target.",
-   "next": "user look review (class L); phone feel not measured here",
-   "evidence": "research/notes/2026/11-01-end-pin-no-fight.md; apps/site/src/parts/morph.tween/end-pin.golden.test.ts",
+   "next": "user look review (class L: the page rests on the end, not past it); phone feel not measured here; a trace of the pin's decline would turn the mechanism from INFERRED to MEASURED",
+   "evidence": "research/notes/2026/11-01-end-pin-no-fight.md; results/end-pin-no-fight/pooled/touch-lock.md; apps/site/src/parts/morph.tween/end-pin.golden.test.ts",
    "userDecision": "pending",
    "n": 100
   }
