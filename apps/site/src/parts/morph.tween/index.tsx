@@ -62,7 +62,10 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
           ? createPanelEffects(() => document.querySelector<HTMLElement>('[data-fw="morph-panel"]') as unknown as PanelEl | null)
           : undefined,
     };
-    if (variant === END_PIN) env.endPin = { touch: fingerWatch };
+    if (variant === END_PIN) {
+      env.endPin = { touch: fingerWatch };
+      env.trace = (ev) => (window as unknown as { __fwPinTrace?: (e: object) => void }).__fwPinTrace?.(ev);
+    }
     if (variant === GEOM_TIMED) {
       env.timed = timedBus.sink;
       env.trace = (ev) => (window as unknown as { __fwTakeTrace?: (e: object) => void }).__fwTakeTrace?.(ev);
