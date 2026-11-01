@@ -450,6 +450,37 @@ theorem why_none_iff (q : Pin) (s : Int) : why q s = none ↔ mayWrite q s = tru
         · simp [h2, h2', h3, h4]
   · simp
 
+/-- Why no write is scheduled: the first failing condition of `mayWrite` with the quiet time set aside, which is what `due` checks. -/
+def dueWhy (q : Pin) (s : Int) : Option Why := why { q with since := quietMs } s
+
+theorem dueWhy_ne_live (q : Pin) (s : Int) : dueWhy q s ≠ some .live := by
+  unfold dueWhy why
+  cases q.touching
+  · by_cases h3 : q.b = s
+    · simp [h3]
+    · by_cases h4 : reverses q.a q.b s = true <;> simp [h3, h4]
+  · simp
+
+theorem due_none_of_dueWhy (q : Pin) (s : Int) (h : dueWhy q s ≠ none) : due q s = none := by
+  unfold dueWhy why at h
+  unfold due
+  cases ht : q.touching
+  · by_cases h3 : q.b = s
+    · simp [h3]
+    · by_cases h4 : reverses q.a q.b s = true
+      · simp [h4]
+      · simp [ht, h3, h4] at h
+  · simp
+
+theorem dueWhy_none_of_due (q : Pin) (s : Int) (d : Nat) (h : due q s = some d) : dueWhy q s = none := by
+  unfold due at h
+  unfold dueWhy why
+  split at h
+  · rename_i hc
+    obtain ⟨h1, h2, h3, _⟩ := hc
+    simp [h1, h2, h3]
+  · simp at h
+
 /-- What one reading of the page did: it moved, the pin wrote, or the pin declined for a reason. -/
 inductive Outcome where
   | moved | wrote | declined (w : Why)
@@ -656,7 +687,7 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("pinOut", pinJson r.1), ("write", optJson r.2), ("outcome", Json.str (outcome s p y dt).name)]).compress
   let ds := dueCases.map fun (name, p, s) =>
     (Json.mkObj [("op", "pinDue"), ("case", Json.str name), ("pin", pinJson p), ("s", toJson s),
-      ("out", match due p s with | some d => toJson d | none => Json.null)]).compress
+      ("out", match due p s with | some d => toJson d | none => Json.null), ("why", whyJson (dueWhy p s))]).compress
   let ts := [true, false].map fun down =>
     let p := (step (start 7) (if down then .down else .up)).1
     (Json.mkObj [("op", "pinTouch"), ("down", toJson down), ("pin", pinJson (start 7)), ("pinOut", pinJson p)]).compress

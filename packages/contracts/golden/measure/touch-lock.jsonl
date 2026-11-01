@@ -91,19 +91,19 @@
 {"case":"same place, touch down","dt":500,"op":"pinObserve","outcome":"touching","pin":{"a":80,"b":60,"since":500,"touching":true},"pinOut":{"a":80,"b":60,"since":1000,"touching":true},"s":0,"write":null,"y":60}
 {"case":"same place, would turn around","dt":500,"op":"pinObserve","outcome":"reversal","pin":{"a":0,"b":90,"since":0,"touching":false},"pinOut":{"a":0,"b":90,"since":500,"touching":false},"s":0,"write":null,"y":90}
 {"case":"same place, on the target","dt":500,"op":"pinObserve","outcome":"onTarget","pin":{"a":null,"b":0,"since":0,"touching":false},"pinOut":{"a":null,"b":0,"since":500,"touching":false},"s":0,"write":null,"y":0}
-{"case":"at rest off the target, moving on","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0}
-{"case":"no history","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0}
-{"case":"a touch is down","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":true},"s":0}
-{"case":"a scroll event 50 ms ago","op":"pinDue","out":70,"pin":{"a":null,"b":60,"since":50,"touching":false},"s":0}
-{"case":"on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":200,"touching":false},"s":0}
-{"case":"would turn around","op":"pinDue","out":null,"pin":{"a":0,"b":90,"since":200,"touching":false},"s":0}
-{"case":"quiet exactly quietMs","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":120,"touching":false},"s":0}
-{"case":"one ms short of quiet","op":"pinDue","out":1,"pin":{"a":80,"b":60,"since":119,"touching":false},"s":0}
-{"case":"below the target, moving up","op":"pinDue","out":null,"pin":{"a":-90,"b":-60,"since":200,"touching":false},"s":0}
-{"case":"below the target, turning down","op":"pinDue","out":null,"pin":{"a":-60,"b":-90,"since":200,"touching":false},"s":0}
-{"case":"touch down and not quiet","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":10,"touching":true},"s":0}
-{"case":"not quiet and on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":10,"touching":false},"s":0}
-{"case":"a touch just ended","op":"pinDue","out":120,"pin":{"a":80,"b":60,"since":0,"touching":false},"s":0}
+{"case":"at rest off the target, moving on","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"no history","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"a touch is down","op":"pinDue","out":null,"pin":{"a":null,"b":60,"since":200,"touching":true},"s":0,"why":"touching"}
+{"case":"a scroll event 50 ms ago","op":"pinDue","out":70,"pin":{"a":null,"b":60,"since":50,"touching":false},"s":0,"why":null}
+{"case":"on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":200,"touching":false},"s":0,"why":"onTarget"}
+{"case":"would turn around","op":"pinDue","out":null,"pin":{"a":0,"b":90,"since":200,"touching":false},"s":0,"why":"reversal"}
+{"case":"quiet exactly quietMs","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":120,"touching":false},"s":0,"why":null}
+{"case":"one ms short of quiet","op":"pinDue","out":1,"pin":{"a":80,"b":60,"since":119,"touching":false},"s":0,"why":null}
+{"case":"below the target, moving up","op":"pinDue","out":null,"pin":{"a":-90,"b":-60,"since":200,"touching":false},"s":0,"why":null}
+{"case":"below the target, turning down","op":"pinDue","out":null,"pin":{"a":-60,"b":-90,"since":200,"touching":false},"s":0,"why":"reversal"}
+{"case":"touch down and not quiet","op":"pinDue","out":null,"pin":{"a":80,"b":60,"since":10,"touching":true},"s":0,"why":"touching"}
+{"case":"not quiet and on the target","op":"pinDue","out":null,"pin":{"a":null,"b":0,"since":10,"touching":false},"s":0,"why":"onTarget"}
+{"case":"a touch just ended","op":"pinDue","out":120,"pin":{"a":80,"b":60,"since":0,"touching":false},"s":0,"why":null}
 {"down":true,"op":"pinTouch","pin":{"a":null,"b":7,"since":0,"touching":false},"pinOut":{"a":null,"b":7,"since":0,"touching":true}}
 {"down":false,"op":"pinTouch","pin":{"a":null,"b":7,"since":0,"touching":false},"pinOut":{"a":null,"b":7,"since":0,"touching":false}}
 {"case":"spring back lands on the target","events":[["down"],["move",90],["move",60],["move",30],["up"],["idle",50,0],["idle",100,0]],"faithWritesLive":3,"fights":0,"frames":[[0,1],[90,1],[60,1],[30,1],[0,1]],"op":"pinPlay","positions":[90,60,30,0],"reversals":1,"s":0,"writes":[0],"writesLive":0,"y0":0}

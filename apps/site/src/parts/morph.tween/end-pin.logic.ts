@@ -27,6 +27,9 @@ export function why(q: Pin, s: number): Why | null {
   return null;
 }
 
+/** Lean `dueWhy`: why no write is scheduled, the first failing condition of `mayWrite` with the quiet time set aside (never `live`). */
+export const dueWhy = (q: Pin, s: number): Why | null => why({ ...q, since: QUIET_MS }, s);
+
 export const touch = (p: Pin, down: boolean): Pin => ({ ...p, touching: down, since: 0 });
 
 export const moved = (p: Pin, y: number): Pin => ({ ...p, since: 0, a: y === p.b ? p.a : p.b, b: y });

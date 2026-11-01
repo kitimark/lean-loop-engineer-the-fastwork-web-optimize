@@ -5,7 +5,7 @@ import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, typ
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 import { crossings, idealAt } from './geom-timed.logic';
-import { due, observe, outcome, start, touch, type Outcome, type Pin } from './end-pin.logic';
+import { due, dueWhy, observe, outcome, start, touch, type Outcome, type Pin } from './end-pin.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -177,7 +177,12 @@ export function createTweenDriver(env: TweenEnv) {
   const recheck = () => {
     if (!rp || rpTimer || !env.clock.interval) return;
     const d = due(rp, rpTarget);
-    if (d === null) return;
+    if (d === null) {
+      const w = env.trace ? dueWhy(rp, rpTarget) : null;
+      // a decline from the due check carries no `write` field; a decline from a reading carries `write: null`
+      if (w) env.trace?.({ kind: 'pin', op: w, at: env.now(), y: rp.b, s: rpTarget, dt: rp.since });
+      return;
+    }
     env.trace?.({ kind: 'pin', op: 'due', at: env.now(), ms: d, s: rpTarget });
     const off = env.clock.interval(Math.max(1, Math.round(d)), () => {
       off();

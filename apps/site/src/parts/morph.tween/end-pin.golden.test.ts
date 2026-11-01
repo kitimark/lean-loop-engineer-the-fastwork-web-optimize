@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createTweenDriver, type PlatformEl, type TweenEnv } from './driver';
 import { active } from './logic';
 import { BASE } from './end.logic';
-import { due, mayWrite, observe, outcome, play, QUIET_MS, start, touch, why, type Ev, type Pin } from './end-pin.logic';
+import { due, dueWhy, mayWrite, observe, outcome, play, QUIET_MS, start, touch, why, type Ev, type Pin } from './end-pin.logic';
 import { faithWritesLive, writesLive } from './end-pin.live';
 import type { TraceEv } from './driver';
 
@@ -30,7 +30,11 @@ describe('morph.tween:end-pin against Lean (Fw.Parts.EndPin)', () => {
     }
     expect(new Set(ofOp('pinMay').map((r) => r.why))).toEqual(new Set(['touching', 'live', 'onTarget', 'reversal', null]));
     expect(ofOp('pinDue').length).toBe(13);
-    for (const r of ofOp('pinDue')) expect(due(pinOf(r.pin), Number(r.s)), String(r.case)).toBe(r.out);
+    for (const r of ofOp('pinDue')) {
+      expect(due(pinOf(r.pin), Number(r.s)), String(r.case)).toBe(r.out);
+      expect(dueWhy(pinOf(r.pin), Number(r.s)), String(r.case)).toBe(r.why);
+      expect(r.out !== null, String(r.case)).toBe(r.why === null && Number(pinOf(r.pin).since) < QUIET_MS);
+    }
   });
   it('observe gives the Lean pin and write', () => {
     expect(ofOp('pinObserve').length).toBe(8);
@@ -156,7 +160,7 @@ describe('the driver wires the end pin as Lean plays it', () => {
     a.move(70);
     a.advance(200, 0);
     expect(a.writes).toEqual([60]);
-    const declined = a.trace.filter((t) => t.kind === 'pin' && t.op === 'reversal');
+    const declined = a.trace.filter((t) => t.kind === 'pin' && t.op === 'reversal' && t.write !== undefined);
     expect(declined.length).toBeGreaterThan(0);
     expect(declined.every((t) => t.kind === 'pin' && t.s === 0)).toBe(true);
   });
@@ -174,6 +178,17 @@ describe('the driver wires the end pin as Lean plays it', () => {
     expect(ops).toContain('due');
     expect(ops).toContain('write');
     expect(a.trace.filter((t) => t.kind === 'pin' && t.op === 'write').map((t) => (t.kind === 'pin' ? t.write : null))).toEqual([0]);
+  });
+  it('a due check that schedules nothing traces its reason (a finger lifted off a page a write would turn around)', () => {
+    const a = arm(30, 0);
+    a.move(40);
+    a.down();
+    a.advance(300);
+    a.up();
+    const ops = a.trace.filter((t) => t.kind === 'pin').map((t) => (t.kind === 'pin' ? t.op : ''));
+    expect(ops.slice(-2)).toEqual(['touch', 'reversal']);
+    expect(a.timers()).toBe(0);
+    expect(a.writes).toEqual([]);
   });
   it('the trace is silent without a trace hook', () => {
     const a = arm(30, 0);
