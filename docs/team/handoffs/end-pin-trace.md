@@ -1,9 +1,9 @@
 # Handoff: end-pin-trace (measure-engineer)
 
-Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137-1`, CI branch `ci/end-pin-trace`. Last commit: see `git log -1` (the handoff commit is the CI tip).
+Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137-1`, CI branch `ci/end-pin-trace`. Last commit at the push: 38ed79650.
 
 ## CI runs
-- (none yet: dispatch 1 is the push of this commit)
+- 41285184069 (smoothness, push of ci/end-pin-trace at 38ed79650): in progress; polled with fw ci wait
 
 ## Verified (local, not a result)
 Lean `sh lean/scripts/check.sh` green; site vitest 8551 pass and tsc clean; measure-webkit tests 1107 pass; ci-paths 56 pass; runner land-inputs 73 pass; plan lint 0 errors, no writesClosure warning for this row.
