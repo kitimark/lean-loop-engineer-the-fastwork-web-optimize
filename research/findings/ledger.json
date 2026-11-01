@@ -4871,9 +4871,9 @@
    "candidate": "morph.tween:end-pin: the page-end pin writes scrollTo only at rest (no touch down, 120 ms without a scroll event, the page off the target, and the write does not turn the page around) instead of on every scroll frame, so it never writes into a live pan or its deceleration",
    "status": "look-change",
    "chromium": "not measured (the premise is iOS UIKit scrolling; Chromium has no pan the script write fights)",
-   "webkit": "MEASURED (CI Simulator touch-lock windows, runs 41267567864, 41270567124, 41275699141; 4 accepted pin windows from 2 jobs): the pin made 0 scrollTo calls in 4 of 4, fights 0 by definition (openCalls 0), the page rested on the end (final = maxY10) where base rests -2 to 31 px from it; vs base fights/restores lower, vs orig overlap. The write branch was not seen on the Simulator; phone not measured",
+   "webkit": "MEASURED (CI Simulator touch-lock windows, runs 41267567864, 41270567124, 41275699141; 4 accepted pin windows from 2 jobs): the pin made 0 scrollTo calls in 4 of 4, fights 0 by definition (openCalls 0), the page rested on the end (final = maxY10) where base rests -2 to 31 px from it; vs base fights/restores lower, vs orig overlap. The write branch was not seen on the Simulator; phone not measured. MEASURED with the pin decision trace (end-pin-trace; CI Simulator runs 41285184069 and 41289882234, 10 pin windows): the pin ran in all 10 (ran = yes); 1 window wrote (write 5191 -> 5189, 121 ms after the last move or touch, finger up, lock 51890; Lean write_of_clear case, 0 writes while live); 7 ended on a reversal decline with the page 1 to 90 px short of the target; fights per run 0 in 6 of 6 pin runs of job 1 but 5 stored no lock, so cmp reads n/a and pin vs base is undecided (one locked run, below the sample floor). Phone not measured",
    "visual": "look change (L): the page may rest off the target after a pan or its momentum when the write would reverse the last motion, and otherwise returns after the quiet time instead of at once (Lean decline_rests_off_target, faith_ends_on_target)",
-   "mechanism": "PROVED in Lean (lean/Fw/Parts/EndPin.lean): pin_fights_zero (0 fights under the TouchLock model when the user's own positions avoid the target), play_no_turn (the invariant), one theorem per branch of the write decision (no_write_touching, no_write_live, no_write_settled, no_write_reversal, write_of_clear), writes_target, due_write, observe_write, faith_fights_witness (the faithful pin fights twice on a spring out and back) against decline_fights_zero. CONFIRMED (source, WebKit 862f17d): a script scrollTo does not stop a user pan or deceleration on iOS; scrollend is not fired for a native pan or its momentum on the iOS root, so quiet time is the only end signal.",
+   "mechanism": "PROVED in Lean (lean/Fw/Parts/EndPin.lean): pin_fights_zero (0 fights under the TouchLock model when the user's own positions avoid the target), play_no_turn (the invariant), one theorem per branch of the write decision (no_write_touching, no_write_live, no_write_settled, no_write_reversal, write_of_clear), writes_target, due_write, observe_write, faith_fights_witness (the faithful pin fights twice on a spring out and back) against decline_fights_zero. CONFIRMED (source, WebKit 862f17d): a script scrollTo does not stop a user pan or deceleration on iOS; scrollend is not fired for a native pan or its momentum on the iOS root, so quiet time is the only end signal. end-pin-trace adds: writesLive_zero (no end-pin write is made in a live state, any event list) against faith_writesLive_witness (2), the target per event (Ev.idle ms s; play_no_turn and pin_fights_zero hold for any targets), why/outcome/dueWhy with iff theorems (every decline names its Lean reason), traceCounts, and lockedCmp (n/a when an arm stored no lock).",
    "leanFor": [
     "Fw.Parts.EndPin.pin_fights_zero",
     "Fw.Parts.EndPin.play_no_turn",
@@ -4886,22 +4886,31 @@
     "Fw.Parts.EndPin.due_write",
     "Fw.Parts.EndPin.observe_write",
     "Fw.Parts.EndPin.faith_fights_witness",
-    "Fw.Parts.EndPin.decline_fights_zero"
+    "Fw.Parts.EndPin.decline_fights_zero",
+    "Fw.Parts.EndPin.writesLive_zero",
+    "Fw.Parts.EndPin.faith_writesLive_witness",
+    "Fw.Parts.EndPin.end_writesLive_witness",
+    "Fw.Parts.EndPin.why_none_iff",
+    "Fw.Parts.EndPin.outcome_declined_silent",
+    "Fw.Parts.EndPin.dueWhy_ne_live",
+    "Fw.Parts.EndPin.due_none_of_dueWhy",
+    "Fw.Parts.EndPin.dueWhy_none_of_due"
    ],
    "leanAgainst": [
     "Fw.Parts.EndPin.decline_rests_off_target"
    ],
    "missingWhy": [
     "what UIKit does to a running pan or deceleration when setContentOffset: is called (not in WebKit source)",
-    "that a deceleration emits a scroll event at least every 120 ms (INFERRED from frame cadence)"
+    "that a deceleration emits a scroll event at least every 120 ms (INFERRED from frame cadence)",
+    "that a real deceleration emits a scroll event at least every 120 ms: the Simulator readings are 38 to 507 ms apart, so a gap above the quiet time exists there (INFERRED for the phone)"
    ],
    "premises": [
     "the user's own positions avoid the pin target (a spring-back that turns exactly on the target would count as a fight in the metric)"
    ],
    "v1Evidence": "",
    "lesson": "A write that must not fight a gesture cannot hold the page during it; it can only wait for the gesture to end, and on the iOS root no event says when a pan or its momentum ended, so the wait is a quiet debounce and the page may rest off the target.",
-   "next": "user look review (class L: the page rests on the end, not past it); phone feel not measured here; a trace of the pin's decline would turn the mechanism from INFERRED to MEASURED",
-   "evidence": "research/notes/2026/11-01-end-pin-no-fight.md; results/end-pin-no-fight/pooled/touch-lock.md; apps/site/src/parts/morph.tween/end-pin.golden.test.ts",
+   "next": "user look review (class L: the page rests on the target or up to 90 px short of it after a pan, never past it); phone feel not measured here; the lane cannot rank the pin against base by fights until more pin runs store a lock (it wrote in 1 of 10 windows)",
+   "evidence": "research/notes/2026/11-01-end-pin-no-fight.md; results/end-pin-no-fight/pooled/touch-lock.md; apps/site/src/parts/morph.tween/end-pin.golden.test.ts; research/notes/2026/11-01-end-pin-trace.md; results/end-pin-trace/run-41289882234/job1/touch-lock.md",
    "userDecision": "pending",
    "n": 100
   }

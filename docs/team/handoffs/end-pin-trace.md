@@ -1,22 +1,26 @@
 # Handoff: end-pin-trace (measure-engineer)
 
-Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137-1`, CI branch `ci/end-pin-trace`. Last commit at dispatch 1: 38ed79650; dispatch 2 is the tip commit of ci/end-pin-trace.
+Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137-1`, CI branch `ci/end-pin-trace` (tip ffe701b77, the dispatch 2 push). The last commit is the branch tip (`git log -1`).
 
-## CI runs
-- 41285184069 (smoothness, dispatch 1, 38ed79650): complete. Job 1 failed with 0 windows (simulator never gave a tab: simctl openurl timeout, no ready file after 285 s; harness, not this code). Job 2 success, 5 windows (walk deadline 1654 s): pin windows 3 (refused noOpen, 24 pin calls, 19 inactive) and 5 (open, 119 frames, no stored lock, 10 calls: 2 inactive, 4 touch, 2 moved, 1 touching, 0 due, 0 writes). Results: results/end-pin-trace/run-41285184069/job{1,2}/.
-- 41289882234 (smoothness, dispatch 2, ffe701b77; adds the due-check decline trace, dueWhy): in progress
+## CI runs (2 of 2 dispatches used)
+- 41285184069 (smoothness, dispatch 1, 38ed79650): complete. Job 1 failed, 0 windows (simctl openurl timeout, no ready file after 285 s; harness). Job 2 success, 5 windows: pin windows 3 (refused noOpen, 24 calls, 19 inactive) and 5 (open, no stored lock, 10 calls, 0 writes).
+- 41289882234 (smoothness, dispatch 2, ffe701b77, adds the due-check decline trace): success. Job 1 all 24 windows (6 pin windows, 1 write); job 2 8 windows (2 pin windows, 0 writes).
+Results: `results/end-pin-trace/run-*/job{1,2}/touch-lock.{json,md}`. Per-window counts: the note.
 
-## Verified (local, not a result)
-Lean `sh lean/scripts/check.sh` green; site vitest 8551 pass and tsc clean; measure-webkit tests 1107 pass; ci-paths 56 pass; runner land-inputs 73 pass; plan lint 0 errors, no writesClosure warning for this row.
+## Verified (local)
+Lean `sh lean/scripts/check.sh` green; site vitest 8552 pass, tsc clean; measure-webkit 1107 pass; ci-paths 56; runner land-inputs 73; plan lint 0 errors, no writesClosure warning for this row.
 
 ## Built
-- `lean/Fw/Parts/EndPin.lean`: `writesLive` (writes made while `live`), `writesLive_zero`, `faith_writesLive_witness` (= 2), target per event (`Ev.idle ms s`), `Why`/`Outcome` with iff theorems, `traceCounts`.
-- `lean/Fw/Measure/TouchLock.lean`: `lockedCmp` (n/a when an arm stored no lock); golden op `lockedCmp`.
-- TS: `end-pin.logic.ts` (`why`, `outcome`), `end-pin.live.ts` (twins of `writesLive`, `faithWritesLive`), `driver.ts` (trace hook), `index.tsx` (`window.__fwPinTrace`), all checked against `touch-lock.jsonl`.
-- Lane: `touchlock-page.mjs` (hook, per-window entries), `touchlock.mjs` (`traceCounts`, `lockedCmp`, trace table), `touchlock-run.mjs`.
+- `lean/Fw/Parts/EndPin.lean`: `writesLive_zero`, `faith_writesLive_witness`, target per event (`Ev.idle ms s`), `Why`/`Outcome`/`dueWhy` with iff theorems, `traceCounts`.
+- `lean/Fw/Measure/TouchLock.lean`: `lockedCmp` (n/a when an arm stored no lock).
+- TS: `end-pin.logic.ts`, `end-pin.live.ts`, `driver.ts` (trace hook `env.trace`), `index.tsx` (`window.__fwPinTrace`), checked against `packages/contracts/golden/measure/touch-lock.jsonl`. No TS stand-in.
+- Lane: `packages/measure-webkit/src/touchlock{,-page,-run}.mjs` (pin entries per window, trace table, `lockedCmp` verdicts).
 
 ## Open
-CI trace counts per pin window; the note `research/notes/2026/11-01-end-pin-trace.md`; the ledger row; the user's look review (class L).
+The user's look review (class L). More locked pin runs to rank the pin against base by fights (it wrote in 1 of 10 windows). The phone cadence of scroll events during a deceleration (INFERRED only).
+
+## Read first
+`research/notes/2026/11-01-end-pin-trace.md`, then `research/notes/2026/11-01-end-pin-no-fight.md`.
 
 ## Conventions
-A ci push needs a lane token in the tip message. Use `pnpm -s fw ci wait --branch ci/end-pin-trace`. Max 2 dispatches.
+A ci push needs a lane token in the tip message. Use `pnpm -s fw ci wait --branch ci/end-pin-trace`. Regenerate golden with `lake env lean --run scripts/TouchLockGolden.lean > <file>` in `lean/`; `part.json` edits need `node apps/site/scripts/part-footprint.mjs --write`.
