@@ -247,3 +247,29 @@ Four sim jobs on the same commit: jobs 1 to 3 SpringBoard coordinates, job 4 the
 - Dispatch 1 against 2 (same code except the shutdown step and merged main): the push server was ready in 50 to 66 s in 5 of 5 jobs of dispatch 2 and dispatch 1 job 4, but not within 240 s in dispatch 1 jobs 1 to 3 (load 886 to 1016). That is the host, not the plan (INFERRED).
 - Control against test (item 1), pushes that passed: SpringBoard 40 of 41 (median begin 2.1 s, swipe 5.8 s, done 9.9 s, max done 59 s) and Safari 22 of 23 across both dispatches (the miss: `pageLost` in dispatch 1 job 4) (median begin 1.5 s, swipe 6.4 s, done 9.8 s, dispatch 2: max done 35.7 s). The one failed SpringBoard push was `swipeLate` (swipe 24 s against a 20 s bound). The two coordinate sources give the same median done time (9.9 against 9.8 s); the sample is too small to rank them (MEASURED, n = 18 per variant in dispatch 2).
 - Steps (item 6): the shutdown step ended in 9, 19, 23 s and the Keep host state step in 11, 15, 23 s in a healthy job; the job stayed green in all four jobs. In dispatch 1 job 3 the injected hang cost 78 s and left `success`.
+
+## Verdict jobs (sim-touch-verdict-jobs): a job plan, premises checked 2026-11-02
+
+Lean `Fw.Measure.WalkBudget` (golden `packages/contracts/golden/measure/walk-budget.jsonl`), TS `packages/measure-webkit/src/walk-budget.mjs`, `profile/sim-cadence.mjs` `planSim`, `profile/report.mjs` `jobsTable`, `smoothness.yml` `webkit-sim`.
+
+**Plan.**
+- `jobsNeeded = minSamples + margin = 3 + 2 = 5` (`jobsNeeded_le_slots`: 5 <= `macSlots` 5, so all jobs of a run start at once; the matrix has `max-parallel: 5`). `plan_across`: with at least 5 job verdicts of which at most 2 are insufficient, `acrossDecisive` is not insufficient. `job_decisive`: a job whose four lists (base, bound, aa1, aa2) hold the minimum of kept end windows never judges insufficient; `planReps_complete`: an `ok` plan finishes at least `minKept` = 5 end windows per arm.
+- The window budget is a tail quantile of 216 measured windows (`windowSecs`): body 29 s (75th percentile) per window plus one 398 s slot (99th percentile) per 20 windows, `blockMs`; `blockMs_over_mean` proves it is above the mean (37.5 s) budget. `plan_inside_job`: a plan started at or before the deadline ends its windows, grace, post steps and slack inside the 45 min job.
+- The job slack is 8 min: clock 6 s, drift 50 s, complete 4 s and 7 min for a walk step that ran 380 s past its step timeout (`overrun_covers_seen`, `job_ends_inside_gaps`). Post steps 9 min, grace 2 min, so the walk deadline is job start + 25 min.
+- The clock: `planSim` runs after the Simulator is booted, the touch driver answers and Safari is reconnected (`sim-cadence.mjs`), not at the first device lookup. With the driver the shape is `endOnly` (the end touch window is the decision window; 1 window per arm and rep), else `full`.
+- Arms: 3 arms plan 6 reps up to a walk start of 4.6 min and 5 reps to 11.6 min; 4 arms plan 5 reps (`4 arms end only` and `... after 9.2 min` rows); 5 or more arms are `budgetShort` and `groupsFor` / `groupArms_cover` give the number of jobs of arms that would fit (`repPlan.groups`, shown by `jobsTable`). The matrix itself does not split arms: all 5 jobs run all arms because the across-jobs rule needs 3 decisive jobs per pair.
+- Zone source: touch end windows start no Timeline (`report.mjs` labels them `off`), so they carry no zone reps; their verdict is the hitch verdict over the page's own frame intervals (`ivs`), which is what `job_decisive` covers. The finish zone has 0 Timeline reps by design in touch windows.
+
+**Premises of the 2026-10-24 row, checked against main d530bc4f4.**
+
+| premise | status | evidence |
+|---|---|---|
+| `acrossDecisive` needs 3 decisive jobs, so one starved job of 3 removes the verdict | holds | `lean/Fw/Gate/Smooth.lean:666,736`, `packages/gate-breakpoints/src/smooth/reduce.mjs:144` |
+| touch end windows carry no Timeline | holds | `report.mjs:19` (rows with `timeline === false` are skipped for zones), `report.mjs:265` |
+| the push server `readyMs` is 240 s and the driver can start after it at host load | holds | `touch-push.mjs:9`; runs 40023506144 jobs 1 to 3 (driver started after the cut) |
+| the plan clock was read before boot and driver start | fixed here | `sim-cadence.mjs` `planSim` is called inside the session after `startServer` and `reconnect` |
+| the window mean (45 s) is the budget | replaced | tail quantile above; 216 windows in runs 40023506144, 41270567124, 41275699141, 41285184069, 41289882234 |
+| touch lanes now have 4 arms | partly | only the `[touch-lock]` lane (`touchlock-run.mjs`, original, faithful, CSS lock, pin; matrix `[1,2]`) has 4 arms; the `[earn-bound]` verdict lane has 3 (base, aa, bound). The touch-lock lane runs a fixed 6 reps with the walk deadline as the only cut and no `planReps`: follow-up (`touchlock-run.mjs` is not in this row's writes) |
+| jobs ran 55 to 94 min | partly false | the jobs API `completedAt` of 41285184069 job 2 is 09:24 but its last step ended 08:24:42 (a 34 min job); 41270567124 job 1 ran 55 min, the one real overrun (cancelled; its walk step ran past its step timeout, now the 7 min `overrunMs`) |
+| one job cut at the time limit while uploading | holds | 41275699141 job 1: `swipeLate`, then the upload step failed (job 26 min, the upload timed out at 2 min); the plan cannot prevent a stall, the margin of 2 jobs absorbs it |
+| one job failed with 0 windows after `simctl openurl` timed out | holds | 41285184069 job 1 (17 min, no ready file after 285 s); a harness fault, absorbed by the margin, not retried |
