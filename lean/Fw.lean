@@ -336,6 +336,7 @@ import Fw.Console.LedgerAlloc
 import Fw.Ops.Cache
 import Fw.Ops.LakeCache
 import Fw.Ops.LandCacheGolden
+import Fw.Ops.LandDryGolden
 import Fw.Ops.Attrib
 import Fw.Ops.AttribGolden
 import Fw.Ops.GateEngineTiming
