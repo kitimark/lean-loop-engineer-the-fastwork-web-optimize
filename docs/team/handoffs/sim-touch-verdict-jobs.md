@@ -4,7 +4,7 @@ Branch `worktree-wf_66b63664-0d9-1`, worktree `.claude/worktrees/wf_66b63664-0d9
 
 ## CI runs (2 dispatches allowed, 2 used once dispatch 2 is pushed)
 - 41345594217 (smoothness, dispatch 1, 6b9a16a34): complete, failure (job 4 crashed). 5 of 5 jobs started at once, all ended inside 45 min (22 to 32 min), 5 files, 0 decisive jobs, across-jobs end touch verdict insufficient. Causes: setup 11 to 13 min under load left too little of a 25 min walk (jobs 1, 5 budgetShort), driver not ready in 240 s (jobs 2, 3, touch off), undici `setTypeOfService EINVAL` crash (job 4). Numbers: the note section "Verdict jobs".
-- dispatch 2 (tip after this file, tags in the message): run id in the next update of this file; state pending until read with `pnpm -s fw ci wait --branch ci/sim-touch-verdict-jobs --workflow smoothness`.
+- 41349666358 (smoothness, dispatch 2, 33937b435): running. Read with `pnpm -s fw ci wait --branch ci/sim-touch-verdict-jobs --workflow smoothness`.
 
 ## Verified (local, no result claims)
 `sh lean/scripts/check.sh` green at fa58e3706; measure-webkit 1114 pass; ci-paths 56; runner land-inputs 73 (read of `.github/workflows/smoothness.yml` declared in `apps/runner/src/land.ts:174`, outside the row writes).
