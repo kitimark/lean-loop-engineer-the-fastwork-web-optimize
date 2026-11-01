@@ -938,7 +938,18 @@ def reviewCases (_ : Unit := ()) : List (String × Json) :=
    ("a word that is not keep or reject is refused", rv pend s!"[{st "review-nav:earn-no-transition" "null" "true"}]" (w "yes")),
    ("a bad flag key is refused", rv pend "[]" "{\"flag\":\"nocolon\",\"word\":\"keep\"}"),
    ("a decision word that is unknown is refused", rv "[{\"flag\":\"nav:a\",\"date\":\"d\",\"decision\":\"yes\",\"review\":\"pending\"}]" "[]"),
-   ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")])]
+   ("without looks the rows are Fw.Preset.Gen.lookDecisions", Json.mkObj [("steps", lit "[]")]),
+   ("with today the sweep card has the question text (ask) and 20 strips named by moment (sweep-p0, sweep-f1, sweep-f2, sweep-t500, sweep-t2000) with a label",
+     Json.mkObj [("steps", lit "[]"), ("today", "2026-11-01")]),
+   ("a sweep strip file is served from its artifact; the earn files are not served for the sweep flag",
+     Json.mkObj [("steps", lit "[]"), ("today", "2026-11-01"),
+       ("serve", lit "{\"flag\":\"platform.sweep:layer-sweep\",\"file\":\"playwright-webkit-1440-sweep-t500.png\"}")]),
+   ("an expired sweep strip is refused: the day of the expiry",
+     Json.mkObj [("steps", lit "[]"), ("today", "2026-12-01"),
+       ("serve", lit "{\"flag\":\"platform.sweep:layer-sweep\",\"file\":\"chromium-390-sweep-p0.png\"}")]),
+   ("the earn file name is no file of the sweep flag",
+     Json.mkObj [("steps", lit "[]"), ("today", "2026-11-01"),
+       ("serve", lit "{\"flag\":\"platform.sweep:layer-sweep\",\"file\":\"chromium-390-open.png\"}")])]
 
 def rpv (looks steps events : String) (ask : String := "null") (extra : List (String × Json) := []) : Json :=
   Json.mkObj ([("looks", lit looks), ("steps", lit steps), ("events", lit events), ("ask", lit ask)] ++ extra)

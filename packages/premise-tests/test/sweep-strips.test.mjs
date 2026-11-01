@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { combine, decodePng, diffImages, encodePng, heat, stack, strip, zoom } from '../src/png.mjs';
-import { MOMENTS, WIDTHS, WORDS, cropOf, pageHtml, stripPath, wordPx } from '../src/sweep-strips.mjs';
+import { MOMENTS, WIDTHS, WORDS, cropOf, engineWord, pageHtml, stripPath, wordPx } from '../src/sweep-strips.mjs';
 
 const img = (w, h, f) => { const data = new Uint8Array(w * h * 4); for (let p = 0; p < w * h; p++) data.set(f(p % w, Math.floor(p / w)), p * 4); return { width: w, height: h, data }; };
 
@@ -59,4 +59,16 @@ test('the page has the four words and the flag arm adds the layer child', () => 
   for (const w of WORDS) { assert.ok(f.includes(`>${w}</span>`)); assert.ok(l.includes(`>${w}<i class="layerBg"`)); }
   assert.ok(!f.includes('layerBg"')); assert.ok(l.includes('.restBlock { display: block; }')); assert.ok(!f.includes('.restBlock { display'));
   assert.equal((l.match(/data-word/g) ?? []).length, 4);
+});
+
+test('the harness writes exactly the sweep files of the Lean review golden, in artifacts of the same name', async () => {
+  const { readFileSync } = await import('node:fs');
+  const lines = readFileSync(new URL('../../contracts/golden/console/review.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const c = lines.find((l) => l.name.startsWith('with today the sweep card'));
+  const item = (c.expect?.items ?? c.reply?.items ?? c.response?.items).find((i) => i.flag === 'platform.sweep:layer-sweep');
+  const want = item.strips.map((s) => `${s.artifact}:${s.file}`).sort();
+  const have = [];
+  for (const e of ['chromium', 'webkit']) for (const w of WIDTHS) for (const m of MOMENTS) have.push(`sweep-strips-${engineWord(e)}:${stripPath(e, w, m.word).replace('strips/', '')}`);
+  assert.deepEqual(have.sort(), want);
+  assert.ok(item.ask.includes('Keep the flag'));
 });

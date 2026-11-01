@@ -62,12 +62,12 @@ const decide = (app: ReturnType<typeof createApp>, flag: string, body: unknown) 
   app.request(`/api/reviews/${encodeURIComponent(flag)}`, { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json" } });
 
 describe("GET /api/reviews", () => {
-  it("one open user item with the ledger words, the material state and the private link from .local/reviews.json", async () => {
+  it("two open user items (earn first, then the sweep flag); the earn one has the ledger words, the material state and the private link from .local/reviews.json", async () => {
     const { app, store } = await rig({ [FLAG]: LINK });
     await ensureReviewSteps(store);
     const r = await (await app.request("/api/reviews")).json() as any;
-    expect(r.open).toBe(1);
-    expect(r.items).toHaveLength(1);
+    expect(r.open).toBe(2);
+    expect(r.items).toHaveLength(2);
     const i = r.items[0];
     expect(i).toMatchObject({ flag: FLAG, state: "open", audience: "user", link: LINK, step: `review-${FLAG}` });
     expect(i.changed).toMatchObject({ id: "nav.earn.noTransition", visual: "not equal mid-transition" });
@@ -95,14 +95,14 @@ describe("GET /api/reviews", () => {
     await app.request("/api/reviews");
     expect(store.seq).toBe(before);
     expect(readFileSync(join(dir, "events.jsonl"), "utf8")).not.toContain("step.post");
-    expect(r.open).toBe(1);
+    expect(r.open).toBe(2);
     expect(r.items[0]).toMatchObject({ state: "open", step: `review-${FLAG}` });
   });
   it("the startup post puts the step on the board once however often it runs", async () => {
     const { store, dir } = await rig();
     await ensureReviewSteps(store); await ensureReviewSteps(store);
     const lines = readFileSync(join(dir, "events.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
-    expect(lines.filter((e) => e.type === "step.post")).toHaveLength(1);
+    expect(lines.filter((e) => e.type === "step.post")).toHaveLength(2);
   });
 });
 
@@ -113,7 +113,7 @@ describe("POST /api/reviews/<flag>", () => {
     const ok = await decide(app, FLAG, { decision: "keep" });
     expect(ok.status).toBe(200);
     const r = await (await app.request("/api/reviews")).json() as any;
-    expect(r.open).toBe(0);
+    expect(r.open).toBe(1);
     expect(r.items[0].state).toBe("keep");
     const last = readFileSync(join(dir, "events.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).pop();
     expect(last).toMatchObject({ type: "step.answer", actor: "user", step: `review-${FLAG}`, answer: "keep" });
@@ -151,7 +151,7 @@ describe("POST /api/reviews/<flag>", () => {
       expect((await store.submit({ type: "step.start", key: "s", actor: "user", step: `review-${FLAG}` })).ok).toBe(true);
       expect((await store.submit({ type: "step.done", key: "d", actor: "user", step: `review-${FLAG}` })).ok).toBe(true);
       const g = await (await app.request("/api/reviews")).json() as any;
-      expect(g.open).toBe(1);
+      expect(g.open).toBe(2);
       expect(g.items[0].state).toBe("open");
       await ensureReviewSteps(store);
       expect((await store.board()).steps.find((s) => s.id === `review-${FLAG}#1`)).toMatchObject({ status: "waiting", audience: "user" });
@@ -159,7 +159,7 @@ describe("POST /api/reviews/<flag>", () => {
       const ok = await decide(app, FLAG, { decision: word });
       expect(ok.status).toBe(200);
       const r = await (await app.request("/api/reviews")).json() as any;
-      expect(r.open).toBe(0);
+      expect(r.open).toBe(1);
       expect(r.items[0].state).toBe(word);
       const last = readFileSync(join(dir, "events.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).pop();
       expect(last).toMatchObject({ type: "step.answer", actor: "user", step: `review-${FLAG}#1`, answer: word });
@@ -169,7 +169,7 @@ describe("POST /api/reviews/<flag>", () => {
     const { app, store } = await rig();
     await ensureReviewSteps(store);
     expect((await store.submit({ type: "step.cancel", key: "c", actor: "user", step: `review-${FLAG}` })).ok).toBe(true);
-    expect(((await (await app.request("/api/reviews")).json()) as any).open).toBe(1);
+    expect(((await (await app.request("/api/reviews")).json()) as any).open).toBe(2);
     expect((await decide(app, FLAG, { decision: "keep" })).status).toBe(200);
     const steps = (await store.board()).steps;
     expect(steps.find((s) => s.id === `review-${FLAG}`)!.status).toBe("cancelled");

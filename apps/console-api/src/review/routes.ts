@@ -32,7 +32,7 @@ export function readLinks(root: string): Record<string, string> {
 
 /** A strip of an item as Lean `console.review` returns it (`Fw.Console.ReviewStrips`). */
 export interface StripOut {
-  engine: string; state: "ready" | "expired" | "missing"; width?: number; push?: "open" | "close"; file?: string;
+  engine: string; state: "ready" | "expired" | "missing"; width?: number; moment?: string; label?: string; push?: "open" | "close"; file?: string;
   run?: string; artifact?: string; expires?: string; note?: string; diff?: string; redo?: string;
 }
 

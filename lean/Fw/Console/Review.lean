@@ -121,13 +121,16 @@ def accept (ds : List Row) (rs : List Rec) (f : Flag) (word : String) : Except S
     | some v => .ok v
     | none => .error "the decision must be keep or reject"
 
+/-- The question text of an item (what differs, what the flag buys, Keep or Reject), when its flag has one; else empty. -/
+def ask (i : Item) : String := if i.flag == ReviewStrips.sweepFlag then ReviewStrips.sweepAsk i.material else ""
+
 /-- The title of the review step. -/
 def title (f : Flag) : String := "Review the look change " ++ f.key
 
 /-- The plain text of the review step. -/
 def body (i : Item) : String :=
   Fw.Console.Alert.bodyLines audience
-    s!"The look change {i.flag.key} was decided on {i.date} ({i.words})."
+    (s!"The look change {i.flag.key} was decided on {i.date} ({i.words})." ++ (if (ask i).isEmpty then "" else "\n" ++ ask i))
     "Nothing is blocked. Compose marks the variant \"look change, review pending\" until you decide."
     "Open the review page, look at the frame strips, then press Keep or Reject in the console."
     s!"flag {i.flag.key}; step {i.step}"
