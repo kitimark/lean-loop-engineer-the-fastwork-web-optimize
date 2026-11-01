@@ -81,6 +81,12 @@ export function lockedCmp(faith, cand) {
   return cmpKnown(f, c);
 }
 
+export const rankedOf = (ks) => ({ ranked: lockedOf(ks).length, runs: ks.length });
+
+export const RANKED_TEXT = 'lockedCmp ranks only the runs where the arm wrote while the morph was open (a stored lock), a selected subset; runs with no write are left out';
+
+export const rankedText = (ranked) => `${RANKED_TEXT}: ${ARMS.map((id) => `${id} ${ranked[id].ranked} of ${ranked[id].runs}`).join(', ')}`;
+
 export function traceCounts(names) {
   const n = (w) => names.filter((x) => x === w).length;
   const c = { inactive: n('inactive'), due: n('due'), touches: n('touch'), moved: n('moved'), wrote: n('write'), touching: n('touching'), live: n('live'), onTarget: n('onTarget'), reversal: n('reversal') };
@@ -167,6 +173,7 @@ export function summarize(rows) {
       baseVsOrig: { fights: lockedCmp(orig.fightRuns, base.fightRuns), restores: lockedCmp(orig.restoreRuns, base.restoreRuns) },
       pinVsBase: { fights: lockedCmp(base.fightRuns, pin.fightRuns), restores: lockedCmp(base.restoreRuns, pin.restoreRuns), eventFights: lockedCmp(base.eventFightRuns, pin.eventFightRuns) },
       pinVsOrig: { fights: lockedCmp(orig.fightRuns, pin.fightRuns) },
+      ranked: Object.fromEntries(ARMS.map((id) => [id, rankedOf(arms[id].fightRuns)])),
       look: lookKnown(base.displaced, lock.displaced),
       pinLook: lookKnown(base.displaced, pin.displaced),
       pinWrites: pin.accepted === 0 ? 'undecided' : pin.unrestored === 0 ? 'every run wrote' : `${pin.unrestored} of ${pin.accepted} runs never wrote (their fights are 0 by definition)`,
@@ -195,6 +202,7 @@ export function markdown(s) {
     }
   }
   const v = s.verdicts;
+  lines.push('', rankedText(v.ranked));
   lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${lookText(v.look)}`);
   lines.push('', `pin vs base: fights ${v.pinVsBase.fights}, restores ${v.pinVsBase.restores}, event fights ${v.pinVsBase.eventFights}; pin vs orig: fights ${v.pinVsOrig.fights}; look class of the pin: ${lookText(v.pinLook)}; pin writes: ${v.pinWrites}`);
   return lines.join('\n');

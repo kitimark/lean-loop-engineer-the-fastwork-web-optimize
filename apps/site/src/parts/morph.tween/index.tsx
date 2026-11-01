@@ -8,6 +8,7 @@ import { REST_VARIANT, setRest } from '../morph.panel/rest.logic';
 import { THREADED } from '../morph.panel/threaded.logic';
 import { createPanelEffects, createTweenDriver, type PanelEl, type TweenDriver, type TweenEnv } from './driver';
 import { cfgOf, hooksOf } from './end.hooks';
+import { withPinTrace, type PinTraceHost } from './end-pin.trace';
 import { timedBus } from './geom-timed.bus';
 import { active } from './logic';
 import { matchList } from './media';
@@ -64,7 +65,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
     };
     if (variant === END_PIN) {
       env.endPin = { touch: fingerWatch };
-      env.trace = (ev) => (window as unknown as { __fwPinTrace?: (e: object) => void }).__fwPinTrace?.(ev);
+      withPinTrace(env, window as PinTraceHost);
     }
     if (variant === GEOM_TIMED) {
       env.timed = timedBus.sink;

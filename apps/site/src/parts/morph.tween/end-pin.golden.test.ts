@@ -4,7 +4,7 @@ import { createTweenDriver, type PlatformEl, type TweenEnv } from './driver';
 import { active } from './logic';
 import { BASE } from './end.logic';
 import { due, dueWhy, mayWrite, observe, outcome, play, QUIET_MS, start, touch, why, type Ev, type Pin } from './end-pin.logic';
-import { faithWritesLive, writesLive } from './end-pin.live';
+import { faithMay, writesLive } from './end-pin.live';
 import type { TraceEv } from './driver';
 
 type Row = Record<string, unknown> & { op: string };
@@ -49,19 +49,23 @@ describe('morph.tween:end-pin against Lean (Fw.Parts.EndPin)', () => {
     for (const r of ofOp('pinTouch')) expect(touch(pinOf(r.pin), r.down === true)).toEqual(r.pinOut);
   });
   it('play gives the Lean positions', () => {
-    expect(ofOp('pinPlay').length).toBe(11);
-    for (const r of ofOp('pinPlay')) expect(play(start(Number(r.y0)), r.events as Ev[]), String(r.case)).toEqual(r.positions);
-  });
-  it('the end pin makes no write in a live state, the faithful pin does (writesLive)', () => {
+    expect(ofOp('pinPlay').length).toBe(12);
     for (const r of ofOp('pinPlay')) {
-      expect(writesLive(start(Number(r.y0)), r.events as Ev[]), String(r.case)).toBe(r.writesLive);
+      expect(play(start(Number(r.y0)), r.events as Ev[]), String(r.case)).toEqual(r.positions);
+      expect(play(start(Number(r.y0)), r.events as Ev[], faithMay), String(r.case)).toEqual(r.faithPositions);
+    }
+  });
+  it('one writesLive decides both pins: the end pin makes no write in a live state, the faithful pin does', () => {
+    for (const r of ofOp('pinPlay')) {
+      expect(writesLive(mayWrite, start(Number(r.y0)), r.events as Ev[]), String(r.case)).toBe(r.writesLive);
       expect(r.writesLive, String(r.case)).toBe(0);
-      expect(faithWritesLive(Number(r.s), start(Number(r.y0)), r.events as Ev[]), String(r.case)).toBe(r.faithWritesLive);
+      expect(writesLive(faithMay, start(Number(r.y0)), r.events as Ev[]), String(r.case)).toBe(r.faithWritesLive);
     }
     expect(ofOp('pinPlay').some((r) => Number(r.faithWritesLive) > 0)).toBe(true);
     for (const r of ofOp('pinFaith')) {
-      const moves = (r.moves as number[]).map((y): Ev => ['move', y]);
-      expect(faithWritesLive(Number(r.s), start(Number(r.y0)), moves), String(r.case)).toBe(r.writesLive);
+      const es = r.events as Ev[];
+      expect(play(start(Number(r.y0)), es, faithMay), String(r.case)).toEqual(r.positions);
+      expect(writesLive(faithMay, start(Number(r.y0)), es), String(r.case)).toBe(r.writesLive);
       expect(Number(r.writesLive), String(r.case)).toBe((r.moves as number[]).filter((y) => y !== Number(r.s)).length);
     }
   });
@@ -189,12 +193,6 @@ describe('the driver wires the end pin as Lean plays it', () => {
     expect(ops.slice(-2)).toEqual(['touch', 'reversal']);
     expect(a.timers()).toBe(0);
     expect(a.writes).toEqual([]);
-  });
-  it('the trace is silent without a trace hook', () => {
-    const a = arm(30, 0);
-    a.move(20);
-    a.advance(QUIET_MS + 1);
-    expect(a.writes).toEqual([0]);
   });
   it('a timer, not a scroll frame, makes the write once the page is quiet', () => {
     const a = arm(30, 0);

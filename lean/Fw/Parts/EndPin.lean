@@ -31,13 +31,19 @@ def mayWrite (p : Pin) (s : Int) : Bool :=
 
 def moveTo (p : Pin) (y : Int) : Pin := { p with since := 0, a := if y = p.b then p.a else some p.b, b := y }
 
-def step (p : Pin) : Ev → Pin × List Int
+abbrev Policy := Pin → Int → Bool
+
+def faithMay : Policy := fun q s => decide (q.b ≠ s)
+
+def stepBy (may : Policy) (p : Pin) : Ev → Pin × List Int
   | .move y => ({ p with since := 0, a := if y = p.b then p.a else some p.b, b := y }, [y])
   | .down => ({ p with touching := true, since := 0 }, [])
   | .up => ({ p with touching := false, since := 0 }, [])
   | .idle ms s =>
     let q := { p with since := p.since + ms }
-    if mayWrite q s then ({ q with since := 0, a := some q.b, b := s }, [s]) else (q, [])
+    if may q s then ({ q with since := 0, a := some q.b, b := s }, [s]) else (q, [])
+
+def step (p : Pin) (e : Ev) : Pin × List Int := stepBy mayWrite p e
 
 def play : Pin → List Ev → List Int
   | _, [] => []
@@ -69,31 +75,31 @@ def targetsOf : List Ev → List Int
 
 theorem step_idle_writes (p : Pin) (ms : Nat) (s : Int) :
     (step p (.idle ms s)).2 = [] ∨ (step p (.idle ms s)).2 = [s] := by
-  simp only [step]
+  simp only [step, stepBy]
   split <;> simp
 
 theorem step_idle_write_iff (p : Pin) (ms : Nat) (s : Int) :
     (step p (.idle ms s)).2 = [s] ↔ mayWrite { p with since := p.since + ms } s = true := by
-  simp only [step]
+  simp only [step, stepBy]
   split <;> simp_all
 
 theorem no_write_touching (p : Pin) (ms : Nat) (s : Int) (h : p.touching = true) : (step p (.idle ms s)).2 = [] := by
   have : mayWrite { p with since := p.since + ms } s = false := by simp [mayWrite, h]
-  simp [step, this]
+  simp [step, stepBy, this]
 
 theorem no_write_live (p : Pin) (ms : Nat) (s : Int) (h : p.since + ms < quietMs) : (step p (.idle ms s)).2 = [] := by
   have : mayWrite { p with since := p.since + ms } s = false := by
     simp [mayWrite, Nat.not_le.mpr h]
-  simp [step, this]
+  simp [step, stepBy, this]
 
 theorem no_write_settled (p : Pin) (ms : Nat) (s : Int) (h : p.b = s) : (step p (.idle ms s)).2 = [] := by
   have : mayWrite { p with since := p.since + ms } s = false := by simp [mayWrite, h]
-  simp [step, this]
+  simp [step, stepBy, this]
 
 theorem no_write_reversal (p : Pin) (ms : Nat) (s : Int) (h : reverses p.a p.b s = true) :
     (step p (.idle ms s)).2 = [] := by
   have : mayWrite { p with since := p.since + ms } s = false := by simp [mayWrite, h]
-  simp [step, this]
+  simp [step, stepBy, this]
 
 theorem write_of_clear (p : Pin) (ms : Nat) (s : Int) (h1 : p.touching = false) (h2 : quietMs ≤ p.since + ms)
     (h3 : p.b ≠ s) (h4 : reverses p.a p.b s = false) : (step p (.idle ms s)).2 = [s] := by
@@ -149,19 +155,19 @@ theorem play_no_turn (s : Int) :
     cases e with
     | down =>
       have := ih { p with touching := true, since := 0 } (by simpa [movesOf] using hu)
-      simpa [play, step] using this
+      simpa [play, step, stepBy] using this
     | up =>
       have := ih { p with touching := false, since := 0 } (by simpa [movesOf] using hu)
-      simpa [play, step] using this
+      simpa [play, step, stepBy] using this
     | move y =>
       have hy : y ≠ s := hu y (by simp [movesOf])
       have hr : ∀ z ∈ movesOf es, z ≠ s := fun z hz => hu z (by simp [movesOf, hz])
       by_cases hb : y = p.b
       · have := ih { p with since := 0, a := p.a, b := y } hr
         subst hb
-        simpa [play, step, dedupFrom_cons_eq] using this
+        simpa [play, step, stepBy, dedupFrom_cons_eq] using this
       · have := ih { p with since := 0, a := some p.b, b := y } hr
-        simp only [play, step, hb, ite_false, List.singleton_append, dedupFrom_cons_ne _ _ _ hb] at this ⊢
+        simp only [play, step, stepBy, hb, ite_false, List.singleton_append, dedupFrom_cons_ne _ _ _ hb] at this ⊢
         cases ha : p.a with
         | none => simpa [tailTurns, turns, turnsFrom] using this
         | some a' => simpa [tailTurns, turnsFrom, hy] using this
@@ -174,7 +180,7 @@ theorem play_no_turn (s : Int) :
           simp only [mayWrite, Bool.and_eq_true, Bool.not_eq_true'] at hw
           exact hw.2
         have := ih { p with since := 0, a := some p.b, b := t } (by simpa [movesOf] using hu)
-        simp only [play, step, hw, ite_true, List.singleton_append, dedupFrom_cons_ne _ _ _ (Ne.symm hne)] at this ⊢
+        simp only [play, step, stepBy, hw, ite_true, List.singleton_append, dedupFrom_cons_ne _ _ _ (Ne.symm hne)] at this ⊢
         cases ha : p.a with
         | none => simpa [tailTurns, turns, turnsFrom] using this
         | some a' =>
@@ -183,7 +189,7 @@ theorem play_no_turn (s : Int) :
           simpa [tailTurns, turnsFrom, hrev] using this
       · have hw' : mayWrite { p with since := p.since + ms } t = false := by simpa using hw
         have := ih { p with since := p.since + ms } (by simpa [movesOf] using hu)
-        simpa [play, step, hw'] using this
+        simpa [play, step, stepBy, hw'] using this
 
 theorem openPhase_all (xs : List Sample) (h : ∀ x ∈ xs, x.isOpen = true) : openPhase xs = xs := by
   have h1 : ∀ l : List Sample, (∀ x ∈ l, x.isOpen = true) → l.dropWhile (fun s => !s.isOpen) = l := by
@@ -239,13 +245,13 @@ theorem quiet_no_write :
     intro p hb hm
     cases e with
     | move y => simp [movesOf] at hm
-    | down => simpa [play, step] using ih { p with touching := true, since := 0 } (by simpa [targetsOf] using hb) (by simpa [movesOf] using hm)
-    | up => simpa [play, step] using ih { p with touching := false, since := 0 } (by simpa [targetsOf] using hb) (by simpa [movesOf] using hm)
+    | down => simpa [play, step, stepBy] using ih { p with touching := true, since := 0 } (by simpa [targetsOf] using hb) (by simpa [movesOf] using hm)
+    | up => simpa [play, step, stepBy] using ih { p with touching := false, since := 0 } (by simpa [targetsOf] using hb) (by simpa [movesOf] using hm)
     | idle ms t =>
       have ht : t = p.b := hb t (by simp [targetsOf])
       have h2 := ih { p with since := p.since + ms } (by simpa [targetsOf] using fun u hu => hb u (by simp [targetsOf, hu])) (by simpa [movesOf] using hm)
       have hw : mayWrite { p with since := p.since + ms } t = false := by simp [mayWrite, ht]
-      simpa [play, step, hw] using h2
+      simpa [play, step, stepBy, hw] using h2
 
 def due (p : Pin) (s : Int) : Option Nat :=
   if p.touching = false ∧ p.b ≠ s ∧ reverses p.a p.b s = false ∧ p.since < quietMs then some (quietMs - p.since) else none
@@ -277,7 +283,7 @@ def observe (s : Int) (p : Pin) (y : Int) (dt : Nat) : Pin × Option Int :=
 
 theorem observe_state (s : Int) (p : Pin) (y : Int) (dt : Nat) : (observe s p y dt).1 = (step p (eventOf p y dt s)).1 := by
   unfold observe eventOf
-  split <;> simp_all [step]
+  split <;> simp_all [step, stepBy]
 
 theorem observe_move_silent (s : Int) (p : Pin) (y : Int) (dt : Nat) (h : y ≠ p.b) : (observe s p y dt).2 = none := by
   simp [observe, eventOf, h]
@@ -305,35 +311,40 @@ theorem live_moveTo (p : Pin) (y : Int) : live (moveTo p y) = true := by
 
 theorem live_touching (q : Pin) (h : q.touching = true) : live q = true := by simp [live, h]
 
-def pass (p : Pin) : Ev → Pin
-  | .move y => moveTo p y
-  | .down => { p with touching := true, since := 0 }
-  | .up => { p with touching := false, since := 0 }
-  | .idle ms _ => { p with since := p.since + ms }
+def playBy (may : Policy) : Pin → List Ev → List Int
+  | _, [] => []
+  | p, e :: es => (stepBy may p e).2 ++ playBy may (stepBy may p e).1 es
 
-def writesLive : Pin → List Ev → Nat
+theorem playBy_mayWrite : ∀ (es : List Ev) (p : Pin), playBy mayWrite p es = play p es := by
+  intro es
+  induction es with
+  | nil => intro p; rfl
+  | cons e es ih => intro p; simp [playBy, play, step, ih]
+
+def writesLive (may : Policy) : Pin → List Ev → Nat
   | _, [] => 0
   | p, e :: es =>
     (match e with
-      | .idle ms _ => if live { p with since := p.since + ms } then (step p e).2.length else 0
-      | _ => 0) + writesLive (step p e).1 es
+      | .idle ms _ => if live { p with since := p.since + ms } then (stepBy may p e).2.length else 0
+      | _ => 0) + writesLive may (stepBy may p e).1 es
 
-theorem writesLive_zero : ∀ (es : List Ev) (p : Pin), writesLive p es = 0 := by
+theorem writesLive_zero_of (may : Policy) (hmay : ∀ q s, may q s = true → live q = false) :
+    ∀ (es : List Ev) (p : Pin), writesLive may p es = 0 := by
   intro es
   induction es with
   | nil => intro p; rfl
   | cons e es ih =>
     intro p
-    have h := ih (step p e).1
+    have h := ih (stepBy may p e).1
     cases e with
     | idle ms s =>
-      have hl : (if live { p with since := p.since + ms } = true then (step p (.idle ms s)).2.length else 0) = 0 := by
+      have hl : (if live { p with since := p.since + ms } = true then (stepBy may p (.idle ms s)).2.length else 0) = 0 := by
         by_cases hv : live { p with since := p.since + ms } = true
-        · have hm : mayWrite { p with since := p.since + ms } s = false := by
-            cases hm' : mayWrite { p with since := p.since + ms } s
+        · have hm : may { p with since := p.since + ms } s = false := by
+            cases hm' : may { p with since := p.since + ms } s
             · rfl
-            · rw [mayWrite_not_live _ _ hm'] at hv; simp at hv
-          have : (step p (.idle ms s)).2 = [] := by simp [step, hm]
+            · rw [hmay _ _ hm'] at hv; simp at hv
+          have : (stepBy may p (.idle ms s)).2 = [] := by simp [stepBy, hm]
           simp [this]
         · simp [hv]
       simp only [writesLive, hl, h]
@@ -341,30 +352,34 @@ theorem writesLive_zero : ∀ (es : List Ev) (p : Pin), writesLive p es = 0 := b
     | down => simp [writesLive, h]
     | up => simp [writesLive, h]
 
-def faithWritesLive (s : Int) : Pin → List Ev → Nat
-  | _, [] => 0
-  | p, e :: es =>
-    (match e with
-      | .move y => if y = s then 0 else if live (moveTo p y) then 1 else 0
-      | _ => 0) + faithWritesLive s (pass p e) es
+theorem writesLive_zero (es : List Ev) (p : Pin) : writesLive mayWrite p es = 0 :=
+  writesLive_zero_of mayWrite mayWrite_not_live es p
 
-theorem faithWritesLive_eq (s : Int) : ∀ (es : List Ev) (p : Pin), faithWritesLive s p es = ((movesOf es).filter fun y => decide (y ≠ s)).length := by
-  intro es
-  induction es with
+def faithEvents (s : Int) : List Int → List Ev
+  | [] => []
+  | y :: ys => .move y :: .idle 0 s :: faithEvents s ys
+
+theorem faith_play (s : Int) : ∀ (ys : List Int) (p : Pin), playBy faithMay p (faithEvents s ys) = faithOut s ys := by
+  intro ys
+  induction ys with
   | nil => intro p; rfl
-  | cons e es ih =>
+  | cons y ys ih =>
     intro p
-    have h := ih (pass p e)
-    cases e with
-    | move y =>
-      by_cases hy : y = s
-      · subst hy
-        simpa [faithWritesLive, movesOf] using h
-      · simp [faithWritesLive, movesOf, hy, h, live_moveTo]
-        omega
-    | down => simpa [faithWritesLive, movesOf] using h
-    | up => simpa [faithWritesLive, movesOf] using h
-    | idle ms t => simpa [faithWritesLive, movesOf] using h
+    by_cases hy : y = s
+    · subst hy; simp [faithEvents, playBy, stepBy, faithMay, faithOut, ih]
+    · simp [faithEvents, playBy, stepBy, faithMay, faithOut, hy, ih]
+
+theorem faith_writesLive (s : Int) : ∀ (ys : List Int) (p : Pin),
+    writesLive faithMay p (faithEvents s ys) = (ys.filter fun y => decide (y ≠ s)).length := by
+  intro ys
+  induction ys with
+  | nil => intro p; rfl
+  | cons y ys ih =>
+    intro p
+    by_cases hy : y = s
+    · subst hy; simp [faithEvents, writesLive, stepBy, faithMay, live, quietMs, ih]
+    · simp [faithEvents, writesLive, stepBy, faithMay, live, quietMs, hy, ih]
+      omega
 
 theorem faithOut_length (s : Int) : ∀ ys : List Int, (faithOut s ys).length = ys.length + (ys.filter fun y => decide (y ≠ s)).length := by
   intro ys
@@ -375,18 +390,20 @@ theorem faithOut_length (s : Int) : ∀ ys : List Int, (faithOut s ys).length = 
     · simp [faithOut, hy, ih]; omega
     · simp [faithOut, hy, ih]; omega
 
-theorem faithWritesLive_is_writes (s : Int) (es : List Ev) (p : Pin) :
-    faithWritesLive s p es = (faithOut s (movesOf es)).length - (movesOf es).length := by
-  rw [faithWritesLive_eq, faithOut_length]; omega
+theorem faith_writesLive_is_writes (s : Int) (ys : List Int) (p : Pin) :
+    writesLive faithMay p (faithEvents s ys) = (playBy faithMay p (faithEvents s ys)).length - ys.length := by
+  rw [faith_writesLive, faith_play, faithOut_length]; omega
 
-theorem faith_writesLive_pos (s : Int) (es : List Ev) (p : Pin) (y : Int) (hy : y ∈ movesOf es) (hne : y ≠ s) :
-    0 < faithWritesLive s p es := by
-  rw [faithWritesLive_eq]
+theorem faith_writesLive_pos (s : Int) (ys : List Int) (p : Pin) (y : Int) (hy : y ∈ ys) (hne : y ≠ s) :
+    0 < writesLive faithMay p (faithEvents s ys) := by
+  rw [faith_writesLive]
   exact List.length_pos_of_mem (List.mem_filter.mpr ⟨hy, by simpa using hne⟩)
 
-theorem faith_writesLive_witness : faithWritesLive 0 (start 0) [.down, .move 90, .up, .move 60] = 2 := by decide
+def liveEvents : List Ev := [.down, .move 90, .idle 16 0, .up, .move 60, .idle 16 0, .idle 200 0]
 
-theorem end_writesLive_witness : writesLive (start 0) [.down, .move 90, .up, .idle 200 0, .move 60, .idle 200 0] = 0 := writesLive_zero _ _
+theorem faith_writesLive_witness : writesLive faithMay (start 0) liveEvents = 2 := by decide
+
+theorem end_writesLive_witness : writesLive mayWrite (start 0) liveEvents = 0 := writesLive_zero _ _
 
 inductive Why where
   | touching | live | onTarget | reversal
@@ -517,7 +534,7 @@ theorem outcome_declined_silent (s : Int) (p : Pin) (y : Int) (dt : Nat) (w : Wh
       · rfl
       · have := (why_none_iff _ _).mpr hm'
         rw [hn] at this; simp at this
-    have : (step p (.idle dt s)).2 = [] := by simp [step, hm]
+    have : (step p (.idle dt s)).2 = [] := by simp [step, stepBy, hm]
     simp [observe, eventOf, hy, this]
   · exact observe_move_silent s p y dt hy
 
@@ -606,7 +623,8 @@ def playCases : List (String × Int × Int × List Ev) := [
   ("a touch stays down", (0, 100, [.down, .move 80, .idle 5000 0])),
   ("the target moves between waits", (0, 100, [.move 80, .idle 200 60, .move 70, .idle 200 0])),
   ("the target moves while the page is not quiet", (0, 100, [.move 80, .idle 50 0, .idle 100 20])),
-  ("the target jumps over the page", (0, 0, [.move 70, .idle 300 90, .idle 300 0]))]
+  ("the target jumps over the page", (0, 0, [.move 70, .idle 300 90, .idle 300 0])),
+  ("readings while a pan is live", (0, 0, liveEvents))]
 
 def faithCases : List (String × Int × Int × List Int) := [
   ("the page springs out and back twice", (0, 0, [90, 60])),
@@ -671,12 +689,13 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("op", "pinPlay"), ("case", Json.str name), ("s", toJson s), ("y0", toJson y0), ("events", Json.arr (es.map evJson).toArray),
       ("positions", toJson out), ("writes", toJson (writes (start y0) es)), ("frames", framesJson (y0 :: out)),
       ("fights", toJson (fights s (run y0 es))), ("reversals", toJson (reversals (run y0 es))),
-      ("writesLive", toJson (writesLive (start y0) es)), ("faithWritesLive", toJson (faithWritesLive s (start y0) es))]).compress
+      ("writesLive", toJson (writesLive mayWrite (start y0) es)), ("faithPositions", toJson (playBy faithMay (start y0) es)),
+      ("faithWritesLive", toJson (writesLive faithMay (start y0) es))]).compress
   let fs := faithCases.map fun (name, s, y0, ys) =>
     let out := faithOut s ys
     (Json.mkObj [("op", "pinFaith"), ("case", Json.str name), ("s", toJson s), ("y0", toJson y0), ("moves", toJson ys),
-      ("positions", toJson out), ("frames", framesJson (y0 :: out)),
-      ("fights", toJson (fights s (faithRun s y0 ys))), ("writesLive", toJson (faithWritesLive s (start y0) (ys.map Ev.move)))]).compress
+      ("events", Json.arr ((faithEvents s ys).map evJson).toArray), ("positions", toJson out), ("frames", framesJson (y0 :: out)),
+      ("fights", toJson (fights s (faithRun s y0 ys))), ("writesLive", toJson (writesLive faithMay (start y0) (faithEvents s ys)))]).compress
   let cs := traceCases.map fun (name, l) =>
     (Json.mkObj [("op", "pinTrace"), ("case", Json.str name), ("names", toJson l), ("counts", countsJson (traceCounts l))]).compress
   [consts] ++ ms ++ os ++ ds ++ ts ++ ps ++ fs ++ cs
@@ -688,6 +707,8 @@ def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.m
 #guard play (start 0) declineEvents == [90]
 #guard play (start 0) [.down, .move 90, .move 60, .move 30, .up, .idle 50 0, .idle 100 0] == [90, 60, 30, 0]
 #guard play (start 100) [.move 80, .idle 200 60, .move 70, .idle 200 0] == [80, 60, 70]
-#guard faithWritesLive 0 (start 0) ([90, 60].map Ev.move) == 2
+#guard writesLive faithMay (start 0) (faithEvents 0 [90, 60]) == 2
+#guard playBy faithMay (start 0) (faithEvents 0 [90, 60]) == [90, 0, 60, 0]
+#guard writesLive mayWrite (start 0) liveEvents == 0
 
 end Fw.Parts.EndPin
