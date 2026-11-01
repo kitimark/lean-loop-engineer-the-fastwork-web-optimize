@@ -107,6 +107,19 @@ jobs:
           path: packages/premise-tests/out/*.json
           if-no-files-found: error
           retention-days: 14
+      # Review material, no verdict (task layer-sweep-review): strips of platform.sweep:layer-sweep against the faithful word for the
+      # user's look decision, one artifact per engine (sweep-strips-<engine>), read by the console StripCache.
+      - name: Sweep strips for the look review (never fails the run)
+        env:
+          ENGINE: ${{ matrix.engine }}
+        run: node src/sweep-strips.mjs --engine "$ENGINE" --out out-sweep || echo "sweep strips failed"
+        working-directory: packages/premise-tests
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sweep-strips-${{ matrix.engine }}
+          path: packages/premise-tests/out-sweep
+          if-no-files-found: error
+          retention-days: 30
       - uses: ./.github/actions/telemetry
         if: ${{ (always()) && steps.stale.outcome == 'skipped' }}
         with:
