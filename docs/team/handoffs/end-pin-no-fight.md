@@ -15,6 +15,9 @@ site vitest 8547 pass, tsc clean, measure-webkit node tests 1101 pass, ci-paths 
 
 ## CI runs
 - dispatch 1: push of ci/end-pin-no-fight at 0ce0723a6, smoothness workflow, run 41267567864, in progress (lean run success; the other workflows skipped by design). `sh lean/scripts/check.sh` green on 6be0a32e2.
+- dispatch 1 result: success, but all 6 pin windows per job-1 refused `config` (the window reset the URL to `/`, dropping `?fw=`); job 2 had a pageLost early (1 base window). Fixed by `armPath` in touchlock-run.mjs (5faf65ca7). Job results in `results/end-pin-no-fight/run-41267567864/job{1,2}`.
+- dispatch 2: run 41270567124 at 5faf65ca7. Job 1 hit the 45 min job limit (walk step failed, no artifact, no log). Job 2 success: orig 3, base 3, lock 3, pin 3 accepted (+1 pageLost); pin made 0 scrollTo calls in every window (fights and displaced 0 by definition), in all 3 the page rested exactly at maxY10 (the base rests 0.6 px or more above it, in the overscroll). Results `results/end-pin-no-fight/run-41270567124/job2`.
+- dispatch 3 (last): pushed after dispatch 2, see the next line when known.
 - The commit hook needed `set_option maxRecDepth` in generated FootprintData.lean (`apps/site/scripts/part-footprint.mjs`, an extra write); the tip message needs a lane token `[ci:smoothness]`.
 
 ## Open
