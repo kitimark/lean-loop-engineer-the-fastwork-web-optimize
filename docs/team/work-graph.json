@@ -19708,7 +19708,10 @@
     "packages/contracts/golden/ci/**",
     "apps/runner/test/land-overflow-widths.test.ts",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
-    "docs/team/handoffs/sim-touch-verdict-jobs.md"
+    "docs/team/handoffs/sim-touch-verdict-jobs.md",
+    "apps/runner/src/land.ts",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "scripts/ci-paths.test.mjs"
    ],
    "title": "Re-plan of sim-touch-followups item 4 (closed as a CONFIRMED finding 2026-10-24: with 3 SpringBoard jobs one starved job removes the across-job verdict, since acrossDecisive needs minSamples 3 decisive jobs, reduce.mjs:99 / Smooth.lean:666; and touch end windows carry no Timeline, so the finish zone gets 0 reps). Lean: jobsNeeded with a theorem that an ok plan gives >= minSamples decisive jobs with a starvation margin (e.g. 4-5 SpringBoard jobs within the free macOS concurrency 5), the window budget from a tail quantile (tails 285-744 s) instead of the 45 s mean, the plan's clock started after Simulator boot, touch driver start and Safari launch (not before findDevice), the push server readyMs 240 s exceeded at host load; touch end windows keep Timeline zones (or a stated zone source); arms of 4+ split over jobs; FW_MATRIX_JOB on the morph step (sim-touch-followups title item 7). Proof: one CI run (at most 2 dispatches) whose across-jobs 'end touch' verdict is not insufficient."
   },
@@ -25122,6 +25125,36 @@
     "docs/team/handoffs/end-pin-followups.md"
    ],
    "evidence": "fca471c"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "sim-touch-fault-margin",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "sim-touch-verdict-jobs"
+   ],
+   "title": "Finding of sim-touch-verdict-jobs: the 5-job plan (margin 2) did not reach an across-jobs end-touch verdict (run 41345594217: 0 of 5 decisive; run 41349666358: 2 of 5, 3 needed); 3 of 5 jobs had harness faults (touch driver not ready in 480 s, pageLost and long windows past the walk deadline, Runtime.evaluate and Timeline.stop timeouts). Do: a fault-rate input to Lean jobsNeeded (measured from these runs) with a theorem that the plan reaches minSamples decisive jobs at that rate; a 10-job matrix in two waves (max-parallel 5) on free macOS runners; end a job early when the touch driver is not ready (no untouched full reps); planReps for the touch-lock lane (touchlock-run.mjs, 4 arms); at most 2 CI dispatches; across-jobs verdict with run ids, or a finding naming the dominant fault.",
+   "writes": [
+    "lean/Fw/Measure/WalkBudget.lean",
+    "packages/contracts/golden/measure/walk-budget.jsonl",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/walk-budget.test.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/src/profile/report*.mjs",
+    "packages/measure-webkit/test/profile-*.test.mjs",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/test/touchlock*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "docs/team/handoffs/sim-touch-fault-margin.md"
+   ]
   }
  ],
  "deadline": {
