@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { fights, reversals, openCalls, cmp, look, cmpKnown, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
-import { restartServer, armTrees } from '../src/touchlock-run.mjs';
+import { restartServer, armTrees, armPath } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -222,4 +222,8 @@ test('summarize: a pin arm that never writes has no open calls; it counts as unr
   assert.equal(s.arms.base.unrestored, 0);
   assert.equal(s.verdicts.pinVsBase.fights, 'lower');
   assert.match(markdown(s), /pin vs base: fights lower/);
+});
+
+test('a window reloads the arm path: only the pin arm keeps its flag in the query, the others reload the root', () => {
+  assert.deepEqual(ARMS.map((id) => armPath('/site', id)), ['/', '/', '/', '/?fw=morph.tween:end-pin']);
 });

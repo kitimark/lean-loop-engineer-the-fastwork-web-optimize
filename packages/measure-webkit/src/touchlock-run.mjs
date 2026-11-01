@@ -20,6 +20,9 @@ export function armTrees(siteDir) {
   };
 }
 
+/** The path a window reloads: the page reads its flags from the query at run time, so an arm with a flag keeps its search (`?fw=...`); the others reload `/`. */
+export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? '');
+
 export async function restartServer(touch, { udid, log, push, start = startServer }) {
   touch.restarts++;
   try { touch.server = await start(touch.driver, { udid, log, push, tag: serveTag(touch.restarts) }); } catch (e) { touch.on = false; touch.why = `restart failed: ${e.message}`; }
@@ -41,7 +44,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps = 6, settleMs = 2
 
   const oneWindow = async (ctx, id, rep) => {
     ctx.setArm(id);
-    await ctx.c.evaluate(`history.replaceState(null, '', '/'); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
+    await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify(armPath(siteDir, id))}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
     ua = info.ua;

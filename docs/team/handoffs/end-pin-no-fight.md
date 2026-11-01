@@ -1,7 +1,7 @@
 # Handoff: end-pin-no-fight (measure-engineer)
 
 Branch `worktree-wf_495bf26b-5b0-1`, CI branch `ci/end-pin-no-fight`. Worktree `.claude/worktrees/wf_495bf26b-5b0-1`.
-Last commit: see `git log -1` (WIP commit "end-pin-no-fight: ..."). State: model, TS twin, driver wiring and lane arm done; CI not yet measured.
+Last pushed commit: 0ce0723a6 (empty, tags `[ci:smoothness] [webkit-cadence] [sim-only] [touch-lock]`); code in 6be0a32e2. State: model, TS twin, driver wiring and lane arm done; CI dispatch 1 of 3 pushed, waiting.
 
 ## Built (uncommitted before the first commit, then committed)
 - `lean/Fw/Parts/EndPin.lean`: page-end pin policy (write only when no touch, 120 ms quiet, off target, not reversing). Theorem `pin_fights_zero` (needs user positions != target), `faith_fights_witness`, `decline_rests_off_target`. Look class L.
@@ -14,7 +14,8 @@ Last commit: see `git log -1` (WIP commit "end-pin-no-fight: ..."). State: model
 site vitest 8547 pass, tsc clean, measure-webkit node tests 1101 pass, ci-paths 56 pass, part-footprint regenerated.
 
 ## CI runs
-(none yet)
+- dispatch 1: push of ci/end-pin-no-fight at 0ce0723a6, smoothness workflow, run 41267567864, in progress (lean run success; the other workflows skipped by design). `sh lean/scripts/check.sh` green on 6be0a32e2.
+- The commit hook needed `set_option maxRecDepth` in generated FootprintData.lean (`apps/site/scripts/part-footprint.mjs`, an extra write); the tip message needs a lane token `[ci:smoothness]`.
 
 ## Open
 - Push `ci/end-pin-no-fight` with `[webkit-cadence] [touch-lock] [sim-only]` and `[trajectory fw=morph.tween:end-pin]`; at most 3 dispatches, 2 jobs each.
