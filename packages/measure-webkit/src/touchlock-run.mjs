@@ -16,6 +16,7 @@ export function armTrees(siteDir) {
     orig: { dir: null },
     base: { dir: siteDir, search: '' },
     lock: { dir: siteDir, search: '' },
+    pin: { dir: siteDir, search: '?fw=morph.tween:end-pin' },
   };
 }
 

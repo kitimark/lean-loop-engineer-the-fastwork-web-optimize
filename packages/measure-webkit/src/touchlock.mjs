@@ -13,6 +13,9 @@ export const storedLock = (calls) => calls.find((c) => c[1])?.[0] ?? null;
 
 export const lockOf = (r) => storedLock(r.calls);
 
+/** Lean `openCalls`: scrollTo calls made while the morph was open. Zero means no stored lock, so fights and displaced are 0 by definition. */
+export const openCalls = (r) => r.calls.filter((c) => c[1]).length;
+
 export const lockSteady = (r) => {
   const s = lockOf(r);
   return s === null || r.calls.filter((c) => c[1]).every((c) => c[0] === s);
@@ -51,7 +54,7 @@ export function reduce(r) {
   return {
     openFrames: openPhase(r.frames).length, displacedFrames: displacedAt(s, r.frames),
     frameReversals: reversals(r.frames), frameFights, restores: displacedAt(s, r.events),
-    eventReversals: reversals(r.events), eventFights: fightsAt(s, r.events), jitter: frameFights > 0, lock: s,
+    eventReversals: reversals(r.events), eventFights: fightsAt(s, r.events), jitter: frameFights > 0, lock: s, openCalls: openCalls(r),
   };
 }
 
@@ -80,8 +83,8 @@ export function tally(rs) {
   return { accepted: ok.length, jitter: ok.filter((r) => reduce(r).jitter).length };
 }
 
-/** The Simulator pans lock-open pages with real touches; `lock` is the candidate: the same page with a CSS lock while the morph is open. */
-export const ARMS = Object.freeze(['orig', 'base', 'lock']);
+/** The Simulator pans lock-open pages with real touches; `lock` is the CSS-lock candidate (the same page with a CSS lock while the morph is open); `pin` is the morph.tween:end-pin variant (a page-end pin that writes only at rest). */
+export const ARMS = Object.freeze(['orig', 'base', 'lock', 'pin']);
 
 export const LOCK_CSS = 'html.fw-lock{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important}';
 
@@ -89,7 +92,7 @@ export const MAX_RESTARTS = 2;
 
 export const serveTag = (restarts) => (restarts === 0 ? 'serve' : `serve-r${restarts}`);
 
-export const repOrder = (rep) => (rep % 2 === 0 ? ['base', 'lock', 'orig'] : ['lock', 'base', 'orig']);
+export const repOrder = (rep) => (rep % 2 === 0 ? ['base', 'lock', 'pin', 'orig'] : ['pin', 'lock', 'base', 'orig']);
 
 export const afterWindow = (used, stalled) => (!stalled ? 'keep' : used < MAX_RESTARTS ? 'restart' : 'stop');
 
@@ -135,28 +138,34 @@ export function summarize(rows) {
       windows: mine.length, failed: mine.length - runs.length, failures, refused, accepted: kept.length, jitterRuns: kept.filter((k) => k.jitter).length,
       fights: kept.map((k) => k.frameFights), reversals: kept.map((k) => k.frameReversals), displaced: kept.map((k) => k.displacedFrames),
       restores: kept.map((k) => k.restores), eventFights: kept.map((k) => k.eventFights), eventReversals: kept.map((k) => k.eventReversals),
-      locks: kept.map((k) => k.lock),
+      locks: kept.map((k) => k.lock), calls: kept.map((k) => k.openCalls), unrestored: kept.filter((k) => k.openCalls === 0).length,
     };
   }
-  const { orig, base, lock } = arms;
+  const { orig, base, lock, pin } = arms;
   return {
     arms,
     windows: windowsOf(rows),
     verdicts: {
       lockVsBase: { fights: cmpKnown(base.fights, lock.fights), restores: cmpKnown(base.restores, lock.restores), eventFights: cmpKnown(base.eventFights, lock.eventFights) },
       baseVsOrig: { fights: cmpKnown(orig.fights, base.fights), restores: cmpKnown(orig.restores, base.restores) },
+      pinVsBase: { fights: cmpKnown(base.fights, pin.fights), restores: cmpKnown(base.restores, pin.restores), eventFights: cmpKnown(base.eventFights, pin.eventFights) },
+      pinVsOrig: { fights: cmpKnown(orig.fights, pin.fights) },
       look: lookKnown(base.displaced, lock.displaced),
+      pinLook: lookKnown(base.displaced, pin.displaced),
+      pinWrites: pin.accepted === 0 ? 'undecided' : pin.unrestored === 0 ? 'every run wrote' : `${pin.unrestored} of ${pin.accepted} runs never wrote (their fights are 0 by definition)`,
     },
   };
 }
 
 const table = (head, body) => [head, '|' + head.split('|').slice(1, -1).map(() => '---').join('|') + '|', ...body];
 
+const lookText = (l) => (l === 'same' ? 'same look' : l === 'change' ? 'look change' : 'undecided');
+
 export function markdown(s) {
-  const head = '| arm | windows | push failed | push failure reasons | refused | accepted | jitter runs | frame fights per run | frame reversals per run | displaced frames per run | restores per run | event fights per run | stored lock per run |';
+  const head = '| arm | windows | push failed | push failure reasons | refused | accepted | jitter runs | frame fights per run | frame reversals per run | displaced frames per run | restores per run | event fights per run | stored lock per run | open scrollTo calls per run | runs with no open call |';
   const lines = table(head, ARMS.map((id) => {
     const a = s.arms[id];
-    return `| ${id} | ${a.windows} | ${a.failed} | ${JSON.stringify(a.failures)} | ${JSON.stringify(a.refused)} | ${a.accepted} | ${a.jitterRuns} | ${a.fights.join(' ')} | ${a.reversals.join(' ')} | ${a.displaced.join(' ')} | ${a.restores.join(' ')} | ${a.eventFights.join(' ')} | ${a.locks.map((l) => l ?? 'none').join(' ')} |`;
+    return `| ${id} | ${a.windows} | ${a.failed} | ${JSON.stringify(a.failures)} | ${JSON.stringify(a.refused)} | ${a.accepted} | ${a.jitterRuns} | ${a.fights.join(' ')} | ${a.reversals.join(' ')} | ${a.displaced.join(' ')} | ${a.restores.join(' ')} | ${a.eventFights.join(' ')} | ${a.locks.map((l) => l ?? 'none').join(' ')} | ${a.calls.join(' ')} | ${a.unrestored} |`;
   }));
   const wins = s.windows ?? [];
   if (wins.length) {
@@ -164,6 +173,7 @@ export function markdown(s) {
       wins.map((w) => `| ${w.n} | ${w.arm} | ${w.rep ?? ''} | ${w.state} | ${w.reason ?? ''} | ${w.openFrames ?? ''} | ${w.reversals ?? ''} | ${w.fights ?? ''} | ${w.displaced ?? ''} | ${w.restores ?? ''} | ${w.state === 'open' ? (w.lock ?? 'none') : ''} |`)));
   }
   const v = s.verdicts;
-  lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${v.look === 'same' ? 'same look' : v.look === 'change' ? 'look change' : 'undecided'}`);
+  lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${lookText(v.look)}`);
+  lines.push('', `pin vs base: fights ${v.pinVsBase.fights}, restores ${v.pinVsBase.restores}, event fights ${v.pinVsBase.eventFights}; pin vs orig: fights ${v.pinVsOrig.fights}; look class of the pin: ${lookText(v.pinLook)}; pin writes: ${v.pinWrites}`);
   return lines.join('\n');
 }
