@@ -36,7 +36,7 @@ coreUser, other]` gives deps `[[], [0], [0,1], [0,1,2], [0,1,2,3], [0]]` (also a
 Must catch:
 - two `lake build` runs in one `lean/.lake`. Lake takes no lock on the build directory (CONFIRMED,
   Lake/Util/Lock.lean:17-20@eb6cafb), and `LAKE_SLOT_POOLS='full 4'` (lean/Fw/Sched/LakeSlot.lean:276) gives two slots
-  (`_ls_take`, scripts/lake-slot-lib.sh:38-49), so the slots let two builds run at once. `lake_serial` orders them.
+  (`_ls_take`, scripts/lake-slot-lib.sh:38-49), so two builds can run at once. `lake_serial` orders them.
 - a `fwcore` user running while a lake build can still relink `lean/.lake/build/bin/fwcore`: `core_after_builds`.
 
 Need not catch: builds in other worktrees (each has its own `lean/.lake`); a command line the classifier maps to the
@@ -44,5 +44,4 @@ wrong kind. Classification by command line lives in TS until dry-land-wiring che
 
 ## Accepted limits
 
-Lean and golden only; no TS wiring (task dry-land-wiring); no measurement. The rule stays consumed by a TS stand-in
-until a fwcore op replaces it.
+No TS wiring (dry-land-wiring) and no measurement. A TS stand-in consumes the rule until a fwcore op replaces it.
