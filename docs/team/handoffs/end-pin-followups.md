@@ -3,7 +3,7 @@
 Branch `worktree-wf_79765b7c-dcf-1`, worktree `.claude/worktrees/wf_79765b7c-dcf-1`. The last commit is the branch tip (`git log -1`). No CI push, no CI run (accepted limit).
 
 ## Verified (local)
-See the report: `sh lean/scripts/check.sh`, site tests + typecheck, measure-webkit tests, ci-paths, runner land-inputs, plan lint, dry land.
+`sh lean/scripts/check.sh` green; site 8553 pass + typecheck clean; measure-webkit 1108 pass; ci-paths 56; runner land-inputs 73; plan lint 0 errors (only `longTitle` for this row); `VERDICT dry end-pin-followups`; `VERDICT review-ready end-pin-followups review`.
 
 ## Built
 - `lean/Fw/Parts/EndPin.lean`: `Policy`, `faithMay`, `stepBy` (`step := stepBy mayWrite`), `playBy` (`playBy_mayWrite`), one `writesLive may`, `writesLive_zero_of`, `writesLive_zero`, `faithEvents`, `faith_play`, `faith_writesLive`, `faith_writesLive_is_writes`, `faith_writesLive_pos`, `liveEvents` with `faith_writesLive_witness` (2) and `end_writesLive_witness` (0). `faithWritesLive`, `pass`, `faithWritesLive_eq` deleted.
