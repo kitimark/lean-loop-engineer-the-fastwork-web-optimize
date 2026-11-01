@@ -1,9 +1,10 @@
 # Handoff: end-pin-trace (measure-engineer)
 
-Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137-1`, CI branch `ci/end-pin-trace`. Last commit at the push: 38ed79650.
+Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137-1`, CI branch `ci/end-pin-trace`. Last commit at dispatch 1: 38ed79650; dispatch 2 is the tip commit of ci/end-pin-trace.
 
 ## CI runs
-- 41285184069 (smoothness, push of ci/end-pin-trace at 38ed79650): in progress; polled with fw ci wait
+- 41285184069 (smoothness, dispatch 1, 38ed79650): complete. Job 1 failed with 0 windows (simulator never gave a tab: simctl openurl timeout, no ready file after 285 s; harness, not this code). Job 2 success, 5 windows (walk deadline 1654 s): pin windows 3 (refused noOpen, 24 pin calls, 19 inactive) and 5 (open, 119 frames, no stored lock, 10 calls: 2 inactive, 4 touch, 2 moved, 1 touching, 0 due, 0 writes). Results: results/end-pin-trace/run-41285184069/job{1,2}/.
+- dispatch 2: pending (adds the due-check decline trace, dueWhy)
 
 ## Verified (local, not a result)
 Lean `sh lean/scripts/check.sh` green; site vitest 8551 pass and tsc clean; measure-webkit tests 1107 pass; ci-paths 56 pass; runner land-inputs 73 pass; plan lint 0 errors, no writesClosure warning for this row.
