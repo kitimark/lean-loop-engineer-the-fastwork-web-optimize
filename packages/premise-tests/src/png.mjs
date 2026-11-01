@@ -1,10 +1,7 @@
-// Minimal PNG tools for the sweep strips (no dependency): decode a Playwright screenshot (8-bit RGB or RGBA, not interlaced),
-// the per-pixel difference of two images, a heat colour per difference, nearest-neighbour zoom, vertical stacking, encode.
 import { crc32, deflateSync, inflateSync } from 'node:zlib';
 
 const SIG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
-/** Decodes a PNG buffer to {width, height, data} with data = RGBA bytes. */
 export function decodePng(buf) {
   if (!buf.subarray(0, 8).equals(SIG)) throw new Error('not a PNG');
   let at = 8; let hdr = null; const idat = [];
@@ -46,7 +43,6 @@ function chunk(type, body) {
   return Buffer.concat([head, body, tail]);
 }
 
-/** Encodes {width, height, data (RGBA)} as an 8-bit RGBA PNG. */
 export function encodePng({ width, height, data }) {
   const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4); ihdr[8] = 8; ihdr[9] = 6;
   const raw = Buffer.alloc(height * (width * 4 + 1));
@@ -54,10 +50,6 @@ export function encodePng({ width, height, data }) {
   return Buffer.concat([SIG, chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/**
- * The difference of two same-size images: per pixel the largest absolute difference over R, G and B (0 to 255), and the summary
- * (max, how many pixels differ, how many by more than 2, where the largest is, which columns differ).
- */
 export function diffImages(a, b) {
   if (a.width !== b.width || a.height !== b.height) throw new Error(`size differs: ${a.width}x${a.height} against ${b.width}x${b.height}`);
   const d = new Uint8Array(a.width * a.height);
@@ -73,7 +65,6 @@ export function diffImages(a, b) {
   return { width: a.width, height: a.height, d, max, count, over2, at, columns: [...cols].sort((x, y) => x - y) };
 }
 
-/** The heat colour of a difference: black 0, blue 1-2, green 3-8, yellow 9-32, red above 32. */
 export function heat(v) {
   if (v === 0) return [0, 0, 0];
   if (v <= 2) return [30, 60, 160];
@@ -82,14 +73,12 @@ export function heat(v) {
   return [230, 30, 30];
 }
 
-/** The heat map of a diff as an RGBA image. */
 export function heatImage(diff) {
   const data = new Uint8Array(diff.width * diff.height * 4);
   for (let p = 0; p < diff.d.length; p++) { const [r, g, b] = heat(diff.d[p]); data.set([r, g, b, 255], p * 4); }
   return { width: diff.width, height: diff.height, data };
 }
 
-/** Nearest-neighbour zoom by a whole factor. */
 export function zoom(img, k) {
   const w = img.width * k; const h = img.height * k; const data = new Uint8Array(w * h * 4);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -98,7 +87,6 @@ export function zoom(img, k) {
   return { width: w, height: h, data };
 }
 
-/** Images of one width stacked top to bottom with a `gap` rows of the colour `rgb` between them. */
 export function stack(imgs, gap, rgb) {
   const width = imgs[0].width; const height = imgs.reduce((s, i) => s + i.height, 0) + gap * (imgs.length - 1);
   const data = new Uint8Array(width * height * 4);
@@ -111,7 +99,6 @@ export function stack(imgs, gap, rgb) {
   return { width, height, data };
 }
 
-/** The image on the left of a `width` wide canvas of colour `rgb`. */
 export function padTo(img, width, rgb) {
   if (img.width === width) return img;
   const data = new Uint8Array(width * img.height * 4);
@@ -122,13 +109,11 @@ export function padTo(img, width, rgb) {
 
 const GREY = [128, 128, 128];
 
-/** One word: the original, the flag and the heat map of their difference, each zoomed by `k`, stacked with 8 px grey bars. */
 export function strip(orig, flag, k) {
   const diff = diffImages(orig, flag);
   return { diff, image: stack([zoom(orig, k), zoom(flag, k), zoom(heatImage(diff), k)], 8, GREY) };
 }
 
-/** Several words one under the other (16 px grey bars between them), padded on the right to the widest. */
 export function combine(images) {
   const w = Math.max(...images.map((i) => i.width));
   return stack(images.map((i) => padTo(i, w, GREY)), 16, GREY);

@@ -63,7 +63,6 @@ def stateWord : Option Verdict → String
   | none => "open"
   | some v => v.word
 
-/-- An item as JSON. -/
 def itemJson (rs : List Rec) (i : Item) : Json :=
   Json.mkObj ([("flag", .str i.flag.key), ("step", .str i.step), ("date", .str i.date), ("words", .str i.words),
     ("state", .str (stateWord i.state)),
@@ -74,7 +73,6 @@ def itemJson (rs : List Rec) (i : Item) : Json :=
     ("body", .str (body i)), ("audience", .str audience.name)] ++
     (if (ask i).isEmpty then [] else [("ask", .str (ask i))]))
 
-/-- A strip as JSON. The run and expiry are those of the material (`Fw.Console.ReviewStrips.Strip`); a missing strip has none. -/
 def stripJson (f : Fw.Preset.Flag) (o : Fw.Console.ReviewStrips.Out) : Json :=
   let base := [("engine", Json.str o.engine), ("state", .str o.state.word)]
   let redo := [("redo", Json.str (Fw.Console.ReviewStrips.redo f))]

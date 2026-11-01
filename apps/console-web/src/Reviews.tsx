@@ -10,7 +10,6 @@ import { ReportsSection } from "./Reports";
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
 export type Strips = { state: "ready" | "pending"; run?: string; artifact?: string; expires?: string; task?: string };
-/** A strip as Lean `console.review` returns it; its state (ready, expired, missing) is decided there. */
 export type StripItem = {
   engine: string; state: "ready" | "expired" | "missing"; width?: number; moment?: string; label?: string; push?: "open" | "close"; file?: string;
   run?: string; artifact?: string; expires?: string; note?: string; diff?: string; redo?: string;
@@ -23,9 +22,7 @@ export type ReviewItem = {
   link: string | null;
   /** which devices the owner previewed on and what is still asked (Lean `console.reviewPreview`) */
   preview?: PreviewState | null;
-  /** the comments on this flag and the lead's replies (Lean `console.reviewFeedback`) */
   feedback?: FeedbackThread | null;
-  /** what differs, what the flag buys and the question, when Lean has one for this flag (`Fw.Console.Review.ask`) */
   ask?: string;
 };
 export type ReviewsData = { ok: boolean; open: number; options: string[]; items: ReviewItem[] };
@@ -67,12 +64,9 @@ function Material({ label, s }: { label: string; s: Strips }) {
 
 const PUSH: Record<string, string> = { open: "Button leaves", close: "Button comes back" };
 const ENGINE: Record<string, string> = { chromium: "Chromium", webkit: "WebKit" };
-/** What a strip shows, in words: the label Lean sends, else the nav push. */
 const momentOf = (s: StripItem): string => s.label ?? PUSH[s.push ?? ""] ?? s.push ?? "";
-/** A sweep strip is already zoomed 4x by the harness: it is shown at its own size. */
 const isSweep = (s: StripItem): boolean => (s.moment ?? "").startsWith("sweep-");
 
-/** The address of a strip image (the file name is one Lean listed; the route checks it again). */
 export function stripUrl(flag: string, file: string): string { return `/api/reviews/${encodeURIComponent(flag)}/strips/${encodeURIComponent(file)}`; }
 
 /** The image of a strip. It is fetched with the owner token (an <img> cannot send one) when it nears the screen. */

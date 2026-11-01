@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-// Sweep strips for the user's look review of platform.sweep:layer-sweep (task layer-sweep-review). For each width, the four title
-// words of the platform rows (Document, Earn, Secure, Organized, each in its title as index.tsx writes it) are painted as the
-// faithful rewrite paints them (background-clip:text, background-position animated) and as the flag paints them (a gradient layer
-// under a static mask-clip:text mask, moved by transform), from the declarations of
-// apps/site/src/parts/platform/sweep.module.css and the site's word size, weight and font. The 4 s loop is paused at each moment
-// by a negative animation delay (nothing is seeked), each word is cropped, and one PNG per moment stacks, word by word, the
-// original, the flag and a heat map of their per-pixel difference, each zoomed 4x. Review material only: it decides nothing. The
-// page restates the site's declarations; it is not the built site (the Flag / Faithful / Compare preview buttons open that).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -17,7 +9,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(`--${n}`); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 
-/** The loop moments (word of the file name, microseconds into the 4 s loop). Lean: Fw.Console.ReviewStrips.SweepAt. */
 export const MOMENTS = [
   { word: 'p0', us: 0 },
   { word: 'f1', us: 16667 },
@@ -30,20 +21,15 @@ export const WORDS = ['Document', 'Earn', 'Secure', 'Organized'];
 export const ZOOM = 4;
 export const MARGIN = 4;
 const FONT = 'google-sans-latin-normal.BbZhqv4U.woff2';
-/** The word size of the platform rows at a viewport width (platform.module.css: 28px up to 1000 px, 40px above). */
 export const wordPx = (width) => (width <= 1000 ? 28 : 40);
 
-/** The engine word of the file names and the artifact (Lean: playwright-webkit for the webkit rows). */
 export const engineWord = (engine) => (engine === 'webkit' || engine === 'playwright-webkit' ? 'playwright-webkit' : engine);
-/** The file of a strip inside the artifact. */
 export const stripPath = (engine, width, moment) => `strips/${engineWord(engine)}-${width}-sweep-${moment}.png`;
 
-/** The CSS of the sweep part, as the site ships it (the module's own text; class names stay as written). */
 export function sweepCss() {
   return readFileSync(resolve(here, '../../../apps/site/src/parts/platform/sweep.module.css'), 'utf8');
 }
 
-/** The title of a word as the platform rows write it (index.tsx). */
 function titleHtml(word, cls, bg) {
   const w = (extra = '') => `<span class="${cls}${extra}" data-word>${word}${bg}</span>`;
   if (word === 'Document') return `<h3 class="rowTitle">${w()} <span class="rest">your portfolio and reviews</span></h3>`;
@@ -52,7 +38,6 @@ function titleHtml(word, cls, bg) {
   return `<h3 class="rowTitle"><span class="rest restBlock">Keep every order</span> ${w(' wordFree')}</h3>`;
 }
 
-/** The page of one arm (`faithful` or `layer`) at one width: the four titles one under the other. */
 export function pageHtml(arm, width, fontUrl, css = sweepCss()) {
   const px = wordPx(width);
   const cls = arm === 'layer' ? 'word sweep layer' : 'word sweep';
@@ -70,12 +55,10 @@ export function pageHtml(arm, width, fontUrl, css = sweepCss()) {
   ${width >= 861 ? '.restBlock { display: block; }' : ''}
 }
 ${css}
-/* the loop is held at the moment --at (negative delay, paused) */
 .sweep.sweep, .layerBg { animation-play-state: paused; animation-delay: var(--at, 0s); }
 </style>
 ${WORDS.map((w) => `<div class="rowCopy">${titleHtml(w, cls, bg)}</div>`).join('\n')}
 <script>
-  // the part's watchLayerWidth (apps/site/src/parts/platform.sweep/layer.ts): device-pixel word width, layer = 6 of it, once per resize
   const dpr = devicePixelRatio || 1;
   const set = (el, n) => el.style.setProperty('--sw6', (6 * n / dpr) + 'px');
   const ro = new ResizeObserver((es) => es.forEach((e) => {
@@ -95,14 +78,12 @@ async function launch(name) {
 
 const raf2 = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-/** The crop box of a word rect: whole pixels with MARGIN around, inside a viewport of `width` x `height`. */
 export function cropOf(rect, width, height) {
   const x = Math.max(0, Math.floor(rect.left) - MARGIN); const y = Math.max(0, Math.floor(rect.top) - MARGIN);
   const x1 = Math.min(width, Math.ceil(rect.right) + MARGIN); const y1 = Math.min(height, Math.ceil(rect.bottom) + MARGIN);
   return { x, y, width: x1 - x, height: y1 - y };
 }
 
-/** All shots of one arm at one width: per word its rect and crop box, and per moment one PNG buffer per word. */
 async function shots(browser, arm, width, out, fontUrl, crops) {
   const file = join(out, `page-${arm}-${width}.html`);
   writeFileSync(file, pageHtml(arm, width, fontUrl));

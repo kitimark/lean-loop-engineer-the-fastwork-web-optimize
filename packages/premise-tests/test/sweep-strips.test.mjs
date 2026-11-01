@@ -1,4 +1,3 @@
-// No browser: the PNG tools, the difference and heat map, the crop, and the page of the sweep strips.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { combine, decodePng, diffImages, encodePng, heat, stack, strip, zoom } from '../src/png.mjs';

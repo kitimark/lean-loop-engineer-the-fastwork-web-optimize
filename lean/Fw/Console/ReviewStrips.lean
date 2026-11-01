@@ -18,44 +18,32 @@ deriving DecidableEq, Repr
 def Push.word : Push → String
   | .open_ => "open" | .close => "close"
 
-/-- The loop moments a sweep strip shows. The harness `packages/premise-tests/src/sweep-strips.mjs` holds the same table
-(microseconds into the 4 s loop); its test compares the file names with the golden. -/
 inductive SweepAt | p0 | f1 | f2 | t500 | t2000
 deriving DecidableEq, Repr
 
-/-- All the moments, in the order of the strips. -/
 def SweepAt.all : List SweepAt := [.p0, .f1, .f2, .t500, .t2000]
 
-/-- The word of a moment in a file name. -/
 def SweepAt.word : SweepAt → String
   | .p0 => "p0" | .f1 => "f1" | .f2 => "f2" | .t500 => "t500" | .t2000 => "t2000"
 
-/-- Microseconds into the loop at which the strip is held. -/
 def SweepAt.us : SweepAt → Nat
   | .p0 => 0 | .f1 => 16667 | .f2 => 33333 | .t500 => 500000 | .t2000 => 2000000
 
-/-- What a person reads for a moment. -/
 def SweepAt.label : SweepAt → String
   | .p0 => "loop progress 0" | .f1 => "first frame (16.7 ms)" | .f2 => "second frame (33.3 ms)"
   | .t500 => "0.5 s into the loop" | .t2000 => "2 s into the loop"
 
-/-- **Every moment lies inside the 4 s loop** (the strip holds the loop by a negative delay; a moment past the period would show another one). -/
 theorem SweepAt.us_lt (s : SweepAt) : s.us < 4000000 := by cases s <;> decide
 
-/-- **What a strip shows**: a push of the nav (open or close), or a moment of the sweep loop. -/
 inductive Moment | push (p : Push) | sweep (s : SweepAt)
 deriving DecidableEq, Repr
 
-/-- The word of a moment in a file name. -/
 def Moment.word : Moment → String
   | .push p => p.word | .sweep s => "sweep-" ++ s.word
 
-/-- What a person reads for a moment. -/
 def Moment.label : Moment → String
   | .push .open_ => "open" | .push .close => "close" | .sweep s => s.label
 
-/-- **One strip**: the flag, the engine, the viewport width, the moment, where it is (the artifact name and the path inside
-it), a note and the time difference between the rows. -/
 structure Row where
   flag : Flag
   engine : String
@@ -80,15 +68,10 @@ private def wk (w : Nat) (p : Push) : Row :=
   { flag := earn, engine := "webkit", width := w, moment := .push p, artifact := s!"frames-apple-{w}",
     path := s!"strips/playwright-webkit-{w}-{p.word}.png", note := "", diff := "" }
 
-/-- The flag whose strips are sweep moments. -/
 def sweepFlag : Flag := ⟨"platform.sweep", "layer-sweep"⟩
 
-/-- The engine word of a sweep file name and artifact (Playwright WebKit on Linux for the webkit rows). -/
 private def engWord (e : String) : String := if e == "webkit" then "playwright-webkit" else e
 
-/-- **What the run measured** (CI run 41261936045, `strips/index.json` of each artifact, Chromium 156.0.8078.4 and Playwright
-WebKit 27.2 on Linux, device pixel ratio 1): per engine, width and moment, the largest difference (of 255) over the four words and
-the number of pixels that differ. -/
 def sweepStat (e : String) (w : Nat) (s : SweepAt) : Nat × Nat :=
   let t : List (Nat × Nat) :=
     match e, w with
@@ -98,13 +81,11 @@ def sweepStat (e : String) (w : Nat) (s : SweepAt) : Nat × Nat :=
     | _, _ => [(0, 0), (1, 2), (2, 60), (8, 1443), (1, 651)]
   (t.getD (SweepAt.all.findIdx (· == s)) (0, 0))
 
-/-- The note of a sweep strip: what its heat bars show. -/
 def sweepNote (e : String) (w : Nat) (s : SweepAt) : String :=
   let (m, n) := sweepStat e w s
   if n == 0 then "The flag word and the original are the same, pixel for pixel, in all four words."
   else s!"The flag word differs from the original by at most {m} of 255 in {n} pixels over the four words (the colored bar; blue is 1 to 2, green 3 to 8). The shape of every letter and the moving color band are the same."
 
-/-- The time or size difference of a sweep strip, in one line. -/
 def sweepDiff (e : String) (w : Nat) (s : SweepAt) : String :=
   let (m, _) := sweepStat e w s
   if m == 0 then "no difference" else if m ≤ 2 then s!"at most {m} of 255, not visible" else s!"at most {m} of 255"
@@ -113,15 +94,9 @@ private def sw (e : String) (w : Nat) (s : SweepAt) : Row :=
   { flag := sweepFlag, engine := e, width := w, moment := .sweep s, artifact := s!"sweep-strips-{engWord e}",
     path := s!"strips/{engWord e}-{w}-sweep-{s.word}.png", note := sweepNote e w s, diff := sweepDiff e w s }
 
-/-- **The sweep strips of `platform.sweep:layer-sweep`**: per engine and width, the five moments of the loop. Each file shows
-the four title words (Document, Earn, Secure, Organized), each as three bars, top to bottom: the faithful word, the flag word, and
-the per-pixel difference (black none, blue 1 to 2, green 3 to 8, yellow 9 to 32, red above 32 of 255), all zoomed 4x. -/
 def sweepRows : List Row :=
   ["chromium", "webkit"].flatMap fun e => [390, 1440].flatMap fun w => SweepAt.all.map (sw e w)
 
-/-- The strips of the earn nav button (CI run 39473950464, Chromium 156, real scroll input; run 39530106935, macOS Playwright
-WebKit, screenshot strips, the ones to compare timing with; each arm is sampled at its own shot times). The notes of the WebKit
-strips are not written yet. -/
 def earnRows : List Row :=
   [ chr 390 .close "Look at the dark Join waitlist pill. With the flag it is on screen at 478 ms and solid at about 588 ms, moving together with the nav. In the original it starts fading in only at about 865 ms and is solid at about 1032 ms." "about 0.4 s earlier",
     chr 1280 .close "Same as the phone. With the flag the pill shows faintly at 538 ms and is solid by about 657 ms. In the original it starts at about 935 ms and is solid at about 1071 ms." "about 0.4 s earlier",
@@ -129,13 +104,8 @@ def earnRows : List Row :=
     chr 1280 .open_ "In the original the blurred pill is still visible at 249 ms. With the flag it is mostly gone by 194 ms. The nav move itself is the same." "small",
     wk 390 .close, wk 1280 .close, wk 390 .open_, wk 1280 .open_ ]
 
-/-- **The strips**: those of the earn nav button, then those of the layer sweep. The runs and expiries are in
-`Gen.lookDecisions`, not here. -/
 def rows : List Row := earnRows ++ sweepRows
 
-/-- **The question under the strips of the sweep flag**: what differs (numbers of `research/notes/2026/10-2x-layer-sweep-tiled.md`
-and of the strips' `index.json`), what the flag buys (`research/notes/2026/10-31-sim-layer-sweep.md`), what the strips are not, and the
-question. The run is read from the material. -/
 def sweepAsk (m : Option Gen.ReviewMaterial) : String :=
   let run := ((m.bind (·.chromium.run)).getD "none")
   "\n".intercalate
@@ -144,7 +114,6 @@ def sweepAsk (m : Option Gen.ReviewMaterial) : String :=
      "What the strips are not: they come from a test page that restates the site's sweep CSS and font at device pixel ratio 1, not from the built site. The Flag, Faithful and Compare buttons open the real site.",
      "Keep the flag as a look change, or reject it?"]
 
-/-- The state of a strip. -/
 inductive State | ready | expired | missing
 deriving DecidableEq, Repr
 
@@ -171,11 +140,9 @@ deriving Repr
 /-- Whether the artifacts of a strip are gone on `today` (both `YYYY-MM-DD`): `today >= expires`. -/
 def expired (today : String) (s : Strip) : Bool := decide (¬ today < s.expires)
 
-/-- **The dispatch that re-makes the strips of a flag**: one commit-message line of a ci/* head commit. -/
 def redo (f : Flag) : String :=
   if f == sweepFlag then "[ci:visual-diff] [strips:layer-sweep]" else s!"[ci:trajectory-probe] [frames:{f.key}]"
 
-/-- The artifact names of a material: its artifact string split on `, `. -/
 def names (a : String) : List String := a.splitOn ", "
 
 /-- **The one place a row meets the material**: the strip of `r` with the run and expiry of `em`, when `em` names a run,
@@ -457,39 +424,30 @@ private def mCh : Option Gen.ReviewMaterial := some { gm with webkit := { state 
 #guard (serve "2026-10-21" earnF (some gm) "../x.png").isNone
 #guard (serve "2026-10-21" ⟨"nav", "other"⟩ (some gm) "chromium-390-open.png").isNone
 
--- the sweep flag: material of its decision row (CI run 41261936045, artifacts sweep-strips-<engine>, 30 days)
 private def sweepM : Option Gen.ReviewMaterial := (Gen.lookDecisions.find? (·.flag == sweepFlag)).bind (·.material)
 #guard sweepM.isSome
--- two engines x two widths x five moments, every file name unique and apart from the earn files
 #guard sweepRows.length == 20
 #guard (rows.map Row.file).eraseDups.length == rows.length
 #guard SweepAt.all.map (·.us) == [0, 16667, 33333, 500000, 2000000]
 #guard SweepAt.all.map (·.word) == ["p0", "f1", "f2", "t500", "t2000"]
 #guard (stripsOf "2026-11-01" sweepFlag sweepM).length == 20
 #guard (stripsOf "2026-11-01" sweepFlag sweepM).all (·.state == .ready)
--- run and expiry of every strip are the material's
 #guard (stripsOf "2026-11-01" sweepFlag sweepM).all fun o => match o.strip with
   | some s => s.run == "41261936045" && s.expires == "2026-12-01"
   | none => false
--- expiry: the day before is ready, the day itself is expired
 #guard (servable "2026-11-30" sweepFlag sweepM).length == 20
 #guard (servable "2026-12-01" sweepFlag sweepM).length == 0
 #guard (stripsOf "2026-12-01" sweepFlag sweepM).all (·.state == .expired)
--- one engine's material pending: only the other engine's ten strips
 #guard (stripsOf "2026-11-01" sweepFlag (sweepM.map fun m => { m with webkit := { state := .pending } })).length == 10
--- the allowlist: the sweep files of the flag, nothing else
 #guard (serve "2026-11-01" sweepFlag sweepM "chromium-390-sweep-p0.png").isSome
 #guard (serve "2026-11-01" sweepFlag sweepM "playwright-webkit-1440-sweep-t2000.png").isSome
 #guard (serve "2026-11-01" sweepFlag sweepM "playwright-webkit-1440-sweep-t999.png").isNone
 #guard (serve "2026-11-01" sweepFlag sweepM "chromium-390-open.png").isNone
 #guard (serve "2026-11-01" earnF sweepM "chromium-390-sweep-p0.png").isNone
--- a sweep row whose artifact the material does not name is missing
 #guard (stripsOf "2026-11-01" sweepFlag (sweepM.map fun m => { m with webkit := { m.webkit with artifact := some "other" } })).map (·.state)
   == (List.replicate 10 State.ready) ++ (List.replicate 10 State.missing)
--- the redo line of each kind of strip
 #guard redo sweepFlag == "[ci:visual-diff] [strips:layer-sweep]"
 #guard redo earnF == "[ci:trajectory-probe] [frames:nav:earn-no-transition]"
--- the card question names the run of the material and asks Keep or Reject
 #guard ((sweepAsk sweepM).splitOn "41261936045").length == 2
 #guard (sweepAsk sweepM).endsWith "Keep the flag as a look change, or reject it?"
 
