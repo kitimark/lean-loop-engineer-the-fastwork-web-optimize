@@ -10,3 +10,4 @@
 {"deps":[[],[0]],"kinds":["fwcoreBuild","fwcoreBuild"]}
 {"deps":[[],[],[0,1]],"kinds":["install","install","other"]}
 {"deps":[[],[],[]],"kinds":["other","other","coreUser"]}
+{"deps":[[],[0],[0,1],[0,1,2],[0,1,2,3],[0]],"kinds":["install","lakeLint","fwcoreBuild","fwcoreBuild","coreUser","other"]}

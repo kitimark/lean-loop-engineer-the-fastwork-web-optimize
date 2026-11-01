@@ -24923,6 +24923,47 @@
     "research/notes/2026/11-02-dry-land-waves.md",
     "docs/team/handoffs/dry-land-waves.md",
     "docs/team/handoffs/dry-land-slow.md"
+   ],
+   "cut": true
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-land-deps",
+   "owner": "lean-prover",
+   "stream": "tooling",
+   "deps": [],
+   "title": "split 1 of dry-land-waves (final design round refused): Lean Fw.Ops.LandDry check kinds, deps, lake_serial, core_after_builds, golden land-dry-deps.jsonl; check.sh is a lake-building kind; docstring per review; Lean files only, taken from branch worktree-wf_779ff154-e9a-1",
+   "writes": [
+    "lean/Fw/Ops/LandDry*.lean",
+    "packages/contracts/golden/ops/land-dry*.jsonl",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "research/notes/2026/11-01-dry-land-deps.md",
+    "research/notes/2026/11-02-dry-land-deps.md",
+    "docs/team/handoffs/dry-land-deps.md"
+   ],
+   "evidence": "711327b"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "dry-land-wiring",
+   "owner": "console-builder",
+   "stream": "tooling",
+   "deps": [
+    "dry-land-deps"
+   ],
+   "title": "split 2 of dry-land-waves: one-wave dry land in land.ts with checkKind/checkDeps golden-checked against dry-land-deps (check.sh -> fwcoreBuild; main's 'fwcore users wait for check.sh' test restored), note numbers corrected, measured runs kept (001d247 set, warm and cold, no overlapping lake builds)",
+   "writes": [
+    "apps/runner/src/land*.ts",
+    "apps/runner/test/**",
+    "research/notes/2026/11-01-dry-land-waves.md",
+    "research/notes/2026/11-02-dry-land-waves.md",
+    "docs/team/handoffs/dry-land-waves.md",
+    "docs/team/handoffs/dry-land-wiring.md"
    ]
   }
  ],
