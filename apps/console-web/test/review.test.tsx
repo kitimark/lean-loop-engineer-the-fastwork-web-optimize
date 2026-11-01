@@ -107,6 +107,14 @@ describe("frame strips in the review card", () => {
     for (const w of ["Chromium · Phone 390", "Button comes back", "about 0.4 s earlier", "Look at the dark Join waitlist pill.",
       "Top row original, bottom row flag; frame number and ms under each shot", "compare the ms labels, not the column positions", 'data-testid="strip-scroll"', "overflow-x-auto", "max-w-full"]) expect(html).toContain(w);
   });
+  it("a sweep strip shows its moment label and the card shows the ask text", () => {
+    const sw = { ...ready, push: undefined, moment: "sweep-t500", label: "0.5 s into the loop", file: "chromium-390-sweep-t500.png" };
+    const html = renderToStaticMarkup(<StripCard flag="platform.sweep:layer-sweep" s={sw} />);
+    expect(html).toContain("0.5 s into the loop");
+    expect(html).not.toContain("Button comes back");
+    const card = renderToStaticMarkup(<ReviewCard item={item({ ask: "Keep or reject the layer sweep?" })} confirming={null} busy={false} error={null} onAsk={noop} onConfirm={noop} onCancel={noop} />);
+    expect(card).toContain("Keep or reject the layer sweep?");
+  });
   it("an empty note reads no note yet; the desktop tag and the open push name", () => {
     const html = renderToStaticMarkup(<StripCard flag={FLAG} s={{ ...ready, engine: "webkit", width: 1280, push: "open", note: "", diff: "" }} />);
     expect(html).toContain("WebKit · Desktop 1280");

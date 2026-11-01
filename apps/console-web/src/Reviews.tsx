@@ -10,9 +10,8 @@ import { ReportsSection } from "./Reports";
 // Rendering only. Which reviews are pending, open or decided is Lean `console.review` (console-api `GET /api/reviews`); Keep and Reject
 // post the decision, which Lean accepts or refuses. The page link comes from the owner's private `.local/reviews.json`.
 export type Strips = { state: "ready" | "pending"; run?: string; artifact?: string; expires?: string; task?: string };
-/** A strip as Lean `console.review` returns it; its state (ready, expired, missing) is decided there. */
 export type StripItem = {
-  engine: string; state: "ready" | "expired" | "missing"; width?: number; push?: "open" | "close"; file?: string;
+  engine: string; state: "ready" | "expired" | "missing"; width?: number; moment?: string; label?: string; push?: "open" | "close"; file?: string;
   run?: string; artifact?: string; expires?: string; note?: string; diff?: string; redo?: string;
 };
 export type ReviewItem = {
@@ -23,8 +22,8 @@ export type ReviewItem = {
   link: string | null;
   /** which devices the owner previewed on and what is still asked (Lean `console.reviewPreview`) */
   preview?: PreviewState | null;
-  /** the comments on this flag and the lead's replies (Lean `console.reviewFeedback`) */
   feedback?: FeedbackThread | null;
+  ask?: string;
 };
 export type ReviewsData = { ok: boolean; open: number; options: string[]; items: ReviewItem[] };
 export type Verdict = "keep" | "reject";
@@ -65,8 +64,9 @@ function Material({ label, s }: { label: string; s: Strips }) {
 
 const PUSH: Record<string, string> = { open: "Button leaves", close: "Button comes back" };
 const ENGINE: Record<string, string> = { chromium: "Chromium", webkit: "WebKit" };
+const momentOf = (s: StripItem): string => s.label ?? PUSH[s.push ?? ""] ?? s.push ?? "";
+const isSweep = (s: StripItem): boolean => (s.moment ?? "").startsWith("sweep-");
 
-/** The address of a strip image (the file name is one Lean listed; the route checks it again). */
 export function stripUrl(flag: string, file: string): string { return `/api/reviews/${encodeURIComponent(flag)}/strips/${encodeURIComponent(file)}`; }
 
 /** The image of a strip. It is fetched with the owner token (an <img> cannot send one) when it nears the screen. */
@@ -94,8 +94,8 @@ function StripImage({ flag, s }: { flag: string; s: StripItem }) {
   }, [near, flag, s.file]);
   const zoom = s.width === 390 ? 1.6 : 2.2;
   return (
-    <div ref={box} className="max-w-full overflow-x-auto rounded border bg-white" tabIndex={0} role="group" aria-label={`frame strip ${s.width} ${s.push}`} data-testid="strip-scroll">
-      {src ? <img src={src} alt={`${PUSH[s.push ?? ""] ?? ""}, ${s.width} px: original row above the flag row`} className="block h-auto max-w-none" style={{ width: `${zoom * 100}%` }} />
+    <div ref={box} className="max-w-full overflow-x-auto rounded border bg-white" tabIndex={0} role="group" aria-label={`frame strip ${s.width} ${momentOf(s)}`} data-testid="strip-scroll">
+      {src ? <img src={src} alt={isSweep(s) ? `${momentOf(s)}, ${s.width} px: per word, the original, the flag and their difference` : `${momentOf(s)}, ${s.width} px: original row above the flag row`} className="block h-auto max-w-none" {...(isSweep(s) ? {} : { style: { width: `${zoom * 100}%` } })} />
         : <p className="p-3 text-xs text-muted-foreground">{err ? `The strip could not be loaded: ${err}` : "Loading the strip..."}</p>}
     </div>
   );
@@ -105,13 +105,13 @@ function StripImage({ flag, s }: { flag: string; s: StripItem }) {
 export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
   const engine = ENGINE[s.engine] ?? s.engine;
   if (s.state === "missing") {
-    return <p className="text-xs" data-testid="strip-missing">{engine} strips{s.width ? ` (${s.width}, ${s.push})` : ""}: {s.file ? "not named by the current material" : "none made for this change yet"}. To make them, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update run, artifact and expires of the material in Gen.lean (Fw.Preset.Gen.lookDecisions).</p>;
+    return <p className="text-xs" data-testid="strip-missing">{engine} strips{s.width ? ` (${s.width}, ${momentOf(s)})` : ""}: {s.file ? "not named by the current material" : "none made for this change yet"}. To make them, push a ci/* commit with the message line <code className="font-mono">{s.redo}</code>, then update run, artifact and expires of the material in Gen.lean (Fw.Preset.Gen.lookDecisions).</p>;
   }
   const tag = `${s.width === 390 ? "Phone" : "Desktop"} ${s.width}`;
   const head = (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <Badge variant="secondary">{engine} · {tag}</Badge>
-      <h4 className="text-sm font-semibold">{PUSH[s.push ?? ""] ?? s.push}</h4>
+      <h4 className="text-sm font-semibold">{momentOf(s)}</h4>
       {s.diff ? <span className="ml-auto text-sm font-semibold" data-testid="strip-diff">{s.diff}</span> : null}
     </header>
   );
@@ -127,7 +127,9 @@ export function StripCard({ flag, s }: { flag: string; s: StripItem }) {
     <section className="min-w-0 space-y-2 rounded border p-2" data-testid="strip">
       {head}
       <p className="break-words text-sm" data-testid="strip-note">{s.note ? s.note : <span className="text-muted-foreground">no note yet</span>}</p>
-      <p className="text-xs text-muted-foreground">Top row original, bottom row flag; frame number and ms under each shot. Scroll the strip sideways. Each arm is sampled at its own screenshot times, so compare the ms labels, not the column positions.</p>
+      {isSweep(s)
+        ? <p className="text-xs text-muted-foreground" data-testid="strip-legend">Four words (Document, Earn, Secure, Organized), each as three bars: the original, the flag, and their per-pixel difference (black none, blue 1 to 2, green 3 to 8, yellow 9 to 32, red above 32 of 255). Everything is zoomed 4x; scroll sideways if needed.</p>
+        : <p className="text-xs text-muted-foreground" data-testid="strip-legend">Top row original, bottom row flag; frame number and ms under each shot. Scroll the strip sideways. Each arm is sampled at its own screenshot times, so compare the ms labels, not the column positions.</p>}
       <StripImage flag={flag} s={s} />
     </section>
   );
@@ -153,6 +155,7 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
         <Badge variant={decided ? "outline" : "secondary"}>{decided ? "decided" : "look change, review pending"}</Badge>
       </div>
       <p className="break-words text-xs text-muted-foreground">Recorded {item.date}: {item.words}</p>
+      {item.ask ? <p className="whitespace-pre-line break-words text-sm" data-testid="ask">{item.ask}</p> : null}
       {item.changed ? (
         <dl className="space-y-1 text-xs" data-testid="changed">
           <div><dt className="font-medium">What changed</dt><dd className="break-words">{item.changed.candidate}</dd></div>
@@ -170,7 +173,7 @@ export function ReviewCard({ item, confirming, busy, error, onAsk, onConfirm, on
       {(item.strips ?? []).length > 0 ? (
         <div className="min-w-0 space-y-2" data-testid="strips">
           <h4 className="text-sm font-medium">Frame strips</h4>
-          {(item.strips ?? []).map((s, k) => <StripCard key={`${s.engine}-${s.width ?? k}-${s.push ?? ""}`} flag={item.flag} s={s} />)}
+          {(item.strips ?? []).map((s, k) => <StripCard key={`${s.engine}-${s.width ?? k}-${s.moment ?? s.push ?? ""}`} flag={item.flag} s={s} />)}
         </div>
       ) : null}
       <ReviewPreview flag={item.flag} preview={item.state === "open" ? item.preview : null} {...(onPreviewed ? { onChanged: onPreviewed } : {})} />

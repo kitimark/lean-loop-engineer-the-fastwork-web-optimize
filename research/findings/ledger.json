@@ -4320,7 +4320,12 @@
    "lesson": "A moving fill under a static glyph mask is a transform, not a background animation.",
    "next": "the user's visual review; counts in the note",
    "evidence": "research/notes/2026/10-2x-platform-sweep-layer.md (task platform-sweep-layer)",
-   "n": 85
+   "n": 85,
+   "userDecision": {
+    "date": "2026-11-01",
+    "decision": "kept 2026-11-01 as a candidate by the lead, not a user decision (the user has not answered); visual review deferred to the console (card platform.sweep:layer-sweep, Keep or Reject)",
+    "review": "CI run 41261936045 artifact sweep-strips-chromium (expires 2026-12-01) and artifact sweep-strips-playwright-webkit (expires 2026-12-01): faithful word against the layer word at loop progress 0, the first 2 frames, 0.5 s and 2 s, widths 390 and 1440, cropped to the four sweep words, 4x zoom, with a per-pixel difference bar; note research/notes/2026/11-01-layer-sweep-review.md"
+   }
   },
   {
    "n": 89,

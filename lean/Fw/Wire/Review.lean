@@ -6,7 +6,7 @@ import Fw.Console.ReviewStrips
 
 | op | request | reply |
 |---|---|---|
-| `console.review` | `looks`? [{flag, date, decision (kept, rejected, accepted), review (pending, done), material?}] (default `Fw.Preset.Gen.lookDecisions`), `steps` [{id, answer?, open}] (the board steps; `open` is waiting or started), `answer`? {flag, word}, `today`? (`YYYY-MM-DD`), `serve`? {flag, file} | `items` [{flag, step, date, words, material, state (open, keep, reject), post, title, body, audience}], `open`, `options`, `answer` (null, or {ok, reason?, step?, word?}) (`Fw.Console.Review`). With `today`, each item also has `strips` [{engine, state (ready, expired, missing), width?, push?, file?, run?, artifact?, expires?, note?, diff?, redo?}] and the reply has `serve` (null, or {ok, reason?, run?, artifact?, path?}: the allowlist, `Fw.Console.ReviewStrips.serve`) |
+| `console.review` | `looks`? [{flag, date, decision (kept, rejected, accepted), review (pending, done), material?}] (default `Fw.Preset.Gen.lookDecisions`), `steps` [{id, answer?, open}] (the board steps; `open` is waiting or started), `answer`? {flag, word}, `today`? (`YYYY-MM-DD`), `serve`? {flag, file} | `items` [{flag, step, date, words, material, state (open, keep, reject), post, title, body, audience, ask?}], `open`, `options`, `answer` (null, or {ok, reason?, step?, word?}) (`Fw.Console.Review`; `ask` is the question text of a flag that has one). With `today`, each item also has `strips` [{engine, state (ready, expired, missing), width?, moment? (a nav push `open`/`close` or `sweep-<p0, f1, f2, t500, t2000>`), push? (nav pushes only), label? (sweep moments only), file?, run?, artifact?, expires?, note?, diff?, redo?}] and the reply has `serve` (null, or {ok, reason?, run?, artifact?, path?}: the allowlist, `Fw.Console.ReviewStrips.serve`) |
 -/
 namespace Fw.Wire.Review
 open Lean Fw.Wire.Ops Fw.Console.Review
@@ -63,25 +63,27 @@ def stateWord : Option Verdict → String
   | none => "open"
   | some v => v.word
 
-/-- An item as JSON. -/
 def itemJson (rs : List Rec) (i : Item) : Json :=
-  Json.mkObj [("flag", .str i.flag.key), ("step", .str i.step), ("date", .str i.date), ("words", .str i.words),
+  Json.mkObj ([("flag", .str i.flag.key), ("step", .str i.step), ("date", .str i.date), ("words", .str i.words),
     ("state", .str (stateWord i.state)),
     ("material", match i.material with
       | some m => Json.mkObj [("chromium", m.chromium.json), ("webkit", m.webkit.json)]
       | none => .null),
     ("post", .bool (needsPost rs i.flag)), ("title", .str (title i.flag)),
-    ("body", .str (body i)), ("audience", .str audience.name)]
+    ("body", .str (body i)), ("audience", .str audience.name)] ++
+    (if (ask i).isEmpty then [] else [("ask", .str (ask i))]))
 
-/-- A strip as JSON. The run and expiry are those of the material (`Fw.Console.ReviewStrips.Strip`); a missing strip has none. -/
 def stripJson (f : Fw.Preset.Flag) (o : Fw.Console.ReviewStrips.Out) : Json :=
   let base := [("engine", Json.str o.engine), ("state", .str o.state.word)]
   let redo := [("redo", Json.str (Fw.Console.ReviewStrips.redo f))]
+  let at_ (r : Fw.Console.ReviewStrips.Row) : List (String × Json) :=
+    [("width", toJson r.width), ("moment", .str r.moment.word)] ++
+      (match r.moment with | .push p => [("push", Json.str p.word)] | .sweep _ => [("label", Json.str r.moment.label)])
   match o.row, o.strip with
   | none, _ => Json.mkObj (base ++ redo)
-  | some r, none => Json.mkObj (base ++ [("width", toJson r.width), ("push", .str r.push.word), ("file", .str r.file)] ++ redo)
-  | some r, some s => Json.mkObj (base ++ [("width", toJson r.width),
-      ("push", .str r.push.word), ("file", .str r.file), ("run", .str s.run), ("artifact", .str r.artifact),
+  | some r, none => Json.mkObj (base ++ at_ r ++ [("file", .str r.file)] ++ redo)
+  | some r, some s => Json.mkObj (base ++ at_ r ++ [
+      ("file", .str r.file), ("run", .str s.run), ("artifact", .str r.artifact),
       ("expires", .str s.expires), ("note", .str r.note), ("diff", .str r.diff)] ++
       (if o.state == .expired then redo else []))
 

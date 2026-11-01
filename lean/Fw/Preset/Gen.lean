@@ -303,7 +303,13 @@ def lookDecisions : List LookDecision :=
                      artifact := some "webkit-sim-r1, webkit-sim-r2, webkit-sim-r3", expires := some "2026-11-22",
                      task := some "accent-nolayout-measure" } } },
    { flag := ⟨"hero.exit", "threaded"⟩, date := "2026-10-24", decision := .accepted, review := .done },
-   { flag := ⟨"hero.accent", "draw-nolayout"⟩, date := "2026-10-24", decision := .rejected, review := .done }]
+   { flag := ⟨"hero.accent", "draw-nolayout"⟩, date := "2026-10-24", decision := .rejected, review := .done },
+   { flag := ⟨"platform.sweep", "layer-sweep"⟩, date := "2026-11-01", decision := .kept, review := .pending,
+     material := some
+       { chromium := { state := .ready, run := some "41261936045", artifact := some "sweep-strips-chromium",
+                       expires := some "2026-12-01", task := some "layer-sweep-review" }
+         webkit := { state := .ready, run := some "41261936045", artifact := some "sweep-strips-playwright-webkit",
+                     expires := some "2026-12-01", task := some "layer-sweep-review" } } }]
 
 def EngineMat.json (m : EngineMat) : Json :=
   Json.mkObj ([("state", .str m.state.word)] ++
@@ -1280,12 +1286,15 @@ private def threadedReg : Reg :=
 private def accentReg : Reg :=
   { flag := ⟨"hero.accent", "draw-nolayout"⟩, kind := .optimized, requires := [], conflicts := [], visClass := none }
 
+private def layerSweepReg : Reg :=
+  { flag := ⟨"platform.sweep", "layer-sweep"⟩, kind := .proposal, requires := [], conflicts := [], visClass := some .l }
+
 #guard staleDecisions [] == [⟨"nav", "earn-no-transition"⟩, ⟨"nav", "earn-logical"⟩, ⟨"hero.accent", "draw-nolayout-full"⟩,
-  ⟨"hero.exit", "threaded"⟩, ⟨"hero.accent", "draw-nolayout"⟩]
+  ⟨"hero.exit", "threaded"⟩, ⟨"hero.accent", "draw-nolayout"⟩, ⟨"platform.sweep", "layer-sweep"⟩]
 #guard staleDecisions [earnReg, earnLogicalReg] == [⟨"hero.accent", "draw-nolayout-full"⟩, ⟨"hero.exit", "threaded"⟩,
-  ⟨"hero.accent", "draw-nolayout"⟩]
-#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg, accentReg] == [⟨"hero.exit", "threaded"⟩]
-#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg, threadedReg, accentReg] == []
+  ⟨"hero.accent", "draw-nolayout"⟩, ⟨"platform.sweep", "layer-sweep"⟩]
+#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg, accentReg, layerSweepReg] == [⟨"hero.exit", "threaded"⟩]
+#guard staleDecisions [earnReg, earnLogicalReg, accentFullReg, threadedReg, accentReg, layerSweepReg] == []
 #guard staleIn [{ earnReg with visClass := none }] (lookDecisions.take 1) == [⟨"nav", "earn-no-transition"⟩]
 #guard staleIn [accentFullReg] ((lookDecisions.drop 2).take 1) == []
 #guard staleIn [accentFullReg] (((lookDecisions.drop 2).take 1).map fun d => { d with decision := .kept }) ==
@@ -1307,7 +1316,7 @@ private def accentReg : Reg :=
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-no-transition"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-21"), ("decision", .str "accepted"),
     ("review", .str "x")])]])]) (lookDecisions.take 1)).length == 5
-#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 5
+#guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[])]) lookDecisions).length == 6
 #guard (ledgerDisagreements (Json.mkObj [("findings", .arr #[Json.mkObj [("flag", .str "nav:earn-logical"),
   ("userDecision", Json.mkObj [("date", .str "2026-10-25"), ("decision", .str "accepted 2026-10-25"),
     ("review", .str "runs 40100783726, 40102193302 artifacts transitions-apple-390, transitions-apple-1280 (expire 2026-11-23)")])]])])
