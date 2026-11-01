@@ -24967,6 +24967,37 @@
     "docs/team/handoffs/dry-land-slow.md"
    ],
    "evidence": "f6b82eb"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "layer-sweep-review",
+   "owner": "console-builder",
+   "stream": "experiment",
+   "deps": [],
+   "title": "console review card for platform.sweep:layer-sweep (class L) so the user can decide its look: Lean look-decision row and sweep frame strips (faithful vs layer at loop progress 0, first frames, mid; both engines; widths 390 and 1440) from a CI artifact, Flag/Faithful/Compare preview buttons; strips stay in CI artifacts and the local review cache, never in git",
+   "writes": [
+    "lean/Fw/Console/Review*.lean",
+    "lean/Fw/Preset/Gen*.lean",
+    "lean/Fw/Preset/Look*.lean",
+    "packages/contracts/golden/console/**",
+    "packages/contracts/golden/preset/**",
+    "apps/console-api/src/review/**",
+    "apps/console-web/src/Review*.tsx",
+    "apps/console-web/src/Reviews.tsx",
+    "packages/premise-tests/**",
+    "packages/gate-breakpoints/**",
+    ".github/workflows/breakpoint-gate.yml",
+    ".github/workflows/premise-tests.yml",
+    "lean/Fw.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "research/notes/2026/11-01-layer-sweep-review.md",
+    "research/notes/2026/11-02-layer-sweep-review.md",
+    "docs/team/handoffs/layer-sweep-review.md"
+   ]
   }
  ],
  "deadline": {
