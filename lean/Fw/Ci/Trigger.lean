@@ -284,7 +284,7 @@ def table (_ : Unit := ()) : List Wf := [
     ".github/scripts/changed-inputs.mjs", ".github/actions/setup-lean/**", ".node-version", ".github/actions/setup-pnpm/**",
     ".github/actions/gate-engine/**", ".github/actions/telemetry/**", "scripts/ci-telemetry/**", own "trajectory-probe.yml"], []⟩,
   ⟨"visual-diff.yml", ciAll, [
-    "packages/visual-diff/**", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
+    "packages/visual-diff/**", "packages/premise-tests/src/sweep-strips.mjs", "packages/premise-tests/src/png.mjs", "packages/gate-breakpoints/src/**", "packages/gate-breakpoints/package.json",
     "packages/contracts/golden/gate/**", "packages/contracts/golden/port/**", "scripts/port/**", "apps/site/**",
     "@breakgen", "snapshot/**", "snapshot.lock.json", "package.json",
     "pnpm-lock.yaml", "pnpm-workspace.yaml", ".github/scripts/verify-snapshot.mjs", ".github/scripts/changed-inputs.mjs",

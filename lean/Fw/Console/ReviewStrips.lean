@@ -18,13 +18,37 @@ deriving DecidableEq, Repr
 def Push.word : Push → String
   | .open_ => "open" | .close => "close"
 
-/-- **One strip**: the flag, the engine, the viewport width, the push, where it is (the artifact name and the path inside
-it), a note and the time difference between the rows. -/
+inductive SweepAt | p0 | f1 | f2 | t500 | t2000
+deriving DecidableEq, Repr
+
+def SweepAt.all : List SweepAt := [.p0, .f1, .f2, .t500, .t2000]
+
+def SweepAt.word : SweepAt → String
+  | .p0 => "p0" | .f1 => "f1" | .f2 => "f2" | .t500 => "t500" | .t2000 => "t2000"
+
+def SweepAt.us : SweepAt → Nat
+  | .p0 => 0 | .f1 => 16667 | .f2 => 33333 | .t500 => 500000 | .t2000 => 2000000
+
+def SweepAt.label : SweepAt → String
+  | .p0 => "loop progress 0" | .f1 => "first frame (16.7 ms)" | .f2 => "second frame (33.3 ms)"
+  | .t500 => "0.5 s into the loop" | .t2000 => "2 s into the loop"
+
+theorem SweepAt.us_lt (s : SweepAt) : s.us < 4000000 := by cases s <;> decide
+
+inductive Moment | push (p : Push) | sweep (s : SweepAt)
+deriving DecidableEq, Repr
+
+def Moment.word : Moment → String
+  | .push p => p.word | .sweep s => "sweep-" ++ s.word
+
+def Moment.label : Moment → String
+  | .push .open_ => "open" | .push .close => "close" | .sweep s => s.label
+
 structure Row where
   flag : Flag
   engine : String
   width : Nat
-  push : Push
+  moment : Moment
   artifact : String
   path : String
   note : String
@@ -37,24 +61,59 @@ def Row.file (r : Row) : String := (r.path.splitOn "/").getLast!
 private def earn : Flag := ⟨"nav", "earn-no-transition"⟩
 
 private def chr (w : Nat) (p : Push) (note diff : String) : Row :=
-  { flag := earn, engine := "chromium", width := w, push := p, artifact := "frames-chromium",
+  { flag := earn, engine := "chromium", width := w, moment := .push p, artifact := "frames-chromium",
     path := s!"strips/chromium-{w}-{p.word}.png", note, diff }
 
 private def wk (w : Nat) (p : Push) : Row :=
-  { flag := earn, engine := "webkit", width := w, push := p, artifact := s!"frames-apple-{w}",
+  { flag := earn, engine := "webkit", width := w, moment := .push p, artifact := s!"frames-apple-{w}",
     path := s!"strips/playwright-webkit-{w}-{p.word}.png", note := "", diff := "" }
 
-/-- **The strips** (CI run 39473950464, Chromium 156, real scroll input; run 39530106935, macOS Playwright WebKit, screenshot
-strips, the ones to compare timing with; each arm is sampled at its own shot times). The notes of the WebKit strips are not written yet. The runs and
-expiries are in `Gen.lookDecisions`, not here. -/
-def rows : List Row :=
+def sweepFlag : Flag := ⟨"platform.sweep", "layer-sweep"⟩
+
+private def engWord (e : String) : String := if e == "webkit" then "playwright-webkit" else e
+
+def sweepStat (e : String) (w : Nat) (s : SweepAt) : Nat × Nat :=
+  let t : List (Nat × Nat) :=
+    match e, w with
+    | "chromium", 390 => [(0, 0), (1, 4), (3, 36), (5, 1043), (4, 2783)]
+    | "chromium", _ => [(0, 0), (1, 1), (3, 62), (5, 1591), (3, 4204)]
+    | _, 390 => [(0, 0), (1, 6), (5, 47), (3, 619), (1, 302)]
+    | _, _ => [(0, 0), (1, 2), (2, 60), (8, 1443), (1, 651)]
+  (t.getD (SweepAt.all.findIdx (· == s)) (0, 0))
+
+def sweepNote (e : String) (w : Nat) (s : SweepAt) : String :=
+  let (m, n) := sweepStat e w s
+  if n == 0 then "The flag word and the original are the same, pixel for pixel, in all four words."
+  else s!"The flag word differs from the original by at most {m} of 255 in {n} pixels over the four words (the colored bar; blue is 1 to 2, green 3 to 8). The shape of every letter and the moving color band are the same."
+
+def sweepDiff (e : String) (w : Nat) (s : SweepAt) : String :=
+  let (m, _) := sweepStat e w s
+  if m == 0 then "no difference" else if m ≤ 2 then s!"at most {m} of 255, not visible" else s!"at most {m} of 255"
+
+private def sw (e : String) (w : Nat) (s : SweepAt) : Row :=
+  { flag := sweepFlag, engine := e, width := w, moment := .sweep s, artifact := s!"sweep-strips-{engWord e}",
+    path := s!"strips/{engWord e}-{w}-sweep-{s.word}.png", note := sweepNote e w s, diff := sweepDiff e w s }
+
+def sweepRows : List Row :=
+  ["chromium", "webkit"].flatMap fun e => [390, 1440].flatMap fun w => SweepAt.all.map (sw e w)
+
+def earnRows : List Row :=
   [ chr 390 .close "Look at the dark Join waitlist pill. With the flag it is on screen at 478 ms and solid at about 588 ms, moving together with the nav. In the original it starts fading in only at about 865 ms and is solid at about 1032 ms." "about 0.4 s earlier",
     chr 1280 .close "Same as the phone. With the flag the pill shows faintly at 538 ms and is solid by about 657 ms. In the original it starts at about 935 ms and is solid at about 1071 ms." "about 0.4 s earlier",
     chr 390 .open_ "In the original the dark pill stays full size next to EN until about 384 ms, then disappears. With the flag it shrinks and fades in the first 160 to 223 ms, together with the nav." "about 0.1 to 0.15 s earlier",
     chr 1280 .open_ "In the original the blurred pill is still visible at 249 ms. With the flag it is mostly gone by 194 ms. The nav move itself is the same." "small",
     wk 390 .close, wk 1280 .close, wk 390 .open_, wk 1280 .open_ ]
 
-/-- The state of a strip. -/
+def rows : List Row := earnRows ++ sweepRows
+
+def sweepAsk (m : Option Gen.ReviewMaterial) : String :=
+  let run := ((m.bind (·.chromium.run)).getD "none")
+  "\n".intercalate
+    [s!"What differs: with the flag the moving color band is a layer that slides under a fixed text mask, instead of a background that moves inside the text. In the CI strips (run {run}) the word shapes are the same. The color differs by at most 5 of 255 in Chromium and 8 of 255 in WebKit, only along the edge of the moving band (at 0.5 s and 2 s) and in a few pixels in the first two frames; at loop progress 0 there is no difference. An earlier test page (run 40336086853) found, in Chromium at progress 0, nine pixels in the last column of the last letter that differ, three of them by 33 of 255; WebKit differed by at most 2 inside the word.",
+     "What it buys: at the end of the page the page does about 100 style recalculations per 100 frames with the flag, against about 200 without it (iOS Simulator, runs 41212638765, 41215962130 and 41219277317; the phone is not measured).",
+     "What the strips are not: they come from a test page that restates the site's sweep CSS and font at device pixel ratio 1, not from the built site. The Flag, Faithful and Compare buttons open the real site.",
+     "Keep the flag as a look change, or reject it?"]
+
 inductive State | ready | expired | missing
 deriving DecidableEq, Repr
 
@@ -81,10 +140,9 @@ deriving Repr
 /-- Whether the artifacts of a strip are gone on `today` (both `YYYY-MM-DD`): `today >= expires`. -/
 def expired (today : String) (s : Strip) : Bool := decide (¬ today < s.expires)
 
-/-- **The dispatch that re-makes the strips of a flag**: one commit-message line of a ci/* head commit. -/
-def redo (f : Flag) : String := s!"[ci:trajectory-probe] [frames:{f.key}]"
+def redo (f : Flag) : String :=
+  if f == sweepFlag then "[ci:visual-diff] [strips:layer-sweep]" else s!"[ci:trajectory-probe] [frames:{f.key}]"
 
-/-- The artifact names of a material: its artifact string split on `, `. -/
 def names (a : String) : List String := a.splitOn ", "
 
 /-- **The one place a row meets the material**: the strip of `r` with the run and expiry of `em`, when `em` names a run,
@@ -365,5 +423,32 @@ private def mCh : Option Gen.ReviewMaterial := some { gm with webkit := { state 
 #guard (serve "2026-10-21" earnF mCh "playwright-webkit-1280-close.png").isNone
 #guard (serve "2026-10-21" earnF (some gm) "../x.png").isNone
 #guard (serve "2026-10-21" ⟨"nav", "other"⟩ (some gm) "chromium-390-open.png").isNone
+
+private def sweepM : Option Gen.ReviewMaterial := (Gen.lookDecisions.find? (·.flag == sweepFlag)).bind (·.material)
+#guard sweepM.isSome
+#guard sweepRows.length == 20
+#guard (rows.map Row.file).eraseDups.length == rows.length
+#guard SweepAt.all.map (·.us) == [0, 16667, 33333, 500000, 2000000]
+#guard SweepAt.all.map (·.word) == ["p0", "f1", "f2", "t500", "t2000"]
+#guard (stripsOf "2026-11-01" sweepFlag sweepM).length == 20
+#guard (stripsOf "2026-11-01" sweepFlag sweepM).all (·.state == .ready)
+#guard (stripsOf "2026-11-01" sweepFlag sweepM).all fun o => match o.strip with
+  | some s => s.run == "41261936045" && s.expires == "2026-12-01"
+  | none => false
+#guard (servable "2026-11-30" sweepFlag sweepM).length == 20
+#guard (servable "2026-12-01" sweepFlag sweepM).length == 0
+#guard (stripsOf "2026-12-01" sweepFlag sweepM).all (·.state == .expired)
+#guard (stripsOf "2026-11-01" sweepFlag (sweepM.map fun m => { m with webkit := { state := .pending } })).length == 10
+#guard (serve "2026-11-01" sweepFlag sweepM "chromium-390-sweep-p0.png").isSome
+#guard (serve "2026-11-01" sweepFlag sweepM "playwright-webkit-1440-sweep-t2000.png").isSome
+#guard (serve "2026-11-01" sweepFlag sweepM "playwright-webkit-1440-sweep-t999.png").isNone
+#guard (serve "2026-11-01" sweepFlag sweepM "chromium-390-open.png").isNone
+#guard (serve "2026-11-01" earnF sweepM "chromium-390-sweep-p0.png").isNone
+#guard (stripsOf "2026-11-01" sweepFlag (sweepM.map fun m => { m with webkit := { m.webkit with artifact := some "other" } })).map (·.state)
+  == (List.replicate 10 State.ready) ++ (List.replicate 10 State.missing)
+#guard redo sweepFlag == "[ci:visual-diff] [strips:layer-sweep]"
+#guard redo earnF == "[ci:trajectory-probe] [frames:nav:earn-no-transition]"
+#guard ((sweepAsk sweepM).splitOn "41261936045").length == 2
+#guard (sweepAsk sweepM).endsWith "Keep the flag as a look change, or reject it?"
 
 end Fw.Console.ReviewStrips
