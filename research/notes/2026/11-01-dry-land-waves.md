@@ -14,9 +14,10 @@ row numbers.
 - CONFIRMED (Lean, `lake_serial`): any two different lake-building checks are ordered, so no two `lake build` share one
   `lean/.lake`. `core_after_builds`: every coreUser waits for every lakeLint and fwcoreBuild index, so none runs while a
   `lake build` can still relink `lean/.lake/build/bin/fwcore`. Also `install_first`, `kindDep_rank` (no cycle).
-- Golden: packages/contracts/golden/ops/land-dry-deps.jsonl (12 kind lists, generated from Lean, guarded by `#guard` in
+- Golden: packages/contracts/golden/ops/land-dry-deps.jsonl (13 kind lists, generated from Lean, guarded by `#guard` in
   Fw.Ops.LandDryGolden); `checkDeps` is checked against every row in apps/runner/test/land-parallel.test.ts. TS stand-in
   for a fwcore op, marked in land.ts.
+- Hidden lake builds: check.sh, scripts/fwcore-build.sh (BUILD_ARGV) and LINT_ARGV.axioms (lakeLint) build Lake; packages/gate-breakpoints test also runs lake build fwcore (scripts/scopegen.mjs:21), classed coreUser, so it starts after every build and its build is a no-op then (INFERRED); a Kind for a check that both builds and uses fwcore is a follow-up.
 - Scope: builds in other worktrees are not covered; each has its own `.lake`, and two Lake slots across worktrees are
   intended.
 
@@ -27,7 +28,7 @@ row numbers.
 - CONFIRMED: Lake takes no build lock. Lake/Util/Lock.lean:17-20 at lean4 eb6cafb: "Lake does not currently use a lock file".
   So the slots do not serialize the lake lint and the fwcore build; the rule does.
 - The failed run of the earlier branch: commit 09ab4c0, startMs 1793485018826, built 2, exit 1; locks rows 20291-20292
-  (both slots taken within 82 ms (locks rows 20291-20292: ts 1793485019749 and 1793485019831)). Not ruled out as a race on one `lean/.lake`; the error text was overwritten by the passing
+  (both slots taken within 82 ms: ts 1793485019749 and 1793485019831). Not ruled out as a race on one `lean/.lake`; the error text was overwritten by the passing
   rerun. The new rule removes the overlap, so a repeat would be a different cause.
 
 ## Measurement
