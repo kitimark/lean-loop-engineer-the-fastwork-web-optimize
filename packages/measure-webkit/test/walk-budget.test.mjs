@@ -25,6 +25,11 @@ test('walk-budget: constants and every golden step and start line match Lean', (
   assert.deepEqual([c.pooledDecisive, c.pooledJobs, c.dominant], [2, 10, 'touch-driver-not-ready']);
   assert.equal(reachPer10k(JOBS_NEEDED, MIN_SAMPLES, PLAN_RATE.decisive, PLAN_RATE.jobs), c.reachPer10k);
   assert.equal(reachPer10k(JOBS_NEEDED, MIN_SAMPLES, 1, 5), c.reachPooledPer10k);
+  assert.deepEqual([c.run3Decisive, c.run3Jobs, c.lateDecisive, c.lateJobs], [3, 10, 5, 15]);
+  assert.equal(reachPer10k(JOBS_NEEDED, MIN_SAMPLES, 1, 3), c.reachLatePer10k);
+  assert.equal(c.reachLatePer10k, 7008);
+  assert.equal(jobsFor(MIN_SAMPLES, 1, 3, TARGET.num, TARGET.den, JOBS_CAP), c.jobsLate);
+  assert.equal(c.jobsLate, 12);
   assert.ok(c.windowSamples * c.meanMs <= blockMs(c.windowSamples));
   for (const g of golden.filter((x) => x.op === 'step')) {
     const dl = cappedDeadline(JOB, g.elapsedMs, g.capMs);
@@ -71,7 +76,7 @@ test('walk-budget: constants and every golden step and start line match Lean', (
     assert.equal(driverFault(g.requested, g.on), g.fault);
     assert.equal(g.name, DRIVER_FAULT);
   }
-  assert.equal(golden.filter((x) => x.op === 'observed').length, 10);
+  assert.equal(golden.filter((x) => x.op === 'observed').length, 20);
   for (const g of golden.filter((x) => x.op === 'start')) {
     assert.equal(startsWindow(g.deadlineMs, g.nowMs, g.reserveMs), g.starts, g.case);
     assert.equal(remaining(g.deadlineMs, g.nowMs), g.remainingMs, g.case);
@@ -127,8 +132,8 @@ test('rep plan: windows done in rep-major order give every arm the Lean count, a
   for (let pos = 0; pos < 3; pos++) assert.ok(endsDone('endOnly', planReps(dl, 276000, 'endOnly', 3) * 3, 3, pos) >= MIN_KEPT);
   assert.equal(outcome(dl, 276000, 'full', 4), 'lifeShort');
   assert.equal(outcome(dl, 276000, 'full', 3), 'ok');
-  assert.equal(outcome(dl, 1_596_000, 'endOnly', 3), 'ok');
-  assert.equal(outcome(dl, 1_597_000, 'endOnly', 3), 'budgetShort');
+  assert.equal(outcome(dl, 1_485_000, 'endOnly', 3), 'ok');
+  assert.equal(outcome(dl, 1_486_000, 'endOnly', 3), 'budgetShort');
   for (const arms of [3, 4]) assert.equal(outcome(dl, SETUP_WORST_MS, 'endOnly', arms), 'ok');
 });
 
@@ -145,8 +150,8 @@ test('planSim: the plan clock reads the time it is given, the driver picks end-o
   const dl = 1_000_000_000_000 + deadlineAt(JOB);
   const at = (sec, over = {}) => planSim({ deadlineMs: dl, nowMs: 1_000_000_000_000 + sec * 1000, touchOn: true, armIds: ['orig', 'base', 'aa'], ...over });
   assert.deepEqual(at(276), { shape: 'endOnly', wins: ['end'], repPlan: { shape: 'endOnly', outcome: 'ok', reps: 6, groups: 1 }, reps: 6 });
-  assert.equal(at(1596).reps, 5);
-  assert.equal(at(1597).repPlan.outcome, 'budgetShort');
+  assert.equal(at(1485).reps, 5);
+  assert.equal(at(1486).repPlan.outcome, 'budgetShort');
   assert.equal(at(276, { repsArg: '2' }).reps, 2);
   const eight = at(276, { armIds: ['orig', 'base', 'aa', 'a', 'b', 'c', 'd', 'e'] });
   assert.deepEqual([eight.repPlan.outcome, eight.repPlan.groups], ['lifeShort', 2]);

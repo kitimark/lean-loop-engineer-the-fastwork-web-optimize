@@ -73,8 +73,8 @@ def smoothSource : String :=
 
 def simWallDm : Nat := 10 * (Fw.Measure.WalkBudget.job.timeoutMs / 60000) * 100 / 130
 
-/-- Job walls in seconds (jobs API) of the successful `webkit-sim` jobs of runs 41345594217 (4 of 5) and 41349666358 (5 of 5). -/
-def simWalls : List Nat := [1486, 1332, 1294, 1801, 1100, 2609, 2228, 2034, 2297]
+/-- Job walls in seconds (jobs API) of the successful `webkit-sim` jobs of runs 41345594217 (4 of 5), 41349666358 (5 of 5) and 41357917479 (8 of 10). -/
+def simWalls : List Nat := [1486, 1332, 1294, 1801, 1100, 2609, 2228, 2034, 2297, 1569, 1918, 1182, 1448, 2424, 1101, 1154, 944]
 
 /-- Lanes whose `p90dm` is the plan's own bound, not a p90 of measured walls. -/
 def derivedLanes : List String := ["smoothness-webkit-sim"]
@@ -82,7 +82,7 @@ def derivedLanes : List String := ["smoothness-webkit-sim"]
 def Row.derived (r : Row) : Bool := derivedLanes.contains r.lane
 
 def simSource : String :=
-  "bound of the walk plan, INFERRED: the job timeout of Fw.Measure.WalkBudget.job; measured successes: runs 41345594217 and 41349666358, job walls from the jobs API (measuredN, measuredP90dm; thin until 10 successes)"
+  "bound of the walk plan, INFERRED: the job timeout of Fw.Measure.WalkBudget.job; measured successes: runs 41345594217, 41349666358 and 41357917479, job walls from the jobs API (measuredN, measuredP90dm; thin until 10 successes)"
 
 def rows : List Row :=
   [⟨"wktr", "wktr.yml", "wktr", 93, 119⟩,

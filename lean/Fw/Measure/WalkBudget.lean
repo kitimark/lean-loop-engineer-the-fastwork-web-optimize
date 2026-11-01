@@ -130,12 +130,17 @@ def windowSecs : List Nat := [
   7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9,
   9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11,
   11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14,
-  14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 17,
-  17, 17, 17, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 19, 19, 19, 19, 19, 19,
-  19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 23,
-  23, 24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 26, 26, 26, 27, 28, 28, 29, 29, 29, 29, 31, 31, 31,
-  31, 33, 33, 33, 34, 36, 36, 37, 38, 39, 39, 42, 43, 44, 47, 48, 52, 53, 53, 53, 53, 54, 54, 55,
-  63, 66, 69, 71, 74, 75, 81, 84, 84, 85, 85, 85, 125, 152, 172, 175, 196, 208, 217, 285, 383, 398, 432, 744]
+  14, 14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16,
+  16, 16, 16, 16, 16, 16, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18,
+  18, 18, 18, 18, 18, 18, 18, 19, 19, 19, 19, 19, 19, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20,
+  20, 20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 22, 22, 22, 23,
+  23, 23, 23, 23, 23, 24, 24, 24, 24, 24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 25, 25, 25, 26, 26,
+  26, 26, 26, 27, 27, 27, 27, 28, 28, 28, 28, 28, 28, 29, 29, 29, 29, 29, 29, 29, 29, 30, 30, 31,
+  31, 31, 31, 31, 32, 33, 33, 33, 33, 34, 35, 35, 35, 35, 35, 36, 36, 36, 36, 37, 37, 38, 38, 38,
+  39, 39, 39, 39, 40, 41, 41, 42, 42, 43, 43, 43, 44, 44, 44, 44, 47, 47, 48, 48, 48, 48, 49, 50,
+  51, 52, 52, 52, 53, 53, 53, 53, 54, 54, 55, 55, 56, 56, 60, 61, 62, 63, 63, 63, 65, 66, 66, 69,
+  71, 74, 75, 81, 83, 84, 84, 85, 85, 85, 93, 96, 125, 131, 143, 152, 156, 170, 172, 175, 196, 208, 217, 225,
+  285, 319, 383, 398, 432, 744]
 
 def quantile (xs : List Nat) (pct : Nat) : Nat := xs.getD ((pct * xs.length + 99) / 100 - 1) 0
 
@@ -145,26 +150,36 @@ def tailMs : Nat := quantile windowSecs 99 * 1000
 
 def meanMs : Nat := windowSecs.sum * 1000 / windowSecs.length
 
-def tailEvery : Nat := 20
+/-- A window of at least this many seconds is a tail window. -/
+def tailFloorSecs : Nat := 100
+
+/-- Windows per tail window of the sample, rounded down so the budget holds one tail slot at least as often as the sample shows one. -/
+def tailEvery : Nat := windowSecs.length / (windowSecs.filter (tailFloorSecs ≤ ·)).length
 
 def blockMs (n : Nat) : Nat := n * bodyMs + (n + tailEvery - 1) / tailEvery * (tailMs - bodyMs)
 
-theorem bodyMs_value : bodyMs = 29000 := by decide +kernel
+theorem windows_count : windowSecs.length = 318 := by decide +kernel
 
-theorem tailMs_value : tailMs = 398000 := by decide +kernel
+theorem tail_windows : (windowSecs.filter (tailFloorSecs ≤ ·)).length = 18 := by decide +kernel
 
-theorem meanMs_value : meanMs = 37490 := by decide +kernel
+theorem tailEvery_value : tailEvery = 17 := by decide +kernel
+
+theorem bodyMs_value : bodyMs = 38000 := by decide +kernel
+
+theorem tailMs_value : tailMs = 383000 := by decide +kernel
+
+theorem meanMs_value : meanMs = 39647 := by decide +kernel
 
 theorem blockMs_zero : blockMs 0 = 0 := by decide +kernel
 
 theorem blockMs_mono (n m : Nat) (h : n ≤ m) : blockMs n ≤ blockMs m := by
   unfold blockMs
-  exact Nat.add_le_add (Nat.mul_le_mul_right _ h) (Nat.mul_le_mul_right _ (by unfold tailEvery; omega))
+  exact Nat.add_le_add (Nat.mul_le_mul_right _ h) (Nat.mul_le_mul_right _ (by rw [tailEvery_value]; omega))
 
 theorem blockMs_over_mean (n : Nat) : n * meanMs ≤ blockMs n := by
   rw [meanMs_value]
-  unfold blockMs tailEvery
-  rw [bodyMs_value, tailMs_value]
+  unfold blockMs
+  rw [bodyMs_value, tailMs_value, tailEvery_value]
   omega
 
 def minKept : Nat := Fw.Gate.Smooth.minReps
@@ -344,10 +359,12 @@ def Fault.name : Fault → String
   | .hang => "page-lost-or-evaluate-timeout"
   | .crash => "socket-crash"
 
-/-- The ten jobs of runs 41345594217 (run 1) and 41349666358 (run 2): run, job, fault. -/
+/-- The jobs of runs 41345594217 (run 1), 41349666358 (run 2) and 41357917479 (run 3, the 10-job matrix): run, job, fault. -/
 def observedJobs : List (Nat × Nat × Fault) :=
   [(1, 1, .budget), (1, 2, .driver), (1, 3, .driver), (1, 4, .crash), (1, 5, .budget),
-   (2, 1, .none), (2, 2, .none), (2, 3, .hang), (2, 4, .hang), (2, 5, .driver)]
+   (2, 1, .none), (2, 2, .none), (2, 3, .hang), (2, 4, .hang), (2, 5, .driver),
+   (3, 1, .none), (3, 2, .none), (3, 3, .driver), (3, 4, .driver), (3, 5, .hang),
+   (3, 6, .driver), (3, 7, .driver), (3, 8, .driver), (3, 9, .none), (3, 10, .driver)]
 
 def faultCount (f : Fault) (js : List (Nat × Nat × Fault) := observedJobs) : Nat := (js.filter (·.2.2 == f)).length
 
@@ -355,23 +372,38 @@ def faultCount (f : Fault) (js : List (Nat × Nat × Fault) := observedJobs) : N
 def dominant : Fault :=
   [Fault.budget, .driver, .hang, .crash].foldl (fun best f => if faultCount best < faultCount f then f else best) .budget
 
-theorem observed_ten : observedJobs.length = 10 := by decide
+theorem observed_twenty : observedJobs.length = 20 := by decide
 
-theorem observed_decisive : faultCount .none = 2 := by decide
+theorem observed_decisive : faultCount .none = 5 := by decide
 
 theorem dominant_driver : dominant = .driver := by decide
 
-theorem driver_count : faultCount .driver = 3 := by decide
+theorem driver_count : faultCount .driver = 9 := by decide
 
-/-- Decisive jobs over jobs, as a fraction, for the jobs of one run (`none`: all). -/
-def decisiveRate (run : Option Nat) : Nat × Nat :=
-  let js := observedJobs.filter fun j => run.all (· == j.1)
+theorem driver_others : faultCount .budget + faultCount .hang + faultCount .crash = 6 := by decide
+
+/-- Decisive jobs over jobs, as a fraction, for the jobs of the listed runs. -/
+def decisiveRate (runs : List Nat) : Nat × Nat :=
+  let js := observedJobs.filter fun j => runs.contains j.1
   (faultCount .none js, js.length)
 
-theorem pooled_rate : decisiveRate none = (2, 10) := by decide
+/-- The rate of runs 1 and 2, the 10 jobs the plan was derived from. -/
+def pooledRate : Nat × Nat := decisiveRate [1, 2]
+
+theorem pooled_rate : pooledRate = (2, 10) := by decide
+
+/-- Run 3 ran the 10-job plan: 3 jobs decisive (1, 2, 9), 6 lost to the touch driver, 1 to a hang (job 5). -/
+theorem run3_rate : decisiveRate [3] = (3, 10) := by decide
+
+theorem run3_driver : faultCount .driver (observedJobs.filter fun j => j.1 == 3) = 6 := by decide
+
+/-- The rate of runs 2 and 3, the two runs of the current code (run 3 = the 10-job matrix): 5 of 15. -/
+def lateRate : Nat × Nat := decisiveRate [2, 3]
+
+theorem late_rate : lateRate = (5, 15) := by decide
 
 /-- The rate the plan uses: run 2 ran the code of the matrix (the 60 min job, the 480 s driver wait and the socket guard fix the faults `budget` and `crash` of run 1). -/
-def planRate : Nat × Nat := decisiveRate (some 2)
+def planRate : Nat × Nat := decisiveRate [2]
 
 theorem planRate_value : planRate = (2, 5) := by decide
 
@@ -431,6 +463,14 @@ theorem reach_at_pooled : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 5 =
 
 /-- Jobs for the target chance at the pooled rate: 21. -/
 theorem pooled_jobs : jobsFor Fw.Gate.Smooth.minSamples 1 5 target.1 target.2 jobsCap = some 21 := by decide +kernel
+
+/-- Run 3 (the 10-job matrix) reached `minSamples` decisive jobs with none to spare: 3 of 3. -/
+theorem run3_reached : Fw.Gate.Smooth.minSamples ≤ (decisiveRate [3]).1 ∧ (decisiveRate [3]).1 ≤ Fw.Gate.Smooth.minSamples := by decide
+
+/-- At the rate of runs 2 and 3 (5 of 15, that is 1 of 3) the same 10 jobs reach with a chance of 7008 in 10000: the 4 in 5 target needs 12 jobs, so the next matrix is sized by `lateRate`. -/
+theorem reach_at_late : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 3 = 7008 := by decide +kernel
+
+theorem late_jobs : jobsFor Fw.Gate.Smooth.minSamples 1 3 target.1 target.2 jobsCap = some 12 := by decide +kernel
 
 theorem decisive_add_insufficient (vs : List Verdict) :
     Fw.Gate.Smooth.decisive vs + vs.count .insufficient = vs.length := by
@@ -604,16 +644,16 @@ def startCases : List (String × Nat × Nat × Nat) := [
 def planCases : List (String × Nat × Option Nat × Shape × Nat) := [
   ("3 arms end only, walk starts after 4.6 min", 276000, none, .endOnly, 3),
   ("3 arms end only, walk starts after 15 min", 900000, none, .endOnly, 3),
-  ("3 arms end only, 6 reps still fit", 1509000, none, .endOnly, 3),
-  ("3 arms end only, 6 reps one ms too late", 1509001, none, .endOnly, 3),
-  ("3 arms end only, walk starts after 26.6 min", 1596000, none, .endOnly, 3),
-  ("3 arms end only, one ms too late", 1596001, none, .endOnly, 3),
+  ("3 arms end only, 6 reps still fit", 1026000, none, .endOnly, 3),
+  ("3 arms end only, 6 reps one ms too late", 1026001, none, .endOnly, 3),
+  ("3 arms end only, walk starts after 24.75 min", 1485000, none, .endOnly, 3),
+  ("3 arms end only, one ms too late", 1485001, none, .endOnly, 3),
   ("3 arms end only, cap 10 min", 276000, some 600000, .endOnly, 3),
   ("2 arms end only", 276000, none, .endOnly, 2),
   ("4 arms end only", 276000, none, .endOnly, 4),
   ("4 arms end only, walk starts after 15 min", 900000, none, .endOnly, 4),
-  ("4 arms end only, walk starts after 24.2 min", 1451000, none, .endOnly, 4),
-  ("4 arms end only, one ms too late", 1451001, none, .endOnly, 4),
+  ("4 arms end only, walk starts after 15.83 min", 950000, none, .endOnly, 4),
+  ("4 arms end only, one ms too late", 950001, none, .endOnly, 4),
   ("5 arms end only", 276000, none, .endOnly, 5),
   ("5 arms end only, walk starts after 15 min", 900000, none, .endOnly, 5),
   ("10 arms end only", 276000, none, .endOnly, 10),
@@ -668,7 +708,10 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("minKept", toJson minKept), ("repsWant", toJson repsWant), ("lifeWindows", toJson lifeWindows), ("windowSamples", toJson windowSecs.length),
     ("bodyMs", toJson bodyMs), ("tailMs", toJson tailMs), ("meanMs", toJson meanMs), ("tailEvery", toJson tailEvery),
     ("margin", toJson margin), ("readyAllowMs", toJson readyAllowMs), ("setupWorstMs", toJson setupWorstMs), ("jobsNeeded", toJson jobsNeeded), ("macSlots", toJson Fw.Measure.WktrLayout.macSlots),
-    ("planDecisive", toJson planRate.1), ("planJobs", toJson planRate.2), ("pooledDecisive", toJson (decisiveRate none).1), ("pooledJobs", toJson (decisiveRate none).2),
+    ("planDecisive", toJson planRate.1), ("planJobs", toJson planRate.2), ("pooledDecisive", toJson pooledRate.1), ("pooledJobs", toJson pooledRate.2), ("run3Decisive", toJson (decisiveRate [3]).1), ("run3Jobs", toJson (decisiveRate [3]).2),
+    ("lateDecisive", toJson lateRate.1), ("lateJobs", toJson lateRate.2),
+    ("reachLatePer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 3)),
+    ("jobsLate", match jobsFor Fw.Gate.Smooth.minSamples 1 3 target.1 target.2 jobsCap with | some v => toJson v | none => Json.null),
     ("targetNum", toJson target.1), ("targetDen", toJson target.2), ("jobsCap", toJson jobsCap),
     ("reachPer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2)),
     ("reachPooledPer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 5)), ("dominant", Json.str dominant.name),

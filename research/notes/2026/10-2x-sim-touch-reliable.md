@@ -309,3 +309,36 @@ Lean `Fw.Measure.WalkBudget` (golden `packages/contracts/golden/measure/walk-bud
 - Finding (negative result): 5 concurrent macOS jobs at margin 2 do not give a verdict per run at the harness fault rate seen on 10 jobs. The next design is not more windows per job (the faults, not the budget, ended the jobs) but a second wave: a matrix of 10 jobs with `max-parallel: 5`, each job with its own 40 min deadline, so 3 decisive jobs need about 10 jobs at a 30 to 40 percent decisive rate. That doubles the macOS minutes (free runners only) and is a follow-up (`Fw.Measure.WalkBudget.jobsNeeded` would take a fault-rate input).
 - Premise "the touch driver is ready within 480 s": false for 1 job in 5 of dispatch 2 (and 2 in 5 of dispatch 1 at 240 s); the driver start is a `xcodebuild test-without-building` that sometimes logs nothing for 8 min. Follow-up: a job without a driver should end early instead of running untouched full reps (job 5 spent 28 min on windows that carry no touch).
 - Time cap: the Lean cap table (`Fw.Ci.Pool.Caps`) derives `timeout-minutes` from a p90; the `webkit-sim` row is now the plan's own bound `simWallDm` (cap 60 = `WalkBudget.job.timeoutMs`, status INFERRED); the measured jobs (linear p90 38.9 min) lie below it. Files outside this row's writes: `lean/Fw/Ci/Pool/Caps.lean`, `packages/contracts/golden/ci/pool-caps.jsonl`, `scripts/ci-paths.test.mjs`.
+
+## Fault margin (sim-touch-fault-margin): a 10-job two-wave matrix, 2026-11-02
+
+Lean `Fw.Measure.WalkBudget` (golden `walk-budget.jsonl`), `Fw.Ci.Pool.Caps` (golden `pool-caps.jsonl`); TS `walk-budget.mjs`, `profile/sim-cadence.mjs`, `profile/report.mjs`, `touchlock-run.mjs`; `smoothness.yml`.
+
+**CI dispatch 1 (run 41357917479, commit 8cf84b94b, tags `[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`): MEASURED, jobs started 10 of 10, jobs with a result file 8, decisive 3 (jobs 1, 2, 9, all `same`), across-jobs end touch verdict (base, bound) `same`, not insufficient.** Jobs 7 and 10 wrote a `sim.json` with 0 windows (reported as `empty`).
+
+| job | end touch windows kept per arm (fewest) | fault | what stopped it |
+|---|---|---|---|
+| 1, 2, 9 | 6, 6, 6 | none | done (walks 874, 983, 679 s) |
+| 3 | 1 | touch driver | `swipeLate` |
+| 4 | 4 | touch driver | `pageLost` on a push |
+| 5 | 4 | hang | inspector dead, `simctl shutdown` failed (walk 2069 s) |
+| 6 | 4 | touch driver | `swipeLate` |
+| 7, 10 | 0 | touch driver | push server: no ready file after 480 s; early end at 644 s and 761 s |
+| 8 | 1 | touch driver | the driver finished late |
+
+- Waves (MEASURED, jobs API): jobs 1 to 5 started at once, jobs 6 to 10 as slots freed (at minutes 20, 24, 26, 32, 38); the run took 63 min and 239 job minutes, against the Lean bound of 2 waves x 60 min = 120 min (`sim_only_wall`). No job hit the 60 min limit.
+- Dominant fault (MEASURED, `faults:` line of `jobsTable`): touch driver not ready or lost 6 of 10 jobs, hang 1, none 3. Over the 20 jobs of the three runs: driver 9, hang 3, budget 2, crash 1, none 5 (`driver_count`, `driver_others`, `dominant_driver`).
+- Early end (item 3): jobs 7 and 10 ended after 644 and 761 s of walk with the named fault `touch-driver-not-ready`; dispatch 2 job 5 had spent 28 min on untouched full reps. `driverFault`/`driverFault_*` prove the rule (a walk with the driver asked for and not on has no untouched windows after it); `sim-cadence.mjs` and `touchlock-run.mjs` check it before planning and before each window.
+
+**What Lean now says.**
+- Reach (`reach_at_plan`, `reach_least`): at the plan rate, run 2's 2 of 5 decisive jobs, 10 jobs give at least 3 decisive ones with chance 8327 in 10000, and 9 do not reach 4 in 5, so `jobsNeeded = 10`. The rate rests on run 2 alone: the 60 min job, the 480 s driver wait and the socket guard fix the faults `budget` and `crash` of run 1. At runs 1 and 2 pooled (2 of 10) the same 10 jobs reach with chance 3222 (`reach_at_pooled`; 21 jobs would be needed, `pooled_jobs`).
+- Run 3 reached the minimum with none to spare: 3 decisive of 3 needed (`run3_reached`), an event of chance about 70 percent at the new rate. At runs 2 and 3 (5 of 15, `late_rate`) 10 jobs reach with chance 7008 in 10000 (`reach_at_late`) and 12 jobs would be needed for 4 in 5 (`late_jobs`). Status: the next matrix sizes from `lateRate`; this task keeps `jobsNeeded = 10` because the 10 jobs of runs 1 and 2 are its stated source.
+- "Start at once" is false for 10 jobs in every leg combination (`never_at_once`: 10 sim jobs exceed the 5 macOS slots; with webkit-mac the peak is 5 + 1 = 6, `mac_leg_peak`). It is replaced by a wave statement: sim-only 10 jobs are 2 waves, 120 min bound; with webkit-mac 13 jobs and 3 waves; with the `[sim-touch-control]` job 11 jobs and 3 waves (`sim_only_waves`, `mac_leg_waves`, `control_waves`). The tagged run used `[sim-only]`.
+
+**Window sample (item 4).** The 102 windows kept in run 41357917479 (`window kept in N ms` lines of `sim.log`) are added to the 216: 318 windows. Body (75th percentile) 38 s (was 29), tail (99th percentile) 383 s (was 398), mean 39.6 s (was 37.5). `tailEvery` is now derived: windows per window of at least 100 s, 318 / 18 = 17 (was a fixed 20; `tailEvery_value`). The new run is a heavier host than the old sample (body 48 s over its 102 windows). Effect on the plan (golden `plan` rows): 3 arms plan 6 reps from a walk that starts within 17.1 min (was 25.2 min), 5 reps up to 24.75 min (was 26.6); 4 arms plan 6 reps up to 13.3 min and 5 reps up to 15.83 min (was 24.2); 5 arms from a 15 min start are `budgetShort`. This supersedes the "Arms" line of the verdict-jobs section above. The refreshed plan was not run on CI (dispatch 1 ran the previous 29 s / 398 s / 20 constants); it is a re-derivation from measured windows, with the golden and TS checked against Lean.
+
+**Pool caps (item 5).** The `smoothness-webkit-sim` row is marked derived: `p90dm` is the plan's bound (461 dm, cap 60 min = job timeout), not a p90, so the golden row carries `basis:"bound"`, `boundDm` and the measured sample apart: `measuredN` 17 successful jobs (runs 41345594217, 41349666358, 41357917479; walls from the jobs API), `measuredP90dm` 392 (39.2 min), `measuredThin` false. `sim_walls_under_bound` proves the measured p90 is below the bound. A 1.3 x p90 cap would be 51 min; the 60 min timeout stays because the walk deadline (40 min) plus post steps and slack are Lean-derived from it.
+
+**Touch-lock lane (item 6).** `planLock` gives the 4-arm lane (original, faithful, CSS lock, pin) a `planReps` plan (`endOnly`, 4 arms, `repsWant` 6 at most), `repPlan` in its snapshot and `--reps auto` by default; `--reps N` still sets by hand. It was not run on CI here (lane `[touch-lock]` was not tagged).
+
+**Accepted limits.** Free GitHub macOS runners, 5 slots; the Simulator is not the phone; faults are counted, not retried; one dispatch used of two. Follow-ups: size the next matrix at 12 jobs from `lateRate` (3 waves of at most 5, about 12 x 24 job minutes); the cause of the driver start failures (6 of 10 jobs): `xcodebuild test-without-building` shows no ready file after 480 s in 2 jobs and `swipeLate` or a late finish in 3, which points at host load during the driver start, not at the plan.

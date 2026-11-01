@@ -16,11 +16,11 @@ export const SETUP_WORST_MS = 900000;
 
 export const LIFE_WINDOWS = 36;
 
-export const BODY_MS = 29000;
+export const BODY_MS = 38000;
 
-export const TAIL_MS = 398000;
+export const TAIL_MS = 383000;
 
-export const TAIL_EVERY = 20;
+export const TAIL_EVERY = 17;
 
 export const MIN_SAMPLES = 3;
 

@@ -1,26 +1,24 @@
-# sim-touch-fault-margin handoff (checkpoint 1: CI run in progress)
+# sim-touch-fault-margin handoff (checkpoint 2: CI run done, landing checks)
 
-Branch `worktree-wf_8b157c2a-318-1`, code commit 6399bbd7d, CI trigger commit 8cf84b94b (empty, tags
-`[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`), CI branch `ci/sim-touch-fault-margin` at 8cf84b94b.
+Branch `worktree-wf_8b157c2a-318-1`; CI branch `ci/sim-touch-fault-margin` at 8cf84b94b (empty trigger commit, tags
+`[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`). Do not push to it again (one dispatch of two used).
 
-## State
-- Dispatch 1 of at most 2: smoothness run 41357917479 (10 webkit-sim jobs, two waves of max-parallel 5). Running.
-- Do not push again to the ci branch while it runs (the workflow's tip re-check marks jobs stale).
-- Wait: `pnpm -s fw ci wait --branch ci/sim-touch-fault-margin --workflow smoothness`; fetch with `pnpm fw ci 41357917479`
-  or `gh run download 41357917479`.
+## CI result (MEASURED, run 41357917479)
+- 10 sim jobs started (rolling pool, 5 at once), 8 with a result file, 3 decisive (jobs 1, 2, 9), across-jobs end touch
+  verdict (base, bound) `same`, not insufficient. Run 63 min, 239 job minutes.
+- Dominant fault: touch driver not ready or lost, 6 of 10 jobs (jobs 7, 10 never ready in 480 s, early end at 644/761 s).
+  Hang 1 (job 5).
 
-## Done and tested locally
-- Lean `Fw.Measure.WalkBudget`: fault rate input (plan 2/5 decisive, pooled 2/10), `jobsNeeded` = 10, reach theorems, waves,
-  `never_at_once` (start-at-once replaced by two waves; sim-only 10 jobs, 120 min bound), driverFault goldens.
-- TS twins and goldens in `packages/measure-webkit` (1117 tests pass), early end on driver-not-ready in sim-cadence and
-  touchlock (`planLock`), fault column in profile report, workflow matrices, Caps derived row for the sim lane.
+## Done
+- Lean `WalkBudget`: fault rate input, `jobsNeeded` 10, reach theorems, waves (`never_at_once`), driver fault, run 3 data
+  (20 observed jobs, `lateRate` 5/15 -> 12 jobs for 4 in 5), window sample 318 (body 38 s, tail 383 s, `tailEvery` 17 derived).
+- Plan boundaries moved with the new windows (3 arms: 6 reps to 17.1 min, 5 reps to 24.75 min). Not run on CI.
+- Caps: derived sim row (`basis:"bound"`, measured 17 jobs, p90 39.2 min). Touch-lock `planLock`. Note section written.
 
 ## Open
-- Read the run: decisive count, across-jobs end-touch verdict, dominant fault.
-- Refresh `windowSecs`/`tailEvery` in WalkBudget.lean from the new windows; regenerate golden (lake build first); sync TS.
-- Update Caps `simWalls` with the new successful walls; regenerate pool-caps golden.
-- Note section in `research/notes/2026/10-2x-sim-touch-reliable.md`.
-- Then check.sh, package tests, ci-paths test, apps/runner land-inputs test, merge main, `fw plan lint`, dry land, `fw review ready`.
+- Final checks: check.sh (green before the window refresh, re-run), package tests, ci-paths, runner land-inputs, merge main,
+  `fw plan lint`, dry land, `fw review ready`.
+- Follow-up: size the next matrix at 12 jobs from `lateRate`; find why the driver start fails (host load?).
 
 ## Read first
-`lean/Fw/Measure/WalkBudget.lean` (reach, waves), `packages/measure-webkit/src/profile/sim-cadence.mjs` (driverEnd).
+`research/notes/2026/10-2x-sim-touch-reliable.md` section "Fault margin"; `lean/Fw/Measure/WalkBudget.lean`.
