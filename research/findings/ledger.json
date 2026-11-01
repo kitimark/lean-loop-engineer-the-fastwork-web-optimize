@@ -4323,7 +4323,7 @@
    "n": 85,
    "userDecision": {
     "date": "2026-11-01",
-    "decision": "kept 2026-11-01; visual review deferred to the console (card platform.sweep:layer-sweep, Keep or Reject)",
+    "decision": "kept 2026-11-01 as a candidate by the lead, not a user decision (the user has not answered); visual review deferred to the console (card platform.sweep:layer-sweep, Keep or Reject)",
     "review": "CI run 41261936045 artifact sweep-strips-chromium (expires 2026-12-01) and artifact sweep-strips-playwright-webkit (expires 2026-12-01): faithful word against the layer word at loop progress 0, the first 2 frames, 0.5 s and 2 s, widths 390 and 1440, cropped to the four sweep words, 4x zoom, with a per-pixel difference bar; note research/notes/2026/11-01-layer-sweep-review.md"
    }
   },
