@@ -25065,6 +25065,36 @@
     "apps/runner/src/land.ts"
    ],
    "evidence": "c00e29d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-pin-trace",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-pin-no-fight"
+   ],
+   "title": "Review follow-ups of end-pin-no-fight: (1) TouchLock counts a fight only when a reversal arrives at s, so a pin that writes every frame without reversing also proves 0 fights; add a Lean fight metric that counts any pin write while a touch or momentum is live (writesLive) and re-prove the end pin against it (and show the faithful pin fails it); (2) the driver recomputes the target per read while Lean fixes s per run: state s per event in Lean or prove the driver holds s while the pin is live; (3) the Simulator showed 0 scrollTo in 4 of 4 pin windows with no trace that the pin ran: add a pin decision trace (due, decline reason, write) to the touch-lock lane and make cmp print n/a when an arm has no stored lock; at most 2 CI dispatches.",
+   "writes": [
+    "lean/Fw/Parts/EndPin*.lean",
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/scripts/TouchLockGolden.lean",
+    "packages/contracts/golden/measure/touch-lock.jsonl",
+    "apps/site/src/parts/morph.tween/end-pin*.ts",
+    "apps/site/src/parts/morph.tween/driver.ts",
+    "apps/site/src/parts/morph.tween/index.tsx",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/test/touchlock*.test.mjs",
+    ".github/workflows/smoothness.yml",
+    "results/end-pin-trace/**",
+    "research/notes/2026/11-0*-end-pin-trace.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-pin-trace.md",
+    "lean/Fw/Parts/FootprintData.lean",
+    "packages/contracts/golden/parts/footprint.gen.json"
+   ]
   }
  ],
  "deadline": {
