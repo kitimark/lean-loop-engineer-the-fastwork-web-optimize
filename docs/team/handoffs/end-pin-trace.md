@@ -4,7 +4,7 @@ Branch `worktree-wf_96aeddfb-137-1`, worktree `.claude/worktrees/wf_96aeddfb-137
 
 ## CI runs
 - 41285184069 (smoothness, dispatch 1, 38ed79650): complete. Job 1 failed with 0 windows (simulator never gave a tab: simctl openurl timeout, no ready file after 285 s; harness, not this code). Job 2 success, 5 windows (walk deadline 1654 s): pin windows 3 (refused noOpen, 24 pin calls, 19 inactive) and 5 (open, 119 frames, no stored lock, 10 calls: 2 inactive, 4 touch, 2 moved, 1 touching, 0 due, 0 writes). Results: results/end-pin-trace/run-41285184069/job{1,2}/.
-- dispatch 2: pending (adds the due-check decline trace, dueWhy)
+- 41289882234 (smoothness, dispatch 2, ffe701b77; adds the due-check decline trace, dueWhy): in progress
 
 ## Verified (local, not a result)
 Lean `sh lean/scripts/check.sh` green; site vitest 8551 pass and tsc clean; measure-webkit tests 1107 pass; ci-paths 56 pass; runner land-inputs 73 pass; plan lint 0 errors, no writesClosure warning for this row.
