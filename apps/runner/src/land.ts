@@ -216,7 +216,6 @@ export const selectBin = (ds: { id: string; reads: string[] }[], changed: string
 export const selectTwoPhase = (ds: { id: string; reads: string[] }[], changed: string[], d0: Digest, d1: Digest) =>
   selectChecks(ds, binMoved(changed, d0, d1) ? [...changed, FWCORE_BIN] : changed);
 
-/** Kinds of Fw.Ops.LandDry.Kind, by identity of the command line. */
 export type CheckKind = "install" | "lakeLint" | "fwcoreBuild" | "coreUser" | "other";
 export function checkKind(a: string[]): CheckKind {
   if (a[0] === "pnpm" && a[1] === "install") return "install";
@@ -226,8 +225,6 @@ export function checkKind(a: string[]): CheckKind {
   return "other";
 }
 const buildsLake = (k: CheckKind) => k === "lakeLint" || k === "fwcoreBuild";
-/** TS stand-in for Fw.Ops.LandDry.deps (lake_serial, core_after_builds, install_first), checked against
- *  packages/contracts/golden/ops/land-dry-deps.jsonl. Marked for Lean replacement by a fwcore op. */
 export function kindDeps(ks: CheckKind[]): number[][] {
   const dep = (a: CheckKind, b: CheckKind): boolean =>
     a === "install" ? false : b === "install" ? true : (a === "fwcoreBuild" && b === "lakeLint") || (a === "coreUser" && (b === "fwcoreBuild" || b === "lakeLint"));
@@ -904,7 +901,6 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
       dryPlan = lintArgv;
       dryIds.push(...(selected ? [READS_SCAN_ID] : []), ...lintArgv.map(lintCheckId), ...(needsBuild ? ["fwcore-build"] : []), ...local.map((t) => t.id));
       if (lakeSkipped) lines.push(`dry: lake build and axiom check skipped (a pass is on record for the lean/ tree ${lakeKey!.lean.slice(0, 12)} and the golden tree ${lakeKey!.golden.slice(0, 12)})`);
-      // Fw.Ops.LandDry: every phase's checks run (waves from the Lean rule), then the first failing phase in order names the refusal.
       const folded: Partial<Record<DryPhase, Folded>> = {};
       for (const wave of DRY_WAVES) {
         const parts = wave.map((ph) => ({ ph, argv: ph === "reads" ? readsArgv : ph === "lints" ? lintArgv : localArgv })).filter((x) => x.argv.length > 0);

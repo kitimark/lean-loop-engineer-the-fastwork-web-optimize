@@ -1,5 +1,3 @@
-// Dependency rule of the one-wave dry land: Lean Fw.Ops.LandDry.deps (lake_serial, core_after_builds, install_first).
-// The golden packages/contracts/golden/ops/land-dry-deps.jsonl holds kind lists and the deps Lean computes for them.
 import "./land-timeout.ts";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -11,7 +9,6 @@ import { LINT_ARGV } from "../src/land-verdict.ts";
 const golden = readFileSync(join(import.meta.dirname, "..", "..", "..", "packages/contracts/golden/ops/land-dry-deps.jsonl"), "utf8")
   .split("\n").filter(Boolean).map((l) => JSON.parse(l) as { kinds: CheckKind[]; deps: number[][] });
 
-/** One command line per kind, built from the constants the land uses; the n-th use of coreUser takes the n-th fwcore user. */
 const exemplar = (k: CheckKind, n: number): string[] => {
   switch (k) {
     case "install": return ["pnpm", "install", "--frozen-lockfile"];

@@ -63,7 +63,7 @@ two lake-slot acquires of the run (lake lint, then fwcore-build).
   run is reported, not fixed. The 29-42 s cold runs in the finding were smaller edits.
 - MEASURED: the reads test now waits for the build (it is a coreUser): 9.8 s before, 10.7-11.2 s after (more concurrent work).
 - Load differs per run (4.6-11.6); the one load-11.58 run (after warm 2) is not slower.
-- Failed runs: none. Runs I discarded as measurements, kept here for honesty: five earlier runs of branch dlw-scratch-b
+- Failed runs: none. Discarded runs: five earlier runs of branch dlw-scratch-b
   (built 0 on a leaf edit: the pre-commit hook had already built the committed edit into the shared artifact cache, so no
   run showed built > 0 until the edit sat on an older base, which is why the final branch is based on 7cd9dd837).
 
