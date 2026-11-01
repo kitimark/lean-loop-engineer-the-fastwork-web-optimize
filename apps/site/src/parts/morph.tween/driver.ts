@@ -50,7 +50,6 @@ export interface TweenEnv {
   trace?(ev: TraceEv): void;
 }
 
-/** A pin trace entry: `op` is a Lean `Outcome.name` for a reading, or `inactive` (the morph was not active), `due` (a timer was set for `ms`) or `touch`. */
 export type PinOp = Outcome | 'inactive' | 'due' | 'touch';
 export type TraceEv =
   | { kind: 'push'; from: number; to: number; at: number }
@@ -179,7 +178,6 @@ export function createTweenDriver(env: TweenEnv) {
     const d = due(rp, rpTarget);
     if (d === null) {
       const w = env.trace ? dueWhy(rp, rpTarget) : null;
-      // a decline from the due check carries no `write` field; a decline from a reading carries `write: null`
       if (w) env.trace?.({ kind: 'pin', op: w, at: env.now(), y: rp.b, s: rpTarget, dt: rp.since });
       return;
     }

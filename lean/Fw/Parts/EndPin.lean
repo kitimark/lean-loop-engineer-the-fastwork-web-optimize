@@ -14,7 +14,6 @@ structure Pin where
   b : Int
 deriving Repr, BEq, DecidableEq
 
-/-- An idle event carries the target `s` the driver read when it ran; the target may differ from one event to the next. -/
 inductive Ev where
   | move (y : Int)
   | down
@@ -30,7 +29,6 @@ def reverses (a : Option Int) (b s : Int) : Bool :=
 def mayWrite (p : Pin) (s : Int) : Bool :=
   !p.touching && decide (quietMs ≤ p.since) && decide (p.b ≠ s) && !reverses p.a p.b s
 
-/-- The state after the page moved to `y`. -/
 def moveTo (p : Pin) (y : Int) : Pin := { p with since := 0, a := if y = p.b then p.a else some p.b, b := y }
 
 def step (p : Pin) : Ev → Pin × List Int
@@ -64,7 +62,6 @@ def movesOf : List Ev → List Int
   | .move y :: es => y :: movesOf es
   | _ :: es => movesOf es
 
-/-- The targets the idle events carry. -/
 def targetsOf : List Ev → List Int
   | [] => []
   | .idle _ s :: es => s :: targetsOf es
@@ -114,7 +111,6 @@ theorem no_write_on_input (p : Pin) (e : Ev) (h : ∀ ms s, e ≠ .idle ms s) :
 theorem write_is_target (p : Pin) (ms : Nat) (s y : Int) (h : y ∈ (step p (.idle ms s)).2) : y = s := by
   rcases step_idle_writes p ms s with h' | h' <;> rw [h'] at h <;> simp_all
 
-/-- Every write is the target of the idle event that made it. -/
 theorem writes_target :
     ∀ (es : List Ev) (p : Pin) (y : Int), y ∈ writes p es → y ∈ targetsOf es := by
   intro es
@@ -142,7 +138,6 @@ theorem dedupFrom_cons_eq (v y : Int) (l : List Int) (h : y = v) : dedupFrom v (
 theorem dedupFrom_cons_ne (v y : Int) (l : List Int) (h : y ≠ v) : dedupFrom v (y :: l) = y :: dedupFrom y l := by
   simp [dedupFrom, h]
 
-/-- Any targets: a write is never a turn (`mayWrite` checks the turn against that event's own target), so only a user position on the lock `s` can count. -/
 theorem play_no_turn (s : Int) :
     ∀ (es : List Ev) (p : Pin), (∀ y ∈ movesOf es, y ≠ s) →
       tailTurns (fun c => decide (c = s)) p.a p.b (dedupFrom p.b (play p es)) = 0 := by
@@ -205,7 +200,6 @@ theorem openPhase_all (xs : List Sample) (h : ∀ x ∈ xs, x.isOpen = true) : o
       simp [List.takeWhile, hl a (by simp), ih (fun x hx => hl x (by simp [hx]))]
   simp [openPhase, h1 xs h, h2 xs h]
 
-/-- Zero fights against any lock `s` the user's positions avoid, for any event list and any target in each idle event. -/
 theorem pin_fights_zero (s y0 : Int) (es : List Ev) (h : ∀ y ∈ movesOf es, y ≠ s) : fights s (run y0 es) = 0 := by
   have hs : (run y0 es).map (·.y) = y0 :: play (start y0) es := by simp [run, List.map_map, Function.comp_def]
   have ho : openPhase (run y0 es) = run y0 es := by
@@ -236,7 +230,6 @@ theorem decline_rests_off_target : (play (start 0) declineEvents).getLast? = som
 
 theorem faith_ends_on_target : (faithOut 0 [90, 60]).getLast? = some 0 := by decide
 
-/-- A page that sits on `p.b`, with no move, is never written when every target is `p.b`. -/
 theorem quiet_no_write :
     ∀ (es : List Ev) (p : Pin), (∀ t ∈ targetsOf es, t = p.b) → movesOf es = [] → play p es = [] := by
   intro es
@@ -301,10 +294,6 @@ theorem observe_write (s : Int) (p : Pin) (y : Int) (dt : Nat) (w : Int) (h : (o
       exact ⟨hy, h.symm, (step_idle_write_iff p dt s).mp h'⟩
   · rw [observe_move_silent s p y dt hy] at h; simp at h
 
-/-! ## Live writes
-
-A state is live while a finger is down or the last scroll or touch event is younger than `quietMs` (a deceleration emits scroll events at least that often, INFERRED). `writesLive` counts the pin's own writes made in a live state. -/
-
 def live (q : Pin) : Bool := q.touching || decide (q.since < quietMs)
 
 theorem mayWrite_not_live (q : Pin) (s : Int) (h : mayWrite q s = true) : live q = false := by
@@ -316,14 +305,12 @@ theorem live_moveTo (p : Pin) (y : Int) : live (moveTo p y) = true := by
 
 theorem live_touching (q : Pin) (h : q.touching = true) : live q = true := by simp [live, h]
 
-/-- The state after an event with no pin write. -/
 def pass (p : Pin) : Ev → Pin
   | .move y => moveTo p y
   | .down => { p with touching := true, since := 0 }
   | .up => { p with touching := false, since := 0 }
   | .idle ms _ => { p with since := p.since + ms }
 
-/-- Writes the end pin makes in a live state (an idle event whose time-advanced state is live and that writes). -/
 def writesLive : Pin → List Ev → Nat
   | _, [] => 0
   | p, e :: es =>
@@ -354,7 +341,6 @@ theorem writesLive_zero : ∀ (es : List Ev) (p : Pin), writesLive p es = 0 := b
     | down => simp [writesLive, h]
     | up => simp [writesLive, h]
 
-/-- The faithful pin on the same events: it writes `s` at once after each page move to a place other than `s`, so in the state the move made (age 0). -/
 def faithWritesLive (s : Int) : Pin → List Ev → Nat
   | _, [] => 0
   | p, e :: es =>
@@ -389,7 +375,6 @@ theorem faithOut_length (s : Int) : ∀ ys : List Int, (faithOut s ys).length = 
     · simp [faithOut, hy, ih]; omega
     · simp [faithOut, hy, ih]; omega
 
-/-- The faithful pin's live write count is the number of writes in its output. -/
 theorem faithWritesLive_is_writes (s : Int) (es : List Ev) (p : Pin) :
     faithWritesLive s p es = (faithOut s (movesOf es)).length - (movesOf es).length := by
   rw [faithWritesLive_eq, faithOut_length]; omega
@@ -403,8 +388,6 @@ theorem faith_writesLive_witness : faithWritesLive 0 (start 0) [.down, .move 90,
 
 theorem end_writesLive_witness : writesLive (start 0) [.down, .move 90, .up, .idle 200 0, .move 60, .idle 200 0] = 0 := writesLive_zero _ _
 
-/-! ## Why a due write is declined -/
-
 inductive Why where
   | touching | live | onTarget | reversal
 deriving Repr, BEq, DecidableEq
@@ -415,7 +398,6 @@ def Why.name : Why → String
   | .onTarget => "onTarget"
   | .reversal => "reversal"
 
-/-- The first failing condition of `mayWrite`, in the order touch, quiet time, target, turn; `none` means write. -/
 def why (q : Pin) (s : Int) : Option Why :=
   if q.touching = true then some .touching
   else if q.since < quietMs then some .live
@@ -450,7 +432,6 @@ theorem why_none_iff (q : Pin) (s : Int) : why q s = none ↔ mayWrite q s = tru
         · simp [h2, h2', h3, h4]
   · simp
 
-/-- Why no write is scheduled: the first failing condition of `mayWrite` with the quiet time set aside, which is what `due` checks. -/
 def dueWhy (q : Pin) (s : Int) : Option Why := why { q with since := quietMs } s
 
 theorem dueWhy_ne_live (q : Pin) (s : Int) : dueWhy q s ≠ some .live := by
@@ -481,7 +462,6 @@ theorem dueWhy_none_of_due (q : Pin) (s : Int) (d : Nat) (h : due q s = some d) 
     simp [h1, h2, h3]
   · simp at h
 
-/-- What one reading of the page did: it moved, the pin wrote, or the pin declined for a reason. -/
 inductive Outcome where
   | moved | wrote | declined (w : Why)
 deriving Repr, BEq, DecidableEq
@@ -541,8 +521,6 @@ theorem outcome_declined_silent (s : Int) (p : Pin) (y : Int) (dt : Nat) (w : Wh
     simp [observe, eventOf, hy, this]
   · exact observe_move_silent s p y dt hy
 
-/-! ## Counting a pin trace -/
-
 structure TraceCounts where
   inactive : Nat
   due : Nat
@@ -555,7 +533,6 @@ structure TraceCounts where
   reversal : Nat
 deriving Repr, BEq
 
-/-- Names of trace entries: `inactive` (the morph was not active), `due` (a timer was set), `touch`, and the `Outcome.name`s. -/
 def traceCounts (l : List String) : TraceCounts :=
   { inactive := l.count "inactive", due := l.count "due", touches := l.count "touch", moved := l.count "moved",
     wrote := l.count "write", touching := l.count "touching", live := l.count "live", onTarget := l.count "onTarget",
@@ -563,10 +540,8 @@ def traceCounts (l : List String) : TraceCounts :=
 
 def TraceCounts.declined (c : TraceCounts) : Nat := c.touching + c.live + c.onTarget + c.reversal
 
-/-- Readings of the page the pin saw while the morph was active. -/
 def TraceCounts.readings (c : TraceCounts) : Nat := c.moved + c.wrote + c.declined
 
-/-- The pin ran in a window when it read the page, active or not. -/
 def TraceCounts.ran (c : TraceCounts) : Bool := decide (0 < c.inactive + c.readings)
 
 theorem traceCounts_append (a b : List String) :

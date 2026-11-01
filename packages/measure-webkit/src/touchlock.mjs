@@ -71,10 +71,8 @@ export const look = (faith, cand) => (faith.every((x) => x === 0) && cand.every(
 
 export const MIN_SAMPLES = 3;
 
-/** Lean `lockedOf`: the counts of the runs that stored a lock (a run with none counts 0 by definition). */
 export const lockedOf = (ks) => ks.filter((k) => k[0] !== null).map((k) => k[1]);
 
-/** Lean `lockedCmp` over [lock, count] pairs: `undecided` (an arm without runs or with too few locked ones), `n/a` (an arm whose runs stored no lock) or the cmp word. */
 export function lockedCmp(faith, cand) {
   if (faith.length === 0 || cand.length === 0) return 'undecided';
   const f = lockedOf(faith);
@@ -83,7 +81,6 @@ export function lockedCmp(faith, cand) {
   return cmpKnown(f, c);
 }
 
-/** Lean `traceCounts` (Fw.Parts.EndPin): counts of the pin trace entry names. */
 export function traceCounts(names) {
   const n = (w) => names.filter((x) => x === w).length;
   const c = { inactive: n('inactive'), due: n('due'), touches: n('touch'), moved: n('moved'), wrote: n('write'), touching: n('touching'), live: n('live'), onTarget: n('onTarget'), reversal: n('reversal') };

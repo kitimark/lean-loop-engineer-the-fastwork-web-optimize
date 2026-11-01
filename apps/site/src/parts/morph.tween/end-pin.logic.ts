@@ -13,12 +13,10 @@ export const reverses = (a: number | null, b: number, s: number): boolean => a !
 
 export const mayWrite = (p: Pin, s: number): boolean => !p.touching && QUIET_MS <= p.since && p.b !== s && !reverses(p.a, p.b, s);
 
-/** Lean `live`: a finger is down or the last scroll or touch event is younger than the quiet time. */
 export const live = (q: Pin): boolean => q.touching || q.since < QUIET_MS;
 
 export type Why = 'touching' | 'live' | 'onTarget' | 'reversal';
 
-/** Lean `why`: the first failing condition of `mayWrite`, in the order touch, quiet time, target, turn; null means write. */
 export function why(q: Pin, s: number): Why | null {
   if (q.touching) return 'touching';
   if (q.since < QUIET_MS) return 'live';
@@ -27,7 +25,6 @@ export function why(q: Pin, s: number): Why | null {
   return null;
 }
 
-/** Lean `dueWhy`: why no write is scheduled, the first failing condition of `mayWrite` with the quiet time set aside (never `live`). */
 export const dueWhy = (q: Pin, s: number): Why | null => why({ ...q, since: QUIET_MS }, s);
 
 export const touch = (p: Pin, down: boolean): Pin => ({ ...p, touching: down, since: 0 });
@@ -46,16 +43,13 @@ export function observe(p: Pin, s: number, y: number, dt: number): [Pin, number 
   return y === p.b ? idle(p, s, dt) : [moved(p, y), null];
 }
 
-/** Lean `Outcome.name`: what one reading of the page did (`moved`, `write`, or the reason the pin declined). */
 export type Outcome = 'moved' | 'write' | Why;
 
-/** Lean `outcome`, from the state before `observe`. */
 export function outcome(p: Pin, s: number, y: number, dt: number): Outcome {
   if (y !== p.b) return 'moved';
   return why({ ...p, since: p.since + dt }, s) ?? 'write';
 }
 
-/** An idle event carries the target the driver read when it ran (Lean `Ev.idle ms s`). */
 export type Ev = ['move', number] | ['down'] | ['up'] | ['idle', number, number];
 export function play(p: Pin, es: readonly Ev[]): number[] {
   const out: number[] = [];

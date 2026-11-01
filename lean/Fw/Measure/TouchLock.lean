@@ -362,7 +362,6 @@ theorem lookKnown_some_needs (faith cand : List Nat) (l : Look) (h : lookKnown f
 theorem lookKnown_of_known (faith cand : List Nat) (h : known faith cand = true) :
     lookKnown faith cand = some (look faith cand) := by simp [lookKnown, h]
 
-/-- A run's count (fights, event fights, restores) with the stored lock it was counted against: with no stored lock the count is 0 by definition. -/
 structure Counted where
   lock : Option Int
   n : Nat
@@ -370,7 +369,6 @@ deriving Repr, BEq
 
 def lockedOf (ks : List Counted) : List Nat := (ks.filter (·.lock.isSome)).map (·.n)
 
-/-- `undecided` when an arm has no accepted run or too few locked runs, `na` when an arm has runs but none stored a lock. -/
 inductive LockedCmp where
   | undecided | na | out (c : Cmp)
 deriving Repr, BEq, DecidableEq
@@ -411,7 +409,6 @@ theorem lockedCmp_undecided_empty_faith (cand : List Counted) : lockedCmp [] can
 
 theorem lockedCmp_undecided_empty_cand (faith : List Counted) : lockedCmp faith [] = .undecided := by simp [lockedCmp]
 
-/-- A verdict `out c` rests on locked runs only: both arms hold a run with a stored lock. -/
 theorem lockedCmp_out_locked (faith cand : List Counted) (c : Cmp) (h : lockedCmp faith cand = .out c) :
     lockedOf faith ≠ [] ∧ lockedOf cand ≠ [] := by
   unfold lockedCmp at h

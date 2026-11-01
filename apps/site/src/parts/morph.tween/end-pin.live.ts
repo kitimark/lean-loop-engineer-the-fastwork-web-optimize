@@ -1,6 +1,5 @@
 import { idle, live, moved, touch, type Ev, type Pin } from './end-pin.logic';
 
-/** Lean `writesLive`: the end pin's writes made in a live state (an idle event whose time-advanced state is live and that writes). */
 export function writesLive(p: Pin, es: readonly Ev[]): number {
   let n = 0;
   let cur = p;
@@ -15,7 +14,6 @@ export function writesLive(p: Pin, es: readonly Ev[]): number {
   return n;
 }
 
-/** Lean `faithWritesLive`: the faithful pin writes `s` at once after each page move to a place other than `s`, in the state the move made (age 0). */
 export function faithWritesLive(s: number, p: Pin, es: readonly Ev[]): number {
   let n = 0;
   let cur = p;
