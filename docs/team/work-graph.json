@@ -25061,7 +25061,8 @@
     "packages/contracts/golden/parts/footprint.gen.json",
     "packages/contracts/golden/preset/look-change.candidates.jsonl",
     "packages/contracts/golden/preset/shipped.decisions.jsonl",
-    "packages/measure-webkit/src/touchlock-run.mjs"
+    "packages/measure-webkit/src/touchlock-run.mjs",
+    "apps/runner/src/land.ts"
    ]
   }
  ],
