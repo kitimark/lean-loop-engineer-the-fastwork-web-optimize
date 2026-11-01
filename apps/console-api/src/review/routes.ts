@@ -51,6 +51,7 @@ export interface ReviewOpts { download?: Downloader; today?: () => string }
 interface LeanItem {
   strips?: StripOut[];
   flag: string; step: string; date: string; words: string; state: "open" | "keep" | "reject"; material: Material | null; post: boolean; title: string; body: string; audience: string;
+  ask?: string;
 }
 interface LeanReply { items: LeanItem[]; open: number; options: string[]; answer: { ok: boolean; reason?: string; step?: string; word?: string } | null;
   serve?: { ok: boolean; reason?: string; run?: string; artifact?: string; path?: string } | null }
@@ -130,6 +131,7 @@ export function mountReviews(app: Hono, store: Store, root: string, opts: Review
         const row = ledger.find((x) => x.flag === i.flag);
         return {
           flag: i.flag, step: i.step, state: i.state, date: i.date, words: i.words, audience: i.audience,
+          ...(i.ask ? { ask: i.ask } : {}),
           changed: row ? { id: row.id ?? null, candidate: row.candidate, visual: row.visual ?? null, chromium: row.chromium ?? null, webkit: row.webkit ?? null } : null,
           material: i.material,
           strips: i.strips ?? [],

@@ -28,7 +28,7 @@ The colour differs by at most 5 of 255 in Chromium and 8 of 255 in WebKit.
 
 ## Limits
 - MEASURED: the strips come from a harness page built from the site's sweep CSS declarations and the snapshot font at dpr 1, not from the built site.
-- MEASURED: this run found no difference at progress 0; the earlier test page (run 40336086853) found one edge pixel of 33 of 255 in Chromium at progress 0. Not reproduced.
+- MEASURED: this run found no difference at progress 0; the earlier test page (run 40336086853) found nine differing pixels in one edge column in Chromium at progress 0, three of them by 33 of 255. Not reproduced.
 - A local Chrome 155 debug run was used only to debug the harness; it is not a result.
 - Expiry 2026-12-01 is INFERRED (30 days after the run); `gh api` is denied here, so it was not read.
 - The flag-side cost numbers on the card (about 100 vs about 200 style recalcs per 100 frames) are from the iOS Simulator runs 41212638765,
@@ -36,5 +36,5 @@ The colour differs by at most 5 of 255 in Chromium and 8 of 255 in WebKit.
 
 ## Open
 - The user's Keep or Reject is pending. No preset or flag change is made here.
-- `research/findings/ledger.json` got a `userDecision` on the layer-sweep row (needed by `ledgerDisagreements`); it is outside the graph writes.
+- `research/findings/ledger.json` got a `userDecision` on the layer-sweep row (needed by `ledgerDisagreements`).
 - The card numbers are hard-coded in Lean (`sweepStat`) from index.json.

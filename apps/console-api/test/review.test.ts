@@ -76,6 +76,14 @@ describe("GET /api/reviews", () => {
     const step = (await store.board()).steps.find((s) => s.id === `review-${FLAG}`)!;
     expect(step).toMatchObject({ audience: "user", kind: "choice", options: ["keep", "reject"], status: "waiting" });
   });
+  it("the sweep item carries the Lean ask text; the earn item has none", async () => {
+    const { root, store } = await rig();
+    const app = createApp(store, undefined, undefined, undefined, undefined, undefined, undefined, root, { today: () => "2026-11-01" });
+    const items = ((await (await app.request("/api/reviews")).json()) as any).items;
+    const sweep = items.find((i: any) => i.flag === "platform.sweep:layer-sweep");
+    expect(sweep.ask).toMatch(/Keep the flag as a look change, or reject it\?$/);
+    expect(items.find((i: any) => i.flag === FLAG)).not.toHaveProperty("ask");
+  });
   it("a missing .local/reviews.json gives no link; the run id and artifact name stay", async () => {
     const { app } = await rig();
     const i = ((await (await app.request("/api/reviews")).json()) as any).items[0];
