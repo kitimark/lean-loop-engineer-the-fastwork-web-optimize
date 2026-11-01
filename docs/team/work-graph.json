@@ -25005,6 +25005,27 @@
     "apps/console-api/test/review.test.ts",
     "apps/console-web/test/review.test.tsx"
    ]
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "scratch-link-check",
+   "owner": "console-builder",
+   "stream": "ops",
+   "deps": [],
+   "title": "Incident inc-scratch-symlink-wait hardening: fw land --dry refuses a branch that adds a symlink whose target leaves the worktree (Lean rule over the added links, golden rows, TS reads git ls-files -s mode 120000 and readlink), and the build-review preamble names scratchpad/<agent>/ as the only scratch place",
+   "writes": [
+    "lean/Fw/Ops/LandLink*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/ops/land-link*.jsonl",
+    "apps/runner/src/land.ts",
+    "apps/runner/src/land-link*.ts",
+    "apps/runner/test/land-link*.test.ts",
+    "lean/Fw/Ops/Golden.lean",
+    "research/notes/2026/11-0*-scratch-link-check.md",
+    "docs/team/handoffs/scratch-link-check.md"
+   ]
   }
  ],
  "deadline": {
