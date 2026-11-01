@@ -4,7 +4,7 @@ Branch `worktree-wf_66b63664-0d9-1`, worktree `.claude/worktrees/wf_66b63664-0d9
 Last commit: see `git log -1`.
 
 ## CI runs
-- dispatch 1 (push of 6b9a16a34, tags `[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`): run id pending (read with `pnpm -s fw ci --branch ci/sim-touch-verdict-jobs`), state running.
+- dispatch 1 (push of 6b9a16a34, tags `[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`): run 41345594217 (smoothness), state running.
 
 ## Verified (local, no result claims)
 - `sh lean/scripts/check.sh` green at d3be56307 tree (replayed); measure-webkit 1112 pass; ci-paths 56; runner land-inputs 73 after declaring `.github/workflows/smoothness.yml` for `packages/measure-webkit` in `apps/runner/src/land.ts:174` (outside the row writes).
