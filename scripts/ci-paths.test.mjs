@@ -554,7 +554,7 @@ const capRows = readFileSync(join(root, 'packages/contracts/golden/ci/pool-caps.
 test('pool caps: each listed macOS job has timeout-minutes equal to its Lean cap; webkit-sim is excluded', () => {
   assert.deepEqual([...capTable.caps], [['wktr.yml wktr', 16], ['wktr-fixtures.yml fixtures', 21], ['sim-speed.yml probe', 17],
     ['engine-premises.yml webkit', 8], ['gate-gaps.yml collect-macos', 26], ['trajectory-probe.yml probe-apple', 18],
-    ['smoothness.yml webkit-mac', 15], ['smoothness.yml webkit-sim', 45]]);
+    ['smoothness.yml webkit-mac', 15], ['smoothness.yml webkit-sim', 60]]);
   assert.deepEqual([...capTable.excluded], ['path-pix.yml', 'toolbar-throttle.yml', 'webkit-sim.yml', 'chrome-crash-probe.yml', 'font-fidelity.yml']);
   for (const [key, cap] of capTable.caps) {
     const [file, job] = key.split(' ');

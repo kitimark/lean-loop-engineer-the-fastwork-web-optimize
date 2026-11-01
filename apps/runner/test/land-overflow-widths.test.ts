@@ -21,11 +21,10 @@ const caseMax = (text: string, v: string): number => { const m = new RegExp(`cas
 // the widths a `[trajectory widths=..]` line may list (.github/scripts/trajectory-line.mjs asks pickWidths): the longest accepted list
 const { pickWidths } = (await import(join(root, "packages/gate-breakpoints/src/trajectory/reduce.mjs"))) as { pickWidths: (s: string) => number[] | null };
 const widthsMax = (): number => { const ws = [390, 640, 641, 1280]; let best = 0; for (let m = 0; m < 16; m++) { const l = ws.filter((_, i) => m & (1 << i)); if (pickWidths(l.join(",")) !== null) best = Math.max(best, l.length); } return best; };
-/** the number of sets in `set: [1, 2, 3]` of smoothness.yml's plan step */
 const setsOf = (text: string): number => { const m = /set: \[((?:\d, )*\d)\]/.exec(text); if (!m) throw new Error("smoothness sets: no match"); return m[1]!.split(", ").length; };
-const engines2 = 2; // `both` is [chromium, playwright-webkit] in the plan step of every workflow below
+const simJobsMax = (text: string): number => { const from = text.indexOf("  webkit-sim:"); const sec = text.slice(from, text.indexOf("    env:", from)); const lists = [...sec.matchAll(/'\[([\d,]+)\]'/g)].map((m) => m[1]!.split(",").length); if (!lists.length) throw new Error("smoothness webkit-sim: no matrix list"); return Math.max(...lists); };
+const engines2 = 2;
 
-/** The most one dynamic matrix can have, per `workflow/job`, with where the bound comes from (CONFIRMED by reading it, at the time of this commit). */
 function dynamicMax(): Record<string, () => number> {
   const once = <T,>(f: () => T): (() => T) => { let v: T | undefined; return () => (v ??= f()); };
   const traj = once(() => trajectoryMax(root));
@@ -44,10 +43,9 @@ function dynamicMax(): Record<string, () => number> {
     // visual-diff.yml:275-276 engines (2, :151) x shards 1..16 (packages/visual-diff/src/shards.mjs:12); port-fonts :347 engines
     "visual-diff/shoot": () => engines2 * num(read("packages/visual-diff/src/shards.mjs"), /n > (\d+)/, "visual-diff shards"),
     "visual-diff/port-fonts": () => engines2,
-    // sim-speed.yml:121 `fromJSON(needs.plan.outputs.matrix)` = arms (any number of words, :105) x reps 1..3 (:104); unbounded, so the 5 macOS slots (runs-on xcode-27) are the bound
     "sim-speed/probe": () => 1e9,
     "smoothness/cadence": () => widthsMax() * setsOf(wf("smoothness.yml")),
-    "smoothness/webkit-sim": () => 4,
+    "smoothness/webkit-sim": () => simJobsMax(wf("smoothness.yml")),
     "toolbar-throttle/sim": () => 6,
     "trajectory-probe/probe": () => traj().linux,
     "trajectory-probe/probe-apple": () => traj().apple,

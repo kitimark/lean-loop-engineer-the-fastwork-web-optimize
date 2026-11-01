@@ -1,6 +1,9 @@
 import Lean.Data.Json
 import Fw.Gate.Smooth
+import Fw.Measure.WktrLayout
 namespace Fw.Measure.WalkBudget
+
+open Fw.Gate.Smooth (Verdict)
 
 structure Job where
   timeoutMs : Nat
@@ -9,7 +12,7 @@ structure Job where
   slackMs : Nat
 deriving Repr, BEq
 
-def job : Job := ⟨2700000, 600000, 120000, 60000⟩
+def job : Job := ⟨3600000, 600000, 120000, 480000⟩
 
 def postSteps : List (String × Nat) :=
   [("host state", 60000), ("upload", 120000), ("upload retry", 120000), ("shutdown", 120000), ("telemetry", 120000)]
@@ -22,13 +25,16 @@ structure Gaps where
   clockMs : Nat
   driftMs : Nat
   completeMs : Nat
+  overrunMs : Nat
 deriving Repr, BEq
 
-def gaps : Gaps := ⟨6000, 50000, 4000⟩
+def gaps : Gaps := ⟨6000, 50000, 4000, 420000⟩
 
-def Gaps.total (g : Gaps) : Nat := g.clockMs + g.driftMs + g.completeMs
+def Gaps.total (g : Gaps) : Nat := g.clockMs + g.driftMs + g.completeMs + g.overrunMs
 
 theorem gaps_total : gaps.total = job.slackMs := by decide
+
+theorem overrun_covers_seen : 380000 ≤ gaps.overrunMs := by decide
 
 def hardStopMs : Nat := 45000
 
@@ -111,32 +117,91 @@ theorem runsWalk_true (j : Job) (elapsed dl needMin : Nat) (h : needMin ≤ step
 
 theorem static_sum_exceeds : deadlineAt job < 18 * 145600 := by decide
 
-theorem deadline_value : deadlineAt job = 1920000 := by decide
+theorem deadline_value : deadlineAt job = 2400000 := by decide
 
 theorem job_ends_inside_gaps (elapsed : Nat) (hc : elapsed ≤ deadlineAt job + job.graceMs) :
-    elapsed + gaps.clockMs + gaps.driftMs + stepMinutes job elapsed (deadlineAt job) * minuteMs + job.postMs + gaps.completeMs ≤ job.timeoutMs := by
+    elapsed + gaps.clockMs + gaps.driftMs + gaps.overrunMs + stepMinutes job elapsed (deadlineAt job) * minuteMs + job.postMs + gaps.completeMs ≤ job.timeoutMs := by
   have h1 := job_ends_inside_uncapped job job_fits elapsed hc
   have h2 := gaps_total
   unfold Gaps.total at h2
+  omega
+
+def windowSecs : List Nat := [
+  7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9,
+  9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11,
+  11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 13, 13, 13, 14, 14,
+  14, 14, 14, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16, 16, 17,
+  17, 17, 17, 17, 17, 17, 17, 17, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 19, 19, 19, 19, 19, 19,
+  19, 19, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 21, 21, 21, 21, 21, 21, 21, 22, 22, 22, 23,
+  23, 24, 24, 24, 24, 25, 25, 25, 25, 25, 25, 26, 26, 26, 27, 28, 28, 29, 29, 29, 29, 31, 31, 31,
+  31, 33, 33, 33, 34, 36, 36, 37, 38, 39, 39, 42, 43, 44, 47, 48, 52, 53, 53, 53, 53, 54, 54, 55,
+  63, 66, 69, 71, 74, 75, 81, 84, 84, 85, 85, 85, 125, 152, 172, 175, 196, 208, 217, 285, 383, 398, 432, 744]
+
+def quantile (xs : List Nat) (pct : Nat) : Nat := xs.getD ((pct * xs.length + 99) / 100 - 1) 0
+
+def bodyMs : Nat := quantile windowSecs 75 * 1000
+
+def tailMs : Nat := quantile windowSecs 99 * 1000
+
+def meanMs : Nat := windowSecs.sum * 1000 / windowSecs.length
+
+def tailEvery : Nat := 20
+
+def blockMs (n : Nat) : Nat := n * bodyMs + (n + tailEvery - 1) / tailEvery * (tailMs - bodyMs)
+
+theorem bodyMs_value : bodyMs = 29000 := by decide +kernel
+
+theorem tailMs_value : tailMs = 398000 := by decide +kernel
+
+theorem meanMs_value : meanMs = 37490 := by decide +kernel
+
+theorem blockMs_zero : blockMs 0 = 0 := by decide +kernel
+
+theorem blockMs_mono (n m : Nat) (h : n ≤ m) : blockMs n ≤ blockMs m := by
+  unfold blockMs
+  exact Nat.add_le_add (Nat.mul_le_mul_right _ h) (Nat.mul_le_mul_right _ (by unfold tailEvery; omega))
+
+theorem blockMs_over_mean (n : Nat) : n * meanMs ≤ blockMs n := by
+  rw [meanMs_value]
+  unfold blockMs tailEvery
+  rw [bodyMs_value, tailMs_value]
   omega
 
 def minKept : Nat := Fw.Gate.Smooth.minReps
 
 theorem minKept_value : minKept = 5 := by decide
 
-def windowsPerRep (arms : Nat) : Nat := 2 * arms
+inductive Shape where
+  | full
+  | endOnly
+deriving Repr, BEq, DecidableEq
 
-def windowMs : Nat := 45000
+def Shape.perArm : Shape → Nat
+  | .full => 2
+  | .endOnly => 1
+
+def Shape.name : Shape → String
+  | .full => "full"
+  | .endOnly => "endOnly"
+
+def windowsPerRep (s : Shape) (arms : Nat) : Nat := s.perArm * arms
 
 def lifeWindows : Nat := 36
 
-def repMs (arms : Nat) : Nat := windowsPerRep arms * windowMs
+def repsFitAux (budget w : Nat) : Nat → Nat
+  | 0 => 0
+  | k + 1 => if blockMs ((k + 1) * w) ≤ budget then k + 1 else repsFitAux budget w k
 
-def repsFit (dl now arms : Nat) : Nat := (dl - now) / repMs arms
+def repsFit (dl now : Nat) (s : Shape) (arms : Nat) : Nat :=
+  if windowsPerRep s arms = 0 then 0 else repsFitAux (dl - now) (windowsPerRep s arms) lifeWindows
 
-def repsLife (arms : Nat) : Nat := lifeWindows / windowsPerRep arms
+def repsLife (s : Shape) (arms : Nat) : Nat := lifeWindows / windowsPerRep s arms
 
-def planReps (dl now arms : Nat) : Nat := min (repsLife arms) (repsFit dl now arms)
+def repsWant : Nat := 6
+
+theorem minKept_le_repsWant : minKept ≤ repsWant := by decide
+
+def planReps (dl now : Nat) (s : Shape) (arms : Nat) : Nat := min (min (repsLife s arms) (repsFit dl now s arms)) repsWant
 
 inductive Outcome where
   | ok
@@ -144,37 +209,62 @@ inductive Outcome where
   | budgetShort
 deriving Repr, BEq, DecidableEq
 
-def outcome (dl now arms : Nat) : Outcome :=
-  if repsLife arms < minKept then .lifeShort else if repsFit dl now arms < minKept then .budgetShort else .ok
+def outcome (dl now : Nat) (s : Shape) (arms : Nat) : Outcome :=
+  if repsLife s arms < minKept then .lifeShort else if repsFit dl now s arms < minKept then .budgetShort else .ok
 
 def Outcome.name : Outcome → String
   | .ok => "ok"
   | .lifeShort => "lifeShort"
   | .budgetShort => "budgetShort"
 
-def endsDone (n arms pos : Nat) : Nat := n / windowsPerRep arms + if 2 * pos + 2 ≤ n % windowsPerRep arms then 1 else 0
+def endsDone (s : Shape) (n arms pos : Nat) : Nat :=
+  n / windowsPerRep s arms + if s.perArm * (pos + 1) ≤ n % windowsPerRep s arms then 1 else 0
 
-theorem planReps_fits (dl now arms : Nat) : planReps dl now arms * repMs arms ≤ dl - now :=
-  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.min_le_right _ _)) (Nat.div_mul_le_self _ _)
+theorem repsFitAux_le (b w : Nat) : ∀ k, repsFitAux b w k ≤ k
+  | 0 => Nat.le_refl _
+  | k + 1 => by
+    unfold repsFitAux
+    split
+    · exact Nat.le_refl _
+    · exact Nat.le_succ_of_le (repsFitAux_le b w k)
 
-theorem planReps_life (arms : Nat) (dl now : Nat) : planReps dl now arms * windowsPerRep arms ≤ lifeWindows :=
-  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.min_le_left _ _)) (Nat.div_mul_le_self _ _)
+theorem repsFitAux_fits (b w : Nat) : ∀ k, blockMs (repsFitAux b w k * w) ≤ b
+  | 0 => by simp [repsFitAux, blockMs_zero]
+  | k + 1 => by
+    unfold repsFitAux
+    split
+    · assumption
+    · exact repsFitAux_fits b w k
 
-theorem outcome_lifeShort (dl now arms : Nat) (h : repsLife arms < minKept) : outcome dl now arms = .lifeShort := by
+theorem planReps_fits (dl now : Nat) (s : Shape) (arms : Nat) :
+    blockMs (planReps dl now s arms * windowsPerRep s arms) ≤ dl - now := by
+  have hle : planReps dl now s arms ≤ repsFit dl now s arms := Nat.le_trans (Nat.min_le_left _ _) (Nat.min_le_right _ _)
+  unfold repsFit at hle
+  split at hle
+  · rename_i h0
+    have : planReps dl now s arms = 0 := by omega
+    rw [this]; simp [blockMs_zero]
+  · exact Nat.le_trans (blockMs_mono _ _ (Nat.mul_le_mul_right _ hle)) (repsFitAux_fits _ _ _)
+
+theorem planReps_life (s : Shape) (arms dl now : Nat) : planReps dl now s arms * windowsPerRep s arms ≤ lifeWindows :=
+  Nat.le_trans (Nat.mul_le_mul_right _ (Nat.le_trans (Nat.min_le_left _ _) (Nat.min_le_left _ _))) (Nat.div_mul_le_self _ _)
+
+theorem outcome_lifeShort (dl now : Nat) (s : Shape) (arms : Nat) (h : repsLife s arms < minKept) : outcome dl now s arms = .lifeShort := by
   simp [outcome, h]
 
-theorem outcome_budgetShort (dl now arms : Nat) (hl : minKept ≤ repsLife arms) (h : repsFit dl now arms < minKept) :
-    outcome dl now arms = .budgetShort := by
-  have : ¬ repsLife arms < minKept := by omega
+theorem outcome_budgetShort (dl now : Nat) (s : Shape) (arms : Nat) (hl : minKept ≤ repsLife s arms) (h : repsFit dl now s arms < minKept) :
+    outcome dl now s arms = .budgetShort := by
+  have : ¬ repsLife s arms < minKept := by omega
   simp [outcome, this, h]
 
-theorem outcome_ok (dl now arms : Nat) (hl : minKept ≤ repsLife arms) (h : minKept ≤ repsFit dl now arms) :
-    outcome dl now arms = .ok := by
-  have h1 : ¬ repsLife arms < minKept := by omega
-  have h2 : ¬ repsFit dl now arms < minKept := by omega
+theorem outcome_ok (dl now : Nat) (s : Shape) (arms : Nat) (hl : minKept ≤ repsLife s arms) (h : minKept ≤ repsFit dl now s arms) :
+    outcome dl now s arms = .ok := by
+  have h1 : ¬ repsLife s arms < minKept := by omega
+  have h2 : ¬ repsFit dl now s arms < minKept := by omega
   simp [outcome, h1, h2]
 
-theorem outcome_ok_plan (dl now arms : Nat) (h : outcome dl now arms = .ok) : minKept ≤ planReps dl now arms := by
+theorem outcome_ok_plan (dl now : Nat) (s : Shape) (arms : Nat) (h : outcome dl now s arms = .ok) : minKept ≤ planReps dl now s arms := by
+  have hw := minKept_le_repsWant
   unfold outcome at h
   unfold planReps
   split at h
@@ -183,63 +273,197 @@ theorem outcome_ok_plan (dl now arms : Nat) (h : outcome dl now arms = .ok) : mi
     · cases h
     · omega
 
-theorem outcome_ok_time (dl now arms : Nat) (h : outcome dl now arms = .ok) :
-    minKept * windowsPerRep arms * windowMs ≤ dl - now := by
-  have := outcome_ok_plan dl now arms h
-  have h2 := planReps_fits dl now arms
-  unfold repMs at h2
-  calc minKept * windowsPerRep arms * windowMs = minKept * (windowsPerRep arms * windowMs) := Nat.mul_assoc _ _ _
-    _ ≤ planReps dl now arms * (windowsPerRep arms * windowMs) := Nat.mul_le_mul_right _ this
-    _ ≤ dl - now := h2
+theorem outcome_ok_time (dl now : Nat) (s : Shape) (arms : Nat) (h : outcome dl now s arms = .ok) :
+    blockMs (minKept * windowsPerRep s arms) ≤ dl - now :=
+  Nat.le_trans (blockMs_mono _ _ (Nat.mul_le_mul_right _ (outcome_ok_plan dl now s arms h))) (planReps_fits dl now s arms)
 
-theorem endsDone_ge (n arms pos : Nat) : n / windowsPerRep arms ≤ endsDone n arms pos := by
+theorem plan_inside_job (now : Nat) (s : Shape) (arms : Nat) (hn : now ≤ deadlineAt job) :
+    now + blockMs (planReps (deadlineAt job) now s arms * windowsPerRep s arms) + job.graceMs + job.postMs + job.slackMs ≤ job.timeoutMs := by
+  have h1 := planReps_fits (deadlineAt job) now s arms
+  have h2 := deadline_add_le job job_fits
+  omega
+
+theorem endsDone_ge (s : Shape) (n arms pos : Nat) : n / windowsPerRep s arms ≤ endsDone s n arms pos := by
   unfold endsDone
   omega
 
-theorem endsDone_le (n arms pos : Nat) : endsDone n arms pos ≤ n / windowsPerRep arms + 1 := by
+theorem endsDone_le (s : Shape) (n arms pos : Nat) : endsDone s n arms pos ≤ n / windowsPerRep s arms + 1 := by
   unfold endsDone
   split <;> omega
 
-theorem kept_after (n arms pos : Nat) (ha : 0 < arms) (h : minKept * windowsPerRep arms ≤ n) : minKept ≤ endsDone n arms pos := by
-  have hw : 0 < windowsPerRep arms := by unfold windowsPerRep; omega
-  have := (Nat.le_div_iff_mul_le hw).2 h
-  exact Nat.le_trans this (endsDone_ge n arms pos)
+theorem windowsPerRep_pos (s : Shape) (arms : Nat) (ha : 0 < arms) : 0 < windowsPerRep s arms := by
+  cases s <;> simp [windowsPerRep, Shape.perArm] <;> omega
 
-theorem planReps_complete (dl now arms : Nat) (ha : 0 < arms) (h : outcome dl now arms = .ok) (pos : Nat) :
-    minKept ≤ endsDone (planReps dl now arms * windowsPerRep arms) arms pos :=
-  kept_after _ arms pos ha (Nat.mul_le_mul_right _ (outcome_ok_plan dl now arms h))
+theorem kept_after (s : Shape) (n arms pos : Nat) (ha : 0 < arms) (h : minKept * windowsPerRep s arms ≤ n) : minKept ≤ endsDone s n arms pos := by
+  have := (Nat.le_div_iff_mul_le (windowsPerRep_pos s arms ha)).2 h
+  exact Nat.le_trans this (endsDone_ge s n arms pos)
+
+theorem planReps_complete (dl now : Nat) (s : Shape) (arms : Nat) (ha : 0 < arms) (h : outcome dl now s arms = .ok) (pos : Nat) :
+    minKept ≤ endsDone s (planReps dl now s arms * windowsPerRep s arms) arms pos :=
+  kept_after s _ arms pos ha (Nat.mul_le_mul_right _ (outcome_ok_plan dl now s arms h))
+
+def groupArms (controls cands g : Nat) : Nat := controls + (cands + g - 1) / g
+
+def groupsFor (dl now : Nat) (s : Shape) (controls cands : Nat) : Option Nat :=
+  (List.range' 1 (cands + 1)).find? fun g => decide (outcome dl now s (groupArms controls cands g) = .ok)
+
+theorem groupsFor_ok (dl now : Nat) (s : Shape) (controls cands g : Nat) (h : groupsFor dl now s controls cands = some g) :
+    outcome dl now s (groupArms controls cands g) = .ok := by
+  unfold groupsFor at h
+  exact of_decide_eq_true (List.find?_some (p := fun g => decide (outcome dl now s (groupArms controls cands g) = .ok)) h)
+
+theorem groupsFor_pos (dl now : Nat) (s : Shape) (controls cands g : Nat) (h : groupsFor dl now s controls cands = some g) : 0 < g := by
+  have := List.mem_of_find?_eq_some h
+  simp [List.mem_range'] at this
+  omega
+
+theorem groupArms_cover (controls cands g : Nat) (hg : 0 < g) : cands ≤ g * (groupArms controls cands g - controls) := by
+  unfold groupArms
+  have h1 := Nat.div_add_mod (cands + g - 1) g
+  have h2 := Nat.mod_lt (cands + g - 1) hg
+  have h3 : controls + (cands + g - 1) / g - controls = (cands + g - 1) / g := Nat.add_sub_cancel_left _ _
+  rw [h3]
+  generalize (cands + g - 1) / g = q at *
+  obtain ⟨t, ht⟩ : ∃ t, t = g * q := ⟨_, rfl⟩
+  rw [← ht] at h1 ⊢
+  omega
+
+def margin : Nat := 2
+
+def jobsNeeded : Nat := Fw.Gate.Smooth.minSamples + margin
+
+theorem jobsNeeded_le_slots : jobsNeeded ≤ Fw.Measure.WktrLayout.macSlots := by decide
+
+theorem jobsNeeded_value : jobsNeeded = 5 := by decide
+
+theorem decisive_add_insufficient (vs : List Verdict) :
+    Fw.Gate.Smooth.decisive vs + vs.count .insufficient = vs.length := by
+  induction vs with
+  | nil => simp [Fw.Gate.Smooth.decisive]
+  | cons x xs ih =>
+    simp only [Fw.Gate.Smooth.decisive, List.count_cons, List.length_cons] at ih ⊢
+    cases x <;> simp (config := { decide := true }) only [ite_true, ite_false] <;> omega
+
+theorem plan_decisive (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs.count .insufficient ≤ margin) :
+    Fw.Gate.Smooth.minSamples ≤ Fw.Gate.Smooth.decisive vs := by
+  have := decisive_add_insufficient vs
+  unfold jobsNeeded at hn
+  omega
+
+theorem hitchJudge_ne_insufficient (a b : List Nat) : Fw.Gate.Smooth.hitchJudge a b ≠ .insufficient := by
+  unfold Fw.Gate.Smooth.hitchJudge
+  split
+  · simp
+  · split <;> simp
+
+theorem job_decisive (a b aa1 aa2 : List Nat) (hok : Fw.Gate.Smooth.okN a b aa1 aa2 = true) :
+    Fw.Gate.Smooth.hitchVerdict a b aa1 aa2 ≠ .insufficient := by
+  unfold Fw.Gate.Smooth.hitchVerdict
+  simp only [hok, ite_true]
+  have h1 := hitchJudge_ne_insufficient aa1 aa2
+  have h2 := hitchJudge_ne_insufficient a b
+  split
+  · exact h2
+  · simp
+
+theorem across_decisive_ne_insufficient (vs : List Verdict) (h : Fw.Gate.Smooth.minSamples ≤ Fw.Gate.Smooth.decisive vs) :
+    Fw.Gate.Smooth.acrossDecisive vs ≠ .insufficient := by
+  have hk : 0 < Fw.Gate.Smooth.agreeNeeded (Fw.Gate.Smooth.decisive vs) := by
+    unfold Fw.Gate.Smooth.agreeNeeded Fw.Gate.Smooth.minSamples at *
+    omega
+  unfold Fw.Gate.Smooth.acrossDecisive Fw.Gate.Smooth.across
+  have h' : ¬ (Fw.Gate.Smooth.decisive vs < Fw.Gate.Smooth.minSamples ∨ Fw.Gate.Smooth.agreeNeeded (Fw.Gate.Smooth.decisive vs) = 0) := by omega
+  simp only [h', ite_false]
+  split <;> try split
+  all_goals simp
+
+theorem plan_across (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs.count .insufficient ≤ margin) :
+    Fw.Gate.Smooth.acrossDecisive vs ≠ .insufficient :=
+  across_decisive_ne_insufficient vs (plan_decisive vs hn hl)
+
+def readyAllowMs : Nat := 480000
+
+def setupWorstMs : Nat := 900000
+
+theorem setup_worst_fits : 300000 + 90000 + readyAllowMs ≤ setupWorstMs := by decide
+
+theorem ok_at_worst_setup (arms : Nat) (h3 : 3 ≤ arms) (h4 : arms ≤ 4) : outcome (deadlineAt job) setupWorstMs .endOnly arms = .ok := by
+  have : arms = 3 ∨ arms = 4 := by omega
+  rcases this with rfl | rfl <;> decide +kernel
+
+theorem worst_setup_inside_job : setupWorstMs ≤ deadlineAt job := by decide
 
 def stepCases : List (String × Nat × Option Nat) := [
   ("walk starts after 4.6 min", 276000, none),
   ("walk starts at the job start", 0, none),
-  ("walk starts at the deadline", 1920000, none),
-  ("walk starts in the grace", 1950000, none),
-  ("walk starts too late", 2100000, none),
+  ("walk starts at the deadline", 2400000, none),
+  ("walk starts in the grace", 2430000, none),
+  ("walk starts too late", 2700000, none),
   ("cap 8 min", 276000, some 480000),
   ("cap above the deadline", 276000, some 3000000)]
 
 def startCases : List (String × Nat × Nat × Nat) := [
-  ("plenty of time", 1920000, 100000, 30000),
-  ("exactly the reserve", 1920000, 1890000, 30000),
-  ("one ms short", 1920000, 1890001, 30000),
-  ("past the deadline", 1920000, 2000000, 30000)]
+  ("plenty of time", 1500000, 100000, 30000),
+  ("exactly the reserve", 1500000, 1470000, 30000),
+  ("one ms short", 1500000, 1470001, 30000),
+  ("past the deadline", 1500000, 1600000, 30000)]
 
-def planCases : List (String × Nat × Option Nat × Nat) := [
-  ("3 arms, walk starts after 4.6 min", 276000, none, 3),
-  ("3 arms, walk starts after 8 min", 480000, none, 3),
-  ("3 arms, walk starts after 10 min", 600000, none, 3),
-  ("3 arms, cap 10 min", 276000, some 600000, 3),
-  ("2 arms", 276000, none, 2),
-  ("4 arms", 276000, none, 4),
-  ("no arms", 276000, none, 0)]
+def planCases : List (String × Nat × Option Nat × Shape × Nat) := [
+  ("3 arms end only, walk starts after 4.6 min", 276000, none, .endOnly, 3),
+  ("3 arms end only, walk starts after 15 min", 900000, none, .endOnly, 3),
+  ("3 arms end only, 6 reps still fit", 1509000, none, .endOnly, 3),
+  ("3 arms end only, 6 reps one ms too late", 1509001, none, .endOnly, 3),
+  ("3 arms end only, walk starts after 26.6 min", 1596000, none, .endOnly, 3),
+  ("3 arms end only, one ms too late", 1596001, none, .endOnly, 3),
+  ("3 arms end only, cap 10 min", 276000, some 600000, .endOnly, 3),
+  ("2 arms end only", 276000, none, .endOnly, 2),
+  ("4 arms end only", 276000, none, .endOnly, 4),
+  ("4 arms end only, walk starts after 15 min", 900000, none, .endOnly, 4),
+  ("4 arms end only, walk starts after 24.2 min", 1451000, none, .endOnly, 4),
+  ("4 arms end only, one ms too late", 1451001, none, .endOnly, 4),
+  ("5 arms end only", 276000, none, .endOnly, 5),
+  ("5 arms end only, walk starts after 15 min", 900000, none, .endOnly, 5),
+  ("10 arms end only", 276000, none, .endOnly, 10),
+  ("no arms", 276000, none, .endOnly, 0),
+  ("2 arms full", 276000, none, .full, 2),
+  ("3 arms full", 276000, none, .full, 3),
+  ("4 arms full", 276000, none, .full, 4)]
+
+def blockCases : List Nat := [0, 1, 5, 15, 19, 20, 21, 30, 36, 40]
+
+def endsCases : List (Shape × Nat × Nat × Nat) :=
+  [(.full, 3, 0, 0), (.full, 3, 7, 0), (.full, 3, 7, 1), (.full, 3, 8, 1), (.full, 3, 30, 2), (.full, 3, 29, 2), (.full, 3, 36, 0), (.full, 2, 17, 1),
+   (.endOnly, 3, 0, 0), (.endOnly, 3, 1, 0), (.endOnly, 3, 1, 1), (.endOnly, 3, 15, 2), (.endOnly, 3, 17, 2), (.endOnly, 4, 20, 3), (.endOnly, 4, 19, 3)]
+
+def groupCases : List (String × Nat × Shape × Nat × Nat) := [
+  ("3 arms fit one job", 276000, .endOnly, 2, 1),
+  ("5 arms fit one job", 276000, .endOnly, 2, 3),
+  ("7 arms fit one job", 276000, .endOnly, 2, 5),
+  ("8 arms need two jobs", 276000, .endOnly, 2, 6),
+  ("11 arms need two jobs", 276000, .endOnly, 2, 9),
+  ("5 arms full need three jobs", 276000, .full, 2, 3),
+  ("no candidates", 276000, .endOnly, 2, 0)]
+
+def verdictCases : List (List Verdict) := [
+  [.first, .first, .first, .first, .first],
+  [.first, .first, .first, .insufficient, .insufficient],
+  [.first, .first, .insufficient, .insufficient, .insufficient],
+  [.second, .same, .first, .insufficient, .insufficient],
+  [.same, .same, .same, .same, .same],
+  [.first, .first, .first, .second, .insufficient],
+  [.first, .same, .insufficient, .insufficient],
+  [.first, .first, .first, .insufficient]]
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("timeoutMs", toJson job.timeoutMs), ("postMs", toJson job.postMs),
     ("graceMs", toJson job.graceMs), ("slackMs", toJson job.slackMs), ("deadlineAt", toJson (deadlineAt job)),
     ("hardStopMs", toJson hardStopMs), ("postStepsMs", toJson postStepsMs), ("clockMs", toJson gaps.clockMs),
-    ("driftMs", toJson gaps.driftMs), ("completeMs", toJson gaps.completeMs), ("minKept", toJson minKept),
-    ("windowMs", toJson windowMs), ("lifeWindows", toJson lifeWindows)]).compress
+    ("driftMs", toJson gaps.driftMs), ("completeMs", toJson gaps.completeMs), ("overrunMs", toJson gaps.overrunMs),
+    ("minKept", toJson minKept), ("repsWant", toJson repsWant), ("lifeWindows", toJson lifeWindows), ("windowSamples", toJson windowSecs.length),
+    ("bodyMs", toJson bodyMs), ("tailMs", toJson tailMs), ("meanMs", toJson meanMs), ("tailEvery", toJson tailEvery),
+    ("margin", toJson margin), ("readyAllowMs", toJson readyAllowMs), ("setupWorstMs", toJson setupWorstMs), ("jobsNeeded", toJson jobsNeeded), ("macSlots", toJson Fw.Measure.WktrLayout.macSlots),
+    ("minSamples", toJson Fw.Gate.Smooth.minSamples)]).compress
   let ss := stepCases.map fun (name, elapsed, cap) =>
     let dl := cappedDeadline job elapsed cap
     let runs := runsWalk job elapsed dl 2
@@ -251,16 +475,27 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("op", "start"), ("case", Json.str name), ("deadlineMs", toJson dl), ("nowMs", toJson now),
       ("reserveMs", toJson reserve), ("starts", toJson (startsWindow dl now reserve)),
       ("remainingMs", toJson (remaining dl now))]).compress
-  let ps := planCases.map fun (name, elapsed, cap, arms) =>
+  let bs := blockCases.map fun n =>
+    (Json.mkObj [("op", "block"), ("windows", toJson n), ("blockMs", toJson (blockMs n))]).compress
+  let ps := planCases.map fun (name, elapsed, cap, s, arms) =>
     let dl := cappedDeadline job elapsed cap
     (Json.mkObj [("op", "plan"), ("case", Json.str name), ("elapsedMs", toJson elapsed),
-      ("capMs", match cap with | some v => toJson v | none => Json.null), ("deadlineMs", toJson dl), ("arms", toJson arms),
-      ("repsFit", toJson (repsFit dl elapsed arms)), ("repsLife", toJson (repsLife arms)),
-      ("reps", toJson (planReps dl elapsed arms)), ("outcome", Json.str (outcome dl elapsed arms).name)]).compress
-  let es := [(3, 0, 0), (3, 7, 0), (3, 7, 1), (3, 8, 1), (3, 30, 2), (3, 29, 2), (3, 36, 0), (2, 17, 1)].map fun (arms, n, pos) =>
-    (Json.mkObj [("op", "ends"), ("arms", toJson arms), ("windows", toJson n), ("pos", toJson pos),
-      ("endsDone", toJson (endsDone n arms pos))]).compress
-  [consts] ++ ss ++ ws ++ ps ++ es
+      ("capMs", match cap with | some v => toJson v | none => Json.null), ("deadlineMs", toJson dl), ("shape", Json.str s.name),
+      ("arms", toJson arms), ("repsFit", toJson (repsFit dl elapsed s arms)), ("repsLife", toJson (repsLife s arms)),
+      ("reps", toJson (planReps dl elapsed s arms)), ("outcome", Json.str (outcome dl elapsed s arms).name)]).compress
+  let es := endsCases.map fun (s, arms, n, pos) =>
+    (Json.mkObj [("op", "ends"), ("shape", Json.str s.name), ("arms", toJson arms), ("windows", toJson n), ("pos", toJson pos),
+      ("endsDone", toJson (endsDone s n arms pos))]).compress
+  let gs := groupCases.map fun (name, elapsed, s, controls, cands) =>
+    let dl := deadlineAt job
+    let g := groupsFor dl elapsed s controls cands
+    (Json.mkObj [("op", "groups"), ("case", Json.str name), ("elapsedMs", toJson elapsed), ("shape", Json.str s.name),
+      ("controls", toJson controls), ("candidates", toJson cands), ("groups", match g with | some v => toJson v | none => Json.null),
+      ("groupArms", match g with | some v => toJson (groupArms controls cands v) | none => Json.null)]).compress
+  let js := verdictCases.map fun vs =>
+    (Json.mkObj [("op", "jobs"), ("verdicts", toJson (vs.map Verdict.name)), ("decisive", toJson (Fw.Gate.Smooth.decisive vs)),
+      ("lost", toJson (vs.count .insufficient)), ("across", Json.str (Fw.Gate.Smooth.acrossDecisive vs).name)]).compress
+  [consts] ++ ss ++ ws ++ bs ++ ps ++ es ++ gs ++ js
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 

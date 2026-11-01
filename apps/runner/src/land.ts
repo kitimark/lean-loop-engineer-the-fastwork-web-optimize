@@ -171,7 +171,7 @@ export const PACKAGE_EXTRA_READS: Record<string, string[]> = {
   "packages/engine-check": ["packages/contracts/golden/measure/**"],
   "packages/difftest": ["apps/console-api/src/cap/cap.ts", "apps/runner/hooks/cap.mjs", "packages/measure-chromium/src/n0.mjs",
     "packages/measure-chromium/src/trace.mjs", "packages/measure-webkit/src/quietsteps.mjs", "packages/measure-webkit/src/reduce.mjs"],
-  "packages/measure-webkit": ["packages/contracts/src/flag-key.mjs", "packages/measure-chromium/src/offscreen.mjs", "packages/contracts/golden/engine/resource.jsonl", "results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
+  "packages/measure-webkit": ["packages/contracts/src/flag-key.mjs", "packages/measure-chromium/src/offscreen.mjs", ".github/workflows/smoothness.yml","packages/contracts/golden/engine/resource.jsonl", "results/accent-draw-nolayout-pixels/run-40037992429/**", "packages/contracts/golden/measure/**","packages/contracts/golden/sup/**", "apps/site/src/flags/images/drawn.json",
     "packages/contracts/golden/device/**", "packages/contracts/golden/ci/telemetry.jsonl", "packages/measure-chromium/src/profile.mjs", "packages/measure-chromium/src/census.mjs", "packages/measure-chromium/profiles/**",
     "apps/site/src/registry/presets/**", "apps/site/src/parts/**", "packages/contracts/golden/preset/v2-proved.json", "scripts/feel-session.sh",
     "research/notes/2026/10-21-webkit-lag-probe.md",

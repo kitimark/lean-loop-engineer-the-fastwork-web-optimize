@@ -1,4 +1,5 @@
 import Lean.Data.Json
+import Fw.Measure.WalkBudget
 /-!
 # Per-lane macOS job time caps (task `pool-caps`): the cap of a lane is 1.3 x its measured p90 success wall, rounded up
 -/
@@ -70,7 +71,11 @@ sim jobs 29.12, 34.05 and 34.15 min, linear p90 34.13, rounded up to 34.2 min. -
 def smoothSource : String :=
   "runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)"
 
-/-- The capped macOS jobs, one per lane. -/
+def simWallDm : Nat := 10 * (Fw.Measure.WalkBudget.job.timeoutMs / 60000) * 100 / 130
+
+def simSource : String :=
+  "bound of the walk plan, INFERRED: the job timeout of Fw.Measure.WalkBudget.job; measured: runs 41345594217 and 41349666358, 18.3..43.5 min, linear p90 38.9 min (API times)"
+
 def rows : List Row :=
   [⟨"wktr", "wktr.yml", "wktr", 93, 119⟩,
    ⟨"wktr-fixtures", "wktr-fixtures.yml", "fixtures", 35, 161⟩,
@@ -79,7 +84,7 @@ def rows : List Row :=
    ⟨"gate-gaps", "gate-gaps.yml", "collect-macos", 3, 198⟩,
    ⟨"trajectory-probe", "trajectory-probe.yml", "probe-apple", probeWalls.length, p90dmOfSec (probeWalls.map (·.1))⟩,
    ⟨"smoothness-webkit-mac", "smoothness.yml", "webkit-mac", 3, 111⟩,
-   ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", 3, 342⟩]
+   ⟨"smoothness-webkit-sim", "smoothness.yml", "webkit-sim", 3, simWallDm⟩]
 
 def excluded : List (String × String) :=
   [("path-pix.yml", "path-pix-lanes"), ("toolbar-throttle.yml", "toolbar-throttle-probe"), ("webkit-sim.yml", "webkit-sim-failfast"), ("chrome-crash-probe.yml", "chrome-crash-platforms"), ("font-fidelity.yml", "counts-font-fidelity")]
@@ -98,7 +103,9 @@ theorem thin_lanes : (rows.filter (·.thin)).map (·.lane) = ["gate-gaps", "traj
 
 theorem caps_eq : rows.map (fun r => (r.lane, r.cap)) =
     [("wktr", 16), ("wktr-fixtures", 21), ("sim-speed", 17), ("engine-premises", 8), ("gate-gaps", 26),
-      ("trajectory-probe", 18), ("smoothness-webkit-mac", 15), ("smoothness-webkit-sim", 45)] := by decide
+      ("trajectory-probe", 18), ("smoothness-webkit-mac", 15), ("smoothness-webkit-sim", 60)] := by decide
+
+theorem sim_cap_is_job_timeout : capMin simWallDm = Fw.Measure.WalkBudget.job.timeoutMs / 60000 := by decide
 
 theorem probe_walls_n : probeWalls.length = 6 := by decide
 
@@ -123,8 +130,9 @@ def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 132, 161, 198, 289, 
 
 private def capJson (r : Row) : Json :=
   Json.mkObj [("kind", "cap"), ("lane", r.lane), ("file", r.file), ("job", r.job), ("n", r.n), ("p90dm", r.p90dm),
-    ("capMin", r.cap), ("thin", r.thin), ("status", "MEASURED"),
+    ("capMin", r.cap), ("thin", r.thin), ("status", if r.lane == "smoothness-webkit-sim" then "INFERRED" else "MEASURED"),
     ("source", if r.lane == "trajectory-probe" then probeSource
+      else if r.lane == "smoothness-webkit-sim" then simSource
       else if r.lane.startsWith "smoothness-webkit" then smoothSource else source)]
 
 /-- The golden `packages/contracts/golden/ci/pool-caps.jsonl`: the cap rows, the excluded workflows, the `capMin` vectors. -/

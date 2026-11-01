@@ -1,27 +1,71 @@
-{"clockMs":6000,"completeMs":4000,"deadlineAt":1920000,"driftMs":50000,"graceMs":120000,"hardStopMs":45000,"lifeWindows":36,"minKept":5,"op":"constants","postMs":600000,"postStepsMs":540000,"slackMs":60000,"timeoutMs":2700000,"windowMs":45000}
-{"capMs":null,"case":"walk starts after 4.6 min","deadlineMs":1920000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":29}
-{"capMs":null,"case":"walk starts at the job start","deadlineMs":1920000,"elapsedMs":0,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":34}
-{"capMs":null,"case":"walk starts at the deadline","deadlineMs":1920000,"elapsedMs":1920000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":2}
-{"capMs":null,"case":"walk starts in the grace","deadlineMs":1920000,"elapsedMs":1950000,"op":"step","runs":false,"stepMinutes":1}
-{"capMs":null,"case":"walk starts too late","deadlineMs":1920000,"elapsedMs":2100000,"op":"step","runs":false,"stepMinutes":0}
+{"bodyMs":29000,"clockMs":6000,"completeMs":4000,"deadlineAt":2400000,"driftMs":50000,"graceMs":120000,"hardStopMs":45000,"jobsNeeded":5,"lifeWindows":36,"macSlots":5,"margin":2,"meanMs":37490,"minKept":5,"minSamples":3,"op":"constants","overrunMs":420000,"postMs":600000,"postStepsMs":540000,"readyAllowMs":480000,"repsWant":6,"setupWorstMs":900000,"slackMs":480000,"tailEvery":20,"tailMs":398000,"timeoutMs":3600000,"windowSamples":216}
+{"capMs":null,"case":"walk starts after 4.6 min","deadlineMs":2400000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":37}
+{"capMs":null,"case":"walk starts at the job start","deadlineMs":2400000,"elapsedMs":0,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":42}
+{"capMs":null,"case":"walk starts at the deadline","deadlineMs":2400000,"elapsedMs":2400000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":2}
+{"capMs":null,"case":"walk starts in the grace","deadlineMs":2400000,"elapsedMs":2430000,"op":"step","runs":false,"stepMinutes":1}
+{"capMs":null,"case":"walk starts too late","deadlineMs":2400000,"elapsedMs":2700000,"op":"step","runs":false,"stepMinutes":0}
 {"capMs":480000,"case":"cap 8 min","deadlineMs":756000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":10}
-{"capMs":3000000,"case":"cap above the deadline","deadlineMs":1920000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":29}
-{"case":"plenty of time","deadlineMs":1920000,"nowMs":100000,"op":"start","remainingMs":1820000,"reserveMs":30000,"starts":true}
-{"case":"exactly the reserve","deadlineMs":1920000,"nowMs":1890000,"op":"start","remainingMs":30000,"reserveMs":30000,"starts":true}
-{"case":"one ms short","deadlineMs":1920000,"nowMs":1890001,"op":"start","remainingMs":29999,"reserveMs":30000,"starts":false}
-{"case":"past the deadline","deadlineMs":1920000,"nowMs":2000000,"op":"start","remainingMs":0,"reserveMs":30000,"starts":false}
-{"arms":3,"capMs":null,"case":"3 arms, walk starts after 4.6 min","deadlineMs":1920000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":6,"repsLife":6}
-{"arms":3,"capMs":null,"case":"3 arms, walk starts after 8 min","deadlineMs":1920000,"elapsedMs":480000,"op":"plan","outcome":"ok","reps":5,"repsFit":5,"repsLife":6}
-{"arms":3,"capMs":null,"case":"3 arms, walk starts after 10 min","deadlineMs":1920000,"elapsedMs":600000,"op":"plan","outcome":"budgetShort","reps":4,"repsFit":4,"repsLife":6}
-{"arms":3,"capMs":600000,"case":"3 arms, cap 10 min","deadlineMs":876000,"elapsedMs":276000,"op":"plan","outcome":"budgetShort","reps":2,"repsFit":2,"repsLife":6}
-{"arms":2,"capMs":null,"case":"2 arms","deadlineMs":1920000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":9,"repsFit":9,"repsLife":9}
-{"arms":4,"capMs":null,"case":"4 arms","deadlineMs":1920000,"elapsedMs":276000,"op":"plan","outcome":"lifeShort","reps":4,"repsFit":4,"repsLife":4}
-{"arms":0,"capMs":null,"case":"no arms","deadlineMs":1920000,"elapsedMs":276000,"op":"plan","outcome":"lifeShort","reps":0,"repsFit":0,"repsLife":0}
-{"arms":3,"endsDone":0,"op":"ends","pos":0,"windows":0}
-{"arms":3,"endsDone":1,"op":"ends","pos":0,"windows":7}
-{"arms":3,"endsDone":1,"op":"ends","pos":1,"windows":7}
-{"arms":3,"endsDone":1,"op":"ends","pos":1,"windows":8}
-{"arms":3,"endsDone":5,"op":"ends","pos":2,"windows":30}
-{"arms":3,"endsDone":4,"op":"ends","pos":2,"windows":29}
-{"arms":3,"endsDone":6,"op":"ends","pos":0,"windows":36}
-{"arms":2,"endsDone":4,"op":"ends","pos":1,"windows":17}
+{"capMs":3000000,"case":"cap above the deadline","deadlineMs":2400000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":37}
+{"case":"plenty of time","deadlineMs":1500000,"nowMs":100000,"op":"start","remainingMs":1400000,"reserveMs":30000,"starts":true}
+{"case":"exactly the reserve","deadlineMs":1500000,"nowMs":1470000,"op":"start","remainingMs":30000,"reserveMs":30000,"starts":true}
+{"case":"one ms short","deadlineMs":1500000,"nowMs":1470001,"op":"start","remainingMs":29999,"reserveMs":30000,"starts":false}
+{"case":"past the deadline","deadlineMs":1500000,"nowMs":1600000,"op":"start","remainingMs":0,"reserveMs":30000,"starts":false}
+{"blockMs":0,"op":"block","windows":0}
+{"blockMs":398000,"op":"block","windows":1}
+{"blockMs":514000,"op":"block","windows":5}
+{"blockMs":804000,"op":"block","windows":15}
+{"blockMs":920000,"op":"block","windows":19}
+{"blockMs":949000,"op":"block","windows":20}
+{"blockMs":1347000,"op":"block","windows":21}
+{"blockMs":1608000,"op":"block","windows":30}
+{"blockMs":1782000,"op":"block","windows":36}
+{"blockMs":1898000,"op":"block","windows":40}
+{"arms":3,"capMs":null,"case":"3 arms end only, walk starts after 4.6 min","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":13,"repsLife":12,"shape":"endOnly"}
+{"arms":3,"capMs":null,"case":"3 arms end only, walk starts after 15 min","deadlineMs":2400000,"elapsedMs":900000,"op":"plan","outcome":"ok","reps":6,"repsFit":8,"repsLife":12,"shape":"endOnly"}
+{"arms":3,"capMs":null,"case":"3 arms end only, 6 reps still fit","deadlineMs":2400000,"elapsedMs":1509000,"op":"plan","outcome":"ok","reps":6,"repsFit":6,"repsLife":12,"shape":"endOnly"}
+{"arms":3,"capMs":null,"case":"3 arms end only, 6 reps one ms too late","deadlineMs":2400000,"elapsedMs":1509001,"op":"plan","outcome":"ok","reps":5,"repsFit":5,"repsLife":12,"shape":"endOnly"}
+{"arms":3,"capMs":null,"case":"3 arms end only, walk starts after 26.6 min","deadlineMs":2400000,"elapsedMs":1596000,"op":"plan","outcome":"ok","reps":5,"repsFit":5,"repsLife":12,"shape":"endOnly"}
+{"arms":3,"capMs":null,"case":"3 arms end only, one ms too late","deadlineMs":2400000,"elapsedMs":1596001,"op":"plan","outcome":"budgetShort","reps":4,"repsFit":4,"repsLife":12,"shape":"endOnly"}
+{"arms":3,"capMs":600000,"case":"3 arms end only, cap 10 min","deadlineMs":876000,"elapsedMs":276000,"op":"plan","outcome":"budgetShort","reps":2,"repsFit":2,"repsLife":12,"shape":"endOnly"}
+{"arms":2,"capMs":null,"case":"2 arms end only","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":20,"repsLife":18,"shape":"endOnly"}
+{"arms":4,"capMs":null,"case":"4 arms end only","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":10,"repsLife":9,"shape":"endOnly"}
+{"arms":4,"capMs":null,"case":"4 arms end only, walk starts after 15 min","deadlineMs":2400000,"elapsedMs":900000,"op":"plan","outcome":"ok","reps":6,"repsFit":6,"repsLife":9,"shape":"endOnly"}
+{"arms":4,"capMs":null,"case":"4 arms end only, walk starts after 24.2 min","deadlineMs":2400000,"elapsedMs":1451000,"op":"plan","outcome":"ok","reps":5,"repsFit":5,"repsLife":9,"shape":"endOnly"}
+{"arms":4,"capMs":null,"case":"4 arms end only, one ms too late","deadlineMs":2400000,"elapsedMs":1451001,"op":"plan","outcome":"budgetShort","reps":4,"repsFit":4,"repsLife":9,"shape":"endOnly"}
+{"arms":5,"capMs":null,"case":"5 arms end only","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":8,"repsLife":7,"shape":"endOnly"}
+{"arms":5,"capMs":null,"case":"5 arms end only, walk starts after 15 min","deadlineMs":2400000,"elapsedMs":900000,"op":"plan","outcome":"ok","reps":5,"repsFit":5,"repsLife":7,"shape":"endOnly"}
+{"arms":10,"capMs":null,"case":"10 arms end only","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"lifeShort","reps":3,"repsFit":4,"repsLife":3,"shape":"endOnly"}
+{"arms":0,"capMs":null,"case":"no arms","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"lifeShort","reps":0,"repsFit":0,"repsLife":0,"shape":"endOnly"}
+{"arms":2,"capMs":null,"case":"2 arms full","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":10,"repsLife":9,"shape":"full"}
+{"arms":3,"capMs":null,"case":"3 arms full","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"ok","reps":6,"repsFit":6,"repsLife":6,"shape":"full"}
+{"arms":4,"capMs":null,"case":"4 arms full","deadlineMs":2400000,"elapsedMs":276000,"op":"plan","outcome":"lifeShort","reps":4,"repsFit":5,"repsLife":4,"shape":"full"}
+{"arms":3,"endsDone":0,"op":"ends","pos":0,"shape":"full","windows":0}
+{"arms":3,"endsDone":1,"op":"ends","pos":0,"shape":"full","windows":7}
+{"arms":3,"endsDone":1,"op":"ends","pos":1,"shape":"full","windows":7}
+{"arms":3,"endsDone":1,"op":"ends","pos":1,"shape":"full","windows":8}
+{"arms":3,"endsDone":5,"op":"ends","pos":2,"shape":"full","windows":30}
+{"arms":3,"endsDone":4,"op":"ends","pos":2,"shape":"full","windows":29}
+{"arms":3,"endsDone":6,"op":"ends","pos":0,"shape":"full","windows":36}
+{"arms":2,"endsDone":4,"op":"ends","pos":1,"shape":"full","windows":17}
+{"arms":3,"endsDone":0,"op":"ends","pos":0,"shape":"endOnly","windows":0}
+{"arms":3,"endsDone":1,"op":"ends","pos":0,"shape":"endOnly","windows":1}
+{"arms":3,"endsDone":0,"op":"ends","pos":1,"shape":"endOnly","windows":1}
+{"arms":3,"endsDone":5,"op":"ends","pos":2,"shape":"endOnly","windows":15}
+{"arms":3,"endsDone":5,"op":"ends","pos":2,"shape":"endOnly","windows":17}
+{"arms":4,"endsDone":5,"op":"ends","pos":3,"shape":"endOnly","windows":20}
+{"arms":4,"endsDone":4,"op":"ends","pos":3,"shape":"endOnly","windows":19}
+{"candidates":1,"case":"3 arms fit one job","controls":2,"elapsedMs":276000,"groupArms":3,"groups":1,"op":"groups","shape":"endOnly"}
+{"candidates":3,"case":"5 arms fit one job","controls":2,"elapsedMs":276000,"groupArms":5,"groups":1,"op":"groups","shape":"endOnly"}
+{"candidates":5,"case":"7 arms fit one job","controls":2,"elapsedMs":276000,"groupArms":7,"groups":1,"op":"groups","shape":"endOnly"}
+{"candidates":6,"case":"8 arms need two jobs","controls":2,"elapsedMs":276000,"groupArms":5,"groups":2,"op":"groups","shape":"endOnly"}
+{"candidates":9,"case":"11 arms need two jobs","controls":2,"elapsedMs":276000,"groupArms":7,"groups":2,"op":"groups","shape":"endOnly"}
+{"candidates":3,"case":"5 arms full need three jobs","controls":2,"elapsedMs":276000,"groupArms":3,"groups":3,"op":"groups","shape":"full"}
+{"candidates":0,"case":"no candidates","controls":2,"elapsedMs":276000,"groupArms":2,"groups":1,"op":"groups","shape":"endOnly"}
+{"across":"first","decisive":5,"lost":0,"op":"jobs","verdicts":["first","first","first","first","first"]}
+{"across":"first","decisive":3,"lost":2,"op":"jobs","verdicts":["first","first","first","insufficient","insufficient"]}
+{"across":"insufficient","decisive":2,"lost":3,"op":"jobs","verdicts":["first","first","insufficient","insufficient","insufficient"]}
+{"across":"same","decisive":3,"lost":2,"op":"jobs","verdicts":["second","same","first","insufficient","insufficient"]}
+{"across":"same","decisive":5,"lost":0,"op":"jobs","verdicts":["same","same","same","same","same"]}
+{"across":"same","decisive":4,"lost":1,"op":"jobs","verdicts":["first","first","first","second","insufficient"]}
+{"across":"insufficient","decisive":2,"lost":2,"op":"jobs","verdicts":["first","same","insufficient","insufficient"]}
+{"across":"first","decisive":3,"lost":1,"op":"jobs","verdicts":["first","first","first","insufficient"]}

@@ -15,14 +15,15 @@ name: smoothness
 # A head commit that also carries `[earn-bound]` (task earn-bound-arm) runs only `base`, `aa` and the probe-only `bound` arm (the faithful page with
 # the earn button's transitions off, packages/gate-breakpoints/src/smooth/bound.mjs) with each half of the end push held 1400 ms; no candidate search.
 # `[morph-wheel]` (task morph-real-wheel) runs, in `webkit-mac` only, the end-of-page morph with a trusted wheel and a synthetic one (packages/measure-webkit/src/lag/mac-cli.mjs) and skips `webkit-sim`.
-# `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Reps per simulator job come from Lean `Fw.Measure.WalkBudget.planReps` (`--reps auto`): as many whole reps as the walk
-# budget (time to the deadline at 45 s a window) and the Simulator's life (36 windows, it tends to die after about 30 to 40) allow, so 6 reps of 3 arms (36 windows); a job needs 5 kept finish windows per
-# arm to decide (`Fw.Gate.Smooth.minReps`), which holds for up to 3 arms and fails for 4 (`lifeShort`) or a walk that starts late (`budgetShort`); `sim.json` records `repPlan`.
+# `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Simulator jobs: 5 of them (Lean `Fw.Measure.WalkBudget.jobsNeeded`: the 3 decisive jobs the across-jobs rule asks, `Fw.Gate.Smooth.minSamples`, plus a margin of 2 lost
+# jobs; the 5 free macOS slots hold them all). Reps per job come from `planReps` (`--reps auto`), planned once the Simulator is booted, the touch driver runs and Safari is open: with the driver each arm walks only its end
+# window (touch pushes), 5 kept windows per arm (`Fw.Gate.Smooth.minReps`) being the minimum for a verdict; the time is a tail budget, not the mean (a window's 75th percentile, 29 s, plus one 99th-percentile slot, 398 s, per 20 windows; the walk
+# deadline is job start + 40 min of the 60 min job: 10 min of post steps, 2 min grace, 8 min slack), so 3 or 4 arms plan 6 reps (at most `repsWant`) from a walk that starts within 15 min (the longest setup seen, `setupWorstMs`; the driver may take 8 min, `readyAllowMs`) and 5 reps up to 26.6 min (3 arms) or 24.2 min (4 arms); a walk that starts later is `budgetShort`, 5 arms plan ok to the same start, 8 or more are `lifeShort` and `sim.json`'s `repPlan.groups` says how many jobs of arms would fit; `sim.json` records `repPlan`.
 # `[touch-lock]` (task touch-lock-page-end, with `[webkit-cadence] [sim-only]`) runs simulator jobs that flick the page into its end with real touches in the original, the faithful build, a CSS-lock candidate and the morph.tween:end-pin variant (two jobs, task end-pin-no-fight; the commit's `[trajectory fw=...]` line names the pin flag the site is built with)
 # (packages/measure-webkit/src/touchlock-cli.mjs; Lean Fw.Measure.TouchLock) and counts scroll reversals while the morph is open.
-# `[sim-touch-control]` adds a 4th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 3 take them from SpringBoard. Both skip the Timeline in touch
-# windows, so job 4 against jobs 1 to 3 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
-# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 3, or 1 to 4 with [sim-touch-control]; job 4 is the control and is left out of the sim pool).
+# `[sim-touch-control]` adds a 6th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 5 take them from SpringBoard. Both skip the Timeline in touch
+# windows (the zone source of an end touch window is the page's own frame times), so job 6 against jobs 1 to 5 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
+# Tables: `node packages/measure-webkit/src/profile/cli.mjs report` over the downloaded artifacts smoothness-webkit-mac-N / -sim-N (N = the matrix job, 1 to 5, or 1 to 6 with [sim-touch-control]; job 6 is the control and is left out of the sim pool).
 # Inputs of a ci/* push: the `[trajectory ...]` line of the head commit, parsed by the Lean-checked parser .github/scripts/trajectory-line.mjs
 # (preset or fw picks the candidate, widths the legs; empty widths = 390 and 1280; the engines key is ignored).
 # The artifact of a leg is `smoothness-<width>-<set>`; each of the three sets of a width is its own job on its own runner (an independent noise sample); the table is built from downloaded runs: `node src/smooth/cli.mjs cadence`.
@@ -348,6 +349,7 @@ jobs:
         env:
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
           FW_SITE_DIST: ${{ github.workspace }}/apps/site/dist/aot
+          FW_MATRIX_JOB: ${{ matrix.job }}
         working-directory: packages/gate-breakpoints
         run: |
           set -euo pipefail
@@ -390,13 +392,15 @@ jobs:
     concurrency:
       group: ci-lane:smoothness:${{ github.event_name == 'push' && !startsWith(github.ref, 'refs/heads/ci/') && github.ref || github.run_id }}:webkit-sim:${{ strategy.job-index }}
     runs-on: xcode-27
-    timeout-minutes: 45
+    timeout-minutes: 60
     name: webkit sim (mobile safari, xcode-27) job ${{ matrix.job }}
     strategy:
-      max-parallel: 1
+      # Lean Fw.Measure.WalkBudget: jobsNeeded = 5 (minSamples 3 plus a margin of 2 lost jobs) and macSlots = 5, so all jobs of a run start at once;
+      # `[sim-touch-control]` adds job 6, the Safari-coordinates control (a 6th waits for a slot). packages/measure-webkit/test/walk-budget.test.mjs reads these lists.
+      max-parallel: 5
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(contains(github.event.head_commit.message, '[touch-lock]') && '[1,2]' || contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
+        job: ${{ fromJSON(contains(github.event.head_commit.message, '[touch-lock]') && '[1,2]' || contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4,5,6]' || '[1,2,3,4,5]') }}
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434
@@ -474,7 +478,7 @@ jobs:
           udid=$(cat "$RUNNER_TEMP/fw-sim-udid.txt")
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
-      # Lean Fw.Measure.WalkBudget: the walk may run until job start + timeout - post steps - grace - slack, and its step timeout ends inside it.
+      # Lean Fw.Measure.WalkBudget: the walk may run until job start + timeout - post steps - grace - slack (the slack holds the clock, drift, complete and the 7 min a walk step has overrun its timeout), and its step timeout ends inside it.
       # `[sim-walk-cap=N]` in the commit message (job 1 only) cuts the walk N minutes after it starts, to prove the cut path;
       # `[sim-walk-hang=N]` (job 2 only) does the same and also blocks the harness's event loop 2 minutes into the walk, to prove the hard stop.
       - name: Walk budget
@@ -498,7 +502,7 @@ jobs:
           SEARCH: ${{ needs.site.outputs.search }}
           SITE_DIR: ${{ runner.temp }}/site
           FW_SNAPSHOT_SITE: ${{ github.workspace }}/snapshot/site
-          FW_TOUCH_VARIANTS: ${{ matrix.job == 4 && 'safari' || 'springboard' }}
+          FW_TOUCH_VARIANTS: ${{ matrix.job == 6 && 'safari' || 'springboard' }}
           # The runner boots Safari several times slower than a Mac: every wait in packages/measure-webkit is scaled (counts do not depend on waits).
           FW_WK_TIMEOUT_SCALE: '8'
           FW_WK_ATTEMPTS: '3'
