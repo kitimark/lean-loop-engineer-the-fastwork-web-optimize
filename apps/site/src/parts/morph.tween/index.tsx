@@ -90,7 +90,6 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
   return null;
 }
 
-/** `cb(true)` while a finger is on the screen, `cb(false)` when the last one lifts or the touch is cancelled. */
 function fingerWatch(cb: (down: boolean) => void): () => void {
   const types = ['touchstart', 'touchend', 'touchcancel'] as const;
   const on = (e: TouchEvent) => cb(e.touches.length > 0);

@@ -42,7 +42,6 @@ describe('morph.tween:end-pin against Lean (Fw.Parts.EndPin)', () => {
   });
 });
 
-/** The driver with the end-pin env, a fake clock whose intervals fire in time order, and a page whose scrollTo lands exactly. */
 function arm(y0: number, s: number) {
   let now = 0;
   let y = s;

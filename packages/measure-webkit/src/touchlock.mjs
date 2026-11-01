@@ -13,7 +13,6 @@ export const storedLock = (calls) => calls.find((c) => c[1])?.[0] ?? null;
 
 export const lockOf = (r) => storedLock(r.calls);
 
-/** Lean `openCalls`: scrollTo calls made while the morph was open. Zero means no stored lock, so fights and displaced are 0 by definition. */
 export const openCalls = (r) => r.calls.filter((c) => c[1]).length;
 
 export const lockSteady = (r) => {
@@ -83,7 +82,6 @@ export function tally(rs) {
   return { accepted: ok.length, jitter: ok.filter((r) => reduce(r).jitter).length };
 }
 
-/** The Simulator pans lock-open pages with real touches; `lock` is the CSS-lock candidate (the same page with a CSS lock while the morph is open); `pin` is the morph.tween:end-pin variant (a page-end pin that writes only at rest). */
 export const ARMS = Object.freeze(['orig', 'base', 'lock', 'pin']);
 
 export const LOCK_CSS = 'html.fw-lock{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important}';

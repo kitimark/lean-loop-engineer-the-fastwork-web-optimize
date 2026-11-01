@@ -46,7 +46,6 @@ export interface TweenEnv {
   panel?: EffectSink;
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
-  /** The `end-pin` variant (Lean `Fw.Parts.EndPin`): the pin writes only at rest. `touch` reports a finger down (true) or none (false). */
   endPin?: { touch(cb: (down: boolean) => void): () => void };
   trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
 }

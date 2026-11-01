@@ -20,7 +20,6 @@ export function armTrees(siteDir) {
   };
 }
 
-/** The path a window reloads: the page reads its flags from the query at run time, so an arm with a flag keeps its search (`?fw=...`); the others reload `/`. */
 export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? '');
 
 export async function restartServer(touch, { udid, log, push, start = startServer }) {

@@ -85,7 +85,6 @@ structure Result where
   openCalls : Nat
 deriving Repr, BEq
 
-/-- The script writes made while the morph was open: 0 means the lock was never stored. -/
 def openCalls (r : Run) : Nat := (r.calls.filter (·.isOpen)).length
 
 def reduce (r : Run) : Result :=
@@ -258,7 +257,6 @@ theorem storedLock_open (y : Int) (cs : List Sample) : storedLock (⟨y, true⟩
 theorem fights_zero_of_unrestored (r : Run) (h : lockOf r = none) : (reduce r).frameFights = 0 := by
   simp [reduce, h, fightsAt_none]
 
-/-- A window with no write while open stores no lock: its fights and displaced frames are 0 by definition, not measured. -/
 theorem openCalls_zero_iff (r : Run) : openCalls r = 0 ↔ lockOf r = none := by
   rw [lockOf_none_iff]
   unfold openCalls
@@ -568,7 +566,6 @@ def argAfter : List String → String → Option String
   | a :: b :: rest, flag => if a == flag then some b else argAfter (b :: rest) flag
   | _, _ => none
 
-/-- Print `text`, or with `--check <file>` compare it to the file's bytes; `lines` is only for the message. -/
 def runText (text : String) (lines : Nat) (args : List String) : IO UInt32 := do
   match argAfter args "--check" with
   | some path =>
