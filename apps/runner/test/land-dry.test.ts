@@ -94,6 +94,7 @@ describe("fw land --dry", () => {
     expect(r1.kind).toBe("reads");
     expect(text(r1)).toContain("READSFAIL");
     expect(text(r1)).not.toContain("LOCALFAIL");
+    expect(text(r1)).toContain("dry: lints not judged (reads refused first)");
     const note = (task: string, field: string) => ({ entry: "e1", task, field, text: `${task} ${field}` });
     fx.commit(wt, "research/findings/ledger.json", JSON.stringify({ findings: [{ n: 1, candidate: "e1", mechanism: "", missingWhy: "", next: "" }], notes: [note("t1", "mechanism"), note("t1", "next")] }, null, 1) + "\n");
     const r2 = await land(BR, { ...opts, dry: true, ...reads(["true"]), dryLints: [], ...badLocal });
