@@ -221,7 +221,7 @@ export type CheckKind = "install" | "lakeLint" | "fwcoreBuild" | "coreUser" | "o
 export function checkKind(a: string[]): CheckKind {
   if (a[0] === "pnpm" && a[1] === "install") return "install";
   if (isLakeLint(a)) return "lakeLint";
-  if (a.join("\0") === BUILD_ARGV.join("\0")) return "fwcoreBuild";
+  if (a.join("\0") === BUILD_ARGV.join("\0") || (a[0] === "sh" && a[1] === "lean/scripts/check.sh")) return "fwcoreBuild";
   if (a[0] === "pnpm" && a[1] === "--filter" && FWCORE_USERS.some((p) => a[2] === `./${p}`)) return "coreUser";
   return "other";
 }

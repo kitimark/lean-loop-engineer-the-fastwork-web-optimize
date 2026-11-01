@@ -39,7 +39,19 @@ describe("checkKind classifies by identity", () => {
     expect(checkKind(["pnpm", "--filter", "./apps/runner", "exec", "vitest", "run", "test/land-inputs.test.ts"])).toBe("coreUser");
     expect(checkKind(["pnpm", "--filter", "./packages/contracts", "test"])).toBe("other");
     expect(checkKind(["sh", "scripts/check-workflows.sh"])).toBe("other");
-    expect(checkKind(["sh", "lean/scripts/check.sh"])).toBe("other");
+    expect(checkKind(["sh", "lean/scripts/check.sh"])).toBe("fwcoreBuild");
     expect(checkKind(["pnpm", "install"])).toBe("install");
+  });
+});
+
+describe("checkDeps", () => {
+  it("everything waits for install; fwcore users wait for check.sh; others are independent", () => {
+    const list = [
+      ["pnpm", "install", "--frozen-lockfile"],
+      ["sh", "lean/scripts/check.sh"],
+      ["pnpm", "--filter", "./apps/runner", "test"],
+      ["pnpm", "--filter", "./packages/contracts", "test"],
+    ];
+    expect(checkDeps(list)).toEqual([[], [0], [0, 1], [0]]);
   });
 });

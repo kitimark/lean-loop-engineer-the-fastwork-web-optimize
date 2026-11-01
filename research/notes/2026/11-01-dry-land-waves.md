@@ -27,7 +27,7 @@ row numbers.
 - CONFIRMED: Lake takes no build lock. Lake/Util/Lock.lean:17-20 at lean4 eb6cafb: "Lake does not currently use a lock file".
   So the slots do not serialize the lake lint and the fwcore build; the rule does.
 - The failed run of the earlier branch: commit 09ab4c0, startMs 1793485018826, built 2, exit 1; locks rows 20291-20292
-  (both slots taken within 88 ms). Not ruled out as a race on one `lean/.lake`; the error text was overwritten by the passing
+  (both slots taken within 82 ms (locks rows 20291-20292: ts 1793485019749 and 1793485019831)). Not ruled out as a race on one `lean/.lake`; the error text was overwritten by the passing
   rerun. The new rule removes the overlap, so a repeat would be a different cause.
 
 ## Measurement
@@ -56,7 +56,9 @@ two lake-slot acquires of the run (lake lint, then fwcore-build).
   no two lake builds overlap in locks.jsonl. All six exited 0.
 - MEASURED: warm total 26.5 / 30.1 s before and 16.2 / 16.2 s after. The INFERRED 23 s was too high: the lake lint on a
   warm lake took 2.1-5.7 s here, not 7.6 s (the 001d247 lake lint was 7.6 s), and the build step 0.6 s. Critical path after:
-  setup 0.7 + lake lint 2.8 + build 0.6 + max(reads 10.7, overflow 11.6) = 15.7 s plus 0.4 s of merge.
+  setup 0.8 + lake lint 2.8 + build 0.6 + max(reads 10.7, overflow 11.6) = 15.8 s plus 0.4 s after the wave.
+- MEASURED scope: the rows above come from scratch commits 6e8d03d58 (before) and b8bd0ee (after). They used the dry set, which holds no
+  check.sh, so the later classification of check.sh as fwcoreBuild (checkKind in land.ts) does not change those runs.
 - MEASURED: cold totals 78.6 s before and 65.2 s after, both dominated by 28 rebuilt modules (lake lint 51-54 s); the cold
   run is reported, not fixed. The 29-42 s cold runs in the finding were smaller edits.
 - MEASURED: the reads test now waits for the build (it is a coreUser): 9.8 s before, 10.7-11.2 s after (more concurrent work).
