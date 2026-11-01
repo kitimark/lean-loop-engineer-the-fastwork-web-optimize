@@ -5,6 +5,7 @@ import { BASE, frameOut, hold, initEnd, moveStep, touchStart, type EndState, typ
 import { setRest, type RestEl } from '../morph.panel/rest.logic';
 import { lockWrite, readsAt } from './scroll-lock.logic';
 import { crossings, idealAt } from './geom-timed.logic';
+import { due, observe, start, touch, type Pin } from './end-pin.logic';
 
 export interface PlatformEl {
   getBoundingClientRect(): { height: number; bottom: number };
@@ -45,6 +46,7 @@ export interface TweenEnv {
   panel?: EffectSink;
   timed?: EffectSink & { take(from: number, to: number, start: number): boolean };
   hooks?: Hooks;
+  endPin?: { touch(cb: (down: boolean) => void): () => void };
   trace?(ev: { kind: 'push'; from: number; to: number; at: number } | { kind: 'take'; el: number }): void;
 }
 
@@ -102,6 +104,11 @@ export function createTweenDriver(env: TweenEnv) {
   let overlay = false;
   let timedLive = false;
   let timers: (() => void)[] = [];
+  let rp: Pin | null = null;
+  let rpAt = 0;
+  let rpTarget = 0;
+  let rpTimer: (() => void) | null = null;
+  let touchDown = false;
 
   const isActive = () => active({ target: st.target, value: st.value });
   const readOverlay = (was: boolean, now: boolean) => {
@@ -159,6 +166,43 @@ export function createTweenDriver(env: TweenEnv) {
     end = { ...end, touchY: y };
     move(e, delta);
   };
+
+  const recheck = () => {
+    if (!rp || rpTimer || !env.clock.interval) return;
+    const d = due(rp, rpTarget);
+    if (d === null) return;
+    const off = env.clock.interval(Math.max(1, Math.round(d)), () => {
+      off();
+      rpTimer = null;
+      restPin();
+    });
+    rpTimer = off;
+  };
+  const restPin = () => {
+    if (!isActive()) {
+      rp = null;
+      return;
+    }
+    const y = env.scrollY();
+    const now = env.now();
+    rpTarget = frameOut(hooks, { ...end, tw: st }, y, () => env.maxScrollY?.() ?? Infinity) ?? y;
+    if (!rp) {
+      rp = { ...start(y), touching: touchDown };
+      rpAt = now;
+    }
+    const [next, write] = observe(rp, rpTarget, y, Math.max(0, now - rpAt));
+    rp = next;
+    rpAt = now;
+    if (write !== null) env.scrollToInstant(write);
+    recheck();
+  };
+  const offTouch = env.endPin?.touch((down) => {
+    touchDown = down;
+    if (!rp) return;
+    rp = touch(rp, down);
+    rpAt = env.now();
+    recheck();
+  });
 
   const attach = () => {
     if (attached) return;
@@ -273,6 +317,7 @@ export function createTweenDriver(env: TweenEnv) {
       arm();
     },
     pin() {
+      if (env.endPin) return restPin();
       if (!isActive()) return;
       const to = frameOut(hooks, { ...end, tw: st }, env.scrollY(), () => env.maxScrollY?.() ?? Infinity);
       if (to !== null) env.scrollToInstant(to);
@@ -291,6 +336,9 @@ export function createTweenDriver(env: TweenEnv) {
         env.lock?.set(false);
       }
       detach();
+      rpTimer?.();
+      rpTimer = null;
+      offTouch?.();
     },
   };
 }

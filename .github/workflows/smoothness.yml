@@ -18,7 +18,7 @@ name: smoothness
 # `[sim-only]` (with `[earn-bound]`) skips the macOS leg. Reps per simulator job come from Lean `Fw.Measure.WalkBudget.planReps` (`--reps auto`): as many whole reps as the walk
 # budget (time to the deadline at 45 s a window) and the Simulator's life (36 windows, it tends to die after about 30 to 40) allow, so 6 reps of 3 arms (36 windows); a job needs 5 kept finish windows per
 # arm to decide (`Fw.Gate.Smooth.minReps`), which holds for up to 3 arms and fails for 4 (`lifeShort`) or a walk that starts late (`budgetShort`); `sim.json` records `repPlan`.
-# `[touch-lock]` (task touch-lock-page-end, with `[webkit-cadence] [sim-only]`) runs one simulator job that flicks the page into its end with real touches in the original, the faithful build and a CSS-lock candidate
+# `[touch-lock]` (task touch-lock-page-end, with `[webkit-cadence] [sim-only]`) runs simulator jobs that flick the page into its end with real touches in the original, the faithful build, a CSS-lock candidate and the morph.tween:end-pin variant (two jobs, task end-pin-no-fight; the commit's `[trajectory fw=...]` line names the pin flag the site is built with)
 # (packages/measure-webkit/src/touchlock-cli.mjs; Lean Fw.Measure.TouchLock) and counts scroll reversals while the morph is open.
 # `[sim-touch-control]` adds a 4th simulator job whose end pushes take their coordinates from Safari (`FW_TOUCH_VARIANTS=safari`); jobs 1 to 3 take them from SpringBoard. Both skip the Timeline in touch
 # windows, so job 4 against jobs 1 to 3 separates the coordinates from the missing Timeline (report block `sim-touch`). `[sim-keep-hang]` makes job 3's Keep host state step sleep past its timeout to show a timed-out step leaves the job green.
@@ -396,7 +396,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        job: ${{ fromJSON(contains(github.event.head_commit.message, '[touch-lock]') && '[1]' || contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
+        job: ${{ fromJSON(contains(github.event.head_commit.message, '[touch-lock]') && '[1,2]' || contains(github.event.head_commit.message, '[sim-touch-control]') && '[1,2,3,4]' || '[1,2,3]') }}
     env:
       FW_IOS_VERSION: '27.0'
       FW_IOS_BUILD: 24A434

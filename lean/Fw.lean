@@ -55,6 +55,7 @@ import Fw.Parts.HeroDeck
 import Fw.Parts.HeroGolden
 import Fw.Parts.PeopleGolden
 import Fw.Parts.PlatformGolden
+import Fw.Parts.EndPin
 import Fw.Parts.MorphTweenOpt
 import Fw.Parts.MorphTweenWebkit
 import Fw.Parts.HiddenPause

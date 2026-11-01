@@ -17,6 +17,7 @@ import { fadeCss, PROP_MORPH, registrationsOf, type WaapiArm } from './waapi.log
 
 export const MORPH_PIN_ORDER = 110;
 export const GEOM_TIMED = 'geom-timed';
+export const END_PIN = 'end-pin';
 
 export interface MorphTweenProps {
   variant: string;
@@ -61,6 +62,7 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
           ? createPanelEffects(() => document.querySelector<HTMLElement>('[data-fw="morph-panel"]') as unknown as PanelEl | null)
           : undefined,
     };
+    if (variant === END_PIN) env.endPin = { touch: fingerWatch };
     if (variant === GEOM_TIMED) {
       env.timed = timedBus.sink;
       env.trace = (ev) => (window as unknown as { __fwTakeTrace?: (e: object) => void }).__fwTakeTrace?.(ev);
@@ -86,6 +88,15 @@ export function MorphTween({ variant, platformSelector = '.start-selling-platfor
     };
   }, [variant, platformSelector, navSelector, platformFade, platformFadedPause]);
   return null;
+}
+
+function fingerWatch(cb: (down: boolean) => void): () => void {
+  const types = ['touchstart', 'touchend', 'touchcancel'] as const;
+  const on = (e: TouchEvent) => cb(e.touches.length > 0);
+  for (const t of types) window.addEventListener(t, on, { passive: true, capture: true });
+  return () => {
+    for (const t of types) window.removeEventListener(t, on, true);
+  };
 }
 
 function bandEnv(env: TweenEnv, hub: TouchHub, isActive: () => boolean): () => void {

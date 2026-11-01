@@ -16,8 +16,11 @@ export function armTrees(siteDir) {
     orig: { dir: null },
     base: { dir: siteDir, search: '' },
     lock: { dir: siteDir, search: '' },
+    pin: { dir: siteDir, search: '?fw=morph.tween:end-pin' },
   };
 }
+
+export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? '');
 
 export async function restartServer(touch, { udid, log, push, start = startServer }) {
   touch.restarts++;
@@ -40,7 +43,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps = 6, settleMs = 2
 
   const oneWindow = async (ctx, id, rep) => {
     ctx.setArm(id);
-    await ctx.c.evaluate(`history.replaceState(null, '', '/'); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
+    await ctx.c.evaluate(`history.replaceState(null, '', ${JSON.stringify(armPath(siteDir, id))}); scrollTo({ top: 0, behavior: 'instant' }); location.search`);
     await loadFresh(ctx.c, { clock: 'pinned', settleMs });
     const info = await pageInfo(ctx.c);
     ua = info.ua;

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { cmp, look, cmpKnown, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
-import { restartServer } from '../src/touchlock-run.mjs';
+import { fights, reversals, openCalls, cmp, look, cmpKnown, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS } from '../src/touchlock.mjs';
+import { restartServer, armTrees, armPath } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -106,6 +106,7 @@ test('nearEndJs is invoked: it yields a promise of the end position', async () =
 
 test('window order and lane decisions replay the golden', () => {
   assert.equal(ops('order').length, 4);
+  assert.deepEqual(ops('order').map((g) => g.arms[0]), ['base', 'pin', 'base', 'pin']);
   for (const g of ops('order')) assert.deepEqual(repOrder(g.rep), g.arms, `rep ${g.rep}`);
   assert.equal(ops('lane').length, 5);
   for (const g of ops('lane')) assert.equal(afterWindow(g.used, g.stalled), g.out, `${g.used} ${g.stalled}`);
@@ -114,7 +115,7 @@ test('window order and lane decisions replay the golden', () => {
 test('every rep runs the original last, so a stall cannot erase the faithful or candidate window', () => {
   for (let rep = 0; rep < 6; rep++) {
     const o = repOrder(rep);
-    assert.equal(o[2], 'orig');
+    assert.equal(o[o.length - 1], 'orig');
     assert.deepEqual([...o].sort(), [...ARMS].sort());
   }
 });
@@ -195,4 +196,34 @@ test('markdown carries the push failure reason and one line per window with its 
   assert.match(md, /\| push failure reasons \|/);
   assert.match(md, /\| 2 \| lock \| 0 \| push failed \| pageLost \|/);
   assert.match(md, /\| 4 \| lock \| 1 \| refused \| noOpen \|/);
+});
+
+test('end-pin rows: the metric counts the Lean fights and reversals over the frames', () => {
+  assert.ok(ops('pinPlay').length >= 8 && ops('pinFaith').length >= 1);
+  for (const g of ops('pinPlay')) {
+    assert.equal(fights(g.s, g.frames), g.fights, g.case);
+    assert.equal(fights(g.s, g.frames), 0, g.case);
+    assert.equal(reversals(g.frames), g.reversals, g.case);
+  }
+  for (const g of ops('pinFaith')) assert.equal(fights(g.s, g.frames), g.fights, g.case);
+});
+
+test('the lane has a pin arm served from the site build with the end-pin flag, and every run reports its open calls', () => {
+  assert.ok(ARMS.includes('pin'));
+  assert.deepEqual(armTrees('/site').pin, { dir: '/site', search: '?fw=morph.tween:end-pin' });
+  for (const g of ops('run')) assert.equal(openCalls(runOf(g)), g.result.openCalls, g.case);
+});
+
+test('summarize: a pin arm that never writes has no open calls; it counts as unrestored, not as a win by itself', () => {
+  const noWrite = { ...steady, calls: [] };
+  const s = summarize([0, 1, 2].flatMap(() => [rowOf('orig', fight), rowOf('base', fight), rowOf('lock', steady), rowOf('pin', noWrite)]));
+  assert.equal(s.arms.pin.unrestored, 3);
+  assert.deepEqual(s.arms.pin.calls, [0, 0, 0]);
+  assert.equal(s.arms.base.unrestored, 0);
+  assert.equal(s.verdicts.pinVsBase.fights, 'lower');
+  assert.match(markdown(s), /pin vs base: fights lower/);
+});
+
+test('a window reloads the arm path: only the pin arm keeps its flag in the query, the others reload the root', () => {
+  assert.deepEqual(ARMS.map((id) => armPath('/site', id)), ['/', '/', '/', '/?fw=morph.tween:end-pin']);
 });
