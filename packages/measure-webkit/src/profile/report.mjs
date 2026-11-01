@@ -267,7 +267,6 @@ export function touchTable(jobs) {
   return out.join('\n');
 }
 
-// Lean Fw.Measure.WalkBudget: JOBS_NEEDED simulator jobs are planned and the across-jobs rule needs MIN_SAMPLES decisive ones, so up to JOBS_NEEDED - MIN_SAMPLES jobs may be lost.
 export function jobsTable(jobs, leg) {
   const sim = jobs.filter((j) => j.leg === 'sim' && !isControl(j.file));
   const out = [head(['job', 'rep plan', 'end touch windows (fewest per arm)', 'wall s', 'stopped', 'job verdicts'])];

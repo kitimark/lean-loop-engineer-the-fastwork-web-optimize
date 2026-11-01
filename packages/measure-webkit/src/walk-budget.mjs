@@ -10,7 +10,6 @@ export const MIN_KEPT = 5;
 
 export const REPS_WANT = 6;
 
-// Lean readyAllowMs: how long the harness waits for the touch driver; the plan clock is read after it answers.
 export const READY_ALLOW_MS = 480000;
 
 export const SETUP_WORST_MS = 900000;

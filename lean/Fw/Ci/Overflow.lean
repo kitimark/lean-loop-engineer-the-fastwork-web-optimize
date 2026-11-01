@@ -47,7 +47,6 @@ the maximum its inputs allow (over-count is safe, under-count is not). The set b
 - path-pix 9: `sim` 3, `sim-draw` 3 (path-pix.yml, vms 1 to 3) and `chromium` 3 (runs 1 to 3), all after `site`; `report` runs after them
 - premise-tests 2: `engine` (premise-tests.yml:66); preview-e2e 2: `engine` (preview-e2e.yml:65)
 - sim-speed 5: `probe` (sim-speed.yml:121; any number of arms, so the 5 macOS slots bound it)
-- smoothness 18: `cadence` 12 (smoothness.yml:146,155; up to 4 widths x 3 sets, the widths a push line allows in `trajectory-line.mjs:44`), `webkit-mac` 1 (max-parallel 1) and `webkit-sim` 5 (6 jobs with `[sim-touch-control]`, max-parallel 5 = the macOS slots)
 - snapshot-extract 7: `tests` 1 (snapshot-extract.yml:96) and `extract` 6 (:137)
 - toolbar-throttle 3: `sim` (toolbar-throttle.yml, vms 1 to 3, max-parallel 3); `report` runs after it
 - trajectory-probe 12: `probe` 8 (trajectory-probe.yml:259; `plan.mjs`), `frames` 2 (:356), `probe-apple` 2 (:496)

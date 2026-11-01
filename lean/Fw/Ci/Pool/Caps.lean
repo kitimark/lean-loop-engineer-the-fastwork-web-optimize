@@ -71,16 +71,11 @@ sim jobs 29.12, 34.05 and 34.15 min, linear p90 34.13, rounded up to 34.2 min. -
 def smoothSource : String :=
   "runs 39612238445, 39617081415 and 39624728525 (task smoothness-webkit-cadence): one webkit-mac and one webkit-sim job each, wall of the job, successes only, linear p90 rounded up to 0.1 min (thin until 10 successes)"
 
-/-- The `webkit-sim` job's wall bound in tenths of a minute (task `sim-touch-verdict-jobs`): the largest p90 whose cap is the walk plan's job
-timeout (`Fw.Measure.WalkBudget.job`, 60 min = 40 min deadline + grace + post + slack). It is the plan's own bound, not a fresh p90: the ten
-jobs of runs 41345594217 and 41349666358 ran 18.3 to 43.5 min by the jobs API (linear p90 38.9 min), under it. -/
 def simWallDm : Nat := 10 * (Fw.Measure.WalkBudget.job.timeoutMs / 60000) * 100 / 130
 
-/-- The `webkit-sim` source line. -/
 def simSource : String :=
   "bound of the walk plan, INFERRED: the job timeout of Fw.Measure.WalkBudget.job; measured: runs 41345594217 and 41349666358, 18.3..43.5 min, linear p90 38.9 min (API times)"
 
-/-- The capped macOS jobs, one per lane. -/
 def rows : List Row :=
   [⟨"wktr", "wktr.yml", "wktr", 93, 119⟩,
    ⟨"wktr-fixtures", "wktr-fixtures.yml", "fixtures", 35, 161⟩,

@@ -3,7 +3,7 @@
 Branch `worktree-wf_66b63664-0d9-1`, worktree `.claude/worktrees/wf_66b63664-0d9-1`, CI branch `ci/sim-touch-verdict-jobs`. Last commit: `git log -1` (round 2 code fa58e3706 plus this file).
 
 ## CI runs (2 dispatches allowed, 2 used once dispatch 2 is pushed)
-- 41345594217 (smoothness, dispatch 1, 6b9a16a34): complete, failure (job 4 crashed). 5 of 5 jobs started at once, all ended inside 45 min (22 to 32 min), 5 files, 0 decisive jobs, across-jobs end touch verdict insufficient. Causes: setup 11 to 13 min under load left too little of a 25 min walk (jobs 1, 5 budgetShort), driver not ready in 240 s (jobs 2, 3, touch off), undici `setTypeOfService EINVAL` crash (job 4). Numbers: the note section "Verdict jobs".
+- 41345594217 (smoothness, dispatch 1, 6b9a16a34): complete, failure (job 4 crashed). 5 of 5 jobs started at once, all ended inside 45 min (22 to 32 min), 5 files, 0 decisive jobs, across-jobs end touch verdict insufficient. Causes: setup 11 to 13 min under load left too little of a 25 min walk (jobs 1, 5 budgetShort), driver not ready in 240 s (jobs 2, 3, touch off), undici `setTypeOfService EINVAL` crash (job 4).
 - 41349666358 (smoothness, dispatch 2, 33937b435): complete, success. 5 of 5 jobs started, 5 files, 2 decisive, across-jobs end touch verdict insufficient (3 needed); no job cut by the 60 min limit. Lost: driver not ready in 480 s (job 5), pageLost and 120 s evaluate hangs (jobs 3, 4). Table in the note.
 
 ## Verified (local, no result claims)

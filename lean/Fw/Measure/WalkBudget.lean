@@ -34,7 +34,6 @@ def Gaps.total (g : Gaps) : Nat := g.clockMs + g.driftMs + g.completeMs + g.over
 
 theorem gaps_total : gaps.total = job.slackMs := by decide
 
-/-- A walk step that ran 380 s past its step timeout (run 41285184069) still ends inside the job. -/
 theorem overrun_covers_seen : 380000 ≤ gaps.overrunMs := by decide
 
 def hardStopMs : Nat := 45000
@@ -127,9 +126,6 @@ theorem job_ends_inside_gaps (elapsed : Nat) (hc : elapsed ≤ deadlineAt job + 
   unfold Gaps.total at h2
   omega
 
-/-! ## The window budget: a tail quantile, not the mean -/
-
-/-- Seconds each Simulator window took, sorted, from the walk logs of runs 40023506144, 41270567124, 41275699141, 41285184069 and 41289882234 (n = 216; the slowest are 285, 383, 398, 432 and 744 s). -/
 def windowSecs : List Nat := [
   7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9,
   9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11,
@@ -141,7 +137,6 @@ def windowSecs : List Nat := [
   31, 33, 33, 33, 34, 36, 36, 37, 38, 39, 39, 42, 43, 44, 47, 48, 52, 53, 53, 53, 53, 54, 54, 55,
   63, 66, 69, 71, 74, 75, 81, 84, 84, 85, 85, 85, 125, 152, 172, 175, 196, 208, 217, 285, 383, 398, 432, 744]
 
-/-- The `pct`-th percentile of a sorted list (nearest rank). -/
 def quantile (xs : List Nat) (pct : Nat) : Nat := xs.getD ((pct * xs.length + 99) / 100 - 1) 0
 
 def bodyMs : Nat := quantile windowSecs 75 * 1000
@@ -150,10 +145,8 @@ def tailMs : Nat := quantile windowSecs 99 * 1000
 
 def meanMs : Nat := windowSecs.sum * 1000 / windowSecs.length
 
-/-- One tail-length slot is budgeted per this many windows. -/
 def tailEvery : Nat := 20
 
-/-- The time reserved for `n` windows: the body quantile each, plus one tail quantile slot per started `tailEvery` windows. -/
 def blockMs (n : Nat) : Nat := n * bodyMs + (n + tailEvery - 1) / tailEvery * (tailMs - bodyMs)
 
 theorem bodyMs_value : bodyMs = 29000 := by decide +kernel
@@ -168,20 +161,16 @@ theorem blockMs_mono (n m : Nat) (h : n ≤ m) : blockMs n ≤ blockMs m := by
   unfold blockMs
   exact Nat.add_le_add (Nat.mul_le_mul_right _ h) (Nat.mul_le_mul_right _ (by unfold tailEvery; omega))
 
-/-- The block budget is above what the mean window time would need. -/
 theorem blockMs_over_mean (n : Nat) : n * meanMs ≤ blockMs n := by
   rw [meanMs_value]
   unfold blockMs tailEvery
   rw [bodyMs_value, tailMs_value]
   omega
 
-/-! ## Shapes, reps and the plan -/
-
 def minKept : Nat := Fw.Gate.Smooth.minReps
 
 theorem minKept_value : minKept = 5 := by decide
 
-/-- `full` walks a hero and an end window per arm and rep; `endOnly` only the end window (the touch lanes decide on it). -/
 inductive Shape where
   | full
   | endOnly
@@ -199,7 +188,6 @@ def windowsPerRep (s : Shape) (arms : Nat) : Nat := s.perArm * arms
 
 def lifeWindows : Nat := 36
 
-/-- The largest rep count up to `fuel` whose windows fit `budget` ms. -/
 def repsFitAux (budget w : Nat) : Nat → Nat
   | 0 => 0
   | k + 1 => if blockMs ((k + 1) * w) ≤ budget then k + 1 else repsFitAux budget w k
@@ -209,7 +197,6 @@ def repsFit (dl now : Nat) (s : Shape) (arms : Nat) : Nat :=
 
 def repsLife (s : Shape) (arms : Nat) : Nat := lifeWindows / windowsPerRep s arms
 
-/-- The reps a plan asks for at most: the minimum plus one for a refused window, so a healthy job ends early and a slow one is cut by the deadline. -/
 def repsWant : Nat := 6
 
 theorem minKept_le_repsWant : minKept ≤ repsWant := by decide
@@ -249,7 +236,6 @@ theorem repsFitAux_fits (b w : Nat) : ∀ k, blockMs (repsFitAux b w k * w) ≤ 
     · assumption
     · exact repsFitAux_fits b w k
 
-/-- The reps of a plan fit the time left, at the block budget. -/
 theorem planReps_fits (dl now : Nat) (s : Shape) (arms : Nat) :
     blockMs (planReps dl now s arms * windowsPerRep s arms) ≤ dl - now := by
   have hle : planReps dl now s arms ≤ repsFit dl now s arms := Nat.le_trans (Nat.min_le_left _ _) (Nat.min_le_right _ _)
@@ -287,12 +273,10 @@ theorem outcome_ok_plan (dl now : Nat) (s : Shape) (arms : Nat) (h : outcome dl 
     · cases h
     · omega
 
-/-- An ok plan reserves the block budget of its five kept reps inside the time left. -/
 theorem outcome_ok_time (dl now : Nat) (s : Shape) (arms : Nat) (h : outcome dl now s arms = .ok) :
     blockMs (minKept * windowsPerRep s arms) ≤ dl - now :=
   Nat.le_trans (blockMs_mono _ _ (Nat.mul_le_mul_right _ (outcome_ok_plan dl now s arms h))) (planReps_fits dl now s arms)
 
-/-- A plan started at or before the deadline ends its windows, the grace, the post steps and the slack inside the job timeout. -/
 theorem plan_inside_job (now : Nat) (s : Shape) (arms : Nat) (hn : now ≤ deadlineAt job) :
     now + blockMs (planReps (deadlineAt job) now s arms * windowsPerRep s arms) + job.graceMs + job.postMs + job.slackMs ≤ job.timeoutMs := by
   have h1 := planReps_fits (deadlineAt job) now s arms
@@ -318,12 +302,8 @@ theorem planReps_complete (dl now : Nat) (s : Shape) (arms : Nat) (ha : 0 < arms
     minKept ≤ endsDone s (planReps dl now s arms * windowsPerRep s arms) arms pos :=
   kept_after s _ arms pos ha (Nat.mul_le_mul_right _ (outcome_ok_plan dl now s arms h))
 
-/-! ## Arms beyond one job -/
-
-/-- The arms in one of `g` jobs: every control and an equal share of the candidates. -/
 def groupArms (controls cands g : Nat) : Nat := controls + (cands + g - 1) / g
 
-/-- The fewest jobs, at most one per candidate, whose share of the arms plans ok. -/
 def groupsFor (dl now : Nat) (s : Shape) (controls cands : Nat) : Option Nat :=
   (List.range' 1 (cands + 1)).find? fun g => decide (outcome dl now s (groupArms controls cands g) = .ok)
 
@@ -337,7 +317,6 @@ theorem groupsFor_pos (dl now : Nat) (s : Shape) (controls cands g : Nat) (h : g
   simp [List.mem_range'] at this
   omega
 
-/-- The shares of the candidates cover all of them. -/
 theorem groupArms_cover (controls cands g : Nat) (hg : 0 < g) : cands ≤ g * (groupArms controls cands g - controls) := by
   unfold groupArms
   have h1 := Nat.div_add_mod (cands + g - 1) g
@@ -349,14 +328,10 @@ theorem groupArms_cover (controls cands g : Nat) (hg : 0 < g) : cands ≤ g * (g
   rw [← ht] at h1 ⊢
   omega
 
-/-! ## Jobs: how many, and what a lost job costs -/
-
-/-- Jobs started beyond the ones a decision needs, so a lost job (a `simctl openurl` timeout, a runner that never starts) does not leave it short. -/
 def margin : Nat := 2
 
 def jobsNeeded : Nat := Fw.Gate.Smooth.minSamples + margin
 
-/-- The jobs of one run fit the free macOS slots, so none waits behind another of the run. -/
 theorem jobsNeeded_le_slots : jobsNeeded ≤ Fw.Measure.WktrLayout.macSlots := by decide
 
 theorem jobsNeeded_value : jobsNeeded = 5 := by decide
@@ -369,7 +344,6 @@ theorem decisive_add_insufficient (vs : List Verdict) :
     simp only [Fw.Gate.Smooth.decisive, List.count_cons, List.length_cons] at ih ⊢
     cases x <;> simp (config := { decide := true }) only [ite_true, ite_false] <;> omega
 
-/-- With the planned jobs and at most `margin` of them without a verdict, the decisive jobs reach the minimum the across-jobs rule asks. -/
 theorem plan_decisive (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs.count .insufficient ≤ margin) :
     Fw.Gate.Smooth.minSamples ≤ Fw.Gate.Smooth.decisive vs := by
   have := decisive_add_insufficient vs
@@ -382,7 +356,6 @@ theorem hitchJudge_ne_insufficient (a b : List Nat) : Fw.Gate.Smooth.hitchJudge 
   · simp
   · split <;> simp
 
-/-- A job with the minimum of kept end windows in each of its four lists never judges insufficient. -/
 theorem job_decisive (a b aa1 aa2 : List Nat) (hok : Fw.Gate.Smooth.okN a b aa1 aa2 = true) :
     Fw.Gate.Smooth.hitchVerdict a b aa1 aa2 ≠ .insufficient := by
   unfold Fw.Gate.Smooth.hitchVerdict
@@ -404,27 +377,21 @@ theorem across_decisive_ne_insufficient (vs : List Verdict) (h : Fw.Gate.Smooth.
   split <;> try split
   all_goals simp
 
-/-- The plan's end to end: planned jobs, at most `margin` lost, give an across-jobs verdict that is not insufficient. -/
 theorem plan_across (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs.count .insufficient ≤ margin) :
     Fw.Gate.Smooth.acrossDecisive vs ≠ .insufficient :=
   across_decisive_ne_insufficient vs (plan_decisive vs hn hl)
 
-/-- How long the harness waits for the touch driver to answer, counted from its start. A driver that is late only moves the plan clock, which is read after it answers. -/
 def readyAllowMs : Nat := 480000
 
-/-- The longest setup measured before the plan clock: 5 min of job steps, 1.5 min to a tab and `readyAllowMs` for the driver (run 41345594217: job steps 4.9 min, a driver ready after 107 s, a tab after 40 s; two jobs waited out 240 s). -/
 def setupWorstMs : Nat := 900000
 
 theorem setup_worst_fits : 300000 + 90000 + readyAllowMs ≤ setupWorstMs := by decide
 
-/-- A plan clocked at the worst setup is still ok for 3 and for 4 arms of end windows. -/
 theorem ok_at_worst_setup (arms : Nat) (h3 : 3 ≤ arms) (h4 : arms ≤ 4) : outcome (deadlineAt job) setupWorstMs .endOnly arms = .ok := by
   have : arms = 3 ∨ arms = 4 := by omega
   rcases this with rfl | rfl <;> decide +kernel
 
 theorem worst_setup_inside_job : setupWorstMs ≤ deadlineAt job := by decide
-
-/-! ## Golden -/
 
 def stepCases : List (String × Nat × Option Nat) := [
   ("walk starts after 4.6 min", 276000, none),

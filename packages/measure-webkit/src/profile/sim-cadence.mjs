@@ -16,8 +16,6 @@ import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planRep
 
 const BLOCK_MS = 15 * 60000;
 
-// Node's HTTP client (undici) threw `setTypeOfService EINVAL` out of a socket write on a loaded runner and ended the process after 7 windows (run 41345594217 job 4).
-// That fault belongs to one request, which the harness's own timeout and retry then handle; any other uncaught error still ends the process.
 export const isSocketTosFault = (e) => e?.code === 'EINVAL' && e?.syscall === 'setTypeOfService';
 
 export function guardSocketFault(log, proc = process) {
@@ -51,8 +49,6 @@ export function simArms(plan, siteDir, lookSearch, only) {
 
 const CONTROLS = ['base', 'aa'];
 
-// Lean Fw.Measure.WalkBudget: the walk plan, made when the Simulator is booted, the touch driver runs and Safari is open. Touch end pushes are the
-// decision window of the touch lanes, so with the driver up each arm walks only its end window (`endOnly`); otherwise hero and end (`full`).
 export function planSim({ deadlineMs, nowMs, touchOn, armIds, repsArg = 'auto' }) {
   const shape = touchOn ? 'endOnly' : 'full';
   const n = armIds.length;
