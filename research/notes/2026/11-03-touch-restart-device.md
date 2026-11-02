@@ -7,7 +7,7 @@ created: 2026-11-03
 topics: [webkit, simulator, xcuitest, touch, ci, measure]
 ---
 
-# Touch restart device: a reset before the relaunch, one CI run, and the closing decision
+# Touch restart device
 
 Task `touch-restart-device`, the final design round after `touch-restart-ready` (`11-02-touch-restart-ready.md`). Branch `ci/touch-restart-device`,
 workflow `smoothness` (`[webkit-cadence] [sim-only] [touch-lock]`, flag `fw=morph.tween:end-pin`), 12 touch-lock simulator jobs, commit
@@ -21,7 +21,7 @@ One dispatch used of two; the second was not needed to decide. The Simulator is 
   inside the range of the earlier forms; it is not clearly above them. No further restart form is added.
 - **The reset never terminated anything (MEASURED).** Ten `simctl terminate` calls (runner and host app, 5 resets): 0 `ended`, 4 `absent` (nothing to
   terminate: jobs 6 and 7, after 9.4 s and 3.3 s) and 6 `late` (no answer in the 15 s cut: jobs 1, 2 and 8, resets of 15.4, 18.5 and 15.5 s). When the old
-  `xcodebuild` has exited, its runner and host are already gone, or `simctl` itself is hung on a starved host; the reset has nothing to clean.
+  `xcodebuild` has exited, its runner and host are already gone, or `simctl` itself is hung on a starved host.
 - **The reset outcome does not separate ready from stuck (MEASURED).** Ready: job 1 (late), job 6 (absent). Stuck `driver-launch-stuck` at 470 s: job 2
   (late), job 7 (absent), job 8 (late). Gate names: `launch` (jobs 7, 8), `launch:driver-restart-device-unsure` (jobs 1, 2, 6). Reset faults by name:
   `driver-restart-reset-late` 3 times (jobs 1, 2, 8), `driver-restart-reset-failed` 0.
@@ -31,7 +31,7 @@ One dispatch used of two; the second was not needed to decide. The Simulator is 
 - **The in-flight launch record was not exercised by CI (MEASURED).** No restart launch was running at a snapshot (0 entries `inFlight`); jobs 7 and 8 lost
   their launch at 470 s before the deadline. The record is covered by `touch-restart-device.test.mjs` only.
 - **Hosts were starved again (MEASURED).** First 150 s launch ready in 10 of 12 jobs (jobs 9 and 10 stuck first, ready later); earlier 12 of 23. Inspector
-  probes failed in jobs 5, 10 and 12; job 12 had a `Runtime.evaluate` timeout of 120 s. Mechanism as far as the evidence goes, INFERRED: stuck launches
+  probes failed in jobs 5, 10 and 12; job 12 had a `Runtime.evaluate` timeout of 120 s. INFERRED mechanism: stuck launches
   and late `simctl` calls come from the same slow runner service, not from an app left over from the old driver.
 
 ## Why this form, and the bound
@@ -45,7 +45,7 @@ One dispatch used of two; the second was not needed to decide. The Simulator is 
 - **Bound (CONFIRMED by Lean).** Gate 200 s + reset 15 s + launch 470 s + kill 10 s = 695 s = `restartMs` <= `restartAllowMs` 700 s; the pair
   `WalkBudget.setupWorstMs` 900 s + 2 x 695 s + 100 s fits `deadlineAt job` 2400 s (`restart_pair_fits`, `restart_pair_exact`).
   Each branch has its theorem: `resetAct` (run on a `launch` without overlap, skip otherwise), `callEnd` (ended, absent, late, failed), `nameWith`.
-- **Overlap kills nothing.** With the old `xcodebuild` alive the reset is skipped (`driver-restart-overlap`), so a failure is never turned into a pass.
+- With the old `xcodebuild` alive the reset is skipped (`driver-restart-overlap`), so a failure is never turned into a pass.
 
 ## What the across-job verdict must tolerate (MEASURED, arithmetic from WalkBudget)
 
