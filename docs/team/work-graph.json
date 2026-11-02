@@ -25409,6 +25409,35 @@
     "docs/team/handoffs/touch-window-loss.md"
    ],
    "evidence": "e769f5327"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-window-retry",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "touch-window-loss"
+   ],
+   "title": "Redo a refused touch-lock window in place (noOpen or tooShort, 323 of 2016 windows lost in touch-window-loss) at touchlock-run.mjs:139-148, priced against the walk deadline first: Lean decision (at most one redo per window, a named refusal kept when the redo also fails, the redo time bound inside WalkBudget so later windows are not pushed into walkDeadline or planShort beyond a stated count), theorems and goldens, TS against them; one 12-job touch-lock run (at most 2 dispatches): windows kept per job and arm, jobs with every arm at minKept, redo outcomes by name, against touch-window-loss's 558 of 2016 and 2 of 84 jobs; note, handoff",
+   "writes": [
+    "lean/Fw/Measure/WindowRetry*.lean",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/Fw.lean",
+    "lean/scripts/WindowRetryGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/src/window-retry*.mjs",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/test/**",
+    ".github/workflows/smoothness.yml",
+    "research/notes/2026/11-0*-touch-window-retry.md",
+    "docs/team/handoffs/touch-window-retry.md"
+   ]
   }
  ],
  "deadline": {
