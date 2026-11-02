@@ -5,7 +5,7 @@ export const READY_CFG = Object.freeze({ launches: 3, launchMs: 150000, killMs: 
 export const RESTART_CFG = Object.freeze({ launches: 1, launchMs: 470000, killMs: 10000, stopWaitMs: 20000 });
 
 export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck', bodyStuck: 'driver-body-stuck', ended: 'driver-ended' });
-export const STOP_KILLED = 'driver-stop-killed';
+export const STOP_LATE = 'driver-stop-late';
 
 export const faultOf = (o) => (o.ended ? LAUNCH_FAULTS.ended : o.alive ? LAUNCH_FAULTS.bodyStuck : LAUNCH_FAULTS.launchStuck);
 
@@ -16,7 +16,7 @@ export function verdict(c, n, o) {
   return 'wait';
 }
 
-export const stopStep = (c, exited, waitedMs) => (exited ? 'clean' : c.stopWaitMs <= waitedMs ? STOP_KILLED : 'wait');
+export const stopStep = (c, exited, waitedMs) => (exited ? 'clean' : c.stopWaitMs <= waitedMs ? STOP_LATE : 'wait');
 
 const reached = (x, at) => x != null && x <= at;
 

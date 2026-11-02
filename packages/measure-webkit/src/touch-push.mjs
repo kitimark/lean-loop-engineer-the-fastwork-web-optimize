@@ -104,7 +104,7 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   throw e;
 }
 
-/** Stop the server: a `stop` file, then `stopStep` (Lean TouchReady): after stopWaitMs without exit the group is killed and `server.stopFault` is set. */
+/** Stop the server: a `stop` file, then `stopStep` (Lean TouchReady): after stopWaitMs without exit `server.stopFault` names the late stop (no kill, as before this branch). */
 export async function stopServer(server, { cfg = READY_CFG } = {}) {
   try { writeFileSync(join(server.dir, 'stop'), ''); } catch {}
   const w0 = Date.now();
@@ -113,7 +113,7 @@ export async function stopServer(server, { cfg = READY_CFG } = {}) {
   for (;;) {
     const step = stopStep(cfg, exited || server.run.state.ended, Date.now() - w0);
     if (step === 'clean') break;
-    if (step !== 'wait') { server.stopFault = step; server.run.kill('stop timeout'); await Promise.race([server.run.exited, sleep(cfg.killMs)]); break; }
+    if (step !== 'wait') { server.stopFault = step; break; }
     await Promise.race([server.run.exited, sleep(100)]);
   }
   if (process.env.FW_TOUCH_KEEP_LOG) { try { copyFileSync(server.run.logFile, process.env.FW_TOUCH_KEEP_LOG); } catch {} }

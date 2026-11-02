@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { READY_CFG, RESTART_CFG, LAUNCH_FAULTS, STOP_KILLED, verdict, stopStep, replay, tallyJobs, launchUntilReady, jobOf, firstStart } from '../src/touch-ready.mjs';
+import { READY_CFG, RESTART_CFG, LAUNCH_FAULTS, STOP_LATE, verdict, stopStep, replay, tallyJobs, launchUntilReady, jobOf, firstStart } from '../src/touch-ready.mjs';
 import { READY_ALLOW_MS } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/touch-ready.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -14,7 +14,7 @@ test('touch-ready constants and fault names equal the Lean golden', () => {
   assert.deepEqual([RESTART_CFG.launches, RESTART_CFG.launchMs], [g.restartLaunches, g.restartLaunchMs]);
   assert.ok(RESTART_CFG.launches * (RESTART_CFG.launchMs + RESTART_CFG.killMs) <= READY_ALLOW_MS);
   assert.deepEqual([LAUNCH_FAULTS.launchStuck, LAUNCH_FAULTS.bodyStuck, LAUNCH_FAULTS.ended], g.names);
-  assert.equal(STOP_KILLED, g.stopKillName);
+  assert.equal(STOP_LATE, g.stopLateName);
   assert.ok(READY_CFG.launches * (READY_CFG.launchMs + READY_CFG.killMs) <= READY_ALLOW_MS);
 });
 
@@ -99,7 +99,7 @@ test('launchUntilReady never starts a fourth launch and hands each cut launch to
 test('stopStep replays the Lean golden', () => {
   const cases = ofOp('stop');
   for (const g of cases) assert.equal(stopStep(READY_CFG, g.exited, g.waitedMs), g.act);
-  assert.ok(cases.some((g) => g.act === STOP_KILLED));
+  assert.ok(cases.some((g) => g.act === STOP_LATE));
 });
 
 test('tallyJobs replays the Lean golden', () => {

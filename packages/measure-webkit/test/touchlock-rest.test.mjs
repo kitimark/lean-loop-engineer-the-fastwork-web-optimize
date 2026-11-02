@@ -69,14 +69,14 @@ test('every touch-lock server start goes through beginServer, whose launches fit
   assert.deepEqual(touch.launches, [{ tag: 'serve-r1', launches: [{ n: 1, fault: null }] }]);
 });
 
-test('a failed start keeps its named launches and fault in the snapshot; a stop kill is noted', async () => {
+test('a failed start keeps its named launches and fault in the snapshot; a late stop is noted', async () => {
   const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null, launches: [] };
   const launches = [{ n: 1, fault: 'driver-launch-stuck' }, { n: 2, fault: 'driver-ended' }];
   await beginServer(touch, { udid: 'u', log: () => {}, push: {}, start: async () => { throw Object.assign(new Error('push server: no ready file after 480 s'), { launches, fault: 'driver-ended' }); } });
   assert.equal(touch.on, false);
   assert.deepEqual(touch.launches, [{ tag: 'serve', launches, fault: 'driver-ended' }]);
-  touch.server = { stopFault: 'driver-stop-killed' };
+  touch.server = { stopFault: 'driver-stop-late' };
   await endServer(touch, async () => {});
   assert.equal(touch.server, null);
-  assert.deepEqual(touch.launches[1], { tag: 'stop', launches: [], fault: 'driver-stop-killed' });
+  assert.deepEqual(touch.launches[1], { tag: 'stop', launches: [], fault: 'driver-stop-late' });
 });

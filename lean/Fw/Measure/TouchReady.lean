@@ -233,20 +233,20 @@ theorem run_single_launch (t : Traj) (ls : List Traj) (c : Cfg) (hc : c.launches
 inductive StopAct where
   | wait
   | clean
-  | kill
+  | late
 deriving DecidableEq, Repr
 
 def StopAct.name : StopAct → String
   | .wait => "wait"
   | .clean => "clean"
-  | .kill => "driver-stop-killed"
+  | .late => "driver-stop-late"
 
 def stopStep (c : Cfg) (exited : Bool) (waitedMs : Nat) : StopAct :=
-  if exited then .clean else if c.stopWaitMs ≤ waitedMs then .kill else .wait
+  if exited then .clean else if c.stopWaitMs ≤ waitedMs then .late else .wait
 
 theorem stop_clean (c : Cfg) (w : Nat) : stopStep c true w = .clean := by simp [stopStep]
 
-theorem stop_kill (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c false w = .kill := by simp [stopStep, h]
+theorem stop_late (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c false w = .late := by simp [stopStep, h]
 
 theorem stop_wait (c : Cfg) (w : Nat) (h : w < c.stopWaitMs) : stopStep c false w = .wait := by
   have : ¬ c.stopWaitMs ≤ w := by omega
@@ -255,7 +255,7 @@ theorem stop_wait (c : Cfg) (w : Nat) (h : w < c.stopWaitMs) : stopStep c false 
 theorem stop_decides_by (c : Cfg) (exited : Bool) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c exited w ≠ .wait := by
   cases exited <;> simp [stopStep, h]
 
-theorem stop_kill_name : StopAct.kill.name ≠ StopAct.clean.name := by decide
+theorem stop_late_name : StopAct.late.name ≠ StopAct.clean.name := by decide
 
 structure Job where
   launchFaults : List LaunchFault
@@ -356,7 +356,7 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("killMs", toJson cfg.killMs), ("stopWaitMs", toJson cfg.stopWaitMs),
     ("restartLaunches", toJson restartCfg.launches), ("restartLaunchMs", toJson restartCfg.launchMs), ("readyAllowMs", toJson Fw.Measure.WalkBudget.readyAllowMs),
     ("names", Json.arr (LaunchFault.all.map (fun f => Json.str f.name)).toArray),
-    ("stopKillName", Json.str StopAct.kill.name)]).compress
+    ("stopLateName", Json.str StopAct.late.name)]).compress
   let ds := obsCases.map fun (name, n, o) =>
     (Json.mkObj [("op", "decide"), ("case", Json.str name), ("n", toJson n),
       ("obs", Json.mkObj [("ready", toJson o.ready), ("alive", toJson o.alive), ("ended", toJson o.ended), ("elapsed", toJson o.elapsed)]),
