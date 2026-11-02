@@ -1,4 +1,4 @@
-branch: worktree-wf_77bb82fa-fc7-1 (CI ref ci/waapi-scoped-webkit, same commit as the branch head)
+branch: worktree-wf_77bb82fa-fc7-1 (ci/waapi-scoped-webkit exists locally only: the push guard refused the push, it would start only lean)
 worktree: .claude/worktrees/wf_77bb82fa-fc7-1
 last commit: see git log -1
 CI runs: none. `fw ci push --dry` says smoothness and trajectory-probe would not start (guard rule unchanged: no input differs from main).
