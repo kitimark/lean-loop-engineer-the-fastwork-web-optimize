@@ -52,7 +52,7 @@ export async function endServer(touch, stop = stopServer) {
   touch.server = null;
   if (!server) return;
   await stop(server);
-  if (server.stopFault) touch.launches.push({ tag: 'stop', launches: [], fault: server.stopFault });
+  if (server.stopTrace || server.stopFault) touch.launches.push({ tag: 'stop', launches: [], fault: server.stopFault ?? null, ...(server.stopTrace ? { trace: server.stopTrace } : {}) });
 }
 
 export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto', settleMs = 2500, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, log = (s) => console.error(s) }) {

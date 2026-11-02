@@ -3,7 +3,11 @@ export const READY_CFG = Object.freeze({ launches: 3, launchMs: 150000, killMs: 
 export const RESTART_CFG = Object.freeze({ launches: 1, launchMs: 470000, killMs: 10000, stopWaitMs: 20000 });
 
 export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck', bodyStuck: 'driver-body-stuck', ended: 'driver-ended' });
-export const STOP_LATE = 'driver-stop-late';
+export const STOP_LATE_BODY = 'driver-stop-late-body';
+export const STOP_LATE_TEARDOWN = 'driver-stop-late-teardown';
+
+/** True when xcodebuild's output shows the PushServer test case ended (passed or failed): the test body returned. TS stand-in: log parsing, no decision. */
+export const testEndedIn = (text) => /Test [Cc]ase\b[^\n]*\btestServe\b[^\n]*\b(?:passed|failed)\b/.test(text);
 
 export const faultOf = (o) => (o.ended ? LAUNCH_FAULTS.ended : o.alive ? LAUNCH_FAULTS.bodyStuck : LAUNCH_FAULTS.launchStuck);
 
@@ -13,7 +17,7 @@ export function verdict(c, n, o) {
   return 'wait';
 }
 
-export const stopStep = (c, exited, waitedMs) => (exited ? 'clean' : c.stopWaitMs <= waitedMs ? STOP_LATE : 'wait');
+export const stopStep = (c, exited, testEnded, waitedMs) => (exited ? 'clean' : c.stopWaitMs <= waitedMs ? (testEnded ? STOP_LATE_TEARDOWN : STOP_LATE_BODY) : 'wait');
 
 const reached = (x, at) => x != null && x <= at;
 

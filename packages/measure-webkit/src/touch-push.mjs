@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findDriver, serve } from './throttle/driver.mjs';
 import { sleep } from './sim.mjs';
-import { LAUNCH_FAULTS, READY_CFG, launchUntilReady, stopStep } from './touch-ready.mjs';
+import { LAUNCH_FAULTS, READY_CFG, launchUntilReady, stopStep, testEndedIn } from './touch-ready.mjs';
 
 export const TOUCH_PUSH = Object.freeze({ dragPt: 300, velocity: 600, holdMs: 1000 });
 
@@ -104,15 +104,28 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   throw e;
 }
 
+/**
+ * Write the stop file and wait for xcodebuild to exit, up to cfg.stopWaitMs; never kills (a kill broke the restart that follows).
+ * Sets `server.stopFault` (Lean TouchReady stopStep: driver-stop-late-body | driver-stop-late-teardown) and `server.stopTrace`
+ * {waitedMs, testEndedMs, exitedMs, top, tail}: ms after the stop file when the test case ended in the log and when xcodebuild exited
+ * (`exitedMs` is filled in later if it exits after the wait; null until then).
+ */
 export async function stopServer(server, { cfg = READY_CFG } = {}) {
   try { writeFileSync(join(server.dir, 'stop'), ''); } catch {}
   const w0 = Date.now();
+  const trace = { waitedMs: 0, testEndedMs: null, exitedMs: null, top: null, tail: null };
+  server.stopTrace = trace;
   let exited = false;
-  server.run.exited.then(() => { exited = true; }, () => { exited = true; });
-  for (;;) {
-    const step = stopStep(cfg, exited || server.run.state.ended, Date.now() - w0);
-    if (step === 'clean') break;
-    if (step !== 'wait') { server.stopFault = step; break; }
+  const gone = () => { exited = true; trace.exitedMs ??= Date.now() - w0; };
+  server.run.exited.then(gone, gone);
+  const looksEnded = () => { try { return testEndedIn(readFileSync(server.run.logFile, 'utf8')); } catch { return false; } };
+  for (let i = 0; ; i++) {
+    if (trace.testEndedMs == null && i % 5 === 0 && looksEnded()) trace.testEndedMs = Date.now() - w0;
+    const waited = Date.now() - w0;
+    const step = stopStep(cfg, exited || server.run.state.ended, trace.testEndedMs != null, waited);
+    trace.waitedMs = waited;
+    if (step === 'clean') { trace.exitedMs ??= waited; break; }
+    if (step !== 'wait') { server.stopFault = step; trace.top = hostTop(); trace.tail = logTail(server.run.logFile)?.slice(-600) ?? null; break; }
     await Promise.race([server.run.exited, sleep(100)]);
   }
   if (process.env.FW_TOUCH_KEEP_LOG) { try { copyFileSync(server.run.logFile, process.env.FW_TOUCH_KEEP_LOG); } catch {} }
