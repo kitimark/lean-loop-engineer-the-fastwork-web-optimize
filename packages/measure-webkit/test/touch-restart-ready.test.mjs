@@ -53,7 +53,7 @@ test('a body that ends only after the last poll is read at the final decision, n
   assert.notEqual(server.stopTrace.bodyEndedMs, null);
 });
 
-const clock = () => { let t = 0; return { now: () => t, nap: async (ms) => { t += ms; }, at: () => t }; };
+const clock = () => { let t = 0; return { now: () => t, nap: async (ms) => { t += ms; }, at: () => t, timer: () => new Promise(() => {}) }; };
 const ok = { socket: true, proxy: true, page: true };
 
 test('restartGate with an exited driver and a live device launches at once', async () => {
@@ -93,6 +93,16 @@ test('restartGate counts a simctl that does not answer as an unsure device and r
   const t = { stopAt: 0, stopTrace: {}, run: { state: { ended: true }, exited: Promise.resolve() } };
   const answers = [{ ...ok, sim: false }, { ...ok, sim: true }];
   assert.equal(await restartGate(t, { ...clock(), probe: async () => answers.shift() }), 'launch');
+});
+
+test('restartGate bounds one device check by the Lean probe time, so the gate fits restartMs even when a guard recovery holds the check', async () => {
+  const s = { stopAt: 0, stopTrace: {}, run: { state: { ended: true }, exited: Promise.resolve() } };
+  const asked = [];
+  const act = await restartGate(s, { ...clock(), check: () => new Promise(() => {}), timer: (ms) => { asked.push(ms); return Promise.resolve(); } });
+  assert.equal(act, `launch:${GATE_UNSURE}`);
+  assert.deepEqual(asked, [GATE.probeMs, GATE.probeMs]);
+  assert.equal(s.stopTrace.gate.checked, GATE.checks);
+  assert.match(s.stopTrace.gate.err, /timed out after 25000 ms/);
 });
 
 test('launchUntilReady records when the first log byte appeared', async () => {

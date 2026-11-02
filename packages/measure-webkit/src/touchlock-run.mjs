@@ -96,7 +96,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
       const old = await endServer(touch);
       if (next === 'restart') {
         log(`touch-lock ${id} rep ${rep}: stalled (${got.outcome}); restarting the push server (${touch.restarts + 1} of ${MAX_RESTARTS})`);
-        const act = old ? await restartGate(old, { check: () => ctx.check?.(), probe: async () => ({ ...(await probeInspector({ urlPrefix: ctx.base })), sim: await simctlAnswers() }) }) : 'launch';
+        const act = old ? await restartGate(old, { check: () => ctx.check?.(), probe: async () => { const [p, sim] = await Promise.all([probeInspector({ urlPrefix: ctx.base }), simctlAnswers()]); return { ...p, sim }; } }) : 'launch';
         log(`touch-lock ${id} rep ${rep}: restart gate ${act}`);
         let probed = Promise.resolve();
         await restartServer(touch, { udid: device.udid, log, push, onLaunched: () => { probed = probeStop(old); } });

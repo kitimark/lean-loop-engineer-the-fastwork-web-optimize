@@ -185,7 +185,7 @@ export async function probeStop(server, probes = hostProbes) {
  * `check()` is the session guard's probe (it also waits for a recovery in flight and throws when the inspector is dead);
  * `probe()` returns {socket, proxy, page}. Resolves the act, `launch` or `launch:<fault names>`, also written to the stop trace.
  */
-export async function restartGate(server, { gate = GATE, check = null, probe = null, now = Date.now, nap = sleep } = {}) {
+export async function restartGate(server, { gate = GATE, check = null, probe = null, now = Date.now, nap = sleep, timer = sleep } = {}) {
   const w0 = server.stopAt ?? now();
   const once = server.run.exited.then(() => {}, () => {});
   let ok = false;
@@ -199,8 +199,10 @@ export async function restartGate(server, { gate = GATE, check = null, probe = n
     if (act === 'recheck') {
       if (checked > 0) await nap(gate.gapMs);
       try {
-        await check?.();
-        const p = probe ? await probe() : { socket: true, proxy: true, page: true };
+        // One check never takes longer than the probe time of the Lean gate (run 41475879793: a check that waited on a guard recovery took ~100 s).
+        const unit = (async () => { await check?.(); return probe ? await probe() : { socket: true, proxy: true, page: true }; })();
+        unit.catch(() => {});
+        const p = await Promise.race([unit, timer(gate.probeMs).then(() => { throw new Error(`gate check timed out after ${gate.probeMs} ms`); })]);
         sim = p.sim ?? null;
         ok = !!(p.socket && p.proxy && p.page && p.sim !== false);
       } catch (e) { ok = false; err = String(e?.message ?? e).slice(0, 120); }
