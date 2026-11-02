@@ -28,7 +28,7 @@ dispatches used of two. Counts are per begun restart, not rates.
   Simulator service at that moment, not of the restart form. Jobs 3 (run 2), 9 and 12 (run 1) never got a first start in 3 launches.
 - **A gate that waits on `simctl` can wait for a state that does not predict readiness (MEASURED).** Run 2, gate `sim=false` (simctl silent): jobs 7 and 10
   launched named `driver-restart-device-unsure` and became ready (261 s and 229 s to `alive`); gate `sim=true`: jobs 8 and 7 (second) ready, jobs 5 and 11
-  stuck. 2 of 3 versus 2 of 4. Too few to say more.
+  stuck. 2 of 3 versus 2 of 4.
 - **The gate was longer than Lean's bound once (MEASURED, fixed after the run).** `Gate.waitMs` is 200 s. Job 6 of run 2 took 347 s and job 7 took 228 s,
   because the guard `check()` waits for a recovery in flight (about 100 s per check in job 6). `restartGate` now races each check against the
   Lean probe time (25 s); the fix and its test came after run 2 and is not CI-measured.

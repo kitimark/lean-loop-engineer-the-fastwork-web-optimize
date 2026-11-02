@@ -46,7 +46,6 @@ test('a body that ends only after the last poll is read at the final decision, n
   const logFile = join(dir, 'x.log');
   writeFileSync(logFile, "Test Case '-[DriverUITests.PushServer testServe]' started.\n");
   const server = { dir, run: { exited: new Promise(() => {}), state: { ended: false }, logFile, kill: () => assert.fail('no kill') } };
-  // The poll reads the log every fifth turn (500 ms); the body ends at 640 ms, after the turn at 500 ms and before the stop wait of 700 ms.
   setTimeout(() => appendFileSync(logFile, "Test Case '-[DriverUITests.PushServer testServe]' passed (1 seconds).\n"), 640);
   await stopServer(server, { cfg: { ...READY_CFG, stopWaitMs: 700 } });
   assert.equal(server.stopFault, STOP_LATE_TEARDOWN);

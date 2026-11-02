@@ -23,7 +23,6 @@ export function verdict(c, n, o) {
 
 export const stopStep = (c, exited, bodyEnded, waitedMs) => (exited ? 'clean' : c.stopWaitMs <= waitedMs ? (bodyEnded ? STOP_LATE_TEARDOWN : STOP_LATE_BODY) : 'wait');
 
-/** Lean `gateStep`: wait-exit, recheck, or launch with the faults it names (overlap: the old xcodebuild still runs; unsure: the inspector did not answer). */
 export function gateStep(g, exited, waitedMs, deviceOk, checked) {
   if (!exited && waitedMs < g.exitWaitMs) return 'wait-exit';
   if (!deviceOk && checked < g.checks) return 'recheck';

@@ -270,8 +270,6 @@ theorem stop_late_split (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) :
 theorem stop_late_names : StopAct.lateBody.name ≠ StopAct.lateTeardown.name ∧ StopAct.lateBody.name ≠ StopAct.clean.name
     ∧ StopAct.lateTeardown.name ≠ StopAct.clean.name := by decide
 
-/-- A restart's gate before the new driver launch: how long the old xcodebuild may take to exit after the stop file, and how
-many inspector checks may settle the device. -/
 structure Gate where
   exitWaitMs : Nat
   checks : Nat
@@ -283,10 +281,8 @@ def gate : Gate := ⟨120000, 2, 30000, 25000⟩
 
 def Gate.waitMs (g : Gate) : Nat := g.exitWaitMs + g.checks * g.probeMs + (g.checks - 1) * g.gapMs
 
-/-- The longest a restart takes: the gate, then one launch with its kill. -/
 def restartMs (g : Gate) (c : Cfg) : Nat := g.waitMs + c.launches * (c.launchMs + c.killMs)
 
-/-- Before the gate: stop wait, host probes (ps 15 s, memory 10 s, simctl 10 s) and the launch. -/
 def oldRestartMs (c : Cfg) : Nat := c.stopWaitMs + 35000 + c.launches * (c.launchMs + c.killMs)
 
 def restartAllowMs : Nat := 700000
