@@ -361,7 +361,7 @@ theorem restart_fits_allow : restartMs gate restartCfg ≤ restartAllowMs := by 
 
 theorem restart_added_le : restartMs gate restartCfg ≤ oldRestartMs restartCfg + 145000 := by decide
 
-theorem restart_pair_fits : Fw.Measure.WalkBudget.readyAllowMs + 2 * restartAllowMs ≤ Fw.Measure.WalkBudget.deadlineAt Fw.Measure.WalkBudget.job := by decide
+theorem restart_pair_fits : Fw.Measure.WalkBudget.setupWorstMs + 2 * restartAllowMs ≤ Fw.Measure.WalkBudget.deadlineAt Fw.Measure.WalkBudget.job := by decide
 
 structure Job where
   launchFaults : List LaunchFault

@@ -29,9 +29,9 @@ dispatches used of two. Counts are per begun restart, not rates.
 - **A gate that waits on `simctl` can wait for a state that does not predict readiness (MEASURED).** Run 2, gate `sim=false` (simctl silent): jobs 7 and 10
   launched named `driver-restart-device-unsure` and became ready (261 s and 229 s to `alive`); gate `sim=true`: jobs 8 and 7 (second) ready, jobs 5 and 11
   stuck. 2 of 3 versus 2 of 4.
-- **The gate was longer than Lean's bound once (MEASURED, fixed after the run).** `Gate.waitMs` is 200 s. Job 6 of run 2 took 347 s and job 7 took 228 s,
+- **The gate was longer than Lean's bound twice (MEASURED, fixed after the run).** `Gate.waitMs` is 200 s. Job 6 of run 2 took 347 s and job 7 took 228 s,
   because the guard `check()` waits for a recovery in flight (about 100 s per check in job 6). `restartGate` now races each check against the
-  Lean probe time (25 s); the fix and its test came after run 2 and is not CI-measured.
+  Lean probe time (25 s); the fix and its test came after run 2 and is not CI-measured. A check cut at 25 s is not cancelled: a guard recovery it waited on (relaunch or Simulator reboot, guard.mjs recover) keeps running while the new driver launches, and that launch is named driver-restart-device-unsure.
 - **One launch overshot its cut by 626 s (MEASURED).** Run 2, job 11: `launch 1 of 1: driver-launch-stuck after 1096 s` where the cut is 470 s.
   INFERRED: the host stalled (memory free 14 percent, load about 500 to 1000); the loop reads the clock only when its timer fires. `walk deadline` still ended
   the job. A restart can therefore take longer than `restartAllowMs` in wall time on a starved runner; Lean's bound assumes timers fire.
@@ -53,7 +53,7 @@ dispatches used of two. Counts are per begun restart, not rates.
 
 - `lean/Fw/Measure/TouchReady.lean`, section Gate: `gateStep` with one theorem per branch (`gate_wait_exit`, `gate_recheck`, `gate_launch_clean`,
   `gate_launch_overlap`, `gate_launch_unsure`, `gate_launch_both`), `gate_wait_value` (200 s), `restart_total_value` (680 s), `restart_fits_allow` (700 s),
-  `restart_added_le` (at most 145 s more than the old restart), `restart_pair_fits` (`readyAllowMs + 2 * restartAllowMs` within `deadlineAt job`).
+  `restart_added_le` (at most 145 s more than the old restart), `restart_pair_fits` (`setupWorstMs + 2 * restartAllowMs` within `deadlineAt job`: 900 s + 1400 s against 2400 s, which leaves 100 s for windows).
   The golden `packages/contracts/golden/measure/touch-ready.jsonl` is regenerated from Lean (12 gate cases); `touch-restart-ready.test.mjs` replays it.
 - The stop decision reads the log again at the decision, so a body that returned in the last 500 ms poll gap is a late teardown, not a hung press
   (`stopStep` itself is unchanged and golden-checked). Over both runs the 18 stops read: 13 `driver-stop-late-teardown`, 2 `driver-stop-late-body`
