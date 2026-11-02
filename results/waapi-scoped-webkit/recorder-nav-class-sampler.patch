@@ -1,0 +1,22 @@
+--- a/packages/measure-webkit/src/profile/recorder.mjs
++++ b/packages/measure-webkit/src/profile/recorder.mjs
+@@ -73,13 +73,18 @@
+   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+   const nav = document.querySelector('header.start-selling-top-nav, [data-fw="nav"]');
+   let begun = false, morphMax = 0;
++  const seen = {};
+   addEventListener('touchstart', () => { if (!begun) { begun = true; st.start(); } }, { capture: true, passive: true });
+   while (!window.__fwTouchStop) {
+     const m = nav ? Number(nav.style.getPropertyValue('--morph')) : 0;
+     if (m > morphMax) morphMax = m;
++    if (nav) {
++      const k = nav.className + '|' + (nav.getAttribute('data-fw-morph') || '');
++      seen[k] = (seen[k] || 0) + 1;
++    }
+     await sleep(40);
+   }
+-  return { ...st.stop(), begun, morphMax, touch: window.__fwTouch || null };
++  return { ...st.stop(), begun, morphMax, navClasses: seen, touch: window.__fwTouch || null };
+ })()`;
+ 
+ /** The page result of the recorder (ms, scrollY tenths) as the reducer's `page` (hundredths of a ms on the page clock). */
