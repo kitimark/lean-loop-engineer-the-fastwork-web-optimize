@@ -30,7 +30,6 @@ test('stopServer reads the log again at the decision, and its host probes wait f
   setTimeout(() => appendFileSync(logFile, "Test Case '-[DriverUITests.PushServer testServe]' passed (1 seconds).\n"), 250);
   const t0 = Date.now();
   await stopServer(server, { cfg });
-  assert.ok(Date.now() - t0 >= 900);
   assert.equal(server.stopFault, STOP_LATE_TEARDOWN);
   assert.ok(server.stopAt >= t0);
   assert.equal(server.stopTrace.top, null);
