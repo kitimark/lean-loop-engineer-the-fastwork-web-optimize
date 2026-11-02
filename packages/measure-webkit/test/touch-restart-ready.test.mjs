@@ -85,6 +85,16 @@ test('restartGate rechecks a device that answers late, then launches clean', asy
   assert.equal(s.stopTrace.gate.checked, 2);
 });
 
+test('restartGate counts a simctl that does not answer as an unsure device and records it', async () => {
+  const s = { stopAt: 0, stopTrace: {}, run: { state: { ended: true }, exited: Promise.resolve() } };
+  const act = await restartGate(s, { ...clock(), probe: async () => ({ ...ok, sim: false }) });
+  assert.equal(act, `launch:${GATE_UNSURE}`);
+  assert.deepEqual(s.stopTrace.gate, { act, waitedMs: GATE.gapMs * (GATE.checks - 1), checked: GATE.checks, sim: false });
+  const t = { stopAt: 0, stopTrace: {}, run: { state: { ended: true }, exited: Promise.resolve() } };
+  const answers = [{ ...ok, sim: false }, { ...ok, sim: true }];
+  assert.equal(await restartGate(t, { ...clock(), probe: async () => answers.shift() }), 'launch');
+});
+
 test('launchUntilReady records when the first log byte appeared', async () => {
   let t = 0;
   const seen = [{ alive: false, ready: false, logged: false }, { alive: false, ready: false, logged: true }, { alive: true, ready: true, logged: true }];

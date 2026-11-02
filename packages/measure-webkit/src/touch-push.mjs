@@ -93,6 +93,11 @@ export async function hostProbes() {
   return { top: await top, health: { memFreePct: await mem, simctlMs: await simctlMs } };
 }
 
+/** True when `simctl list` answers within the gate probe time: a launch on a CoreSimulator service that does not answer never reaches its test body (run 41460411752: 3 of 3). */
+export async function simctlAnswers(timeoutMs = GATE.probeMs) {
+  try { await execAsync('xcrun', ['simctl', 'list', 'devices', 'booted'], timeoutMs); return true; } catch { return false; }
+}
+
 /**
  * Resolves {dir, run, next, launches}; throws after the last launch with `.launches` and `.fault` set.
  * `onLaunched` is called once, right after the first launch is spawned (a restart starts its host probes there).
@@ -186,6 +191,7 @@ export async function restartGate(server, { gate = GATE, check = null, probe = n
   let ok = false;
   let checked = 0;
   let err = null;
+  let sim = null;
   for (;;) {
     const waited = now() - w0;
     const act = gateStep(gate, !!server.run.state.ended, waited, ok, checked);
@@ -195,12 +201,13 @@ export async function restartGate(server, { gate = GATE, check = null, probe = n
       try {
         await check?.();
         const p = probe ? await probe() : { socket: true, proxy: true, page: true };
-        ok = !!(p.socket && p.proxy && p.page);
+        sim = p.sim ?? null;
+        ok = !!(p.socket && p.proxy && p.page && p.sim !== false);
       } catch (e) { ok = false; err = String(e?.message ?? e).slice(0, 120); }
       checked++;
       continue;
     }
-    if (server.stopTrace) server.stopTrace.gate = { act, waitedMs: waited, checked, ...(err ? { err } : {}) };
+    if (server.stopTrace) server.stopTrace.gate = { act, waitedMs: waited, checked, ...(sim == null ? {} : { sim }), ...(err ? { err } : {}) };
     return act;
   }
 }

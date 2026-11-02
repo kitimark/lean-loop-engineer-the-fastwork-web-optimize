@@ -3,7 +3,7 @@ import { loadFresh, pageInfo } from './page.mjs';
 import { findDevice, probeInspector, sleep } from './sim.mjs';
 import { reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
-import { openDriver, startServer, stopServer, probeStop, restartGate, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
+import { openDriver, startServer, stopServer, probeStop, restartGate, simctlAnswers, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { READY_CFG, RESTART_CFG } from './touch-ready.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverEnd } from './walk-budget.mjs';
@@ -96,7 +96,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
       const old = await endServer(touch);
       if (next === 'restart') {
         log(`touch-lock ${id} rep ${rep}: stalled (${got.outcome}); restarting the push server (${touch.restarts + 1} of ${MAX_RESTARTS})`);
-        const act = old ? await restartGate(old, { check: () => ctx.check?.(), probe: () => probeInspector({ urlPrefix: ctx.base }) }) : 'launch';
+        const act = old ? await restartGate(old, { check: () => ctx.check?.(), probe: async () => ({ ...(await probeInspector({ urlPrefix: ctx.base })), sim: await simctlAnswers() }) }) : 'launch';
         log(`touch-lock ${id} rep ${rep}: restart gate ${act}`);
         let probed = Promise.resolve();
         await restartServer(touch, { udid: device.udid, log, push, onLaunched: () => { probed = probeStop(old); } });
