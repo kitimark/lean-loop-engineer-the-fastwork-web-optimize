@@ -39,7 +39,7 @@ Job names are the artifact folders `wktr-j1` to `wktr-j3` of the run (`runner.js
   (`lean/Fw/Device/EndFloor.lean:204`): for a window `fs` with `hne : fs ≠ []` (non-empty) and `h : ∀ f ∈ fs, 1 ≤ f.r` (every frame
   holds at least one recalc), `100 ≤ rate fs`. Arithmetic only; `hne` limits the claim to existing windows: all 30
   r3 rows have `frames` above 0 (`frames 0` appears in no row of `results/end-floor-writes/r3/rows.txt`).
-- INFERRED when written, REFUTED by later runs: "the recalcs in frames without a recorded mutation come from the running flip tracks".
+- INFERRED when written, refuted by later runs (MEASURED, runs 40989068304 and 41030064819): "the recalcs in frames without a recorded mutation come from the running flip tracks".
   Task `end-floor-window` (run 40989068304) found no running flip track in its windows (`research/notes/2026/10-2x-end-floor-window.md`),
   and task `end-floor-dirty` (run 41030064819) named the carrier: 7 elements that are targets of 13 `hero.exit:threaded` ViewTimeline
   animations and 1 `engine.scroll:unthrottle` ScrollTimeline animation, all finished (`research/notes/2026/10-30-end-floor-dirty.md:26-32`).
@@ -124,7 +124,7 @@ Pushes r1, r2 and r3, kept under `results/end-floor-writes/r1`, `r2`, `r3` (each
   itself (the WebKit rule above; INFERRED for the engine, CONFIRMED for the site). The only selector string is a DOM query,
   `panel.closest('[data-fw-morph]')` (`apps/site/src/parts/morph.panel/index.tsx:32`), run in script, not a style rule. The attribute is
   read by three MutationObservers with `attributeFilter: ['data-fw-morph']` (`apps/site/src/parts/nav/index.tsx:113`,
-  `nav.hitTest/index.tsx:32`, `morph.geom/index.tsx:89`) and by the `dataset.fwMorph` reads next to them. So muting the attribute
+  `nav.hitTest/index.tsx:32`, `morph.geom/index.tsx:89`), plus the debug observer at `apps/site/src/debug/nav-transition.ts:156`, active only with its debug param, and by the `dataset.fwMorph` reads next to them. So muting the attribute
   (arms qdata, qpub, qwrite) acts through those observers' writes (nav class, panel, geom tracks), not through a selector; this is why
   r1 lost the flip (How the arms were built, item 1).
 - Lean (`lean/Fw/Device/EndFloor.lean`, golden `packages/contracts/golden/device/end-floor.jsonl`, replayed by
@@ -149,7 +149,7 @@ Pushes r1, r2 and r3, kept under `results/end-floor-writes/r1`, `r2`, `r3` (each
      run by `--modes end-base-thr-off,...` at `:274@49a5c04f3`). This lane ran `floor-v2p-thr-off` = the same two plus
      `engine.scroll:unthrottle`, `hero.exit:threaded` and `platform:faded-pause` (`accel-cli.mjs:35@104183cb1`; built at
      `wktr.yml:160@104183cb1`, run by `--modes floor-v2p-thr-off` at `:274@104183cb1`). `platform:faded-pause` is not the difference:
-     the end-wktr-flip `fp` variant (geom plus `platform:faded-pause` only) has recalc 87, 89, 91 (`wktr-j1` to `wktr-j3`), close to its floor.
+     the end-wktr-flip `fp` variant (geom plus `platform:faded-pause` only) has recalc 87, 89, 91 (`wktr-j1` to `wktr-j3`), against its floors 83, 70 and 81 (results/end-wktr-flip/r1/verdict.txt fp/recalc lines: at floor true in wktr-j1, false in wktr-j2 and wktr-j3); all three are below this lane's lowest floor, 135 (wktr-j3).
      That leaves `engine.scroll:unthrottle` and `hero.exit:threaded`.
   2. Mechanism (MEASURED elsewhere). `engine.scroll:unthrottle` "costs one style recalc per frame, also while idle at the end of
      the page (WKTR run 41045232315: 576 of 576 frames with this flag alone, 0 without)" (`apps/site/src/parts/engine.scroll/part.json:11`).
