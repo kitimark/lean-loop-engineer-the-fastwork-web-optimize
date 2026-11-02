@@ -64,9 +64,9 @@ export const TOUCH_COUNT_JS = touchCountJs(TOUCH_BUDGET.tailMs);
 
 const hostTop = () => {
   try {
-    return execFileSync('ps', ['-Ao', 'pcpu,etime,comm', '-r'], { encoding: 'utf8', timeout: 5000 }).split('\n').slice(0, 7)
+    return execFileSync('ps', ['-Ao', 'pcpu,etime,comm', '-r'], { encoding: 'utf8', timeout: 15000 }).split('\n').slice(0, 7)
       .map((l) => l.trim().replace(/\/Users\/[^/\s]+/g, '<home>').slice(0, 100));
-  } catch { return null; }
+  } catch (e) { return [`ps failed: ${e.code ?? e.signal ?? 'error'}`]; }
 };
 
 /**

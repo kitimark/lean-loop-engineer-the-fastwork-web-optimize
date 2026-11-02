@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { READY_CFG, LAUNCH_FAULTS, STOP_KILLED, verdict, stopStep, replay, tallyJobs, launchUntilReady, jobOf, firstStart } from '../src/touch-ready.mjs';
+import { READY_CFG, RESTART_CFG, LAUNCH_FAULTS, STOP_KILLED, verdict, stopStep, replay, tallyJobs, launchUntilReady, jobOf, firstStart } from '../src/touch-ready.mjs';
 import { READY_ALLOW_MS } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/touch-ready.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -11,6 +11,8 @@ test('touch-ready constants and fault names equal the Lean golden', () => {
   const [g] = ofOp('constants');
   for (const k of ['launches', 'launchMs', 'killMs', 'stopWaitMs']) assert.equal(READY_CFG[k], g[k], k);
   assert.equal(READY_ALLOW_MS, g.readyAllowMs);
+  assert.deepEqual([RESTART_CFG.launches, RESTART_CFG.launchMs], [g.restartLaunches, g.restartLaunchMs]);
+  assert.ok(RESTART_CFG.launches * (RESTART_CFG.launchMs + RESTART_CFG.killMs) <= READY_ALLOW_MS);
   assert.deepEqual([LAUNCH_FAULTS.launchStuck, LAUNCH_FAULTS.bodyStuck, LAUNCH_FAULTS.ended], g.names);
   assert.equal(STOP_KILLED, g.stopKillName);
   assert.ok(READY_CFG.launches * (READY_CFG.launchMs + READY_CFG.killMs) <= READY_ALLOW_MS);
@@ -31,7 +33,7 @@ test('replay replays the Lean golden runs', () => {
 });
 
 /** The real loop (launchUntilReady) on a virtual clock over the same recorded trajectories. */
-function drive(trajs) {
+function drive(trajs, cfg = READY_CFG) {
   let t = 0;
   const never = new Promise(() => {});
   const started = [];
@@ -45,7 +47,7 @@ function drive(trajs) {
     return h;
   };
   const look = (h) => ({ alive: h.at(h.tr.aliveAt), ready: h.at(h.tr.readyAt) });
-  return launchUntilReady({ start, look, now: () => t, sleep: async (ms) => { t += ms; } }).then((r) => ({ ...r, t, started }));
+  return launchUntilReady({ start, look, now: () => t, sleep: async (ms) => { t += ms; }, cfg }).then((r) => ({ ...r, t, started }));
 }
 
 test('launchUntilReady agrees with the Lean runs: same readiness and faults, never more time', async () => {
@@ -56,6 +58,19 @@ test('launchUntilReady agrees with the Lean runs: same readiness and faults, nev
     assert.ok(r.t <= g.ms, `${g.case}: ${r.t} <= ${g.ms}`);
     if (!g.trajs.some((x) => x.endedAt != null)) assert.equal(r.t, g.ms, g.case);
     assert.ok(r.t <= READY_ALLOW_MS, g.case);
+  }
+});
+
+test('a restart gets one long launch: the Lean restart runs replay and the loop never relaunches', async () => {
+  const runs = ofOp('runRestart');
+  assert.ok(runs.length >= 5);
+  for (const g of runs) {
+    assert.deepEqual(replay(RESTART_CFG, g.trajs), { ready: g.ready, faults: g.faults, ms: g.ms }, g.case);
+    const r = await drive(g.trajs, RESTART_CFG);
+    assert.equal(r.handle != null, g.ready, g.case);
+    assert.deepEqual(r.launches.map((l) => l.fault).filter(Boolean), g.faults, g.case);
+    assert.equal(r.started.length, 1, g.case);
+    assert.ok(r.t <= g.ms && r.t <= READY_ALLOW_MS, g.case);
   }
 });
 

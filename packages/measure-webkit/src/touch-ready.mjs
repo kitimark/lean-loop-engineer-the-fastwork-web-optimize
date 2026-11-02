@@ -1,6 +1,9 @@
 /** Launch, ready and stop decisions of the touch driver; stand-ins checked against lean/Fw/Measure/TouchReady.lean through contracts/golden/measure/touch-ready.jsonl. */
 export const READY_CFG = Object.freeze({ launches: 3, launchMs: 150000, killMs: 10000, stopWaitMs: 20000 });
 
+/** After a stalled window the Simulator is slow to start a driver (restarts became ready after 74 to 220 s), so a restart gets one long launch, no relaunch. */
+export const RESTART_CFG = Object.freeze({ launches: 1, launchMs: 470000, killMs: 10000, stopWaitMs: 20000 });
+
 export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck', bodyStuck: 'driver-body-stuck', ended: 'driver-ended' });
 export const STOP_KILLED = 'driver-stop-killed';
 

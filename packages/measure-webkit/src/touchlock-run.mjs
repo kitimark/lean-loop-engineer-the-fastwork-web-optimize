@@ -5,6 +5,7 @@ import { reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
 import { openDriver, startServer, stopServer, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
+import { READY_CFG, RESTART_CFG } from './touch-ready.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverEnd } from './walk-budget.mjs';
 import { ARMS, PAN, START_GAP_PX, TAIL_MS, MAX_RESTARTS, afterWindow, repOrder, serveTag, summarize } from './touchlock.mjs';
 import { installJs, nearEndJs, windowJs } from './touchlock-page.mjs';
@@ -34,7 +35,7 @@ export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? 
 export async function beginServer(touch, { udid, log, push, start = startServer, why = (m) => m }) {
   const tag = serveTag(touch.restarts);
   try {
-    touch.server = await start(touch.driver, { udid, log, push, tag });
+    touch.server = await start(touch.driver, { udid, log, push, tag, cfg: touch.restarts > 0 ? RESTART_CFG : READY_CFG });
     touch.launches.push({ tag, launches: touch.server.launches ?? [] });
   } catch (e) {
     touch.launches.push({ tag, launches: e.launches ?? [], fault: e.fault ?? null });

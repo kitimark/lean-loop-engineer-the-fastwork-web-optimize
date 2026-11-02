@@ -1,4 +1,4 @@
-{"killMs":10000,"launchMs":150000,"launches":3,"names":["driver-launch-stuck","driver-body-stuck","driver-ended"],"op":"constants","readyAllowMs":480000,"stopKillName":"driver-stop-killed","stopWaitMs":20000}
+{"killMs":10000,"launchMs":150000,"launches":3,"names":["driver-launch-stuck","driver-body-stuck","driver-ended"],"op":"constants","readyAllowMs":480000,"restartLaunchMs":470000,"restartLaunches":1,"stopKillName":"driver-stop-killed","stopWaitMs":20000}
 {"act":"ready","case":"ready at once","n":1,"obs":{"alive":true,"elapsed":40000,"ended":false,"ready":true},"op":"decide"}
 {"act":"ready","case":"ready wins over ended","n":1,"obs":{"alive":true,"elapsed":40000,"ended":true,"ready":true},"op":"decide"}
 {"act":"ready","case":"ready wins at the cap","n":3,"obs":{"alive":true,"elapsed":150000,"ended":false,"ready":true},"op":"decide"}
@@ -21,6 +21,11 @@
 {"case":"stuck three times","faults":["driver-launch-stuck","driver-launch-stuck","driver-launch-stuck"],"ms":480000,"op":"run","ready":false,"trajs":[{"aliveAt":null,"endedAt":null,"readyAt":null},{"aliveAt":null,"endedAt":null,"readyAt":null},{"aliveAt":null,"endedAt":null,"readyAt":null}]}
 {"case":"two stuck, third ready","faults":["driver-launch-stuck","driver-body-stuck"],"ms":410000,"op":"run","ready":true,"trajs":[{"aliveAt":null,"endedAt":null,"readyAt":null},{"aliveAt":100000,"endedAt":null,"readyAt":null},{"aliveAt":30000,"endedAt":null,"readyAt":90000}]}
 {"case":"no launch ever","faults":["driver-launch-stuck","driver-launch-stuck","driver-launch-stuck"],"ms":480000,"op":"run","ready":false,"trajs":[]}
+{"case":"ready at 220 s","faults":[],"ms":220000,"op":"runRestart","ready":true,"trajs":[{"aliveAt":215000,"endedAt":null,"readyAt":220000}]}
+{"case":"ready at the cap","faults":[],"ms":470000,"op":"runRestart","ready":true,"trajs":[{"aliveAt":460000,"endedAt":null,"readyAt":470000}]}
+{"case":"slow past the cap is abandoned","faults":["driver-body-stuck"],"ms":480000,"op":"runRestart","ready":false,"trajs":[{"aliveAt":469000,"endedAt":null,"readyAt":470001}]}
+{"case":"never alive","faults":["driver-launch-stuck"],"ms":480000,"op":"runRestart","ready":false,"trajs":[{"aliveAt":null,"endedAt":null,"readyAt":null}]}
+{"case":"ended before ready","faults":["driver-ended"],"ms":19000,"op":"runRestart","ready":false,"trajs":[{"aliveAt":5000,"endedAt":9000,"readyAt":null}]}
 {"act":"clean","exited":true,"op":"stop","waitedMs":0}
 {"act":"clean","exited":true,"op":"stop","waitedMs":25000}
 {"act":"wait","exited":false,"op":"stop","waitedMs":0}

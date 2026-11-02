@@ -14,6 +14,8 @@ deriving Repr, BEq
 
 def cfg : Cfg := ⟨3, 150000, 10000, 20000⟩
 
+def restartCfg : Cfg := ⟨1, 470000, 10000, 20000⟩
+
 inductive LaunchFault where
   | launchStuck
   | bodyStuck
@@ -195,6 +197,17 @@ theorem run_ms_le (c : Cfg) (ls : List Traj) : (run c ls).ms ≤ c.launches * (c
 
 theorem worst_fits : cfg.launches * (cfg.launchMs + cfg.killMs) ≤ Fw.Measure.WalkBudget.readyAllowMs := by decide
 
+theorem restart_fits : restartCfg.launches * (restartCfg.launchMs + restartCfg.killMs) ≤ Fw.Measure.WalkBudget.readyAllowMs := by decide
+
+theorem restart_never_relaunches (n : Nat) (hn : 1 ≤ n) (o : Obs) (f : LaunchFault) : verdict restartCfg n o ≠ .relaunch f := by
+  intro h
+  have := (relaunch_has_launch_left restartCfg n o f h).1
+  have h1 : restartCfg.launches = 1 := rfl
+  omega
+
+theorem restart_run_fits (ls : List Traj) : (run restartCfg ls).ms ≤ Fw.Measure.WalkBudget.readyAllowMs :=
+  Nat.le_trans (run_ms_le restartCfg ls) restart_fits
+
 theorem run_fits (ls : List Traj) : (run cfg ls).ms ≤ Fw.Measure.WalkBudget.readyAllowMs :=
   Nat.le_trans (run_ms_le cfg ls) worst_fits
 
@@ -317,6 +330,13 @@ def trajCases : List (String × List Traj) := [
   ("two stuck, third ready", [⟨none, none, none⟩, ⟨some 100000, none, none⟩, ⟨some 30000, some 90000, none⟩]),
   ("no launch ever", [])]
 
+def restartTrajCases : List (String × List Traj) := [
+  ("ready at 220 s", [⟨some 215000, some 220000, none⟩]),
+  ("ready at the cap", [⟨some 460000, some 470000, none⟩]),
+  ("slow past the cap is abandoned", [⟨some 469000, some 470001, none⟩]),
+  ("never alive", [⟨none, none, none⟩]),
+  ("ended before ready", [⟨some 5000, none, some 9000⟩])]
+
 def stopCases : List (Bool × Nat) := [(true, 0), (true, 25000), (false, 0), (false, 19999), (false, 20000), (false, 60000)]
 
 def jobCases : List (String × List Job) := [
@@ -333,7 +353,8 @@ def trajJson (t : Traj) : Json :=
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
   let consts := (Json.mkObj [("op", "constants"), ("launches", toJson cfg.launches), ("launchMs", toJson cfg.launchMs),
-    ("killMs", toJson cfg.killMs), ("stopWaitMs", toJson cfg.stopWaitMs), ("readyAllowMs", toJson Fw.Measure.WalkBudget.readyAllowMs),
+    ("killMs", toJson cfg.killMs), ("stopWaitMs", toJson cfg.stopWaitMs),
+    ("restartLaunches", toJson restartCfg.launches), ("restartLaunchMs", toJson restartCfg.launchMs), ("readyAllowMs", toJson Fw.Measure.WalkBudget.readyAllowMs),
     ("names", Json.arr (LaunchFault.all.map (fun f => Json.str f.name)).toArray),
     ("stopKillName", Json.str StopAct.kill.name)]).compress
   let ds := obsCases.map fun (name, n, o) =>
@@ -344,6 +365,10 @@ def goldenLines (_ : Unit := ()) : List String :=
     let r := run cfg ls
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("trajs", Json.arr (ls.map trajJson).toArray), ("ready", toJson r.ready),
       ("faults", Json.arr (r.faults.map (fun f => Json.str f.name)).toArray), ("ms", toJson r.ms)]).compress
+  let rr := restartTrajCases.map fun (name, ls) =>
+    let r := run restartCfg ls
+    (Json.mkObj [("op", "runRestart"), ("case", Json.str name), ("trajs", Json.arr (ls.map trajJson).toArray), ("ready", toJson r.ready),
+      ("faults", Json.arr (r.faults.map (fun f => Json.str f.name)).toArray), ("ms", toJson r.ms)]).compress
   let ss := stopCases.map fun (exited, w) =>
     (Json.mkObj [("op", "stop"), ("exited", toJson exited), ("waitedMs", toJson w), ("act", Json.str (stopStep cfg exited w).name)]).compress
   let ts := jobCases.map fun (name, js) =>
@@ -352,7 +377,7 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("jobs", Json.arr (js.map fun j => Json.mkObj [("faults", Json.arr (j.launchFaults.map (fun f => Json.str f.name)).toArray), ("ready", toJson j.ready)]).toArray),
       ("out", Json.mkObj [("jobs", toJson t.jobs), ("ready", toJson t.ready), ("firstTry", toJson t.firstTry), ("relaunched", toJson t.relaunched),
         ("driver-launch-stuck", toJson t.launchStuck), ("driver-body-stuck", toJson t.bodyStuck), ("driver-ended", toJson t.ended)])]).compress
-  [consts] ++ ds ++ rs ++ ss ++ ts
+  [consts] ++ ds ++ rs ++ rr ++ ss ++ ts
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
