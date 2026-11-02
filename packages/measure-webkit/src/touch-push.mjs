@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, fstatSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findDriver, serve } from './throttle/driver.mjs';
@@ -113,6 +113,17 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   throw e;
 }
 
+/** The last `bytes` bytes of a file as text; a driver log can be megabytes after a long hung press, and the stop loop reads it every 500 ms. */
+export function fileTail(file, bytes) {
+  const fd = openSync(file, 'r');
+  try {
+    const size = fstatSync(fd).size;
+    const buf = Buffer.alloc(Math.min(size, bytes));
+    readSync(fd, buf, 0, buf.length, size - buf.length);
+    return buf.toString('utf8');
+  } finally { closeSync(fd); }
+}
+
 /**
  * Write the stop file and wait for xcodebuild to exit, up to cfg.stopWaitMs; never kills (a kill broke the restart that follows).
  * Sets `server.stopFault` (Lean TouchReady stopStep: driver-stop-late-body | driver-stop-late-teardown) and `server.stopTrace`
@@ -127,7 +138,7 @@ export async function stopServer(server, { cfg = READY_CFG } = {}) {
   let exited = false;
   const gone = () => { exited = true; trace.exitedMs ??= Date.now() - w0; };
   server.run.exited.then(gone, gone);
-  const looksEnded = () => { try { return bodyEndedIn(readFileSync(server.run.logFile, 'utf8')); } catch { return false; } };
+  const looksEnded = () => { try { return bodyEndedIn(fileTail(server.run.logFile, 65536)); } catch { return false; } };
   for (let i = 0; ; i++) {
     if (trace.bodyEndedMs == null && i % 5 === 0 && looksEnded()) trace.bodyEndedMs = Date.now() - w0;
     const waited = Date.now() - w0;

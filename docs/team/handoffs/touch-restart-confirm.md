@@ -1,14 +1,17 @@
 # touch-restart-confirm handoff
 
-- Branch: worktree-wf_0fc6ea50-ff3-1 (CI branch ci/touch-restart-confirm), worktree .claude/worktrees/wf_0fc6ea50-ff3-1, last pushed commit 085404679.
-- CI runs (smoothness, 12 touch-lock sim jobs, pushes of ci/touch-restart-confirm): run 1 = 41422536168 (8a01c8a32), fw ci state: failed (jobs 2, 5, 7, 9, 10 failed; job 9 has a retry artifact). Run 2 = 41436626306 (085404679, same policy, body-returned marker and host health), state: running. Both pushes used; no third.
+- Branch: worktree-wf_0fc6ea50-ff3-1 (CI branch ci/touch-restart-confirm), worktree .claude/worktrees/wf_0fc6ea50-ff3-1, last pushed commit 085404679. Both pushes used; no third.
+- CI runs (smoothness, 12 touch-lock sim jobs): run 1 = 41422536168 (8a01c8a32), run 2 = 41436626306 (085404679, body-returned marker and host health). `fw ci state`: failed for both (some jobs failed or cancelled; uploaded touch-lock data is complete).
 - Compare: touch-driver-ready 41391781282, 41402584809 (0 of 8 restarts ready with the stop kill); main's before runs 41369102226, 41380162402 (5 of 9).
+- Note: research/notes/2026/11-02-touch-restart-confirm.md (read first).
 
-## Verified (run 41422536168; scratchpad/touch-restart-confirm/tools/tally.mjs over the downloaded touch-lock.json files)
-- First start ready 12 of 12 jobs (launch 1 in 7, launch 2 in 4, launch 3 in 1).
-- Restarts: 4 begun (jobs 2, 3, 8, 9-retry); 3 decided, 0 ready (jobs 3, 8, 9: driver-launch-stuck at 470, 470, 528 s); job 2 undecided (inspector dead, simctl shutdown ETIMEDOUT). All four stalls were pageLost.
-- Stops: 8 late, 1 clean (job 11, 17 s). Stop log tails: the test body is in "Wait for com.apple.springboard to idle" inside a press (PushServer.swift:58, :61 block; the stop file is read only at :51), then "Tear Down" appears in 6 of 8 tails; xcodebuild exits 70 s (jobs 3, 8), 161 s, 254 s after the stop file in the restart jobs.
-- Lean TouchReady stopStep (late-body | late-teardown), golden, TS and package test green; check.sh green at 2539db5f3.
+## Verified
+- First start ready: run 1 12 of 12, run 2 10 of 10 jobs with data.
+- Restarts without the kill: 1 of 5 decided ready (run 1 0 of 3, run 2 1 of 2); 4 of 9 begun undecided. Not distinguishable from 5 of 9 (p about 0.24) or 0 of 8: restart readiness is NOT confirmed.
+- Late stop cause: stop file read once per loop turn (PushServer.swift:51), presses at :58/:61 block in quiescence wait; then teardown/xcodebuild exit takes 70 to >250 s. Run 1 7 of 8 late stops were teardown after `Tear Down`.
+- Lean TouchReady stopStep (late-body | late-teardown), golden (41 lines), TS replay, package tests green. Stop wait 20 s and restartCfg 470 s unchanged; no kill.
+- `fileTail` (64 KB read in the stop loop) is unit-tested but not measured on CI (two stop waits ran 34.7 and 108.2 s).
 
 ## Open
-- Run 2 result: tally with the same script (keys bodyEndedMs, trace.health), pool restarts with run 1, then write research/notes/2026/11-0x-touch-restart-confirm.md, merge main, dry land, review ready.
+- More decided restarts needed (walk length or several runs); memory probe over the walk; presses off the main thread is a Swift change, not done.
+- Final checks: merge main, tests, check.sh, plan lint, dry land, review ready.

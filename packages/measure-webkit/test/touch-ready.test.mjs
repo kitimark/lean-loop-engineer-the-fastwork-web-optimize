@@ -132,7 +132,7 @@ test('stopServer writes the stop file, never kills, and names a late stop by whe
   const { mkdtempSync, writeFileSync, existsSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
-  const { stopServer } = await import('../src/touch-push.mjs');
+  const { stopServer, fileTail } = await import('../src/touch-push.mjs');
   const make = (log, exitAfterMs) => {
     const dir = mkdtempSync(join(tmpdir(), 'fw-stop-test-'));
     const logFile = join(dir, 'x.log');
@@ -142,6 +142,9 @@ test('stopServer writes the stop file, never kills, and names a late stop by whe
     let killed = 0;
     return { dir, killed: () => killed, run: { exited, state, logFile, kill: () => { killed++; } } };
   };
+  const big = make(`${'x'.repeat(200000)}\n    t =  346.34s Tear Down\n`, null);
+  assert.equal(fileTail(big.run.logFile, 65536).length, 65536);
+  assert.equal(bodyEndedIn(fileTail(big.run.logFile, 65536)), true);
   const cfg = { ...READY_CFG, stopWaitMs: 400 };
   const ended = "Test Case '-[DriverUITests.PushServer testServe]' passed (1 seconds).\n";
   const clean = make(ended, 150);
