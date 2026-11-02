@@ -25382,6 +25382,32 @@
     "docs/team/handoffs/touch-restart-device.md"
    ],
    "evidence": "70ad9e97d"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-window-loss",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "touch-restart-device"
+   ],
+   "title": "The CI Simulator touch-lock lane loses about half its windows (run 41503168296: 143 of 288, only 3 of 12 jobs with every arm at minKept), so the across-job verdict has no spare job. Rank the causes of lost windows from the existing artifacts of the touch-lock runs since touch-driver-ready (no new CI): per lost window its status and fault name, per job and arm; which causes are harness (driver, page lost, evaluate timeout, walk deadline) and which are Simulator limits; state the window outcome classes in Lean with a total count theorem and goldens (FaultNames or a new module), TS reducer against them; say which single change would recover the most windows and what jobsNeeded the measured rate implies (WalkBudget names). Note and handoff",
+   "writes": [
+    "lean/Fw/Measure/WindowLoss*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/WindowLossGolden.lean",
+    "lean/scripts/check.sh",
+    "lean/Fw/Ci/Trigger.lean",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/contracts/golden/measure/window-loss*.jsonl",
+    "packages/measure-webkit/src/window-loss*.mjs",
+    "packages/measure-webkit/test/window-loss*.test.mjs",
+    "results/touch-window-loss/**",
+    "research/notes/2026/11-0*-touch-window-loss.md",
+    "docs/team/handoffs/touch-window-loss.md"
+   ]
   }
  ],
  "deadline": {
