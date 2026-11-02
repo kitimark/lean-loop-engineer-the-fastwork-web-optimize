@@ -1,0 +1,9 @@
+Branch worktree-wf_6c684bab-6c1-1, worktree .claude/worktrees/wf_6c684bab-6c1-1, last commit see `git log -1`. No CI run, no push (text only).
+- Edited: research/notes/2026/10-2x-end-floor-writes.md, research/findings/ledger.json (one row, end-floor-writes), this file.
+- (1) Range endpoints named by run and job: lane comparison bullet. This lane run 40960310474: 138 wktr-j1, 154 wktr-j2, 135 wktr-j3 (range 135 wktr-j3 to 154 wktr-j2); end-wktr-flip run 40869911524: 83 wktr-j1, 70 wktr-j2, 81 wktr-j3 (range 70 wktr-j2 to 83 wktr-j1). The old text said "j1 to j3" for ranges, which was wrong.
+- (2) rate_one_per_frame paraphrase now states `hne : fs ≠ []` and `h : ∀ f ∈ fs, 1 ≤ f.r` (lean/Fw/Device/EndFloor.lean:204), in the answer and Lean bullets.
+- (3) Why the floor is higher: floor-v2p-thr-off adds engine.scroll:unthrottle + hero.exit:threaded to end-base-thr-off (accel-cli.mjs:30/35 at the run commits; wktr.yml:160,274). Mechanism MEASURED elsewhere (engine.scroll part.json:11, end-floor-dirty note lines 26-35); pall cells r=0 32 there against r=1 32 here. Attribution to the flags INFERRED (floor-fp-thr-off unrun; END_OPTS lay:true vs FLOOR_OPTS lay:false not isolated).
+- (4) data-fw-morph: no CSS/SCSS/HTML names it (grep, CONFIRMED); one DOM query morph.panel/index.tsx:32; three MutationObservers (nav/index.tsx:113, nav.hitTest/index.tsx:32, morph.geom/index.tsx:89).
+- Claim changed, so the ledger row changed: the old INFERRED "recalcs come from the running flip tracks" is marked REFUTED by end-floor-window (run 40989068304) and end-floor-dirty (run 41030064819); code cites now carry @104183cb1 / @49a5c04f3 because end-floor.mjs changed after r3.
+- Verified: node packages/plan-lint/src/cli.ts on the note: 0 claim-lint warnings; ledger.json parses.
+- Open: none for the unit. Follow-ups elsewhere: a floor-fp-thr-off run to isolate the flags; the ledger row still cites mid-page.mjs:589 (r3 line is 594).
