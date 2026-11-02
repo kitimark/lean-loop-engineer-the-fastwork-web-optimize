@@ -25306,7 +25306,8 @@
     "packages/measure-webkit/src/throttle/push-cycle-pass.mjs",
     "research/notes/2026/11-0*-touch-restart-confirm.md",
     "docs/team/handoffs/touch-restart-confirm.md"
-   ]
+   ],
+   "evidence": "691c29d"
   }
  ],
  "deadline": {

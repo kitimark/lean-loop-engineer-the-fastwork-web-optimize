@@ -233,29 +233,42 @@ theorem run_single_launch (t : Traj) (ls : List Traj) (c : Cfg) (hc : c.launches
 inductive StopAct where
   | wait
   | clean
-  | late
+  | lateBody
+  | lateTeardown
 deriving DecidableEq, Repr
 
 def StopAct.name : StopAct → String
   | .wait => "wait"
   | .clean => "clean"
-  | .late => "driver-stop-late"
+  | .lateBody => "driver-stop-late-body"
+  | .lateTeardown => "driver-stop-late-teardown"
 
-def stopStep (c : Cfg) (exited : Bool) (waitedMs : Nat) : StopAct :=
-  if exited then .clean else if c.stopWaitMs ≤ waitedMs then .late else .wait
+def stopStep (c : Cfg) (exited bodyEnded : Bool) (waitedMs : Nat) : StopAct :=
+  if exited then .clean
+  else if c.stopWaitMs ≤ waitedMs then (if bodyEnded then .lateTeardown else .lateBody)
+  else .wait
 
-theorem stop_clean (c : Cfg) (w : Nat) : stopStep c true w = .clean := by simp [stopStep]
+theorem stop_clean (c : Cfg) (t : Bool) (w : Nat) : stopStep c true t w = .clean := by simp [stopStep]
 
-theorem stop_late (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c false w = .late := by simp [stopStep, h]
+theorem stop_late_body (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c false false w = .lateBody := by
+  simp [stopStep, h]
 
-theorem stop_wait (c : Cfg) (w : Nat) (h : w < c.stopWaitMs) : stopStep c false w = .wait := by
+theorem stop_late_teardown (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c false true w = .lateTeardown := by
+  simp [stopStep, h]
+
+theorem stop_wait (c : Cfg) (t : Bool) (w : Nat) (h : w < c.stopWaitMs) : stopStep c false t w = .wait := by
   have : ¬ c.stopWaitMs ≤ w := by omega
   simp [stopStep, this]
 
-theorem stop_decides_by (c : Cfg) (exited : Bool) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c exited w ≠ .wait := by
-  cases exited <;> simp [stopStep, h]
+theorem stop_decides_by (c : Cfg) (exited t : Bool) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c exited t w ≠ .wait := by
+  cases exited <;> cases t <;> simp [stopStep, h]
 
-theorem stop_late_name : StopAct.late.name ≠ StopAct.clean.name := by decide
+theorem stop_late_split (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) :
+    stopStep c false false w ≠ stopStep c false true w := by
+  rw [stop_late_body c w h, stop_late_teardown c w h]; decide
+
+theorem stop_late_names : StopAct.lateBody.name ≠ StopAct.lateTeardown.name ∧ StopAct.lateBody.name ≠ StopAct.clean.name
+    ∧ StopAct.lateTeardown.name ≠ StopAct.clean.name := by decide
 
 structure Job where
   launchFaults : List LaunchFault
@@ -337,7 +350,8 @@ def restartTrajCases : List (String × List Traj) := [
   ("never alive", [⟨none, none, none⟩]),
   ("ended before ready", [⟨some 5000, none, some 9000⟩])]
 
-def stopCases : List (Bool × Nat) := [(true, 0), (true, 25000), (false, 0), (false, 19999), (false, 20000), (false, 60000)]
+def stopCases : List (Bool × Bool × Nat) := [(true, false, 0), (true, true, 25000), (false, false, 0), (false, true, 19999), (false, false, 19999),
+  (false, false, 20000), (false, true, 20000), (false, false, 60000), (false, true, 60000)]
 
 def jobCases : List (String × List Job) := [
   ("empty", []),
@@ -356,7 +370,7 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("killMs", toJson cfg.killMs), ("stopWaitMs", toJson cfg.stopWaitMs),
     ("restartLaunches", toJson restartCfg.launches), ("restartLaunchMs", toJson restartCfg.launchMs), ("readyAllowMs", toJson Fw.Measure.WalkBudget.readyAllowMs),
     ("names", Json.arr (LaunchFault.all.map (fun f => Json.str f.name)).toArray),
-    ("stopLateName", Json.str StopAct.late.name)]).compress
+    ("stopLateNames", Json.arr #[Json.str StopAct.lateBody.name, Json.str StopAct.lateTeardown.name])]).compress
   let ds := obsCases.map fun (name, n, o) =>
     (Json.mkObj [("op", "decide"), ("case", Json.str name), ("n", toJson n),
       ("obs", Json.mkObj [("ready", toJson o.ready), ("alive", toJson o.alive), ("ended", toJson o.ended), ("elapsed", toJson o.elapsed)]),
@@ -369,8 +383,9 @@ def goldenLines (_ : Unit := ()) : List String :=
     let r := run restartCfg ls
     (Json.mkObj [("op", "runRestart"), ("case", Json.str name), ("trajs", Json.arr (ls.map trajJson).toArray), ("ready", toJson r.ready),
       ("faults", Json.arr (r.faults.map (fun f => Json.str f.name)).toArray), ("ms", toJson r.ms)]).compress
-  let ss := stopCases.map fun (exited, w) =>
-    (Json.mkObj [("op", "stop"), ("exited", toJson exited), ("waitedMs", toJson w), ("act", Json.str (stopStep cfg exited w).name)]).compress
+  let ss := stopCases.map fun (exited, ended, w) =>
+    (Json.mkObj [("op", "stop"), ("exited", toJson exited), ("bodyEnded", toJson ended), ("waitedMs", toJson w),
+      ("act", Json.str (stopStep cfg exited ended w).name)]).compress
   let ts := jobCases.map fun (name, js) =>
     let t := tally js
     (Json.mkObj [("op", "tally"), ("case", Json.str name),

@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, copyFileSync, existsSync, fstatSync, mkdtempSync, openSync, readFileSync, readSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findDriver, serve } from './throttle/driver.mjs';
 import { sleep } from './sim.mjs';
-import { LAUNCH_FAULTS, READY_CFG, launchUntilReady, stopStep } from './touch-ready.mjs';
+import { LAUNCH_FAULTS, READY_CFG, launchUntilReady, stopStep, bodyEndedIn } from './touch-ready.mjs';
 
 export const TOUCH_PUSH = Object.freeze({ dragPt: 300, velocity: 600, holdMs: 1000 });
 
@@ -69,9 +69,15 @@ const hostTop = () => {
   } catch (e) { return [`ps failed: ${e.code ?? e.signal ?? 'error'}`]; }
 };
 
+export const hostHealth = () => {
+  const out = { memFreePct: null, simctlMs: null };
+  try { out.memFreePct = Number(/free percentage: (\d+)%/.exec(execFileSync('memory_pressure', ['-Q'], { encoding: 'utf8', timeout: 10000 }))?.[1] ?? NaN) || null; } catch {}
+  const t = Date.now();
+  try { execFileSync('xcrun', ['simctl', 'list', 'devices', 'booted'], { encoding: 'utf8', timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }); out.simctlMs = Date.now() - t; } catch {}
+  return out;
+};
+
 /**
- * Start the push server: up to READY_CFG.launches xcodebuild launches, each cut by `verdict` (Lean TouchReady) after launchMs without `ready`,
- * when it ends, or at once on `ready`. A cut launch is killed and named (driver-launch-stuck | driver-body-stuck | driver-ended) in `launches`.
  * Resolves {dir, run, next, launches}; throws after the last launch with `.launches` and `.fault` set.
  */
 export async function startServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, tag = 'serve', suite = 'PushServer', cfg = READY_CFG }) {
@@ -84,7 +90,7 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
     return { dir, run, state: run.state, exited: run.exited, kill: () => run.kill('launch cut') };
   };
   const look = (h) => ({ alive: existsSync(join(h.dir, 'alive')), ready: existsSync(join(h.dir, 'ready')) });
-  const onCut = (rec, h) => { rec.top = hostTop(); rec.tail = logTail(h.run.logFile)?.slice(-600) ?? null; };
+  const onCut = (rec, h) => { rec.top = hostTop(); rec.health = hostHealth(); rec.tail = logTail(h.run.logFile)?.slice(-600) ?? null; };
   const got = await launchUntilReady({ start, look, now: Date.now, sleep, cfg, log, onCut });
   if (got.handle) {
     for (const d of dirs) if (d !== got.handle.dir) rmSync(d, { recursive: true, force: true });
@@ -104,15 +110,32 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   throw e;
 }
 
+export function fileTail(file, bytes) {
+  const fd = openSync(file, 'r');
+  try {
+    const size = fstatSync(fd).size;
+    const buf = Buffer.alloc(Math.min(size, bytes));
+    readSync(fd, buf, 0, buf.length, size - buf.length);
+    return buf.toString('utf8');
+  } finally { closeSync(fd); }
+}
+
 export async function stopServer(server, { cfg = READY_CFG } = {}) {
   try { writeFileSync(join(server.dir, 'stop'), ''); } catch {}
   const w0 = Date.now();
+  const trace = { waitedMs: 0, bodyEndedMs: null, exitedMs: null, top: null, health: null, tail: null };
+  server.stopTrace = trace;
   let exited = false;
-  server.run.exited.then(() => { exited = true; }, () => { exited = true; });
-  for (;;) {
-    const step = stopStep(cfg, exited || server.run.state.ended, Date.now() - w0);
-    if (step === 'clean') break;
-    if (step !== 'wait') { server.stopFault = step; break; }
+  const gone = () => { exited = true; trace.exitedMs ??= Date.now() - w0; };
+  server.run.exited.then(gone, gone);
+  const looksEnded = () => { try { return bodyEndedIn(fileTail(server.run.logFile, 65536)); } catch { return false; } };
+  for (let i = 0; ; i++) {
+    if (trace.bodyEndedMs == null && i % 5 === 0 && looksEnded()) trace.bodyEndedMs = Date.now() - w0;
+    const waited = Date.now() - w0;
+    const step = stopStep(cfg, exited || server.run.state.ended, trace.bodyEndedMs != null, waited);
+    trace.waitedMs = waited;
+    if (step === 'clean') { trace.exitedMs ??= waited; break; }
+    if (step !== 'wait') { server.stopFault = step; trace.top = hostTop(); trace.health = hostHealth(); trace.tail = logTail(server.run.logFile)?.slice(-600) ?? null; break; }
     await Promise.race([server.run.exited, sleep(100)]);
   }
   if (process.env.FW_TOUCH_KEEP_LOG) { try { copyFileSync(server.run.logFile, process.env.FW_TOUCH_KEEP_LOG); } catch {} }

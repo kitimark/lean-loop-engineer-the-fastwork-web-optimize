@@ -1,4 +1,4 @@
-{"killMs":10000,"launchMs":150000,"launches":3,"names":["driver-launch-stuck","driver-body-stuck","driver-ended"],"op":"constants","readyAllowMs":480000,"restartLaunchMs":470000,"restartLaunches":1,"stopLateName":"driver-stop-late","stopWaitMs":20000}
+{"killMs":10000,"launchMs":150000,"launches":3,"names":["driver-launch-stuck","driver-body-stuck","driver-ended"],"op":"constants","readyAllowMs":480000,"restartLaunchMs":470000,"restartLaunches":1,"stopLateNames":["driver-stop-late-body","driver-stop-late-teardown"],"stopWaitMs":20000}
 {"act":"ready","case":"ready at once","n":1,"obs":{"alive":true,"elapsed":40000,"ended":false,"ready":true},"op":"decide"}
 {"act":"ready","case":"ready wins over ended","n":1,"obs":{"alive":true,"elapsed":40000,"ended":true,"ready":true},"op":"decide"}
 {"act":"ready","case":"ready wins at the cap","n":3,"obs":{"alive":true,"elapsed":150000,"ended":false,"ready":true},"op":"decide"}
@@ -26,12 +26,15 @@
 {"case":"slow past the cap is abandoned","faults":["driver-body-stuck"],"ms":480000,"op":"runRestart","ready":false,"trajs":[{"aliveAt":469000,"endedAt":null,"readyAt":470001}]}
 {"case":"never alive","faults":["driver-launch-stuck"],"ms":480000,"op":"runRestart","ready":false,"trajs":[{"aliveAt":null,"endedAt":null,"readyAt":null}]}
 {"case":"ended before ready","faults":["driver-ended"],"ms":19000,"op":"runRestart","ready":false,"trajs":[{"aliveAt":5000,"endedAt":9000,"readyAt":null}]}
-{"act":"clean","exited":true,"op":"stop","waitedMs":0}
-{"act":"clean","exited":true,"op":"stop","waitedMs":25000}
-{"act":"wait","exited":false,"op":"stop","waitedMs":0}
-{"act":"wait","exited":false,"op":"stop","waitedMs":19999}
-{"act":"driver-stop-late","exited":false,"op":"stop","waitedMs":20000}
-{"act":"driver-stop-late","exited":false,"op":"stop","waitedMs":60000}
+{"act":"clean","bodyEnded":false,"exited":true,"op":"stop","waitedMs":0}
+{"act":"clean","bodyEnded":true,"exited":true,"op":"stop","waitedMs":25000}
+{"act":"wait","bodyEnded":false,"exited":false,"op":"stop","waitedMs":0}
+{"act":"wait","bodyEnded":true,"exited":false,"op":"stop","waitedMs":19999}
+{"act":"wait","bodyEnded":false,"exited":false,"op":"stop","waitedMs":19999}
+{"act":"driver-stop-late-body","bodyEnded":false,"exited":false,"op":"stop","waitedMs":20000}
+{"act":"driver-stop-late-teardown","bodyEnded":true,"exited":false,"op":"stop","waitedMs":20000}
+{"act":"driver-stop-late-body","bodyEnded":false,"exited":false,"op":"stop","waitedMs":60000}
+{"act":"driver-stop-late-teardown","bodyEnded":true,"exited":false,"op":"stop","waitedMs":60000}
 {"case":"empty","jobs":[],"op":"tally","out":{"driver-body-stuck":0,"driver-ended":0,"driver-launch-stuck":0,"firstTry":0,"jobs":0,"ready":0,"relaunched":0}}
 {"case":"all first try","jobs":[{"faults":[],"ready":true},{"faults":[],"ready":true}],"op":"tally","out":{"driver-body-stuck":0,"driver-ended":0,"driver-launch-stuck":0,"firstTry":2,"jobs":2,"ready":2,"relaunched":0}}
 {"case":"one relaunched ready, one lost","jobs":[{"faults":["driver-launch-stuck"],"ready":true},{"faults":["driver-launch-stuck","driver-body-stuck","driver-ended"],"ready":false}],"op":"tally","out":{"driver-body-stuck":1,"driver-ended":1,"driver-launch-stuck":2,"firstTry":0,"jobs":2,"ready":1,"relaunched":2}}
