@@ -603,6 +603,331 @@ theorem replay_n_mono (es : List Entry) : ∀ r : Replay, r.n ≤ (replayFrom r 
       by_cases a : e.op = "touch" <;> by_cases b : e.op = "moved" <;> by_cases c : e.op = "write" <;> simp [replayStep, a, b, c]
     simpa [replayFrom, List.foldl] using Nat.le_trans this h
 
+def restTol10 : Nat := 100
+
+def restMargin : Nat := 3
+
+inductive Rest where
+  | notReached | atEnd | over | short
+deriving Repr, DecidableEq
+
+def Rest.name : Rest → String
+  | .notReached => "notReached"
+  | .atEnd => "atEnd"
+  | .over => "over"
+  | .short => "short"
+
+structure Win where
+  max10 : Int
+  final10 : Int
+  peak10 : Int
+  target10 : Option Int
+deriving Repr, BEq
+
+def goal (w : Win) : Int :=
+  match w.target10 with
+  | some t => min t w.max10
+  | none => w.max10
+
+def gap (w : Win) : Nat := (w.final10 - goal w).natAbs
+
+def restOf (w : Win) : Rest :=
+  if w.peak10 + restTol10 < goal w then .notReached
+  else if gap w ≤ restTol10 then .atEnd
+  else if goal w < w.final10 then .over
+  else .short
+
+def targetOf (ss : List (Option Int)) : Option Int := ss.reverse.findSome? id
+
+theorem goal_none (w : Win) (h : w.target10 = none) : goal w = w.max10 := by simp [goal, h]
+
+theorem goal_some (w : Win) (t : Int) (h : w.target10 = some t) : goal w = min t w.max10 := by simp [goal, h]
+
+theorem goal_le_max (w : Win) : goal w ≤ w.max10 := by
+  unfold goal
+  split <;> omega
+
+theorem restOf_notReached_iff (w : Win) : restOf w = .notReached ↔ w.peak10 + restTol10 < goal w := by
+  unfold restOf
+  by_cases h1 : w.peak10 + restTol10 < goal w
+  · simp [h1]
+  · by_cases h2 : gap w ≤ restTol10 <;> by_cases h3 : goal w < w.final10 <;> simp [h1, h2, h3]
+
+theorem restOf_atEnd (w : Win) (h1 : goal w ≤ w.peak10 + restTol10) (h2 : gap w ≤ restTol10) : restOf w = .atEnd := by
+  have : ¬ w.peak10 + restTol10 < goal w := by omega
+  simp [restOf, this, h2]
+
+theorem restOf_over (w : Win) (h1 : goal w ≤ w.peak10 + restTol10) (h2 : restTol10 < gap w) (h3 : goal w < w.final10) :
+    restOf w = .over := by
+  have a : ¬ w.peak10 + restTol10 < goal w := by omega
+  have b : ¬ gap w ≤ restTol10 := by omega
+  simp [restOf, a, b, h3]
+
+theorem restOf_short (w : Win) (h1 : goal w ≤ w.peak10 + restTol10) (h2 : restTol10 < gap w) (h3 : w.final10 ≤ goal w) :
+    restOf w = .short := by
+  have a : ¬ w.peak10 + restTol10 < goal w := by omega
+  have b : ¬ gap w ≤ restTol10 := by omega
+  have c : ¬ goal w < w.final10 := by omega
+  simp [restOf, a, b, c]
+
+theorem restOf_atEnd_of_final_eq_goal (w : Win) (h : w.final10 = goal w) (hp : goal w ≤ w.peak10) : restOf w = .atEnd := by
+  apply restOf_atEnd
+  · unfold restTol10; omega
+  · simp [gap, h, restTol10]
+
+def withinTol (final : Int) (f : Int × Nat) : Bool := decide ((f.1 - final).natAbs ≤ restTol10)
+
+def arrival (final : Int) (fs : List (Int × Nat)) : Option Nat :=
+  ((fs.reverse.takeWhile (withinTol final)).getLast?).map (·.2)
+
+def touchEnd10 (ev0 firstScroll swipe : Nat) : Nat := ev0 + 10 * swipe - 10 * firstScroll
+
+def settle10 (touchEnd : Option Nat) (final : Int) (fs : List (Int × Nat)) : Option Nat :=
+  match touchEnd, arrival final fs with
+  | some e, some a => some (a - e)
+  | _, _ => none
+
+theorem arrival_nil (final : Int) : arrival final [] = none := by simp [arrival]
+
+theorem arrival_far_last (final : Int) (fs : List (Int × Nat)) (f : Int × Nat) (h : withinTol final f = false) :
+    arrival final (fs ++ [f]) = none := by
+  simp [arrival, h]
+
+theorem arrival_single (final : Int) (y : Int) (t : Nat) (h : withinTol final (y, t) = true) :
+    arrival final [(y, t)] = some t := by
+  simp [arrival, h]
+
+theorem settle10_no_touch (final : Int) (fs : List (Int × Nat)) : settle10 none final fs = none := by
+  simp [settle10]
+
+theorem settle10_before_lift (e a : Nat) (final : Int) (fs : List (Int × Nat)) (h : arrival final fs = some a) (hl : a ≤ e) :
+    settle10 (some e) final fs = some 0 := by
+  simp [settle10, h]
+  omega
+
+theorem settle10_after_lift (e a : Nat) (final : Int) (fs : List (Int × Nat)) (h : arrival final fs = some a) :
+    settle10 (some e) final fs = some (a - e) := by
+  simp [settle10, h]
+
+structure RestTally where
+  rested : Nat
+  reached : Nat
+deriving Repr, BEq
+
+def tallyRest (rs : List Rest) : RestTally := ⟨rs.count .atEnd, rs.length - rs.count .notReached⟩
+
+theorem count_atEnd_add_notReached_le (rs : List Rest) : rs.count .atEnd + rs.count .notReached ≤ rs.length := by
+  induction rs with
+  | nil => simp
+  | cons x xs ih => cases x <;> simp <;> omega
+
+theorem rested_le_reached (rs : List Rest) : (tallyRest rs).rested ≤ (tallyRest rs).reached := by
+  have := count_atEnd_add_notReached_le rs
+  simp only [tallyRest]
+  omega
+
+inductive RestCmp where
+  | undecided | pinBetter | pinWorse | same
+deriving Repr, DecidableEq
+
+def RestCmp.name : RestCmp → String
+  | .undecided => "undecided"
+  | .pinBetter => "pinBetter"
+  | .pinWorse => "pinWorse"
+  | .same => "same"
+
+def restDiff (base pin : RestTally) : Int := (pin.rested : Int) * base.reached - (base.rested : Int) * pin.reached
+
+def restCmp (base pin : RestTally) : RestCmp :=
+  if base.reached < minSamples ∨ pin.reached < minSamples then .undecided
+  else if (pin.reached : Int) * base.reached ≤ restMargin * restDiff base pin then .pinBetter
+  else if restMargin * restDiff base pin ≤ -((pin.reached : Int) * base.reached) then .pinWorse
+  else .same
+
+theorem restCmp_undecided_base (base pin : RestTally) (h : base.reached < minSamples) : restCmp base pin = .undecided := by
+  simp [restCmp, h]
+
+theorem restCmp_undecided_pin (base pin : RestTally) (h : pin.reached < minSamples) : restCmp base pin = .undecided := by
+  simp [restCmp, h]
+
+private theorem reached_prod_pos (base pin : RestTally) (hb : minSamples ≤ base.reached) (hp : minSamples ≤ pin.reached) :
+    0 < (pin.reached : Int) * base.reached := by
+  unfold minSamples at *
+  exact Int.mul_pos (by omega) (by omega)
+
+theorem restCmp_better (base pin : RestTally) (hb : minSamples ≤ base.reached) (hp : minSamples ≤ pin.reached)
+    (h : (pin.reached : Int) * base.reached ≤ restMargin * restDiff base pin) : restCmp base pin = .pinBetter := by
+  have a : ¬ base.reached < minSamples := by omega
+  have b : ¬ pin.reached < minSamples := by omega
+  simp [restCmp, a, b, h]
+
+theorem restCmp_worse (base pin : RestTally) (hb : minSamples ≤ base.reached) (hp : minSamples ≤ pin.reached)
+    (h : restMargin * restDiff base pin ≤ -((pin.reached : Int) * base.reached)) : restCmp base pin = .pinWorse := by
+  have a : ¬ base.reached < minSamples := by omega
+  have b : ¬ pin.reached < minSamples := by omega
+  have pos := reached_prod_pos base pin hb hp
+  have c : ¬ (pin.reached : Int) * base.reached ≤ restMargin * restDiff base pin := by omega
+  simp [restCmp, a, b, c, h]
+
+theorem restCmp_same (base pin : RestTally) (hb : minSamples ≤ base.reached) (hp : minSamples ≤ pin.reached)
+    (h1 : restMargin * restDiff base pin < (pin.reached : Int) * base.reached)
+    (h2 : -((pin.reached : Int) * base.reached) < restMargin * restDiff base pin) : restCmp base pin = .same := by
+  have a : ¬ base.reached < minSamples := by omega
+  have b : ¬ pin.reached < minSamples := by omega
+  have c : ¬ (pin.reached : Int) * base.reached ≤ restMargin * restDiff base pin := by omega
+  have d : ¬ restMargin * restDiff base pin ≤ -((pin.reached : Int) * base.reached) := by omega
+  simp [restCmp, a, b, c, d]
+
+theorem restCmp_self (t : RestTally) (h : minSamples ≤ t.reached) : restCmp t t = .same := by
+  have pos := reached_prod_pos t t h h
+  have z : restDiff t t = 0 := by simp [restDiff]
+  apply restCmp_same t t h h
+  · rw [z]; omega
+  · rw [z]; omega
+
+open Fw.Gate.Smooth (Verdict)
+
+def RestCmp.verdict : RestCmp → Verdict
+  | .pinBetter => .second
+  | .pinWorse => .first
+  | .same => .same
+  | .undecided => .insufficient
+
+structure RestJob where
+  cmp : RestCmp
+  live : Nat
+deriving Repr, BEq
+
+def jobVerdict (j : RestJob) : Verdict :=
+  if 0 < j.live ∧ j.cmp = .pinBetter then .insufficient else j.cmp.verdict
+
+def acrossRest (js : List RestJob) : Verdict := Fw.Gate.Smooth.acrossDecisive (js.map jobVerdict)
+
+def restDecisive (js : List RestJob) : Nat := Fw.Gate.Smooth.decisive (js.map jobVerdict)
+
+theorem jobVerdict_clear (j : RestJob) (h : j.live = 0) : jobVerdict j = j.cmp.verdict := by
+  simp [jobVerdict, h]
+
+theorem jobVerdict_live_better (j : RestJob) (hl : 0 < j.live) (hc : j.cmp = .pinBetter) : jobVerdict j = .insufficient := by
+  simp [jobVerdict, hl, hc]
+
+theorem jobVerdict_live_worse (j : RestJob) (hc : j.cmp = .pinWorse) : jobVerdict j = .first := by
+  simp [jobVerdict, hc, RestCmp.verdict]
+
+theorem jobVerdict_live_same (j : RestJob) (hc : j.cmp = .same) : jobVerdict j = .same := by
+  simp [jobVerdict, hc, RestCmp.verdict]
+
+theorem jobVerdict_live_undecided (j : RestJob) (hc : j.cmp = .undecided) : jobVerdict j = .insufficient := by
+  simp [jobVerdict, hc, RestCmp.verdict]
+
+theorem jobVerdict_second_iff (j : RestJob) : jobVerdict j = .second ↔ j.live = 0 ∧ j.cmp = .pinBetter := by
+  unfold jobVerdict
+  cases hc : j.cmp <;> by_cases hl : j.live = 0 <;> simp [hl, RestCmp.verdict]
+  all_goals omega
+
+theorem jobVerdict_live_ne_second (j : RestJob) (hl : 0 < j.live) : jobVerdict j ≠ .second := by
+  intro h
+  have := (jobVerdict_second_iff j).1 h
+  omega
+
+private theorem count_second_map (js : List RestJob) :
+    (js.map jobVerdict).count Verdict.second = (js.filter fun j => decide (j.live = 0 ∧ j.cmp = .pinBetter)).length := by
+  induction js with
+  | nil => simp
+  | cons j js ih =>
+    have := jobVerdict_second_iff j
+    by_cases h : jobVerdict j = .second
+    · have h2 := this.1 h
+      simp [List.count_cons, ih, h, h2] <;> decide
+    · have h2 : ¬ (j.live = 0 ∧ j.cmp = .pinBetter) := fun x => h (this.2 x)
+      have h3 : (jobVerdict j == Verdict.second) = false := by
+        cases hv : jobVerdict j <;> simp_all <;> decide
+      simp only [List.map_cons, List.count_cons, List.filter_cons, ih, h3, h2, decide_false]
+      simp
+
+theorem acrossRest_second_unguarded (js : List RestJob) (h : acrossRest js = .second) :
+    ∃ j ∈ js, j.live = 0 ∧ j.cmp = .pinBetter := by
+  obtain ⟨hn, h3, -⟩ := Fw.Gate.Smooth.acrossDecisive_second_two_thirds _ h
+  have hpos : 0 < (js.map jobVerdict).count Verdict.second := by
+    unfold Fw.Gate.Smooth.minSamples at hn
+    omega
+  rw [count_second_map] at hpos
+  obtain ⟨j, hj⟩ := List.exists_mem_of_length_pos hpos
+  exact ⟨j, (List.mem_filter.mp hj).1, by simpa using (List.mem_filter.mp hj).2⟩
+
+theorem acrossRest_all_live (js : List RestJob) (h : ∀ j ∈ js, 0 < j.live) : acrossRest js ≠ .second := by
+  intro hs
+  obtain ⟨j, hj, hl, -⟩ := acrossRest_second_unguarded js hs
+  have := h j hj
+  omega
+
+theorem acrossRest_insufficient (js : List RestJob) (h : restDecisive js < minSamples) : acrossRest js = .insufficient :=
+  Fw.Gate.Smooth.acrossDecisive_insufficient _ h
+
+theorem acrossRest_undecided (js : List RestJob) (h : ∀ j ∈ js, j.cmp = .undecided) : acrossRest js = .insufficient := by
+  apply acrossRest_insufficient
+  have hd : ∀ vs : List Verdict, (∀ v ∈ vs, v = .insufficient) → Fw.Gate.Smooth.decisive vs = 0 := by
+    intro vs
+    induction vs with
+    | nil => intro _; rfl
+    | cons x xs ih =>
+      intro hx
+      have h1 : x = .insufficient := hx x (by simp)
+      have h2 := ih (fun v hv => hx v (by simp [hv]))
+      subst h1
+      simp only [Fw.Gate.Smooth.decisive, List.count_cons] at h2 ⊢
+      simp_all <;> decide
+  have : restDecisive js = 0 := by
+    apply hd
+    intro v hv
+    obtain ⟨j, hj, rfl⟩ := List.mem_map.mp hv
+    simp [jobVerdict, h j hj, RestCmp.verdict]
+  rw [this]
+  simp [minSamples]
+
+def rJobs41369102226 : List (RestTally × RestTally) :=
+  [(⟨2, 5⟩, ⟨5, 6⟩), (⟨3, 6⟩, ⟨3, 5⟩), (⟨2, 3⟩, ⟨0, 0⟩), (⟨3, 5⟩, ⟨6, 6⟩), (⟨3, 6⟩, ⟨6, 6⟩), (⟨3, 5⟩, ⟨5, 5⟩), (⟨3, 6⟩, ⟨5, 5⟩)]
+
+def restJobs (ps : List (RestTally × RestTally)) (live : List Nat) : List RestJob :=
+  (ps.zip live).map fun ((b, p), l) => ⟨restCmp b p, l⟩
+
+theorem rank_41369102226_clear : acrossRest (restJobs rJobs41369102226 (List.replicate 7 0)) = .second := by decide
+
+theorem rank_41369102226_decisive : restDecisive (restJobs rJobs41369102226 (List.replicate 7 0)) = 6 := by decide
+
+theorem rank_41369102226_all_live : acrossRest (restJobs rJobs41369102226 (List.replicate 7 1)) = .insufficient := by decide
+
+theorem rank_41369102226_two_live : acrossRest (restJobs rJobs41369102226 [1, 0, 0, 1, 0, 0, 0]) = .second := by decide
+
+theorem rank_41369102226_four_live : acrossRest (restJobs rJobs41369102226 [1, 0, 0, 1, 1, 1, 0]) = .insufficient := by decide
+
+theorem rest_on_end : restOf ⟨52270, 52270, 52270, none⟩ = .atEnd := by decide
+
+theorem rest_past_end : restOf ⟨52270, 52910, 52910, none⟩ = .over := by decide
+
+theorem rest_left_end : restOf ⟨52670, 45910, 52670, none⟩ = .short := by decide
+
+theorem rest_never_reached : restOf ⟨52670, 45910, 51300, none⟩ = .notReached := by decide
+
+theorem rest_target_below_end : restOf ⟨51910, 51850, 51910, some 51850⟩ = .atEnd := by decide
+
+theorem rest_target_beyond_end : restOf ⟨52270, 52270, 52270, some 52460⟩ = .atEnd := by decide
+
+theorem rest_target_above_rest : restOf ⟨52270, 52270, 52270, some 52000⟩ = .over := by decide
+
+theorem rest_tolerance_edge : restOf ⟨52270, 52170, 52270, none⟩ = .atEnd ∧ restOf ⟨52270, 52160, 52270, none⟩ = .short := by decide
+
+theorem touchEnd_job1_pin0 : touchEnd10 95990 133 4309 = 137750 := by decide
+
+theorem settle_before_lift_case : settle10 (some 137750) 52270 [(50000, 100000), (52270, 120000), (52270, 160000)] = some 0 := by decide
+
+theorem settle_after_lift_case : settle10 (some 100000) 52270 [(50000, 100000), (51000, 150000), (52270, 300000), (52270, 400000)] = some 200000 := by decide
+
+theorem restCmp_margin_edge : restCmp ⟨1, 3⟩ ⟨2, 3⟩ = .pinBetter ∧ restCmp ⟨3, 6⟩ ⟨4, 6⟩ = .same := by decide
+
+theorem restCmp_run_41369102226 : rJobs41369102226.map (fun (b, p) => restCmp b p) =
+    [.pinBetter, .same, .undecided, .pinBetter, .pinBetter, .pinBetter, .pinBetter] := by decide
+
 inductive Arm where
   | orig | base | lock | pin
 deriving Repr, BEq, DecidableEq
@@ -788,6 +1113,57 @@ def liveCases : List (String × List Entry) := [
   ("a write right after the finger lifted", [⟨"touch", 1000, 1⟩, ⟨"touch", 2000, 0⟩, ⟨"write", 2500, 0⟩]),
   ("declines and due entries only", [⟨"inactive", 100, 0⟩, ⟨"due", 200, 80⟩, ⟨"reversal", 300, 0⟩, ⟨"live", 400, 0⟩, ⟨"onTarget", 500, 0⟩, ⟨"touching", 600, 0⟩])]
 
+def restCases : List (String × Win) := [
+  ("rests on the page end", ⟨52270, 52270, 52270, none⟩),
+  ("rests 9 px below the end, inside the tolerance", ⟨52270, 52180, 52270, none⟩),
+  ("rests 11 px below the end", ⟨52270, 52160, 52270, none⟩),
+  ("rests 64 px past the end", ⟨52270, 52910, 52910, none⟩),
+  ("the pan never reached the end", ⟨52670, 45910, 51300, none⟩),
+  ("the page left the end it had reached", ⟨52670, 45910, 52670, none⟩),
+  ("the peak is exactly the tolerance short", ⟨52270, 52270, 52170, none⟩),
+  ("pin target below the page end, rests on it", ⟨51910, 51850, 51910, some 51850⟩),
+  ("pin target beyond the page end, rests at the end", ⟨52270, 52270, 52270, some 52460⟩),
+  ("pin target above the rest", ⟨52270, 52270, 52270, some 52000⟩)]
+
+def settleCases : List (String × Option Nat × Int × List (Int × Nat)) := [
+  ("arrived before the finger lifted", (some 137750, 52270, [(50000, 100000), (52270, 120000), (52270, 160000)])),
+  ("arrives 2 s after the lift", (some 100000, 52270, [(50000, 100000), (51000, 150000), (52270, 300000), (52270, 400000)])),
+  ("still moving at the last frame", (some 100000, 52270, [(52270, 100000), (52000, 200000)])),
+  ("no touch end known", (none, 52270, [(52270, 100000)])),
+  ("no frames", (some 100000, 52270, [])),
+  ("bounces out and back inside", (some 100000, 52270, [(52270, 100000), (52900, 150000), (52270, 200000), (52280, 250000)]))]
+
+def touchEndCases : List (String × Nat × Nat × Nat) := [
+  ("run 41369102226 job 1 pin window 0", (95990, 133, 4309)),
+  ("first scroll later than the swipe", (1000, 500, 30)),
+  ("no swipe", (50000, 0, 0))]
+
+def targetCases : List (String × List (Option Int)) := [
+  ("no reading", []),
+  ("only declines", [none, none]),
+  ("one target", [none, some 52460, none]),
+  ("the last target wins", [some 52460, some 52250, none])]
+
+def restCmpCases : List (String × RestTally × RestTally) := [
+  ("pin rests more often", (⟨2, 5⟩, ⟨5, 6⟩)),
+  ("same rate", (⟨3, 6⟩, ⟨3, 6⟩)),
+  ("pin rests less often", (⟨5, 6⟩, ⟨2, 6⟩)),
+  ("two reached windows in the base", (⟨2, 2⟩, ⟨0, 6⟩)),
+  ("no reached window in the pin", (⟨2, 3⟩, ⟨0, 0⟩)),
+  ("exactly at the margin", (⟨1, 3⟩, ⟨2, 3⟩)),
+  ("one window short of the margin", (⟨3, 6⟩, ⟨4, 6⟩)),
+  ("pin all, base none", (⟨0, 4⟩, ⟨4, 4⟩))]
+
+def restAcrossCases : List (String × List RestJob) := [
+  ("run 41369102226, no live write", restJobs rJobs41369102226 (List.replicate 7 0)),
+  ("run 41369102226, every pin live", restJobs rJobs41369102226 (List.replicate 7 1)),
+  ("run 41369102226, two jobs live", restJobs rJobs41369102226 [1, 0, 0, 1, 0, 0, 0]),
+  ("run 41369102226, four better jobs live", restJobs rJobs41369102226 [1, 0, 0, 1, 1, 1, 0]),
+  ("three worse jobs, live writes do not hide them", [⟨.pinWorse, 2⟩, ⟨.pinWorse, 0⟩, ⟨.pinWorse, 1⟩]),
+  ("a split", [⟨.pinBetter, 0⟩, ⟨.pinWorse, 0⟩, ⟨.pinBetter, 0⟩]),
+  ("all undecided", List.replicate 5 ⟨.undecided, 0⟩),
+  ("no jobs", [])]
+
 open Lean in
 def countedJson (k : Counted) : Json := Json.arr #[match k.lock with | some l => toJson l | none => Json.null, toJson k.n]
 
@@ -807,7 +1183,7 @@ def resultJson (r : Result) : Json :=
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
-  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts), ("minSamples", toJson minSamples), ("quiet10", toJson quiet10), ("slack10", toJson slack10)]).compress
+  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts), ("minSamples", toJson minSamples), ("quiet10", toJson quiet10), ("slack10", toJson slack10), ("restTol10", toJson restTol10), ("restMargin", toJson restMargin)]).compress
   let rs := runCases.map fun (name, r) =>
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("frames", samplesJson r.frames), ("events", samplesJson r.events), ("calls", samplesJson r.calls),
       ("refusal", match refusal r with | some f => Json.str f.name | none => Json.null),
@@ -847,7 +1223,31 @@ def goldenLines (_ : Unit := ()) : List String :=
     (Json.mkObj [("op", "liveWrites"), ("case", Json.str name),
       ("entries", Json.arr (es.map fun e => Json.arr #[Json.str e.op, toJson e.t, toJson e.x]).toArray),
       ("out", toJson (liveWrites es))]).compress
-  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg ++ cks ++ lks ++ lcs ++ pvs ++ acs ++ lws
+  let rcs := restCases.map fun (name, w) =>
+    (Json.mkObj [("op", "rest"), ("case", Json.str name), ("max", toJson w.max10), ("final", toJson w.final10), ("peak", toJson w.peak10),
+      ("target", match w.target10 with | some t => toJson t | none => Json.null),
+      ("goal", toJson (goal w)), ("gap", toJson (gap w)), ("out", Json.str (restOf w).name)]).compress
+  let sts := settleCases.map fun (name, e, final, fs) =>
+    (Json.mkObj [("op", "settle"), ("case", Json.str name), ("touchEnd", match e with | some v => toJson v | none => Json.null), ("final", toJson final),
+      ("frames", Json.arr (fs.map fun (y, t) => Json.arr #[toJson y, toJson t]).toArray),
+      ("arrival", match arrival final fs with | some v => toJson v | none => Json.null),
+      ("out", match settle10 e final fs with | some v => toJson v | none => Json.null)]).compress
+  let tes := touchEndCases.map fun (name, ev0, fsm, sw) =>
+    (Json.mkObj [("op", "touchEnd"), ("case", Json.str name), ("ev0", toJson ev0), ("firstScroll", toJson fsm), ("swipe", toJson sw),
+      ("out", toJson (touchEnd10 ev0 fsm sw))]).compress
+  let tgs := targetCases.map fun (name, ss) =>
+    (Json.mkObj [("op", "target"), ("case", Json.str name),
+      ("seen", Json.arr (ss.map fun o => match o with | some v => toJson v | none => Json.null).toArray),
+      ("out", match targetOf ss with | some v => toJson v | none => Json.null)]).compress
+  let rks := restCmpCases.map fun (name, b, p) =>
+    (Json.mkObj [("op", "restCmp"), ("case", Json.str name), ("base", toJson [b.rested, b.reached]), ("pin", toJson [p.rested, p.reached]),
+      ("out", Json.str (restCmp b p).name), ("verdict", Json.str (restCmp b p).verdict.name)]).compress
+  let ras := restAcrossCases.map fun (name, js) =>
+    (Json.mkObj [("op", "restAcross"), ("case", Json.str name),
+      ("jobs", Json.arr (js.map fun j => Json.arr #[Json.str j.cmp.name, toJson j.live]).toArray),
+      ("jobVerdicts", toJson (js.map fun j => (jobVerdict j).name)),
+      ("decisive", toJson (restDecisive js)), ("out", Json.str (acrossRest js).name)]).compress
+  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg ++ cks ++ lks ++ lcs ++ pvs ++ acs ++ lws ++ rcs ++ sts ++ tes ++ tgs ++ rks ++ ras
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
