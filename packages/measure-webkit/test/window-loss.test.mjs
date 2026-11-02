@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CLASSES, PLANNED, rowClass, endClass, slotArm, jobWindows, jobCounts, armCounts, runCounts, total, sideTotal, side, rank, sufficient, sufficientRate, jobsImplied, logFacts, restartTally, jobOf } from '../src/window-loss.mjs';
+import { CLASSES, PLANNED, rowClass, endClass, slotArm, jobWindows, jobCounts, armCounts, runCounts, total, sideTotal, side, rank, sufficient, sufficientRate, jobsImplied, logFacts, restartTally, firstStall, jobOf } from '../src/window-loss.mjs';
 import { MIN_KEPT, REPS_WANT, MIN_SAMPLES, JOBS_CAP, JOBS_NEEDED } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/window-loss.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -88,4 +88,18 @@ test('jobOf reads a missing artifact as noArtifact and a status ok row through t
   const j = jobOf({ reps: 6, incomplete: null, rows: [{ status: 'ok', frames: [], events: [], calls: [] }, { status: 'push:pageLost' }] }, '');
   assert.deepEqual(j.rows, [['ok', 'noOpen'], ['push:pageLost', null]]);
   assert.deepEqual(jobWindows(j).slice(0, 2).map((w) => w[1]), ['noOpen', 'pageLost']);
+});
+
+test('firstStall returns the index of the stalled window, whose push line precedes its stalled line', () => {
+  const log = [
+    'touch-lock base rep 0 push 1 (x)',
+    'touch-lock lock rep 0 push 2 (x)',
+    'touch-lock pin rep 0 push 3 (x)',
+    'touch-lock pin rep 0: stalled (pageLost); restarting the push server',
+    'push server ready after 118 s',
+    'touch-lock orig rep 0 push 4 (x)',
+  ].join('\n');
+  assert.deepEqual(firstStall(log), { kind: 'pageLost', after: 2, readyS: 118 });
+  assert.equal(firstStall('touch-lock base rep 0 push 1 (x)\ntouch-lock base rep 0: stalled (ok); restarting the push server').after, 0);
+  assert.equal(firstStall('touch-lock base rep 0 push 1 (x)'), null);
 });

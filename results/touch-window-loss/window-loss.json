@@ -10555,19 +10555,19 @@
    "sufficient": 15
   },
   "noStall": {
-   "ok": 1052,
-   "sufficient": 16
+   "ok": 1059,
+   "sufficient": 18
   },
   "both": {
-   "ok": 1370,
-   "sufficient": 48
+   "ok": 1377,
+   "sufficient": 44
   }
  },
  "chain": {
   "pageLost": {
    "jobs": 17,
-   "lostAfter": 240,
-   "okAfter": 0,
+   "lostAfter": 251,
+   "okAfter": 1,
    "readyS": [
     310,
     266,
@@ -10576,16 +10576,16 @@
   },
   "ok": {
    "jobs": 7,
-   "lostAfter": 72,
-   "okAfter": 2,
+   "lostAfter": 70,
+   "okAfter": 3,
    "readyS": [
     434
    ]
   },
   "swipeLate": {
    "jobs": 10,
-   "lostAfter": 145,
-   "okAfter": 7,
+   "lostAfter": 149,
+   "okAfter": 9,
    "readyS": [
     243,
     389
@@ -10593,7 +10593,7 @@
   },
   "beginLate": {
    "jobs": 2,
-   "lostAfter": 37,
+   "lostAfter": 31,
    "okAfter": 0,
    "readyS": []
   }

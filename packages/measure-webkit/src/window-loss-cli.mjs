@@ -33,7 +33,7 @@ for (const run of runs) {
     const counts = jobCounts(job);
     const ws = jobWindows(job);
     const st = log ? firstStall(log) : null;
-    const noStall = ws.map((w, i) => (st && i > st.after && w[1] !== 'ok' ? [w[0], 'ok'] : w));
+    const noStall = ws.map((w, i) => (st && i > st.after && w[1] !== 'ok' && w[1] !== 'planShort' ? [w[0], 'ok'] : w));
     const retried = (v) => v.map((w) => (REFUSED.includes(w[1]) ? [w[0], 'ok'] : w));
     for (const [key, v] of [['base', ws], ['retryRefused', retried(ws)], ['noStall', noStall], ['both', retried(noStall)]]) {
       levers[key].ok += v.filter((w) => w[1] === 'ok').length;
@@ -42,7 +42,7 @@ for (const run of runs) {
     if (st) {
       const c = (chain[st.kind] ??= { jobs: 0, lostAfter: 0, okAfter: 0, readyS: [] });
       const after = ws.slice(st.after + 1);
-      c.jobs++; c.lostAfter += after.filter((w) => w[1] !== 'ok').length; c.okAfter += after.filter((w) => w[1] === 'ok').length;
+      c.jobs++; c.lostAfter += after.filter((w) => w[1] !== 'ok' && w[1] !== 'planShort').length; c.okAfter += after.filter((w) => w[1] === 'ok').length;
       if (st.readyS !== null) c.readyS.push(st.readyS);
     }
     if (job.fin.present) {

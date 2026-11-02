@@ -20,9 +20,10 @@ and `.json` (made by `packages/measure-webkit/src/window-loss-cli.mjs --root <do
   artifact's `incomplete`, because `touch-lock.json` is rewritten after each window with "walk not finished" even when the hard stop killed a job that logged the real reason).
   A job with no artifact is `noArtifact`. Lean proves the class counts of a job sum to 24 (`jobCounts_total`), of a run to `jobs * 24` (`runCounts_total`), of an arm to 6
   (`armCounts_total`), and harness + simulator + ok = the total (`side_partition`). TS replays 43 Lean golden lines (`window-loss.test.mjs`).
-- MEASURED: row arm equals the slot arm in all 78 artifacts (`armMismatch` 0). A `-retry` artifact replaces its slot (6 slots). 6 slots have no artifact: 41391781282 job 10 (upload failed),
+- MEASURED: row arm equals the slot arm in all 78 artifacts (`armMismatch` 0). A `-retry` artifact replaces its slot (9 slots: 41391781282 job 5, 41402584809 job 12, 41422536168 job 9, 41436626306 job 3, 41460411752 jobs 2 and 5, 41475879793 jobs 5 and 6, 41503168296 job 3). 6 slots have no artifact: 41391781282 job 10 (upload failed),
   41402584809 jobs 7 (cancelled) and 9 (failed), 41436626306 jobs 1, 2 (cancelled), 41460411752 job 3 (cancelled).
-- `ok` is a window the verdict keeps (status ok and `refusal` none); `noOpen`, `tooShort`, `lockMoved` are status-ok windows `touchlock.refusal` rejects.
+- Here ok is a status-ok window with refusal none (Lean rowClass). The lane verdict (touchlock.mjs:177-183) also keeps a swipeLate or beginLate row that has frames and no refusal: 5 of the 9 such rows, so the artifacts' summary.arms.*.accepted sum to 563; this note counts those 5 as lost (swipeLate/beginLate). Sufficient jobs are the same either way (2 and 16 of 84).
+- `noOpen`, `tooShort`, `lockMoved` are status-ok windows `touchlock.refusal` rejects.
 
 ## Result (MEASURED, all 7 runs)
 
@@ -53,14 +54,14 @@ Job-end causes behind the no-row classes (`touch-lock.json` `incomplete`, `sim.l
 ## The restart chain (MEASURED, TS glue from sim.log)
 
 36 of the 78 artifact jobs stalled and restarted the push server at least once (38 restarts). Stall kinds: pageLost 18, swipeLate 10, "ok" (done file late, `doneInTime` false) 8, beginLate 2.
-After the first stall, 494 windows were lost and 9 ran ok. The push server became ready after 7 of the 38 restarts (118 to 434 s, median 310 s); the rest ran into the 470 s launch cut or the deadline.
+After the stalled window itself, 501 windows were lost and 13 ran ok (24 `planShort` windows after a stall are not counted: the rep plan never scheduled them). The push server became ready after 7 of the 38 restarts (118 to 434 s, median 310 s); the rest ran into the 470 s launch cut or the deadline.
 
 | first stall | jobs | lost after | ok after | ready after (s) |
 |---|---|---|---|---|
-| pageLost | 17 | 240 | 0 | 310, 266, 118 |
-| ok | 7 | 72 | 2 | 434 |
-| swipeLate | 10 | 145 | 7 | 243, 389 |
-| beginLate | 2 | 37 | 0 | never |
+| pageLost | 17 | 251 | 1 | 310, 266, 118 |
+| ok | 7 | 70 | 3 | 434 |
+| swipeLate | 10 | 149 | 9 | 243, 389 |
+| beginLate | 2 | 31 | 0 | never |
 
 So a stall ends the job in practice: restart readiness is the Simulator limit the previous task closed (`11-03-touch-restart-device.md`). The windows after it are `restartFailed`,
 `inspectorDead`, `evaluateTimeout`, `walkDeadline` and `jobCut` (a successful restart still costs up to 434 s of the 2400 s `deadlineAt`).
@@ -92,10 +93,10 @@ Counterfactual upper bounds (INFERRED; each assumes the lost windows would have 
 |---|---|---|
 | today | 558 | 2 |
 | every refused window rerun ok (retry in place) | 881 | 15 |
-| every window after the first stall ran ok | 1052 | 16 |
-| both | 1370 | 48 |
+| every window after the stalled one ran ok (planShort excluded) | 1059 | 18 |
+| both | 1377 | 44 |
 
-By windows the stall chain (494) is larger than refusals (323), but its cause is the Simulator limit (restart readiness) and no harness change has evidence yet. The largest loss a harness
+By windows the stall chain (501) is larger than refusals (323), but its cause is the Simulator limit (restart readiness) and no harness change has evidence yet. The largest loss a harness
 change can reach is the refused windows. Recommended change (follow-up, not made here): a window whose row is status `ok` but `refusal` is `noOpen` or `tooShort` is rerun from a fresh load at the
 same slot, up to 2 more times while the deadline allows, and the rerun replaces the refused row. Code path: `packages/measure-webkit/src/touchlock-run.mjs:139-148` (the attempt loop that calls `oneWindow`; add the
 refusal test before `rows.push(got)` at line 148) with `refusal` from `touchlock.mjs:44`. The `walk-budget` plan must price it: each rerun is a window (about 40 to 60 s). At the measured 63% keep rate
@@ -107,3 +108,9 @@ that stalls still ends, so the jobs needed stay at 23 unless the chain is also r
 - The cause of noOpen (cold start vs touch timing) was not isolated; no CI was run.
 - `noArtifact` is CI infrastructure (cancelled, upload failed), classed harness for the split only because it is not a Simulator fault.
 - TS stand-ins (not golden-checked): `logFacts`, `restartTally`, `firstStall`, `jobOf` and the CLI (reading `sim.log` and the artifact), and the lever and first-stall tables.
+
+## Follow-ups (outside the pinned unit)
+
+- `WindowLoss.rowClass` applies the refusal only when status is `ok`; the lane verdict applies it to every row with frames. If the across-job verdict should match the lane, test for frames instead of status in the refusal branch and update the golden, TS and tables.
+- The harness vs Simulator split (726 vs 732) puts noOpen and tooShort (323 windows) on the harness side (`Class.side`); their cause (cold page or driver vs touch timing) is not isolated, so the side is INFERRED. A follow-up that isolates the noOpen cause should revisit it.
+- The retry-in-place bound (323 windows, 15 jobs) ignores that each rerun spends deadline time and pushes later windows into walkDeadline or planShort; walk-budget must price this before retry is chosen over a stall-chain change.

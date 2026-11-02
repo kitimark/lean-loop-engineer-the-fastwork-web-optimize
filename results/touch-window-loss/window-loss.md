@@ -182,17 +182,17 @@ Windows ok and jobs with every arm at minKept if (retryRefused) every refused wi
 |---|---|---|
 | base | 558 | 2 |
 | retryRefused | 881 | 15 |
-| noStall | 1052 | 16 |
-| both | 1370 | 48 |
+| noStall | 1059 | 18 |
+| both | 1377 | 44 |
 
 ## First stall of a job and what followed
 
 | first stall | jobs | lost windows after | ok windows after | push server ready after (s) |
 |---|---|---|---|---|
-| pageLost | 17 | 240 | 0 | 310, 266, 118 |
-| ok | 7 | 72 | 2 | 434 |
-| swipeLate | 10 | 145 | 7 | 243, 389 |
-| beginLate | 2 | 37 | 0 | never |
+| pageLost | 17 | 251 | 1 | 310, 266, 118 |
+| ok | 7 | 70 | 3 | 434 |
+| swipeLate | 10 | 149 | 9 | 243, 389 |
+| beginLate | 2 | 31 | 0 | never |
 
 ## noOpen share of the windows that ran (status ok), by rep and by job
 

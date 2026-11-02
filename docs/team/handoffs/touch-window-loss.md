@@ -6,6 +6,8 @@ verified: Lean WindowLoss builds (sum, side, rank theorems), 43 golden lines, ch
 open: recommended follow-up change (retry a refused noOpen/tooShort window in place) not made; noOpen cause not isolated; tests, check.sh, dry land, review ready results are in the final report
 
 Result: of 2016 planned windows 558 are kept; restartFailed 408, noOpen 248, noArtifact 144, inspectorDead 133, walkDeadline 121, planShort 100, driverNotReady 96, tooShort 75, evaluateTimeout 73, jobCut 38. Sides: ok 558, harness 726, simulator 732.
+Here ok is a status-ok window with refusal none (Lean rowClass). The lane verdict (touchlock.mjs:177-183) also keeps a swipeLate or beginLate row that has frames and no refusal: 5 of the 9 such rows, so the artifacts' summary.arms.*.accepted sum to 563; this note counts those 5 as lost (swipeLate/beginLate). Sufficient jobs are the same either way (2 and 16 of 84).
+After the stalled window itself 501 windows were lost, 13 ran ok (planShort excluded); stall chain 501 > refusals 323.
 Sufficient jobs (every arm at minKept kept): 2 of 84; status-ok: 15 of 84 -> jobsFor 23; WalkBudget jobsNeeded 10 is far short.
 Read first: research/notes/2026/11-03-touch-window-loss.md, then results/touch-window-loss/window-loss.md.
 Lean: lean/Fw/Measure/WindowLoss.lean (Class, rowClass, endClass, jobWindows, tally, jobCounts_total, runCounts_total, side_partition, rank_sorted, jobsImplied). Golden packages/contracts/golden/measure/window-loss.jsonl, generator lean/scripts/WindowLossGolden.lean.
