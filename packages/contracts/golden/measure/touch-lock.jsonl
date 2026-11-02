@@ -1,4 +1,4 @@
-{"maxRestarts":2,"minOpenFrames":10,"minSamples":3,"op":"constants"}
+{"maxRestarts":2,"minOpenFrames":10,"minSamples":3,"op":"constants","quiet10":1200,"slack10":10}
 {"calls":[],"case":"steady open phase","events":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":0,"eventReversals":0,"frameFights":0,"frameReversals":0,"jitter":false,"lock":null,"openCalls":0,"openFrames":12,"restores":0}}
 {"calls":[[5000,1],[5000,1]],"case":"restore after a displaced frame","events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":2,"eventFights":2,"eventReversals":3,"frameFights":2,"frameReversals":3,"jitter":true,"lock":5000,"openCalls":2,"openFrames":12,"restores":2}}
 {"calls":[[5000,1]],"case":"frames steady, events fight","events":[[4990,0],[4990,0],[4990,0],[5000,1],[5000,1],[5080,1],[5000,1],[5060,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"frames":[[0,0],[0,0],[0,0],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1],[5000,1]],"op":"run","refusal":null,"result":{"displacedFrames":0,"eventFights":2,"eventReversals":3,"frameFights":0,"frameReversals":0,"jitter":false,"lock":5000,"openCalls":1,"openFrames":12,"restores":2}}
@@ -70,6 +70,31 @@
 {"cand":[[5,0],[null,9],[5,1],[5,0]],"case":"mixed candidate, locked runs only","faith":[[5,4],[5,5],[5,6]],"op":"lockedCmp","out":"lower"}
 {"cand":[[5,0]],"case":"one locked run each","faith":[[5,4]],"op":"lockedCmp","out":"undecided"}
 {"cand":[[5,3],[5,4],[5,4]],"case":"candidate above","faith":[[5,0],[5,1],[5,1]],"op":"lockedCmp","out":"higher"}
+{"cmp":"undecided","op":"pinVerdict","out":"insufficient"}
+{"cmp":"n/a","op":"pinVerdict","out":"insufficient"}
+{"cmp":"lower","op":"pinVerdict","out":"second"}
+{"cmp":"higher","op":"pinVerdict","out":"first"}
+{"cmp":"overlap","op":"pinVerdict","out":"same"}
+{"case":"5 jobs, the pin lower in all","decisive":5,"jobs":["lower","lower","lower","lower","lower"],"op":"across","out":"second"}
+{"case":"12 jobs, the pin wrote nowhere","decisive":0,"jobs":["n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a"],"op":"across","out":"insufficient"}
+{"case":"12 jobs, 3 overlap and 9 without a pin write","decisive":3,"jobs":["overlap","overlap","overlap","n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a","n/a"],"op":"across","out":"same"}
+{"case":"2 lower, the rest undecided","decisive":2,"jobs":["lower","lower","undecided","undecided","undecided","undecided","undecided","undecided","undecided","undecided","undecided","undecided"],"op":"across","out":"insufficient"}
+{"case":"4 lower and 1 overlap","decisive":5,"jobs":["lower","lower","lower","lower","overlap"],"op":"across","out":"second"}
+{"case":"3 lower, 1 overlap and 1 higher","decisive":5,"jobs":["lower","lower","lower","overlap","higher"],"op":"across","out":"same"}
+{"case":"4 higher and 1 overlap","decisive":5,"jobs":["higher","higher","higher","higher","overlap"],"op":"across","out":"first"}
+{"case":"3 overlap","decisive":3,"jobs":["overlap","overlap","overlap"],"op":"across","out":"same"}
+{"case":"no jobs","decisive":0,"jobs":[],"op":"across","out":"insufficient"}
+{"case":"3 lower among 9 without a pin write","decisive":3,"jobs":["lower","lower","lower","n/a","n/a","n/a","n/a","n/a","n/a","undecided","undecided","undecided"],"op":"across","out":"second"}
+{"case":"no write","entries":[["touch",1000,1],["moved",2000,0],["touch",3000,0]],"op":"liveWrites","out":0}
+{"case":"the write of run 41289882234 job 1, 121 ms after the last move","entries":[["touch",1000,1],["touch",100000,0],["moved",111240,0],["write",112450,51890]],"op":"liveWrites","out":0}
+{"case":"a write with the finger down","entries":[["touch",1000,1],["write",5000,0]],"op":"liveWrites","out":1}
+{"case":"a write 50 ms after a move","entries":[["moved",1000,0],["write",1500,0]],"op":"liveWrites","out":1}
+{"case":"a write 119.5 ms after a move, inside the stamp slack","entries":[["moved",10000,0],["write",11195,0]],"op":"liveWrites","out":0}
+{"case":"a write 118 ms after a move","entries":[["moved",10000,0],["write",11180,0]],"op":"liveWrites","out":1}
+{"case":"a second write soon after the first","entries":[["moved",1000,0],["write",2300,0],["write",2500,0]],"op":"liveWrites","out":1}
+{"case":"a write before any event","entries":[["write",5000,0]],"op":"liveWrites","out":0}
+{"case":"a write right after the finger lifted","entries":[["touch",1000,1],["touch",2000,0],["write",2500,0]],"op":"liveWrites","out":1}
+{"case":"declines and due entries only","entries":[["inactive",100,0],["due",200,80],["reversal",300,0],["live",400,0],["onTarget",500,0],["touching",600,0]],"op":"liveWrites","out":0}
 {"op":"pinConstants","quietMs":120}
 {"case":"at rest off the target, moving on","op":"pinMay","out":true,"pin":{"a":80,"b":60,"since":200,"touching":false},"s":0,"why":null}
 {"case":"no history","op":"pinMay","out":true,"pin":{"a":null,"b":60,"since":200,"touching":false},"s":0,"why":null}

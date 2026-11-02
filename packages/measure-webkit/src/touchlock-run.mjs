@@ -5,7 +5,7 @@ import { reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
 import { openDriver, startServer, stopServer, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverFault, DRIVER_FAULT } from './walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverEnd } from './walk-budget.mjs';
 import { ARMS, PAN, START_GAP_PX, TAIL_MS, MAX_RESTARTS, afterWindow, repOrder, serveTag, summarize } from './touchlock.mjs';
 import { installJs, nearEndJs, windowJs } from './touchlock-page.mjs';
 
@@ -93,15 +93,15 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
   let cut = null;
   try {
     const walk = withSession(async (ctx) => {
-      if (driverFault(true, touch.on)) { fault = DRIVER_FAULT; cut = `fault ${DRIVER_FAULT}: ${touch.why}`; return; }
+      { const e = driverEnd(true, touch.on, touch.why, 'start'); if (e) { ({ fault, cut } = e); return; } }
       try { touch.server = await startServer(touch.driver, { udid: device.udid, log, push, tag: serveTag(0) }); } catch (e) { touch.on = false; touch.why = e.message; }
-      if (driverFault(true, touch.on)) { fault = DRIVER_FAULT; cut = `fault ${DRIVER_FAULT}: ${touch.why}`; return; }
+      { const e = driverEnd(true, touch.on, touch.why, 'start'); if (e) { ({ fault, cut } = e); return; } }
       await reconnect(ctx, { log });
       ({ reps, repPlan } = planLock({ deadlineMs, nowMs: now(), repsArg }));
       log(`touch-lock: ${reps} reps of ${ARMS.length} arms (${repsArg === 'auto' ? `rep plan ${repPlan ? repPlan.outcome : 'without a deadline'}` : 'set by hand'})`);
       walk: for (let rep = 0; rep < reps; rep++) {
         for (const id of repOrder(rep)) {
-          if (driverFault(true, touch.on)) { fault = DRIVER_FAULT; cut = `fault ${DRIVER_FAULT}: ${touch.why}`; break walk; }
+          { const e = driverEnd(true, touch.on, touch.why, 'walk'); if (e) { ({ fault, cut } = e); break walk; } }
           let got = null;
           for (let attempt = 1; !got; attempt++) {
             if (deadlineMs != null && !startsWindow(deadlineMs, now(), WINDOW_RESERVE_MS)) { cut = `walk deadline: no time left to start ${id} rep ${rep}`; break walk; }

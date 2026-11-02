@@ -36,6 +36,8 @@ export const JOBS_CAP = 30;
 
 export const DRIVER_FAULT = 'touch-driver-not-ready';
 
+export const LOST_FAULT = 'lost-mid-walk';
+
 const pascal = (n) => { let r = [1n]; for (let i = 0; i < n; i++) r = [...r, 0n].map((x, j) => x + (j > 0 ? r[j - 1] : 0n)); return r; };
 
 export const tailNum = (n, k, a, b) => {
@@ -60,9 +62,13 @@ export const MARGIN = JOBS_NEEDED - MIN_SAMPLES;
 
 export const waves = (jobs, slots) => Math.floor((jobs + slots - 1) / slots);
 
-export const legs = (simOnly, control) => [
+export const LATE_RATE = Object.freeze({ decisive: 5, jobs: 15 });
+
+export const LATE_JOBS = jobsFor(MIN_SAMPLES, 1, 3, TARGET.num, TARGET.den, JOBS_CAP) ?? JOBS_CAP;
+
+export const legs = (simOnly, control, simJobs = JOBS_NEEDED) => [
   ...(simOnly ? [] : [{ name: 'webkit-mac', jobs: MAC_JOBS, parallel: 1 }]),
-  { name: 'webkit-sim', jobs: JOBS_NEEDED + (control ? 1 : 0), parallel: MAC_SLOTS },
+  { name: 'webkit-sim', jobs: simJobs + (control ? 1 : 0), parallel: MAC_SLOTS },
 ];
 
 export const totalJobs = (ls) => ls.reduce((s, l) => s + l.jobs, 0);
@@ -74,6 +80,8 @@ export const runWaves = (ls) => waves(totalJobs(ls), MAC_SLOTS);
 export const startAtOnce = (ls) => totalJobs(ls) <= MAC_SLOTS;
 
 export const driverFault = (requested, on) => requested && !on;
+
+export const driverEnd = (requested, on, why, phase) => (driverFault(requested, on) ? { fault: phase === 'walk' ? LOST_FAULT : DRIVER_FAULT, cut: `fault ${phase === 'walk' ? LOST_FAULT : DRIVER_FAULT}: ${why}` } : null);
 
 export const SHAPES = Object.freeze({ full: 2, endOnly: 1 });
 

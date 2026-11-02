@@ -1,4 +1,5 @@
 import Lean.Data.Json
+import Fw.Gate.Smooth
 /-!
 # Fw.Measure.TouchLock: does the end-of-page scroll lock fight a touch pan in the Simulator?
 -/
@@ -371,7 +372,7 @@ def lockedOf (ks : List Counted) : List Nat := (ks.filter (·.lock.isSome)).map 
 
 inductive LockedCmp where
   | undecided | na | out (c : Cmp)
-deriving Repr, BEq, DecidableEq
+deriving Repr, DecidableEq
 
 def LockedCmp.name : LockedCmp → String
   | .undecided => "undecided"
@@ -438,6 +439,169 @@ theorem lockedCmp_all_locked (faith cand : List Counted) (hf : ∀ k ∈ faith, 
 theorem tally_le (rs : List Run) : (tally rs).2 ≤ (tally rs).1 := by
   simp only [tally]
   exact List.length_filter_le _ _
+
+open Fw.Gate.Smooth (Verdict)
+
+def pinVerdict : LockedCmp → Verdict
+  | .out .lower => .second
+  | .out .higher => .first
+  | .out .overlap => .same
+  | .na => .insufficient
+  | .undecided => .insufficient
+
+def pinDecisive (vs : List LockedCmp) : Nat := Fw.Gate.Smooth.decisive (vs.map pinVerdict)
+
+def acrossPin (vs : List LockedCmp) : Verdict := Fw.Gate.Smooth.acrossDecisive (vs.map pinVerdict)
+
+theorem minSamples_eq : minSamples = Fw.Gate.Smooth.minSamples := rfl
+
+theorem pinVerdict_lower : pinVerdict (.out .lower) = .second := rfl
+
+theorem pinVerdict_higher : pinVerdict (.out .higher) = .first := rfl
+
+theorem pinVerdict_overlap : pinVerdict (.out .overlap) = .same := rfl
+
+theorem pinVerdict_na : pinVerdict .na = .insufficient := rfl
+
+theorem pinVerdict_undecided : pinVerdict .undecided = .insufficient := rfl
+
+theorem count_second (vs : List LockedCmp) : (vs.map pinVerdict).count Verdict.second = vs.count (.out .lower) := by
+  induction vs with
+  | nil => rfl
+  | cons c cs ih =>
+    simp only [List.map_cons, List.count_cons, ih]
+    cases c with
+    | undecided => simp [pinVerdict] <;> decide
+    | na => simp [pinVerdict] <;> decide
+    | out c => cases c <;> simp [pinVerdict] <;> decide
+
+theorem count_first (vs : List LockedCmp) : (vs.map pinVerdict).count Verdict.first = vs.count (.out .higher) := by
+  induction vs with
+  | nil => rfl
+  | cons c cs ih =>
+    simp only [List.map_cons, List.count_cons, ih]
+    cases c with
+    | undecided => simp [pinVerdict] <;> decide
+    | na => simp [pinVerdict] <;> decide
+    | out c => cases c <;> simp [pinVerdict] <;> decide
+
+theorem count_same (vs : List LockedCmp) : (vs.map pinVerdict).count Verdict.same = vs.count (.out .overlap) := by
+  induction vs with
+  | nil => rfl
+  | cons c cs ih =>
+    simp only [List.map_cons, List.count_cons, ih]
+    cases c with
+    | undecided => simp [pinVerdict] <;> decide
+    | na => simp [pinVerdict] <;> decide
+    | out c => cases c <;> simp [pinVerdict] <;> decide
+
+theorem pinDecisive_eq (vs : List LockedCmp) :
+    pinDecisive vs = vs.count (.out .higher) + vs.count (.out .lower) + vs.count (.out .overlap) := by
+  simp only [pinDecisive, Fw.Gate.Smooth.decisive, count_first, count_second, count_same]
+
+theorem acrossPin_insufficient (vs : List LockedCmp) (h : pinDecisive vs < minSamples) : acrossPin vs = .insufficient :=
+  Fw.Gate.Smooth.acrossDecisive_insufficient _ h
+
+theorem acrossPin_none_decisive (vs : List LockedCmp) (h : ∀ c ∈ vs, c = .na ∨ c = .undecided) : acrossPin vs = .insufficient := by
+  apply acrossPin_insufficient
+  rw [pinDecisive_eq]
+  have h1 : vs.count (.out .higher) = 0 := List.count_eq_zero.mpr (fun hm => by rcases h _ hm with e | e <;> cases e)
+  have h2 : vs.count (.out .lower) = 0 := List.count_eq_zero.mpr (fun hm => by rcases h _ hm with e | e <;> cases e)
+  have h3 : vs.count (.out .overlap) = 0 := List.count_eq_zero.mpr (fun hm => by rcases h _ hm with e | e <;> cases e)
+  simp [h1, h2, h3, minSamples]
+
+theorem acrossPin_second (vs : List LockedCmp) (hn : minSamples ≤ pinDecisive vs)
+    (hl : Fw.Gate.Smooth.agreeNeeded (pinDecisive vs) ≤ vs.count (.out .lower)) (hh : vs.count (.out .higher) = 0) :
+    acrossPin vs = .second := by
+  apply Fw.Gate.Smooth.acrossDecisive_second _ hn
+  · simpa [pinDecisive, count_second] using hl
+  · simpa [count_first] using hh
+
+theorem acrossPin_first (vs : List LockedCmp) (hn : minSamples ≤ pinDecisive vs)
+    (hh : Fw.Gate.Smooth.agreeNeeded (pinDecisive vs) ≤ vs.count (.out .higher)) (hl : vs.count (.out .lower) = 0) :
+    acrossPin vs = .first := by
+  apply Fw.Gate.Smooth.acrossDecisive_first _ hn
+  · simpa [pinDecisive, count_first] using hh
+  · simpa [count_second] using hl
+
+theorem acrossPin_split (vs : List LockedCmp) (hn : minSamples ≤ pinDecisive vs)
+    (hh : 0 < vs.count (.out .higher)) (hl : 0 < vs.count (.out .lower)) : acrossPin vs = .same := by
+  apply Fw.Gate.Smooth.acrossDecisive_split _ hn
+  · simpa [count_first] using hh
+  · simpa [count_second] using hl
+
+theorem acrossPin_same (vs : List LockedCmp) (hn : minSamples ≤ pinDecisive vs)
+    (hh : vs.count (.out .higher) < Fw.Gate.Smooth.agreeNeeded (pinDecisive vs))
+    (hl : vs.count (.out .lower) < Fw.Gate.Smooth.agreeNeeded (pinDecisive vs)) : acrossPin vs = .same := by
+  apply Fw.Gate.Smooth.acrossDecisive_same _ hn
+  · simpa [pinDecisive, count_first] using hh
+  · simpa [pinDecisive, count_second] using hl
+
+structure Entry where
+  op : String
+  t : Nat
+  x : Int
+deriving Repr, BEq
+
+structure Replay where
+  touching : Bool
+  last : Option Nat
+  n : Nat
+deriving Repr, BEq
+
+def quiet10 : Nat := 1200
+
+def slack10 : Nat := 10
+
+def liveAt (r : Replay) (t : Nat) : Bool := r.touching || r.last.elim false fun l => decide (t + slack10 < l + quiet10)
+
+def replayStep (r : Replay) (e : Entry) : Replay :=
+  if e.op = "touch" then { r with touching := decide (e.x = 1), last := some e.t }
+  else if e.op = "moved" then { r with last := some e.t }
+  else if e.op = "write" then { r with last := some e.t, n := r.n + (if liveAt r e.t then 1 else 0) }
+  else r
+
+def replayFrom (r : Replay) (es : List Entry) : Replay := es.foldl replayStep r
+
+def liveWrites (es : List Entry) : Nat := (replayFrom ⟨false, none, 0⟩ es).n
+
+theorem liveWrites_nil : liveWrites [] = 0 := rfl
+
+theorem replayStep_write_live (r : Replay) (e : Entry) (h : e.op = "write") (hl : liveAt r e.t = true) :
+    (replayStep r e).n = r.n + 1 := by
+  simp [replayStep, h, hl]
+
+theorem replayStep_write_quiet (r : Replay) (e : Entry) (h : e.op = "write") (hl : liveAt r e.t = false) :
+    (replayStep r e).n = r.n := by
+  simp [replayStep, h, hl]
+
+theorem replayStep_other (r : Replay) (e : Entry) (h1 : e.op ≠ "write") : (replayStep r e).n = r.n := by
+  by_cases a : e.op = "touch" <;> by_cases b : e.op = "moved" <;> simp [replayStep, a, b, h1]
+
+theorem liveAt_touching (r : Replay) (t : Nat) (h : r.touching = true) : liveAt r t = true := by simp [liveAt, h]
+
+theorem liveAt_quiet (r : Replay) (t l : Nat) (h0 : r.touching = false) (h1 : r.last = some l) (h : l + quiet10 ≤ t + slack10) :
+    liveAt r t = false := by
+  simp [liveAt, h0, h1]
+  omega
+
+theorem liveAt_recent (r : Replay) (t l : Nat) (h1 : r.last = some l) (h : t + slack10 < l + quiet10) : liveAt r t = true := by
+  simp [liveAt, h1, h]
+
+theorem liveAt_unknown (t : Nat) : liveAt ⟨false, none, 0⟩ t = false := rfl
+
+theorem liveWrites_single (e : Entry) (h : e.op = "write") : liveWrites [e] = 0 := by
+  simp [liveWrites, replayFrom, List.foldl, replayStep, h, liveAt]
+
+theorem replay_n_mono (es : List Entry) : ∀ r : Replay, r.n ≤ (replayFrom r es).n := by
+  induction es with
+  | nil => intro r; exact Nat.le_refl _
+  | cons e es ih =>
+    intro r
+    have h := ih (replayStep r e)
+    have : r.n ≤ (replayStep r e).n := by
+      by_cases a : e.op = "touch" <;> by_cases b : e.op = "moved" <;> by_cases c : e.op = "write" <;> simp [replayStep, a, b, c]
+    simpa [replayFrom, List.foldl] using Nat.le_trans this h
 
 inductive Arm where
   | orig | base | lock | pin
@@ -598,6 +762,32 @@ def lookKnownCases : List (String × List Nat × List Nat) := [
   ("two steady runs each", ([0, 0], [0, 0])),
   ("one candidate run, displaced", ([0, 0, 0], [1]))]
 
+def lockedNames : List LockedCmp := [.undecided, .na, .out .lower, .out .higher, .out .overlap]
+
+def acrossCases : List (String × List LockedCmp) := [
+  ("5 jobs, the pin lower in all", List.replicate 5 (.out .lower)),
+  ("12 jobs, the pin wrote nowhere", List.replicate 12 .na),
+  ("12 jobs, 3 overlap and 9 without a pin write", List.replicate 3 (.out .overlap) ++ List.replicate 9 .na),
+  ("2 lower, the rest undecided", List.replicate 2 (.out .lower) ++ List.replicate 10 .undecided),
+  ("4 lower and 1 overlap", List.replicate 4 (.out .lower) ++ [.out .overlap]),
+  ("3 lower, 1 overlap and 1 higher", List.replicate 3 (.out .lower) ++ [.out .overlap, .out .higher]),
+  ("4 higher and 1 overlap", List.replicate 4 (.out .higher) ++ [.out .overlap]),
+  ("3 overlap", List.replicate 3 (.out .overlap)),
+  ("no jobs", []),
+  ("3 lower among 9 without a pin write", List.replicate 3 (.out .lower) ++ List.replicate 6 .na ++ List.replicate 3 .undecided)]
+
+def liveCases : List (String × List Entry) := [
+  ("no write", [⟨"touch", 1000, 1⟩, ⟨"moved", 2000, 0⟩, ⟨"touch", 3000, 0⟩]),
+  ("the write of run 41289882234 job 1, 121 ms after the last move", [⟨"touch", 1000, 1⟩, ⟨"touch", 100000, 0⟩, ⟨"moved", 111240, 0⟩, ⟨"write", 112450, 51890⟩]),
+  ("a write with the finger down", [⟨"touch", 1000, 1⟩, ⟨"write", 5000, 0⟩]),
+  ("a write 50 ms after a move", [⟨"moved", 1000, 0⟩, ⟨"write", 1500, 0⟩]),
+  ("a write 119.5 ms after a move, inside the stamp slack", [⟨"moved", 10000, 0⟩, ⟨"write", 11195, 0⟩]),
+  ("a write 118 ms after a move", [⟨"moved", 10000, 0⟩, ⟨"write", 11180, 0⟩]),
+  ("a second write soon after the first", [⟨"moved", 1000, 0⟩, ⟨"write", 2300, 0⟩, ⟨"write", 2500, 0⟩]),
+  ("a write before any event", [⟨"write", 5000, 0⟩]),
+  ("a write right after the finger lifted", [⟨"touch", 1000, 1⟩, ⟨"touch", 2000, 0⟩, ⟨"write", 2500, 0⟩]),
+  ("declines and due entries only", [⟨"inactive", 100, 0⟩, ⟨"due", 200, 80⟩, ⟨"reversal", 300, 0⟩, ⟨"live", 400, 0⟩, ⟨"onTarget", 500, 0⟩, ⟨"touching", 600, 0⟩])]
+
 open Lean in
 def countedJson (k : Counted) : Json := Json.arr #[match k.lock with | some l => toJson l | none => Json.null, toJson k.n]
 
@@ -617,7 +807,7 @@ def resultJson (r : Result) : Json :=
 
 open Lean in
 def goldenLines (_ : Unit := ()) : List String :=
-  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts), ("minSamples", toJson minSamples)]).compress
+  let consts := (Json.mkObj [("op", "constants"), ("minOpenFrames", toJson minOpenFrames), ("maxRestarts", toJson maxRestarts), ("minSamples", toJson minSamples), ("quiet10", toJson quiet10), ("slack10", toJson slack10)]).compress
   let rs := runCases.map fun (name, r) =>
     (Json.mkObj [("op", "run"), ("case", Json.str name), ("frames", samplesJson r.frames), ("events", samplesJson r.events), ("calls", samplesJson r.calls),
       ("refusal", match refusal r with | some f => Json.str f.name | none => Json.null),
@@ -648,7 +838,16 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("out", Json.str (afterWindow used stalled).name)]).compress
   let tg := (List.range 4).map fun n =>
     (Json.mkObj [("op", "tag"), ("restarts", toJson n), ("tag", Json.str (serveTag n))]).compress
-  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg ++ cks ++ lks ++ lcs
+  let pvs := lockedNames.map fun c =>
+    (Json.mkObj [("op", "pinVerdict"), ("cmp", Json.str c.name), ("out", Json.str (pinVerdict c).name)]).compress
+  let acs := acrossCases.map fun (name, vs) =>
+    (Json.mkObj [("op", "across"), ("case", Json.str name), ("jobs", toJson (vs.map LockedCmp.name)),
+      ("decisive", toJson (pinDecisive vs)), ("out", Json.str (acrossPin vs).name)]).compress
+  let lws := liveCases.map fun (name, es) =>
+    (Json.mkObj [("op", "liveWrites"), ("case", Json.str name),
+      ("entries", Json.arr (es.map fun e => Json.arr #[Json.str e.op, toJson e.t, toJson e.x]).toArray),
+      ("out", toJson (liveWrites es))]).compress
+  [consts] ++ rs ++ cs ++ ls ++ ts ++ os ++ ws ++ tg ++ cks ++ lks ++ lcs ++ pvs ++ acs ++ lws
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 

@@ -25193,7 +25193,8 @@
     "research/findings/ledger.json",
     "docs/team/handoffs/end-pin-rank.md",
     "apps/site/src/parts/morph.tween/end-pin.golden.test.ts"
-   ]
+   ],
+   "evidence": "a9d3829"
   }
  ],
  "deadline": {

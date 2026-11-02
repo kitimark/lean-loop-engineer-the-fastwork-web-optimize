@@ -12,7 +12,7 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planReps, repsLife, outcome, groupsFor, driverFault, DRIVER_FAULT } from '../walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planReps, repsLife, outcome, groupsFor, driverEnd } from '../walk-budget.mjs';
 
 const BLOCK_MS = 15 * 60000;
 
@@ -47,7 +47,7 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
-export const driverEnd = (requested, on, why) => (driverFault(requested, on) ? { fault: DRIVER_FAULT, cut: `fault ${DRIVER_FAULT}: ${why}` } : null);
+export { driverEnd };
 
 const CONTROLS = ['base', 'aa'];
 
@@ -151,7 +151,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
           await reconnect(ctx, { log });
         } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
-      const early = driverEnd(!!touchDriver, touch.on, touch.why);
+      const early = driverEnd(!!touchDriver, touch.on, touch.why, 'start');
       if (early) { ({ fault, cut } = early); return; }
       const planned = planSim({ deadlineMs, nowMs: now(), touchOn: touch.on, armIds: arms.map((a) => a.id), repsArg });
       ({ reps, repPlan, wins } = planned);
@@ -171,7 +171,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
                 log(`webkit sim: test hook, blocking the event loop for ${BLOCK_MS} ms before ${a.id} ${win} rep ${rep}`);
                 Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, BLOCK_MS);
               }
-              const lost = driverEnd(!!touchDriver, touch.on, touch.why);
+              const lost = driverEnd(!!touchDriver, touch.on, touch.why, 'walk');
               if (lost) { ({ fault, cut } = lost); break walk; }
               await ctx.check?.();
               try {
