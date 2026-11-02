@@ -1,9 +1,11 @@
 import Lean.Data.Json
 import Fw.Gate.Smooth
 import Fw.Measure.WktrLayout
+import Fw.Measure.FaultNames
 namespace Fw.Measure.WalkBudget
 
 open Fw.Gate.Smooth (Verdict)
+open Fw.Measure.FaultNames (Fault driverFault driverEnd Phase)
 
 structure Job where
   timeoutMs : Nat
@@ -341,31 +343,16 @@ theorem groupArms_cover (controls cands g : Nat) (hg : 0 < g) : cands ≤ g * (g
   rw [← ht] at h1 ⊢
   omega
 
-inductive Fault where
-  | none
-  | budget
-  | driver
-  | hang
-  | crash
-deriving DecidableEq, Repr
-
-def Fault.name : Fault → String
-  | .none => "none"
-  | .budget => "budget"
-  | .driver => "touch-driver-not-ready"
-  | .hang => "page-lost-or-evaluate-timeout"
-  | .crash => "socket-crash"
-
 def observedJobs : List (Nat × Nat × Fault) :=
   [(1, 1, .budget), (1, 2, .driver), (1, 3, .driver), (1, 4, .crash), (1, 5, .budget),
    (2, 1, .none), (2, 2, .none), (2, 3, .hang), (2, 4, .hang), (2, 5, .driver),
-   (3, 1, .none), (3, 2, .none), (3, 3, .driver), (3, 4, .driver), (3, 5, .hang),
-   (3, 6, .driver), (3, 7, .driver), (3, 8, .driver), (3, 9, .none), (3, 10, .driver)]
+   (3, 1, .none), (3, 2, .none), (3, 3, .lost), (3, 4, .lost), (3, 5, .hang),
+   (3, 6, .lost), (3, 7, .driver), (3, 8, .lost), (3, 9, .none), (3, 10, .driver)]
 
 def faultCount (f : Fault) (js : List (Nat × Nat × Fault) := observedJobs) : Nat := (js.filter (·.2.2 == f)).length
 
 def dominant : Fault :=
-  [Fault.budget, .driver, .hang, .crash].foldl (fun best f => if faultCount best < faultCount f then f else best) .budget
+  [Fault.budget, .driver, .lost, .hang, .crash].foldl (fun best f => if faultCount best < faultCount f then f else best) .budget
 
 theorem observed_twenty : observedJobs.length = 20 := by decide
 
@@ -373,7 +360,11 @@ theorem observed_decisive : faultCount .none = 5 := by decide
 
 theorem dominant_driver : dominant = .driver := by decide
 
-theorem driver_count : faultCount .driver = 9 := by decide
+theorem driver_count : faultCount .driver = 5 := by decide
+
+theorem lost_count : faultCount .lost = 4 := by decide
+
+theorem driver_or_lost : faultCount .driver + faultCount .lost = 9 := by decide
 
 theorem driver_others : faultCount .budget + faultCount .hang + faultCount .crash = 6 := by decide
 
@@ -387,7 +378,9 @@ theorem pooled_rate : pooledRate = (2, 10) := by decide
 
 theorem run3_rate : decisiveRate [3] = (3, 10) := by decide
 
-theorem run3_driver : faultCount .driver (observedJobs.filter fun j => j.1 == 3) = 6 := by decide
+theorem run3_driver : faultCount .driver (observedJobs.filter fun j => j.1 == 3) = 2 := by decide
+
+theorem run3_lost : faultCount .lost (observedJobs.filter fun j => j.1 == 3) = 4 := by decide
 
 def lateRate : Nat × Nat := decisiveRate [2, 3]
 
@@ -546,9 +539,13 @@ deriving DecidableEq, Repr
 
 def macJobs : Nat := 3
 
-def legs (simOnly control : Bool) : List Leg :=
+def legsOf (simJobs : Nat) (simOnly control : Bool) : List Leg :=
   (if simOnly then [] else [⟨"webkit-mac", macJobs, 1⟩]) ++
-    [⟨"webkit-sim", jobsNeeded + (if control then 1 else 0), Fw.Measure.WktrLayout.macSlots⟩]
+    [⟨"webkit-sim", simJobs + (if control then 1 else 0), Fw.Measure.WktrLayout.macSlots⟩]
+
+def legs (simOnly control : Bool) : List Leg := legsOf jobsNeeded simOnly control
+
+def lateJobs : Nat := (jobsFor Fw.Gate.Smooth.minSamples lateRate.1 lateRate.2 target.1 target.2 jobsCap).getD jobsCap
 
 def Leg.peak (l : Leg) : Nat := min l.jobs l.parallel
 
@@ -574,18 +571,28 @@ theorem mac_leg_peak : peak (legs false false) = Fw.Measure.WktrLayout.macSlots 
 
 theorem sim_only_wall : runWaves (legs true false) * job.timeoutMs = 7200000 := by decide +kernel
 
-def driverFault (requested on : Bool) : Bool := requested && !on
+theorem legs_waves : ∀ s c : Bool, runWaves (legs s c) = if s = true ∧ c = false then 2 else 3 := by decide +kernel
 
-def driverFaultName : String := Fault.driver.name
+theorem legs_total : ∀ s c : Bool, totalJobs (legs s c) = (if s then 0 else macJobs) + jobsNeeded + (if c then 1 else 0) := by
+  decide +kernel
 
-theorem driverFault_untouched (r o : Bool) (h : driverFault r o = true) : r = true ∧ o = false := by
-  cases r <;> cases o <;> simp_all [driverFault]
+theorem legs_peak : ∀ s c : Bool, peak (legs s c) = if s then Fw.Measure.WktrLayout.macSlots else Fw.Measure.WktrLayout.macSlots + 1 := by
+  decide +kernel
 
-theorem driverFault_on (r : Bool) : driverFault r true = false := by cases r <;> rfl
+theorem lateJobs_value : lateJobs = 12 := by decide +kernel
 
-theorem driverFault_unasked (o : Bool) : driverFault false o = false := rfl
+theorem lateJobs_eq : lateJobs = 12 ∧ jobsFor Fw.Gate.Smooth.minSamples 1 3 target.1 target.2 jobsCap = some lateJobs := by
+  constructor <;> decide +kernel
 
-theorem driverFault_asked_off : driverFault true false = true := rfl
+theorem lock_never_at_once : ∀ s c : Bool, startAtOnce (legsOf lateJobs s c) = false := by decide +kernel
+
+theorem lock_waves : runWaves (legsOf lateJobs true false) = 3 := by decide +kernel
+
+theorem lock_peak : peak (legsOf lateJobs true false) = Fw.Measure.WktrLayout.macSlots := by decide +kernel
+
+theorem lock_wall : runWaves (legsOf lateJobs true false) * job.timeoutMs = 10800000 := by decide +kernel
+
+theorem lock_last_wave : lateJobs % Fw.Measure.WktrLayout.macSlots = 2 := by decide +kernel
 
 def readyAllowMs : Nat := 480000
 
@@ -684,7 +691,7 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("planDecisive", toJson planRate.1), ("planJobs", toJson planRate.2), ("pooledDecisive", toJson pooledRate.1), ("pooledJobs", toJson pooledRate.2), ("run3Decisive", toJson (decisiveRate [3]).1), ("run3Jobs", toJson (decisiveRate [3]).2),
     ("lateDecisive", toJson lateRate.1), ("lateJobs", toJson lateRate.2),
     ("reachLatePer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 3)),
-    ("jobsLate", match jobsFor Fw.Gate.Smooth.minSamples 1 3 target.1 target.2 jobsCap with | some v => toJson v | none => Json.null),
+    ("lateSimJobs", toJson lateJobs), ("jobsLate", match jobsFor Fw.Gate.Smooth.minSamples 1 3 target.1 target.2 jobsCap with | some v => toJson v | none => Json.null),
     ("targetNum", toJson target.1), ("targetDen", toJson target.2), ("jobsCap", toJson jobsCap),
     ("reachPer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2)),
     ("reachPooledPer10k", toJson (reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 5)), ("dominant", Json.str dominant.name),
@@ -730,17 +737,17 @@ def goldenLines (_ : Unit := ()) : List String :=
       ("jobs", match jobsFor k a b target.1 target.2 cap with | some v => toJson v | none => Json.null)]).compress
   let wv := wavesCases.map fun (j, sl) =>
     (Json.mkObj [("op", "waves"), ("jobs", toJson j), ("slots", toJson sl), ("waves", toJson (waves j sl))]).compress
-  let lg := [(true, false), (true, true), (false, false), (false, true)].map fun (so, c) =>
-    (Json.mkObj [("op", "legs"), ("simOnly", toJson so), ("control", toJson c),
-      ("legs", toJson ((legs so c).map fun l => Json.mkObj [("name", Json.str l.name), ("jobs", toJson l.jobs), ("parallel", toJson l.parallel)])),
-      ("totalJobs", toJson (totalJobs (legs so c))), ("peak", toJson (peak (legs so c))), ("waves", toJson (runWaves (legs so c))),
-      ("startAtOnce", toJson (startAtOnce (legs so c)))]).compress
+  let lg := [(jobsNeeded, "plan"), (lateJobs, "late")].flatMap fun (n, lane) => [(true, false), (true, true), (false, false), (false, true)].map fun (so, c) =>
+    (Json.mkObj [("op", "legs"), ("lane", Json.str lane), ("simJobs", toJson n), ("simOnly", toJson so), ("control", toJson c),
+      ("legs", toJson ((legsOf n so c).map fun l => Json.mkObj [("name", Json.str l.name), ("jobs", toJson l.jobs), ("parallel", toJson l.parallel)])),
+      ("totalJobs", toJson (totalJobs (legsOf n so c))), ("peak", toJson (peak (legsOf n so c))), ("waves", toJson (runWaves (legsOf n so c))),
+      ("startAtOnce", toJson (startAtOnce (legsOf n so c)))]).compress
   let fl := faultCases.map fun (r, o) =>
     (Json.mkObj [("op", "driverFault"), ("requested", toJson r), ("on", toJson o), ("fault", toJson (driverFault r o)),
-      ("name", Json.str driverFaultName)]).compress
+      ("name", Json.str Fault.driver.name)]).compress
   let ob := observedJobs.map fun (run, j, f) =>
     (Json.mkObj [("op", "observed"), ("run", toJson run), ("job", toJson j), ("fault", Json.str f.name)]).compress
-  [consts] ++ ss ++ ws ++ bs ++ ps ++ es ++ gs ++ js ++ rs ++ fs ++ wv ++ lg ++ fl ++ ob
+  [consts] ++ ss ++ ws ++ bs ++ ps ++ es ++ gs ++ js ++ rs ++ fs ++ wv ++ lg ++ fl ++ ob ++ Fw.Measure.FaultNames.goldenLines minKept
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 

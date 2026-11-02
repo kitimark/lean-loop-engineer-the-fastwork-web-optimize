@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { planSim } from '../src/profile/sim-cadence.mjs';
-import { JOB, GAPS, REPS_WANT, READY_ALLOW_MS, SETUP_WORST_MS, MIN_KEPT, LIFE_WINDOWS, BODY_MS, TAIL_MS, TAIL_EVERY, MARGIN, MIN_SAMPLES, JOBS_NEEDED, blockMs, windowsPerRep, groupArms, groupsFor, repsFit, repsLife, planReps, outcome, endsDone, deadlineAt, cappedDeadline, stepMinutes, runsWalk, startsWindow, remaining, planWalk, untilDeadline, MIN_WALK_MINUTES, HARD_STOP_MS, MAC_SLOTS, MAC_JOBS, PLAN_RATE, TARGET, JOBS_CAP, DRIVER_FAULT, tailNum, reaches, reachPer10k, jobsFor, waves, legs, totalJobs, peak, runWaves, startAtOnce, driverFault } from '../src/walk-budget.mjs';
+import { JOB, GAPS, REPS_WANT, READY_ALLOW_MS, SETUP_WORST_MS, MIN_KEPT, LIFE_WINDOWS, BODY_MS, TAIL_MS, TAIL_EVERY, MARGIN, MIN_SAMPLES, JOBS_NEEDED, blockMs, windowsPerRep, groupArms, groupsFor, repsFit, repsLife, planReps, outcome, endsDone, deadlineAt, cappedDeadline, stepMinutes, runsWalk, startsWindow, remaining, planWalk, untilDeadline, MIN_WALK_MINUTES, HARD_STOP_MS, MAC_SLOTS, MAC_JOBS, PLAN_RATE, TARGET, JOBS_CAP, DRIVER_FAULT, tailNum, reaches, reachPer10k, jobsFor, waves, legs, totalJobs, peak, runWaves, startAtOnce, driverFault, driverEnd, LOST_FAULT, LATE_JOBS } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/walk-budget.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+
+const c0 = golden.find((g) => g.op === 'constants');
 
 test('walk-budget: constants and every golden step and start line match Lean', () => {
   const c = golden.find((g) => g.op === 'constants');
@@ -68,7 +70,7 @@ test('walk-budget: constants and every golden step and start line match Lean', (
   for (const g of golden.filter((x) => x.op === 'jobsFor')) assert.equal(jobsFor(g.k, g.decisiveNum, g.den, TARGET.num, TARGET.den, g.cap), g.jobs, JSON.stringify(g));
   for (const g of golden.filter((x) => x.op === 'waves')) assert.equal(waves(g.jobs, g.slots), g.waves, JSON.stringify(g));
   for (const g of golden.filter((x) => x.op === 'legs')) {
-    const ls = legs(g.simOnly, g.control);
+    const ls = legs(g.simOnly, g.control, g.simJobs);
     assert.deepEqual(ls, g.legs);
     assert.deepEqual([totalJobs(ls), peak(ls), runWaves(ls), startAtOnce(ls)], [g.totalJobs, g.peak, g.waves, g.startAtOnce]);
   }
@@ -76,6 +78,9 @@ test('walk-budget: constants and every golden step and start line match Lean', (
     assert.equal(driverFault(g.requested, g.on), g.fault);
     assert.equal(g.name, DRIVER_FAULT);
   }
+  for (const g of golden.filter((x) => x.op === 'driverEnd')) assert.equal(driverEnd(g.requested, g.on, 'why', g.phase)?.fault ?? '-', g.fault, JSON.stringify(g));
+  assert.deepEqual(golden.filter((x) => x.op === 'faultName').map((g) => g.name).slice(2, 4), [DRIVER_FAULT, LOST_FAULT]);
+  assert.equal(LATE_JOBS, c0.lateSimJobs);
   assert.equal(golden.filter((x) => x.op === 'observed').length, 20);
   for (const g of golden.filter((x) => x.op === 'start')) {
     assert.equal(startsWindow(g.deadlineMs, g.nowMs, g.reserveMs), g.starts, g.case);
@@ -167,9 +172,13 @@ test('smoothness.yml: the simulator matrix has the Lean job count, the control j
   const yml = readFileSync(new URL('../../../.github/workflows/smoothness.yml', import.meta.url), 'utf8');
   const sim = yml.slice(yml.indexOf('  webkit-sim:'));
   const lists = [...sim.slice(0, sim.indexOf('    env:')).matchAll(/'\[([\d,]+)\]'/g)].map((m) => m[1].split(',').map(Number));
-  assert.deepEqual(lists, [[1, 2], Array.from({ length: c.jobsNeeded + 1 }, (_, i) => i + 1), Array.from({ length: c.jobsNeeded }, (_, i) => i + 1)]);
+  const upTo = (n) => Array.from({ length: n }, (_, i) => i + 1);
+  assert.deepEqual(lists, [upTo(c.lateSimJobs + 1), upTo(c.lateSimJobs), upTo(c.jobsNeeded + 1), upTo(c.jobsNeeded)]);
+  const waveLists = golden.filter((g) => g.op === 'legs' && g.simOnly).map((g) => [g.lane, g.control, g.simJobs, g.legs[0].jobs, g.waves]);
+  assert.deepEqual(waveLists.filter((w) => w[0] === 'late').map((w) => [w[1], w[3], w[4]]), [[false, 12, 3], [true, 13, 3]]);
   assert.match(sim, new RegExp(`max-parallel: ${c.macSlots}\\n`));
   assert.match(sim, new RegExp(`\\n    timeout-minutes: ${c.timeoutMs / 60000}\\n`));
-  assert.match(sim, new RegExp(`matrix.job == ${c.jobsNeeded + 1} && 'safari'`));
+  assert.match(sim, new RegExp(`matrix.job == ${c.jobsNeeded + 1} && !contains\\(github.event.head_commit.message, '\\[touch-lock\\]'\\)\\)\\) && 'safari'`));
+  assert.match(sim, new RegExp(`matrix.job == ${c.lateSimJobs + 1} \\|\\|`));
   assert.match(yml.slice(yml.indexOf('Morph runs')), /FW_MATRIX_JOB: \$\{\{ matrix.job \}\}/);
 });

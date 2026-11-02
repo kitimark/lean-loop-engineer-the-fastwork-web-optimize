@@ -260,6 +260,15 @@ test('touchTable and isControl: the control job (Safari coordinates) is told apa
   assert.equal(lines[1], '| 4 | safari | off | 1 | 1 | - | 3000 | 4000 | 20000 | 40 |');
 });
 
+test('faultOf replays every Lean golden row, named faults included', () => {
+  const rows = readFileSync(new URL('../../contracts/golden/measure/walk-budget.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l)).filter((g) => g.op === 'faultOf');
+  assert.ok(rows.length >= 13);
+  for (const g of rows) {
+    const f = { fault: g.fault === '-' ? undefined : g.fault, repPlan: { outcome: g.budgetShort ? 'budgetShort' : 'ok' }, hiccups: g.text ? [{ why: g.text }] : [], incomplete: g.incomplete ? 'x' : null };
+    assert.equal(faultOf(f, g.kept), g.out, g.case);
+  }
+});
+
 test('faultOf: a named fault wins, a short plan is the budget, lost pages and timeouts are one fault, a socket error another', () => {
   const f = (over) => ({ repPlan: { outcome: 'ok' }, hiccups: [], incomplete: null, ...over });
   assert.equal(faultOf(f({ fault: 'touch-driver-not-ready' }), 0), 'touch-driver-not-ready');
