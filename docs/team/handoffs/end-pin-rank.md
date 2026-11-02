@@ -1,7 +1,7 @@
 Branch `worktree-wf_29839f53-3e5-1`; worktree `.claude/worktrees/wf_29839f53-3e5-1` (under the main checkout); work commit 684cc6ad0, CI trigger 797214995 on `ci/end-pin-rank` (tags `[ci:smoothness] [webkit-cadence] [sim-only] [touch-lock] [trajectory fw=morph.tween:end-pin]`); the final commit is this branch's head.
 
 ## CI runs (1 of 2 dispatches used; do not push `ci/end-pin-rank` again for the same question)
-- 41369102226 smoothness: complete, conclusion failure (72 min wall). 12 jobs: success 1, 2, 5, 6, 9, 10, 11; failure 3, 7, 8, 12 (touch-driver-not-ready, no ready file after 240 s, 0 windows); cancelled 4 (walk step ran past the walk deadline, no artifact).
+- 41369102226 smoothness: failed (fw ci state; gh conclusion failure), 72 min wall. 12 jobs: success 1, 2, 5, 6, 9, 10, 11; failure 3, 7, 8, 12 (touch-driver-not-ready, no ready file after 240 s, 0 windows); cancelled 4 (walk step ran past the walk deadline, no artifact).
 
 ## Result (MEASURED)
 - Across-jobs pin vs base (Lean `acrossPin`): insufficient, 0 of 12 jobs decisive (minSamples 3). The pin stored a lock in 4 of 29 accepted runs (jobs 2 and 10, 2 each), so pin vs base is `n/a` (4 jobs) or `undecided` (3 jobs).
