@@ -28,7 +28,7 @@ Accepted runs and fights over the 7 jobs with windows (`results/end-pin-rank/run
 | pin | 29 | 0 | 0 | 4 | 4 |
 
 - **The pin wrote 4 times in 29 runs (0.14 per run); base made 779 calls in 30 runs (26 per run) (MEASURED).** All 4 writes were in clear states: `writesLive` 0 (the Lean live-write replay `liveWrites` over the trace timestamps: 0 over the 39 pin windows). The 4 writing windows had fights 0 (jobs 2 and 10).
-- **The pin ran in 38 of 39 pin windows** (233 `inactive` entries, 148 touches, 126 `moved`, 42 `due`). Declines: touching 99, live 18, onTarget 20, reversal 111; writes 4. The reversal decline dominates: the pan ends with the page off the target and a write would turn it around (the Lean `decline_rests_off_target`).
+- **The pin ran in 38 of 39 pin windows** (233 `inactive` entries, 148 touches, 126 `moved`, 42 `due`). Declines: touching 99, live 18, onTarget 20, reversal 111; writes 4. The reversal decline dominates because the pan ends with the page off the target and a write would turn it around (the Lean `decline_rests_off_target`).
 - **Pin fights are 0 in 29 of 29 runs, 25 of them by definition (no lock, no call).** Pin vs base per job: `n/a` in 4 jobs (no pin lock), `undecided` in 3 (below 3 locked runs, or no pin runs in job 11). Across jobs `acrossPin` reads insufficient with 0 decisive jobs.
 
 ## Lean, in this task
