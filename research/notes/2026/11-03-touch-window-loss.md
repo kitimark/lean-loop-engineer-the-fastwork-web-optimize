@@ -96,8 +96,7 @@ Counterfactual upper bounds (INFERRED; each assumes the lost windows would have 
 | every window after the stalled one ran ok (planShort excluded) | 1059 | 18 |
 | both | 1377 | 44 |
 
-By windows the stall chain (501) is larger than refusals (323), but its cause is the Simulator limit (restart readiness) and no harness change has evidence yet. The largest loss a harness
-change can reach is the refused windows. Recommended change (follow-up, not made here): a window whose row is status `ok` but `refusal` is `noOpen` or `tooShort` is rerun from a fresh load at the
+By windows the stall chain (501) is larger than refusals (323), but its cause is the Simulator limit (restart readiness) and no harness change has evidence yet. Recommended change (follow-up, not made here): a window whose row is status `ok` but `refusal` is `noOpen` or `tooShort` is rerun from a fresh load at the
 same slot, up to 2 more times while the deadline allows, and the rerun replaces the refused row. Code path: `packages/measure-webkit/src/touchlock-run.mjs:139-148` (the attempt loop that calls `oneWindow`; add the
 refusal test before `rows.push(got)` at line 148) with `refusal` from `touchlock.mjs:44`. The `walk-budget` plan must price it: each rerun is a window (about 40 to 60 s). At the measured 63% keep rate
 two reruns recover about 280 of the 323 if refusals were independent (they are not: the next window after a noOpen is a noOpen 43% of the time), so expect less. It does not move the stall chain (lines 100-113): a job
@@ -113,4 +112,4 @@ that stalls still ends, so the jobs needed stay at 23 unless the chain is also r
 
 - `WindowLoss.rowClass` applies the refusal only when status is `ok`; the lane verdict applies it to every row with frames. If the across-job verdict should match the lane, test for frames instead of status in the refusal branch and update the golden, TS and tables.
 - The harness vs Simulator split (726 vs 732) puts noOpen and tooShort (323 windows) on the harness side (`Class.side`); their cause (cold page or driver vs touch timing) is not isolated, so the side is INFERRED. A follow-up that isolates the noOpen cause should revisit it.
-- The retry-in-place bound (323 windows, 15 jobs) ignores that each rerun spends deadline time and pushes later windows into walkDeadline or planShort; walk-budget must price this before retry is chosen over a stall-chain change.
+- The retry-in-place bound (323 windows, 15 jobs) ignores that each rerun spends deadline time and pushes later windows into walkDeadline or planShort;

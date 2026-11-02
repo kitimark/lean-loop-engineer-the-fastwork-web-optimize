@@ -117,7 +117,6 @@ export function restartTally(text) {
   return { stalls, restarts, readyS };
 }
 
-/** The stalled window's own push line precedes its stalled line (touchlock-run.mjs:99, :104), so `after` is that window's index. */
 export function firstStall(text) {
   let done = 0;
   let ready = null;
