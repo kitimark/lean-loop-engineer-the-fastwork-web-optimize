@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { fights, reversals, openCalls, cmp, look, cmpKnown, lockedCmp, traceCounts, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS, RANKED_TEXT } from '../src/touchlock.mjs';
+import { fights, reversals, openCalls, cmp, look, cmpKnown, lockedCmp, traceCounts, lookKnown, known, MIN_SAMPLES, reduce, refusal, tally, summarize, markdown, MIN_OPEN_FRAMES, MAX_RESTARTS, openPhase, repOrder, afterWindow, serveTag, lockOf, windowsOf, ARMS, RANKED_TEXT, pinVerdict, acrossPin, liveWrites, pinLiveWrites, QUIET10, SLACK10, acrossReport, acrossMarkdown } from '../src/touchlock.mjs';
 import { restartServer, armTrees, armPath, planLock } from '../src/touchlock-run.mjs';
 import { installJs, nearEndJs, windowJs } from '../src/touchlock-page.mjs';
 
@@ -16,6 +16,7 @@ test('constants match the golden', () => {
   assert.equal(ops('constants')[0].minOpenFrames, MIN_OPEN_FRAMES);
   assert.equal(ops('constants')[0].maxRestarts, MAX_RESTARTS);
   assert.equal(ops('constants')[0].minSamples, MIN_SAMPLES);
+  assert.deepEqual([QUIET10, SLACK10], [ops('constants')[0].quiet10, ops('constants')[0].slack10]);
 });
 
 test('run cases: refusal and reduction replay the golden', () => {
@@ -125,8 +126,8 @@ test('a window with a pin trace shows its counts, a window without one shows non
   assert.equal(w[2].pin.ran, false);
   const md = markdown(summarize(rows));
   assert.match(md, /\| window \| arm \| pin calls seen \|/);
-  assert.match(md, /\| 1 \| pin \| 9 \| 1 \| 1 \| 1 \| 1 \| 0 \| 0 \| 0 \| 0 \| 1 \| yes \|/);
-  assert.match(md, /\| 3 \| pin \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| no \|/);
+  assert.match(md, /\| 1 \| pin \| 9 \| 1 \| 1 \| 1 \| 1 \| 0 \| 0 \| 0 \| 0 \| 1 \| 0 \| yes \|/);
+  assert.match(md, /\| 3 \| pin \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| 0 \| no \|/);
 });
 
 test('the page hook records pin entries; the window keeps those from its first touchstart to its stop', async () => {
@@ -300,4 +301,32 @@ test('planLock: the four arms plan reps from the Lean tail budget, six at most, 
   assert.equal(at(951).repPlan.outcome, 'budgetShort');
   assert.equal(at(276, { repsArg: '2' }).reps, 2);
   assert.deepEqual(at(276, { deadlineMs: null }), { repPlan: null, reps: 6 });
+});
+
+test('pinVerdict, acrossPin and liveWrites replay the Lean golden', () => {
+  assert.ok(ops('pinVerdict').length >= 5 && ops('across').length >= 10 && ops('liveWrites').length >= 10);
+  const cmps = ['lower', 'higher', 'overlap', 'n/a', 'undecided'];
+  for (const g of ops('pinVerdict')) assert.equal(pinVerdict(g.cmp), g.out);
+  assert.deepEqual(cmps.map(pinVerdict), ['second', 'first', 'same', 'insufficient', 'insufficient']);
+  for (const g of ops('across')) assert.equal(acrossPin(g.jobs), g.out, g.case);
+  for (const g of ops('liveWrites')) assert.equal(liveWrites(g.entries), g.out, g.case);
+});
+
+test('pinLiveWrites reads the trace entries [op, ms, y, s, x] in tenths of a millisecond', () => {
+  const quiet = [['touch', 100, null, null, 1], ['touch', 10000, null, null, 0], ['moved', 11124, 40, 0, 121], ['write', 11245, 5189, 0, 51890]];
+  assert.equal(pinLiveWrites(quiet), 0);
+  assert.equal(pinLiveWrites([['touch', 100, null, null, 1], ['write', 500, 5189, 0, 51890]]), 1);
+  assert.equal(pinLiveWrites([['touch', 100, null, null, 0], ['moved', 200, 40, 0, 30], ['write', 210, 5189, 0, 51890]]), 1);
+});
+
+test('acrossReport: jobs where the pin wrote nowhere are n/a and never decisive; 12 such jobs read insufficient with the pin write counts shown', () => {
+  const noWrite = { ...steady, calls: [] };
+  const entries = [['touch', 10, null, null, 1], ['touch', 90, null, null, 0], ['reversal', 95, 40, 0, 200]];
+  const job = (label) => ({ label, rows: [0, 1, 2].flatMap(() => [rowOf('base', fight), { ...rowOf('pin', noWrite), pin: { seen: 3, entries } }]) });
+  const a = acrossReport(Array.from({ length: 12 }, (_, i) => job(String(i + 1))));
+  assert.equal(a.across, 'insufficient');
+  assert.equal(a.decisive, 0);
+  assert.deepEqual(a.jobs[0].locked.pin, { ranked: 0, runs: 3 });
+  assert.deepEqual([a.jobs[0].pinWindows, a.jobs[0].writes, a.jobs[0].liveWrites], [3, 0, 0]);
+  assert.match(acrossMarkdown(a), /across jobs \(pin vs base, Lean acrossPin\): insufficient; decisive jobs 0 of 12/);
 });

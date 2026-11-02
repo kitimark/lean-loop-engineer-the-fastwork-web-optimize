@@ -31,7 +31,13 @@ if (cmd === 'run') {
   if (!files.length) { console.error('report needs touch-lock.json files'); process.exit(2); }
   const rows = files.flatMap((f) => JSON.parse(readFileSync(f, 'utf8')).rows);
   console.log(markdown(summarize(rows)));
+} else if (cmd === 'across') {
+  const { acrossReport, acrossMarkdown } = await import('./touchlock.mjs');
+  const files = args.slice(1);
+  if (!files.length) { console.error('across needs label=touch-lock.json pairs'); process.exit(2); }
+  const jobs = files.map((f) => { const [label, path] = f.split('='); return { label, rows: JSON.parse(readFileSync(path, 'utf8')).rows }; });
+  console.log(acrossMarkdown(acrossReport(jobs)));
 } else {
-  console.error('usage: touchlock-cli.mjs run|report');
+  console.error('usage: touchlock-cli.mjs run|report|across');
   process.exit(2);
 }

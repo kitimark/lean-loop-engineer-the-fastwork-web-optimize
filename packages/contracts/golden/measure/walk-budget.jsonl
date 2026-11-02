@@ -1,4 +1,4 @@
-{"bodyMs":38000,"clockMs":6000,"completeMs":4000,"deadlineAt":2400000,"dominant":"touch-driver-not-ready","driftMs":50000,"graceMs":120000,"hardStopMs":45000,"jobsCap":30,"jobsLate":12,"jobsNeeded":10,"lateDecisive":5,"lateJobs":15,"lifeWindows":36,"macJobs":3,"macSlots":5,"margin":7,"meanMs":39647,"minKept":5,"minSamples":3,"op":"constants","overrunMs":420000,"planDecisive":2,"planJobs":5,"pooledDecisive":2,"pooledJobs":10,"postMs":600000,"postStepsMs":540000,"reachLatePer10k":7008,"reachPer10k":8327,"reachPooledPer10k":3222,"readyAllowMs":480000,"repsWant":6,"run3Decisive":3,"run3Jobs":10,"setupWorstMs":900000,"slackMs":480000,"tailEvery":17,"tailMs":383000,"targetDen":5,"targetNum":4,"timeoutMs":3600000,"windowSamples":318}
+{"bodyMs":38000,"clockMs":6000,"completeMs":4000,"deadlineAt":2400000,"dominant":"touch-driver-not-ready","driftMs":50000,"graceMs":120000,"hardStopMs":45000,"jobsCap":30,"jobsLate":12,"jobsNeeded":10,"lateDecisive":5,"lateJobs":15,"lateSimJobs":12,"lifeWindows":36,"macJobs":3,"macSlots":5,"margin":7,"meanMs":39647,"minKept":5,"minSamples":3,"op":"constants","overrunMs":420000,"planDecisive":2,"planJobs":5,"pooledDecisive":2,"pooledJobs":10,"postMs":600000,"postStepsMs":540000,"reachLatePer10k":7008,"reachPer10k":8327,"reachPooledPer10k":3222,"readyAllowMs":480000,"repsWant":6,"run3Decisive":3,"run3Jobs":10,"setupWorstMs":900000,"slackMs":480000,"tailEvery":17,"tailMs":383000,"targetDen":5,"targetNum":4,"timeoutMs":3600000,"windowSamples":318}
 {"capMs":null,"case":"walk starts after 4.6 min","deadlineMs":2400000,"elapsedMs":276000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":37}
 {"capMs":null,"case":"walk starts at the job start","deadlineMs":2400000,"elapsedMs":0,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":42}
 {"capMs":null,"case":"walk starts at the deadline","deadlineMs":2400000,"elapsedMs":2400000,"hardStopInside":true,"op":"step","runs":true,"stepMinutes":2}
@@ -96,10 +96,14 @@
 {"jobs":11,"op":"waves","slots":5,"waves":3}
 {"jobs":13,"op":"waves","slots":5,"waves":3}
 {"jobs":14,"op":"waves","slots":5,"waves":3}
-{"control":false,"legs":[{"jobs":10,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simOnly":true,"startAtOnce":false,"totalJobs":10,"waves":2}
-{"control":true,"legs":[{"jobs":11,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simOnly":true,"startAtOnce":false,"totalJobs":11,"waves":3}
-{"control":false,"legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":10,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simOnly":false,"startAtOnce":false,"totalJobs":13,"waves":3}
-{"control":true,"legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":11,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simOnly":false,"startAtOnce":false,"totalJobs":14,"waves":3}
+{"control":false,"lane":"plan","legs":[{"jobs":10,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simJobs":10,"simOnly":true,"startAtOnce":false,"totalJobs":10,"waves":2}
+{"control":true,"lane":"plan","legs":[{"jobs":11,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simJobs":10,"simOnly":true,"startAtOnce":false,"totalJobs":11,"waves":3}
+{"control":false,"lane":"plan","legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":10,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simJobs":10,"simOnly":false,"startAtOnce":false,"totalJobs":13,"waves":3}
+{"control":true,"lane":"plan","legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":11,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simJobs":10,"simOnly":false,"startAtOnce":false,"totalJobs":14,"waves":3}
+{"control":false,"lane":"late","legs":[{"jobs":12,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simJobs":12,"simOnly":true,"startAtOnce":false,"totalJobs":12,"waves":3}
+{"control":true,"lane":"late","legs":[{"jobs":13,"name":"webkit-sim","parallel":5}],"op":"legs","peak":5,"simJobs":12,"simOnly":true,"startAtOnce":false,"totalJobs":13,"waves":3}
+{"control":false,"lane":"late","legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":12,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simJobs":12,"simOnly":false,"startAtOnce":false,"totalJobs":15,"waves":3}
+{"control":true,"lane":"late","legs":[{"jobs":3,"name":"webkit-mac","parallel":1},{"jobs":13,"name":"webkit-sim","parallel":5}],"op":"legs","peak":6,"simJobs":12,"simOnly":false,"startAtOnce":false,"totalJobs":16,"waves":4}
 {"fault":false,"name":"touch-driver-not-ready","on":true,"op":"driverFault","requested":true}
 {"fault":true,"name":"touch-driver-not-ready","on":false,"op":"driverFault","requested":true}
 {"fault":false,"name":"touch-driver-not-ready","on":true,"op":"driverFault","requested":false}
@@ -116,11 +120,39 @@
 {"fault":"touch-driver-not-ready","job":5,"op":"observed","run":2}
 {"fault":"none","job":1,"op":"observed","run":3}
 {"fault":"none","job":2,"op":"observed","run":3}
-{"fault":"touch-driver-not-ready","job":3,"op":"observed","run":3}
-{"fault":"touch-driver-not-ready","job":4,"op":"observed","run":3}
+{"fault":"lost-mid-walk","job":3,"op":"observed","run":3}
+{"fault":"lost-mid-walk","job":4,"op":"observed","run":3}
 {"fault":"page-lost-or-evaluate-timeout","job":5,"op":"observed","run":3}
-{"fault":"touch-driver-not-ready","job":6,"op":"observed","run":3}
+{"fault":"lost-mid-walk","job":6,"op":"observed","run":3}
 {"fault":"touch-driver-not-ready","job":7,"op":"observed","run":3}
-{"fault":"touch-driver-not-ready","job":8,"op":"observed","run":3}
+{"fault":"lost-mid-walk","job":8,"op":"observed","run":3}
 {"fault":"none","job":9,"op":"observed","run":3}
 {"fault":"touch-driver-not-ready","job":10,"op":"observed","run":3}
+{"name":"none","op":"faultName"}
+{"name":"budget","op":"faultName"}
+{"name":"touch-driver-not-ready","op":"faultName"}
+{"name":"lost-mid-walk","op":"faultName"}
+{"name":"page-lost-or-evaluate-timeout","op":"faultName"}
+{"name":"socket-crash","op":"faultName"}
+{"name":"walk-deadline-or-other","op":"faultName"}
+{"fault":"-","on":true,"op":"driverEnd","phase":"start","requested":true}
+{"fault":"touch-driver-not-ready","on":false,"op":"driverEnd","phase":"start","requested":true}
+{"fault":"-","on":true,"op":"driverEnd","phase":"start","requested":false}
+{"fault":"-","on":false,"op":"driverEnd","phase":"start","requested":false}
+{"fault":"-","on":true,"op":"driverEnd","phase":"walk","requested":true}
+{"fault":"lost-mid-walk","on":false,"op":"driverEnd","phase":"walk","requested":true}
+{"fault":"-","on":true,"op":"driverEnd","phase":"walk","requested":false}
+{"fault":"-","on":false,"op":"driverEnd","phase":"walk","requested":false}
+{"budgetShort":true,"case":"a named fault wins","fault":"touch-driver-not-ready","incomplete":true,"kept":9,"minKept":5,"op":"faultOf","out":"touch-driver-not-ready","text":"socket"}
+{"budgetShort":false,"case":"a named mid-walk loss","fault":"lost-mid-walk","incomplete":true,"kept":0,"minKept":5,"op":"faultOf","out":"lost-mid-walk","text":""}
+{"budgetShort":true,"case":"a short plan is the budget","fault":"-","incomplete":false,"kept":4,"minKept":5,"op":"faultOf","out":"budget","text":""}
+{"budgetShort":false,"case":"enough kept windows","fault":"-","incomplete":true,"kept":5,"minKept":5,"op":"faultOf","out":"none","text":"pageLost"}
+{"budgetShort":false,"case":"just short of enough, a clean end","fault":"-","incomplete":false,"kept":4,"minKept":5,"op":"faultOf","out":"none","text":""}
+{"budgetShort":false,"case":"a socket error","fault":"-","incomplete":true,"kept":2,"minKept":5,"op":"faultOf","out":"socket-crash","text":"EINVAL setTypeOfService"}
+{"budgetShort":false,"case":"a socket error in capitals","fault":"-","incomplete":true,"kept":2,"minKept":5,"op":"faultOf","out":"socket-crash","text":"SOCKET hang up"}
+{"budgetShort":false,"case":"a lost page","fault":"-","incomplete":true,"kept":0,"minKept":5,"op":"faultOf","out":"page-lost-or-evaluate-timeout","text":"walk deadline: x pageLost"}
+{"budgetShort":false,"case":"a page lost, spaced","fault":"-","incomplete":true,"kept":1,"minKept":5,"op":"faultOf","out":"page-lost-or-evaluate-timeout","text":"the page lost its tab"}
+{"budgetShort":false,"case":"an evaluate timeout","fault":"-","incomplete":false,"kept":1,"minKept":5,"op":"faultOf","out":"page-lost-or-evaluate-timeout","text":"Runtime.evaluate timed out after 120000 ms"}
+{"budgetShort":false,"case":"socket before lost","fault":"-","incomplete":true,"kept":3,"minKept":5,"op":"faultOf","out":"socket-crash","text":"pageLost then socket closed"}
+{"budgetShort":false,"case":"a walk deadline","fault":"-","incomplete":true,"kept":2,"minKept":5,"op":"faultOf","out":"walk-deadline-or-other","text":"walk deadline: x"}
+{"budgetShort":false,"case":"no text and no end","fault":"-","incomplete":false,"kept":0,"minKept":5,"op":"faultOf","out":"none","text":""}

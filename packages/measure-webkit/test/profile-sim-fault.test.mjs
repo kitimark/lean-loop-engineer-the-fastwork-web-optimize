@@ -27,9 +27,12 @@ test('the guard logs the socket fault and keeps running, ends the process on any
   assert.equal(proc.listenerCount('uncaughtException'), 0);
 });
 
-test('driverEnd: a walk that asked for the touch driver ends with the named fault when it is off, and never otherwise (Lean driverFault)', () => {
-  assert.deepEqual(driverEnd(true, false, 'no ready file after 480 s'), { fault: 'touch-driver-not-ready', cut: 'fault touch-driver-not-ready: no ready file after 480 s' });
-  assert.equal(driverEnd(true, true, null), null);
-  assert.equal(driverEnd(false, false, 'x'), null);
-  assert.equal(driverEnd(false, true, null), null);
+test('driverEnd: the driver off before the walk is touch-driver-not-ready, off during it is lost-mid-walk, never when not asked or on (Lean driverEnd)', () => {
+  assert.deepEqual(driverEnd(true, false, 'no ready file after 480 s', 'start'), { fault: 'touch-driver-not-ready', cut: 'fault touch-driver-not-ready: no ready file after 480 s' });
+  assert.deepEqual(driverEnd(true, false, 'swipeLate', 'walk'), { fault: 'lost-mid-walk', cut: 'fault lost-mid-walk: swipeLate' });
+  for (const ph of ['start', 'walk']) {
+    assert.equal(driverEnd(true, true, null, ph), null);
+    assert.equal(driverEnd(false, false, 'x', ph), null);
+    assert.equal(driverEnd(false, true, null, ph), null);
+  }
 });
