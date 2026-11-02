@@ -15,7 +15,6 @@ import { restMs, SEP_DWELL_CYCLES } from './push-cycle.mjs';
 
 const CENSUS_SETTLE_MS = 2000;
 const CENSUS_WINDOW_MS = 300;
-const SERVER_READY_MS = 420000;
 const SERVER_MAX_S = 2400;
 const CYCLE_DONE_MS = 180000;
 
@@ -72,7 +71,7 @@ export async function pushCyclePass(ctx, { driver, udid, drag, gapPx = GAP_PX, s
   let server = null;
   if (asked) {
     try {
-      server = await startServer(driver, { udid, log: (l) => log(`${tag}: ${l}`), push: { dragPt: drag.dragPt, velocity: drag.velocity, holdMs: drag.holdMs }, maxS: SERVER_MAX_S, readyMs: SERVER_READY_MS, tag: `${tag}-srv`, suite: 'FinishServer' });
+      server = await startServer(driver, { udid, log: (l) => log(`${tag}: ${l}`), push: { dragPt: drag.dragPt, velocity: drag.velocity, holdMs: drag.holdMs }, maxS: SERVER_MAX_S, tag: `${tag}-srv`, suite: 'FinishServer' });
     } catch (e) {
       log(`${tag}: ${e.message.split('; log tail')[0]}`);
       return { profile, targetMs, info: pageOut, near, drag: { code: 1, timedOut: false, signal: null, tail: e.message.slice(-1500) }, calls: [], census, rec: null };
