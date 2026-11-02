@@ -25252,7 +25252,8 @@
     "apps/runner/src/land.ts",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
     "research/notes/2026/11-0*-touch-driver-ready.md",
-    "docs/team/handoffs/touch-driver-ready.md"
+    "docs/team/handoffs/touch-driver-ready.md",
+    "packages/measure-webkit/src/throttle/driver/**"
    ]
   }
  ],
