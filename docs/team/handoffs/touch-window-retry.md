@@ -1,8 +1,9 @@
-branch: worktree-wf_850db9c2-5f8-1 (CI branch ci/touch-window-retry)
-worktree: .claude/worktrees/wf_850db9c2-5f8-1
-last commit: 4fdde6020 (CI request commit on top of 615e28e28)
-CI runs: 41534838350 (smoothness, push run of 4fdde6020 on ci/touch-window-retry, dispatch 1 of 2) running; lean job of the same push not read
-verified: Lean WindowRetry.lean builds (verdict branch theorems, deadline bound, never-pass), golden window-retry.jsonl 25 lines, window-retry.test.mjs 10/10, measure-webkit test 1177/1177, lint-wallclock ok, ci-paths test 56/56
-open: CI result, note research/notes/2026/11-03-touch-window-retry.md, check.sh, dry land, review ready
-Pricing (scratch, local, not committed): scratchpad/touch-window-retry/ (artifacts of runs 41503168296 and 41436626306 copied from the touch-window-loss download; bin/price.mjs, bin/redo-price.mjs)
-Rule: Lean Fw.Measure.WindowRetry (verdict, redoFits = now + blockMs (left+1) + reserve <= dl, outcomeOf, finalClass); TS packages/measure-webkit/src/window-retry.mjs, wired in touchlock-run.mjs (tryWindow, withRedo; first row is pushed before the redo and replaced by it only when recovered)
+branch: worktree-wf_850db9c2-5f8-1 (CI branch ci/touch-window-retry); worktree .claude/worktrees/wf_850db9c2-5f8-1
+read first: research/notes/2026/11-03-touch-window-retry.md, then lean/Fw/Measure/WindowRetry.lean
+state: rule, goldens, TS and lane wiring committed; CI dispatch 1 of 2 finished (smoothness run 41534838350, commit 4fdde6020); second dispatch not spent
+verified: check.sh green, window-retry.test.mjs 10/10, measure-webkit tests, lint-wallclock, ci-paths test
+result (MEASURED, 12 jobs): kept 87 of 288 (30.2% vs 27.7%), jobs at minKept 2 of 12 (3 status-ok), redos ran 13: recovered 5, noOpen 5, tooShort 1, failed 2, 13 noTime; walkDeadline 18, planShort 8, restartFailed 90
+finding: redo recovered 0.38 of tries, below the INFERRED break-even 0.585; two redos hit a Simulator stall (917 s, 1026 s); no gain shown
+open: comparison with touch-window-loss stays a one-sample question; warm-up window before rep 0; window-loss firstStall counts push lines, a redo adds some; noOpen cause not isolated
+conventions: pricing scratch under scratchpad/touch-window-retry/ (not committed); redo outcomes by `node packages/measure-webkit/src/window-retry-cli.mjs --root <run artifacts>`; classify with window-loss-cli.mjs
+stand-ins (TS, no decision logic): dl = deadlineMs ?? Infinity, withRedo glue, window-retry-cli.mjs
