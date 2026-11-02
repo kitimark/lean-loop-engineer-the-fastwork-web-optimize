@@ -25030,7 +25030,8 @@
     "apps/runner/test/land-link*.test.ts",
     "lean/Fw/Ops/Golden.lean",
     "research/notes/2026/11-0*-scratch-link-check.md",
-    "docs/team/handoffs/scratch-link-check.md"
+    "docs/team/handoffs/scratch-link-check.md",
+    ".claude/workflows/build-review.js"
    ]
   },
   {
