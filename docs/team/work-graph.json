@@ -25030,7 +25030,8 @@
     "apps/runner/test/land-link*.test.ts",
     "lean/Fw/Ops/Golden.lean",
     "research/notes/2026/11-0*-scratch-link-check.md",
-    "docs/team/handoffs/scratch-link-check.md"
+    "docs/team/handoffs/scratch-link-check.md",
+    ".claude/workflows/build-review.js"
    ]
   },
   {
@@ -25253,7 +25254,13 @@
     "research/notes/2026/10-2x-sim-touch-reliable.md",
     "research/notes/2026/11-0*-touch-driver-ready.md",
     "docs/team/handoffs/touch-driver-ready.md",
-    "packages/measure-webkit/src/throttle/driver/**"
+    "packages/measure-webkit/src/throttle/driver/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/TouchReadyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/push-cycle-pass.mjs"
    ]
   }
  ],
