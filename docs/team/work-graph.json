@@ -25034,7 +25034,8 @@
     ".claude/workflows/build-review.js",
     "lean/FwTest/Mutants/OpsWire.lean",
     "lean/Fw/Ops/Wire.lean"
-   ]
+   ],
+   "evidence": "297f856"
   },
   {
    "devices": [
