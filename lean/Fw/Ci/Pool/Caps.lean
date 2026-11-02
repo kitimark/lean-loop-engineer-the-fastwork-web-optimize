@@ -73,10 +73,8 @@ def smoothSource : String :=
 
 def simWallDm : Nat := 10 * (Fw.Measure.WalkBudget.job.timeoutMs / 60000) * 100 / 130
 
-/-- Job walls in seconds (jobs API) of the successful `webkit-sim` jobs of runs 41345594217 (4 of 5), 41349666358 (5 of 5) and 41357917479 (8 of 10). -/
 def simWalls : List Nat := [1486, 1332, 1294, 1801, 1100, 2609, 2228, 2034, 2297, 1569, 1918, 1182, 1448, 2424, 1101, 1154, 944]
 
-/-- Lanes whose `p90dm` is the plan's own bound, not a p90 of measured walls. -/
 def derivedLanes : List String := ["smoothness-webkit-sim"]
 
 def Row.derived (r : Row) : Bool := derivedLanes.contains r.lane
@@ -137,7 +135,6 @@ theorem legWorstSec_mono {w : Nat} {a b : Nat} (h : a â‰¤ b) : legWorstSec w a â
   have := Nat.mul_le_mul_right probePassSec (Nat.mul_le_mul_left w h)
   omega
 
-/-- The p90 values (tenths of a minute) of the golden's `vector` rows. -/
 def vectors : List Nat := [0, 1, 56, 76, 77, 112, 119, 124, 132, 161, 198, 289, 300, 1000]
 
 private def derivedJson (r : Row) : Json :=

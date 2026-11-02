@@ -150,10 +150,8 @@ def tailMs : Nat := quantile windowSecs 99 * 1000
 
 def meanMs : Nat := windowSecs.sum * 1000 / windowSecs.length
 
-/-- A window of at least this many seconds is a tail window. -/
 def tailFloorSecs : Nat := 100
 
-/-- Windows per tail window of the sample, rounded down so the budget holds one tail slot at least as often as the sample shows one. -/
 def tailEvery : Nat := windowSecs.length / (windowSecs.filter (tailFloorSecs ≤ ·)).length
 
 def blockMs (n : Nat) : Nat := n * bodyMs + (n + tailEvery - 1) / tailEvery * (tailMs - bodyMs)
@@ -343,7 +341,6 @@ theorem groupArms_cover (controls cands g : Nat) (hg : 0 < g) : cands ≤ g * (g
   rw [← ht] at h1 ⊢
   omega
 
-/-- What kept a job of the two verdict runs from a decisive end-touch verdict. -/
 inductive Fault where
   | none
   | budget
@@ -359,7 +356,6 @@ def Fault.name : Fault → String
   | .hang => "page-lost-or-evaluate-timeout"
   | .crash => "socket-crash"
 
-/-- The jobs of runs 41345594217 (run 1), 41349666358 (run 2) and 41357917479 (run 3, the 10-job matrix): run, job, fault. -/
 def observedJobs : List (Nat × Nat × Fault) :=
   [(1, 1, .budget), (1, 2, .driver), (1, 3, .driver), (1, 4, .crash), (1, 5, .budget),
    (2, 1, .none), (2, 2, .none), (2, 3, .hang), (2, 4, .hang), (2, 5, .driver),
@@ -368,7 +364,6 @@ def observedJobs : List (Nat × Nat × Fault) :=
 
 def faultCount (f : Fault) (js : List (Nat × Nat × Fault) := observedJobs) : Nat := (js.filter (·.2.2 == f)).length
 
-/-- The fault with the most jobs among the faulty ones (the first on a tie). -/
 def dominant : Fault :=
   [Fault.budget, .driver, .hang, .crash].foldl (fun best f => if faultCount best < faultCount f then f else best) .budget
 
@@ -382,27 +377,22 @@ theorem driver_count : faultCount .driver = 9 := by decide
 
 theorem driver_others : faultCount .budget + faultCount .hang + faultCount .crash = 6 := by decide
 
-/-- Decisive jobs over jobs, as a fraction, for the jobs of the listed runs. -/
 def decisiveRate (runs : List Nat) : Nat × Nat :=
   let js := observedJobs.filter fun j => runs.contains j.1
   (faultCount .none js, js.length)
 
-/-- The rate of runs 1 and 2, the 10 jobs the plan was derived from. -/
 def pooledRate : Nat × Nat := decisiveRate [1, 2]
 
 theorem pooled_rate : pooledRate = (2, 10) := by decide
 
-/-- Run 3 ran the 10-job plan: 3 jobs decisive (1, 2, 9), 6 lost to the touch driver, 1 to a hang (job 5). -/
 theorem run3_rate : decisiveRate [3] = (3, 10) := by decide
 
 theorem run3_driver : faultCount .driver (observedJobs.filter fun j => j.1 == 3) = 6 := by decide
 
-/-- The rate of runs 2 and 3, the two runs of the current code (run 3 = the 10-job matrix): 5 of 15. -/
 def lateRate : Nat × Nat := decisiveRate [2, 3]
 
 theorem late_rate : lateRate = (5, 15) := by decide
 
-/-- The rate the plan uses: run 2 ran the code of the matrix (the 60 min job, the 480 s driver wait and the socket guard fix the faults `budget` and `crash` of run 1). -/
 def planRate : Nat × Nat := decisiveRate [2]
 
 theorem planRate_value : planRate = (2, 5) := by decide
@@ -413,7 +403,6 @@ def pascal : Nat → List Nat
 
 def choose (n k : Nat) : Nat := (pascal n).getD k 0
 
-/-- The numerator, over `b ^ n`, of the chance that at least `k` of `n` jobs are decisive when each is with chance `a / b`. -/
 def tailNum (n k a b : Nat) : Nat :=
   (List.range (n + 1)).foldl (fun s i => if k ≤ i then s + choose n i * a ^ i * (b - a) ^ (n - i) else s) 0
 
@@ -421,19 +410,16 @@ def reaches (n k a b tn td : Nat) : Bool := decide (tn * b ^ n ≤ td * tailNum 
 
 theorem tailNum_total : ∀ n, n ≤ 12 → tailNum n 0 2 5 = 5 ^ n := by decide +kernel
 
-/-- Chance target of the plan: at least 4 in 5 that the run has `minSamples` decisive jobs. -/
 def target : Nat × Nat := (4, 5)
 
 def jobsCap : Nat := 30
 
-/-- The least job count of at least `k` that reaches `k` decisive jobs with the target chance. -/
 def jobsFor (k a b tn td cap : Nat) : Option Nat :=
   (List.range (cap + 1)).find? fun n => decide (k ≤ n) && reaches n k a b tn td
 
 def jobsNeeded : Nat :=
   (jobsFor Fw.Gate.Smooth.minSamples planRate.1 planRate.2 target.1 target.2 jobsCap).getD jobsCap
 
-/-- Lost jobs the plan survives: every job past the `minSamples` decisive ones. -/
 def margin : Nat := jobsNeeded - Fw.Gate.Smooth.minSamples
 
 theorem jobsNeeded_value : jobsNeeded = 10 := by decide +kernel
@@ -445,7 +431,6 @@ theorem margin_add : Fw.Gate.Smooth.minSamples + margin = jobsNeeded := by
   have : Fw.Gate.Smooth.minSamples ≤ jobsNeeded := by decide +kernel
   omega
 
-/-- **Reach**: at the plan rate (2 of 5 jobs decisive) 10 jobs give at least 3 decisive ones with chance at least 4 in 5. -/
 theorem reach_at_plan : reaches jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2 target.1 target.2 = true := by
   decide +kernel
 
@@ -453,21 +438,16 @@ theorem reach_least : ∀ n, n < jobsNeeded → Fw.Gate.Smooth.minSamples ≤ n 
     reaches n Fw.Gate.Smooth.minSamples planRate.1 planRate.2 target.1 target.2 = false := by
   decide +kernel
 
-/-- The exact chance at the plan rate, in parts per 10000 (rounded down): 8327. -/
 def reachPer10k (n k a b : Nat) : Nat := 10000 * tailNum n k a b / b ^ n
 
 theorem reach_plan_value : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples planRate.1 planRate.2 = 8327 := by decide +kernel
 
-/-- At the rate of all ten jobs (2 of 10) the same 10 jobs reach with a chance of only 3222 in 10000: the plan bets on run 2's rate. -/
 theorem reach_at_pooled : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 5 = 3222 := by decide +kernel
 
-/-- Jobs for the target chance at the pooled rate: 21. -/
 theorem pooled_jobs : jobsFor Fw.Gate.Smooth.minSamples 1 5 target.1 target.2 jobsCap = some 21 := by decide +kernel
 
-/-- Run 3 (the 10-job matrix) reached `minSamples` decisive jobs with none to spare: 3 of 3. -/
 theorem run3_reached : Fw.Gate.Smooth.minSamples ≤ (decisiveRate [3]).1 ∧ (decisiveRate [3]).1 ≤ Fw.Gate.Smooth.minSamples := by decide
 
-/-- At the rate of runs 2 and 3 (5 of 15, that is 1 of 3) the same 10 jobs reach with a chance of 7008 in 10000: the 4 in 5 target needs 12 jobs, so the next matrix is sized by `lateRate`. -/
 theorem reach_at_late : reachPer10k jobsNeeded Fw.Gate.Smooth.minSamples 1 3 = 7008 := by decide +kernel
 
 theorem late_jobs : jobsFor Fw.Gate.Smooth.minSamples 1 3 target.1 target.2 jobsCap = some 12 := by decide +kernel
@@ -519,7 +499,6 @@ theorem plan_across (vs : List Verdict) (hn : jobsNeeded ≤ vs.length) (hl : vs
 
 /-! ## Waves and the macOS legs of one run -/
 
-/-- Rounds of `slots` jobs that `jobs` jobs need. -/
 def waves (jobs slots : Nat) : Nat := (jobs + slots - 1) / slots
 
 theorem jobs_le_waves (jobs slots : Nat) (h : 0 < slots) : jobs ≤ waves jobs slots * slots := by
@@ -529,7 +508,6 @@ theorem jobs_le_waves (jobs slots : Nat) (h : 0 < slots) : jobs ≤ waves jobs s
   rw [Nat.mul_comm] at h1
   omega
 
-/-- **Waves**: a pool of `p` slots that starts a job as soon as one of the `p` before it has ended, jobs of at most `T`, starts job `i` by `(i / p) * T`. -/
 theorem wave_start (p T : Nat) (hp : 0 < p) (start : Nat → Nat) (h0 : ∀ i, i < p → start i = 0)
     (hs : ∀ i, p ≤ i → start i ≤ start (i - p) + T) : ∀ i, start i ≤ i / p * T := by
   intro i
@@ -548,7 +526,6 @@ theorem wave_start (p T : Nat) (hp : 0 < p) (start : Nat → Nat) (h0 : ∀ i, i
       rw [h3, Nat.add_mul, Nat.one_mul]
       omega
 
-/-- Every job of the pool ends by `waves * T`. -/
 theorem wave_end (p T jobs : Nat) (hp : 0 < p) (start : Nat → Nat) (h0 : ∀ i, i < p → start i = 0)
     (hs : ∀ i, p ≤ i → start i ≤ start (i - p) + T) : ∀ i, i < jobs → start i + T ≤ waves jobs p * T := by
   intro i hi
@@ -561,7 +538,6 @@ theorem wave_end (p T jobs : Nat) (hp : 0 < p) (start : Nat → Nat) (h0 : ∀ i
   rw [Nat.add_mul, Nat.one_mul] at h4
   omega
 
-/-- One macOS leg of a smoothness run: the matrix size and its `max-parallel`. -/
 structure Leg where
   name : String
   jobs : Nat
@@ -570,7 +546,6 @@ deriving DecidableEq, Repr
 
 def macJobs : Nat := 3
 
-/-- The legs of a run on the free macOS runners: `webkit-mac` unless `[sim-only]`, `webkit-sim` with the control job when `[sim-touch-control]`. -/
 def legs (simOnly control : Bool) : List Leg :=
   (if simOnly then [] else [⟨"webkit-mac", macJobs, 1⟩]) ++
     [⟨"webkit-sim", jobsNeeded + (if control then 1 else 0), Fw.Measure.WktrLayout.macSlots⟩]
@@ -583,7 +558,6 @@ def totalJobs (ls : List Leg) : Nat := (ls.map (·.jobs)).sum
 
 def runWaves (ls : List Leg) : Nat := waves (totalJobs ls) Fw.Measure.WktrLayout.macSlots
 
-/-- Every job of the run starts at once: they all fit the free slots. -/
 def startAtOnce (ls : List Leg) : Bool := decide (totalJobs ls ≤ Fw.Measure.WktrLayout.macSlots)
 
 theorem never_at_once : ∀ s c : Bool, startAtOnce (legs s c) = false := by decide +kernel
@@ -600,7 +574,6 @@ theorem mac_leg_peak : peak (legs false false) = Fw.Measure.WktrLayout.macSlots 
 
 theorem sim_only_wall : runWaves (legs true false) * job.timeoutMs = 7200000 := by decide +kernel
 
-/-- A walk with the touch driver asked for ends at once when the driver is not on: no untouched windows follow. -/
 def driverFault (requested on : Bool) : Bool := requested && !on
 
 def driverFaultName : String := Fault.driver.name
