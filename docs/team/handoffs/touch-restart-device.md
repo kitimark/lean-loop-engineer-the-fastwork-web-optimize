@@ -1,6 +1,6 @@
 branch: worktree-wf_750ad5a5-83d-1 (CI branch ci/touch-restart-device)
 worktree: .claude/worktrees/wf_750ad5a5-83d-1
-last commit: see `git log -1` (code c9055423e, CI request 4afd78df2, then handoff, note and merge of main)
+last commit: see `git log -1` (code c9055423e, CI request 4afd78df2, then handoff and note; no merge of main needed, based on 7dc190958)
 CI runs: smoothness 41503168296 complete, `fw ci state` failed (jobs 3, 10, 12 hard stop). Dispatch 1 of 2 used; dispatch 2 not needed.
 result: 5 restarts begun, 5 decided, 2 ready (4 of 10, 1 of 5, 5 of 9 before); reset faults driver-restart-reset-late x3, reset-failed 0; 0 of 10 terminate calls ended anything (4 absent, 6 late); 1 stall (job 5) never launched. Closed as a Simulator-limit finding; no more restart forms.
 verified: Lean TouchReady builds, 73 golden lines, check.sh green; measure-webkit tests 1158/1158; runner tests 3797; ci-paths 56/56; land-inputs 73/73; lint-wallclock ok
