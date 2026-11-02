@@ -9,6 +9,7 @@ import { READY_CFG, RESTART_CFG } from './touch-ready.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverEnd } from './walk-budget.mjs';
 import { ARMS, PAN, START_GAP_PX, TAIL_MS, MAX_RESTARTS, afterWindow, repOrder, serveTag, summarize } from './touchlock.mjs';
 import { installJs, nearEndJs, windowJs } from './touchlock-page.mjs';
+import { withRedo, redoTally } from './window-retry.mjs';
 
 export function planLock({ deadlineMs, nowMs, repsArg = 'auto' }) {
   const n = ARMS.length;
@@ -76,7 +77,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
   const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0, restarts: 0, launches: [] };
   const snapshot = (incomplete) => {
     const out = { leg: 'sim-touch-lock', runtime: device.runtime, device: device.name, ua, reps, arms: ARMS, repPlan, fault, push, startGapPx: START_GAP_PX, tailMs: TAIL_MS,
-      touch: { on: touch.on, why: touch.on ? null : touch.why, restarts: touch.restarts, launches: launchesView(touch.launches, Date.now()) }, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows };
+      touch: { on: touch.on, why: touch.on ? null : touch.why, restarts: touch.restarts, launches: launchesView(touch.launches, Date.now()) }, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), redo: redoTally(rows), rows };
     return { ...out, summary: summarize(rows) };
   };
 
@@ -123,6 +124,18 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
       q2: { firstScrollMs, longFrames50: frameGaps.filter((g) => g > 50).length, maxFrameGap: Math.round(Math.max(0, ...frameGaps)) } };
   };
 
+  const tryWindow = async (ctx, id, rep) => {
+    for (let attempt = 1; ; attempt++) {
+      if (deadlineMs != null && !startsWindow(deadlineMs, now(), WINDOW_RESERVE_MS)) return { cut: `walk deadline: no time left to start ${id} rep ${rep}` };
+      await ctx.check?.();
+      try { return { got: await oneWindow(ctx, id, rep) }; } catch (e) {
+        if (attempt >= attempts()) throw e;
+        log(`  touch-lock ${id} rep ${rep} attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
+        await reconnect(ctx, { log });
+      }
+    }
+  };
+
   let cut = null;
   try {
     const walk = withSession(async (ctx) => {
@@ -135,17 +148,14 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
       walk: for (let rep = 0; rep < reps; rep++) {
         for (const id of repOrder(rep)) {
           { const e = driverEnd(true, touch.on, touch.why, 'walk'); if (e) { ({ fault, cut } = e); break walk; } }
-          let got = null;
-          for (let attempt = 1; !got; attempt++) {
-            if (deadlineMs != null && !startsWindow(deadlineMs, now(), WINDOW_RESERVE_MS)) { cut = `walk deadline: no time left to start ${id} rep ${rep}`; break walk; }
-            await ctx.check?.();
-            try { got = await oneWindow(ctx, id, rep); } catch (e) {
-              if (attempt >= attempts()) throw e;
-              log(`  touch-lock ${id} rep ${rep} attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
-              await reconnect(ctx, { log });
-            }
-          }
-          rows.push(got);
+          const tried = await tryWindow(ctx, id, rep);
+          if (tried.cut) { cut = tried.cut; break walk; }
+          rows.push(tried.got);
+          rows[rows.length - 1] = await withRedo(tried.got, {
+            now, log,
+            ask: () => ({ driverOn: touch.on, dl: deadlineMs ?? Infinity, now: now(), reserve: WINDOW_RESERVE_MS, left: reps * ARMS.length - rows.length }),
+            run: async () => (await tryWindow(ctx, id, rep)).got ?? null,
+          });
           onProgress?.(snapshot('walk not finished: written after a window'));
         }
       }

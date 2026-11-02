@@ -121,6 +121,7 @@ run_group() {
   job "touchpush golden check" lake env lean --run scripts/TouchPushGolden.lean --check ../packages/contracts/golden/measure/touch-push.jsonl
   job "touchready golden check" lake env lean --run scripts/TouchReadyGolden.lean --check ../packages/contracts/golden/measure/touch-ready.jsonl
   job "windowloss golden check" lake env lean --run scripts/WindowLossGolden.lean --check ../packages/contracts/golden/measure/window-loss.jsonl
+  job "windowretry golden check" lake env lean --run scripts/WindowRetryGolden.lean --check ../packages/contracts/golden/measure/window-retry.jsonl
   job "pushcycle golden check" lake env lean --run scripts/PushCycleGolden.lean --check ../packages/contracts/golden/measure/push-cycle.jsonl
   job "walkbudget golden check" lake env lean --run scripts/WalkBudgetGolden.lean --check ../packages/contracts/golden/measure/walk-budget.jsonl
   job "offscreen golden check" lake env lean --run scripts/OffscreenGolden.lean --check ../packages/contracts/golden/measure/offscreen.jsonl
