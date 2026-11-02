@@ -69,7 +69,6 @@ const hostTop = () => {
   } catch (e) { return [`ps failed: ${e.code ?? e.signal ?? 'error'}`]; }
 };
 
-/** Memory free percentage and how long `simctl list devices booted` takes (null when it did not answer in 10 s): is CoreSimulator answering? */
 export const hostHealth = () => {
   const out = { memFreePct: null, simctlMs: null };
   try { out.memFreePct = Number(/free percentage: (\d+)%/.exec(execFileSync('memory_pressure', ['-Q'], { encoding: 'utf8', timeout: 10000 }))?.[1] ?? NaN) || null; } catch {}
@@ -79,8 +78,6 @@ export const hostHealth = () => {
 };
 
 /**
- * Start the push server: up to READY_CFG.launches xcodebuild launches, each cut by `verdict` (Lean TouchReady) after launchMs without `ready`,
- * when it ends, or at once on `ready`. A cut launch is killed and named (driver-launch-stuck | driver-body-stuck | driver-ended) in `launches`.
  * Resolves {dir, run, next, launches}; throws after the last launch with `.launches` and `.fault` set.
  */
 export async function startServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, tag = 'serve', suite = 'PushServer', cfg = READY_CFG }) {
@@ -113,7 +110,6 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   throw e;
 }
 
-/** The last `bytes` bytes of a file as text; a driver log can be megabytes after a long hung press, and the stop loop reads it every 500 ms. */
 export function fileTail(file, bytes) {
   const fd = openSync(file, 'r');
   try {
@@ -124,12 +120,6 @@ export function fileTail(file, bytes) {
   } finally { closeSync(fd); }
 }
 
-/**
- * Write the stop file and wait for xcodebuild to exit, up to cfg.stopWaitMs; never kills (a kill broke the restart that follows).
- * Sets `server.stopFault` (Lean TouchReady stopStep: driver-stop-late-body | driver-stop-late-teardown) and `server.stopTrace`
- * {waitedMs, bodyEndedMs, exitedMs, top, tail}: ms after the stop file when the log shows the test body returned and when xcodebuild exited
- * (`exitedMs` is filled in later if it exits after the wait; null until then).
- */
 export async function stopServer(server, { cfg = READY_CFG } = {}) {
   try { writeFileSync(join(server.dir, 'stop'), ''); } catch {}
   const w0 = Date.now();

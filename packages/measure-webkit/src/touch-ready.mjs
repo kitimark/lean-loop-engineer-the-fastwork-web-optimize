@@ -6,7 +6,6 @@ export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck',
 export const STOP_LATE_BODY = 'driver-stop-late-body';
 export const STOP_LATE_TEARDOWN = 'driver-stop-late-teardown';
 
-/** True when xcodebuild's output shows the PushServer test body returned: its `Tear Down` line or the end of the test case. TS stand-in: log parsing, no decision. */
 export const bodyEndedIn = (text) => /^\s*t =\s*[\d.]+s Tear Down\s*$/m.test(text) || /Test [Cc]ase\b[^\n]*\btestServe\b[^\n]*\b(?:passed|failed)\b/.test(text);
 
 export const faultOf = (o) => (o.ended ? LAUNCH_FAULTS.ended : o.alive ? LAUNCH_FAULTS.bodyStuck : LAUNCH_FAULTS.launchStuck);

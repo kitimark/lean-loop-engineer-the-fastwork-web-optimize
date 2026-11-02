@@ -230,9 +230,6 @@ theorem run_single_launch (t : Traj) (ls : List Traj) (c : Cfg) (hc : c.launches
     rcases verdict_cases c 1 (obsAt t (stopAt c t)) with h1 | h1 | h1 | h1 <;> simp_all
   simp [run, hc, drive, hg]
 
-/-- What one look at a stopping driver decides. `lateBody`: the wait ran out and xcodebuild's log shows no sign that the test body returned
-(no `Tear Down` line, no end of the test case): the stop file is unread because a press is still running. `lateTeardown`: the wait ran
-out after the body returned, so XCUITest or xcodebuild is still tearing down. -/
 inductive StopAct where
   | wait
   | clean
@@ -246,7 +243,6 @@ def StopAct.name : StopAct → String
   | .lateBody => "driver-stop-late-body"
   | .lateTeardown => "driver-stop-late-teardown"
 
-/-- `exited`: xcodebuild ended. `bodyEnded`: its log shows the test body returned. `waitedMs`: time since the stop file was written. -/
 def stopStep (c : Cfg) (exited bodyEnded : Bool) (waitedMs : Nat) : StopAct :=
   if exited then .clean
   else if c.stopWaitMs ≤ waitedMs then (if bodyEnded then .lateTeardown else .lateBody)
@@ -267,7 +263,6 @@ theorem stop_wait (c : Cfg) (t : Bool) (w : Nat) (h : w < c.stopWaitMs) : stopSt
 theorem stop_decides_by (c : Cfg) (exited t : Bool) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c exited t w ≠ .wait := by
   cases exited <;> cases t <;> simp [stopStep, h]
 
-/-- Whether the body returned is the only thing that tells the two late stops apart. -/
 theorem stop_late_split (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) :
     stopStep c false false w ≠ stopStep c false true w := by
   rw [stop_late_body c w h, stop_late_teardown c w h]; decide
