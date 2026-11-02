@@ -1,4 +1,4 @@
-{"killMs":10000,"launchMs":150000,"launches":3,"names":["driver-launch-stuck","driver-body-stuck","driver-ended"],"op":"constants","readyAllowMs":480000,"restartLaunchMs":470000,"restartLaunches":1,"stopLateNames":["driver-stop-late-body","driver-stop-late-teardown"],"stopWaitMs":20000}
+{"gateChecks":2,"gateExitWaitMs":120000,"gateGapMs":30000,"gateNames":["driver-restart-overlap","driver-restart-device-unsure"],"gateProbeMs":25000,"killMs":10000,"launchMs":150000,"launches":3,"names":["driver-launch-stuck","driver-body-stuck","driver-ended"],"op":"constants","readyAllowMs":480000,"restartAllowMs":700000,"restartLaunchMs":470000,"restartLaunches":1,"restartMs":680000,"stopLateNames":["driver-stop-late-body","driver-stop-late-teardown"],"stopWaitMs":20000}
 {"act":"ready","case":"ready at once","n":1,"obs":{"alive":true,"elapsed":40000,"ended":false,"ready":true},"op":"decide"}
 {"act":"ready","case":"ready wins over ended","n":1,"obs":{"alive":true,"elapsed":40000,"ended":true,"ready":true},"op":"decide"}
 {"act":"ready","case":"ready wins at the cap","n":3,"obs":{"alive":true,"elapsed":150000,"ended":false,"ready":true},"op":"decide"}
@@ -35,6 +35,18 @@
 {"act":"driver-stop-late-teardown","bodyEnded":true,"exited":false,"op":"stop","waitedMs":20000}
 {"act":"driver-stop-late-body","bodyEnded":false,"exited":false,"op":"stop","waitedMs":60000}
 {"act":"driver-stop-late-teardown","bodyEnded":true,"exited":false,"op":"stop","waitedMs":60000}
+{"act":"launch","checked":0,"deviceOk":true,"exited":true,"op":"gate","waitedMs":0}
+{"act":"recheck","checked":0,"deviceOk":false,"exited":true,"op":"gate","waitedMs":5000}
+{"act":"recheck","checked":1,"deviceOk":false,"exited":true,"op":"gate","waitedMs":5000}
+{"act":"launch:driver-restart-device-unsure","checked":2,"deviceOk":false,"exited":true,"op":"gate","waitedMs":5000}
+{"act":"wait-exit","checked":0,"deviceOk":true,"exited":false,"op":"gate","waitedMs":0}
+{"act":"wait-exit","checked":0,"deviceOk":true,"exited":false,"op":"gate","waitedMs":119999}
+{"act":"wait-exit","checked":2,"deviceOk":false,"exited":false,"op":"gate","waitedMs":119999}
+{"act":"launch:driver-restart-overlap","checked":0,"deviceOk":true,"exited":false,"op":"gate","waitedMs":120000}
+{"act":"recheck","checked":0,"deviceOk":false,"exited":false,"op":"gate","waitedMs":120000}
+{"act":"recheck","checked":1,"deviceOk":false,"exited":false,"op":"gate","waitedMs":120000}
+{"act":"launch:driver-restart-overlap,driver-restart-device-unsure","checked":2,"deviceOk":false,"exited":false,"op":"gate","waitedMs":120000}
+{"act":"launch:driver-restart-overlap","checked":2,"deviceOk":true,"exited":false,"op":"gate","waitedMs":300000}
 {"case":"empty","jobs":[],"op":"tally","out":{"driver-body-stuck":0,"driver-ended":0,"driver-launch-stuck":0,"firstTry":0,"jobs":0,"ready":0,"relaunched":0}}
 {"case":"all first try","jobs":[{"faults":[],"ready":true},{"faults":[],"ready":true}],"op":"tally","out":{"driver-body-stuck":0,"driver-ended":0,"driver-launch-stuck":0,"firstTry":2,"jobs":2,"ready":2,"relaunched":0}}
 {"case":"one relaunched ready, one lost","jobs":[{"faults":["driver-launch-stuck"],"ready":true},{"faults":["driver-launch-stuck","driver-body-stuck","driver-ended"],"ready":false}],"op":"tally","out":{"driver-body-stuck":1,"driver-ended":1,"driver-launch-stuck":2,"firstTry":0,"jobs":2,"ready":1,"relaunched":2}}

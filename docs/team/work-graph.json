@@ -25343,7 +25343,8 @@
     "packages/measure-webkit/src/throttle/push-cycle-pass.mjs",
     "research/notes/2026/11-0*-touch-restart-ready.md",
     "docs/team/handoffs/touch-restart-ready.md"
-   ]
+   ],
+   "evidence": "f81d157"
   }
  ],
  "deadline": {

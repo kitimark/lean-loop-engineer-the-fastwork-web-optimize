@@ -1,9 +1,9 @@
 import { withSession } from './session.mjs';
 import { loadFresh, pageInfo } from './page.mjs';
-import { findDevice, sleep } from './sim.mjs';
+import { findDevice, probeInspector, sleep } from './sim.mjs';
 import { reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
-import { openDriver, startServer, stopServer, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
+import { openDriver, startServer, stopServer, probeStop, restartGate, simctlAnswers, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { READY_CFG, RESTART_CFG } from './touch-ready.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverEnd } from './walk-budget.mjs';
@@ -31,10 +31,10 @@ export function armTrees(siteDir) {
 
 export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? '');
 
-export async function beginServer(touch, { udid, log, push, start = startServer, why = (m) => m }) {
+export async function beginServer(touch, { udid, log, push, start = startServer, why = (m) => m, onLaunched = null }) {
   const tag = serveTag(touch.restarts);
   try {
-    touch.server = await start(touch.driver, { udid, log, push, tag, cfg: touch.restarts > 0 ? RESTART_CFG : READY_CFG });
+    touch.server = await start(touch.driver, { udid, log, push, tag, cfg: touch.restarts > 0 ? RESTART_CFG : READY_CFG, onLaunched });
     touch.launches.push({ tag, launches: touch.server.launches ?? [] });
   } catch (e) {
     touch.launches.push({ tag, launches: e.launches ?? [], fault: e.fault ?? null });
@@ -42,17 +42,18 @@ export async function beginServer(touch, { udid, log, push, start = startServer,
   }
 }
 
-export async function restartServer(touch, { udid, log, push, start = startServer }) {
+export async function restartServer(touch, { udid, log, push, start = startServer, onLaunched = null }) {
   touch.restarts++;
-  await beginServer(touch, { udid, log, push, start, why: (m) => `restart failed: ${m}` });
+  await beginServer(touch, { udid, log, push, start, why: (m) => `restart failed: ${m}`, onLaunched });
 }
 
 export async function endServer(touch, stop = stopServer) {
   const server = touch.server;
   touch.server = null;
-  if (!server) return;
+  if (!server) return null;
   await stop(server);
   if (server.stopTrace || server.stopFault) touch.launches.push({ tag: 'stop', launches: [], fault: server.stopFault ?? null, ...(server.stopTrace ? { trace: server.stopTrace } : {}) });
+  return server;
 }
 
 export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto', settleMs = 2500, touchDriver, deadlineMs = null, now = Date.now, onProgress = null, log = (s) => console.error(s) }) {
@@ -92,11 +93,15 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
     if (!laneAfter(BUDGET, true, got.obs)) {
       const why = `${got.outcome === 'ok' ? 'the driver finished late' : got.outcome}${logTail(touch.server.run.logFile) ? `; driver log tail: ${logTail(touch.server.run.logFile)}` : ''}`;
       const next = afterWindow(touch.restarts, true);
-      await endServer(touch);
+      const old = await endServer(touch);
       if (next === 'restart') {
         log(`touch-lock ${id} rep ${rep}: stalled (${got.outcome}); restarting the push server (${touch.restarts + 1} of ${MAX_RESTARTS})`);
-        await restartServer(touch, { udid: device.udid, log, push });
-      } else { touch.on = false; touch.why = why; }
+        const act = old ? await restartGate(old, { check: () => ctx.check?.(), probe: async () => { const [p, sim] = await Promise.all([probeInspector({ urlPrefix: ctx.base }), simctlAnswers()]); return { ...p, sim }; } }) : 'launch';
+        log(`touch-lock ${id} rep ${rep}: restart gate ${act}`);
+        let probed = Promise.resolve();
+        await restartServer(touch, { udid: device.udid, log, push, onLaunched: () => { probed = probeStop(old); } });
+        await probed;
+      } else { touch.on = false; touch.why = why; await probeStop(old); }
     }
     const rec = got.result;
     if (!rec) return { ...row, status: `push:${got.outcome}`, obs: got.obs };
@@ -143,7 +148,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
     error = e.message;
     log(`touch-lock: INCOMPLETE after ${rows.length} windows (${error})`);
   } finally {
-    if (touch.server) await Promise.race([endServer(touch), sleep(35000)]);
+    if (touch.server) await Promise.race([endServer(touch).then(probeStop), sleep(35000)]);
   }
   return snapshot(error);
 }

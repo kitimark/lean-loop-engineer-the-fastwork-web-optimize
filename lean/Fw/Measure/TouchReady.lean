@@ -270,6 +270,99 @@ theorem stop_late_split (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) :
 theorem stop_late_names : StopAct.lateBody.name ≠ StopAct.lateTeardown.name ∧ StopAct.lateBody.name ≠ StopAct.clean.name
     ∧ StopAct.lateTeardown.name ≠ StopAct.clean.name := by decide
 
+structure Gate where
+  exitWaitMs : Nat
+  checks : Nat
+  gapMs : Nat
+  probeMs : Nat
+deriving Repr, BEq
+
+def gate : Gate := ⟨120000, 2, 30000, 25000⟩
+
+def Gate.waitMs (g : Gate) : Nat := g.exitWaitMs + g.checks * g.probeMs + (g.checks - 1) * g.gapMs
+
+def restartMs (g : Gate) (c : Cfg) : Nat := g.waitMs + c.launches * (c.launchMs + c.killMs)
+
+def oldRestartMs (c : Cfg) : Nat := c.stopWaitMs + 35000 + c.launches * (c.launchMs + c.killMs)
+
+def restartAllowMs : Nat := 700000
+
+inductive GateAct where
+  | waitExit
+  | recheck
+  | launch (overlap unsure : Bool)
+deriving DecidableEq, Repr
+
+def overlapName : String := "driver-restart-overlap"
+
+def unsureName : String := "driver-restart-device-unsure"
+
+def GateAct.names : GateAct → List String
+  | .launch o u => (if o then [overlapName] else []) ++ (if u then [unsureName] else [])
+  | _ => []
+
+def GateAct.name : GateAct → String
+  | .waitExit => "wait-exit"
+  | .recheck => "recheck"
+  | .launch o u => match GateAct.names (.launch o u) with
+    | [] => "launch"
+    | ns => "launch:" ++ String.intercalate "," ns
+
+def gateStep (g : Gate) (exited : Bool) (waitedMs : Nat) (deviceOk : Bool) (checked : Nat) : GateAct :=
+  if !exited && waitedMs < g.exitWaitMs then .waitExit
+  else if !deviceOk && checked < g.checks then .recheck
+  else .launch (!exited) (!deviceOk)
+
+theorem gate_wait_exit (g : Gate) (ok : Bool) (k w : Nat) (h : w < g.exitWaitMs) : gateStep g false w ok k = .waitExit := by
+  simp [gateStep, h]
+
+theorem gate_recheck (g : Gate) (e : Bool) (k w : Nat) (hk : k < g.checks) (hw : e = true ∨ g.exitWaitMs ≤ w) :
+    gateStep g e w false k = .recheck := by
+  rcases hw with rfl | hw
+  · simp [gateStep, hk]
+  · have : ¬ w < g.exitWaitMs := by omega
+    simp [gateStep, this, hk]
+
+theorem gate_launch_clean (g : Gate) (k w : Nat) : gateStep g true w true k = .launch false false := by
+  simp [gateStep]
+
+theorem gate_launch_overlap (g : Gate) (k w : Nat) (hw : g.exitWaitMs ≤ w) : gateStep g false w true k = .launch true false := by
+  have : ¬ w < g.exitWaitMs := by omega
+  simp [gateStep, this]
+
+theorem gate_launch_unsure (g : Gate) (k w : Nat) (hk : g.checks ≤ k) : gateStep g true w false k = .launch false true := by
+  have : ¬ k < g.checks := by omega
+  simp [gateStep, this]
+
+theorem gate_launch_both (g : Gate) (k w : Nat) (hw : g.exitWaitMs ≤ w) (hk : g.checks ≤ k) :
+    gateStep g false w false k = .launch true true := by
+  have h1 : ¬ w < g.exitWaitMs := by omega
+  have h2 : ¬ k < g.checks := by omega
+  simp [gateStep, h1, h2]
+
+theorem gate_decides (g : Gate) (e ok : Bool) (k w : Nat) (hw : g.exitWaitMs ≤ w) (hk : g.checks ≤ k) :
+    gateStep g e w ok k = .launch (!e) (!ok) := by
+  have h1 : ¬ w < g.exitWaitMs := by omega
+  have h2 : ¬ k < g.checks := by omega
+  simp [gateStep, h1, h2]
+
+theorem gate_names_distinct : overlapName ≠ unsureName ∧ overlapName ≠ StopAct.lateBody.name ∧ overlapName ≠ StopAct.lateTeardown.name
+    ∧ unsureName ≠ StopAct.lateBody.name ∧ unsureName ≠ StopAct.lateTeardown.name := by decide
+
+theorem gate_names_not_launch_faults : ∀ f ∈ LaunchFault.all, f.name ≠ overlapName ∧ f.name ≠ unsureName := by decide
+
+theorem gate_names_not_walk_faults : ∀ f ∈ Fw.Measure.FaultNames.Fault.all, f.name ≠ overlapName ∧ f.name ≠ unsureName := by decide
+
+theorem gate_wait_value : gate.waitMs = 200000 := by decide
+
+theorem restart_total_value : restartMs gate restartCfg = 680000 := by decide
+
+theorem restart_fits_allow : restartMs gate restartCfg ≤ restartAllowMs := by decide
+
+theorem restart_added_le : restartMs gate restartCfg ≤ oldRestartMs restartCfg + 145000 := by decide
+
+theorem restart_pair_fits : Fw.Measure.WalkBudget.setupWorstMs + 2 * restartAllowMs ≤ Fw.Measure.WalkBudget.deadlineAt Fw.Measure.WalkBudget.job := by decide
+
 structure Job where
   launchFaults : List LaunchFault
   ready : Bool
@@ -353,6 +446,10 @@ def restartTrajCases : List (String × List Traj) := [
 def stopCases : List (Bool × Bool × Nat) := [(true, false, 0), (true, true, 25000), (false, false, 0), (false, true, 19999), (false, false, 19999),
   (false, false, 20000), (false, true, 20000), (false, false, 60000), (false, true, 60000)]
 
+def gateCases : List (Bool × Nat × Bool × Nat) := [(true, 0, true, 0), (true, 5000, false, 0), (true, 5000, false, 1), (true, 5000, false, 2), (false, 0, true, 0),
+  (false, 119999, true, 0), (false, 119999, false, 2), (false, 120000, true, 0), (false, 120000, false, 0), (false, 120000, false, 1), (false, 120000, false, 2),
+  (false, 300000, true, 2)]
+
 def jobCases : List (String × List Job) := [
   ("empty", []),
   ("all first try", [⟨[], true⟩, ⟨[], true⟩]),
@@ -370,7 +467,10 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("killMs", toJson cfg.killMs), ("stopWaitMs", toJson cfg.stopWaitMs),
     ("restartLaunches", toJson restartCfg.launches), ("restartLaunchMs", toJson restartCfg.launchMs), ("readyAllowMs", toJson Fw.Measure.WalkBudget.readyAllowMs),
     ("names", Json.arr (LaunchFault.all.map (fun f => Json.str f.name)).toArray),
-    ("stopLateNames", Json.arr #[Json.str StopAct.lateBody.name, Json.str StopAct.lateTeardown.name])]).compress
+    ("stopLateNames", Json.arr #[Json.str StopAct.lateBody.name, Json.str StopAct.lateTeardown.name]),
+    ("gateExitWaitMs", toJson gate.exitWaitMs), ("gateChecks", toJson gate.checks), ("gateGapMs", toJson gate.gapMs), ("gateProbeMs", toJson gate.probeMs),
+    ("restartAllowMs", toJson restartAllowMs), ("restartMs", toJson (restartMs gate restartCfg)),
+    ("gateNames", Json.arr #[Json.str overlapName, Json.str unsureName])]).compress
   let ds := obsCases.map fun (name, n, o) =>
     (Json.mkObj [("op", "decide"), ("case", Json.str name), ("n", toJson n),
       ("obs", Json.mkObj [("ready", toJson o.ready), ("alive", toJson o.alive), ("ended", toJson o.ended), ("elapsed", toJson o.elapsed)]),
@@ -386,13 +486,16 @@ def goldenLines (_ : Unit := ()) : List String :=
   let ss := stopCases.map fun (exited, ended, w) =>
     (Json.mkObj [("op", "stop"), ("exited", toJson exited), ("bodyEnded", toJson ended), ("waitedMs", toJson w),
       ("act", Json.str (stopStep cfg exited ended w).name)]).compress
+  let gs := gateCases.map fun (exited, w, ok, k) =>
+    (Json.mkObj [("op", "gate"), ("exited", toJson exited), ("waitedMs", toJson w), ("deviceOk", toJson ok), ("checked", toJson k),
+      ("act", Json.str (gateStep gate exited w ok k).name)]).compress
   let ts := jobCases.map fun (name, js) =>
     let t := tally js
     (Json.mkObj [("op", "tally"), ("case", Json.str name),
       ("jobs", Json.arr (js.map fun j => Json.mkObj [("faults", Json.arr (j.launchFaults.map (fun f => Json.str f.name)).toArray), ("ready", toJson j.ready)]).toArray),
       ("out", Json.mkObj [("jobs", toJson t.jobs), ("ready", toJson t.ready), ("firstTry", toJson t.firstTry), ("relaunched", toJson t.relaunched),
         ("driver-launch-stuck", toJson t.launchStuck), ("driver-body-stuck", toJson t.bodyStuck), ("driver-ended", toJson t.ended)])]).compress
-  [consts] ++ ds ++ rs ++ rr ++ ss ++ ts
+  [consts] ++ ds ++ rs ++ rr ++ ss ++ gs ++ ts
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -416,5 +519,8 @@ def goldenMain (args : List String) : IO UInt32 := do
 #guard verdict cfg 1 ⟨true, false, false, 0⟩ == .ready
 #guard (run cfg [⟨none, none, none⟩, ⟨some 20000, some 50000, none⟩]).faults == [.launchStuck]
 #guard (run cfg []).ready == false
+#guard gateStep gate false 0 true 0 == .waitExit
+#guard gateStep gate true 0 false 0 == .recheck
+#guard gateStep gate false 120000 false 2 == .launch true true
 
 end Fw.Measure.TouchReady
