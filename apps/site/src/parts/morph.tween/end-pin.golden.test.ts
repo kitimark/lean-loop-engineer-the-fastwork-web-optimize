@@ -8,17 +8,19 @@ import { faithMay, writesLive } from './end-pin.live';
 import type { TraceEv } from './driver';
 
 type Row = Record<string, unknown> & { op: string };
+// the ops of Fw.Parts.EndPin; the same golden also holds Fw.Measure.TouchLock rows, one of them named pinVerdict
+const PIN_OPS = ['pinConstants', 'pinMay', 'pinObserve', 'pinDue', 'pinTouch', 'pinPlay', 'pinFaith', 'pinTrace'];
 const rows: Row[] = readFileSync(new URL('../../../../../packages/contracts/golden/measure/touch-lock.jsonl', import.meta.url), 'utf8')
   .split('\n')
   .filter((l) => l.trim() !== '')
   .map((l) => JSON.parse(l) as Row)
-  .filter((r) => r.op.startsWith('pin'));
+  .filter((r) => PIN_OPS.includes(r.op));
 const ofOp = (op: string) => rows.filter((r) => r.op === op);
 const pinOf = (r: unknown) => r as Pin;
 
 describe('morph.tween:end-pin against Lean (Fw.Parts.EndPin)', () => {
   it('has every row kind', () => {
-    expect(new Set(rows.map((r) => r.op))).toEqual(new Set(['pinConstants', 'pinMay', 'pinObserve', 'pinDue', 'pinTouch', 'pinPlay', 'pinFaith', 'pinTrace']));
+    expect(new Set(rows.map((r) => r.op))).toEqual(new Set(PIN_OPS));
     expect(ofOp('pinConstants')[0]!.quietMs).toBe(QUIET_MS);
   });
   it('mayWrite and due give the Lean rows', () => {
