@@ -2,6 +2,11 @@ export const READY_CFG = Object.freeze({ launches: 3, launchMs: 150000, killMs: 
 
 export const RESTART_CFG = Object.freeze({ launches: 1, launchMs: 470000, killMs: 10000, stopWaitMs: 20000 });
 
+export const GATE = Object.freeze({ exitWaitMs: 120000, checks: 2, gapMs: 30000, probeMs: 25000 });
+export const RESTART_ALLOW_MS = 700000;
+export const GATE_OVERLAP = 'driver-restart-overlap';
+export const GATE_UNSURE = 'driver-restart-device-unsure';
+
 export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck', bodyStuck: 'driver-body-stuck', ended: 'driver-ended' });
 export const STOP_LATE_BODY = 'driver-stop-late-body';
 export const STOP_LATE_TEARDOWN = 'driver-stop-late-teardown';
@@ -17,6 +22,13 @@ export function verdict(c, n, o) {
 }
 
 export const stopStep = (c, exited, bodyEnded, waitedMs) => (exited ? 'clean' : c.stopWaitMs <= waitedMs ? (bodyEnded ? STOP_LATE_TEARDOWN : STOP_LATE_BODY) : 'wait');
+
+export function gateStep(g, exited, waitedMs, deviceOk, checked) {
+  if (!exited && waitedMs < g.exitWaitMs) return 'wait-exit';
+  if (!deviceOk && checked < g.checks) return 'recheck';
+  const names = [...(exited ? [] : [GATE_OVERLAP]), ...(deviceOk ? [] : [GATE_UNSURE])];
+  return names.length ? `launch:${names.join(',')}` : 'launch';
+}
 
 const reached = (x, at) => x != null && x <= at;
 
@@ -68,6 +80,7 @@ export async function launchUntilReady({ start, look, now, sleep, cfg = READY_CF
       const seen = look(handle);
       const elapsed = now() - t0;
       if (seen.alive && rec.aliveAt == null) rec.aliveAt = elapsed;
+      if (seen.logged && rec.loggedAt == null) rec.loggedAt = elapsed;
       const v = verdict(cfg, n, { ready: seen.ready, alive: seen.alive, ended: handle.state.ended, elapsed });
       if (v === 'ready') { rec.readyAt = elapsed; rec.ms = elapsed; return { handle, launches }; }
       if (v !== 'wait') {
