@@ -25195,6 +25195,35 @@
     "apps/site/src/parts/morph.tween/end-pin.golden.test.ts"
    ],
    "evidence": "a9d3829"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-pin-position",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-pin-rank"
+   ],
+   "title": "Rank the page-end pin by where the page rests, not by fights: on the touch-lock lane the pin stored a lock in 4 of 29 runs and declined on reversal 111 times (run 41369102226), so lockedCmp fights cannot rank it. Do: a Lean rest-position metric per window (finalY10 against maxY10 and the pin target, plus settle time after the last touch), with a per-job and across-jobs verdict pin vs base (minSamples decisive jobs) and a liveWrites = 0 guard so a pin that writes into a live pan is never ranked better; a walk variant whose pan ends on the target side if the metric needs it; touchlock-run passes readyMs READY_ALLOW_MS (480 s, Lean readyAllowMs); TS against Lean goldens; one CI run of the touch-lock lane (12 jobs, 3 waves per Lean lock_waves), at most 2 dispatches on free macOS runners; verdict with run ids or the dominant fault.",
+   "writes": [
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/Fw/Measure/FaultNames.lean",
+    "lean/scripts/TouchLockGolden.lean",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/test/**",
+    ".github/workflows/smoothness.yml",
+    "apps/site/src/parts/morph.tween/end-pin.golden.test.ts",
+    "apps/runner/src/land.ts",
+    "results/end-pin-position/**",
+    "research/notes/2026/11-0*-end-pin-position.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-pin-position.md"
+   ]
   }
  ],
  "deadline": {
