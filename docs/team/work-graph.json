@@ -20429,7 +20429,10 @@
    "writes": [
     "research/notes/2026/10-2x-waapi-scoped-webkit.md",
     "results/waapi-scoped-webkit/**",
-    "docs/team/handoffs/waapi-scoped-webkit.md"
+    "docs/team/handoffs/waapi-scoped-webkit.md",
+    "lean/Fw/Measure/WaapiScopedWebkit.lean",
+    "lean/Fw.lean",
+    "research/findings/ledger.json"
    ],
    "title": "End-of-page GPU candidate 3: morph.tween:waapi-scoped (Lean MorphTweenOpt; Chromium -6.8 % restyled elements) was refuted on real devices because it shares the waapi driver that leaves the nav classes stale. Measure WebKit Simulator RecalculateStyles/Layout per finish zone (run id), and check whether the stale-class failure reproduces in the Simulator frames; verdict: worth a fixed driver or closed as a negative finding."
   },
