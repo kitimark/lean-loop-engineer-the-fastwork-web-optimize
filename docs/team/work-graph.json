@@ -25191,7 +25191,8 @@
     "research/notes/2026/11-0*-end-pin-rank.md",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
     "research/findings/ledger.json",
-    "docs/team/handoffs/end-pin-rank.md"
+    "docs/team/handoffs/end-pin-rank.md",
+    "apps/site/src/parts/morph.tween/end-pin.golden.test.ts"
    ]
   }
  ],
