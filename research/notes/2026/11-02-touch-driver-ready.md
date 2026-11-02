@@ -9,8 +9,7 @@ topics: [webkit, simulator, xcuitest, touch, ci, measure]
 
 # Touch driver ready: cause, Lean decisions, fix, two CI runs
 
-Task `touch-driver-ready`. Before: run `41369102226` (4 of 12 jobs "no ready file after 240 s") and run `41380162402`
-(6 of 12 at 480 s). After: runs `41391781282` (dispatch 1) and `41402584809` (dispatch 2), both `smoothness`, 12 touch-lock
+Task `touch-driver-ready`. Before: run `41369102226` (240 s: first start not ready in 4 of 11 jobs with data, restarts failed 1 of 2 decided) and run `41380162402` (480 s: first start not ready in 2 of 12, restarts failed 3 of 7 decided). After: runs `41391781282` (dispatch 1) and `41402584809` (dispatch 2), both `smoothness`, 12 touch-lock
 simulator jobs, branch `ci/touch-driver-ready`. The Simulator is not the phone.
 
 ## Answer
@@ -90,7 +89,7 @@ The loop differs from main by the named fault (`stopFault`) and by polling `run.
 
 ## Verdict on the pinned unit
 
-- Cause with log evidence: launch never reaches the test body (MEASURED above); the reason the Simulator host stalls there
+- Cause with log evidence: launch never reaches the test body (MEASURED above in run `41402584809`); the reason the Simulator host stalls there
   is INFERRED load (Simulator runtime and `diagnosticd` busy).
 - Deterministic fix: relaunch at 150 s works for first starts (4 of 5 stalls recovered). The restart failure was ours (the stop kill), now removed; restart readiness afterwards is INFERRED, not measured.
 
@@ -101,7 +100,6 @@ The loop differs from main by the named fault (`stopFault`) and by polling `run.
 - First start: per-launch success is about 50 %, so 3 launches leave about 12 % failing (1 of 10 seen). A 4th launch needs more
   than the 480 s allowance; `alive` was written by 126 s at the latest, so a launch cap near 135 s would fit 3 launches plus
   one more but leaves no margin on the slow ones.
-- Why the stop never exits in 20 s.
 
 ## Accepted limits
 

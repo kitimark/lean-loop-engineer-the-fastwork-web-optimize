@@ -1,7 +1,7 @@
 # touch-driver-ready handoff
 
 - Branch: worktree-wf_d92539a0-78e-1 (CI branch ci/touch-driver-ready), worktree .claude/worktrees/wf_d92539a0-78e-1, work at 2897ade5d (merge of main ea4bfc08d). Both dispatches used; no run pending.
-- CI runs: before 41369102226 (4 of 12 no ready file at 240 s), 41380162402 (6 of 12 at 480 s). After 41391781282 (3 x 150 s: 11 of 11 first starts ready, 6 of 6 restarts not ready, with the stop kill), 41402584809 (restart 1 x 470 s: 9 of 10 first starts ready, 5 launch-1 stalls, 4 recovered by relaunch, restarts 2 of 2 decided not ready, with the stop kill; jobs 7 and 9 no artifact or log).
+- CI runs: before 41369102226 (240 s: 4 of 11 first starts not ready, 1 of 2 restarts failed), 41380162402 (480 s: 2 of 12 first starts not ready, 3 of 7 restarts failed). After 41391781282 (3 x 150 s: 11 of 11 first starts ready, 6 of 6 restarts not ready, with the stop kill), 41402584809 (restart 1 x 470 s: 9 of 10 first starts ready, 5 launch-1 stalls, 4 recovered by relaunch, restarts 2 of 2 decided not ready, with the stop kill; jobs 7 and 9 no artifact or log).
 - Note: research/notes/2026/11-02-touch-driver-ready.md (read first); pointer in 10-2x-sim-touch-reliable.md.
 
 ## State
