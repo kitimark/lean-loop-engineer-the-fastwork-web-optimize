@@ -281,7 +281,9 @@ def gate : Gate := ⟨120000, 2, 30000, 25000⟩
 
 def Gate.waitMs (g : Gate) : Nat := g.exitWaitMs + g.checks * g.probeMs + (g.checks - 1) * g.gapMs
 
-def restartMs (g : Gate) (c : Cfg) : Nat := g.waitMs + c.launches * (c.launchMs + c.killMs)
+def resetCallMs : Nat := 15000
+
+def restartMs (g : Gate) (c : Cfg) : Nat := g.waitMs + resetCallMs + c.launches * (c.launchMs + c.killMs)
 
 def oldRestartMs (c : Cfg) : Nat := c.stopWaitMs + 35000 + c.launches * (c.launchMs + c.killMs)
 
@@ -355,13 +357,112 @@ theorem gate_names_not_walk_faults : ∀ f ∈ Fw.Measure.FaultNames.Fault.all, 
 
 theorem gate_wait_value : gate.waitMs = 200000 := by decide
 
-theorem restart_total_value : restartMs gate restartCfg = 680000 := by decide
+theorem restart_total_value : restartMs gate restartCfg = 695000 := by decide
 
 theorem restart_fits_allow : restartMs gate restartCfg ≤ restartAllowMs := by decide
 
-theorem restart_added_le : restartMs gate restartCfg ≤ oldRestartMs restartCfg + 145000 := by decide
+theorem restart_added_le : restartMs gate restartCfg ≤ oldRestartMs restartCfg + 160000 := by decide
 
 theorem restart_pair_fits : Fw.Measure.WalkBudget.setupWorstMs + 2 * restartAllowMs ≤ Fw.Measure.WalkBudget.deadlineAt Fw.Measure.WalkBudget.job := by decide
+
+theorem restart_pair_exact : Fw.Measure.WalkBudget.setupWorstMs + 2 * restartMs gate restartCfg + 100000 ≤ Fw.Measure.WalkBudget.deadlineAt Fw.Measure.WalkBudget.job := by decide
+
+inductive ResetAct where
+  | skip
+  | run
+deriving DecidableEq, Repr
+
+def resetAct : GateAct → ResetAct
+  | .launch false _ => .run
+  | _ => .skip
+
+def ResetAct.name : ResetAct → String
+  | .skip => "skip"
+  | .run => "run"
+
+theorem reset_runs_after_exit (u : Bool) : resetAct (.launch false u) = .run := rfl
+
+theorem reset_skips_overlap (u : Bool) : resetAct (.launch true u) = .skip := rfl
+
+theorem reset_skips_undecided : resetAct .waitExit = .skip ∧ resetAct .recheck = .skip := ⟨rfl, rfl⟩
+
+theorem reset_only_after_launch (a : GateAct) (h : resetAct a = .run) : ∃ u, a = .launch false u := by
+  cases a with
+  | waitExit => simp [resetAct] at h
+  | recheck => simp [resetAct] at h
+  | launch o u => cases o <;> simp [resetAct] at h ⊢
+
+inductive CallEnd where
+  | ended
+  | absent
+  | late
+  | failed
+deriving DecidableEq, Repr
+
+def callEnd (timedOut : Bool) (code : Nat) (nothingToTerminate : Bool) : CallEnd :=
+  if timedOut then .late else if code = 0 then .ended else if nothingToTerminate then .absent else .failed
+
+theorem call_late (c : Nat) (n : Bool) : callEnd true c n = .late := by simp [callEnd]
+
+theorem call_ended (n : Bool) : callEnd false 0 n = .ended := by simp [callEnd]
+
+theorem call_absent (c : Nat) (h : c ≠ 0) : callEnd false c true = .absent := by simp [callEnd, h]
+
+theorem call_failed (c : Nat) (h : c ≠ 0) : callEnd false c false = .failed := by simp [callEnd, h]
+
+def CallEnd.name : CallEnd → String
+  | .ended => "ended"
+  | .absent => "absent"
+  | .late => "late"
+  | .failed => "failed"
+
+def resetLateName : String := "driver-restart-reset-late"
+
+def resetFailedName : String := "driver-restart-reset-failed"
+
+def resetNames (ends : List CallEnd) : List String :=
+  (if ends.contains .late then [resetLateName] else []) ++ (if ends.contains .failed then [resetFailedName] else [])
+
+def GateAct.nameWith (a : GateAct) (ends : List CallEnd) : String :=
+  match a with
+  | .launch o _ =>
+    match GateAct.names a ++ (if o then [] else resetNames ends) with
+    | [] => "launch"
+    | ns => "launch:" ++ String.intercalate "," ns
+  | _ => a.name
+
+theorem nameWith_nil (a : GateAct) : a.nameWith [] = a.name := by
+  cases a with
+  | waitExit => rfl
+  | recheck => rfl
+  | launch o u => cases o <;> cases u <;> rfl
+
+theorem nameWith_overlap (u : Bool) (ends : List CallEnd) : (GateAct.launch true u).nameWith ends = (GateAct.launch true u).name := by
+  cases u <;> rfl
+
+theorem nameWith_undecided (ends : List CallEnd) : GateAct.waitExit.nameWith ends = "wait-exit" ∧ GateAct.recheck.nameWith ends = "recheck" := ⟨rfl, rfl⟩
+
+theorem nameWith_clean (u : Bool) : (GateAct.launch false u).nameWith [.ended, .absent] = (GateAct.launch false u).name := by
+  cases u <;> rfl
+
+theorem nameWith_late_only : (GateAct.launch false false).nameWith [.late, .ended] = "launch:driver-restart-reset-late" := by decide
+
+theorem nameWith_failed_only : (GateAct.launch false false).nameWith [.absent, .failed] = "launch:driver-restart-reset-failed" := by decide
+
+theorem nameWith_both : (GateAct.launch false true).nameWith [.late, .failed] =
+    "launch:driver-restart-device-unsure,driver-restart-reset-late,driver-restart-reset-failed" := by decide
+
+theorem reset_names_distinct : resetLateName ≠ resetFailedName ∧ resetLateName ≠ overlapName ∧ resetLateName ≠ unsureName
+    ∧ resetFailedName ≠ overlapName ∧ resetFailedName ≠ unsureName := by decide
+
+theorem reset_names_not_other_faults : (∀ f ∈ LaunchFault.all, f.name ≠ resetLateName ∧ f.name ≠ resetFailedName)
+    ∧ (∀ f ∈ Fw.Measure.FaultNames.Fault.all, f.name ≠ resetLateName ∧ f.name ≠ resetFailedName)
+    ∧ (resetLateName ≠ StopAct.lateBody.name ∧ resetLateName ≠ StopAct.lateTeardown.name
+      ∧ resetFailedName ≠ StopAct.lateBody.name ∧ resetFailedName ≠ StopAct.lateTeardown.name) := by decide
+
+theorem reset_value : resetCallMs = 15000 := by decide
+
+theorem restart_adds_reset : restartMs gate restartCfg = gate.waitMs + resetCallMs + (restartCfg.launches * (restartCfg.launchMs + restartCfg.killMs)) := rfl
 
 structure Job where
   launchFaults : List LaunchFault
@@ -450,6 +551,13 @@ def gateCases : List (Bool × Nat × Bool × Nat) := [(true, 0, true, 0), (true,
   (false, 119999, true, 0), (false, 119999, false, 2), (false, 120000, true, 0), (false, 120000, false, 0), (false, 120000, false, 1), (false, 120000, false, 2),
   (false, 300000, true, 2)]
 
+def callCases : List (Bool × Nat × Bool) := [(false, 0, false), (false, 0, true), (false, 3, true), (false, 149, false), (false, 1, false), (true, 0, false), (true, 3, true), (true, 149, false)]
+
+def resetCases : List (Bool × Bool × List CallEnd) := [
+  (false, false, [.ended, .ended]), (false, false, [.ended, .absent]), (false, false, [.absent, .absent]), (false, false, [.late, .ended]), (false, false, [.ended, .failed]),
+  (false, false, [.late, .failed]), (false, true, [.absent, .absent]), (false, true, [.failed, .failed]), (false, true, [.late, .late]),
+  (true, false, [.late, .failed]), (true, true, [.late, .failed]), (true, true, [])]
+
 def jobCases : List (String × List Job) := [
   ("empty", []),
   ("all first try", [⟨[], true⟩, ⟨[], true⟩]),
@@ -470,7 +578,8 @@ def goldenLines (_ : Unit := ()) : List String :=
     ("stopLateNames", Json.arr #[Json.str StopAct.lateBody.name, Json.str StopAct.lateTeardown.name]),
     ("gateExitWaitMs", toJson gate.exitWaitMs), ("gateChecks", toJson gate.checks), ("gateGapMs", toJson gate.gapMs), ("gateProbeMs", toJson gate.probeMs),
     ("restartAllowMs", toJson restartAllowMs), ("restartMs", toJson (restartMs gate restartCfg)),
-    ("gateNames", Json.arr #[Json.str overlapName, Json.str unsureName])]).compress
+    ("gateNames", Json.arr #[Json.str overlapName, Json.str unsureName]), ("resetCallMs", toJson resetCallMs),
+    ("resetNames", Json.arr #[Json.str resetLateName, Json.str resetFailedName])]).compress
   let ds := obsCases.map fun (name, n, o) =>
     (Json.mkObj [("op", "decide"), ("case", Json.str name), ("n", toJson n),
       ("obs", Json.mkObj [("ready", toJson o.ready), ("alive", toJson o.alive), ("ended", toJson o.ended), ("elapsed", toJson o.elapsed)]),
@@ -489,13 +598,20 @@ def goldenLines (_ : Unit := ()) : List String :=
   let gs := gateCases.map fun (exited, w, ok, k) =>
     (Json.mkObj [("op", "gate"), ("exited", toJson exited), ("waitedMs", toJson w), ("deviceOk", toJson ok), ("checked", toJson k),
       ("act", Json.str (gateStep gate exited w ok k).name)]).compress
+  let cs := callCases.map fun (timedOut, code, nothing) =>
+    (Json.mkObj [("op", "call"), ("timedOut", toJson timedOut), ("code", toJson code), ("nothingToTerminate", toJson nothing),
+      ("end", Json.str (callEnd timedOut code nothing).name)]).compress
+  let ps := resetCases.map fun (overlap, unsure, ends) =>
+    let a := GateAct.launch overlap unsure
+    (Json.mkObj [("op", "reset"), ("overlap", toJson overlap), ("unsure", toJson unsure), ("ends", Json.arr (ends.map fun e => Json.str e.name).toArray),
+      ("reset", Json.str (resetAct a).name), ("act", Json.str (a.nameWith ends))]).compress
   let ts := jobCases.map fun (name, js) =>
     let t := tally js
     (Json.mkObj [("op", "tally"), ("case", Json.str name),
       ("jobs", Json.arr (js.map fun j => Json.mkObj [("faults", Json.arr (j.launchFaults.map (fun f => Json.str f.name)).toArray), ("ready", toJson j.ready)]).toArray),
       ("out", Json.mkObj [("jobs", toJson t.jobs), ("ready", toJson t.ready), ("firstTry", toJson t.firstTry), ("relaunched", toJson t.relaunched),
         ("driver-launch-stuck", toJson t.launchStuck), ("driver-body-stuck", toJson t.bodyStuck), ("driver-ended", toJson t.ended)])]).compress
-  [consts] ++ ds ++ rs ++ rr ++ ss ++ gs ++ ts
+  [consts] ++ ds ++ rs ++ rr ++ ss ++ gs ++ cs ++ ps ++ ts
 
 def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
 
@@ -522,5 +638,7 @@ def goldenMain (args : List String) : IO UInt32 := do
 #guard gateStep gate false 0 true 0 == .waitExit
 #guard gateStep gate true 0 false 0 == .recheck
 #guard gateStep gate false 120000 false 2 == .launch true true
+#guard (GateAct.launch false false).nameWith [.late, .failed] == "launch:driver-restart-reset-late,driver-restart-reset-failed"
+#guard resetAct (.launch true false) == .skip
 
 end Fw.Measure.TouchReady
