@@ -25344,7 +25344,43 @@
     "research/notes/2026/11-0*-touch-restart-ready.md",
     "docs/team/handoffs/touch-restart-ready.md"
    ],
-   "evidence": "7e2a327"
+   "evidence": "9b7323165"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-restart-device",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "touch-restart-ready"
+   ],
+   "title": "Final restart form for the CI Simulator touch driver: a device-level reset before the relaunch (simctl terminate of the runner and host apps, or simctl shutdown then boot of the device, bounded and named), the one form touch-restart-ready did not try (gated restarts 4 of 10 ready; 1 of 5 and 5 of 9 before; clean gates still stalled 470 s). Cite xcrun simctl help output and Apple docs for each command's behaviour; Lean restart decision with theorems, time bound against WalkBudget (setupWorstMs), goldens, TS against them; record an in-flight restart launch before the walk-deadline snapshot (review follow-up); one 12-job touch-lock run (at most 2 dispatches): restarts begun, decided, ready, faults by name, run ids. Closed design: if the device reset does not raise ready restarts above the earlier forms, close restart readiness as a Simulator limit finding (no further restart forms) and say what the across-job verdict must tolerate instead; note, handoff",
+   "writes": [
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/src/touch*.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/test/**",
+    "packages/measure-webkit/touch-driver/**",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/Fw/Measure/FaultNames.lean",
+    "lean/Fw/Measure/TouchReady*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/**",
+    ".github/workflows/smoothness.yml",
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "packages/measure-webkit/src/throttle/driver/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/TouchReadyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/push-cycle-pass.mjs",
+    "research/notes/2026/11-0*-touch-restart-device.md",
+    "docs/team/handoffs/touch-restart-device.md"
+   ]
   }
  ],
  "deadline": {
