@@ -43,8 +43,7 @@ re-admission by a trajectory probe on WebKit, not a driver rewrite. So the class
 
 ## Verdict
 
-Not worth a dedicated fixed driver for the iPhone lag. Close the candidate as a negative finding with this mechanism:
-an optimization that trims elements per style recalc does not change the main-thread tween cost on WebKit when the
+Not worth a dedicated fixed driver for the iPhone lag. Close the candidate as a negative finding: a change that trims elements per style recalc does not change the main-thread tween cost on WebKit when the
 property is not accelerated and the record count per frame stays. General lesson: a Chromium restyled-element count is
 a Chromium result; on WebKit, rank a flag by records and compositor work, which a count of elements does not show.
 
@@ -60,7 +59,7 @@ Requirements if the lead still wants scoped re-admitted (each with its reason):
 
 ## Limits
 
-- No Simulator or CI number was produced; the Simulator is not the phone in any case.
+- No Simulator or CI number was produced; the Simulator is not the phone.
 - Point 2 and 3 are INFERRED from source; no WebKit timeline record count for scoped vs base exists yet.
 
 ## Lean (why-module `lean/Fw/Measure/WaapiScopedWebkit.lean`)
@@ -76,5 +75,4 @@ A model of one WebKit frame of the `--morph` tween over `StyleInterpolation.cpp:
 | `visited_le` | scoped visits no more elements than base in a frame |
 | `fewer_visits_equal_records` | witness: fewer visits with equal records, so element count and record count are separate |
 
-The record-per-frame claim is a model over WebKit source, not a measurement; the real-device refutation stands. The
-ledger row is `morph.tween.waapiScoped` (notes of task `waapi-scoped-webkit`).
+The record-per-frame claim is a model over WebKit source, not a measurement. The ledger row is `morph.tween.waapiScoped` (notes of task `waapi-scoped-webkit`).
