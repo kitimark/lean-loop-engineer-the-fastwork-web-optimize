@@ -25225,6 +25225,35 @@
     "docs/team/handoffs/end-pin-position.md"
    ],
    "evidence": "4d295e0"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-driver-ready",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "end-pin-position"
+   ],
+   "title": "The CI Simulator touch driver's push server gives 'no ready file after 480 s' in 6 of 12 touch-lock jobs (run 41380162402: jobs 3, 4, 5, 7, 9, 11; also restarts that fail mid-walk), and raising the wait from 240 to 480 s did not remove it. Find the cause with evidence (push-server and XCUITest logs from the job artifacts, Simulator boot and runner load timing, the ready-file path, the restart path), read the harness code (packages/measure-webkit/src/touch-push.mjs, the touch driver project) before guessing; state the ready and restart decisions in Lean; a deterministic fix (a ready signal instead of a fixed wait, or a bounded restart with a named fault); measure with one 12-job touch-lock run (at most 2 dispatches, free macOS runners): jobs with a ready driver before and after. If the cause is a runner or Simulator limit we cannot change, close it as a finding with evidence.",
+   "writes": [
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/src/touch*.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/test/**",
+    "packages/measure-webkit/touch-driver/**",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/Fw/Measure/FaultNames.lean",
+    "lean/Fw/Measure/TouchReady*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/**",
+    ".github/workflows/smoothness.yml",
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "research/notes/2026/11-0*-touch-driver-ready.md",
+    "docs/team/handoffs/touch-driver-ready.md"
+   ]
   }
  ],
  "deadline": {
