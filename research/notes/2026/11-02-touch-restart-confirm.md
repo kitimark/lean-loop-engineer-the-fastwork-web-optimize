@@ -22,8 +22,7 @@ see below; the touch-lock data of the jobs that uploaded is complete). Two pushe
   restart (walk deadline), job 7 (walk deadline), job 10 (inspector dead). Against 0 of 8 with the kill (`41391781282`, `41402584809`) and 5 of 9
   on main's stop path (`41369102226`, `41380162402`): 1 of 5 is not distinguishable from 5 of 9 (Fisher exact, one-sided p about 0.24) nor from 0 of 8. The
   claim "restarts match main once the kill is gone" is **not confirmed and not refuted** at this n; 4 of 9 begun restarts never reached a decision.
-- **A restart that works is slow (MEASURED).** Ready launch times on main: 74, 141, 176, 178, 220 s; here 307 s. The five working restarts all exceed the 50 s of a first start, and four of
-  the five exceed 140 s, so the 150 s per-launch cap that `touch-driver-ready` tried first (0 of 6) cut them; the one 470 s launch stays.
+- **A restart that works is slow (MEASURED).** Ready launch times on main: 74, 141, 176, 178, 220 s; here 307 s. All six ready restarts (74 to 307 s) are at or beyond the slow end of first starts (44 to 149 s in run 2). Four of the six (176, 178, 220, 307 s) exceed the 150 s per-launch cap that `touch-driver-ready` tried first (0 of 6), so that cap would have cut them; the one 470 s launch stays.
   The four failed restarts never wrote `alive`, the same fault class as a first-start `driver-launch-stuck`.
 - **Why a stopped driver outlasts 20 s: two causes (CONFIRMED from code, MEASURED from logs).**
   1. *The stop file is read between windows only.* `PushServer.swift:51` tests `stop` once per loop turn; the two presses at `:58` and `:61` are
@@ -32,11 +31,10 @@ see below; the touch-lock data of the jobs that uploaded is complete). Two pushe
      20 s wait end in `Wait for com.apple.springboard to idle` inside the press, then `Tear Down` after 63 s (job 3), 88 s (job 8), 93 s (job 4), 262 s (job 9), 343 s (job 12), 1150 s (job 1) of run 1. Run 2: 3 of 9 late stops
      (jobs 7, 10, 11) had no `Tear Down` after 20 s.
   2. *Teardown is slow after the body returned.* Once `Tear Down` or the end of the test case is in the log, xcodebuild still needs more than the
-     remaining time: run 1 re-read from its stored tails, 6 of the 7 stops named late-body by the first rule already show `Tear Down` (jobs 1, 3, 4, 8, 9, 12), so 7 of 8 late stops in run 1 were
-     teardown; run 2: 6 of 9 late stops named `driver-stop-late-teardown`, the body having returned 0.8 to 17 s after the stop file (jobs 3 twice, 4, 5, 9, 12). Where xcodebuild did exit
+     remaining time: run 1: 3 of 8 late stops show the body returned by about 20 s (job 6 in the loop, jobs 9 and 12 in tails read right after the wait). Jobs 1, 3, 4 and 8 show `Tear Down` only in tails read after a 15 s ps timeout (about 35 s), so each could be teardown or body. Job 2 shows no `Tear Down` (touch-lock.json touch.launches[tag=stop].trace.top[0] and .trace.tail, run `41422536168`); run 2 (the evidence for this cause): 6 of 9 late stops named `driver-stop-late-teardown`, the body having returned 0.8 to 17 s after the stop file (jobs 3 twice, 4, 5, 9, 12). Where xcodebuild did exit
      later, it took 70.2 and 70.2 s (jobs 3, 8), 161.6 s (job 2), 254.7 s (job 9) in run 1 and 75.8, 102.2, 71.6, 310.9 s (jobs 3 twice, 10, 11) in run 2 after the stop file. Clean stops exist: 13.2 and 15.9 s (run 2 jobs 8, 6), 17.2 s (run 1 job 11).
      What xcodebuild does in those 50 to 300 s is not in the log (INFERRED: result bundle and runner teardown on a loaded host).
-- **The 20 s stop wait is not the lever for restarts (INFERRED from job 3 retry).** Its restart started 20 s after the stop file while the old xcodebuild was still running (exit at +75.8 s) and
+- **The 20 s stop wait is not the lever for restarts (INFERRED from job 3 retry).** Its restart started after the 20 s wait plus the ps and health probes (ps timed out at 15 s and simctl did not answer in 10 s: touch-lock.json touch.launches[tag=stop][0].trace.top/.health, run `41436626306` job 3 retry), while the old xcodebuild was still running (exit at +75.8 s), and
   was ready at 307 s. Jobs 3 and 8 of run 1 had their old session end at +70.2 s and the new launch still failed to reach `alive` in 470 s. So an old session alive during the new
   launch neither prevents nor guarantees a ready restart; no Lean change to the stop wait or the kill is justified by this data.
 - **Host health at the stop and at a cut launch (MEASURED, run 2 only).** Memory free at nine late stops: 8 to 29 % in eight, 48 % in one (jobs 3 twice 18 and 11, 4 14, 5 48, 7 29, 9 15, 10 13, 11 8, 12 24); at the four cut launches 48 to 64 %. `xcrun simctl list devices booted` did not answer in 10 s (or exited non-zero) in 12 of 13 probes; one answered in 5.7 s (job 8, first-start launch 1 cut). A first-start launch that never reaches the body therefore coincides with CoreSimulator not answering (INFERRED link to the cause).
@@ -50,12 +48,11 @@ see below; the touch-lock data of the jobs that uploaded is complete). Two pushe
 
 | Run | Jobs with data | First start ready (first try) | Restarts begun / decided / ready | Late stops body / teardown | Clean stops |
 |---|---|---|---|---|---|
-| `41422536168` (8a01c8a32) | 12 | 12 (7) | 4 / 3 / 0 | 7 / 1 by the first rule, 1 / 7 by the Tear Down rule (tails) | 1 (job 11) |
+| `41422536168` (8a01c8a32) | 12 | 12 (7) | 4 / 3 / 0 | 7 / 1 by the first rule; by tails 3 body returned by about 20 s, 4 unclear (tails read at about 35 s), 1 no Tear Down | 1 (job 11) |
 | `41436626306` (085404679) | 10 | 10 (7) | 5 / 2 / 1 | 3 / 6 | 2 (jobs 6, 8) |
 
 Job states (`gh run view`, jobs only): run 1 failed jobs 2, 5, 7, 9, 10 (inspector dead, walk not finished, restart failed); run 2 failed 3 and 11, cancelled 1 and 2. Faults by name in the stored
-`touch-lock.json`: `driver-launch-stuck` (9 launches, 4 of them restart launches), `driver-stop-late-body` and `driver-stop-late-teardown` (run 2 names; run 1 used the first rule), no `driver-body-stuck`, no `driver-ended`.
-Stalls that triggered a restart: 8 pageLost, one `ok` (late), one `beginLate`.
+`touch-lock.json`: `driver-launch-stuck` 13 launches (run 1: 9, of which 3 restart; run 2: 4, of which 1 restart), `driver-stop-late-body` and `driver-stop-late-teardown` (run 2 names; run 1 used the first rule), no `driver-body-stuck`, no `driver-ended`.
 
 ## What changed
 
@@ -77,3 +74,4 @@ Stalls that triggered a restart: 8 pageLost, one `ok` (late), one `beginLate`.
 ## Accepted limits
 
 Free GitHub macOS runners (5 slots); two pushes of two used; faults named, never retried to a pass; the Simulator is not the phone; restarts are rare (a few per run), so the count is per decided restart; jobs 1 and 2 of run 2 and the original job 3 and 9 artifacts are missing.
+Restarts here start up to about 35 s later than main's because of the ps and health probes run before the restart (touch-push.mjs:148), a difference from main's 5 of 9 baseline.

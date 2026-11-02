@@ -8,7 +8,7 @@
 ## Verified
 - First start ready: run 1 12 of 12, run 2 10 of 10 jobs with data.
 - Restarts without the kill: 1 of 5 decided ready (run 1 0 of 3, run 2 1 of 2); 4 of 9 begun undecided. Not distinguishable from 5 of 9 (p about 0.24) or 0 of 8: restart readiness is NOT confirmed.
-- Late stop cause: stop file read once per loop turn (PushServer.swift:51), presses at :58/:61 block in quiescence wait; then teardown/xcodebuild exit takes 70 to >250 s. Run 1 7 of 8 late stops were teardown after `Tear Down`.
+- Late stop cause: stop file read once per loop turn (PushServer.swift:51), presses at :58/:61 block in quiescence wait; then teardown/xcodebuild exit takes 70 to >250 s. Run 2: 6 of 9 late stops were teardown (in-loop bodyEndedMs); run 1: 3 of 8 show the body returned by about 20 s, 4 unclear (tails read at about 35 s after a ps timeout), 1 no Tear Down.
 - Lean TouchReady stopStep (late-body | late-teardown), golden (41 lines), TS replay, package tests green. Stop wait 20 s and restartCfg 470 s unchanged; no kill.
 - `fileTail` (64 KB read in the stop loop) is unit-tested but not measured on CI (two stop waits ran 34.7 and 108.2 s).
 
