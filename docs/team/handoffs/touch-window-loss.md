@@ -2,7 +2,7 @@ branch: worktree-wf_5bf9b435-920-1 (no CI branch: no new CI)
 worktree: .claude/worktrees/wf_5bf9b435-920-1
 last commit: see `git log -1` (merged main; fix round after review 1: stall index, 9 retry slots, lane wording)
 CI runs: none dispatched; analysed smoothness 41391781282, 41402584809, 41422536168, 41436626306, 41460411752, 41475879793, 41503168296
-verified: Lean WindowLoss builds (sum, side, rank theorems), 43 golden lines, check.sh golden job wired, ci triggers.jsonl regenerated (`lake test -- --write-ci-trigger-golden`); window-loss.test.mjs 8/8; lint-wallclock ok
+verified: Lean WindowLoss builds (sum, side, rank theorems), 43 golden lines, check.sh golden job wired, ci triggers.jsonl regenerated (`lake test -- --write-ci-trigger-golden`); window-loss.test.mjs 9/9; lint-wallclock ok
 open: recommended follow-up change (retry a refused noOpen/tooShort window in place) not made; noOpen cause not isolated; tests, check.sh, dry land, review ready results are in the final report
 
 Result: of 2016 planned windows 558 are kept; restartFailed 408, noOpen 248, noArtifact 144, inspectorDead 133, walkDeadline 121, planShort 100, driverNotReady 96, tooShort 75, evaluateTimeout 73, jobCut 38. Sides: ok 558, harness 726, simulator 732.
