@@ -8,9 +8,11 @@ Verified: Lean `Fw.Ops.LandLink` builds with theorems check_empty/absolute/escap
 temp git repo with one escaping and one inside link, land --dry refusal).
 
 Files: lean/Fw/Ops/LandLink.lean, lean/Fw.lean (import), lean/Fw/Ops/Wire.lean (ops.landLink), lean/Fw/Ops/Golden.lean,
-lean/FwTest/Mutants/OpsWire.lean (op list + mutant guards; outside the task writes), packages/contracts/golden/ops/land-link.jsonl,
+lean/FwTest/Mutants/OpsWire.lean (op list + mutant guards; graph r637), packages/contracts/golden/ops/land-link.jsonl,
 apps/runner/src/land-link.ts, apps/runner/src/land.ts, apps/runner/test/land-link.test.ts, .claude/workflows/build-review.js,
-docs/team/incidents/ledger.json (regression field text), research/notes/2026/11-02-scratch-link-check.md.
+research/notes/2026/11-02-scratch-link-check.md.
 
 Conventions: Lean decides (fwcore op ops.landLink); TS only reads git. Refusal is kind `scope` with `REFUSED: land-link:`.
-Open: the dry-land / check.sh results are in the report. Read it, then lean/Fw/Ops/LandLink.lean.
+Open: the lead sets the regression field of inc-scratch-symlink-wait in docs/team/incidents/ledger.json (outside the task writes).
+Open: two added links can escape together while each passes (`a/l1 -> ..`, `l2 -> a/l1/..`); untracked links are not checked.
+The dry-land / check.sh results are in the report. Read it, then lean/Fw/Ops/LandLink.lean.
