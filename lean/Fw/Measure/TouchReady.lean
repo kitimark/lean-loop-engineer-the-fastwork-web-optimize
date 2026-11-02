@@ -1,0 +1,380 @@
+import Lean.Data.Json
+import Fw.Measure.WalkBudget
+/-!
+# Fw.Measure.TouchReady: when the Simulator touch driver counts as ready, when its launch is abandoned and relaunched
+-/
+namespace Fw.Measure.TouchReady
+
+structure Cfg where
+  launches : Nat
+  launchMs : Nat
+  killMs : Nat
+  stopWaitMs : Nat
+deriving Repr, BEq
+
+def cfg : Cfg := ⟨3, 150000, 10000, 20000⟩
+
+inductive LaunchFault where
+  | launchStuck
+  | bodyStuck
+  | ended
+deriving DecidableEq, Repr
+
+def LaunchFault.name : LaunchFault → String
+  | .launchStuck => "driver-launch-stuck"
+  | .bodyStuck => "driver-body-stuck"
+  | .ended => "driver-ended"
+
+def LaunchFault.all : List LaunchFault := [.launchStuck, .bodyStuck, .ended]
+
+theorem names_nodup : (LaunchFault.all.map LaunchFault.name).Nodup := by decide
+
+theorem names_not_walk_faults :
+    ∀ f ∈ LaunchFault.all, ∀ g ∈ Fw.Measure.FaultNames.Fault.all, f.name ≠ g.name := by decide
+
+structure Obs where
+  ready : Bool
+  alive : Bool
+  ended : Bool
+  elapsed : Nat
+deriving Repr, BEq
+
+inductive Act where
+  | wait
+  | ready
+  | relaunch (f : LaunchFault)
+  | give (f : LaunchFault)
+deriving DecidableEq, Repr
+
+def faultOf (o : Obs) : LaunchFault :=
+  if o.ended then .ended else if o.alive then .bodyStuck else .launchStuck
+
+def verdict (c : Cfg) (n : Nat) (o : Obs) : Act :=
+  if o.ready then .ready
+  else if o.ended || c.launchMs ≤ o.elapsed then
+    (if n < c.launches then .relaunch (faultOf o) else .give (faultOf o))
+  else .wait
+
+theorem faultOf_ended (o : Obs) (h : o.ended = true) : faultOf o = .ended := by
+  simp [faultOf, h]
+
+theorem faultOf_body (o : Obs) (h : o.ended = false) (ha : o.alive = true) : faultOf o = .bodyStuck := by
+  simp [faultOf, h, ha]
+
+theorem faultOf_launch (o : Obs) (h : o.ended = false) (ha : o.alive = false) : faultOf o = .launchStuck := by
+  simp [faultOf, h, ha]
+
+theorem verdict_cases (c : Cfg) (n : Nat) (o : Obs) :
+    (o.ready = true ∧ verdict c n o = .ready) ∨
+    (o.ready = false ∧ (o.ended = true ∨ c.launchMs ≤ o.elapsed) ∧ n < c.launches ∧ verdict c n o = .relaunch (faultOf o)) ∨
+    (o.ready = false ∧ (o.ended = true ∨ c.launchMs ≤ o.elapsed) ∧ c.launches ≤ n ∧ verdict c n o = .give (faultOf o)) ∨
+    (o.ready = false ∧ o.ended = false ∧ o.elapsed < c.launchMs ∧ verdict c n o = .wait) := by
+  cases hr : o.ready
+  · cases he : o.ended
+    · by_cases hc : c.launchMs ≤ o.elapsed
+      · by_cases hn : n < c.launches
+        · exact Or.inr (Or.inl ⟨rfl, Or.inr hc, hn, by simp [verdict, hr, he, hc, hn]⟩)
+        · exact Or.inr (Or.inr (Or.inl ⟨rfl, Or.inr hc, by omega, by simp [verdict, hr, he, hc, hn]⟩))
+      · exact Or.inr (Or.inr (Or.inr ⟨rfl, rfl, by omega, by simp [verdict, hr, he, hc]⟩))
+    · by_cases hn : n < c.launches
+      · exact Or.inr (Or.inl ⟨rfl, Or.inl rfl, hn, by simp [verdict, hr, he, hn]⟩)
+      · exact Or.inr (Or.inr (Or.inl ⟨rfl, Or.inl rfl, by omega, by simp [verdict, hr, he, hn]⟩))
+  · exact Or.inl ⟨rfl, by simp [verdict, hr]⟩
+
+theorem ready_wins (c : Cfg) (n : Nat) (o : Obs) (h : o.ready = true) : verdict c n o = .ready := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all
+
+theorem ready_only_if_ready (c : Cfg) (n : Nat) (o : Obs) (h : verdict c n o = .ready) : o.ready = true := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all
+
+theorem wait_iff (c : Cfg) (n : Nat) (o : Obs) :
+    verdict c n o = .wait ↔ o.ready = false ∧ o.ended = false ∧ o.elapsed < c.launchMs := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1
+  · simp_all
+  · obtain ⟨h2, h3, h4, h5⟩ := h1
+    rw [h5]
+    simp only [reduceCtorEq, false_iff]
+    intro ⟨_, h6, h7⟩
+    rcases h3 with h3 | h3 <;> simp_all <;> omega
+  · obtain ⟨h2, h3, h4, h5⟩ := h1
+    rw [h5]
+    simp only [reduceCtorEq, false_iff]
+    intro ⟨_, h6, h7⟩
+    rcases h3 with h3 | h3 <;> simp_all <;> omega
+  · obtain ⟨h2, h3, h4, h5⟩ := h1
+    simp [h2, h3, h4, h5]
+
+theorem relaunch_cap (c : Cfg) (n : Nat) (o : Obs) (hr : o.ready = false) (hn : n < c.launches)
+    (h : c.launchMs ≤ o.elapsed) : verdict c n o = .relaunch (faultOf o) := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all <;> omega
+
+theorem relaunch_ended (c : Cfg) (n : Nat) (o : Obs) (hr : o.ready = false) (hn : n < c.launches)
+    (h : o.ended = true) : verdict c n o = .relaunch .ended := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all [faultOf] <;> omega
+
+theorem give_cap (c : Cfg) (n : Nat) (o : Obs) (hr : o.ready = false) (hn : c.launches ≤ n)
+    (h : c.launchMs ≤ o.elapsed) : verdict c n o = .give (faultOf o) := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all <;> omega
+
+theorem give_ended (c : Cfg) (n : Nat) (o : Obs) (hr : o.ready = false) (hn : c.launches ≤ n)
+    (h : o.ended = true) : verdict c n o = .give .ended := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all [faultOf] <;> omega
+
+theorem relaunch_has_launch_left (c : Cfg) (n : Nat) (o : Obs) (f : LaunchFault)
+    (h : verdict c n o = .relaunch f) : n < c.launches ∧ o.ready = false := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all
+
+theorem give_has_none_left (c : Cfg) (n : Nat) (o : Obs) (f : LaunchFault)
+    (h : verdict c n o = .give f) : c.launches ≤ n ∧ o.ready = false := by
+  rcases verdict_cases c n o with h1 | h1 | h1 | h1 <;> simp_all
+
+structure Traj where
+  aliveAt : Option Nat
+  readyAt : Option Nat
+  endedAt : Option Nat
+deriving Repr, BEq
+
+def Traj.never : Traj := ⟨none, none, none⟩
+
+def stopAt (c : Cfg) (t : Traj) : Nat :=
+  let m := match t.readyAt with | some r => min c.launchMs r | none => c.launchMs
+  match t.endedAt with | some e => min m e | none => m
+
+theorem stopAt_le (c : Cfg) (t : Traj) : stopAt c t ≤ c.launchMs := by
+  unfold stopAt
+  cases t.readyAt <;> cases t.endedAt <;> simp <;> omega
+
+def reached (x : Option Nat) (at_ : Nat) : Bool :=
+  match x with | some v => decide (v ≤ at_) | none => false
+
+def obsAt (t : Traj) (x : Nat) : Obs :=
+  ⟨reached t.readyAt x, reached t.aliveAt x, reached t.endedAt x, x⟩
+
+structure Result where
+  ready : Bool
+  faults : List LaunchFault
+  ms : Nat
+deriving Repr, BEq
+
+def drive (c : Cfg) : Nat → Nat → List Traj → Result
+  | 0, _, _ => ⟨false, [], 0⟩
+  | fuel + 1, n, ls =>
+    let t := ls.headD Traj.never
+    let x := stopAt c t
+    match verdict c n (obsAt t x) with
+    | .ready => ⟨true, [], x⟩
+    | .relaunch f =>
+      let r := drive c fuel (n + 1) ls.tail
+      ⟨r.ready, f :: r.faults, x + c.killMs + r.ms⟩
+    | .give f => ⟨false, [f], x + c.killMs⟩
+    | .wait => ⟨false, [], x⟩
+
+def run (c : Cfg) (ls : List Traj) : Result := drive c c.launches 1 ls
+
+theorem fate_not_wait (c : Cfg) (n : Nat) (t : Traj) : verdict c n (obsAt t (stopAt c t)) ≠ .wait := by
+  rw [Ne, wait_iff]
+  intro ⟨h1, h2, h3⟩
+  unfold obsAt stopAt reached at h1 h2 h3
+  simp only at h1 h2 h3
+  cases hr : t.readyAt <;> cases he : t.endedAt <;> simp_all <;> omega
+
+theorem drive_ms_le (c : Cfg) : ∀ (fuel n : Nat) (ls : List Traj), (drive c fuel n ls).ms ≤ fuel * (c.launchMs + c.killMs) := by
+  intro fuel
+  induction fuel with
+  | zero => intro n ls; simp [drive]
+  | succ k ih =>
+    intro n ls
+    have hs := stopAt_le c (ls.headD Traj.never)
+    have := ih (n + 1) ls.tail
+    have hm : (k + 1) * (c.launchMs + c.killMs) = k * (c.launchMs + c.killMs) + (c.launchMs + c.killMs) := Nat.succ_mul _ _
+    simp only [drive]
+    split <;> simp only <;> omega
+
+theorem run_ms_le (c : Cfg) (ls : List Traj) : (run c ls).ms ≤ c.launches * (c.launchMs + c.killMs) :=
+  drive_ms_le c c.launches 1 ls
+
+theorem worst_fits : cfg.launches * (cfg.launchMs + cfg.killMs) ≤ Fw.Measure.WalkBudget.readyAllowMs := by decide
+
+theorem run_fits (ls : List Traj) : (run cfg ls).ms ≤ Fw.Measure.WalkBudget.readyAllowMs :=
+  Nat.le_trans (run_ms_le cfg ls) worst_fits
+
+theorem run_first_ready (c : Cfg) (t : Traj) (ls : List Traj) (hl : 1 ≤ c.launches)
+    (h : verdict c 1 (obsAt t (stopAt c t)) = .ready) : run c (t :: ls) = ⟨true, [], stopAt c t⟩ := by
+  obtain ⟨k, hk⟩ : ∃ k, c.launches = k + 1 := ⟨c.launches - 1, by omega⟩
+  simp [run, hk, drive, h]
+
+theorem run_relaunch_named (c : Cfg) (t : Traj) (ls : List Traj) (f : LaunchFault) (hl : 1 < c.launches)
+    (h : verdict c 1 (obsAt t (stopAt c t)) = .relaunch f) :
+    (run c (t :: ls)).faults = f :: (drive c (c.launches - 1) 2 ls).faults := by
+  obtain ⟨k, hk⟩ : ∃ k, c.launches = k + 1 := ⟨c.launches - 1, by omega⟩
+  simp [run, hk, drive, h]
+
+theorem run_single_launch (t : Traj) (ls : List Traj) (c : Cfg) (hc : c.launches = 1)
+    (hr : (obsAt t (stopAt c t)).ready = false) :
+    (run c (t :: ls)).ready = false ∧ (run c (t :: ls)).faults = [faultOf (obsAt t (stopAt c t))] := by
+  have hd := fate_not_wait c 1 t
+  have hg : verdict c 1 (obsAt t (stopAt c t)) = .give (faultOf (obsAt t (stopAt c t))) := by
+    rcases verdict_cases c 1 (obsAt t (stopAt c t)) with h1 | h1 | h1 | h1 <;> simp_all
+  simp [run, hc, drive, hg]
+
+inductive StopAct where
+  | wait
+  | clean
+  | kill
+deriving DecidableEq, Repr
+
+def StopAct.name : StopAct → String
+  | .wait => "wait"
+  | .clean => "clean"
+  | .kill => "driver-stop-killed"
+
+def stopStep (c : Cfg) (exited : Bool) (waitedMs : Nat) : StopAct :=
+  if exited then .clean else if c.stopWaitMs ≤ waitedMs then .kill else .wait
+
+theorem stop_clean (c : Cfg) (w : Nat) : stopStep c true w = .clean := by simp [stopStep]
+
+theorem stop_kill (c : Cfg) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c false w = .kill := by simp [stopStep, h]
+
+theorem stop_wait (c : Cfg) (w : Nat) (h : w < c.stopWaitMs) : stopStep c false w = .wait := by
+  have : ¬ c.stopWaitMs ≤ w := by omega
+  simp [stopStep, this]
+
+theorem stop_decides_by (c : Cfg) (exited : Bool) (w : Nat) (h : c.stopWaitMs ≤ w) : stopStep c exited w ≠ .wait := by
+  cases exited <;> simp [stopStep, h]
+
+theorem stop_kill_name : StopAct.kill.name ≠ StopAct.clean.name := by decide
+
+structure Job where
+  launchFaults : List LaunchFault
+  ready : Bool
+deriving Repr, BEq
+
+structure Tally where
+  jobs : Nat
+  ready : Nat
+  firstTry : Nat
+  relaunched : Nat
+  launchStuck : Nat
+  bodyStuck : Nat
+  ended : Nat
+deriving Repr, BEq
+
+def count (f : LaunchFault) (js : List Job) : Nat :=
+  js.foldl (fun a j => a + (j.launchFaults.filter (· == f)).length) 0
+
+def tally (js : List Job) : Tally :=
+  ⟨js.length, (js.filter (·.ready)).length, (js.filter fun j => j.ready && j.launchFaults.isEmpty).length,
+    (js.filter fun j => !j.launchFaults.isEmpty).length, count .launchStuck js, count .bodyStuck js, count .ended js⟩
+
+theorem filter_length_mono (p q : Job → Bool) (h : ∀ a, p a = true → q a = true) :
+    ∀ js : List Job, (js.filter p).length ≤ (js.filter q).length
+  | [] => by simp
+  | a :: t => by
+    have ih := filter_length_mono p q h t
+    by_cases hp : p a = true
+    · have hq := h a hp
+      simp [hp, hq]
+      omega
+    · by_cases hq : q a = true <;> simp [hp, hq] <;> omega
+
+theorem tally_first_try_le (js : List Job) : (tally js).firstTry ≤ (tally js).ready := by
+  simp only [tally]
+  exact filter_length_mono _ _ (by intro j hj; simp_all) js
+
+theorem tally_ready_le (js : List Job) : (tally js).ready ≤ (tally js).jobs := by
+  simp only [tally]
+  exact List.length_filter_le _ _
+
+def obsCases : List (String × Nat × Obs) := [
+  ("ready at once", 1, ⟨true, true, false, 40000⟩),
+  ("ready wins over ended", 1, ⟨true, true, true, 40000⟩),
+  ("ready wins at the cap", 3, ⟨true, true, false, 150000⟩),
+  ("waiting before the cap", 1, ⟨false, false, false, 149999⟩),
+  ("launch stuck at the cap, a launch left", 1, ⟨false, false, false, 150000⟩),
+  ("body stuck at the cap, a launch left", 2, ⟨false, true, false, 150000⟩),
+  ("ended early, a launch left", 1, ⟨false, true, true, 3000⟩),
+  ("ended before alive, a launch left", 2, ⟨false, false, true, 3000⟩),
+  ("launch stuck, last launch", 3, ⟨false, false, false, 150000⟩),
+  ("body stuck, last launch", 3, ⟨false, true, false, 151000⟩),
+  ("ended, last launch", 3, ⟨false, false, true, 100⟩)]
+
+def actName : Act → String
+  | .wait => "wait"
+  | .ready => "ready"
+  | .relaunch f => "relaunch:" ++ f.name
+  | .give f => "give:" ++ f.name
+
+def trajCases : List (String × List Traj) := [
+  ("ready on the first launch", [⟨some 30000, some 62000, none⟩]),
+  ("ready at the cap", [⟨some 30000, some 150000, none⟩]),
+  ("launch stuck once, then ready", [⟨none, none, none⟩, ⟨some 20000, some 50000, none⟩]),
+  ("body stuck once, then ready", [⟨some 114000, none, none⟩, ⟨some 20000, some 50000, none⟩]),
+  ("ended once, then ready", [⟨some 5000, none, some 9000⟩, ⟨some 20000, some 50000, none⟩]),
+  ("ready after the cap counts as stuck", [⟨some 30000, some 150001, none⟩, ⟨some 30000, some 60000, none⟩]),
+  ("ended after ready is ready", [⟨some 30000, some 62000, some 70000⟩]),
+  ("ended before ready", [⟨some 30000, some 62000, some 40000⟩, ⟨some 30000, some 62000, none⟩]),
+  ("stuck three times", [⟨none, none, none⟩, ⟨none, none, none⟩, ⟨none, none, none⟩]),
+  ("two stuck, third ready", [⟨none, none, none⟩, ⟨some 100000, none, none⟩, ⟨some 30000, some 90000, none⟩]),
+  ("no launch ever", [])]
+
+def stopCases : List (Bool × Nat) := [(true, 0), (true, 25000), (false, 0), (false, 19999), (false, 20000), (false, 60000)]
+
+def jobCases : List (String × List Job) := [
+  ("empty", []),
+  ("all first try", [⟨[], true⟩, ⟨[], true⟩]),
+  ("one relaunched ready, one lost", [⟨[.launchStuck], true⟩, ⟨[.launchStuck, .bodyStuck, .ended], false⟩]),
+  ("mixed", [⟨[], true⟩, ⟨[.bodyStuck], true⟩, ⟨[.ended, .ended], true⟩, ⟨[.launchStuck, .launchStuck, .launchStuck], false⟩])]
+
+open Lean in
+def trajJson (t : Traj) : Json :=
+  let o (x : Option Nat) : Json := match x with | some v => toJson v | none => Json.null
+  Json.mkObj [("aliveAt", o t.aliveAt), ("readyAt", o t.readyAt), ("endedAt", o t.endedAt)]
+
+open Lean in
+def goldenLines (_ : Unit := ()) : List String :=
+  let consts := (Json.mkObj [("op", "constants"), ("launches", toJson cfg.launches), ("launchMs", toJson cfg.launchMs),
+    ("killMs", toJson cfg.killMs), ("stopWaitMs", toJson cfg.stopWaitMs), ("readyAllowMs", toJson Fw.Measure.WalkBudget.readyAllowMs),
+    ("names", Json.arr (LaunchFault.all.map (fun f => Json.str f.name)).toArray),
+    ("stopKillName", Json.str StopAct.kill.name)]).compress
+  let ds := obsCases.map fun (name, n, o) =>
+    (Json.mkObj [("op", "decide"), ("case", Json.str name), ("n", toJson n),
+      ("obs", Json.mkObj [("ready", toJson o.ready), ("alive", toJson o.alive), ("ended", toJson o.ended), ("elapsed", toJson o.elapsed)]),
+      ("act", Json.str (actName (verdict cfg n o)))]).compress
+  let rs := trajCases.map fun (name, ls) =>
+    let r := run cfg ls
+    (Json.mkObj [("op", "run"), ("case", Json.str name), ("trajs", Json.arr (ls.map trajJson).toArray), ("ready", toJson r.ready),
+      ("faults", Json.arr (r.faults.map (fun f => Json.str f.name)).toArray), ("ms", toJson r.ms)]).compress
+  let ss := stopCases.map fun (exited, w) =>
+    (Json.mkObj [("op", "stop"), ("exited", toJson exited), ("waitedMs", toJson w), ("act", Json.str (stopStep cfg exited w).name)]).compress
+  let ts := jobCases.map fun (name, js) =>
+    let t := tally js
+    (Json.mkObj [("op", "tally"), ("case", Json.str name),
+      ("jobs", Json.arr (js.map fun j => Json.mkObj [("faults", Json.arr (j.launchFaults.map (fun f => Json.str f.name)).toArray), ("ready", toJson j.ready)]).toArray),
+      ("out", Json.mkObj [("jobs", toJson t.jobs), ("ready", toJson t.ready), ("firstTry", toJson t.firstTry), ("relaunched", toJson t.relaunched),
+        ("driver-launch-stuck", toJson t.launchStuck), ("driver-body-stuck", toJson t.bodyStuck), ("driver-ended", toJson t.ended)])]).compress
+  [consts] ++ ds ++ rs ++ ss ++ ts
+
+def goldenText (_ : Unit := ()) : String := String.intercalate "" (goldenLines.map (· ++ "\n"))
+
+def argAfter : List String → String → Option String
+  | a :: b :: rest, flag => if a == flag then some b else argAfter (b :: rest) flag
+  | _, _ => none
+
+def goldenMain (args : List String) : IO UInt32 := do
+  match argAfter args "--check" with
+  | some path =>
+    let cur ← IO.FS.readBinFile path
+    if cur.data == goldenText.toUTF8.data then
+      IO.eprintln s!"touch-ready golden: {path} is up to date ({goldenLines.length} lines)"
+      return 0
+    IO.eprintln s!"touch-ready golden: {path} differs from the generated bytes"
+    return 1
+  | none =>
+    IO.print goldenText
+    return 0
+
+#guard verdict cfg 1 ⟨true, false, false, 0⟩ == .ready
+#guard (run cfg [⟨none, none, none⟩, ⟨some 20000, some 50000, none⟩]).faults == [.launchStuck]
+#guard (run cfg []).ready == false
+
+end Fw.Measure.TouchReady
