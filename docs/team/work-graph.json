@@ -25031,7 +25031,9 @@
     "lean/Fw/Ops/Golden.lean",
     "research/notes/2026/11-0*-scratch-link-check.md",
     "docs/team/handoffs/scratch-link-check.md",
-    ".claude/workflows/build-review.js"
+    ".claude/workflows/build-review.js",
+    "lean/FwTest/Mutants/OpsWire.lean",
+    "lean/Fw/Ops/Wire.lean"
    ]
   },
   {
