@@ -25157,6 +25157,42 @@
     "docs/team/handoffs/sim-touch-fault-margin.md"
    ],
    "evidence": "59e579a"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "end-pin-rank",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "sim-touch-fault-margin",
+    "end-pin-followups"
+   ],
+   "title": "Rank the page-end pin against base on the CI Simulator with the new job plan: a 12-job two-wave matrix (Lean late_jobs) for the touch-lock lane with planLock (4 arms: orig, base, lock, pin), per-window fights, writesLive from the pin trace and the across-jobs verdict for pin vs base; first runs of the refreshed walk budget (318 windows) and planLock on CI. Also the review follow-ups of sim-touch-fault-margin: split the fault names touch-driver-not-ready and lost-mid-walk (swipeLate, pageLost, late finish) in Lean WalkBudget and sim-cadence driverEnd; state report.mjs faultOf in Lean with golden rows; legs statement says every combination of [sim-only] and [sim-touch-control]; report run states as gh reports them. At most 2 dispatches on free macOS runners.",
+   "writes": [
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/Fw/Measure/TouchLock.lean",
+    "lean/Fw/Measure/Fault*.lean",
+    "lean/Fw.lean",
+    "lean/scripts/TouchLockGolden.lean",
+    "packages/contracts/golden/measure/**",
+    "packages/measure-webkit/src/walk-budget.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/src/profile/report*.mjs",
+    "packages/measure-webkit/src/touchlock*.mjs",
+    "packages/measure-webkit/test/**",
+    ".github/workflows/smoothness.yml",
+    "lean/Fw/Ci/Pool/Caps.lean",
+    "packages/contracts/golden/ci/**",
+    "scripts/ci-paths.test.mjs",
+    "apps/runner/src/land.ts",
+    "results/end-pin-rank/**",
+    "research/notes/2026/11-0*-end-pin-rank.md",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "research/findings/ledger.json",
+    "docs/team/handoffs/end-pin-rank.md"
+   ]
   }
  ],
  "deadline": {
