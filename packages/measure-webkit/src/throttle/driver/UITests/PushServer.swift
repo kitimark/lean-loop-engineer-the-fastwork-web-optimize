@@ -2,7 +2,7 @@ import XCTest
 
 /// One long XCUITest run that swipes Mobile Safari on request: a swipe up, a hold, a swipe down, a hold (the end-of-page push of the
 /// morph). The Node probe writes `go-<n>` into the directory FW_DIR (its text names the target, see below) and waits for `done-<n>`;
-/// this test writes `ready` once Safari is in front and stops on a `stop` file or after MAX_S seconds. One xcodebuild start per job
+/// this test writes `alive` when its body starts and `ready` once Safari is in front and stops on a `stop` file or after MAX_S seconds. One xcodebuild start per job
 /// instead of one per window. `done-<n>` holds `ok <up ms> <down ms>`: how long each press call took inside XCUITest.
 /// Parameters arrive as TEST_RUNNER_FW_* variables: DIR, DRAG_PT (points per drag), VELOCITY (points per second), HOLD_MS, MAX_S.
 ///
@@ -28,6 +28,7 @@ final class PushServer: XCTestCase {
             files.createFile(atPath: dir + "/" + name, contents: text.data(using: .utf8))
         }
 
+        put("alive", "1")
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         safari.activate()
         XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20), "Safari is not in the foreground")

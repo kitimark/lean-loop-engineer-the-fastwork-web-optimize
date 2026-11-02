@@ -2,7 +2,7 @@ import XCTest
 
 /// One long XCUITest run that does one finish cycle of DragTests.testFinish per request (task push-cycle-separate): a drag up past the end
 /// (the morph panel opens), a drag down that closes it, a shorter drag down that scrolls back, each with the hold. The Node probe writes
-/// `go-<n>` into FW_DIR and waits for `done-<n>` (`ok <ms of press 1> <ms of press 2> <ms of press 3>`); this test writes `ready` once Safari
+/// `go-<n>` into FW_DIR and waits for `done-<n>` (`ok <ms of press 1> <ms of press 2> <ms of press 3>`); this test writes `alive` when its body starts and `ready` once Safari
 /// is in front and stops on a `stop` file or after MAX_S seconds. One xcodebuild start per pass, so the time between two cycles is the
 /// Node side's to set (a rest), not the start-up cost of a test run. The presses and their parameters equal testFinish; the page is
 /// already near its end. Parameters: DIR, DRAG_PT, BACK_PT, VELOCITY, HOLD_MS, MAX_S; `go-<n>` holding `safari` takes the coordinates from
@@ -25,6 +25,7 @@ final class FinishServer: XCTestCase {
             files.createFile(atPath: dir + "/" + name, contents: text.data(using: .utf8))
         }
 
+        put("alive", "1")
         let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
         safari.activate()
         XCTAssertTrue(safari.wait(for: .runningForeground, timeout: 20 * number("WAIT_SCALE", 1)), "Safari is not in the foreground")
