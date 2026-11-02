@@ -4777,7 +4777,7 @@
     "commits": [],
     "note": "Lead stopped the workflow, removed the link, and started a finisher whose prompt says: own scratch subdir, no symlinks, goldens only through the Lean generator."
    },
-   "regression": "none yet: the rule lives in the finisher prompt only.",
+   "regression": "lean/Fw/Ops/LandLink.lean; packages/contracts/golden/ops/land-link.jsonl; apps/runner/test/land-link.test.ts (fw land --dry refuses an added tracked symlink that leaves the worktree); the build-review preamble names scratchpad/<agent-name>/ and forbids links into the worktree. Untracked links and chained links are not checked yet.",
    "mistakeClass": "c-env-assume",
    "leanVerdict": "partly",
    "leanReason": "Which paths an agent may write is a pure rule (worktree, its own scratch subdir); a dry-land check could refuse a branch that adds a symlink leaving the worktree. The wait itself is a harness event, not a decision.",
