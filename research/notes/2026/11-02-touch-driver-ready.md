@@ -16,7 +16,7 @@ simulator jobs, branch `ci/touch-driver-ready`. The Simulator is not the phone.
 ## Answer
 
 - **A first-start fault is a driver launch that never reaches the XCUITest body (MEASURED).** In run `41402584809` five
-  first launches (jobs 2, 6, 8, 10, 11) wrote no `alive` file in 150 s. None wrote `alive`, the test body's first step. Their
+  first launches (jobs 2, 6, 8, 10, 11) wrote no `alive` file in 150 s. `alive` is the test body's first step. Their
   log tails stop at different points before it: job 8 at the IDESchemeActionSDKRecord line, job 6 at the runner's "Running
   tests...", job 11 at "Test Suite 'PushServer' started" with no test case; jobs 2 and 10 have no tail. `ps` timed out after
   15 s in jobs 2, 6 and 10; in jobs 8 and 11 it shows the Simulator runtime at 47 to 64 % CPU and `diagnosticd` at 33 %.
@@ -24,7 +24,7 @@ simulator jobs, branch `ci/touch-driver-ready`. The Simulator is not the phone.
   11 first starts in run `41391781282`, 9 of 9 working launches in run `41402584809`), so Safari is not the slow part.
 - **A relaunch recovers most of them (MEASURED).** Launch 1 failed in 5 of 10 jobs; launch 2 or 3 became ready in 4 of those 5
   (65 to 77 s after its start). Per launch about half become ready (9 of 18). Only job 2 failed all three launches and ended
-  `touch-driver-not-ready`. Per-job ready driver at the first start: 9 of 10 (was 7 of 11 in `41369102226` and 10 of 12 in `41380162402`). Against `41380162402` the first-start rate did not improve (10 of 12 before, 9 of 10 after); the evidence that the relaunch works is the 4 of 5 recovered stalls.
+  `touch-driver-not-ready`. Per-job ready driver at the first start: 9 of 10 (was 7 of 11 in `41369102226` and 10 of 12 in `41380162402`). The first-start rate did not improve against `41380162402` (10 of 12 before, 9 of 10 after); the 4 of 5 recovered stalls show the relaunch works.
 - **The fault rate is not constant across runs (MEASURED).** Launch 1 failed in 0 of 11 jobs in run `41391781282` and 5 of 10 in
   `41402584809`. Run 1 therefore cannot show that the relaunch works; run 2 does.
 - **Restarts: the stop kill this branch added is the likely cause of 0 of 8 ready (MEASURED, cause INFERRED).** Restarts became

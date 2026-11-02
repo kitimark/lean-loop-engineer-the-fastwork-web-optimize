@@ -31,7 +31,6 @@ export function armTrees(siteDir) {
 
 export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? '');
 
-/** Start one push server and note its launches (and the fault of a failed start) in touch.launches. */
 export async function beginServer(touch, { udid, log, push, start = startServer, why = (m) => m }) {
   const tag = serveTag(touch.restarts);
   try {
@@ -48,7 +47,6 @@ export async function restartServer(touch, { udid, log, push, start = startServe
   await beginServer(touch, { udid, log, push, start, why: (m) => `restart failed: ${m}` });
 }
 
-/** Stop the push server; a kill after the stop wait (Lean stopStep) is noted on its launch entry. */
 export async function endServer(touch, stop = stopServer) {
   const server = touch.server;
   touch.server = null;

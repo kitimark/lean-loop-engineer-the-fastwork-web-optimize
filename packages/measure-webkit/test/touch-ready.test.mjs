@@ -32,7 +32,6 @@ test('replay replays the Lean golden runs', () => {
   assert.ok(runs.length >= 10);
 });
 
-/** The real loop (launchUntilReady) on a virtual clock over the same recorded trajectories. */
 function drive(trajs, cfg = READY_CFG) {
   let t = 0;
   const never = new Promise(() => {});

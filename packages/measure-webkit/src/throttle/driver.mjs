@@ -211,7 +211,6 @@ export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve', sui
   return { state, exited, logFile, kill: (why) => ctl.kill?.(why) };
 }
 
-/** Remove the temp build. */
 export function cleanup(driver) {
   if (driver?.dir) rmSync(driver.dir, { recursive: true, force: true });
 }

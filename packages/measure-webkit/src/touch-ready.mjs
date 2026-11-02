@@ -1,7 +1,5 @@
-/** Launch, ready and stop decisions of the touch driver; stand-ins checked against lean/Fw/Measure/TouchReady.lean through contracts/golden/measure/touch-ready.jsonl. */
 export const READY_CFG = Object.freeze({ launches: 3, launchMs: 150000, killMs: 10000, stopWaitMs: 20000 });
 
-/** After a stalled window the Simulator is slow to start a driver (restarts became ready after 74 to 220 s), so a restart gets one long launch, no relaunch. */
 export const RESTART_CFG = Object.freeze({ launches: 1, launchMs: 470000, killMs: 10000, stopWaitMs: 20000 });
 
 export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck', bodyStuck: 'driver-body-stuck', ended: 'driver-ended' });
@@ -9,7 +7,6 @@ export const STOP_LATE = 'driver-stop-late';
 
 export const faultOf = (o) => (o.ended ? LAUNCH_FAULTS.ended : o.alive ? LAUNCH_FAULTS.bodyStuck : LAUNCH_FAULTS.launchStuck);
 
-/** The step for launch number `n` (1-based) given what is seen: 'ready', 'wait', `relaunch:<fault>` or `give:<fault>`. */
 export function verdict(c, n, o) {
   if (o.ready) return 'ready';
   if (o.ended || c.launchMs <= o.elapsed) return `${n < c.launches ? 'relaunch' : 'give'}:${faultOf(o)}`;
@@ -20,7 +17,6 @@ export const stopStep = (c, exited, waitedMs) => (exited ? 'clean' : c.stopWaitM
 
 const reached = (x, at) => x != null && x <= at;
 
-/** The pure replay of the launch loop over recorded trajectories {aliveAt, readyAt, endedAt}. */
 export function replay(c, trajs) {
   const go = (fuel, n, ls) => {
     if (fuel === 0) return { ready: false, faults: [], ms: 0 };
@@ -40,7 +36,6 @@ export function replay(c, trajs) {
   return go(c.launches, 1, trajs);
 }
 
-/** Count jobs {faults, ready} the way the Lean tally does. */
 export function tallyJobs(jobs) {
   const count = (f) => jobs.reduce((a, j) => a + j.faults.filter((x) => x === f).length, 0);
   return {
@@ -50,10 +45,8 @@ export function tallyJobs(jobs) {
   };
 }
 
-/** A tally job from the launch records of the first start: ready when the last launch has no fault. */
 export const jobOf = (records) => ({ faults: (records ?? []).map((r) => r.fault).filter(Boolean), ready: (records ?? []).length > 0 && records[records.length - 1].fault == null });
 
-/** The launch records of the first start in a touch-lock.json or sim.json snapshot. */
 export const firstStart = (snap) => snap.touch?.launches?.find((e) => e.tag === 'serve')?.launches ?? snap.push?.launches ?? [];
 
 /**

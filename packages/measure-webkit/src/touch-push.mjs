@@ -104,7 +104,6 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   throw e;
 }
 
-/** Stop the server: a `stop` file, then `stopStep` (Lean TouchReady): after stopWaitMs without exit `server.stopFault` names the late stop (no kill, as before this branch). */
 export async function stopServer(server, { cfg = READY_CFG } = {}) {
   try { writeFileSync(join(server.dir, 'stop'), ''); } catch {}
   const w0 = Date.now();
