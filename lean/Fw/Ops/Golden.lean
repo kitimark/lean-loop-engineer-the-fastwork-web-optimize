@@ -1170,7 +1170,21 @@ def layersSearchCases : List (String × Json) :=
   Fw.Parts.FootprintData.layerDecls.map fun (_, l, _) =>
     (s!"declared layer {l}", Json.mkObj [("registry", declReg), ("search", .str s!"?fwl={l}:c")])
 
+def linkReq (links : String) : Json := lit s!"\{\"links\":{links}}"
+
+def landLinkCases : List (String × Json) := [
+  ("link inside the worktree passes", linkReq "[{\"path\":\"docs/a/link\",\"target\":\"../b/file.md\"}]"),
+  ("link to the worktree root passes", linkReq "[{\"path\":\"a/b/link\",\"target\":\"../..\"}]"),
+  ("dot and empty segments change nothing", linkReq "[{\"path\":\"a/link\",\"target\":\"./b//c\"}]"),
+  ("absolute target is refused", linkReq "[{\"path\":\".scr\",\"target\":\"/private/tmp/scratchpad\"}]"),
+  ("dot-dot above the root is refused", linkReq "[{\"path\":\"a/link\",\"target\":\"../../x\"}]"),
+  ("dot-dot after a descent still escapes when it pops too far", linkReq "[{\"path\":\"link\",\"target\":\"b/../../x\"}]"),
+  ("empty target is refused", linkReq "[{\"path\":\"link\",\"target\":\"\"}]"),
+  ("mixed: only the bad links are listed, in order", linkReq "[{\"path\":\"ok\",\"target\":\"x\"},{\"path\":\"bad1\",\"target\":\"/etc\"},{\"path\":\"d/bad2\",\"target\":\"../../y\"}]"),
+  ("no links", linkReq "[]")]
+
 def named (_ : Unit := ()) : List (String × String × String × List (String × Json)) := [
+  ("ops", "land-link", "ops.landLink", landLinkCases),
   ("ops", "lean-first", "ops.leanFirst", leanFirstCases),
   ("console", "reviewFeedback", "console.reviewFeedback", reviewFeedbackCases),
   ("console", "steps-topics", "console.stepTopics", stepTopicsCases),

@@ -7,6 +7,7 @@ import Fw.Ops.Identity
 import Fw.Ops.Obs
 import Fw.Ops.Wait
 import Fw.Ops.LeanFirst
+import Fw.Ops.LandLink
 /-!
 # JSON codecs and ops of `Fw.Ops` (`ops.*`)
 
@@ -18,6 +19,7 @@ are non-negative integers (seconds, tokens, ms); a non-integer number is refused
 |---|---|---|
 | `ops.spawn` | `alive` [{name, role, kind}], `roles` [{name, runsAs, edits}], `caps`?, `recent`? [{spawner, at}], `now`, `req` {name?, role, isolation?, model?, spawner?, depth?} | `decision` (`allow`/`needsApproval`/`deny`), `reason` (null or a reason), `want`/`got` (kindMismatch), `role` (capRole), `kind`, `wantKind` (the role's `runsAs`, or null for an unknown role) |
 | `ops.pathCheck` | `scope` (globs, `!` excludes), `paths` | `ok`, `violations` |
+| `ops.landLink` | `links` [{path, target}] (symlinks a branch adds) | `ok`, `refused` [{path, target, reason (`empty`/`absolute`/`escapes`)}] |
 | `ops.usage` | `table`? [{id, input, cacheRead, cacheCreate, cache5m, cache1h, output}], `records`? (same shape), `lines`? (transcript JSON objects) | `table` (sorted by id), `totals`, `skipped` |
 | `ops.meter` | `params`?, `state`? {window, fired [{agent, rule}]}, `now`, `agents` [{agent, ctx, idleSec, ttlSec? or w5m?/w1h?, wakeGapSec?}] | `state`, `alerts` [{agent, rule, window}], `verdicts` [{agent, verdict, ttlSec}] |
 | `ops.hook` | `payloads` (raw hook stdin objects) | `hooks` [{sessionId, event, agentId, agentType, who, toolName, toolUseId, durationMs, error, isInterrupt, promptId, teammateName}], `errors` [{index, error}] |
@@ -196,6 +198,15 @@ def opPathCheck (req : Json) : Except String Reply := do
   let paths ← (← arr req "paths").toList.mapM (asStr "paths")
   let v := Fw.Ops.PathCheck.violations scope paths
   pure [("ok", .bool v.isEmpty), ("violations", toJson v)]
+
+def opLandLink (req : Json) : Except String Reply := do
+  let ls ← (← arr req "links").toList.mapM fun j => do
+    pure (⟨← str j "path", ← str j "target"⟩ : Fw.Ops.LandLink.Link)
+  let name : Fw.Ops.LandLink.Reason → String
+    | .empty => "empty" | .absolute => "absolute" | .escapes => "escapes"
+  let r := Fw.Ops.LandLink.refused ls
+  pure [("ok", .bool r.isEmpty), ("refused", Json.arr (r.map fun (l, x) =>
+    Json.mkObj [("path", .str l.path), ("target", .str l.target), ("reason", .str (name x))]).toArray)]
 
 /-! ## ops.usage -/
 
@@ -706,10 +717,8 @@ def opLeanFirst (req : Json) : Except String Reply := do
 #guard (opLeanFirst (Json.mkObj [("stage", .str "ratchet")])).toOption == (opLeanFirst (Json.mkObj [])).toOption
 #guard (opLeanFirst (Json.mkObj [("stage", .str "strict")])).toOption == (opLeanFirst (Json.mkObj [])).toOption
 
-/-- The `ops.*` ops. -/
-def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait", "ops.leanFirst"]
+def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait", "ops.leanFirst", "ops.landLink"]
 
-/-- Dispatch an `ops.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.spawn" => some (opSpawn req)
@@ -723,6 +732,7 @@ def handle (op : String) (req : Json) : Option (Except String Reply) :=
   | "ops.obs" => some (opObs req)
   | "ops.wait" => some (opWait req)
   | "ops.leanFirst" => some (opLeanFirst req)
+  | "ops.landLink" => some (opLandLink req)
   | _ => none
 
 end Fw.Wire.Ops

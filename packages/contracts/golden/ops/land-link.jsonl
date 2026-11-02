@@ -1,0 +1,9 @@
+{"name":"link inside the worktree passes","request":{"links":[{"path":"docs/a/link","target":"../b/file.md"}],"op":"ops.landLink"},"response":{"ok":true,"refused":[]}}
+{"name":"link to the worktree root passes","request":{"links":[{"path":"a/b/link","target":"../.."}],"op":"ops.landLink"},"response":{"ok":true,"refused":[]}}
+{"name":"dot and empty segments change nothing","request":{"links":[{"path":"a/link","target":"./b//c"}],"op":"ops.landLink"},"response":{"ok":true,"refused":[]}}
+{"name":"absolute target is refused","request":{"links":[{"path":".scr","target":"/private/tmp/scratchpad"}],"op":"ops.landLink"},"response":{"ok":false,"refused":[{"path":".scr","reason":"absolute","target":"/private/tmp/scratchpad"}]}}
+{"name":"dot-dot above the root is refused","request":{"links":[{"path":"a/link","target":"../../x"}],"op":"ops.landLink"},"response":{"ok":false,"refused":[{"path":"a/link","reason":"escapes","target":"../../x"}]}}
+{"name":"dot-dot after a descent still escapes when it pops too far","request":{"links":[{"path":"link","target":"b/../../x"}],"op":"ops.landLink"},"response":{"ok":false,"refused":[{"path":"link","reason":"escapes","target":"b/../../x"}]}}
+{"name":"empty target is refused","request":{"links":[{"path":"link","target":""}],"op":"ops.landLink"},"response":{"ok":false,"refused":[{"path":"link","reason":"empty","target":""}]}}
+{"name":"mixed: only the bad links are listed, in order","request":{"links":[{"path":"ok","target":"x"},{"path":"bad1","target":"/etc"},{"path":"d/bad2","target":"../../y"}],"op":"ops.landLink"},"response":{"ok":false,"refused":[{"path":"bad1","reason":"absolute","target":"/etc"},{"path":"d/bad2","reason":"escapes","target":"../../y"}]}}
+{"name":"no links","request":{"links":[],"op":"ops.landLink"},"response":{"ok":true,"refused":[]}}

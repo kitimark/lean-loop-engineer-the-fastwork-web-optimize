@@ -6,7 +6,7 @@ export const meta = {
 }
 
 const PREAMBLE = `Fixed preamble (lead template, research/notes/2026/10-19-automate-me.md candidate 1):
-- Standing authorizations: commit only on your branch in your worktree (git add -- <paths>); no pushes except ci/* in the allowed form; no personal data; never hand-edit a generated file (regenerate from Lean and run its --check).
+- Standing authorizations: commit only on your branch in your worktree (git add -- <paths>); no pushes except ci/* in the allowed form; no personal data; never hand-edit a generated file (regenerate from Lean and run its --check); scratchpad/<agent-name>/ is the only scratch place, and never symlink it or anything outside the worktree into the worktree.
 - Lean first: every pure decision is specified and proved in Lean; each OR-branch of a decision gets its own theorem. Lean source holds specs, proofs and code; math goes in artifacts; docstrings and comments per .claude/agents/comment-sicko.md; edit only the docstrings of declarations your task changes. TS logic not checked against a Lean golden is listed as a TS stand-in.
 - Commit WIP every 20-30 min. Never cd outside your worktree; use absolute paths.
 - Teardown: start every long-lived helper (servers, watchers, browsers, lake serve, background builds) in its own process group (setsid, or spawn with detached:true), note its pid, and stop it (TERM the group, then confirm) before you report; a helper you leave running is a leftover that pnpm -s fw reap --stop will later stop by identity.

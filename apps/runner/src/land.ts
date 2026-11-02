@@ -28,6 +28,7 @@ import { dryRecordLake, dryVerdict, DRY_WAVES, type DryPhase, type DryRes } from
 import { askCore, dropLock, lockFacts, lockFile, readLock, takeLock } from "../hooks/land-guard.mjs";
 import { dryRun, exitCode, FWCORE_STALE_REASON, checkFailKind, failedStages, fwcoreStale, installKind, installNeeded, installRunsOnline, installStep, LINT_ARGV, lintPlan, noteKeyRefusal, outcome, outcomeKind, type Kind, type NoteKey, type Outcome } from "./land-verdict.ts";
 import { noteShapeProblems } from "./land-notes.ts";
+import { linkRefusal } from "./land-link.ts";
 import { consoleSecret } from "./lib.ts";
 import { CHECK_SH_READS } from "./land-reads.gen.ts";
 import { ConsoleUnreachable } from "./land-queue.ts";
@@ -688,6 +689,8 @@ async function landRun(branch: string, o: LandOptions, via?: string): Promise<La
   if ("error" in rg) return fail(`render guard: ${rg.error}`);
   if (rg.hits.length)
     return fail(`render guard: ${main}..${branch} (${sha.slice(0, 7)}) writes media outside snapshot/, and a later removal leaves the blob in history:${rg.hits.map((h) => `\n  ${h.path} (${h.media}) in ${h.commit}`).join("")}\nmove the other changes to a new branch from ${main} without these commits, or add the path with its reason to Fw.Land.RenderGuard.allowlist`, "scope", outcome({ scope: false }));
+  const lr = linkRefusal(o.cwd, main, sha, branch);
+  if (lr) return fail(lr, "scope", outcome({ scope: false }));
 
   let task: PlanTask | undefined;
   if (o.task) {
