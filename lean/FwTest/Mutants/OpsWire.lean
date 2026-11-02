@@ -20,8 +20,13 @@ def reply (op s : String) : String :=
   | none => "none"
 
 -- every listed op is dispatched, and every dispatched op is listed
-#guard ops == ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait", "ops.leanFirst"]
+#guard ops == ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait", "ops.leanFirst", "ops.landLink"]
 #guard ops.all fun o => (handle o (Json.mkObj [])).isSome
+
+-- ops.landLink: each refusal reason on the wire; a passing link is not listed; a missing path is refused
+#guard reply "ops.landLink" "{\"links\":[{\"path\":\"a\",\"target\":\"\"},{\"path\":\"b\",\"target\":\"/x\"},{\"path\":\"c\",\"target\":\"../x\"},{\"path\":\"d/e\",\"target\":\"../f\"}]}" ==
+  "{\"ok\":false,\"refused\":[{\"path\":\"a\",\"reason\":\"empty\",\"target\":\"\"},{\"path\":\"b\",\"reason\":\"absolute\",\"target\":\"/x\"},{\"path\":\"c\",\"reason\":\"escapes\",\"target\":\"../x\"}]}"
+#guard (reply "ops.landLink" "{\"links\":[{\"target\":\"x\"}]}").startsWith "error: "
 
 -- ops.meter: TTL from absent w5m/w1h, absent wakeGapSec, absent state window
 #guard reply "ops.meter" ("{\"now\":100,\"agents\":[{\"agent\":\"a\",\"ctx\":1,\"idleSec\":400}," ++

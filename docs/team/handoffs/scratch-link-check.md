@@ -1,0 +1,16 @@
+branch: worktree-wf_9cf01a33-b63-1
+worktree: .claude/worktrees/wf_9cf01a33-b63-1 (under the repo root)
+last commit: see `git log -1` on the branch (this file is committed with the work)
+CI runs: none (local unit tests only, per the task)
+
+Verified: Lean `Fw.Ops.LandLink` builds with theorems check_empty/absolute/escapes/inside, mem_refused; goldens regenerated
+(`lake env lean --run scripts/OpsGolden.lean`); `apps/runner/test/land-link.test.ts` 13 tests pass (golden replay via fwcore,
+temp git repo with one escaping and one inside link, land --dry refusal).
+
+Files: lean/Fw/Ops/LandLink.lean, lean/Fw.lean (import), lean/Fw/Ops/Wire.lean (ops.landLink), lean/Fw/Ops/Golden.lean,
+lean/FwTest/Mutants/OpsWire.lean (op list + mutant guards; outside the task writes), packages/contracts/golden/ops/land-link.jsonl,
+apps/runner/src/land-link.ts, apps/runner/src/land.ts, apps/runner/test/land-link.test.ts, .claude/workflows/build-review.js,
+docs/team/incidents/ledger.json (regression field text), research/notes/2026/11-02-scratch-link-check.md.
+
+Conventions: Lean decides (fwcore op ops.landLink); TS only reads git. Refusal is kind `scope` with `REFUSED: land-link:`.
+Open: the dry-land / check.sh results are in the report; read it first. Read lean/Fw/Ops/LandLink.lean next.
