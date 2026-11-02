@@ -37,7 +37,7 @@ Job names are the artifact folders `wktr-j1` to `wktr-j3` of the run (`runner.js
   nothing about writes. The q arms do record: j2 rows[2] `rs-flip-qstyle` has 265 frames, 201 without a `mut:` key, and a
   `mut:nav#data-fw-morph` count of 64 (it silences only the nav inline style). Lean: `rate_one_per_frame`
   (`lean/Fw/Device/EndFloor.lean:204`): for a window `fs` with `hne : fs ≠ []` (non-empty) and `h : ∀ f ∈ fs, 1 ≤ f.r` (every frame
-  holds at least one recalc), `100 ≤ rate fs`. Arithmetic only; the hypothesis `hne` is why the claim is about windows that exist: all 30
+  holds at least one recalc), `100 ≤ rate fs`. Arithmetic only; `hne` limits the claim to existing windows: all 30
   r3 rows have `frames` above 0 (`frames 0` appears in no row of `results/end-floor-writes/r3/rows.txt`).
 - INFERRED when written, REFUTED by later runs: "the recalcs in frames without a recorded mutation come from the running flip tracks".
   Task `end-floor-window` (run 40989068304) found no running flip track in its windows (`research/notes/2026/10-2x-end-floor-window.md`),
@@ -128,7 +128,7 @@ Pushes r1, r2 and r3, kept under `results/end-floor-writes/r1`, `r2`, `r3` (each
   (arms qdata, qpub, qwrite) acts through those observers' writes (nav class, panel, geom tracks), not through a selector; this is why
   r1 lost the flip (How the arms were built, item 1).
 - Lean (`lean/Fw/Device/EndFloor.lean`, golden `packages/contracts/golden/device/end-floor.jsonl`, replayed by
-  `packages/measure-wktr/test/end-floor.test.mjs`): `rate_one_per_frame` (for a non-empty window, `hne : fs ≠ []`, whose frames each hold a recalc, `h : ∀ f ∈ fs, 1 ≤ f.r`, the rate is at
+  `packages/measure-wktr/test/end-floor.test.mjs`): `rate_one_per_frame` (for `hne : fs ≠ []` and `h : ∀ f ∈ fs, 1 ≤ f.r`, the rate is at
   least 100 per 100 frames), `noWrites_gap` (a `no writes` cell has floor - reference at most twice the band, `end-floor.mjs:51@104183cb1`),
   `carries_cut`, `dominant_half`, `several_overlap` (above), `finding_noWrites`.
 
@@ -173,6 +173,6 @@ Pushes r1, r2 and r3, kept under `results/end-floor-writes/r1`, `r2`, `r3` (each
   geom plus `platform:faded-pause`, the end-wktr-flip flags on the floor harness) is defined and unrun, so the harness-option and
   the flag differences are not separated by a run here (the flag attribution rests on item 2).
 - Attribution is per writer silenced in turn, not per call site. A cut of the floor itself would be a change to the flip
-  tracks, a separate look-change question, not a writer cut; this is not measured here.
+  tracks, a separate look-change question, not measured here.
 - `.github/workflows/wktr.yml` carried a temporary build config and `--modes floor-v2p-thr-off` for these runs; it is
   restored before the land.
