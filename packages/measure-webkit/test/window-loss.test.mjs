@@ -67,7 +67,6 @@ test('jobsImplied equals the Lean golden', () => {
   assert.ok(ns.some((g) => g.needed === null));
 });
 
-// TS stand-ins, not golden-checked: reading sim.log and the artifact.
 test('logFacts reads the INCOMPLETE reason, an open restart and a timed-out attempt', () => {
   const log = [
     'touch-lock base rep 0 push 0 (springboard): ok, begin 4895 ms',

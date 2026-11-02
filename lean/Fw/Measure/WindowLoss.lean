@@ -34,7 +34,6 @@ theorem all_complete (c : Class) : c ∈ Class.all := by cases c <;> decide
 
 theorem all_nodup : Class.all.Nodup := by decide
 
-/-- The class of a recorded window from its row `status` and the refusal Lean's `TouchLock.refusal` gives its frames. -/
 def rowClass (status : String) (refusal : Option Refusal) : Class :=
   if status = "ok" then
     match refusal with
@@ -49,7 +48,6 @@ def rowClass (status : String) (refusal : Option Refusal) : Class :=
   else if status.startsWith "refused:" then .refusedPage
   else .other
 
-/-- What ended a job: the artifact's `incomplete` text, the `INCOMPLETE (...)` reason in sim.log, and two sim.log facts about the last window. -/
 structure End where
   present : Bool
   reps : Nat
@@ -61,7 +59,6 @@ deriving Repr
 
 def End.reason (e : End) : Option String := e.logReason.orElse fun _ => e.incomplete
 
-/-- The class of a planned window that never ran in a job that ended early. -/
 def endClass (e : End) : Class :=
   if !e.present then .noArtifact
   else match e.reason with
@@ -82,7 +79,6 @@ deriving Repr
 
 def armsN : Nat := 4
 
-/-- Planned windows per job: `WalkBudget.repsWant` reps of 4 arms. -/
 def planned : Nat := Fw.Measure.WalkBudget.repsWant * armsN
 
 theorem planned_value : planned = 24 := by decide
@@ -95,7 +91,6 @@ def windowClass (j : Job) (i : Nat) : Class :=
     | some (s, r) => rowClass s r
     | none => if j.fin.reps ≠ 0 ∧ j.fin.reps * armsN ≤ i then .planShort else endClass j.fin
 
-/-- Every planned window of a job with its arm and class, in walk order. -/
 def jobWindows (j : Job) : List (Arm × Class) := (List.range planned).map fun i => (slotArm i, windowClass j i)
 
 theorem jobWindows_length (j : Job) : (jobWindows j).length = planned := by simp [jobWindows]
@@ -166,7 +161,6 @@ def Counts.total (k : Counts) : Nat :=
     + k.driverNotReady + k.restartFailed + k.inspectorDead + k.evaluateTimeout + k.walkDeadline + k.jobCut
     + k.planShort + k.noArtifact + k.other
 
-/-- Counts per class of a list of window classes. -/
 def tally (cs : List Class) : Counts := cs.foldl Counts.bump {}
 
 theorem get_bump_self (k : Counts) (c : Class) : (k.bump c).get c = k.get c + 1 := by cases c <;> rfl
@@ -184,7 +178,6 @@ theorem total_foldl (cs : List Class) (k : Counts) : (cs.foldl Counts.bump k).to
   | nil => simp
   | cons c cs ih => simp [List.foldl, ih, total_bump]; omega
 
-/-- The class counts sum to the number of windows. -/
 theorem tally_total (cs : List Class) : (tally cs).total = cs.length := by
   simp [tally, total_foldl, total_empty]
 
@@ -200,10 +193,8 @@ theorem tally_get (cs : List Class) (c : Class) : (tally cs).get c = cs.count c 
   simp [tally, get_foldl]
   cases c <;> rfl
 
-/-- Counts per class of one job's planned windows. -/
 def jobCounts (j : Job) : Counts := tally ((jobWindows j).map (·.2))
 
-/-- Every planned window of a job lands in exactly one class. -/
 theorem jobCounts_total (j : Job) : (jobCounts j).total = planned := by
   simp [jobCounts, tally_total, jobWindows_length]
 
@@ -218,7 +209,6 @@ theorem armCounts_total (j : Job) (a : Arm) : (armCounts j a).total = Fw.Measure
 
 def runCounts (js : List Job) : Counts := tally (js.flatMap fun j => (jobWindows j).map (·.2))
 
-/-- A run of `n` jobs plans `n * planned` windows and the class counts sum to it. -/
 theorem runCounts_total (js : List Job) : (runCounts js).total = js.length * planned := by
   have : ∀ (l : List Job), (l.flatMap fun j => (jobWindows j).map (·.2)).length = l.length * planned := by
     intro l
@@ -234,7 +224,6 @@ deriving DecidableEq, Repr
 def Side.name : Side → String
   | .ok => "ok" | .harness => "harness" | .simulator => "simulator"
 
-/-- Whether a lost window is ours to recover (gesture, deadline, plan, CI job) or a Simulator limit (driver, inspector, page, restart). -/
 def Class.side : Class → Side
   | .ok => .ok
   | .noOpen | .tooShort | .lockMoved | .refusedPage | .walkDeadline | .jobCut | .planShort | .noArtifact | .other => .harness
@@ -242,7 +231,6 @@ def Class.side : Class → Side
 
 def Counts.side (k : Counts) (s : Side) : Nat := ((Class.all.filter (·.side == s)).map k.get).sum
 
-/-- Harness, Simulator and ok windows partition the planned ones. -/
 theorem side_partition (k : Counts) : k.side .ok + k.side .harness + k.side .simulator = k.total := by
   simp [Counts.side, Counts.total, Class.all, Class.side, Counts.get]
   omega
@@ -308,7 +296,6 @@ theorem sortDesc_length (l : List (Class × Nat)) : (sortDesc l).length = l.leng
   | nil => simp [sortDesc]
   | cons x xs ih => simp [sortDesc, insertDesc_length, ih]
 
-/-- The lost classes with their window counts, most windows first (ties keep `Class.all` order). -/
 def rank (k : Counts) : List (Class × Nat) := sortDesc ((Class.all.filter (· ≠ .ok)).map fun c => (c, k.get c))
 
 theorem rank_sorted (k : Counts) : (rank k).Pairwise fun a b => b.2 ≤ a.2 := sortDesc_pairwise _
@@ -316,7 +303,6 @@ theorem rank_sorted (k : Counts) : (rank k).Pairwise fun a b => b.2 ≤ a.2 := s
 theorem rank_length (k : Counts) : (rank k).length = 17 := by
   simp [rank, sortDesc_length, Class.all]
 
-/-- The class whose fix could recover the most windows. -/
 def top (k : Counts) : Option (Class × Nat) := (rank k).head?
 
 theorem top_max (k : Counts) (t : Class × Nat) (h : top k = some t) (p : Class × Nat) (hp : p ∈ rank k) : p.2 ≤ t.2 := by
@@ -334,17 +320,14 @@ theorem top_max (k : Counts) (t : Class × Nat) (h : top k = some t) (p : Class 
     · exact Nat.le_refl _
     · exact this.1 p hp
 
-/-- Fewer than `minKept` ok windows in any arm leaves the job insufficient. -/
 def sufficient (j : Job) : Bool :=
   [Arm.orig, .base, .lock, .pin].all fun a => decide (Fw.Measure.WalkBudget.minKept ≤ (armCounts j a).ok)
 
-/-- Sufficient jobs and jobs of a run. -/
 def sufficientRate (js : List Job) : Nat × Nat := ((js.filter sufficient).length, js.length)
 
 theorem sufficientRate_le (js : List Job) : (sufficientRate js).1 ≤ (sufficientRate js).2 := by
   simp [sufficientRate]; exact List.length_filter_le _ _
 
-/-- `WalkBudget.jobsNeeded` rebuilt for a decisive rate `a / b` (none inside `jobsCap`). -/
 def jobsImplied (a b : Nat) : Option Nat :=
   Fw.Measure.WalkBudget.jobsFor Fw.Gate.Smooth.minSamples a b Fw.Measure.WalkBudget.target.1 Fw.Measure.WalkBudget.target.2 Fw.Measure.WalkBudget.jobsCap
 

@@ -22,7 +22,7 @@ and `.json` (made by `packages/measure-webkit/src/window-loss-cli.mjs --root <do
   (`armCounts_total`), and harness + simulator + ok = the total (`side_partition`). TS replays 43 Lean golden lines (`window-loss.test.mjs`).
 - MEASURED: row arm equals the slot arm in all 78 artifacts (`armMismatch` 0). A `-retry` artifact replaces its slot (6 slots). 6 slots have no artifact: 41391781282 job 10 (upload failed),
   41402584809 jobs 7 (cancelled) and 9 (failed), 41436626306 jobs 1, 2 (cancelled), 41460411752 job 3 (cancelled).
-- The earlier note counted status `ok` windows only. Here `ok` is a window the verdict keeps (status ok and `refusal` none); `noOpen`, `tooShort`, `lockMoved` are status-ok windows `touchlock.refusal` rejects.
+- `ok` is a window the verdict keeps (status ok and `refusal` none); `noOpen`, `tooShort`, `lockMoved` are status-ok windows `touchlock.refusal` rejects.
 
 ## Result (MEASURED, all 7 runs)
 

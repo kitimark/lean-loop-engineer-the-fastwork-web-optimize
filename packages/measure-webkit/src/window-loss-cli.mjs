@@ -1,4 +1,3 @@
-// Reads <root>/<runId>/smoothness-webkit-sim-<n>[-retry]/{touch-lock.json,sim.log} (data only) and writes the window-loss tables.
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { CLASSES, ARM_IDS, PLANNED, slotArm, jobOf, firstStall, jobWindows, jobCounts, armCounts, runCounts, total, sideTotal, rank, sufficient, jobsImplied, logFacts, restartTally } from './window-loss.mjs';
 import { MIN_KEPT, MIN_SAMPLES, LATE_JOBS, REPS_WANT } from './walk-budget.mjs';

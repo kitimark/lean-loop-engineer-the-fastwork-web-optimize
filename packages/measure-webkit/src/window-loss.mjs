@@ -78,7 +78,6 @@ export const sufficientRate = (jobs) => [jobs.filter(sufficient).length, jobs.le
 
 export const jobsImplied = (a, b) => jobsFor(MIN_SAMPLES, a, b, TARGET.num, TARGET.den, JOBS_CAP);
 
-// TS stand-in (not golden-checked): the sim.log facts and the artifact reading.
 const WINDOW_LINE = /^touch-lock \S+ rep \d+ push \d+ \(/;
 const READY_LINE = /^push server ready after/;
 const RESTART_LINE = /restarting the push server/;
