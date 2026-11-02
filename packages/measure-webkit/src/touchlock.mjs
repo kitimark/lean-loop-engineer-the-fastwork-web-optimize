@@ -1,4 +1,5 @@
 import { acrossDecisive, agreeNeeded, decisive } from '../../gate-breakpoints/src/smooth/reduce.mjs';
+import { restRow, restTallyOf, restCmp, restReport, restMarkdown, restWindowsMarkdown, cmpVerdict } from './touchlock-rest.mjs';
 
 export const MIN_OPEN_FRAMES = 10;
 
@@ -159,7 +160,7 @@ const reasonOf = (status) => String(status ?? 'unknown').replace(/^(push|refused
 
 export function windowsOf(rows) {
   return rows.map((r, i) => {
-    const base = { n: i + 1, arm: r.arm, rep: r.rep ?? null, pin: r.pin ? { seen: r.pin.seen, ...traceCounts(r.pin.entries.map((e) => e[0])), liveWrites: pinLiveWrites(r.pin.entries) } : null };
+    const base = { n: i + 1, arm: r.arm, rep: r.rep ?? null, rest: restRow(r), pin: r.pin ? { seen: r.pin.seen, ...traceCounts(r.pin.entries.map((e) => e[0])), liveWrites: pinLiveWrites(r.pin.entries) } : null };
     if (!r.frames) return { ...base, state: String(r.status ?? '').startsWith('push:') ? 'push failed' : 'refused', reason: reasonOf(r.status) };
     const run = runOf(r);
     const why = refusal(run);
@@ -201,6 +202,8 @@ export function summarize(rows) {
       pinVsBase: { fights: lockedCmp(base.fightRuns, pin.fightRuns), restores: lockedCmp(base.restoreRuns, pin.restoreRuns), eventFights: lockedCmp(base.eventFightRuns, pin.eventFightRuns) },
       pinVsOrig: { fights: lockedCmp(orig.fightRuns, pin.fightRuns) },
       ranked: Object.fromEntries(ARMS.map((id) => [id, rankedOf(arms[id].fightRuns)])),
+      rest: Object.fromEntries(ARMS.map((id) => [id, restTallyOf(rows, id)])),
+      pinRest: restCmp(restTallyOf(rows, 'base'), restTallyOf(rows, 'pin')),
       look: lookKnown(base.displaced, lock.displaced),
       pinLook: lookKnown(base.displaced, pin.displaced),
       pinWrites: pin.accepted === 0 ? 'undecided' : pin.unrestored === 0 ? 'every run wrote' : `${pin.unrestored} of ${pin.accepted} runs never wrote (their fights are 0 by definition)`,
@@ -220,8 +223,8 @@ export function markdown(s) {
   }));
   const wins = s.windows ?? [];
   if (wins.length) {
-    lines.push('', ...table('| window | arm | rep | state | reason | open frames | reversals | fights | displaced | restores | stored lock |',
-      wins.map((w) => `| ${w.n} | ${w.arm} | ${w.rep ?? ''} | ${w.state} | ${w.reason ?? ''} | ${w.openFrames ?? ''} | ${w.reversals ?? ''} | ${w.fights ?? ''} | ${w.displaced ?? ''} | ${w.restores ?? ''} | ${w.state === 'open' ? (w.lock ?? 'none') : ''} |`)));
+    lines.push('', ...table('| window | arm | rep | state | reason | open frames | reversals | fights | displaced | restores | stored lock | rest | gap to goal (px) | settle after lift (ms) |',
+      wins.map((w) => `| ${w.n} | ${w.arm} | ${w.rep ?? ''} | ${w.state} | ${w.reason ?? ''} | ${w.openFrames ?? ''} | ${w.reversals ?? ''} | ${w.fights ?? ''} | ${w.displaced ?? ''} | ${w.restores ?? ''} | ${w.state === 'open' ? (w.lock ?? 'none') : ''} | ${w.rest?.cls ?? ''} | ${w.rest ? w.rest.gap10 / 10 : ''} | ${w.rest?.settle10 == null ? '' : Math.round(w.rest.settle10 / 10)} |`)));
     const traced = wins.filter((w) => w.pin);
     if (traced.length) {
       lines.push('', ...table('| window | arm | pin calls seen | inactive | touches | due | moved | writes | declined: touching | live | onTarget | reversal | live writes | ran |',
@@ -231,6 +234,7 @@ export function markdown(s) {
   const v = s.verdicts;
   lines.push('', rankedText(v.ranked));
   lines.push('', `lock vs base: fights ${v.lockVsBase.fights}, restores ${v.lockVsBase.restores}, event fights ${v.lockVsBase.eventFights}; base vs orig: fights ${v.baseVsOrig.fights}, restores ${v.baseVsOrig.restores}; look class of the candidate: ${lookText(v.look)}`);
+  lines.push('', `rest position (Lean restOf; windows that reached the end and rested within 10 px of it, of the windows that reached it): ${ARMS.map((id) => `${id} ${v.rest[id].rested} of ${v.rest[id].reached}`).join(', ')}; pin vs base by position: ${v.pinRest} (${cmpVerdict(v.pinRest)})`);
   lines.push('', `pin vs base: fights ${v.pinVsBase.fights}, restores ${v.pinVsBase.restores}, event fights ${v.pinVsBase.eventFights}; pin vs orig: fights ${v.pinVsOrig.fights}; look class of the pin: ${lookText(v.pinLook)}; pin writes: ${v.pinWrites}`);
   return lines.join('\n');
 }
@@ -240,15 +244,17 @@ export function acrossReport(jobs) {
     const s = summarize(rows);
     const pinWins = s.windows.filter((w) => w.arm === 'pin' && w.pin);
     const cmp = s.verdicts.pinVsBase.fights;
-    return { label, cmp, verdict: pinVerdict(cmp), base: s.arms.base.fights, pin: s.arms.pin.fights, locked: s.verdicts.ranked,
+    return { label, rows, cmp, verdict: pinVerdict(cmp), base: s.arms.base.fights, pin: s.arms.pin.fights, locked: s.verdicts.ranked,
       pinWindows: pinWins.length, writes: pinWins.reduce((a, w) => a + w.pin.wrote, 0), liveWrites: pinWins.reduce((a, w) => a + w.pin.liveWrites, 0) };
   });
   const cs = per.map((j) => j.cmp);
-  return { jobs: per, decisive: decisive(cs.map(pinVerdict)), need: agreeNeeded(decisive(cs.map(pinVerdict))), across: acrossPin(cs) };
+  const rest = restReport(per.map((j) => ({ label: j.label, rows: j.rows, liveWrites: j.liveWrites })));
+  return { jobs: per.map(({ rows, ...j }) => j), decisive: decisive(cs.map(pinVerdict)), need: agreeNeeded(decisive(cs.map(pinVerdict))), across: acrossPin(cs), rest, windows: per.map((j) => ({ label: j.label, rows: j.rows })) };
 }
 
 export function acrossMarkdown(a) {
   const body = a.jobs.map((j) => `| ${j.label} | ${j.cmp} | ${j.verdict} | ${j.base.join(' ') || '-'} | ${j.pin.join(' ') || '-'} | ${j.locked.base.ranked} of ${j.locked.base.runs} | ${j.locked.pin.ranked} of ${j.locked.pin.runs} | ${j.pinWindows} | ${j.writes} | ${j.liveWrites} |`);
   return [...table('| job | pin vs base fights | verdict (first = base fewer) | base fights | pin fights | base locked | pin locked | pin windows | pin writes | pin live writes |', body),
-    '', `across jobs (pin vs base, Lean acrossPin): ${a.across}; decisive jobs ${a.decisive} of ${a.jobs.length}, minSamples ${MIN_SAMPLES}, agreement needed ${a.need}`].join('\n');
+    '', `across jobs (pin vs base, Lean acrossPin): ${a.across}; decisive jobs ${a.decisive} of ${a.jobs.length}, minSamples ${MIN_SAMPLES}, agreement needed ${a.need}`,
+    '', restMarkdown(a.rest), '', ...restWindowsMarkdown(a.windows)].join('\n');
 }
