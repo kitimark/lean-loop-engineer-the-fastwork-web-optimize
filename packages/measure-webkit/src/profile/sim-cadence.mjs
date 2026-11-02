@@ -12,7 +12,7 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planReps, repsLife, outcome, groupsFor, driverEnd } from '../walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, planReps, repsLife, outcome, groupsFor, driverEnd } from '../walk-budget.mjs';
 
 const BLOCK_MS = 15 * 60000;
 
@@ -84,12 +84,12 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
   let ua = '';
   const unguard = guardSocketFault(log);
   const opened = openDriver(touchDriver);
-  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0 };
+  const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0, launches: [] };
 
   const snapshot = (incomplete) => ({
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, repPlan, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, fault, hiccups, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why, launches: touch.launches }, refused, fault, hiccups, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   });
 
   const readWindow = async (ctx, a, win, rep) => {
@@ -147,9 +147,10 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
     const walk = withSession(async (ctx) => {
       if (touch.on) {
         try {
-          touch.server = await startServer(touch.driver, { udid: device.udid, log, readyMs: READY_ALLOW_MS });
+          touch.server = await startServer(touch.driver, { udid: device.udid, log });
+          touch.launches = touch.server.launches;
           await reconnect(ctx, { log });
-        } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
+        } catch (e) { touch.launches = e.launches ?? touch.launches; touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
       const early = driverEnd(!!touchDriver, touch.on, touch.why, 'start');
       if (early) { ({ fault, cut } = early); return; }
@@ -199,7 +200,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
     error = e.message;
     log(`webkit sim: INCOMPLETE after ${rows.length} windows (${error})`);
   } finally {
-    if (touch.server) await Promise.race([stopServer(touch.server), sleep(25000)]);
+    if (touch.server) await Promise.race([stopServer(touch.server), sleep(35000)]);
     unguard();
   }
   return snapshot(error);

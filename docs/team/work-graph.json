@@ -25261,6 +25261,43 @@
     "packages/contracts/golden/ci/triggers.jsonl",
     "packages/measure-webkit/src/throttle/driver.mjs",
     "packages/measure-webkit/src/throttle/push-cycle-pass.mjs"
+   ],
+   "evidence": "30968db7e"
+  },
+  {
+   "devices": [
+    "local"
+   ],
+   "id": "touch-restart-confirm",
+   "owner": "measure-engineer",
+   "stream": "experiment",
+   "deps": [
+    "touch-driver-ready"
+   ],
+   "title": "Confirm on CI that a touch driver restart after a stalled window becomes ready now that the stop kill is gone (touch-driver-ready: 0 of 8 with the kill, 5 of 9 on main's stop path, INFERRED to match after the change), and find why a stopped driver does not exit within 20 s (driver-stop-late on every stop): read the XCUITest stop handling (PushServer.swift, DragTests.swift) and the Node stop path, state any new decision in Lean (TouchReady), one 12-job touch-lock run (at most 2 dispatches, free macOS runners): first starts ready, restarts ready of decided, late stops, faults by name, run ids and fw ci state states; note, handoff",
+   "writes": [
+    "packages/measure-webkit/src/touch-push.mjs",
+    "packages/measure-webkit/src/touch*.mjs",
+    "packages/measure-webkit/src/profile/sim-cadence.mjs",
+    "packages/measure-webkit/test/**",
+    "packages/measure-webkit/touch-driver/**",
+    "lean/Fw/Measure/WalkBudget.lean",
+    "lean/Fw/Measure/FaultNames.lean",
+    "lean/Fw/Measure/TouchReady*.lean",
+    "lean/Fw.lean",
+    "packages/contracts/golden/measure/**",
+    ".github/workflows/smoothness.yml",
+    "apps/runner/src/land.ts",
+    "research/notes/2026/10-2x-sim-touch-reliable.md",
+    "packages/measure-webkit/src/throttle/driver/**",
+    "lean/Fw/Ci/Trigger.lean",
+    "lean/scripts/TouchReadyGolden.lean",
+    "lean/scripts/check.sh",
+    "packages/contracts/golden/ci/triggers.jsonl",
+    "packages/measure-webkit/src/throttle/driver.mjs",
+    "packages/measure-webkit/src/throttle/push-cycle-pass.mjs",
+    "research/notes/2026/11-0*-touch-restart-confirm.md",
+    "docs/team/handoffs/touch-restart-confirm.md"
    ]
   }
  ],

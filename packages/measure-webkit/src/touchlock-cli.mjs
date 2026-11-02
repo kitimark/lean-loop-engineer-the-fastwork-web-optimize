@@ -37,7 +37,14 @@ if (cmd === 'run') {
   if (!files.length) { console.error('across needs label=touch-lock.json pairs'); process.exit(2); }
   const jobs = files.map((f) => { const [label, path] = f.split('='); return { label, rows: JSON.parse(readFileSync(path, 'utf8')).rows }; });
   console.log(acrossMarkdown(acrossReport(jobs)));
+} else if (cmd === 'launches') {
+  const { jobOf, firstStart, tallyJobs } = await import('./touch-ready.mjs');
+  const files = args.slice(1);
+  if (!files.length) { console.error('launches needs label=json pairs (touch-lock.json or sim.json)'); process.exit(2); }
+  const jobs = files.map((f) => { const [label, path] = f.split('='); const rec = firstStart(JSON.parse(readFileSync(path, 'utf8'))); return { label, rec, ...jobOf(rec) }; });
+  for (const j of jobs) console.log(`${j.label}: ${j.ready ? 'ready' : 'not ready'}; ${j.rec.map((r) => `${r.n}:${r.fault ?? 'ok'}@${Math.round(r.ms / 1000)}s`).join(' ') || 'no launch recorded'}`);
+  console.log(JSON.stringify(tallyJobs(jobs)));
 } else {
-  console.error('usage: touchlock-cli.mjs run|report|across');
+  console.error('usage: touchlock-cli.mjs run|report|across|launches');
   process.exit(2);
 }

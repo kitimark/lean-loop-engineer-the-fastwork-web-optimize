@@ -13,7 +13,7 @@ const children = new Set();
  * Run a command in its own process group; resolves {code, signal, timedOut, killedBy}. Output goes to `logFile`. SIGTERM at the hard
  * `timeoutMs` or when `watch.check(elapsedMs)` returns a reason (polled every `watch.everyMs`); SIGKILL `graceMs` later to the group.
  */
-export function runGroup(cmd, args, { cwd, env = process.env, timeoutMs, logFile, watch = null, graceMs = 20000 }) {
+export function runGroup(cmd, args, { cwd, env = process.env, timeoutMs, logFile, watch = null, graceMs = 20000, ctl = null }) {
   return new Promise((resolve, reject) => {
     const out = logFile ? createWriteStream(logFile, { flags: 'a' }) : null;
     const p = spawn(cmd, args, { cwd, env, detached: true, stdio: ['ignore', out ? 'pipe' : 'ignore', out ? 'pipe' : 'ignore'] });
@@ -28,6 +28,7 @@ export function runGroup(cmd, args, { cwd, env = process.env, timeoutMs, logFile
       grace = setTimeout(() => { try { process.kill(-p.pid, 'SIGKILL'); } catch { /* gone */ } }, graceMs);
     };
     const timer = setTimeout(() => killGroup('timeout'), timeoutMs);
+    if (ctl) ctl.kill = (why = 'killed') => killGroup(why);
     const ticker = watch ? setInterval(() => { const why = watch.check(Date.now() - t0); if (why) killGroup(why); }, watch.everyMs) : null;
     const clear = () => { clearTimeout(timer); clearTimeout(grace); if (ticker) clearInterval(ticker); };
     p.on('error', (e) => { clear(); children.delete(p); out?.end(); reject(e); });
@@ -197,19 +198,19 @@ export async function dragPass(driver, { udid, cycles = 4, dragPt = 360, velocit
  * One long run of the push server (driver/UITests/PushServer.swift; `suite` FinishServer runs FinishServer.swift, one finish cycle per request): it swipes on request through files in `dir` (go-<n> asks,
  * done-<n> answers, ready first, stop last). Returns at once: {state, exited, logFile}; `state.ended` flips when xcodebuild ends.
  */
-export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve', suite = 'PushServer' }) {
+export function serve(driver, { udid, dir, push, maxS = 2400, tag = 'serve', suite = 'PushServer', graceMs = 20000 }) {
   const env = { ...process.env, TEST_RUNNER_FW_DIR: dir, TEST_RUNNER_FW_DRAG_PT: String(push.dragPt), TEST_RUNNER_FW_VELOCITY: String(push.velocity),
     TEST_RUNNER_FW_HOLD_MS: String(push.holdMs), TEST_RUNNER_FW_MAX_S: String(maxS), TEST_RUNNER_FW_WAIT_SCALE: String(timeoutScale()) };
   const logFile = join(driver.dir, `${tag}.log`);
   const state = { ended: false, code: null, timedOut: false };
+  const ctl = { kill: null };
   rmSync(join(driver.dir, `${tag}.xcresult`), { recursive: true, force: true });
   const exited = runGroup('xcodebuild', ['test-without-building', '-xctestrun', driver.xctestrun, '-destination', `id=${udid}`,
-    `-only-testing:DriverUITests/${suite}/testServe`, '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs: (maxS + 120) * 1000, logFile })
+    `-only-testing:DriverUITests/${suite}/testServe`, '-resultBundlePath', join(driver.dir, `${tag}.xcresult`)], { cwd: driver.dir, env, timeoutMs: (maxS + 120) * 1000, logFile, graceMs, ctl })
     .then((r) => { Object.assign(state, { ended: true, code: r.code, timedOut: r.timedOut }); return r; });
-  return { state, exited, logFile };
+  return { state, exited, logFile, kill: (why) => ctl.kill?.(why) };
 }
 
-/** Remove the temp build. */
 export function cleanup(driver) {
   if (driver?.dir) rmSync(driver.dir, { recursive: true, force: true });
 }

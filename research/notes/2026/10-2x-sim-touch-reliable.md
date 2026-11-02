@@ -342,3 +342,7 @@ Lean `Fw.Measure.WalkBudget` (golden `walk-budget.jsonl`), `Fw.Ci.Pool.Caps` (go
 **Touch-lock lane (item 6).** `planLock` gives the 4-arm lane (original, faithful, CSS lock, pin) a `planReps` plan (`endOnly`, 4 arms, `repsWant` 6 at most), `repPlan` in its snapshot and `--reps auto` by default; `--reps N` still sets by hand. Not run on CI (`[touch-lock]` not tagged).
 
 **Accepted limits.** Free GitHub macOS runners, 5 slots; the Simulator is not the phone; faults are counted, not retried; one dispatch used of two. Follow-ups: size the next matrix at 12 jobs from `lateRate` (3 waves of at most 5, about 12 x 24 job minutes); the cause of the driver start failures (6 of 10 jobs): `xcodebuild test-without-building` shows no ready file after 480 s in 2 jobs and `swipeLate` or a late finish in 3, which points at host load during the driver start, not at the plan.
+
+## Touch driver ready (task touch-driver-ready)
+
+The push server "no ready file" fault, the three-launch relaunch with named faults and the open restart failure are in `research/notes/2026/11-02-touch-driver-ready.md` (runs `41391781282`, `41402584809`).

@@ -203,7 +203,7 @@ test('restore calls that disagree refuse the window; closed calls are ignored; n
 test('every restart gets a result-bundle tag no earlier server used', async () => {
   for (const g of ops('tag')) assert.equal(serveTag(g.restarts), g.tag);
   const tags = [];
-  const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null };
+  const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null, launches: [] };
   const start = async (_d, o) => { tags.push(o.tag); return { tag: o.tag }; };
   tags.push(serveTag(0));
   for (let i = 0; i < MAX_RESTARTS; i++) await restartServer(touch, { udid: 'u', log: () => {}, push: {}, start });
@@ -213,7 +213,7 @@ test('every restart gets a result-bundle tag no earlier server used', async () =
 });
 
 test('a restart that fails ends the touch lane with its reason', async () => {
-  const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null };
+  const touch = { driver: 'd', restarts: 0, server: null, on: true, why: null, launches: [] };
   await restartServer(touch, { udid: 'u', log: () => {}, push: {}, start: async () => { throw new Error('xcodebuild: error: Existing file'); } });
   assert.equal(touch.on, false);
   assert.match(touch.why, /restart failed: xcodebuild: error: Existing file/);
