@@ -75,8 +75,8 @@ test('a failed start keeps its named launches and fault in the snapshot; a late 
   await beginServer(touch, { udid: 'u', log: () => {}, push: {}, start: async () => { throw Object.assign(new Error('push server: no ready file after 480 s'), { launches, fault: 'driver-ended' }); } });
   assert.equal(touch.on, false);
   assert.deepEqual(touch.launches, [{ tag: 'serve', launches, fault: 'driver-ended' }]);
-  touch.server = { stopFault: 'driver-stop-late-body', stopTrace: { waitedMs: 20000, testEndedMs: null, exitedMs: null } };
+  touch.server = { stopFault: 'driver-stop-late-body', stopTrace: { waitedMs: 20000, bodyEndedMs: null, exitedMs: null } };
   await endServer(touch, async () => {});
   assert.equal(touch.server, null);
-  assert.deepEqual(touch.launches[1], { tag: 'stop', launches: [], fault: 'driver-stop-late-body', trace: { waitedMs: 20000, testEndedMs: null, exitedMs: null } });
+  assert.deepEqual(touch.launches[1], { tag: 'stop', launches: [], fault: 'driver-stop-late-body', trace: { waitedMs: 20000, bodyEndedMs: null, exitedMs: null } });
 });

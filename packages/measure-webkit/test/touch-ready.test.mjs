@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { READY_CFG, RESTART_CFG, LAUNCH_FAULTS, STOP_LATE_BODY, STOP_LATE_TEARDOWN, testEndedIn, verdict, stopStep, replay, tallyJobs, launchUntilReady, jobOf, firstStart } from '../src/touch-ready.mjs';
+import { READY_CFG, RESTART_CFG, LAUNCH_FAULTS, STOP_LATE_BODY, STOP_LATE_TEARDOWN, bodyEndedIn, verdict, stopStep, replay, tallyJobs, launchUntilReady, jobOf, firstStart } from '../src/touch-ready.mjs';
 import { READY_ALLOW_MS } from '../src/walk-budget.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/touch-ready.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -97,17 +97,19 @@ test('launchUntilReady never starts a fourth launch and hands each cut launch to
 
 test('stopStep replays the Lean golden', () => {
   const cases = ofOp('stop');
-  for (const g of cases) assert.equal(stopStep(READY_CFG, g.exited, g.testEnded, g.waitedMs), g.act);
+  for (const g of cases) assert.equal(stopStep(READY_CFG, g.exited, g.bodyEnded, g.waitedMs), g.act);
   for (const act of ['clean', 'wait', STOP_LATE_BODY, STOP_LATE_TEARDOWN]) assert.ok(cases.some((g) => g.act === act), act);
 });
 
-test('testEndedIn sees the end of the PushServer test case in xcodebuild output and nothing earlier', () => {
+test('bodyEndedIn sees the end of the PushServer test case in xcodebuild output and nothing earlier', () => {
   const started = "Test Case '-[DriverUITests.PushServer testServe]' started.\n    t =    86.22s Wait for com.apple.springboard to idle\n";
-  assert.equal(testEndedIn(started), false);
-  assert.equal(testEndedIn(`${started}Test Case '-[DriverUITests.PushServer testServe]' passed (91.599 seconds).\n`), true);
-  assert.equal(testEndedIn(`${started}Test Case '-[DriverUITests.PushServer testServe]' failed (3.1 seconds).\n`), true);
-  assert.equal(testEndedIn("Test case 'PushServer.testServe()' passed on 'iPhone' (12.5 seconds)\n"), true);
-  assert.equal(testEndedIn("Test Suite 'PushServer' started at 2026-11-02 07:53:41.951.\n"), false);
+  assert.equal(bodyEndedIn(started), false);
+  assert.equal(bodyEndedIn(`${started}Test Case '-[DriverUITests.PushServer testServe]' passed (91.599 seconds).\n`), true);
+  assert.equal(bodyEndedIn(`${started}Test Case '-[DriverUITests.PushServer testServe]' failed (3.1 seconds).\n`), true);
+  assert.equal(bodyEndedIn("Test case 'PushServer.testServe()' passed on 'iPhone' (12.5 seconds)\n"), true);
+  assert.equal(bodyEndedIn(`${started}    t =  346.34s Tear Down\n`), true);
+  assert.equal(bodyEndedIn(`${started}    t =  346.34s Wait for com.apple.springboard to idle\n`), false);
+  assert.equal(bodyEndedIn("Test Suite 'PushServer' started at 2026-11-02 07:53:41.951.\n"), false);
 });
 
 test('tallyJobs replays the Lean golden', () => {
@@ -145,7 +147,7 @@ test('stopServer writes the stop file, never kills, and names a late stop by whe
   const clean = make(ended, 150);
   await stopServer(clean, { cfg });
   assert.equal(clean.stopFault, undefined);
-  assert.notEqual(clean.stopTrace.testEndedMs, null);
+  assert.notEqual(clean.stopTrace.bodyEndedMs, null);
   assert.notEqual(clean.stopTrace.exitedMs, null);
   const teardown = make(ended, null);
   await stopServer(teardown, { cfg });
@@ -153,7 +155,7 @@ test('stopServer writes the stop file, never kills, and names a late stop by whe
   const body = make("Test Case '-[DriverUITests.PushServer testServe]' started.\n", null);
   await stopServer(body, { cfg });
   assert.equal(body.stopFault, STOP_LATE_BODY);
-  assert.equal(body.stopTrace.testEndedMs, null);
+  assert.equal(body.stopTrace.bodyEndedMs, null);
   assert.equal(body.killed(), 0);
   assert.equal(existsSync(body.dir), false);
 });
