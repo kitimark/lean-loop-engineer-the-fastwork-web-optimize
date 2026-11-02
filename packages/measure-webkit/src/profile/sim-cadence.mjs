@@ -12,7 +12,7 @@ import { orderFor, HERO_BURST } from '../../../gate-breakpoints/src/smooth/sched
 import { BOUND_JS, endPushFor } from '../../../gate-breakpoints/src/smooth/bound.mjs';
 import { hitches, hundredthsFrom } from '../../../gate-breakpoints/src/smooth/reduce.mjs';
 import { runCheck } from '../../../gate-breakpoints/src/trajectory/reduce.mjs';
-import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planReps, repsLife, outcome, groupsFor } from '../walk-budget.mjs';
+import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, READY_ALLOW_MS, planReps, repsLife, outcome, groupsFor, driverFault, DRIVER_FAULT } from '../walk-budget.mjs';
 
 const BLOCK_MS = 15 * 60000;
 
@@ -47,6 +47,8 @@ export function simArms(plan, siteDir, lookSearch, only) {
   return out;
 }
 
+export const driverEnd = (requested, on, why) => (driverFault(requested, on) ? { fault: DRIVER_FAULT, cut: `fault ${DRIVER_FAULT}: ${why}` } : null);
+
 const CONTROLS = ['base', 'aa'];
 
 export function planSim({ deadlineMs, nowMs, touchOn, armIds, repsArg = 'auto' }) {
@@ -76,6 +78,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
   const rows = [];
   const raws = [];
   let refused = false;
+  let fault = null;
+  const hiccups = [];
   let error = null;
   let ua = '';
   const unguard = guardSocketFault(log);
@@ -85,7 +89,7 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
   const snapshot = (incomplete) => ({
     leg: 'sim', engine: 'mobile-safari', runtime: device.runtime, device: device.name, ua, width: 430, search: lookSearch, reps, repPlan, cadenceReps: 0,
     plan: { kept: plan.kept, dropped: plan.dropped, flags: plan.flags }, arms: arms.map((a) => a.id),
-    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
+    hero: HERO_BURST, end, push: { driver: !!touchDriver, touch: touch.on, why: touch.on ? null : touch.why }, refused, fault, hiccups, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows, raws,
   });
 
   const readWindow = async (ctx, a, win, rep) => {
@@ -147,6 +151,8 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
           await reconnect(ctx, { log });
         } catch (e) { touch.on = false; touch.why = e.message; log(`webkit sim: ${e.message}`); }
       }
+      const early = driverEnd(!!touchDriver, touch.on, touch.why);
+      if (early) { ({ fault, cut } = early); return; }
       const planned = planSim({ deadlineMs, nowMs: now(), touchOn: touch.on, armIds: arms.map((a) => a.id), repsArg });
       ({ reps, repPlan, wins } = planned);
       log(`webkit sim: ${reps} reps of ${arms.length} arms, ${planned.shape} windows (${repsArg === 'auto' ? `rep plan ${repPlan ? `${repPlan.outcome}${repPlan.outcome === 'ok' ? '' : `, ${repPlan.groups ?? 'no'} jobs of arms would fit`}` : 'without a deadline'}` : 'set by hand'})`);
@@ -165,10 +171,13 @@ export async function runSimCadence({ siteDir, lookSearch, reps: repsArg = 'auto
                 log(`webkit sim: test hook, blocking the event loop for ${BLOCK_MS} ms before ${a.id} ${win} rep ${rep}`);
                 Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, BLOCK_MS);
               }
+              const lost = driverEnd(!!touchDriver, touch.on, touch.why);
+              if (lost) { ({ fault, cut } = lost); break walk; }
               await ctx.check?.();
               try {
                 got = await readWindow(ctx, a, win, rep);
               } catch (e) {
+                hiccups.push({ arm: a.id, window: win, rep, attempt, why: String(e.message).slice(0, 160) });
                 if (attempt >= attempts()) throw e;
                 log(`  webkit sim ${a.id} ${win} rep ${rep} attempt ${attempt} failed (${e.message}); reconnecting and retrying from a fresh load`);
                 await reconnect(ctx, { log });

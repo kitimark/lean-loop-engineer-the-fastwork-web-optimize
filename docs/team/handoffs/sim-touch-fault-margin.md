@@ -1,0 +1,26 @@
+# sim-touch-fault-margin handoff (final)
+
+Branch `worktree-wf_8b157c2a-318-1`; CI branch `ci/sim-touch-fault-margin` at 8cf84b94b (empty trigger commit, tags
+`[ci:smoothness] [webkit-cadence] [earn-bound] [sim-only]`). One dispatch of two used; do not push to it again.
+
+## CI result (MEASURED, run 41357917479)
+- 10 sim jobs started (rolling pool, 5 at once), 8 with a result file, 3 decisive (jobs 1, 2, 9), across-jobs end touch
+  verdict (base, bound) `same`, not insufficient. Run 63 min, 239 job minutes.
+- Dominant fault: touch driver not ready or lost, 6 of 10 jobs (jobs 7, 10 never ready in 480 s, early end at 644/761 s).
+  Hang 1 (job 5).
+
+## Verified (after merging main, nothing new to merge)
+- Lean check.sh green; measure-webkit 1117 tests pass; ci-paths 56; runner land-inputs 73; plan lint 0 errors;
+  `fw land --dry` ends `VERDICT dry sim-touch-fault-margin`.
+- Lean `WalkBudget`: fault rate input, `jobsNeeded` 10, reach theorems, waves (`never_at_once`), driver fault, run 3 data
+  (20 observed jobs, `lateRate` 5/15 -> 12 jobs for 4 in 5), window sample 318 (body 38 s, tail 383 s, `tailEvery` 17 derived).
+- Plan boundaries moved with the new windows (3 arms: 6 reps to 17.1 min, 5 reps to 24.75 min). Not run on CI.
+- Caps: derived sim row (`basis:"bound"`, measured 17 jobs, p90 39.2 min). Touch-lock `planLock`. Note section written.
+
+## Open
+- Size the next matrix at 12 jobs from `lateRate` (Lean `late_jobs`); this task keeps 10 from `planRate` (run 2, 2 of 5); the 10 jobs of runs 1 and 2 give 21 (`pooled_jobs`).
+- Find why the driver start fails (6 of 10 jobs): host load during `xcodebuild test-without-building`?
+- The refreshed window budget has not run on CI.
+
+## Read first
+`research/notes/2026/10-2x-sim-touch-reliable.md` section "Fault margin"; `lean/Fw/Measure/WalkBudget.lean`.

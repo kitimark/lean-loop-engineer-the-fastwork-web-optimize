@@ -25155,7 +25155,8 @@
     "apps/runner/src/land.ts",
     "research/notes/2026/10-2x-sim-touch-reliable.md",
     "docs/team/handoffs/sim-touch-fault-margin.md"
-   ]
+   ],
+   "evidence": "59e579a"
   }
  ],
  "deadline": {
