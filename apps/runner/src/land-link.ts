@@ -1,5 +1,3 @@
-// Task scratch-link-check (Lean Fw.Ops.LandLink, op ops.landLink; incident inc-scratch-symlink-wait): fw land refuses a branch
-// that adds a symlink whose target leaves the worktree. This file only reads the added links from git and asks fwcore.
 import { execFileSync } from "node:child_process";
 import { askCore } from "../hooks/land-guard.mjs";
 
@@ -9,7 +7,6 @@ export type LinkRefusal = AddedLink & { reason: "empty" | "absolute" | "escapes"
 const gitOut = (cwd: string, args: string[]): string =>
   execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024 });
 
-/** The tracked symlinks (mode 120000) that `tip` adds or changes against the merge base with `main`: path and readlink of the blob. */
 export function addedLinks(cwd: string, main: string, tip: string): AddedLink[] {
   const base = gitOut(cwd, ["merge-base", main, tip]).trim();
   const raw = gitOut(cwd, ["diff", "--raw", "-z", "--no-renames", "--no-ext-diff", "--diff-filter=AMT", base, tip]).split("\0");
@@ -21,7 +18,6 @@ export function addedLinks(cwd: string, main: string, tip: string): AddedLink[] 
   return out;
 }
 
-/** Ask Lean which of `links` are refused; `error` when fwcore is not available. */
 export function refusedLinks(links: AddedLink[]): { refused: LinkRefusal[] } | { error: string } {
   if (links.length === 0) return { refused: [] };
   const r = askCore("ops.landLink", { links });
@@ -29,7 +25,6 @@ export function refusedLinks(links: AddedLink[]): { refused: LinkRefusal[] } | {
   return { refused: r.refused as LinkRefusal[] };
 }
 
-/** The refusal text of a branch's added links, or null when every added link stays inside the worktree. */
 export function linkRefusal(cwd: string, main: string, tip: string, branch: string): string | null {
   let links: AddedLink[];
   try { links = addedLinks(cwd, main, tip); } catch (e) { return `land-link: git could not list the links of ${branch}: ${String((e as { stderr?: string }).stderr ?? e).trim().slice(0, 200)}`; }

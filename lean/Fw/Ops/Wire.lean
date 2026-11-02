@@ -199,9 +199,6 @@ def opPathCheck (req : Json) : Except String Reply := do
   let v := Fw.Ops.PathCheck.violations scope paths
   pure [("ok", .bool v.isEmpty), ("violations", toJson v)]
 
-/-! ## ops.landLink -/
-
-/-- `ops.landLink`: the added symlinks whose target leaves the worktree. -/
 def opLandLink (req : Json) : Except String Reply := do
   let ls ← (← arr req "links").toList.mapM fun j => do
     pure (⟨← str j "path", ← str j "target"⟩ : Fw.Ops.LandLink.Link)
@@ -720,10 +717,8 @@ def opLeanFirst (req : Json) : Except String Reply := do
 #guard (opLeanFirst (Json.mkObj [("stage", .str "ratchet")])).toOption == (opLeanFirst (Json.mkObj [])).toOption
 #guard (opLeanFirst (Json.mkObj [("stage", .str "strict")])).toOption == (opLeanFirst (Json.mkObj [])).toOption
 
-/-- The `ops.*` ops. -/
 def ops : List String := ["ops.spawn", "ops.pathCheck", "ops.usage", "ops.meter", "ops.hook", "ops.actor", "ops.cap", "ops.door", "ops.obs", "ops.wait", "ops.leanFirst", "ops.landLink"]
 
-/-- Dispatch an `ops.*` op (`none` when the op is not one of them). -/
 def handle (op : String) (req : Json) : Option (Except String Reply) :=
   match op with
   | "ops.spawn" => some (opSpawn req)

@@ -20,4 +20,4 @@ for a permission answer (cause INFERRED in the ledger).
 - Only links the branch adds or changes are checked; a link already on main is not.
 - Tracked symlinks only; untracked ones never reach a land.
 - A link that stays inside the worktree can still point at a file the agent should not write; the rule checks the path boundary only.
-- The VERDICT kind is the existing `scope` (exit 12); a new kind would change the Lean exit table for one rule.
+- The VERDICT kind is the existing `scope` (exit 12); a new kind would change the Lean exit table.

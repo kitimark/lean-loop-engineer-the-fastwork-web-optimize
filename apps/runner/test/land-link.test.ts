@@ -1,5 +1,3 @@
-// Task scratch-link-check (Lean Fw.Ops.LandLink, op ops.landLink; incident inc-scratch-symlink-wait): the golden rows replay through fwcore,
-// the added links are read from git (a temp repo with one escaping and one inside link), and fw land --dry refuses an escaping link.
 import "./land-timeout.ts";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
