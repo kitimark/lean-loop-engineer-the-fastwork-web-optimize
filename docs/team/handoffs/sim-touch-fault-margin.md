@@ -18,7 +18,7 @@ Branch `worktree-wf_8b157c2a-318-1`; CI branch `ci/sim-touch-fault-margin` at 8c
 - Caps: derived sim row (`basis:"bound"`, measured 17 jobs, p90 39.2 min). Touch-lock `planLock`. Note section written.
 
 ## Open
-- Size the next matrix at 12 jobs from `lateRate` (Lean `late_jobs`); this task keeps 10, the source it names.
+- Size the next matrix at 12 jobs from `lateRate` (Lean `late_jobs`); this task keeps 10 from `planRate` (run 2, 2 of 5); the 10 jobs of runs 1 and 2 give 21 (`pooled_jobs`).
 - Find why the driver start fails (6 of 10 jobs): host load during `xcodebuild test-without-building`?
 - The refreshed window budget has not run on CI.
 
