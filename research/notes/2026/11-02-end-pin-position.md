@@ -30,7 +30,7 @@ The pin stored a lock in 4 of 43 runs here (4 of 29 before), so `lockedCmp` rank
 ## Faults of this run
 
 - **Dominant fault by count: the touch driver's push server not ready after 480 s (MEASURED, `touch.why` in `job{3,4,5,7,11}`).** Named `touch-driver-not-ready` in jobs 5 and 7 (0 windows) and `lost-mid-walk: restart failed: push server: no ready file after 480 s` in jobs 3, 4, 11 (18, 14, 18 windows kept). Job 9 hit the same restart failure after its 24 windows. Jobs 1 and 8 ended on the walk deadline (16 and 13 windows, no fault name).
-- **The 480 s wait (`readyMs: READY_ALLOW_MS` on both `startServer` paths) did not remove the fault.** Before, 4 of 12 jobs ended at the 240 s default (jobs 3, 7, 8, 12); now 2 jobs have no windows (5, 7), 3 are cut after a restart, with the same message at 480 s. The wait lengthened the failing jobs; that the server needs more than 480 s or never comes up is not told by this run (INFERRED: a 240 s wait would have ended the same jobs earlier).
+- **The 480 s wait (`readyMs: READY_ALLOW_MS` on both `startServer` paths) did not remove the fault.** Before, 4 of 12 jobs ended at the 240 s default (jobs 3, 7, 8, 12); now 2 jobs have no windows (5, 7), 3 are cut after a restart, with the same message at 480 s. The wait lengthened the failing jobs; this run does not show whether the server needs more than 480 s or never starts (INFERRED: a 240 s wait would have ended the same jobs earlier).
 - Jobs started with results: 10 of 12 (all but 5 and 7). Smoothness run state `failed` because jobs 5 and 7 did not succeed.
 
 ## Lean, in this task
@@ -42,7 +42,7 @@ The pin stored a lock in 4 of 43 runs here (4 of 29 before), so `lockedCmp` rank
 
 ## Limits and follow-ups
 
-- The tolerance 10 px and margin 3 are chosen, not measured; the sensitivity to other tolerances was not run (not measured).
+- The tolerance 10 px and margin 3 are chosen, not measured; the sensitivity to other tolerances was not run.
 - 5 of 8 decisive jobs is not enough under `agreeNeeded`; a third dispatch of the same lane would not be run here (2 allowed, 1 used; the driver fault, not the sample, costs the decisive jobs: 4 of 12 jobs undecided).
 - The driver fault at 480 s needs its own task; the cause (cold Xcode test host on the shared runner, a stuck first launch) is not established.
 - Results: `results/end-pin-position/run-41380162402/across.md` (rest table last), `pooled.md`, per-job `touch-lock.json`.

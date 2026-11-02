@@ -1,5 +1,5 @@
 branch: worktree-wf_871d2df0-421-1 (CI branch ci/end-pin-position)
-worktree: .claude/worktrees/wf_871d2df0-421-1 (under the repo checkout)
+worktree: .claude/worktrees/wf_871d2df0-421-1
 last commit: see `git log -1` on the branch (CI trigger commit 04e6cdb3d; the results commit follows it)
 CI run 41380162402 (smoothness, touch-lock lane, 12 jobs, 3 waves): failed (jobs 5 and 7 touch-driver-not-ready), dispatch 1 of 2 used, results downloaded
 earlier run 41369102226 (end-pin-rank): failed, read offline with the new rule
