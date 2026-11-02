@@ -923,6 +923,18 @@ theorem settle_before_lift_case : settle10 (some 137750) 52270 [(50000, 100000),
 
 theorem settle_after_lift_case : settle10 (some 100000) 52270 [(50000, 100000), (51000, 150000), (52270, 300000), (52270, 400000)] = some 200000 := by decide
 
+def rJobs41380162402 : List (RestTally × RestTally) :=
+  [(⟨3, 3⟩, ⟨1, 2⟩), (⟨3, 6⟩, ⟨6, 6⟩), (⟨3, 4⟩, ⟨4, 4⟩), (⟨1, 2⟩, ⟨3, 3⟩), (⟨0, 0⟩, ⟨0, 0⟩), (⟨4, 5⟩, ⟨6, 6⟩),
+   (⟨0, 0⟩, ⟨0, 0⟩), (⟨1, 3⟩, ⟨4, 4⟩), (⟨2, 5⟩, ⟨6, 6⟩), (⟨2, 6⟩, ⟨5, 6⟩), (⟨2, 5⟩, ⟨4, 4⟩), (⟨4, 5⟩, ⟨5, 6⟩)]
+
+theorem rank_41380162402_decisive : restDecisive (restJobs rJobs41380162402 (List.replicate 12 0)) = 8 := by decide
+
+theorem rank_41380162402_clear : acrossRest (restJobs rJobs41380162402 (List.replicate 12 0)) = .same := by decide
+
+theorem restCmp_run_41380162402 : rJobs41380162402.map (fun (b, p) => restCmp b p) =
+    [.undecided, .pinBetter, .same, .undecided, .undecided, .same, .undecided, .pinBetter, .pinBetter, .pinBetter,
+     .pinBetter, .same] := by decide
+
 theorem restCmp_margin_edge : restCmp ⟨1, 3⟩ ⟨2, 3⟩ = .pinBetter ∧ restCmp ⟨3, 6⟩ ⟨4, 6⟩ = .same := by decide
 
 theorem restCmp_run_41369102226 : rJobs41369102226.map (fun (b, p) => restCmp b p) =
@@ -1159,6 +1171,7 @@ def restAcrossCases : List (String × List RestJob) := [
   ("run 41369102226, every pin live", restJobs rJobs41369102226 (List.replicate 7 1)),
   ("run 41369102226, two jobs live", restJobs rJobs41369102226 [1, 0, 0, 1, 0, 0, 0]),
   ("run 41369102226, four better jobs live", restJobs rJobs41369102226 [1, 0, 0, 1, 1, 1, 0]),
+  ("run 41380162402, no live write", restJobs rJobs41380162402 (List.replicate 12 0)),
   ("three worse jobs, live writes do not hide them", [⟨.pinWorse, 2⟩, ⟨.pinWorse, 0⟩, ⟨.pinWorse, 1⟩]),
   ("a split", [⟨.pinBetter, 0⟩, ⟨.pinWorse, 0⟩, ⟨.pinBetter, 0⟩]),
   ("all undecided", List.replicate 5 ⟨.undecided, 0⟩),
