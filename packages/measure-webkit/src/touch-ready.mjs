@@ -6,6 +6,9 @@ export const GATE = Object.freeze({ exitWaitMs: 120000, checks: 2, gapMs: 30000,
 export const RESTART_ALLOW_MS = 700000;
 export const GATE_OVERLAP = 'driver-restart-overlap';
 export const GATE_UNSURE = 'driver-restart-device-unsure';
+export const RESET_CALL_MS = 15000;
+export const RESET_LATE = 'driver-restart-reset-late';
+export const RESET_FAILED = 'driver-restart-reset-failed';
 
 export const LAUNCH_FAULTS = Object.freeze({ launchStuck: 'driver-launch-stuck', bodyStuck: 'driver-body-stuck', ended: 'driver-ended' });
 export const STOP_LATE_BODY = 'driver-stop-late-body';
@@ -28,6 +31,18 @@ export function gateStep(g, exited, waitedMs, deviceOk, checked) {
   if (!deviceOk && checked < g.checks) return 'recheck';
   const names = [...(exited ? [] : [GATE_OVERLAP]), ...(deviceOk ? [] : [GATE_UNSURE])];
   return names.length ? `launch:${names.join(',')}` : 'launch';
+}
+
+export const resetAct = (act) => (act === 'launch' || (act.startsWith('launch:') && !act.slice(7).split(',').includes(GATE_OVERLAP)) ? 'run' : 'skip');
+
+export const callEnd = (timedOut, code, nothingToTerminate) => (timedOut ? 'late' : code === 0 ? 'ended' : nothingToTerminate ? 'absent' : 'failed');
+
+export const resetNames = (ends) => [...(ends.includes('late') ? [RESET_LATE] : []), ...(ends.includes('failed') ? [RESET_FAILED] : [])];
+
+export function nameWith(act, ends) {
+  const names = resetAct(act) === 'run' ? resetNames(ends) : [];
+  if (!names.length) return act;
+  return act === 'launch' ? `launch:${names.join(',')}` : `${act},${names.join(',')}`;
 }
 
 const reached = (x, at) => x != null && x <= at;
@@ -67,10 +82,9 @@ export const firstStart = (snap) => snap.touch?.launches?.find((e) => e.tag === 
 /**
  * Drive the driver launches until one is ready or the launches are used. `start(n)` begins launch n and returns a handle
  * {exited: Promise, state: {ended, code}, kill()}; `look(h)` returns {alive, ready}. Everything timed comes in through `now` and `sleep`.
- * Resolves {handle, launches}; the handle is null when no launch became ready. Each record: {n, fault, ms, aliveAt, readyAt}.
+ * Each record is pushed into `launches` (given or new) when its launch begins, so a caller that keeps the array sees a launch in flight. Resolves {handle, launches}; the handle is null when no launch became ready. Each record: {n, fault, ms, aliveAt, readyAt}.
  */
-export async function launchUntilReady({ start, look, now, sleep, cfg = READY_CFG, pollMs = 250, log = () => {}, onCut = null }) {
-  const launches = [];
+export async function launchUntilReady({ start, look, now, sleep, cfg = READY_CFG, pollMs = 250, log = () => {}, onCut = null, launches = [] }) {
   for (let n = 1; n <= cfg.launches; n++) {
     const handle = start(n);
     const t0 = now();

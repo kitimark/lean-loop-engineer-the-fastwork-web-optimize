@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { findDriver, serve } from './throttle/driver.mjs';
 import { sleep } from './sim.mjs';
-import { LAUNCH_FAULTS, READY_CFG, GATE, launchUntilReady, stopStep, gateStep, bodyEndedIn } from './touch-ready.mjs';
+import { LAUNCH_FAULTS, READY_CFG, GATE, RESET_CALL_MS, launchUntilReady, stopStep, gateStep, bodyEndedIn, resetAct, callEnd, nameWith } from './touch-ready.mjs';
 
 export const TOUCH_PUSH = Object.freeze({ dragPt: 300, velocity: 600, holdMs: 1000 });
 
@@ -102,7 +102,7 @@ export async function simctlAnswers(timeoutMs = GATE.probeMs) {
  * Resolves {dir, run, next, launches}; throws after the last launch with `.launches` and `.fault` set.
  * `onLaunched` is called once, right after the first launch is spawned (a restart starts its host probes there).
  */
-export async function startServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, tag = 'serve', suite = 'PushServer', cfg = READY_CFG, onLaunched = null }) {
+export async function startServer(driver, { udid, log = () => {}, push = TOUCH_PUSH, maxS = 2400, tag = 'serve', suite = 'PushServer', cfg = READY_CFG, onLaunched = null, records = null }) {
   const t0 = Date.now();
   const dirs = [];
   const start = (n) => {
@@ -115,7 +115,7 @@ export async function startServer(driver, { udid, log = () => {}, push = TOUCH_P
   const logged = (h) => { try { return statSync(h.run.logFile).size > 0; } catch { return false; } };
   const look = (h) => ({ alive: existsSync(join(h.dir, 'alive')), ready: existsSync(join(h.dir, 'ready')), logged: logged(h) });
   const onCut = (rec, h) => { rec.top = hostTop(); rec.health = hostHealth(); rec.tail = logTail(h.run.logFile)?.slice(-600) ?? null; };
-  const got = await launchUntilReady({ start, look, now: Date.now, sleep, cfg, log, onCut });
+  const got = await launchUntilReady({ start, look, now: Date.now, sleep, cfg, log, onCut, launches: records ?? [] });
   if (got.handle) {
     for (const d of dirs) if (d !== got.handle.dir) rmSync(d, { recursive: true, force: true });
     const rec = got.launches[got.launches.length - 1];
@@ -212,6 +212,41 @@ export async function restartGate(server, { gate = GATE, check = null, probe = n
     if (server.stopTrace) server.stopTrace.gate = { act, waitedMs: waited, checked, ...(sim == null ? {} : { sim }), ...(err ? { err } : {}) };
     return act;
   }
+}
+
+export const DRIVER_APPS = Object.freeze(['dev.fastwork-study.throttle-driver.xctrunner', 'dev.fastwork-study.throttle-host']);
+
+/** One `simctl terminate` of `bundle`, ended within `timeoutMs`; resolves {app, end, ms} with `end` one of Lean `callEnd` (ended, absent, late, failed) and never rejects. */
+export function terminateApp(udid, bundle, timeoutMs = RESET_CALL_MS) {
+  const t0 = Date.now();
+  return new Promise((resolve) => {
+    execFile('xcrun', ['simctl', 'terminate', udid, bundle], { encoding: 'utf8', timeout: timeoutMs }, (e, out, err) => {
+      const timedOut = !!(e && (e.killed || e.signal));
+      const code = !e ? 0 : typeof e.code === 'number' ? e.code : 1;
+      resolve({ app: bundle, end: callEnd(timedOut, code, /found nothing to terminate/.test(`${err}${out}`)), ms: Date.now() - t0 });
+    });
+  });
+}
+
+/**
+ * The reset step between the restart gate and the launch (Lean `resetAct`, `nameWith`): when the old xcodebuild has exited, terminate the runner and the
+ * host app in the Simulator, both at once, each within the Lean call time. Resolves {act, ends}: `act` is the gate act with the reset faults named, and
+ * nothing is killed when the old xcodebuild is still alive (`ends` is empty then). Written to the stop trace as `reset`; never throws.
+ */
+export async function restartReset(server, act, { udid, apps = DRIVER_APPS, terminate = terminateApp, timer = sleep, callMs = RESET_CALL_MS, now = Date.now } = {}) {
+  if (resetAct(act) !== 'run') return { act, ends: [] };
+  const trace = server?.stopTrace;
+  const t0 = now();
+  if (trace) trace.reset = { state: 'running' };
+  const one = (app) => Promise.race([
+    Promise.resolve().then(() => terminate(udid, app, callMs)).catch(() => ({ app, end: 'failed', ms: now() - t0 })),
+    timer(callMs).then(() => ({ app, end: 'late', ms: callMs })),
+  ]);
+  const got = await Promise.all(apps.map(one));
+  const ends = got.map((g) => g.end);
+  const named = nameWith(act, ends);
+  if (trace) trace.reset = { state: 'done', ms: now() - t0, calls: got.map((g) => ({ app: g.app, end: g.end, ms: g.ms })), act: named };
+  return { act: named, ends };
 }
 
 export async function touchWindow(c, { server, pageJs, variant = 'springboard', budget = TOUCH_BUDGET, pollMs = 500 }) {

@@ -3,7 +3,7 @@ import { loadFresh, pageInfo } from './page.mjs';
 import { findDevice, probeInspector, sleep } from './sim.mjs';
 import { reconnect } from './wip.mjs';
 import { attempts } from './timeouts.mjs';
-import { openDriver, startServer, stopServer, probeStop, restartGate, simctlAnswers, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
+import { openDriver, startServer, stopServer, probeStop, restartGate, restartReset, simctlAnswers, touchWindow, touchCountJs, TOUCH_BUDGET, laneAfter, logTail, variantFor } from './touch-push.mjs';
 import { runCheck } from '../../gate-breakpoints/src/trajectory/reduce.mjs';
 import { READY_CFG, RESTART_CFG } from './touch-ready.mjs';
 import { startsWindow, untilDeadline, WINDOW_RESERVE_MS, REPS_WANT, planReps, repsLife, outcome, driverEnd } from './walk-budget.mjs';
@@ -31,16 +31,23 @@ export function armTrees(siteDir) {
 
 export const armPath = (siteDir, id) => '/' + (armTrees(siteDir)[id]?.search ?? '');
 
-export async function beginServer(touch, { udid, log, push, start = startServer, why = (m) => m, onLaunched = null }) {
+export async function beginServer(touch, { udid, log, push, start = startServer, why = (m) => m, onLaunched = null, now = Date.now }) {
   const tag = serveTag(touch.restarts);
+  const entry = { tag, launches: [], inFlight: true, beganAt: now() };
+  touch.launches.push(entry);
   try {
-    touch.server = await start(touch.driver, { udid, log, push, tag, cfg: touch.restarts > 0 ? RESTART_CFG : READY_CFG, onLaunched });
-    touch.launches.push({ tag, launches: touch.server.launches ?? [] });
+    touch.server = await start(touch.driver, { udid, log, push, tag, cfg: touch.restarts > 0 ? RESTART_CFG : READY_CFG, onLaunched, records: entry.launches });
+    entry.launches = touch.server.launches ?? [];
   } catch (e) {
-    touch.launches.push({ tag, launches: e.launches ?? [], fault: e.fault ?? null });
+    entry.launches = e.launches ?? [];
+    entry.fault = e.fault ?? null;
     touch.on = false; touch.why = why(e.message);
   }
+  delete entry.inFlight;
+  delete entry.beganAt;
 }
+
+export const launchesView = (list, nowMs) => list.map((e) => (e.inFlight ? { ...e, inFlightMs: nowMs - e.beganAt } : e));
 
 export async function restartServer(touch, { udid, log, push, start = startServer, onLaunched = null }) {
   touch.restarts++;
@@ -69,7 +76,7 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
   const touch = { driver: opened.driver, on: !!opened.driver, why: opened.why, server: null, pushes: 0, restarts: 0, launches: [] };
   const snapshot = (incomplete) => {
     const out = { leg: 'sim-touch-lock', runtime: device.runtime, device: device.name, ua, reps, arms: ARMS, repPlan, fault, push, startGapPx: START_GAP_PX, tailMs: TAIL_MS,
-      touch: { on: touch.on, why: touch.on ? null : touch.why, restarts: touch.restarts, launches: touch.launches }, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows };
+      touch: { on: touch.on, why: touch.on ? null : touch.why, restarts: touch.restarts, launches: launchesView(touch.launches, Date.now()) }, incomplete, wallSeconds: Math.round((Date.now() - started) / 1000), rows };
     return { ...out, summary: summarize(rows) };
   };
 
@@ -98,6 +105,8 @@ export async function runTouchLock({ siteDir, push = PAN, reps: repsArg = 'auto'
         log(`touch-lock ${id} rep ${rep}: stalled (${got.outcome}); restarting the push server (${touch.restarts + 1} of ${MAX_RESTARTS})`);
         const act = old ? await restartGate(old, { check: () => ctx.check?.(), probe: async () => { const [p, sim] = await Promise.all([probeInspector({ urlPrefix: ctx.base }), simctlAnswers()]); return { ...p, sim }; } }) : 'launch';
         log(`touch-lock ${id} rep ${rep}: restart gate ${act}`);
+        const reset = old ? await restartReset(old, act, { udid: device.udid }) : { act, ends: [] };
+        if (reset.ends.length) log(`touch-lock ${id} rep ${rep}: restart reset ${reset.ends.join(', ')} -> ${reset.act}`);
         let probed = Promise.resolve();
         await restartServer(touch, { udid: device.udid, log, push, onLaunched: () => { probed = probeStop(old); } });
         await probed;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, writeFileSync, appendFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { READY_CFG, RESTART_CFG, STOP_LATE_TEARDOWN, GATE, RESTART_ALLOW_MS, GATE_OVERLAP, GATE_UNSURE, gateStep, launchUntilReady } from '../src/touch-ready.mjs';
+import { READY_CFG, RESTART_CFG, STOP_LATE_TEARDOWN, GATE, RESET_CALL_MS, RESTART_ALLOW_MS, GATE_OVERLAP, GATE_UNSURE, gateStep, launchUntilReady } from '../src/touch-ready.mjs';
 import { stopServer, probeStop, restartGate } from '../src/touch-push.mjs';
 
 const golden = readFileSync(new URL('../../contracts/golden/measure/touch-ready.jsonl', import.meta.url), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
@@ -15,7 +15,7 @@ test('the restart gate constants and gateStep replay the Lean golden, one case p
   assert.equal(RESTART_ALLOW_MS, g.restartAllowMs);
   assert.deepEqual([GATE_OVERLAP, GATE_UNSURE], g.gateNames);
   const waitMs = GATE.exitWaitMs + GATE.checks * GATE.probeMs + (GATE.checks - 1) * GATE.gapMs;
-  assert.equal(waitMs + RESTART_CFG.launches * (RESTART_CFG.launchMs + RESTART_CFG.killMs), g.restartMs);
+  assert.equal(waitMs + RESET_CALL_MS + RESTART_CFG.launches * (RESTART_CFG.launchMs + RESTART_CFG.killMs), g.restartMs);
   const cases = ofOp('gate');
   for (const c of cases) assert.equal(gateStep(GATE, c.exited, c.waitedMs, c.deviceOk, c.checked), c.act);
   for (const act of ['launch', 'wait-exit', 'recheck', `launch:${GATE_UNSURE}`, `launch:${GATE_OVERLAP}`, `launch:${GATE_OVERLAP},${GATE_UNSURE}`]) assert.ok(cases.some((c) => c.act === act), act);
