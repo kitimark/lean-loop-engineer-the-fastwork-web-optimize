@@ -1,9 +1,8 @@
-branch: worktree-wf_77bb82fa-fc7-1 (ci/waapi-scoped-webkit exists locally only: the push guard refused the push, it would start only lean)
+branch: worktree-wf_77bb82fa-fc7-1 (finisher round; no ci/* push, no CI run)
 worktree: .claude/worktrees/wf_77bb82fa-fc7-1
 last commit: see git log -1
-CI runs: none. `fw ci push --dry` says smoothness and trajectory-probe would not start (guard rule unchanged: no input differs from main).
-verified: WebKit source read (StyleInterpolation.cpp:256-265: custom properties are not accelerated); patch applies (git apply --check).
-verdict: closed negative finding for the iPhone lag, with fix requirements (note below).
-undelivered: Simulator counts per zone (Timeline is off in touch windows; counts only in the macOS WebKit leg) and the Simulator stale-class check.
-open (lead): dispatch commands in results/waapi-scoped-webkit/lead-commands.md; recorder.mjs patch (outside writes) in results/waapi-scoped-webkit/recorder-nav-class-sampler.patch; waapi-tail-drop decides the WebKit width tail.
+state: closed negative finding for morph.tween:waapi-scoped on WebKit. Lean why-module lean/Fw/Measure/WaapiScopedWebkit.lean (records_len_eq, scoped_subset, visited_le, fewer_visits_equal_records), ledger notes (3 rows, task waapi-scoped-webkit, entry morph.tween.waapiScoped), note updated.
+closed premises: Simulator counts (no Timeline in touch windows: sim-touch-reliable note :46-47, TouchPush.lean:77), stale class (fixed in source, MorphTweenOpt attr_band :774).
+verified: lake build of the module (no warnings); check.sh and dry land see the final report.
+open (lead): recorder patch results/waapi-scoped-webkit/recorder-nav-class-sampler.patch and lead-commands.md are the re-admission path; waapi-tail-drop decides the WebKit width tail.
 read first: research/notes/2026/10-2x-waapi-scoped-webkit.md

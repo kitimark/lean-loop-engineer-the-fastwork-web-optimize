@@ -2,16 +2,19 @@
 
 End-of-page GPU candidate 3. The flag `morph.tween:waapi-scoped` (Lean `MorphTweenOpt`) restyles 6.8 % fewer elements in
 Chromium. Real devices refuted it because it shares the waapi driver, which left the nav classes stale. This note decides
-whether a fixed driver is worth building. No CI run exists for this branch (below), so the two measurements are
-undelivered and the verdict rests on source (CONFIRMED lines, INFERRED consequences).
+whether a fixed driver is worth building. No CI run was made; the two Simulator items are closed as premises (Items) and the
+verdict rests on source (CONFIRMED lines, INFERRED consequences) and a Lean model.
 
 ## Items
 
 | Item | Status | Evidence |
 |---|---|---|
-| WebKit Simulator RecalculateStyles/Layout per finish zone, scoped vs base | undelivered | The push guard skips smoothness and trajectory-probe (no input differs from main); Simulator touch windows have the Timeline off, so a Simulator row has no counts. Commands: `results/waapi-scoped-webkit/lead-commands.md` |
-| Stale nav class reproduces in the Simulator | undelivered | The class publishing is fixed in source (see below); the recorder cannot see a mid-morph class. Patch: `results/waapi-scoped-webkit/recorder-nav-class-sampler.patch` |
+| WebKit Simulator RecalculateStyles/Layout per finish zone, scoped vs base | premise closed as finding | A Simulator touch window records no Timeline (`research/notes/2026/10-2x-sim-touch-reliable.md:46-47`, Lean `timelinePlan` `lean/Fw/Measure/TouchPush.lean:77`), so it has no record counts to compare; the record claim is the Lean model below |
+| Stale nav class reproduces in the Simulator | premise closed as finding | The class bug is fixed in source: `waapi.driver.ts` writes `data-fw-morph` at push, threshold crossings and settle; Lean `MorphTweenOpt.attr_band` (`lean/Fw/Parts/MorphTweenOpt.lean:774`), old failure `old_attr_stale` :813 |
 | Verdict | closed negative finding for the iPhone lag, with fix requirements | below |
+
+Lead decision: no CI dispatch. The two Simulator items are closed as premises with the reasons above, not measured. The
+recorder patch and `results/waapi-scoped-webkit/lead-commands.md` stay as the re-admission path.
 
 ## Premise check (CONFIRMED from source at HEAD)
 
@@ -59,3 +62,19 @@ Requirements if the lead still wants scoped re-admitted (each with its reason):
 
 - No Simulator or CI number was produced; the Simulator is not the phone in any case.
 - Point 2 and 3 are INFERRED from source; no WebKit timeline record count for scoped vs base exists yet.
+
+## Lean (why-module `lean/Fw/Measure/WaapiScopedWebkit.lean`)
+
+A model of one WebKit frame of the `--morph` tween over `StyleInterpolation.cpp:256-265` and `KeyframeEffect.cpp:1740-1768`
+(both @862f17d). `records accelerated visit` is one record when the property is not accelerated, none when it is.
+
+| Theorem | Says |
+|---|---|
+| `records_len_eq`, `records_len_one` | not accelerated: both arms have the same record count per frame (one) |
+| `records_accelerated` | accelerated: no main-thread record in either arm (the other branch; not the `--morph` case) |
+| `scoped_subset`, `scoped_avoids` | scoped visits a subset of base's elements and no platform element: the only change |
+| `visited_le` | scoped visits no more elements than base in a frame |
+| `fewer_visits_equal_records` | witness: fewer visits with equal records, so element count and record count are separate |
+
+The record-per-frame claim is a model over WebKit source, not a measurement; the real-device refutation stands. The
+ledger row is `morph.tween.waapiScoped` (notes of task `waapi-scoped-webkit`).
