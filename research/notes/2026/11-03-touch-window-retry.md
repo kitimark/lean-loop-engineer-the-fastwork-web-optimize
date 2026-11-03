@@ -29,7 +29,7 @@ jobs, concurrency 5, free runners. The Simulator is not the phone. One run is on
 ## Price before the run
 
 A window costs `bodyMs` 38 s (tail 383 s every 17th window in the budget; CONFIRMED, WalkBudget.lean bodyMs_value / tailMs_value / tailEvery_value); one redo costs one window. Redo needs the Simulator alive: a stalled window (pageLost, swipeLate, beginLate) is never redone.
-In the old data 323 of 2016 planned windows were noOpen or tooShort; they only count if the job lives to use the slack, and 501 windows were lost after a stall.
+MEASURED (touch-window-loss): in the old data 323 of 2016 planned windows were noOpen or tooShort; they only count if the job lives to use the slack, and 501 windows were lost after a stall.
 
 ## Result of run 41534838350 (MEASURED; classified by `window-loss-cli.mjs`, redo outcomes by `window-retry-cli.mjs`)
 
