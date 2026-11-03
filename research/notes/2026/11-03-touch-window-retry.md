@@ -47,7 +47,7 @@ Redo outcomes by name: recovered 5, noOpen 5, tooShort 1, lockMoved 0, failed 2,
 Redo time 2590 s in 8 jobs. Two redos (jobs 1 and 8) ended in `failed` and each cost 917 s and 1026 s of redo time: the redo hit a Simulator stall, restart needed about 308 s median.
 Job 1 ended with the inspector dead; job 8 still finished its 24 windows.
 
-Run state as `fw ci state` gives it: the run finished; the lane is partial by design (stall chain), 3 of 12 jobs complete (7, 8, 10) and 9 jobs `incomplete`.
+Run state as `fw ci state` gives it: `failed` (the lane is partial by design: 3 of 12 jobs complete, 7, 8 and 10; 9 jobs `incomplete`).
 
 ## Reading
 
