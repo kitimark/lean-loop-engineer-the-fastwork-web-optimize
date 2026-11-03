@@ -15,7 +15,7 @@ jobs, concurrency 5, free runners. The Simulator is not the phone. One run is on
 ## Rule (CONFIRMED, Lean)
 
 `lean/Fw/Measure/WindowRetry.lean`. A redo is one more try of a window the lane just recorded as `noOpen` or `tooShort` (status ok, refused by `touchlock.refusal`).
-`verdict` decides in this order: kept, notRedoable (stall, `lockMoved`, any non-ok status), already (one redo per window), noDriver, noTime, redo. Each branch has its own theorem.
+`verdict` decides in this order: kept, notRedoable (stall, `lockMoved`, any non-ok status), already (one redo per window), noDriver, noTime, redo.
 
 - The time gate is `redoFits dl now reserve left := now + blockMs (left + 1) + reserve <= dl`: the redo costs one window and the planned windows left still fit before `deadlineAt job`
   (2 400 000 ms) with the 30 s window reserve. `redo_inside_deadline` and `redo_start_bound` prove the planned walk stays inside the deadline after an admitted redo; `late_noRedo` proves none is admitted past it.

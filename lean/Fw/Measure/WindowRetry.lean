@@ -1,8 +1,5 @@
 import Lean.Data.Json
 import Fw.Measure.WindowLoss
-/-!
-# Fw.Measure.WindowRetry: redo a refused touch-lock window once, in place, inside the walk deadline
--/
 namespace Fw.Measure.WindowRetry
 
 open Fw.Measure.TouchLock (Refusal)
