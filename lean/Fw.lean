@@ -202,6 +202,7 @@ import Fw.Measure.MorphEndCount
 import Fw.Measure.TouchPush
 import Fw.Measure.TouchReady
 import Fw.Measure.WindowLoss
+import Fw.Measure.WindowRetry
 import Fw.Measure.PushCycle
 import Fw.Measure.Offscreen
 import Fw.Measure.OffscreenGolden
